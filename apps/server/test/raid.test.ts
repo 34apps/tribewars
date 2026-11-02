@@ -10,7 +10,7 @@ import {
   type SendResponse,
   type Units,
 } from '@clanfire/engine';
-import { HOUR, errorOf, makeApp, ok, register, trainRaiders, weakestAbandoned } from './helpers.ts';
+import { HOUR, battleOf, errorOf, makeApp, ok, register, trainRaiders, weakestAbandoned } from './helpers.ts';
 
 const sum = (r: Record<string, number>): number => Object.values(r).reduce((a, b) => a + b, 0);
 
@@ -24,7 +24,7 @@ test('full raid: attack, report, return movement, troops and loot come home', as
   assert.ok(protectedBefore > clock.now(), 'still under beginner protection');
 
   // ---- send --------------------------------------------------------------------------------
-  const sent = await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: 14 } });
+  const sent = await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: 14 }, mission: 'attack' });
   ok(sent, 201);
   const { village, movement } = sent.json<SendResponse>();
   assert.equal(village.state.troops.raider, 0);
@@ -81,7 +81,7 @@ test('full raid: attack, report, return movement, troops and loot come home', as
   assert.equal(report.read, true, 'opening a report marks it read');
   assert.equal(report.outcome, 'battle');
   assert.equal((await c.state()).unreadReports, 0);
-  const b = report.battle;
+  const b = battleOf(report);
   assert.equal(b.attackerWon, true);
   assert.deepEqual([b.attacker.villageId, b.attacker.ownerName, b.defender.villageId, b.defender.ownerName], [vid, 'raider_one', npc.id, null]);
   assert.equal(b.attackerUnits.raider, 14);
@@ -130,7 +130,7 @@ test('a lost raid: attacker sees no defence details and nobody comes home', asyn
   const vid = await trainRaiders(c, clock, 1);
   const npc = await weakestAbandoned(c, 12);
 
-  const sent = (await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: 1 } })).json<SendResponse>();
+  const sent = (await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: 1 }, mission: 'attack' })).json<SendResponse>();
   clock.set(sent.movement.arriveAt);
   const st = await c.state();
   assert.deepEqual(st.movements, [], 'no survivors, no return trip');
@@ -142,7 +142,7 @@ test('a lost raid: attacker sees no defence details and nobody comes home', asyn
 
   const list = (await c.get('/api/reports')).json<ReportListResponse>().reports;
   assert.deepEqual([list[0]?.side, list[0]?.won], ['attack', false]);
-  const b = (await c.get(`/api/reports/${list[0]?.id}`)).json<ReportDto>().battle;
+  const b = battleOf((await c.get(`/api/reports/${list[0]?.id}`)).json<ReportDto>());
   assert.equal(b.attackerWon, false);
   assert.equal(b.attackerLosses.raider, 1);
   assert.deepEqual([b.defenderUnits, b.defenderLosses, b.wallLevel], [null, null, null]);
@@ -157,7 +157,7 @@ test('attacking a player: protection rules, incoming view, both reports, protect
   const a = await register(app, 'alice', '10.0.0.1');
   const vidA = await trainRaiders(a, clock, 14);
   const vb = await b.village();
-  const send = () => a.post(`/api/villages/${vidA}/send`, { x: vb.x, y: vb.y, units: { raider: 14 } });
+  const send = () => a.post(`/api/villages/${vidA}/send`, { x: vb.x, y: vb.y, units: { raider: 14 }, mission: 'attack' });
 
   // Bob is still protected (7.2 h from his registration); Alice's army is ready.
   const bobUntil = (await b.state()).player.protectedUntil;
@@ -211,8 +211,8 @@ test('attacking a player: protection rules, incoming view, both reports, protect
   assert.equal((await b.state()).unreadReports, 1);
   assert.equal((await a.state()).unreadReports, 1);
 
-  const attackerCopy = (await a.get(`/api/reports/${ra.id}`)).json<ReportDto>().battle;
-  const defenderCopy = (await b.get(`/api/reports/${rb.id}`)).json<ReportDto>().battle;
+  const attackerCopy = battleOf((await a.get(`/api/reports/${ra.id}`)).json<ReportDto>());
+  const defenderCopy = battleOf((await b.get(`/api/reports/${rb.id}`)).json<ReportDto>());
   assert.equal(attackerCopy.defender.ownerName, 'bob');
   assert.equal(defenderCopy.attacker.ownerName, 'alice');
   assert.deepEqual(defenderCopy.loot, attackerCopy.loot);

@@ -86,11 +86,19 @@ function Strip() {
 }
 
 function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
-  const { tab: current, navigate, unreadReports, tribeInvites, movements } = useGame();
+  const { tab: current, navigate, unreadReports, tribeInvites, tribeAlerts, movements } = useGame();
   const active = current === tab;
   const incoming = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').length : 0;
-  const badge = tab === 'reports' ? unreadReports : tab === 'tribe' ? tribeInvites : incoming;
-  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'tribe' ? `${badge} ${badge === 1 ? 'invitation' : 'invitations'}` : `${badge} incoming`;
+  const badge = tab === 'reports' ? unreadReports : tab === 'tribe' ? tribeInvites + tribeAlerts : incoming;
+  const tribeLabel = [
+    tribeAlerts > 0 ? `${tribeAlerts} attack ${tribeAlerts === 1 ? 'alert' : 'alerts'}` : '',
+    tribeInvites > 0 ? `${tribeInvites} ${tribeInvites === 1 ? 'invitation' : 'invitations'}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'tribe' ? tribeLabel : `${badge} incoming`;
+  // Red for attacks (yours or your tribe's); invitations alone stay calm.
+  const danger = tab === 'army' || (tab === 'tribe' && tribeAlerts > 0);
   return (
     <button
       className={`tab tab-${variant}${active ? ' is-active' : ''}`}
@@ -100,7 +108,7 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
       <span className="tab-icon" aria-hidden="true">{TAB_ICON[tab]}</span>
       <span className="tab-label">{TAB_LABEL[tab]}</span>
       {badge > 0 && (
-        <span className={`badge${tab === 'army' ? ' badge-danger' : ''}`} aria-label={badgeLabel}>
+        <span className={`badge${danger ? ' badge-danger' : ''}`} aria-label={badgeLabel}>
           {badge > 99 ? '99+' : badge}
         </span>
       )}

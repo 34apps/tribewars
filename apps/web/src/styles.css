@@ -544,6 +544,7 @@ button.strip {
 }
 
 .main {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
@@ -2328,5 +2329,109 @@ button.strip {
 
   .btn:active:not(:disabled) {
     transform: none;
+  }
+}
+
+/* ---- Tribe warfare: missions, support, alerts, scout reports ------------------------------------- */
+
+.btn-tall {
+  min-height: 44px;
+}
+
+.link-touch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px 0;
+  padding: 0 2px;
+}
+
+/* Send form: mission selector and 44 px touch targets for the unit fields */
+.send-hint {
+  margin-top: -4px;
+}
+
+.send-units .input,
+.send-units .btn,
+.recall-form .input {
+  min-height: 44px;
+}
+
+/* Support troops (Army tab) and tribe alerts */
+.movement.is-support {
+  border-color: var(--ok);
+  background: var(--ok-bg);
+  box-shadow: inset 4px 0 0 var(--ok);
+}
+
+.movement.is-support .movement-title {
+  color: var(--ok);
+  font-weight: 800;
+}
+
+.movement-title .tag {
+  margin-right: 2px;
+}
+
+.stationed {
+  display: grid;
+  gap: 8px;
+}
+
+.stationed-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stationed-units {
+  font-weight: 700;
+}
+
+.stationed-actions,
+.alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alert-actions {
+  margin-top: 8px;
+}
+
+.recall-form {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-strong);
+}
+
+/* Reports: scout intel and support rows */
+.subtitle-small {
+  margin: 10px 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.table tr.group-row th {
+  padding-top: 10px;
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.table tr.support-row th {
+  padding-left: 14px;
+}
+
+/* Seven sub-tabs: the odd one out takes a full row instead of sitting alone in a third */
+@media (max-width: 599px) {
+  .subtab:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
   }
 }

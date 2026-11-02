@@ -2,7 +2,9 @@
 // JSON over HTTPS, session in an HttpOnly cookie. Errors: non-2xx with ApiError body.
 
 import type {
+  BuildingLevels,
   Coords,
+  Mission,
   DiplomacyKind,
   GameErrorCode,
   PlayerRelation,
@@ -72,19 +74,22 @@ export interface VillageRefDto extends Coords {
 }
 
 /**
- * origin/target follow the direction of travel: for an attack, origin = attacker's home and
- * target = attacked village; for a return, origin = the raided village and target = home.
+ * origin/target follow the direction of travel: for attack/scout/support, origin = the sender's home and
+ * target = the destination; for a return, origin = where the troops were and target = home.
  */
 export interface MovementDto {
   id: number;
-  kind: 'attack' | 'return';
-  /** outgoing = sent from or returning to one of my villages; incoming = an attack on one of my villages. */
+  kind: Mission | 'return';
+  /**
+   * outgoing = sent from or returning to one of my villages; incoming = an attack or support coming
+   * to one of my villages. Scout missions are never shown as incoming (they're stealthy).
+   */
   direction: 'outgoing' | 'incoming';
   origin: VillageRefDto;
   target: VillageRefDto;
   departAt: number;
   arriveAt: number;
-  /** Only for outgoing movements; hidden for incoming attacks. */
+  /** Outgoing movements and incoming support show units; incoming attacks hide them (null). */
   units: Units | null;
   /** Only on outgoing returns. */
   loot: Resources | null;
@@ -100,12 +105,30 @@ export interface GameStateResponse {
   unreadReports: number;
   /** Open tribe invitations addressed to me (badge on the Tribe tab). */
   tribeInvites: number;
+  /** Incoming attacks on any member of my tribe, me included (badge on the Tribe tab). 0 when tribeless. */
+  tribeAlerts: number;
+  /** Support troops: others' troops stationed in my villages, and my troops stationed elsewhere. */
+  stationed: { here: StationedDto[]; abroad: StationedDto[] };
+}
+
+/** A support contingent standing in someone else's village. */
+export interface StationedDto {
+  id: number;
+  /** The village the troops come from (their owner's home). */
+  home: VillageRefDto;
+  /** The village they are defending. */
+  host: VillageRefDto;
+  units: Units;
+  arrivedAt: number;
 }
 
 // ---- Village actions -----------------------------------------------------------
 // POST /api/villages/:id/build  body BuildRequest -> 200 OwnVillageDto
 // POST /api/villages/:id/train  body TrainRequest -> 200 OwnVillageDto
 // POST /api/villages/:id/send   body SendRequest  -> 201 SendResponse
+// Support troops (section 12):
+// POST /api/stationed/:id/recall     body RecallRequest -> 201 { movement: MovementDto }  (owner of the troops)
+// POST /api/stationed/:id/send-back  -> 201 { movement: MovementDto }  (owner of the host village; all units)
 
 export interface BuildRequest {
   building: string; // BuildingId; validated server-side
@@ -119,6 +142,17 @@ export interface TrainRequest {
 export interface SendRequest extends Coords {
   /** Target tile; a village must stand there. */
   units: Partial<Units>;
+  /** attack (default rules), scout (Pathfinders only) or support (tribe-mates and allies only). */
+  mission: Mission;
+}
+
+export interface RecallRequest {
+  /** Units to bring home; omitted = all of them. */
+  units?: Partial<Units>;
+}
+
+export interface MovementResponse {
+  movement: MovementDto;
 }
 
 export interface SendResponse {
@@ -164,8 +198,10 @@ export interface ReportSummaryDto {
   createdAt: number;
   /** e.g. "Raid on Abandoned village (12|-40)". */
   title: string;
-  /** attack = I attacked; defense = I was attacked. */
-  side: 'attack' | 'defense';
+  /** attack = I sent the troops; defense = my village was the target; support = my stationed troops were involved. */
+  side: 'attack' | 'defense' | 'support';
+  /** battle = attack (or called off); scout = scouting mission; support = support turned back on arrival. */
+  type: 'battle' | 'scout' | 'support';
   /** From the report owner's point of view. Always false for a called-off attack. */
   won: boolean;
   read: boolean;
@@ -190,12 +226,45 @@ export interface BattleReportData {
   /** Hidden (null) from the attacker if no attacker survived. */
   defenderUnits: Units | null;
   defenderLosses: Units | null;
+  /** Totals of all stationed support that fought (null when none, or hidden like defenderUnits). */
+  supportUnits: Units | null;
+  supportLosses: Units | null;
   wallLevel: number | null;
   loot: Resources;
 }
 
+export interface ScoutReportData {
+  scout: VillageRefDto;
+  target: VillageRefDto;
+  success: boolean;
+  scoutsSent: number;
+  scoutsLost: number;
+  /** Defending Pathfinders (own + support). Shown to the defender always; to the sender only on success. */
+  defenderScouts: number | null;
+  defenderScoutsLost: number;
+  /** What the scouts saw — sender's report on success only; null otherwise. */
+  intel: {
+    resources: Resources;
+    buildings: BuildingLevels;
+    /** Troops at home, own + stationed support. */
+    troops: Units;
+    wallLevel: number;
+  } | null;
+}
+
+export interface SupportReportData {
+  /** Why the support didn't stay. v1: the target stopped being a tribe-mate or ally while they marched. */
+  reason: 'relation_changed';
+  home: VillageRefDto;
+  host: VillageRefDto;
+  units: Units;
+}
+
+/** Exactly one of battle / scout / support is set, matching `type`. */
 export interface ReportDto extends ReportSummaryDto {
-  battle: BattleReportData;
+  battle: BattleReportData | null;
+  scout: ScoutReportData | null;
+  support: SupportReportData | null;
 }
 
 export interface ReportListResponse {
@@ -223,6 +292,7 @@ export interface ReportListResponse {
 //   POST /api/tribe/diplomacy          body DiplomacyRequest -> 201 MyTribeResponse
 //   POST /api/tribe/diplomacy/proposals/:id/accept | /decline | /withdraw -> 200 MyTribeResponse
 //   POST /api/tribe/diplomacy/relations/:id/cancel -> 200 MyTribeResponse
+//   GET  /api/tribe/alerts             -> 200 TribeAlertsResponse (incoming attacks on members, soonest first)
 //   GET  /api/tribe/chat?after=<messageId> -> 200 ChatResponse (oldest first; last 100 when no `after`)
 //   POST /api/tribe/chat               body ChatRequest -> 201 ChatMessageDto
 // The invited / applying player (works when tribeless):
@@ -378,4 +448,18 @@ export interface ChatResponse {
 
 export interface ChatRequest {
   text: string;
+}
+
+/** An attack on its way to a tribe member's village (scouts are not shown — they're stealthy). */
+export interface TribeAlertDto {
+  movementId: number;
+  target: VillageRefDto;
+  attacker: VillageRefDto;
+  attackerTribeTag: string | null;
+  departAt: number;
+  arriveAt: number;
+}
+
+export interface TribeAlertsResponse {
+  alerts: TribeAlertDto[];
 }

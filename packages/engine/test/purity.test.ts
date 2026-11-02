@@ -8,12 +8,17 @@ import {
   applySend,
   applyTrain,
   checkBuild,
+  checkMission,
   checkSend,
+  cloneVillage,
   checkTrain,
   createNpcVillage,
   netProductionPerHour,
+  normalizeUnits,
+  normalizeVillage,
   productionPerHour,
   resolveBattle,
+  resolveScouting,
   settleVillage,
   trainTimeMs,
   upkeepPerHour,
@@ -58,6 +63,31 @@ describe('inputs are never mutated', () => {
     applyBattleToDefender(npc, result);
     settleVillage(npc, 100 * HOUR, S1);
     assert.deepEqual(npc, createNpcVillage(3, 0));
+  });
+
+  it('battle with support contingents', () => {
+    const host = deepFreeze(village({ troops: { pikeman: 10 }, buildings: { wall: 3 } }));
+    const support = deepFreeze([units({ pikeman: 20 }), units({ guard: 5, pathfinder: 1 })]);
+    const attackers = deepFreeze(units({ raider: 40 }));
+    const result = resolveBattle({ attackerUnits: attackers, defender: host, support, seed: 3 });
+    deepFreeze(result);
+    applyBattleToDefender(host, result);
+    for (const losses of result.supportLosses) applyAttackerLosses(village({ away: { pikeman: 20, guard: 5 } }), losses);
+    assert.notEqual(result.supportLosses[0], support[0]);
+    assert.equal(support[0]?.pikeman, 20);
+  });
+
+  it('scouting, missions and normalisation', () => {
+    const input = deepFreeze({ scouts: 5, defenderScouts: 2 });
+    assert.deepEqual(resolveScouting(input), resolveScouting(input));
+    checkMission('scout', deepFreeze(units({ pathfinder: 2 })));
+    checkMission('attack', deepFreeze(units({ raider: 2 })));
+    const v = base();
+    const snapshot = structuredClone(v);
+    normalizeVillage(v);
+    cloneVillage(v);
+    normalizeUnits(v.troops);
+    assert.deepEqual(v, snapshot);
   });
 
   it('returned states are fresh objects', () => {

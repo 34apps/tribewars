@@ -1,6 +1,6 @@
 // How a village relates to the viewer: map colours, labels and the words used in panels.
 
-import type { DiplomacyKind, PlayerRelation, TribeRole } from '@clanfire/engine';
+import type { DiplomacyKind, Mission, PlayerRelation, TribeRole } from '@clanfire/engine';
 
 /** PlayerRelation plus 'abandoned' (villages without an owner). */
 export type RelationKey = PlayerRelation | 'abandoned';
@@ -25,12 +25,19 @@ export const RELATION_STYLE: Record<RelationKey, RelationStyle> = {
 
 export const LEGEND_ORDER: readonly RelationKey[] = ['self', 'tribe', 'ally', 'nap', 'enemy', 'neutral', 'abandoned'];
 
-/** Why Send is hidden for a village; null when attacking is allowed. */
+/** Why attacking and scouting are unavailable for a village; support may still be possible (tribe, ally). */
 export const ATTACK_BLOCKED_TEXT: Partial<Record<PlayerRelation, string>> = {
   self: 'This is your own village.',
-  tribe: 'Your tribe-mate: you cannot attack members of your own tribe.',
-  ally: 'Your ally: attacks are blocked while the alliance holds.',
-  nap: 'Non-aggression pact: attacks are blocked while the pact holds.',
+  tribe: 'Your tribe-mate: attacks and scouting are blocked. You can send support.',
+  ally: 'Your ally: attacks and scouting are blocked while the alliance holds. You can send support.',
+  nap: 'Non-aggression pact: attacks and scouting are blocked while the pact holds.',
+};
+
+/** One line under the mission selector. */
+export const MISSION_HINT: Record<Mission, string> = {
+  attack: 'Fight for loot. Survivors carry what they can home.',
+  scout: 'Pathfinders only. They report troops, buildings and resources, then come home.',
+  support: 'Troops stay and defend this village until recalled or sent back.',
 };
 
 export const DIPLOMACY_NAME: Record<DiplomacyKind, string> = {

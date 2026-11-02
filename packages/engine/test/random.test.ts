@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { distance, emptyResources, emptyUnits, hashSeed, mulberry32, totalUnits } from '../src/index.ts';
+import { UNIT_IDS, distance, emptyResources, emptyUnits, hashSeed, mulberry32, totalUnits } from '../src/index.ts';
 
 describe('random', () => {
   it('mulberry32 is deterministic, in [0,1) and matches the reference sequence', () => {
@@ -37,8 +37,10 @@ describe('math helpers', () => {
     assert.equal(distance({ x: -2, y: -2 }, { x: -2, y: -2 }), 0);
   });
   it('empty containers have every key at zero', () => {
-    assert.deepEqual(Object.values(emptyUnits()), [0, 0, 0, 0, 0]);
+    assert.deepEqual(Object.values(emptyUnits()), [0, 0, 0, 0, 0, 0]);
+    assert.deepEqual(Object.keys(emptyUnits()), [...UNIT_IDS]);
     assert.deepEqual(emptyResources(), { wood: 0, food: 0, iron: 0, gold: 0 });
-    assert.equal(totalUnits({ pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5 }), 15);
+    assert.equal(totalUnits({ pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5, pathfinder: 6 }), 21);
+    assert.equal(totalUnits({ pikeman: 1, knight: 5 }), 6); // a missing key counts as 0
   });
 });

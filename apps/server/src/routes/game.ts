@@ -2,12 +2,15 @@ import type { FastifyInstance } from 'fastify';
 import {
   BUILDING_IDS,
   MAX_TRAIN_BATCH,
+  MISSIONS,
   MAX_UNIT_COUNT,
   UNIT_IDS,
   type BuildRequest,
   type GameStateResponse,
   type MapResponse,
+  type MovementResponse,
   type OwnVillageDto,
+  type RecallRequest,
   type SendRequest,
   type SendResponse,
   type TrainRequest,
@@ -43,15 +46,25 @@ const trainBody = {
   },
 } as const;
 
+const unitsObject = { type: 'object', additionalProperties: false, properties: unitCounts } as const;
+
 const sendBody = {
   type: 'object',
-  required: ['x', 'y', 'units'],
+  required: ['x', 'y', 'units', 'mission'],
   additionalProperties: false,
   properties: {
     x: COORD,
     y: COORD,
-    units: { type: 'object', additionalProperties: false, properties: unitCounts },
+    units: unitsObject,
+    mission: { type: 'string', enum: [...MISSIONS] },
   },
+} as const;
+
+// `units` omitted = bring everybody home. A request without any body counts as `{}` (see the route's preValidation).
+const recallBody = {
+  type: 'object',
+  additionalProperties: false,
+  properties: { units: unitsObject },
 } as const;
 
 // Query values are strings (type coercion is off globally); the handler turns them into integers.
@@ -85,7 +98,37 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/send',
     { ...auth, schema: { params: idParams, body: sendBody } },
     async (req, reply): Promise<SendResponse> => {
-      const res = ctx.game.send(playerOf(req), Number(req.params.id), req.body.x, req.body.y, req.body.units, req.nowMs);
+      const { x, y, units, mission } = req.body;
+      const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs);
+      void reply.code(201);
+      return res;
+    },
+  );
+
+  // ---- support troops standing in a village (section 12) --------------------------------------------------
+
+  app.post<{ Params: { id: string }; Body: RecallRequest }>(
+    '/api/stationed/:id/recall',
+    {
+      ...auth,
+      // The JSON parser hands over `undefined` for an empty body, which the object schema would refuse.
+      preValidation: async (req) => {
+        if (req.body === undefined) (req as { body: unknown }).body = {};
+      },
+      schema: { params: idParams, body: recallBody },
+    },
+    async (req, reply): Promise<MovementResponse> => {
+      const res = ctx.game.recall(playerOf(req), Number(req.params.id), req.body.units, req.nowMs);
+      void reply.code(201);
+      return res;
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/stationed/:id/send-back',
+    { ...auth, schema: { params: idParams } },
+    async (req, reply): Promise<MovementResponse> => {
+      const res = ctx.game.sendBack(playerOf(req), Number(req.params.id), req.nowMs);
       void reply.code(201);
       return res;
     },

@@ -249,6 +249,7 @@ describe('applying battle results', () => {
     attackerSurvivors: units({}),
     defenderUnits: units({}),
     defenderLosses: units({}),
+    supportLosses: [],
     loot: emptyResources(),
     ...over,
   });

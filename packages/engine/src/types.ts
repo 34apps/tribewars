@@ -23,11 +23,19 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
-/** Unit counts. Every UnitId is always present (0 when none) to keep arithmetic simple. */
+/**
+ * Unit counts. Every UnitId is always present (0 when none) to keep arithmetic simple.
+ * Data saved before a unit existed lacks its key: pass loaded states through `normalizeVillage`
+ * (and loose unit maps through `normalizeUnits`) before use.
+ */
 export type Units = Record<UnitId, number>;
+
+/** What a troop movement is for (docs/GAME_DESIGN.md section 12). */
+export const MISSIONS = ['attack', 'scout', 'support'] as const;
+export type Mission = (typeof MISSIONS)[number];
 
 /** Buildings that train units. */
 export type TrainingBuildingId = 'barracks' | 'stables';
@@ -206,6 +214,8 @@ export interface BattleInput {
   attackerUnits: Units;
   /** Defender village, already settled to the battle time. */
   defender: VillageState;
+  /** Support contingents stationed at the defender village (other players' troops); they fight too. */
+  support?: Units[];
   /** Deterministic luck: same seed, same result. */
   seed: number;
 }
@@ -218,9 +228,26 @@ export interface BattleResult {
   defensePower: number;
   attackerLosses: Units;
   attackerSurvivors: Units;
-  /** Defender units at home that took part. */
+  /** Defender units at home that took part (the village's own troops). */
   defenderUnits: Units;
   defenderLosses: Units;
+  /** Losses per support contingent, same order as `BattleInput.support` ([] when none). */
+  supportLosses: Units[];
   /** Resources taken from the defender (0s when the attacker lost). */
   loot: Resources;
+}
+
+export interface ScoutInput {
+  /** Pathfinders sent. */
+  scouts: number;
+  /** Pathfinders at the target: the village's own at home plus stationed support. */
+  defenderScouts: number;
+}
+
+export interface ScoutResult {
+  success: boolean;
+  /** Pathfinders the sender lost (all of them on failure). */
+  scoutLosses: number;
+  /** Defending pathfinders lost (0 on success: they were outnumbered and hid). */
+  defenderScoutLosses: number;
 }

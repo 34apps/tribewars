@@ -265,7 +265,7 @@ test('one player cannot act on, or read, another player\'s things', async () => 
 
   errorOf(await b.post(`/api/villages/${va.id}/build`, { building: 'lumber' }), 403, 'forbidden');
   errorOf(await b.post(`/api/villages/${va.id}/train`, { unit: 'pikeman', count: 1 }), 403, 'forbidden');
-  errorOf(await b.post(`/api/villages/${va.id}/send`, { x: vb.x, y: vb.y, units: { pikeman: 1 } }), 403, 'forbidden');
+  errorOf(await b.post(`/api/villages/${va.id}/send`, { x: vb.x, y: vb.y, units: { pikeman: 1 }, mission: 'attack' }), 403, 'forbidden');
   // Nothing happened to Alice's village.
   assert.equal(app.ctx.store.getVillage(va.id)?.state.buildQueue.length, 0);
 
@@ -285,7 +285,7 @@ test('send: target must be someone else\'s village; protected players are off li
   const b = await register(app, 'bob', '10.0.0.2');
   const va = await a.village();
   const vb = await b.village();
-  const send = (x: number, y: number, units: object = { raider: 1 }) => a.post(`/api/villages/${va.id}/send`, { x, y, units });
+  const send = (x: number, y: number, units: object = { raider: 1 }) => a.post(`/api/villages/${va.id}/send`, { x, y, units, mission: 'attack' });
 
   // Own village, and tiles with no village.
   errorOf(await send(va.x, va.y), 400, 'invalid_target');
@@ -307,8 +307,8 @@ test('send: target must be someone else\'s village; protected players are off li
   errorOf(await send(npc.x, npc.y, { raider: -1 }), 400, 'invalid_input');
   errorOf(await send(npc.x, npc.y, { wizard: 1 }), 400, 'invalid_input');
   errorOf(await send(npc.x, npc.y, { raider: 1.5 }), 400, 'invalid_input');
-  errorOf(await a.post(`/api/villages/${va.id}/send`, { x: npc.x, y: npc.y }), 400, 'invalid_input');
-  errorOf(await a.post(`/api/villages/${va.id}/send`, { x: 'a', y: npc.y, units: { raider: 1 } }), 400, 'invalid_input');
+  errorOf(await a.post(`/api/villages/${va.id}/send`, { x: npc.x, y: npc.y, mission: 'attack' }), 400, 'invalid_input');
+  errorOf(await a.post(`/api/villages/${va.id}/send`, { x: 'a', y: npc.y, units: { raider: 1 }, mission: 'attack' }), 400, 'invalid_input');
   assert.deepEqual((await a.state()).movements, []);
   await app.close();
 });

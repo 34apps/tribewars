@@ -9,9 +9,10 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   database is a single SQLite file that needs backups).
 - **World pace.** Default world speed 1 (slow, days-long game) vs a faster world (e.g. 3×).
 
-## Phase 3 — tribe warfare (next big piece)
-- Support troops to tribe-mates and allies (reinforcements that defend), recall/send back.
-- Shared incoming-attack alerts for the whole tribe; scouts and scout reports.
+## Next big pieces
+- **Redesign** in the style the owner picks from the style canvas (four directions, phone + desktop):
+  new visual system, unit/chieftain/advisor characters, building art, 2.5D isometric map. Web app
+  first (desktop + phone browsers); native app later. Tripo3D models possible later.
 - Tribe forum threads / mass message; player-to-player messages.
 
 ## Gameplay follow-ups
@@ -30,6 +31,8 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   running through `tsx` in production.
 - Add a Content-Security-Policy header (other security headers are in place).
 - Test map drag/pinch on a real phone (only simulated so far).
+- Warfare: support owners get no report when their stationed Pathfinders die to enemy scouts;
+  stationed troops stay when a relation breaks (by design for now — revisit after playtests).
 - Tribes: notify applicants when accepted/declined (now they see it on next poll); look-alike
   letters in tribe names (homoglyphs) aren't blocked; cache the tribe ranking if tribes grow to
   thousands; load the Tribe tab on demand (with an error boundary) to keep the first load small.

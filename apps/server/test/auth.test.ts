@@ -160,7 +160,7 @@ test('game routes require a session', async () => {
   }
   errorOf(await c.post('/api/villages/1/build', { building: 'hall' }), 401, 'unauthorized');
   errorOf(await c.post('/api/villages/1/train', { unit: 'pikeman', count: 1 }), 401, 'unauthorized');
-  errorOf(await c.post('/api/villages/1/send', { x: 0, y: 0, units: { pikeman: 1 } }), 401, 'unauthorized');
+  errorOf(await c.post('/api/villages/1/send', { x: 0, y: 0, units: { pikeman: 1 }, mission: 'attack' }), 401, 'unauthorized');
   // A forged or malformed cookie is no better than none.
   c.cookie = 'tw_session=' + 'A'.repeat(43);
   errorOf(await c.get('/api/state'), 401, 'unauthorized');

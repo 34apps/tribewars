@@ -14,6 +14,8 @@ import {
   WALL_BONUS_PER_LEVEL,
   WALL_DEFENSE_PER_LEVEL,
   checkTrain,
+  isAttackForbidden,
+  isSupportAllowed,
   netProductionPerHour,
   productionFromLevels,
   storageCapForLevel,
@@ -24,6 +26,9 @@ import type {
   BuildingLevels,
   CheckResult,
   GameErrorCode,
+  MapVillageKind,
+  Mission,
+  PlayerRelation,
   ResourceId,
   Resources,
   UnitId,
@@ -179,4 +184,17 @@ export function unitListText(units: Units): string {
   return UNIT_IDS.filter((u) => units[u] > 0)
     .map((u) => `${formatInt(units[u])} ${UNITS[u].name}`)
     .join(', ');
+}
+
+/**
+ * Missions that may be sent to a village, from the target's kind and relation to me. The server re-checks.
+ * Abandoned: attack, scout. Tribe/ally: support only. NAP and self: none. Enemy/neutral: attack, scout.
+ */
+export function allowedMissions(kind: MapVillageKind, relation: PlayerRelation | null): Mission[] {
+  if (kind === 'own') return [];
+  if (kind === 'abandoned' || relation === null) return ['attack', 'scout'];
+  const out: Mission[] = [];
+  if (!isAttackForbidden(relation)) out.push('attack', 'scout');
+  if (isSupportAllowed(relation)) out.push('support');
+  return out;
 }

@@ -7,23 +7,26 @@ import {
   UNITS,
   UNIT_IDS,
   checkTrain,
+  emptyUnits,
+  normalizeUnits,
   productionPerHour,
   trainTimeMs,
   upkeepPerHour,
 } from '@clanfire/engine';
-import type { MovementDto, TrainJob, TrainingBuildingId, UnitId, VillageRefDto } from '@clanfire/engine';
+import type { MovementDto, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Cost, ProgressBar } from '../components/ui.tsx';
-import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
+import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
-import { BUILDING_ICON, RESOURCE_ICON, UNIT_ICON } from '../icons.ts';
+import { BUILDING_ICON, MISSION_NAME, RESOURCE_ICON, UNIT_ICON } from '../icons.ts';
+import { useConfirm } from '../tribe/Confirm.tsx';
 import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
 function TroopsTable() {
   const { live, settings } = useGame();
-  const training: Record<UnitId, number> = { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0 };
+  const training = emptyUnits();
   for (const q of [live.trainQueues.barracks, live.trainQueues.stables]) for (const j of q) training[j.unit] += j.count - j.done;
   const upkeep = upkeepPerHour(live, settings);
   const farm = productionPerHour(live, settings).food;
@@ -69,11 +72,13 @@ function TroopsTable() {
 function VillageLink({ v }: { v: VillageRefDto }) {
   const { showOnMap } = useGame();
   return (
-    <button className="link" onClick={() => showOnMap(v.x, v.y)} title="Show on map">
+    <button className="link link-touch" onClick={() => showOnMap(v.x, v.y)} title="Show on map">
       {v.name} ({formatCoords(v.x, v.y)})
     </button>
   );
 }
+
+const KIND_TAG: Record<MovementDto['kind'], string> = { attack: 'tag-warn', scout: 'tag-info', support: 'tag-ok', return: 'tag-muted' };
 
 function MovementRow({ m }: { m: MovementDto }) {
   const { now, village, highlightMovementId } = useGame();
@@ -84,46 +89,58 @@ function MovementRow({ m }: { m: MovementDto }) {
   }, [highlighted]);
 
   const incoming = m.direction === 'incoming';
+  const attackIn = incoming && m.kind === 'attack';
+  const supportIn = incoming && m.kind === 'support';
   const other = m.origin.villageId === village.id ? m.target : m.origin;
   const left = m.arriveAt - now;
   const total = Math.max(1, m.arriveAt - m.departAt);
   const lootText = m.loot ? RESOURCE_IDS.filter((r) => (m.loot?.[r] ?? 0) > 0).map((r) => `${RESOURCE_ICON[r]} ${formatInt(m.loot?.[r] ?? 0)}`) : [];
+  const carriers = m.units ? UNIT_IDS.some((u) => (m.units?.[u] ?? 0) > 0 && UNITS[u].carry > 0) : false;
 
-  let title;
-  if (incoming) {
-    title = (
-      <>
-        <span aria-hidden="true">⚠️</span> Incoming attack from {m.origin.ownerName ? `${m.origin.ownerName}, ` : ''}
-        <VillageLink v={m.origin} />
-      </>
-    );
-  } else if (m.kind === 'attack') {
-    title = (
-      <>
-        <span aria-hidden="true">⚔️</span> Attacking <VillageLink v={other} />
-      </>
-    );
+  let label: string;
+  let tagClass: string;
+  let preposition = 'to';
+  if (attackIn) {
+    label = 'Incoming attack';
+    tagClass = 'tag-bad';
+    preposition = 'from';
+  } else if (supportIn) {
+    label = 'Incoming support';
+    tagClass = 'tag-ok';
+    preposition = 'from';
   } else {
-    title = (
-      <>
-        <span aria-hidden="true">↩️</span> Returning from <VillageLink v={other} />
-      </>
-    );
+    label = MISSION_NAME[m.kind];
+    tagClass = KIND_TAG[m.kind];
+    if (m.kind === 'return') preposition = 'from';
   }
+  const title = (
+    <>
+      <span className={`tag ${tagClass}`}>{label}</span> {preposition}{' '}
+      {incoming && m.origin.ownerName ? `${m.origin.ownerName}, ` : ''}
+      <VillageLink v={other} />
+    </>
+  );
+
+  let foot: string;
+  if (attackIn) foot = 'Army size unknown';
+  else foot = m.units ? unitListText(m.units) : '';
 
   return (
-    <li ref={ref} className={`movement${incoming ? ' is-incoming' : ''}${highlighted ? ' is-highlight' : ''}`}>
+    <li
+      ref={ref}
+      className={`movement${attackIn ? ' is-incoming' : ''}${supportIn ? ' is-support' : ''}${highlighted ? ' is-highlight' : ''}`}
+    >
       <div className="movement-head">
         <span className="movement-title">{title}</span>
         <span className="movement-time">
           <strong>{left > 0 ? formatDuration(left) : 'arriving…'}</strong>
         </span>
       </div>
-      <ProgressBar value={(now - m.departAt) / total} tone={incoming ? 'danger' : 'brand'} label="Movement progress" />
+      <ProgressBar value={(now - m.departAt) / total} tone={attackIn ? 'danger' : supportIn ? 'ok' : 'brand'} label="Movement progress" />
       <div className="movement-foot">
         <span>
-          {incoming ? 'Army size unknown' : m.units ? unitListText(m.units) : ''}
-          {m.kind === 'return' && (lootText.length > 0 ? <> · Loot: {lootText.join('  ')}</> : <> · No loot</>)}
+          {foot}
+          {m.kind === 'return' && (lootText.length > 0 ? <> · Loot: {lootText.join('  ')}</> : carriers ? <> · No loot</> : null)}
         </span>
         <span className="muted">arrives {formatClock(m.arriveAt, now)}</span>
       </div>
@@ -131,12 +148,15 @@ function MovementRow({ m }: { m: MovementDto }) {
   );
 }
 
+/** Incoming attacks first (most urgent), then incoming support, then my own troops; each by arrival. */
+function movementRank(m: MovementDto): number {
+  if (m.direction === 'incoming') return m.kind === 'attack' ? 0 : 1;
+  return 2;
+}
+
 function Movements() {
   const { movements } = useGame();
-  const sorted = [...movements].sort((a, b) => {
-    if (a.direction !== b.direction) return a.direction === 'incoming' ? -1 : 1;
-    return a.arriveAt - b.arriveAt;
-  });
+  const sorted = [...movements].sort((a, b) => movementRank(a) - movementRank(b) || a.arriveAt - b.arriveAt);
   return (
     <section className="card" aria-labelledby="mov-title">
       <h2 id="mov-title" className="card-title">Movements</h2>
@@ -149,6 +169,177 @@ function Movements() {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+// ---- Support (stationed troops) -----------------------------------------------------------------------
+
+function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onRecall: (units: Partial<Units>) => void }) {
+  const have = normalizeUnits(s.units);
+  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
+  const present = UNIT_IDS.filter((u) => have[u] > 0);
+  const chosen: Partial<Units> = {};
+  let total = 0;
+  for (const u of present) {
+    const n = Number(counts[u] ?? '');
+    const v = Number.isInteger(n) ? Math.max(0, Math.min(have[u], n)) : 0;
+    if (v > 0) {
+      chosen[u] = v;
+      total += v;
+    }
+  }
+  return (
+    <form
+      className="recall-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (total > 0 && !busy) onRecall(chosen);
+      }}
+    >
+      <ul className="send-units">
+        {present.map((u) => (
+          <li key={u}>
+            <label htmlFor={`recall-${s.id}-${u}`} className="send-label">
+              <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+              <span className="muted"> / {formatInt(have[u])}</span>
+            </label>
+            <input
+              id={`recall-${s.id}-${u}`}
+              className="input"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={have[u]}
+              step={1}
+              placeholder="0"
+              value={counts[u] ?? ''}
+              onChange={(e) => setCounts((c) => ({ ...c, [u]: e.target.value }))}
+            />
+            <button type="button" className="btn" onClick={() => setCounts((c) => ({ ...c, [u]: String(have[u]) }))}>
+              all
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button className="btn btn-primary btn-block" type="submit" disabled={total < 1 || busy}>
+        {total > 0 ? `Recall ${formatInt(total)} troops` : 'Choose troops to recall'}
+      </button>
+    </form>
+  );
+}
+
+function SupportPanel() {
+  const { stationed, now, refresh, toast } = useGame();
+  const { confirm, dialog } = useConfirm();
+  const [busy, setBusy] = useState(false);
+  const [recalling, setRecalling] = useState<number | null>(null);
+
+  async function act(fn: () => Promise<{ movement: MovementDto }>, okText: string) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fn();
+      setRecalling(null);
+      toast(`${okText} They arrive in ${formatDuration(res.movement.arriveAt - now)}.`);
+    } catch (e) {
+      toast(errorMessage(e), { kind: 'error' });
+    } finally {
+      setBusy(false);
+      await refresh();
+    }
+  }
+
+  async function sendBack(s: StationedDto) {
+    const who = s.home.ownerName ? `${s.home.ownerName}'s` : 'These';
+    const ok = await confirm({
+      title: `Send ${who} troops back?`,
+      body: (
+        <p>
+          {unitListText(s.units)} stationed in {s.host.name} will march home to {s.home.name}. Your village loses their help in defense.
+        </p>
+      ),
+      confirmLabel: 'Send back',
+      danger: true,
+    });
+    if (ok) await act(() => api.sendBack(s.id), 'Troops are on their way home.');
+  }
+
+  return (
+    <section className="card" aria-labelledby="support-title">
+      <h2 id="support-title" className="card-title">Support</h2>
+
+      <div className="subsection">
+        <h3 className="subtitle">
+          Troops stationed in my village <span className="muted">{stationed.here.length > 0 ? stationed.here.length : ''}</span>
+        </h3>
+        {stationed.here.length === 0 ? (
+          <p className="muted">No one's troops are defending your village.</p>
+        ) : (
+          <ul className="movement-list" aria-label="Troops stationed in my village">
+            {stationed.here.map((s) => (
+              <li key={s.id} className="movement is-support stationed">
+                <div className="stationed-main">
+                  <div>
+                    <span className="tag tag-ok">Support</span> from {s.home.ownerName ? `${s.home.ownerName}, ` : ''}
+                    <VillageLink v={s.home} />
+                  </div>
+                  <div className="stationed-units">{unitListText(s.units)}</div>
+                  <div className="muted small">
+                    at {s.host.name} · arrived {formatAgo(s.arrivedAt, now)}
+                  </div>
+                </div>
+                <div className="stationed-actions">
+                  <button className="btn btn-danger-outline btn-tall" disabled={busy} onClick={() => void sendBack(s)}>
+                    Send back
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="subsection">
+        <h3 className="subtitle">
+          My troops abroad <span className="muted">{stationed.abroad.length > 0 ? stationed.abroad.length : ''}</span>
+        </h3>
+        {stationed.abroad.length === 0 ? (
+          <p className="muted">You have no troops stationed in other villages. Pick a tribe-mate on the Map and choose Support.</p>
+        ) : (
+          <ul className="movement-list" aria-label="My troops abroad">
+            {stationed.abroad.map((s) => (
+              <li key={s.id} className="movement stationed">
+                <div className="stationed-main">
+                  <div>
+                    <span className="tag tag-info">Abroad</span> in {s.host.ownerName ? `${s.host.ownerName}, ` : ''}
+                    <VillageLink v={s.host} />
+                  </div>
+                  <div className="stationed-units">{unitListText(s.units)}</div>
+                  <div className="muted small">arrived {formatAgo(s.arrivedAt, now)}</div>
+                </div>
+                <div className="stationed-actions">
+                  <button className="btn btn-primary btn-tall" disabled={busy} onClick={() => void act(() => api.recall(s.id), 'Troops recalled.')}>
+                    Recall all
+                  </button>
+                  <button
+                    className="btn btn-tall"
+                    aria-expanded={recalling === s.id}
+                    disabled={busy}
+                    onClick={() => setRecalling((cur) => (cur === s.id ? null : s.id))}
+                  >
+                    Recall some
+                  </button>
+                </div>
+                {recalling === s.id && (
+                  <RecallSome s={s} busy={busy} onRecall={(units) => void act(() => api.recall(s.id, units), 'Troops recalled.')} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {dialog}
     </section>
   );
 }
@@ -349,6 +540,7 @@ export function ArmyView() {
         <TroopsTable />
         <Movements />
       </div>
+      <SupportPanel />
       <TrainingPanel building="barracks" />
       <TrainingPanel building="stables" />
     </div>

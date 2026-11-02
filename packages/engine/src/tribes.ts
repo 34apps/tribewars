@@ -87,3 +87,8 @@ export function pactNoticeMs(s: WorldSettings): number {
 export function isAttackForbidden(relation: PlayerRelation): boolean {
   return relation === 'self' || relation === 'tribe' || relation === 'ally' || relation === 'nap';
 }
+
+/** May troops be stationed in a village of a player with this relation? Only tribe-mates and allies. */
+export function isSupportAllowed(relation: PlayerRelation): boolean {
+  return relation === 'tribe' || relation === 'ally';
+}

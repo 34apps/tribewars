@@ -17,6 +17,7 @@ import {
   type RoleRequest,
   type TransferRequest,
   type TribeDto,
+  type TribeAlertsResponse,
   type TribeListResponse,
   type TribeSettingsRequest,
 } from '@clanfire/engine';
@@ -252,6 +253,10 @@ export function tribeRoutes(app: FastifyInstance, ctx: AppContext): void {
     { ...auth, schema: { params: params('id') } },
     async (req): Promise<MyTribeResponse> => svc.cancelRelation(playerOf(req), Number(req.params.id), req.nowMs),
   );
+
+  // ---- incoming attacks on members (scouts and support are not shown) ------------------------------------
+
+  app.get('/api/tribe/alerts', auth, async (req): Promise<TribeAlertsResponse> => ctx.game.tribeAlerts(playerOf(req)));
 
   // ---- chat ----------------------------------------------------------------------------------------
 

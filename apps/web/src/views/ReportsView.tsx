@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RESOURCE_IDS, UNITS, UNIT_IDS } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, VillageRefDto } from '@clanfire/engine';
+import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
+import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, SupportReportData, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
-import { RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { BUILDING_ICON, MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
   const { showOnMap } = useGame();
@@ -25,10 +25,32 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
-/** Won / Lost for a battle; a called-off attack is neither. */
+const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support' };
+const SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Attack', defense: 'Defense', support: 'Support' };
+
+function reportIcon(r: ReportSummaryDto): string {
+  if (r.type === 'scout') return MISSION_ICON.scout;
+  if (r.type === 'support' || r.side === 'support') return MISSION_ICON.support;
+  return r.side === 'attack' ? MISSION_ICON.attack : '🛡️';
+}
+
+/** What happened, from the report owner's point of view. */
 function OutcomeTag({ report }: { report: ReportSummaryDto }) {
+  if (report.type === 'support') return <span className="tag tag-muted">Turned back</span>;
+  if (report.type === 'scout') {
+    // The sender wins by getting through; the defender wins by catching the scouts.
+    const label = report.side === 'attack' ? (report.won ? 'Success' : 'Failed') : report.won ? 'Caught' : 'Escaped';
+    return <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{label}</span>;
+  }
   if (report.outcome === 'called_off') return <span className="tag tag-muted">Called off</span>;
   return <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{report.won ? 'Won' : 'Lost'}</span>;
+}
+
+function metaText(report: ReportSummaryDto): string {
+  if (report.type === 'scout') return report.side === 'attack' ? 'You scouted' : 'Enemy scouts were spotted';
+  if (report.type === 'support') return 'Your support turned back';
+  if (report.side === 'support') return 'Your support troops fought';
+  return report.side === 'attack' ? 'You attacked' : 'You were attacked';
 }
 
 function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['side'] }) {
@@ -52,7 +74,14 @@ function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['si
 
 function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean }) {
   const defenderKnown = b.defenderUnits !== null;
-  const rows = UNIT_IDS.filter((u) => b.attackerUnits[u] > 0 || (b.defenderUnits?.[u] ?? 0) > 0);
+  const att = normalizeUnits(b.attackerUnits);
+  const attLost = normalizeUnits(b.attackerLosses);
+  const def = b.defenderUnits ? normalizeUnits(b.defenderUnits) : null;
+  const defLost = b.defenderLosses ? normalizeUnits(b.defenderLosses) : null;
+  const sup = b.supportUnits ? normalizeUnits(b.supportUnits) : null;
+  const supLost = b.supportLosses ? normalizeUnits(b.supportLosses) : null;
+  const rows = UNIT_IDS.filter((u) => att[u] > 0 || (def?.[u] ?? 0) > 0);
+  const supportRows = UNIT_IDS.filter((u) => (sup?.[u] ?? 0) > 0);
   const lootTotal = RESOURCE_IDS.reduce((sum, r) => sum + b.loot[r], 0);
   const power = Math.max(1, b.attackPower, b.defensePower);
   return (
@@ -80,7 +109,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {rows.length === 0 && supportRows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="muted">No units were involved.</td>
                 </tr>
@@ -90,12 +119,32 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
                     <th scope="row">
                       <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
                     </th>
-                    <td className="num"><Num value={b.attackerUnits[u]} /></td>
-                    <td className="num"><Num value={b.attackerLosses[u]} loss /></td>
-                    <td className="num"><Num value={b.defenderUnits ? b.defenderUnits[u] : null} /></td>
-                    <td className="num"><Num value={b.defenderLosses ? b.defenderLosses[u] : null} loss /></td>
+                    <td className="num"><Num value={att[u]} /></td>
+                    <td className="num"><Num value={attLost[u]} loss /></td>
+                    <td className="num"><Num value={def ? def[u] : null} /></td>
+                    <td className="num"><Num value={defLost ? defLost[u] : null} loss /></td>
                   </tr>
                 ))
+              )}
+              {supportRows.length > 0 && (
+                <>
+                  <tr className="group-row">
+                    <th scope="rowgroup" colSpan={5}>
+                      <span aria-hidden="true">{MISSION_ICON.support}</span> Support troops (defending)
+                    </th>
+                  </tr>
+                  {supportRows.map((u) => (
+                    <tr key={`support-${u}`} className="support-row">
+                      <th scope="row">
+                        <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+                      </th>
+                      <td className="num"><span className="muted">–</span></td>
+                      <td className="num"><span className="muted">–</span></td>
+                      <td className="num"><Num value={sup ? sup[u] : null} /></td>
+                      <td className="num"><Num value={supLost ? supLost[u] : null} loss /></td>
+                    </tr>
+                  ))}
+                </>
               )}
             </tbody>
           </table>
@@ -155,9 +204,173 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
   );
 }
 
+/** Scouting: result, scout numbers and, for a successful sender, what the Pathfinders saw. */
+function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] }) {
+  const sender = side === 'attack';
+  const intel = s.intel;
+  const troops = intel?.troops ? normalizeUnits(intel.troops) : null;
+  const troopRows = troops ? UNIT_IDS.filter((u) => troops[u] > 0) : [];
+  const buildingRows = intel?.buildings ? BUILDING_IDS.filter((b) => typeof intel.buildings[b] === 'number' && intel.buildings[b] > 0) : [];
+
+  let result: string;
+  if (sender) {
+    result = s.success
+      ? 'Scouting succeeded. Your Pathfinders got a look inside and made it out.'
+      : 'Scouting failed. The defending Pathfinders caught every one of your scouts, so you learned nothing.';
+  } else {
+    result = s.success
+      ? `${formatInt(s.scoutsSent)} enemy Pathfinders were spotted. They outnumbered your Pathfinders and escaped.`
+      : `${formatInt(s.scoutsSent)} enemy Pathfinders were spotted and caught by your Pathfinders.`;
+  }
+
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role="Scouts from" v={s.scout} won={false} />
+        <span className="vs" aria-hidden="true">→</span>
+        <VillageCell role="Target" v={s.target} won={false} />
+      </div>
+      <p className={`notice called-off ${s.success === sender ? 'notice-ok' : 'notice-block'}`} role="note">
+        <span aria-hidden="true">{MISSION_ICON.scout}</span> <span>{result}</span>
+      </p>
+
+      <section className="subsection" aria-label="Scouts">
+        <dl className="facts">
+          <div>
+            <dt>Scouts sent</dt>
+            <dd>{formatInt(s.scoutsSent)}</dd>
+          </div>
+          <div>
+            <dt>Scouts lost</dt>
+            <dd className={s.scoutsLost > 0 ? 'loss' : undefined}>{s.scoutsLost > 0 ? `−${formatInt(s.scoutsLost)}` : '–'}</dd>
+          </div>
+          <div>
+            <dt>Defending scouts</dt>
+            <dd>{s.defenderScouts === null ? <span className="muted">Unknown</span> : formatInt(s.defenderScouts)}</dd>
+          </div>
+          <div>
+            <dt>Defenders lost</dt>
+            <dd className={s.defenderScoutsLost > 0 ? 'loss' : undefined}>
+              {s.defenderScoutsLost > 0 ? `−${formatInt(s.defenderScoutsLost)}` : '–'}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      {intel && (
+        <section className="subsection" aria-label="What the scouts saw">
+          <h3 className="subtitle">What the scouts saw</h3>
+          {intel.resources && (
+            <>
+              <h4 className="subtitle-small">Resources</h4>
+              <ul className="loot">
+                {RESOURCE_IDS.map((r) => (
+                  <li key={r}>
+                    <span aria-hidden="true">{RESOURCE_ICON[r]}</span> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+                    <strong>{formatInt(intel.resources[r] ?? 0)}</strong>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {troops && (
+            <>
+              <h4 className="subtitle-small">Troops in the village</h4>
+              {troopRows.length === 0 ? (
+                <p className="muted">No troops at home.</p>
+              ) : (
+                <ul className="loot">
+                  {troopRows.map((u) => (
+                    <li key={u}>
+                      <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name} <strong>{formatInt(troops[u])}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          {intel.buildings && (
+            <>
+              <h4 className="subtitle-small">Buildings</h4>
+              {buildingRows.length === 0 ? (
+                <p className="muted">No buildings.</p>
+              ) : (
+                <dl className="stats">
+                  {buildingRows.map((b) => (
+                    <div key={b}>
+                      <dt>
+                        <span aria-hidden="true">{BUILDING_ICON[b]}</span> {BUILDINGS[b].name}
+                      </dt>
+                      <dd>{intel.buildings[b]}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </>
+          )}
+          {typeof intel.wallLevel === 'number' && (
+            <dl className="facts">
+              <div>
+                <dt>Wall level</dt>
+                <dd>{intel.wallLevel}</dd>
+              </div>
+            </dl>
+          )}
+        </section>
+      )}
+    </>
+  );
+}
+
+/** Support that turned back instead of staying. */
+function SupportDetail({ s }: { s: SupportReportData }) {
+  const units = normalizeUnits(s.units);
+  const rows = UNIT_IDS.filter((u) => units[u] > 0);
+  const host = s.host.ownerName ?? s.host.name;
+  const reason = s.reason === 'relation_changed' ? `${host} is no longer in your tribe or an ally, so the support turned back.` : 'The support turned back.';
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role="Support from" v={s.home} won={false} />
+        <span className="vs" aria-hidden="true">→</span>
+        <VillageCell role="Sent to" v={s.host} won={false} />
+      </div>
+      <p className="notice called-off" role="note">
+        <span aria-hidden="true">{MISSION_ICON.support}</span> <span>Support turned back. {reason}</span>
+      </p>
+      <section className="subsection" aria-label="Troops">
+        <h3 className="subtitle">Troops</h3>
+        {rows.length === 0 ? (
+          <p className="muted">No troop details.</p>
+        ) : (
+          <ul className="loot">
+            {rows.map((u) => (
+              <li key={u}>
+                <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name} <strong>{formatInt(units[u])}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+}
+
+function ReportBody({ report }: { report: ReportDto }) {
+  if (report.type === 'scout' && report.scout) return <ScoutDetail s={report.scout} side={report.side} />;
+  if (report.type === 'support' && report.support) return <SupportDetail s={report.support} />;
+  if (report.type === 'battle' && report.battle) {
+    return report.battle.outcome === 'called_off' ? (
+      <CalledOffDetail b={report.battle} side={report.side} />
+    ) : (
+      <BattleDetail b={report.battle} ownerWon={report.won} />
+    );
+  }
+  return <p className="muted">This report has no details.</p>;
+}
+
 function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
   const { now } = useGame();
-  const calledOff = report.outcome === 'called_off';
   return (
     <article className="card report-detail" aria-labelledby="report-title">
       <button className="btn btn-small back" onClick={onBack}>
@@ -167,10 +380,10 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
         <h2 id="report-title" className="card-title">{report.title}</h2>
         <div className="report-meta">
           <OutcomeTag report={report} />
-          <span className="muted">{report.side === 'attack' ? 'You attacked' : 'You were attacked'} · {formatClock(report.createdAt, now)}</span>
+          <span className="muted">{metaText(report)} · {formatClock(report.createdAt, now)}</span>
         </div>
       </header>
-      {calledOff ? <CalledOffDetail b={report.battle} side={report.side} /> : <BattleDetail b={report.battle} ownerWon={report.won} />}
+      <ReportBody report={report} />
     </article>
   );
 }
@@ -235,7 +448,7 @@ export function ReportsView() {
       <div className={`reports${showDetail ? ' has-detail' : ''}`}>
         <section className="card report-list-card" aria-labelledby="rl-title">
           <h2 id="rl-title" className="card-title">
-            Battles <span className="muted">{unreadReports > 0 ? `${unreadReports} unread` : ''}</span>
+            All reports <span className="muted">{unreadReports > 0 ? `${unreadReports} unread` : ''}</span>
           </h2>
           {listError && (
             <p className="form-error" role="alert">
@@ -244,7 +457,7 @@ export function ReportsView() {
           )}
           {list === null && !listError && <p className="muted">Loading…</p>}
           {list !== null && list.length === 0 && (
-            <p className="muted">No battles yet. Send raiders to an abandoned village from the Map and the report will show up here.</p>
+            <p className="muted">No reports yet. Send raiders or Pathfinders to an abandoned village from the Map and the report will show up here.</p>
           )}
           {list !== null && list.length > 0 && (
             <ul className="report-list">
@@ -255,13 +468,15 @@ export function ReportsView() {
                     onClick={() => setSelected(r.id)}
                     aria-current={selected === r.id ? 'true' : undefined}
                   >
-                    <span className="report-icon" aria-hidden="true">{r.side === 'attack' ? '⚔️' : '🛡️'}</span>
+                    <span className="report-icon" aria-hidden="true">{reportIcon(r)}</span>
                     <span className="report-main">
                       <span className="report-title">
                         {!r.read && <span className="dot" aria-label="Unread" />}
                         {r.title}
                       </span>
-                      <span className="muted report-sub">{formatAgo(r.createdAt, now)}</span>
+                      <span className="muted report-sub">
+                        {TYPE_NAME[r.type]} · {SIDE_NAME[r.side]} · {formatAgo(r.createdAt, now)}
+                      </span>
                     </span>
                     <OutcomeTag report={r} />
                   </button>
@@ -281,7 +496,7 @@ export function ReportsView() {
               {loadingDetail ? <p className="muted">Loading report…</p> : <p className="form-error" role="alert">{detailError}</p>}
             </div>
           )}
-          {!showDetail && <p className="muted report-hint">Select a report to see the battle.</p>}
+          {!showDetail && <p className="muted report-hint">Select a report to read it.</p>}
         </div>
       </div>
     </div>

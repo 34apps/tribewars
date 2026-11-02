@@ -175,7 +175,12 @@ armySpeed(units: Units): number                    // slowest unit's tiles/hour,
 travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number
 checkSend(state, units: Partial<Units>): CheckResult<{ units: Units }>   // normalises to full Units
 applySend(state, units, t, s): VillageState        // troops -> away
-resolveBattle(input: BattleInput): BattleResult
+resolveBattle(input: BattleInput): BattleResult          // input.support: stationed contingents
+resolveScouting(input: ScoutInput): ScoutResult
+checkMission(mission: Mission, units: Units): CheckResult<{}>
+isSupportAllowed(relation: PlayerRelation): boolean      // tribe | ally
+normalizeUnits(u: Partial<Units> | undefined): Units     // missing keys -> 0
+normalizeVillage(state: VillageState): VillageState      // fills missing unit keys etc. (old saves)
 applyBattleToDefender(defender: VillageState, r: BattleResult): VillageState
 applyAttackerLosses(origin: VillageState, losses: Units): VillageState    // away -= losses
 applyReturn(origin: VillageState, survivors: Units, loot: Resources, t, s): VillageState
@@ -266,12 +271,70 @@ searchable by name/tag.
 - Event log: joins, leaves, kicks, role changes, leadership transfer, settings, diplomacy; disbanding
   or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
 
-## 12. Roadmap (not yet built)
+## 12. Tribe warfare — scouts, support, alerts
 
-1. Support troops to tribe-mates and allies (reinforcements), shared incoming-attack alerts for the
-   tribe, scouts and scout reports.
-2. Tribe forum threads, mass messages, member notes; player-to-player messages.
-3. More villages per player (settlers / conquest), market trading, siege units vs. wall.
-4. Live push (WebSocket) for incoming attacks and chat; mobile polish (PWA, install prompt).
-5. World lifecycle: player/tribe rankings history, inactive players turning into abandoned
+Numbers in `config.ts` (`SCOUT_*`, unit `pathfinder`); contract in `api.ts` (`SendRequest.mission`,
+`StationedDto`, recall/send-back routes, `TribeAlertDto`, report `type`s).
+
+**Missions.** Every send carries `mission`:
+- `attack` — as before (sections 6–7). Needs total attack > 0 (`invalid_input`: "Pathfinders can't attack
+  alone — send them on a scouting mission"). Forbidden on self/tribe/ally/NAP; beginner protection applies.
+- `scout` — Pathfinders only (any other unit → `invalid_input`), at least one. Same targets as attack
+  (forbidden on self/tribe/ally/NAP; protected players refused; abandoned villages allowed). Never shown to
+  the target as incoming. Sending a scout or an attack at a *player* ends the sender's beginner protection.
+- `support` — any units, only to a village whose owner is in your tribe or an ally (`isSupportAllowed`);
+  never to yourself, NAP partners, neutrals, enemies or abandoned villages (`invalid_target`). Visible to the
+  host as incoming support (with units).
+Travel time is the same for every mission (slowest unit). Engine: `checkMission(mission, units)`; an empty
+army is `no_troops` for every mission. An exact scouting tie counts as failure (and, like a battle tie, costs
+the defenders all their Pathfinders).
+
+**Scouting** (`resolveScouting`, no luck): defending Pathfinders = the village's own at home + all stationed
+support Pathfinders. If `scouts > defenderScouts × SCOUT_DEFENSE_FACTOR`: success — sender loses
+`round(scouts × (D/scouts)^SCOUT_LOSS_EXPONENT)` where D = defenderScouts × factor (0 when D = 0); defenders
+lose none. Else failure — all scouts are caught; defenders lose `round(defenderScouts × (scouts/D)^exp)`.
+Survivors return home (no loot). Reports: the sender always gets one (`type: 'scout'`); on success with
+`intel` = resources (floored), building levels, troops at home (own + support) and wall level at arrival.
+The target's owner gets one only if they had at least one defending Pathfinder ("N enemy Pathfinders from
+X were spotted — they escaped / were caught"). Re-check on arrival: if the target became tribe/ally/NAP
+while marching, the scouts turn back (no report needed beyond the movement).
+
+**Support troops.** On arrival they become a *stationed contingent* at the host village (one per home+host
+pair; new arrivals merge). They stay in the owner's `away` count, so the owner keeps paying their food.
+They defend in every battle at the host: `resolveBattle({..., support: [units...]})` adds them to defense
+and applies the same loss rule per contingent (attacker wins → all die; defender wins → each loses
+`round(count × ratio)`); dead units also come off the owner's `away` (`applyAttackerLosses` on the home
+village). Loot is only ever taken from the host's resources. Each support owner gets a battle report
+(`side: 'support'`). Re-check on arrival: if the host is no longer a tribe-mate or ally, the troops turn
+back and the sender gets a `type: 'support'` report (`reason: 'relation_changed'`). Once stationed they
+stay even if the relation changes later, until the owner **recalls** them (all or some units) or the host
+**sends them back** (all); both create a normal return movement from the host to home.
+
+**Battle reports with support:** `supportUnits`/`supportLosses` are the totals of all contingents; hidden
+from the attacker exactly when defender units are hidden.
+
+**Tribe alerts.** `GET /api/tribe/alerts`: every incoming *attack* (not scouts, not support) on any member's
+village, soonest first, with attacker village, owner and tribe tag. `tribeAlerts` in `/api/state` counts
+them for the Tribe tab badge. From an alert, members can open the target on the map and send support.
+
+**Details settled while building v0.3:** scout losses on the defending side hit the host's own Pathfinders
+first, then support contingents by size (largest remainder; support owners get no report for that yet).
+A support turn-back report has `outcome: 'called_off'`, `side: 'support'`, `won: false`. The sender's scout
+report always shows `defenderScoutsLost`; `defenderScouts` and intel only on success. Merged support keeps its
+first `arrivedAt`. Support needs the sender to be in a tribe; a pact serving notice still counts as ally.
+Recall/send-back: strangers 404, wrong party 403; recall with no body = all units. Tribe alerts list is capped
+at 200 (the badge counts all); tribeless callers get 409 `not_in_tribe`. Old databases: `movements`/`reports`
+tables are rebuilt in place on start (ids kept) because their CHECK constraints changed.
+
+**Saved data.** Adding a unit changes `Units`: anything loaded from storage (village state, movement and
+stationed units, report JSON) must go through `normalizeVillage` / `normalizeUnits`, which add missing
+unit keys as 0.
+
+## 13. Roadmap (not yet built)
+
+1. Tribe forum threads, mass messages, member notes; player-to-player messages.
+2. More villages per player (settlers / conquest), market trading, siege units vs. wall.
+3. Live push (WebSocket) for incoming attacks and chat; mobile polish (PWA, install prompt).
+4. World lifecycle: player/tribe rankings history, inactive players turning into abandoned
    villages, world end and winners.
+5. New visual identity (style directions in progress), characters, isometric map; 3D models later.

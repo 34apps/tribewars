@@ -61,7 +61,7 @@ export function productionPerHour(state: VillageState, s: WorldSettings): Resour
 export function upkeepPerHour(state: VillageState, s: WorldSettings): number {
   if (state.npc) return 0;
   let food = 0;
-  for (const u of UNIT_IDS) food += (state.troops[u] + state.away[u]) * UNITS[u].upkeep;
+  for (const u of UNIT_IDS) food += ((state.troops[u] || 0) + (state.away[u] || 0)) * UNITS[u].upkeep;
   for (const queue of [state.trainQueues.barracks, state.trainQueues.stables]) {
     for (const job of queue) food += (job.count - job.done) * UNITS[job.unit].upkeep;
   }

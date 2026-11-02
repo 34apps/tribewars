@@ -278,6 +278,22 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'stables',
     requires: { stables: 5, hall: 10 },
   },
+  pathfinder: {
+    id: 'pathfinder',
+    name: 'Pathfinder',
+    description: 'Quick, quiet scout. Sent alone on a scouting mission, reports what a village holds. Catches enemy scouts at home.',
+    unitClass: 'infantry',
+    attack: 0,
+    defenseInfantry: 2,
+    defenseCavalry: 1,
+    speed: 18,
+    carry: 0,
+    upkeep: 1,
+    cost: res(35, 30, 25),
+    trainTimeSec: 75,
+    building: 'barracks',
+    requires: { barracks: 2 },
+  },
 };
 
 // ---- Additions used by the engine logic (kept here so tuning never touches logic files) ----------
@@ -378,3 +394,12 @@ export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   disband: ['leader'],
   chat: ['leader', 'officer', 'member'],
 };
+
+// ---- Tribe warfare (section 12) ----
+
+/** The scouting unit: the only unit a scout mission may carry. */
+export const SCOUT_UNIT: UnitId = 'pathfinder';
+/** Scouting succeeds when sent scouts > defending scouts * this. */
+export const SCOUT_DEFENSE_FACTOR = 1;
+/** Loss ratio exponent for scouting fights (as battles). */
+export const SCOUT_LOSS_EXPONENT = 1.5;

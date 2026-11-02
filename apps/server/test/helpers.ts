@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
-import type { GameStateResponse, MapResponse, OwnVillageDto, WorldSettings } from '@clanfire/engine';
+import type { BattleReportData, GameStateResponse, MapResponse, OwnVillageDto, ReportDto, WorldSettings } from '@clanfire/engine';
 import { buildApp, type BuildAppOptions } from '../src/app.ts';
 
 export const MINUTE = 60_000;
@@ -90,6 +90,13 @@ export async function register(app: FastifyInstance, username: string, ip?: stri
   const res = await c.post('/api/auth/register', { username, password: PASSWORD });
   assert.equal(res.statusCode, 201, res.body);
   return c;
+}
+
+/** The battle part of a battle report (asserts the report is one). */
+export function battleOf(report: ReportDto): BattleReportData {
+  assert.equal(report.type, 'battle');
+  assert.ok(report.battle, 'battle report has a battle');
+  return report.battle;
 }
 
 export function ok(res: LightMyRequestResponse, status = 200): void {

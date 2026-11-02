@@ -35,7 +35,9 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - The server is authoritative. Every rule lives in `packages/engine`; the client only previews.
   Never trust client input.
 - Balance numbers only in `config.ts`. A rule change updates `docs/GAME_DESIGN.md` in the same commit.
-- Every screen works at 360 px wide with touch.
+- **Web app first** (desktop browsers AND phone browsers, same responsive app); a native mobile app
+  comes later (owner, 2026-11-02). Every screen works at 360 px wide with touch and uses the space
+  well at 1280–1440 px desktop widths.
 - Before handing off a change: review against `docs/STANDARDS.md`; `npm run check`; `npm run build`
   if `apps/` or dependencies changed; add a dated line to `CHANGELOG.md` (newest first, commit hash);
   update `NEXT_STEPS.md` (remove done items, add new follow-ups). Rewrite `docs/HANDOFF.md` when

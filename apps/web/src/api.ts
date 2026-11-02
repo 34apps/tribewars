@@ -16,19 +16,23 @@ import type {
   InviteRequest,
   MapResponse,
   MeResponse,
+  MovementResponse,
   MyTribeResponse,
   OwnVillageDto,
   ReportDto,
+  RecallRequest,
   ReportListResponse,
   SendRequest,
   RoleRequest,
   SendResponse,
   TrainRequest,
   TransferRequest,
+  TribeAlertsResponse,
   TribeDto,
   TribeListResponse,
   TribeRole,
   TribeSettingsRequest,
+  Units,
 } from '@clanfire/engine';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
@@ -89,6 +93,11 @@ export const api = {
   train: (villageId: number, unit: string, count: number) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/train`, { unit, count } satisfies TrainRequest),
   send: (villageId: number, body: SendRequest) => request<SendResponse>('POST', `/api/villages/${villageId}/send`, body),
+  /** Bring support troops home; omit `units` for all of them (the owner of the troops). */
+  recall: (stationedId: number, units?: Partial<Units>) =>
+    request<MovementResponse>('POST', `/api/stationed/${stationedId}/recall`, (units ? { units } : {}) satisfies RecallRequest),
+  /** Send someone else's support troops home (the owner of the host village). */
+  sendBack: (stationedId: number) => request<MovementResponse>('POST', `/api/stationed/${stationedId}/send-back`, {}),
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
@@ -122,6 +131,7 @@ export const api = {
   declineProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/decline`, {}),
   withdrawProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/withdraw`, {}),
   cancelRelation: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/relations/${id}/cancel`, {}),
+  tribeAlerts: () => request<TribeAlertsResponse>('GET', '/api/tribe/alerts'),
   chat: (after?: number) => request<ChatResponse>('GET', `/api/tribe/chat${after ? `?after=${after}` : ''}`),
   sendChat: (text: string) => request<ChatMessageDto>('POST', '/api/tribe/chat', { text } satisfies ChatRequest),
 };

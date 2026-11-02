@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { MovementDto, OwnVillageDto, PlayerDto, SendResponse, VillageState, WorldSettings } from '@clanfire/engine';
+import type { Mission, MovementDto, OwnVillageDto, PlayerDto, SendResponse, StationedDto, VillageState, WorldSettings } from '@clanfire/engine';
 
 export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe';
 export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe'];
@@ -14,6 +14,8 @@ export interface MapFocus {
   y: number;
   /** Changes on every request so the same tile can be focused twice. */
   nonce: number;
+  /** Mission to pre-select in the send form (e.g. support from a tribe alert). */
+  mission?: Mission;
 }
 
 export interface ToastOptions {
@@ -34,6 +36,10 @@ export interface GameApi {
   unreadReports: number;
   /** Open tribe invitations addressed to me. */
   tribeInvites: number;
+  /** Incoming attacks on members of my tribe (me included). */
+  tribeAlerts: number;
+  /** Support troops: others' troops in my villages, and mine in other villages. */
+  stationed: { here: StationedDto[]; abroad: StationedDto[] };
   /** Bumped after every tribe action so the map refetches its colours and tags. */
   tribeVersion: number;
   /** Set when another tab asked to show a tribe; the Tribe tab reads it once and clears it. */
@@ -47,7 +53,7 @@ export interface GameApi {
   connectionError: string | null;
   tab: Tab;
   navigate: (tab: Tab) => void;
-  showOnMap: (x: number, y: number) => void;
+  showOnMap: (x: number, y: number, options?: { mission?: Mission }) => void;
   mapFocus: MapFocus | null;
   highlightMovementId: number | null;
   viewMovement: (id: number) => void;

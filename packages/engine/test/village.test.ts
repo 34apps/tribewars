@@ -359,6 +359,40 @@ describe('checkTrain / applyTrain', () => {
     assert.equal(r('knight'), 'requirements_not_met');
   });
 
+  it('trains Pathfinders like any other unit (barracks 2)', () => {
+    const rich = { wood: 5000, food: 5000, iron: 5000, gold: 1000 };
+    const level1 = village({ buildings: { barracks: 1, storehouse: 10 }, resources: rich });
+    const refused = checkTrain(level1, 'pathfinder', 1, 0, S1);
+    assert.ok(!refused.ok && refused.reason === 'requirements_not_met');
+    assert.ok(!refused.ok && /Barracks level 2/.test(refused.message));
+
+    const v = village({ buildings: { barracks: 2, storehouse: 10 }, resources: rich });
+    const c = checkTrain(v, 'pathfinder', 4, 0, S1);
+    assert.ok(c.ok);
+    if (c.ok) {
+      assert.deepEqual(c.cost, { wood: 140, food: 120, iron: 100, gold: 0 });
+      assert.equal(c.perUnitMs, 70_500); // 75 s * 0.94 at barracks level 2
+      assert.equal(c.perUnitMs, trainTimeMs('pathfinder', v, S1));
+    }
+    assert.equal(trainTimeMs('pathfinder', v, S10), 7_050);
+
+    const queued = applyTrain(v, 'pathfinder', 4, 0, S1);
+    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 70_500, startAt: 0 }]);
+    assert.deepEqual(queued.trainQueues.stables, []);
+    assert.equal(queued.resources.wood, 4860);
+    assert.equal(settleVillage(queued, 70_499, S1).troops.pathfinder, 0);
+    assert.equal(settleVillage(queued, 70_500, S1).troops.pathfinder, 1);
+    assert.equal(settleVillage(queued, 4 * 70_500, S1).troops.pathfinder, 4);
+    assert.deepEqual(settleVillage(queued, 4 * 70_500, S1).trainQueues.barracks, []);
+    expectGameError(() => applyTrain(level1, 'pathfinder', 1, 0, S1), 'requirements_not_met');
+  });
+
+  it('Pathfinders eat 1 food per hour, counted while queued', () => {
+    const v = village({ buildings: { barracks: 2, storehouse: 10 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
+    assert.ok(checkTrain(v, 'pathfinder', 40, 0, S1).ok); // farm level 1 = 40 food per hour
+    assert.ok(!checkTrain(v, 'pathfinder', 41, 0, S1).ok);
+  });
+
   it('refuses invalid ids and counts with invalid_input', () => {
     const v = barracksVillage();
     for (const count of [0, -1, 1.5, Number.NaN, Infinity, 1001, '5' as unknown as number]) {

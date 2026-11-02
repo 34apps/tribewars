@@ -4,6 +4,48 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+// ---- Tables with a CHECK that grew after release -----------------------------------------------------------
+// SQLite cannot alter a CHECK, so `rebuildOutdatedTables` copies older databases into the new shape (see applySchema).
+
+/** kind: attack / scout / support go out; return comes home. For every kind `origin_village_id` is the army's home. */
+const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${name} (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'scout', 'support', 'return')),
+  origin_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  target_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  units_json        TEXT    NOT NULL,
+  loot_json         TEXT,
+  depart_at         INTEGER NOT NULL,
+  arrive_at         INTEGER NOT NULL
+);`;
+
+/** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
+const reportsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${name} (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  side        TEXT    NOT NULL CHECK (side IN ('attack', 'defense', 'support')),
+  won         INTEGER NOT NULL,
+  title       TEXT    NOT NULL,
+  created_at  INTEGER NOT NULL,
+  read        INTEGER NOT NULL DEFAULT 0,
+  battle_json TEXT    NOT NULL
+);`;
+
+const REBUILDS = [
+  {
+    table: 'movements',
+    marker: "'scout'",
+    create: movementsTable,
+    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at',
+  },
+  {
+    table: 'reports',
+    marker: "'support'",
+    create: reportsTable,
+    columns: 'id, player_id, side, won, title, created_at, read, battle_json',
+  },
+] as const;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
@@ -40,32 +82,28 @@ CREATE TABLE IF NOT EXISTS villages (
 );
 CREATE INDEX IF NOT EXISTS idx_villages_owner ON villages(owner_id);
 
-CREATE TABLE IF NOT EXISTS movements (
-  id                INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'return')),
-  origin_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
-  target_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
-  units_json        TEXT    NOT NULL,
-  loot_json         TEXT,
-  depart_at         INTEGER NOT NULL,
-  arrive_at         INTEGER NOT NULL
-);
+${movementsTable('movements')}
 CREATE INDEX IF NOT EXISTS idx_movements_arrive ON movements(arrive_at, id);
 CREATE INDEX IF NOT EXISTS idx_movements_origin ON movements(origin_village_id);
 CREATE INDEX IF NOT EXISTS idx_movements_target ON movements(target_village_id);
 
-CREATE TABLE IF NOT EXISTS reports (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  side        TEXT    NOT NULL CHECK (side IN ('attack', 'defense')),
-  won         INTEGER NOT NULL,
-  title       TEXT    NOT NULL,
-  created_at  INTEGER NOT NULL,
-  read        INTEGER NOT NULL DEFAULT 0,
-  battle_json TEXT    NOT NULL
-);
+${reportsTable('reports')}
 CREATE INDEX IF NOT EXISTS idx_reports_player ON reports(player_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_unread ON reports(player_id) WHERE read = 0;
+
+-- ---- Support troops (docs/GAME_DESIGN.md section 12). One contingent per (home, host) pair; new arrivals merge.
+-- The units stay in the owner's home village "away" count while stationed.
+CREATE TABLE IF NOT EXISTS stationed (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  home_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  host_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  units_json      TEXT    NOT NULL,
+  arrived_at      INTEGER NOT NULL,
+  UNIQUE (home_village_id, host_village_id)
+);
+CREATE INDEX IF NOT EXISTS idx_stationed_host ON stationed(host_village_id);
+CREATE INDEX IF NOT EXISTS idx_stationed_home ON stationed(home_village_id);
 
 -- ---- Tribes (docs/GAME_DESIGN.md section 11). All CREATE IF NOT EXISTS: older databases upgrade in place.
 -- Deleting a tribe cascades to everything that hangs off it (members, invites, applications, proposals,
@@ -163,6 +201,47 @@ CREATE TABLE IF NOT EXISTS tribe_messages (
 CREATE INDEX IF NOT EXISTS idx_tribe_messages_tribe ON tribe_messages(tribe_id, id);
 `;
 
+/**
+ * Bring an older database up to the current shape: rebuild tables whose CHECK constraint grew, then create
+ * whatever is missing. Safe to run on every start.
+ */
+export function applySchema(db: DatabaseSync): void {
+  rebuildOutdatedTables(db);
+  db.exec(SCHEMA);
+}
+
+/**
+ * Databases created before scouts, support and support reports have `CHECK`s that refuse the new values.
+ * SQLite cannot change a CHECK, so copy the rows into a table with the new definition (ids kept) and swap.
+ */
+function rebuildOutdatedTables(db: DatabaseSync): void {
+  for (const { table, marker, create, columns } of REBUILDS) {
+    const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(table) as { sql: string } | undefined;
+    if (!row || row.sql.includes(marker)) continue;
+    const seq = db.prepare('SELECT seq FROM sqlite_sequence WHERE name = ?').get(table) as { seq: number } | undefined;
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.exec(create(`${table}_new`));
+      db.exec(`INSERT INTO ${table}_new (${columns}) SELECT ${columns} FROM ${table}`);
+      db.exec(`DROP TABLE ${table}`); // its indexes go with it; SCHEMA re-creates them
+      db.exec(`ALTER TABLE ${table}_new RENAME TO ${table}`);
+      if (seq) {
+        // Keep ids from being reused after the swap (the copy only knows the highest surviving id).
+        const done = db.prepare('UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?').run(seq.seq, table);
+        if (Number(done.changes) === 0) db.prepare('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)').run(table, seq.seq);
+      }
+      db.exec('COMMIT');
+    } catch (err) {
+      try {
+        db.exec('ROLLBACK');
+      } catch {
+        // The transaction may already be gone; the original error matters more.
+      }
+      throw err;
+    }
+  }
+}
+
 /** Open (creating the folder and schema if needed) the game database. */
 export function openDatabase(path: string): DatabaseSync {
   if (path !== ':memory:') {
@@ -174,6 +253,6 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec('PRAGMA foreign_keys = ON');
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
-  db.exec(SCHEMA);
+  applySchema(db);
   return db;
 }

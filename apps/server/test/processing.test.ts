@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { emptyUnits, type ReportDto, type ReportListResponse, type Units, type VillageState } from '@clanfire/engine';
 import { REPORTS_KEEP } from '../src/store.ts';
-import { HOUR, makeApp, ok, register, weakestAbandoned } from './helpers.ts';
+import { HOUR, battleOf, makeApp, ok, register, weakestAbandoned } from './helpers.ts';
 
 type App = Awaited<ReturnType<typeof makeApp>>['app'];
 
@@ -88,7 +88,7 @@ test('a return that is already due is applied before a later arrival', async () 
   const defense = aliceReports.find((r) => r.side === 'defense');
   assert.ok(defense, 'Alice defended');
   assert.equal(defense.won, true, 'her returned raiders were home when Bob arrived');
-  const detail = (await alice.get(`/api/reports/${defense.id}`)).json<ReportDto>().battle;
+  const detail = battleOf((await alice.get(`/api/reports/${defense.id}`)).json<ReportDto>());
   assert.ok((detail.defenderUnits?.raider ?? 0) >= 1);
   assert.equal(detail.attackerWon, false);
 

@@ -13,7 +13,7 @@ import {
   type ReportListResponse,
   type SendResponse,
 } from '@clanfire/engine';
-import { Client, PASSWORD, errorOf, makeApp, ok } from './helpers.ts';
+import { Client, PASSWORD, battleOf, errorOf, makeApp, ok } from './helpers.ts';
 import { count, formPact, inviteAndAccept, myTribe, newLeader, newPlayer, warSetup } from './tribe-helpers.ts';
 
 const RADIUS = 12;
@@ -43,13 +43,13 @@ test('send: refused against tribe-mates, allies and NAP partners (also during no
   await inviteAndAccept(alice, carol);
   const vc = await carol.c.village();
   assert.ok((await carol.c.state()).player.protectedUntil > clock.now(), 'carol is under beginner protection');
-  const mate = await alice.c.post(`/api/villages/${vidA}/send`, { x: vc.x, y: vc.y, units: { raider: 14 } });
+  const mate = await alice.c.post(`/api/villages/${vidA}/send`, { x: vc.x, y: vc.y, units: { raider: 14 }, mission: 'attack' });
   errorOf(mate, 400, 'invalid_target');
   assert.equal(mate.json<{ message: string }>().message, "You can't attack members of your own tribe.");
   assert.equal(await home(), 14);
   ok(await carol.c.post('/api/tribe/leave'));
   // Once she has left, only her beginner protection stops us.
-  errorOf(await alice.c.post(`/api/villages/${vidA}/send`, { x: vc.x, y: vc.y, units: { raider: 14 } }), 409, 'target_protected');
+  errorOf(await alice.c.post(`/api/villages/${vidA}/send`, { x: vc.x, y: vc.y, units: { raider: 14 }, mission: 'attack' }), 409, 'target_protected');
 
   // Allies.
   await formPact(alice, 'BRAVO', bob, 'ally');
@@ -59,7 +59,7 @@ test('send: refused against tribe-mates, allies and NAP partners (also during no
   // The pact protects both ways (the pact check comes before the troop check).
   const vbob = await bob.c.village();
   const valice = await alice.c.village();
-  errorOf(await bob.c.post(`/api/villages/${vbob.id}/send`, { x: valice.x, y: valice.y, units: {} }), 409, 'target_protected');
+  errorOf(await bob.c.post(`/api/villages/${vbob.id}/send`, { x: valice.x, y: valice.y, units: {}, mission: 'attack' }), 409, 'target_protected');
 
   // NAP partners (the pact replaces the alliance).
   await formPact(alice, 'BRAVO', bob, 'nap');
@@ -147,7 +147,7 @@ for (const kind of ['ally', 'nap'] as const) {
     assert.equal(summary?.outcome, 'called_off', 'the list tells a called-off attack from a lost battle');
     const detailDto = (await alice.c.get(`/api/reports/${summary?.id}`)).json<ReportDto>();
     assert.deepEqual([detailDto.outcome, detailDto.won], ['called_off', false]);
-    const b = detailDto.battle;
+    const b = battleOf(detailDto);
     assert.equal(b.outcome, 'called_off');
     assert.deepEqual([b.attackerWon, b.luck, b.attackPower, b.defensePower], [false, 0, 0, 0]);
     assert.deepEqual([b.attackerUnits.raider, b.attackerLosses, b.defenderUnits, b.defenderLosses, b.wallLevel, b.loot], [14, emptyUnits(), null, null, null, emptyResources()]);
@@ -181,7 +181,7 @@ test('an alliance that has ended by the time the troops arrive no longer protect
   assert.equal(reports.length, 1, 'a real battle happened');
   assert.equal(reports[0]?.outcome, 'battle');
   const detail = (await bob.c.get(`/api/reports/${reports[0]?.id}`)).json<ReportDto>();
-  assert.equal(detail.battle.outcome, 'battle');
+  assert.equal(battleOf(detail).outcome, 'battle');
   assert.equal(detail.outcome, 'battle');
   assert.equal(detail.side, 'defense');
   await app.close();
@@ -205,13 +205,19 @@ test('reports stored before tribes existed (no outcome) are read as battles', as
     wallLevel: 0,
     loot: emptyResources(),
   };
-  const id = app.ctx.store.insertReport({ playerId: p.id, side: 'attack', won: true, title: 'Raid', createdAt: clock.now(), battle: legacy as never });
+  // Written straight to the table: the store only writes the current format (with a `type`).
+  const id = Number(
+    app.ctx.store.db
+      .prepare('INSERT INTO reports (player_id, side, won, title, created_at, read, battle_json) VALUES (?, ?, 1, ?, ?, 0, ?)')
+      .run(p.id, 'attack', 'Raid', clock.now(), JSON.stringify(legacy)).lastInsertRowid,
+  );
   const listed = (await p.c.get('/api/reports')).json<ReportListResponse>().reports;
   assert.deepEqual(listed.map((r) => [r.id, r.outcome]), [[id, 'battle']]);
   const report = (await p.c.get(`/api/reports/${id}`)).json<ReportDto>();
-  assert.equal(report.battle.outcome, 'battle');
+  assert.equal(report.type, 'battle');
+  assert.equal(battleOf(report).outcome, 'battle');
   assert.equal(report.outcome, 'battle');
-  assert.equal(report.battle.attackPower, 10);
+  assert.equal(battleOf(report).attackPower, 10);
   await app.close();
 });
 

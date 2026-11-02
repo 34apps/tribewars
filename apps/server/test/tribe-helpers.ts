@@ -139,7 +139,7 @@ export async function warSetup() {
     bob: { ...bobReg, tribeId: b.tribe.id },
     vidA,
     vb,
-    send: (): ReturnType<Client['post']> => aliceReg.c.post(`/api/villages/${vidA}/send`, { x: vb.x, y: vb.y, units: { raider: 14 } }),
+    send: (): ReturnType<Client['post']> => aliceReg.c.post(`/api/villages/${vidA}/send`, { x: vb.x, y: vb.y, units: { raider: 14 }, mission: 'attack' }),
   };
 }
 

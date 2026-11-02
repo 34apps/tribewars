@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
-import type { Coords } from '@clanfire/engine';
+import type { Coords, Mission } from '@clanfire/engine';
 import { useGame } from '../game.ts';
 import { formatCoords } from '../format.ts';
 import { MapChunks } from '../map/chunks.ts';
@@ -36,6 +36,8 @@ export function MapView({ active }: { active: boolean }) {
   const lastReadout = useRef('');
 
   const [selected, setSelected] = useState<Coords | null>(null);
+  /** Mission asked for by the tab that sent us here (tribe alert -> support); cleared by any tap on the map. */
+  const [preferred, setPreferred] = useState<{ x: number; y: number; mission: Mission; nonce: number } | null>(null);
   const [version, setVersion] = useState(0);
   const [goX, setGoX] = useState('');
   const [goY, setGoY] = useState('');
@@ -162,9 +164,10 @@ export function MapView({ active }: { active: boolean }) {
   }, [radius]);
 
   const select = useCallback(
-    (c: Coords | null, opts?: { reveal?: boolean }) => {
+    (c: Coords | null, opts?: { reveal?: boolean; mission?: Mission; nonce?: number }) => {
       selectedRef.current = c;
       setSelected(c);
+      setPreferred(c && opts?.mission ? { x: c.x, y: c.y, mission: opts.mission, nonce: opts.nonce ?? 0 } : null);
       if (c && opts?.reveal) reveal(c);
       schedule();
     },
@@ -189,7 +192,7 @@ export function MapView({ active }: { active: boolean }) {
     if (!mapFocus) return;
     const c = { x: Math.max(-radius, Math.min(radius, mapFocus.x)), y: Math.max(-radius, Math.min(radius, mapFocus.y)) };
     centerOn(c.x, c.y, 36);
-    select(c, { reveal: true });
+    select(c, { reveal: true, mission: mapFocus.mission, nonce: mapFocus.nonce });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
 
@@ -417,6 +420,7 @@ export function MapView({ active }: { active: boolean }) {
             village={selectedVillage}
             loaded={selectedLoaded}
             terrain={terrain}
+            preferred={preferred && preferred.x === selected.x && preferred.y === selected.y ? preferred : null}
             onClose={() => select(null)}
           />
         )}

@@ -8,6 +8,7 @@ import { useGame } from '../game.ts';
 import type { TribeTarget } from '../game.ts';
 import { ROLE_NAME } from '../relations.ts';
 import { RoleBadge, TribeLabel } from '../tribe/bits.tsx';
+import { Alerts } from '../tribe/Alerts.tsx';
 import { Chat } from '../tribe/Chat.tsx';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { TribeContext } from '../tribe/context.ts';
@@ -21,9 +22,10 @@ import { PublicTribe } from '../tribe/PublicTribe.tsx';
 import { Recruit } from '../tribe/Recruit.tsx';
 import { useMyTribe } from '../tribe/useMyTribe.ts';
 
-type Section = 'overview' | 'members' | 'diplomacy' | 'recruit' | 'chat' | 'log';
+type Section = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'recruit' | 'chat' | 'log';
 
 const SECTION_LABEL: Record<Section, string> = {
+  alerts: 'Alerts',
   overview: 'Overview',
   members: 'Members',
   diplomacy: 'Diplomacy',
@@ -32,20 +34,26 @@ const SECTION_LABEL: Record<Section, string> = {
   log: 'Log',
 };
 
-/** Remembered while the player moves between tabs. */
-let lastSection: Section = 'overview';
+/** Remembered while the player moves between tabs; null until a section was picked. */
+let lastSection: Section | null = null;
 
 function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; data: MyTribeResponse }) {
-  const [chosen, setChosen] = useState<Section>(lastSection);
+  const { tribeAlerts } = useGame();
+  // First visit with attacks incoming lands on the alerts.
+  const [chosen, setChosen] = useState<Section>(lastSection ?? (tribeAlerts > 0 ? 'alerts' : 'overview'));
   const canRecruit = canTribe(role, 'invite') || canTribe(role, 'handle_applications');
   const sections = useMemo<Section[]>(
-    () => (canRecruit ? ['overview', 'members', 'diplomacy', 'recruit', 'chat', 'log'] : ['overview', 'members', 'diplomacy', 'chat', 'log']),
+    () =>
+      canRecruit
+        ? ['alerts', 'overview', 'members', 'diplomacy', 'recruit', 'chat', 'log']
+        : ['alerts', 'overview', 'members', 'diplomacy', 'chat', 'log'],
     [canRecruit],
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
   const section: Section = sections.includes(chosen) ? chosen : 'overview';
 
   const badges: Partial<Record<Section, number>> = {
+    alerts: tribeAlerts,
     diplomacy: data.proposals.filter((p) => p.direction === 'incoming').length,
     recruit: canTribe(role, 'handle_applications') ? data.applications.length : 0,
   };
@@ -86,6 +94,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
       </div>
 
       <div id="tribe-panel" role="tabpanel" aria-labelledby={`tab-${section}`}>
+        {section === 'alerts' && <Alerts />}
         {section === 'overview' && <Overview tribe={tribe} role={role} />}
         {section === 'members' && <Members tribe={tribe} role={role} />}
         {section === 'diplomacy' && <Diplomacy tribe={tribe} role={role} />}

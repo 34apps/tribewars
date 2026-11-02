@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { settleVillage } from '@clanfire/engine';
+import type { Mission } from '@clanfire/engine';
 import { api } from './api.ts';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
@@ -32,6 +33,8 @@ function useTab(): [Tab, (t: Tab) => void] {
   }, []);
   return [tab, navigate];
 }
+
+const EMPTY_STATIONED: GameApi['stationed'] = { here: [], abroad: [] };
 
 const MAX_TOASTS = 2;
 const TOAST_MS = 4000;
@@ -67,8 +70,8 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
   const showOnMap = useCallback(
-    (x: number, y: number) => {
-      setMapFocus({ x, y, nonce: Date.now() });
+    (x: number, y: number, options?: { mission?: Mission }) => {
+      setMapFocus({ x, y, nonce: Date.now(), mission: options?.mission });
       navigate('map');
     },
     [navigate],
@@ -117,6 +120,8 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
       movements: data.movements,
       unreadReports: data.unreadReports,
       tribeInvites: data.tribeInvites ?? 0,
+      tribeAlerts: data.tribeAlerts ?? 0,
+      stationed: data.stationed ?? EMPTY_STATIONED,
       tribeVersion,
       tribeFocus,
       clearTribeFocus,
