@@ -151,6 +151,20 @@
       "h": 844,
       "title": "G \u00b7 Choose your chieftain (phone, clickable)",
       "is_interactive": true
+    },
+    "MapVillageStages.dc.html": {
+      "x": 0,
+      "y": 6660,
+      "w": 1440,
+      "h": 900,
+      "title": "F \u00b7 Map villages \u2014 growth stages"
+    },
+    "MapStagesInContext.dc.html": {
+      "x": 1520,
+      "y": 6660,
+      "w": 1440,
+      "h": 900,
+      "title": "F \u00b7 Map \u2014 stages in context"
     }
   },
   "createdOnFiles": {
@@ -197,7 +211,7 @@
     "rowE": {
       "x": 0,
       "y": 5120,
-      "text": "E \u00b7 Village view in Toy Diorama \u2014 for approval",
+      "text": "E \u00b7 Village view in Toy Diorama \u2014 approved",
       "kind": "title1",
       "maxW": 4070
     },
@@ -205,6 +219,13 @@
       "x": 0,
       "y": 7680,
       "text": "G \u00b7 Chieftain portraits \u2014 for approval",
+      "kind": "title1",
+      "maxW": 4070
+    },
+    "rowF": {
+      "x": 0,
+      "y": 6400,
+      "text": "F \u00b7 Map village growth stages \u2014 for approval",
       "kind": "title1",
       "maxW": 4070
     }
@@ -229,6 +250,8 @@
     "VillageViewPhone.dc.html",
     "VillageViewDesktop.dc.html",
     "BuildingStages.dc.html",
+    "MapVillageStages.dc.html",
+    "MapStagesInContext.dc.html",
     "Chieftains.dc.html",
     "ChieftainPicker.dc.html"
   ],

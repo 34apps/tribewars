@@ -1,0 +1,107 @@
+{
+  "tile": {
+    "width": 96,
+    "height": 48
+  },
+  "viewBox": "-64 -116 128 156",
+  "size": [
+    128,
+    156
+  ],
+  "anchor": [
+    64,
+    116
+  ],
+  "note": "anchor = tile centre on the ground; footprint diamond spans x 16..112, y 92..140 in SVG pixels. Banner pole base and length are in the same pixels.",
+  "stages": {
+    "hamlet": {
+      "stage": 1,
+      "points": [
+        0,
+        14
+      ],
+      "file": "stage-1-hamlet.svg",
+      "bannerPoleBase": [
+        89,
+        110
+      ],
+      "bannerPole": 28
+    },
+    "palisade-village": {
+      "stage": 2,
+      "points": [
+        15,
+        34
+      ],
+      "file": "stage-2-palisade-village.svg",
+      "bannerPoleBase": [
+        82.2,
+        89.6
+      ],
+      "bannerPole": 20
+    },
+    "stockade-town": {
+      "stage": 3,
+      "points": [
+        35,
+        64
+      ],
+      "file": "stage-3-stockade-town.svg",
+      "bannerPoleBase": [
+        64,
+        58.2
+      ],
+      "bannerPole": 16
+    },
+    "stone-walled-town": {
+      "stage": 4,
+      "points": [
+        65,
+        99
+      ],
+      "file": "stage-4-stone-walled-town.svg",
+      "bannerPoleBase": [
+        79.4,
+        61.6
+      ],
+      "bannerPole": 18
+    },
+    "fortified-town": {
+      "stage": 5,
+      "points": [
+        100,
+        149
+      ],
+      "file": "stage-5-fortified-town.svg",
+      "bannerPoleBase": [
+        67.4,
+        49.5
+      ],
+      "bannerPole": 18
+    },
+    "castle-with-moat": {
+      "stage": 6,
+      "points": [
+        150,
+        null
+      ],
+      "file": "stage-6-castle-with-moat.svg",
+      "bannerPoleBase": [
+        64,
+        52.6
+      ],
+      "bannerPole": 18
+    }
+  },
+  "ruins": {
+    "ruined-hamlet": {
+      "file": "ruined-hamlet.svg"
+    },
+    "ruined-town": {
+      "file": "ruined-town.svg"
+    },
+    "ruined-fort": {
+      "file": "ruined-fort.svg"
+    }
+  }
+}
