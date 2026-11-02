@@ -1,0 +1,522 @@
+{
+  "version": 1,
+  "character": "Mags the Tinker",
+  "world": "speed 1 numbers from packages/engine/src/config.ts",
+  "poses": {
+    "hello": {
+      "file": "mags/hello.svg",
+      "use": "Step 1 welcome, returning after a break",
+      "alt": "Mags the Tinker waving hello with a big grin"
+    },
+    "point": {
+      "file": "mags/point.svg",
+      "use": "Every \"tap this\" step, next to the spotlight",
+      "alt": "Mags the Tinker pointing up and to the left"
+    },
+    "think": {
+      "file": "mags/think.svg",
+      "use": "Waiting on timers, reading reports, choices",
+      "alt": "Mags the Tinker with a hand on her chin, leaning on her wrench, a gear above her head"
+    },
+    "cheer": {
+      "file": "mags/cheer.svg",
+      "use": "Task done, reward ready to claim",
+      "alt": "Mags the Tinker cheering with both arms up and her wrench raised, confetti around her"
+    },
+    "worried": {
+      "file": "mags/worried.svg",
+      "use": "Incoming attack, protection ending, storage full",
+      "alt": "Mags the Tinker gripping her wrench, wide-eyed and sweating, a warning sign beside her"
+    },
+    "tip": {
+      "file": "mags/tip.svg",
+      "use": "Idle tips on any screen (the original cast pose)",
+      "alt": "Mags the Tinker winking with a finger raised and a giant wrench on her shoulder"
+    }
+  },
+  "bubbles": {
+    "task": {
+      "bg": "#FFDC7A",
+      "use": "a step that asks for a tap"
+    },
+    "tip": {
+      "bg": "#7AD3CD",
+      "use": "waiting, hints, idle tips"
+    },
+    "warning": {
+      "bg": "#EF9C6E",
+      "use": "incoming attack, shield ending, storage full"
+    }
+  },
+  "rules": {
+    "skip": [
+      "Skip any time: Skip in Mags's card, or the menu on the tasks card. One confirm: \"Skip Mags's tasks? You keep every reward you've claimed.\"",
+      "Skipping hides the spotlights and the tasks card. Tasks still tick off quietly in the background.",
+      "Tapping outside the spotlight never blocks the game: the spotlight fades and the task waits in the tasks card with a Show me button."
+    ],
+    "resume": [
+      "Turn Mags back on from Settings or the small Mags button on the Village screen. She starts at the first unfinished task.",
+      "Already did it? A task completes the moment the game sees it done (e.g. Farm already level 2). Nobody repeats work.",
+      "Rewards wait in the tasks card until claimed and never expire. If the Storehouse is full, Claim shows \"Storehouse full: claim later\" so nothing goes to waste."
+    ],
+    "timers": [
+      "When a task needs something to finish first (Town Hall, Barracks, Raiders, marching), the tasks card shows a countdown and Mags suggests something useful meanwhile.",
+      "Tutorial raids and scouting target abandoned villages only, so beginner protection is never lost by following Mags."
+    ]
+  },
+  "practiceRaid": {
+    "from": "12|-40",
+    "target": "13|-41",
+    "distance": 1.4,
+    "travel": "14m 9s",
+    "scoutTarget": "10|-42",
+    "scoutTravel": "9m 26s",
+    "note": "With today's numbers a normal level-1 abandoned village (4 Pikemen, 2 Shieldbearers, militia 20 = 170 defence) beats or bleeds 5 Raiders (200 attack): 3-5 of them die. Proposal: each new village gets a \"practice ruin\" within 2 fields with a garrison of 1 Pikeman + 1 Shieldbearer (defence 80). Then 5 Raiders always win, lose 1, and bring home 120 loot."
+  },
+  "steps": [
+    {
+      "n": 1,
+      "id": "welcome",
+      "title": "Welcome, Chief",
+      "screen": "village",
+      "reward": {
+        "wood": 100,
+        "food": 100,
+        "iron": 100,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "welcome",
+          "pose": "hello",
+          "bubble": "task",
+          "say": "Chief Aren! I'm Mags, the village tinker. Ten little jobs and you'll know how this place ticks. Every job pays.",
+          "tap": "Tap Let's go."
+        }
+      ],
+      "highlight": "No spotlight: the village dims behind a welcome card. Old Orm (the chieftain just picked) and Mags side by side.",
+      "trigger": {
+        "event": "tutorial.started",
+        "detail": "Player taps Let's go on the welcome card (fires once, right after the chieftain is chosen at sign-up: POST /api/me/chieftain)."
+      },
+      "completes": "Tapping Let's go."
+    },
+    {
+      "n": 2,
+      "id": "lumber",
+      "title": "Upgrade the Lumber Camp",
+      "screen": "village",
+      "reward": {
+        "wood": 150,
+        "food": 80,
+        "iron": 80,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "lumber-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Everything here is built from wood, so wood comes first.",
+          "tap": "Tap the Lumber Camp by the trees."
+        },
+        {
+          "key": "lumber-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Level 2 cuts 35 wood an hour instead of 30. Costs 63 wood, 50 food, 38 iron.",
+          "tap": "Tap Upgrade to level 2."
+        },
+        {
+          "key": "lumber-done",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "Chop chop! It's on the build list and done in 1m 18s.",
+          "tap": "Tap Claim for your reward."
+        }
+      ],
+      "highlight": "Lumber Camp on the village scene, then the Upgrade to level 2 button in the building panel.",
+      "trigger": {
+        "event": "build.queued",
+        "where": {
+          "building": "lumber",
+          "targetLevel": 2
+        },
+        "detail": "POST /api/villages/:id/build {building:\"lumber\"} succeeds (job in queue). Already at level 2 or higher: completes on its own."
+      },
+      "completes": "When the upgrade starts (no need to wait for it to finish)."
+    },
+    {
+      "n": 3,
+      "id": "farm",
+      "title": "Upgrade the Farm",
+      "screen": "village",
+      "reward": {
+        "wood": 80,
+        "food": 150,
+        "iron": 80,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "farm-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Troops eat food. Every soldier, every hour, home or away.",
+          "tap": "Tap the Farm."
+        },
+        {
+          "key": "farm-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Level 2 grows 47 food an hour instead of 40. A fed army is a happy army.",
+          "tap": "Tap Upgrade to level 2."
+        },
+        {
+          "key": "farm-done",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "Lovely. Two builds can wait in line at once, so keep that list busy.",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Farm on the scene, then Upgrade to level 2. The queue card now shows two jobs (both slots in use).",
+      "trigger": {
+        "event": "build.queued",
+        "where": {
+          "building": "farm",
+          "targetLevel": 2
+        },
+        "detail": "POST /api/villages/:id/build {building:\"farm\"} succeeds."
+      },
+      "completes": "When the upgrade starts."
+    },
+    {
+      "n": 4,
+      "id": "barracks",
+      "title": "Build the Barracks",
+      "screen": "village",
+      "reward": {
+        "wood": 250,
+        "food": 200,
+        "iron": 200,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "hall-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Troops train in the Barracks, but that plot opens at Town Hall level 2.",
+          "tap": "Tap the Town Hall first."
+        },
+        {
+          "key": "hall-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "A bigger Hall also builds everything a little faster.",
+          "tap": "Tap Upgrade to level 2."
+        },
+        {
+          "key": "hall-wait",
+          "pose": "think",
+          "bubble": "tip",
+          "say": "That takes 1m 59s. Have a poke around while you wait. I'll wave when it's done.",
+          "tap": "Tap Next when the Hall is ready."
+        },
+        {
+          "key": "barracks-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Hall's done! The Barracks plot is open now.",
+          "tap": "Tap the empty Barracks plot."
+        },
+        {
+          "key": "barracks-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Costs 200 wood, 150 food, 120 iron. Ready in 2m 53s.",
+          "tap": "Tap Build Barracks."
+        },
+        {
+          "key": "barracks-done",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "Hammers out! Your first soldiers are close now.",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Town Hall, its Upgrade button, then the empty Barracks plot (Build sign) and Build Barracks. While the Hall builds, the tracker shows a countdown instead of a spotlight.",
+      "trigger": {
+        "event": "build.queued",
+        "where": {
+          "building": "barracks",
+          "targetLevel": 1
+        },
+        "detail": "Sub-task 1: Town Hall reaches level 2 (job finished; Barracks requires hall 2 current level). Sub-task 2: POST build {building:\"barracks\"} succeeds."
+      },
+      "completes": "When the Barracks build starts."
+    },
+    {
+      "n": 5,
+      "id": "raiders",
+      "title": "Train 5 Raiders",
+      "screen": "village",
+      "reward": {
+        "wood": 200,
+        "food": 200,
+        "iron": 200,
+        "gold": 20
+      },
+      "lines": [
+        {
+          "key": "b2",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Raiders need a level 2 Barracks. Costs 252 wood, 189 food, 151 iron.",
+          "tap": "Tap Upgrade to level 2."
+        },
+        {
+          "key": "train-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Barracks 2 is up. Time to hire some muscle.",
+          "tap": "Tap Train troops."
+        },
+        {
+          "key": "train-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Raiders hit hard and carry loot home. Each one eats 1 food an hour, and your Farm can cover 5.",
+          "tap": "Set 5, then tap Train 5 Raiders."
+        },
+        {
+          "key": "train-done",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "Five Raiders, ready in 8m 37s. They train one by one.",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Barracks Upgrade to level 2, then Train troops, then the Raider row (count 5) and Train 5 Raiders.",
+      "trigger": {
+        "event": "train.queued",
+        "where": {
+          "unit": "raider",
+          "countAtLeast": 5
+        },
+        "detail": "Sub-task 1: Barracks reaches level 2 (Raider requires barracks 2). Sub-task 2: POST /api/villages/:id/train {unit:\"raider\", count>=5} succeeds; batches add up."
+      },
+      "completes": "When 5 Raiders are in training (or already at home)."
+    },
+    {
+      "n": 6,
+      "id": "raid",
+      "title": "Raid an abandoned village",
+      "screen": "map",
+      "reward": {
+        "wood": 150,
+        "food": 150,
+        "iron": 150,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "map-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "While they train, let's look over the fence.",
+          "tap": "Tap Map at the top."
+        },
+        {
+          "key": "map-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "That grey ruin next door is abandoned. A couple of guards and a full storeroom.",
+          "tap": "Tap the ruin at 13|-41."
+        },
+        {
+          "key": "map-c",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Raiding abandoned villages is fair game, and it won't end your protection.",
+          "tap": "Tap Send troops."
+        },
+        {
+          "key": "map-d",
+          "pose": "point",
+          "bubble": "task",
+          "say": "All 5 Raiders, on attack. They'll be there in 14m 9s.",
+          "tap": "Tap Send 5 Raiders."
+        },
+        {
+          "key": "map-done",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "They're off! I'll shout when the report's in.",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Map tab, the nearest abandoned village (13|-41, 1.4 fields away), Send troops in its popover, then Send 5 Raiders in the send panel.",
+      "trigger": {
+        "event": "movement.sent",
+        "where": {
+          "mission": "attack",
+          "target": "abandoned",
+          "unit": "raider"
+        },
+        "detail": "POST /api/villages/:id/send {mission:\"attack\"} at an abandoned village succeeds. Waits for 5 Raiders at home first (tracker countdown)."
+      },
+      "completes": "When the attack is sent."
+    },
+    {
+      "n": 7,
+      "id": "report",
+      "title": "Read the battle report",
+      "screen": "reports",
+      "reward": {
+        "wood": 100,
+        "food": 100,
+        "iron": 100,
+        "gold": 30
+      },
+      "lines": [
+        {
+          "key": "report-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Your Raiders are home and the report's in.",
+          "tap": "Tap Reports at the top."
+        },
+        {
+          "key": "report-b",
+          "pose": "think",
+          "bubble": "task",
+          "say": "You won, but lost a Raider. They had a Shieldbearer we never saw coming. Bottom row: 30 of each, carried home.",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Reports tab (badge 1), the unread report row, then the losses row and the loot row inside the report.",
+      "trigger": {
+        "event": "report.read",
+        "where": {
+          "type": "attack"
+        },
+        "detail": "GET /api/reports/:id for the raid report (marks it read)."
+      },
+      "completes": "When the report is opened."
+    },
+    {
+      "n": 8,
+      "id": "scout",
+      "title": "Scout before you raid",
+      "screen": "map",
+      "reward": {
+        "wood": 200,
+        "food": 200,
+        "iron": 200,
+        "gold": 0
+      },
+      "lines": [
+        {
+          "key": "scout-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Guessing costs Raiders. A Pathfinder sneaks in and counts theirs. Costs 35 wood, 30 food, 25 iron.",
+          "tap": "In the Barracks, set 1 Pathfinder and tap Train."
+        },
+        {
+          "key": "scout-b",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Next ruin: 10|-42. Scout is picked, so only the Pathfinder goes. Back with news in 9m 26s.",
+          "tap": "Tap Send 1 Pathfinder."
+        },
+        {
+          "key": "scout-c",
+          "pose": "think",
+          "bubble": "task",
+          "say": "4 Pikemen and 2 Shieldbearers. That would eat your 4 Raiders. Glad we looked!",
+          "tap": "Tap Claim."
+        }
+      ],
+      "highlight": "Pathfinder row in Train troops; on the map the ruin at 10|-42, Send troops, and the Scout mission switch.",
+      "trigger": {
+        "event": "report.read",
+        "where": {
+          "type": "scout"
+        },
+        "detail": "Sub-task 1: train.queued {unit:\"pathfinder\"}. Sub-task 2: send {mission:\"scout\"} to an abandoned village. Completes when that scout report is opened."
+      },
+      "completes": "When the scout report is opened (the lesson is reading the intel)."
+    },
+    {
+      "n": 9,
+      "id": "tribe",
+      "title": "Join or found a tribe",
+      "screen": "tribe",
+      "reward": {
+        "wood": 250,
+        "food": 250,
+        "iron": 250,
+        "gold": 50
+      },
+      "lines": [
+        {
+          "key": "tribe-a",
+          "pose": "point",
+          "bubble": "task",
+          "say": "Nobody wins alone out here. Tribes share warnings, send help and plan raids together.",
+          "tap": "Tap Tribe at the top."
+        },
+        {
+          "key": "tribe-b",
+          "pose": "hello",
+          "bubble": "task",
+          "say": "Open tribes take you straight away. Rather lead? Found your own once your Town Hall reaches level 3.",
+          "tap": "Tap Join next to Emberhold."
+        }
+      ],
+      "highlight": "Tribe tab, then the Join button on an open tribe. Found a tribe shows its Town Hall 3 lock until then.",
+      "trigger": {
+        "event": "tribe.joined",
+        "detail": "Player becomes a member of any tribe: POST /api/tribes/:id/join, an accepted application or invite, or POST /api/tribes (found). An application alone does not complete it; step 10 unlocks anyway."
+      },
+      "completes": "When the player is in a tribe."
+    },
+    {
+      "n": 10,
+      "id": "next",
+      "title": "You're on your own",
+      "screen": "village",
+      "reward": {
+        "wood": 300,
+        "food": 300,
+        "iron": 300,
+        "gold": 50
+      },
+      "lines": [
+        {
+          "key": "next",
+          "pose": "cheer",
+          "bubble": "task",
+          "say": "That's the lot, Chief! For 2d 22h no player can attack you. Raiding abandoned villages keeps that shield. Attacking or scouting a player ends it early.",
+          "tap": "Tap Off you go."
+        }
+      ],
+      "highlight": "The Protected 2d 22h chip next to the chieftain in the top bar, then the wrap-up card.",
+      "trigger": {
+        "event": "tutorial.finished",
+        "detail": "Player taps Off you go. Mags keeps giving tips; she warns about the shield at 24 h and 1 h left, and about every incoming attack after that."
+      },
+      "completes": "Tapping Off you go.",
+      "nextSteps": [
+        "Keep both build slots busy, day and night.",
+        "Raid abandoned villages often, and scout first.",
+        "Before the shield drops: build a Wall, train Pikemen and Shieldbearers.",
+        "Grow the Storehouse and Hidden Vault so raiders find less.",
+        "Say hello in tribe chat."
+      ]
+    }
+  ]
+}
