@@ -32,7 +32,7 @@ agents), `docs/ART_DIRECTION.md`, the top of `CHANGELOG.md`, and the parts of `N
 | What | Status |
 |---|---|
 | Village view, isometric map + growth stages, chieftains | **built, in `main`** (v0.4) |
-| Designs H (units), I (tutorial), J (panels + reports), K (terrain + armies) | on canvas, **waiting for owner approval** |
+| Designs H–K on canvas; **L (tribe page + chat + emblems) done but only in `design/` (artboards + renders), not yet on canvas** | waiting for owner approval |
 | Owner decision: first raid too punishing — "practice ruin" near each new village (recommended) vs easier weak NPCs | open |
 | After approvals: build H–K in (one agent per disjoint file set), reports need opponent chieftain in `VillageRefDto` | next |
 

@@ -1,0 +1,146 @@
+{
+  "shapes": [
+    "shield",
+    "round",
+    "banner",
+    "tongues",
+    "keep",
+    "diamond"
+  ],
+  "charges": [
+    "flame",
+    "wolf",
+    "tower",
+    "oak",
+    "anchor",
+    "axes",
+    "antlers",
+    "moon",
+    "wheat",
+    "crown"
+  ],
+  "colours": {
+    "sun": {
+      "name": "Sunflower",
+      "tones": [
+        "#FFDC7A",
+        "#F2B33D",
+        "#B07720"
+      ]
+    },
+    "terra": {
+      "name": "Terracotta",
+      "tones": [
+        "#EF9C6E",
+        "#C4623A",
+        "#843A23"
+      ]
+    },
+    "moss": {
+      "name": "Moss",
+      "tones": [
+        "#A6C964",
+        "#5E8C3A",
+        "#3A5E27"
+      ]
+    },
+    "teal": {
+      "name": "Sky teal",
+      "tones": [
+        "#7AD3CD",
+        "#2F9AA0",
+        "#1A646B"
+      ]
+    },
+    "plum": {
+      "name": "Plum",
+      "tones": [
+        "#B86C92",
+        "#7A3B5E",
+        "#4A213C"
+      ]
+    },
+    "bone": {
+      "name": "Bone",
+      "tones": [
+        "#FFF8E8",
+        "#F1E1C2",
+        "#C6AF88"
+      ]
+    },
+    "iron": {
+      "name": "Iron",
+      "tones": [
+        "#E0DCD3",
+        "#A39E94",
+        "#665F57"
+      ]
+    },
+    "night": {
+      "name": "Night",
+      "tones": [
+        "#6B5A4E",
+        "#3E3028",
+        "#1E1612"
+      ]
+    }
+  },
+  "examples": {
+    "EMBR": {
+      "name": "Emberhold",
+      "shape": "banner",
+      "field": "sun",
+      "charge": "flame",
+      "chargeCol": "terra"
+    },
+    "WOLF": {
+      "name": "Wolfmark",
+      "shape": "shield",
+      "field": "teal",
+      "charge": "wolf",
+      "chargeCol": "bone"
+    },
+    "FERN": {
+      "name": "Fernhollow",
+      "shape": "round",
+      "field": "moss",
+      "charge": "antlers",
+      "chargeCol": "bone"
+    },
+    "GRIM": {
+      "name": "Grimwater",
+      "shape": "tongues",
+      "field": "iron",
+      "charge": "anchor",
+      "chargeCol": "terra"
+    },
+    "OAK": {
+      "name": "Oakvale",
+      "shape": "keep",
+      "field": "bone",
+      "charge": "oak",
+      "chargeCol": "moss"
+    },
+    "KEEP": {
+      "name": "Highkeep",
+      "shape": "diamond",
+      "field": "bone",
+      "charge": "tower",
+      "chargeCol": "plum"
+    },
+    "RAXE": {
+      "name": "Redaxe",
+      "shape": "banner",
+      "field": "terra",
+      "charge": "axes",
+      "chargeCol": "bone"
+    },
+    "MOON": {
+      "name": "Moonriders",
+      "shape": "shield",
+      "field": "plum",
+      "charge": "moon",
+      "chargeCol": "sun"
+    }
+  }
+}
