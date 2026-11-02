@@ -12,6 +12,8 @@ Owner's direction (2026-11-02). Read before any visual work.
 - Art starts as hand-drawn SVG; 3D models (e.g. Tripo3D) may come later, so prefer forms that can
   become 3D.
 - Work **one piece at a time**, each approved by the owner before it goes into the game.
+- Approved designs fix the **general concept**; the owner may still touch up details at the end. Keep
+  every piece of art swappable (sprite registries, separate SVG files), never baked into layout code.
 
 ## Chosen style: D · Toy Diorama (owner, 2026-11-02)
 Chunky tabletop toy pieces, 3-tone block shading lit from the top-left, vinyl-toy characters on round
