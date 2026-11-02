@@ -6,11 +6,13 @@ import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { GameError, type ApiError, type GameErrorCode, type WorldSettings } from '@clanfire/engine';
+import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter } from './auth.ts';
 import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
 import { GameService } from './game.ts';
+import { advisorRoutes } from './routes/advisor.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
 import { reportRoutes } from './routes/reports.ts';
@@ -36,6 +38,8 @@ export interface BuildAppOptions {
   secureCookies?: boolean;
   /** Trust X-Forwarded-For (behind a reverse proxy only). */
   trustProxy?: boolean;
+  /** Claude client for Mags's advisor. Null/absent = advisor answers `advisor_unavailable`. Tests inject a fake. */
+  advisorClient?: AdvisorClient | null;
 }
 
 const DEFAULT_WEB_DIST = resolve(import.meta.dirname, '../../web/dist');
@@ -153,6 +157,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);
   tribeRoutes(app, ctx);
+  advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 
   // ---- static client + SPA fallback --------------------------------------------------------------
   const webDist = resolve(opts.webDistDir ?? DEFAULT_WEB_DIST);

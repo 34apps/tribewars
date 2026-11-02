@@ -1,8 +1,10 @@
 // Production/dev entry point: listen, and tick the movement processor once a second.
 
+import { createAnthropicClient } from './advisor.ts';
 import { buildApp } from './app.ts';
-import { loadEnv } from './env.ts';
+import { loadDotEnv, loadEnv } from './env.ts';
 
+loadDotEnv();
 const env = loadEnv();
 const app = await buildApp({
   dbPath: env.databasePath,
@@ -10,7 +12,9 @@ const app = await buildApp({
   secureCookies: env.isProduction,
   trustProxy: env.trustProxy,
   logger: true,
+  advisorClient: env.anthropicApiKey ? createAnthropicClient(env.anthropicApiKey) : null,
 });
+if (!env.anthropicApiKey) app.log.info('ANTHROPIC_API_KEY not set: the advisor is off');
 
 // Arrivals are also processed at the start of every API request; the tick covers idle periods.
 const tick = setInterval(() => {

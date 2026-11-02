@@ -6,6 +6,7 @@ import { Icon } from '../art/Icon.tsx';
 import { formatCoords, formatDuration } from '../format.ts';
 import { useGame } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
+import { AskMags } from './village/AskMags.tsx';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
 import './village/village.css';
@@ -71,6 +72,7 @@ function DesktopVillage() {
         <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" />
         <BuildQueue onPick={setSelected} />
         <Advisor id={selected} />
+        <AskMags />
       </aside>
     </div>
   );
@@ -160,6 +162,7 @@ function PhoneVillage() {
               <>
                 <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" />
                 <Advisor id={sheet.id} compact />
+                <AskMags compact />
               </>
             ) : (
               <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />

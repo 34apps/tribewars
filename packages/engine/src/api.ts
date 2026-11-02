@@ -476,3 +476,22 @@ export interface TribeAlertDto {
 export interface TribeAlertsResponse {
   alerts: TribeAlertDto[];
 }
+
+// ---- Advisor (Mags the Tinker, AI tips) ----
+
+/** Longest question a player may ask Mags (characters, after trimming). */
+export const ADVISOR_QUESTION_MAX = 500;
+/** Questions each player may ask Mags per rolling hour. */
+export const ADVISOR_QUESTIONS_PER_HOUR = 20;
+
+/** POST /api/advisor/ask */
+export interface AdvisorAskRequest {
+  question: string;
+}
+
+export interface AdvisorAskResponse {
+  /** Mags's answer, plain text (no HTML, no markdown). */
+  answer: string;
+  /** Questions the player has left in the current rolling hour. */
+  remaining: number;
+}

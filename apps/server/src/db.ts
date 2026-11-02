@@ -201,6 +201,21 @@ CREATE TABLE IF NOT EXISTS tribe_messages (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tribe_messages_tribe ON tribe_messages(tribe_id, id);
+
+-- ---- Advisor (Mags, AI tips): one row per question sent to the model. Doubles as the rolling-hour rate limit
+-- (rows with ok = 1) and the token-usage log. Never stores the question or the answer.
+CREATE TABLE IF NOT EXISTS advisor_log (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id          INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  asked_at           INTEGER NOT NULL,
+  model              TEXT    NOT NULL,
+  input_tokens       INTEGER NOT NULL DEFAULT 0,
+  output_tokens      INTEGER NOT NULL DEFAULT 0,
+  cache_read_tokens  INTEGER NOT NULL DEFAULT 0,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  ok                 INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_advisor_log_player ON advisor_log(player_id, asked_at);
 `;
 
 /**

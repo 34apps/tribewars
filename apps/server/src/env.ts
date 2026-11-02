@@ -1,5 +1,6 @@
 // Server configuration from environment variables. Fails fast on malformed values.
 
+import { existsSync } from 'node:fs';
 import type { WorldSettings } from '@clanfire/engine';
 
 export interface ServerEnv {
@@ -12,6 +13,8 @@ export interface ServerEnv {
   trustProxy: boolean;
   /** World settings given in the environment. Only used when a new world is created. */
   worldOverrides: Partial<WorldSettings>;
+  /** Anthropic key for Mags's advisor; null = advisor off. Secret: never log it. */
+  anthropicApiKey: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -22,6 +25,12 @@ function num(env: Env, name: string, check: (n: number) => boolean, what: string
   const n = Number(raw);
   if (!Number.isFinite(n) || !check(n)) throw new Error(`Invalid ${name}="${raw}": expected ${what}.`);
   return n;
+}
+
+/** Load apps/server/.env if it exists (path relative to this package, not the cwd). Real environment variables win. */
+export function loadDotEnv(): void {
+  const file = new URL('../.env', import.meta.url);
+  if (existsSync(file)) process.loadEnvFile(file);
 }
 
 export function loadEnv(env: Env = process.env): ServerEnv {
@@ -43,5 +52,6 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     isProduction: nodeEnv === 'production',
     trustProxy: /^(1|true|yes)$/i.test(env.TRUST_PROXY ?? ''),
     worldOverrides,
+    anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
   };
 }

@@ -199,6 +199,7 @@ export type GameErrorCode =
   | 'already_in_tribe'
   | 'not_in_tribe'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */
+  | 'advisor_unavailable'
   | 'internal_error';
 
 export class GameError extends Error {

@@ -28,6 +28,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - More villages per player (settlers or conquest); market trading between players.
 
 ## Tech follow-ups
+- Ask Mags (AI advisor): try one real question with the owner's key (request shape only tested with a fake); include stationed support troops in her snapshot; when hosting, put `ANTHROPIC_API_KEY` in the host's secrets; optional per-day spend cap / admin view of `advisor_log` token usage.
 - Live updates (WebSocket) for incoming attacks instead of 10 s polling.
 - Mobile polish: installable web app (PWA), haptics-free touch tuning, landscape layout.
 - Deployment: Dockerfile, health checks, daily database backup; compile the server instead of
