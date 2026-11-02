@@ -210,6 +210,48 @@
       "w": 1200,
       "h": 844,
       "title": "I \u00b7 Mags character sheet"
+    },
+    "BuildingPanels.dc.html": {
+      "x": 0,
+      "y": 11780,
+      "w": 1440,
+      "h": 900,
+      "title": "J \u00b7 Building panels \u2014 desktop"
+    },
+    "BuildingPanelPhone.dc.html": {
+      "x": 1520,
+      "y": 11780,
+      "w": 390,
+      "h": 844,
+      "title": "J \u00b7 Panel \u2014 phone (Farm)"
+    },
+    "BuildingPanelPhoneTraining.dc.html": {
+      "x": 1990,
+      "y": 11780,
+      "w": 390,
+      "h": 844,
+      "title": "J \u00b7 Panel \u2014 phone (Barracks training)"
+    },
+    "Reports.dc.html": {
+      "x": 2460,
+      "y": 11780,
+      "w": 1440,
+      "h": 900,
+      "title": "J \u00b7 Reports inbox + battle report"
+    },
+    "ReportVariants.dc.html": {
+      "x": 3980,
+      "y": 11780,
+      "w": 1440,
+      "h": 900,
+      "title": "J \u00b7 Report variants"
+    },
+    "ReportPhone.dc.html": {
+      "x": 5500,
+      "y": 11780,
+      "w": 390,
+      "h": 844,
+      "title": "J \u00b7 Battle report \u2014 phone"
     }
   },
   "createdOnFiles": {
@@ -287,6 +329,13 @@
       "text": "I \u00b7 Mags's tutorial \u2014 for approval",
       "kind": "title1",
       "maxW": 4790
+    },
+    "rowJ": {
+      "x": 0,
+      "y": 11520,
+      "text": "J \u00b7 Building panels & battle reports \u2014 for approval",
+      "kind": "title1",
+      "maxW": 5970
     }
   },
   "order": [
@@ -318,7 +367,13 @@
     "Tutorial.dc.html",
     "TutorialDesktop.dc.html",
     "TutorialPhone.dc.html",
-    "Mags.dc.html"
+    "Mags.dc.html",
+    "BuildingPanels.dc.html",
+    "BuildingPanelPhone.dc.html",
+    "BuildingPanelPhoneTraining.dc.html",
+    "Reports.dc.html",
+    "ReportVariants.dc.html",
+    "ReportPhone.dc.html"
   ],
   "pages": [],
   "title": "Clanfire style directions"
