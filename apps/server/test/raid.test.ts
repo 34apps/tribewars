@@ -73,11 +73,13 @@ test('full raid: attack, report, return movement, troops and loot come home', as
   assert.ok(summary);
   assert.deepEqual([summary.side, summary.won, summary.read, summary.createdAt], ['attack', true, false, movement.arriveAt]);
   assert.equal(summary.title, `Raid on Abandoned village (${npc.x}|${npc.y})`);
+  assert.equal(summary.outcome, 'battle');
 
   const detail = await c.get(`/api/reports/${summary.id}`);
   ok(detail);
   const report = detail.json<ReportDto>();
   assert.equal(report.read, true, 'opening a report marks it read');
+  assert.equal(report.outcome, 'battle');
   assert.equal((await c.state()).unreadReports, 0);
   const b = report.battle;
   assert.equal(b.attackerWon, true);

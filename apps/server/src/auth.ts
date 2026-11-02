@@ -98,7 +98,7 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id) };
   }
 
   /** Create a player and their first village atomically, then sign them in. */

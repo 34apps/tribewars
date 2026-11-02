@@ -3,7 +3,8 @@
 An original browser strategy game. Every player gets a village somewhere on a shared world map.
 Grow it with **wood, food, iron and gold**, upgrade buildings, train troops, and send them across
 the map (travel time depends on distance) to raid **abandoned villages** — which keep growing on
-their own — or other players. Tribes and alliances come next.
+their own — or other players. Join or found a **tribe**, chat with it, and make alliances, non-aggression pacts
+or enemies with other tribes.
 
 Web first; the UI is built mobile-first so it also works in phone browsers.
 

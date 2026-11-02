@@ -30,6 +30,8 @@ read or log other repos (e.g. MeetingNote) from a TribeWars session.**
 
 ## Rules
 
+- **Original game.** Same genre as Tribal Wars / Travian, aiming to be better with more features —
+  never copy their names, numbers, formulas, art, text or screen layouts (owner, 2026-11-02).
 - The server is authoritative. Every rule lives in `packages/engine`; the client only previews.
   Never trust client input.
 - Balance numbers only in `config.ts`. A rule change updates `docs/GAME_DESIGN.md` in the same commit.

@@ -5,12 +5,13 @@ import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { GameContext, TABS } from './game.ts';
-import type { GameApi, MapFocus, Tab, ToastOptions } from './game.ts';
+import type { GameApi, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { useNow } from './hooks/useNow.ts';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MapView } from './views/MapView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
+import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
 
 function readTab(): Tab {
@@ -32,6 +33,10 @@ function useTab(): [Tab, (t: Tab) => void] {
   return [tab, navigate];
 }
 
+const MAX_TOASTS = 2;
+const TOAST_MS = 4000;
+const TOAST_LONG_MS = 8000;
+
 export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   const store = useGameState(onSignedOut);
   const now = useNow(store.serverOffset);
@@ -39,6 +44,8 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   const [highlightMovementId, setHighlight] = useState<number | null>(null);
+  const [tribeFocus, setTribeFocus] = useState<TribeTarget | null>(null);
+  const [tribeVersion, setTribeVersion] = useState(0);
   const toastId = useRef(0);
   const mapVisited = useRef(false);
   if (tab === 'map') mapVisited.current = true;
@@ -50,8 +57,12 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
 
   const toast = useCallback((message: string, options?: ToastOptions) => {
     const id = ++toastId.current;
-    setToasts((list) => [...list.slice(-3), { id, message, kind: options?.kind ?? 'ok', action: options?.action }]);
-    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), options?.action ? 9000 : 5000);
+    const kind = options?.kind ?? 'ok';
+    // Newest win: at most MAX_TOASTS on screen, older ones drop.
+    setToasts((list) => [...list.slice(1 - MAX_TOASTS), { id, message, kind, action: options?.action }]);
+    // Errors and toasts with an action stay a little longer (they can also be closed by hand).
+    const ttl = kind === 'error' || options?.action ? TOAST_LONG_MS : TOAST_MS;
+    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), ttl);
   }, []);
   const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
@@ -72,6 +83,20 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
     [navigate],
   );
 
+  const viewTribe = useCallback(
+    (target: TribeTarget) => {
+      setTribeFocus(target);
+      navigate('tribe');
+    },
+    [navigate],
+  );
+  const clearTribeFocus = useCallback(() => setTribeFocus(null), []);
+  const { refresh } = store;
+  const tribeChanged = useCallback(() => {
+    setTribeVersion((v) => v + 1);
+    void refresh();
+  }, [refresh]);
+
   const signOut = useCallback(async () => {
     try {
       await api.logout();
@@ -91,6 +116,12 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
       now,
       movements: data.movements,
       unreadReports: data.unreadReports,
+      tribeInvites: data.tribeInvites ?? 0,
+      tribeVersion,
+      tribeFocus,
+      clearTribeFocus,
+      viewTribe,
+      tribeChanged,
       connectionError: store.error,
       tab,
       navigate,
@@ -103,7 +134,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
       applySend: store.applySend,
       toast,
     };
-  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast]);
+  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged]);
 
   if (!ctx) {
     return (
@@ -125,6 +156,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'village' && <VillageView />}
         {tab === 'army' && <ArmyView />}
         {tab === 'reports' && <ReportsView />}
+        {tab === 'tribe' && <TribeView />}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Shell>
       <Toasts toasts={toasts} onDismiss={dismissToast} />

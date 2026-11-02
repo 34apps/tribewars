@@ -1,7 +1,18 @@
 // HTTP API contract between apps/server and apps/web. Both sides import these types.
 // JSON over HTTPS, session in an HttpOnly cookie. Errors: non-2xx with ApiError body.
 
-import type { Coords, GameErrorCode, Resources, Units, VillageState, WorldSettings } from './types.ts';
+import type {
+  Coords,
+  DiplomacyKind,
+  GameErrorCode,
+  PlayerRelation,
+  Recruitment,
+  Resources,
+  TribeRole,
+  Units,
+  VillageState,
+  WorldSettings,
+} from './types.ts';
 
 export interface ApiError {
   error: GameErrorCode;
@@ -26,6 +37,15 @@ export interface PlayerDto {
   username: string;
   /** Attacks on this player's villages are refused until this time. 0 = not protected. */
   protectedUntil: number;
+  /** The player's tribe, or null. */
+  tribe: PlayerTribeDto | null;
+}
+
+export interface PlayerTribeDto {
+  id: number;
+  name: string;
+  tag: string;
+  role: TribeRole;
 }
 
 export interface MeResponse {
@@ -78,6 +98,8 @@ export interface GameStateResponse {
   villages: OwnVillageDto[];
   movements: MovementDto[];
   unreadReports: number;
+  /** Open tribe invitations addressed to me (badge on the Tribe tab). */
+  tribeInvites: number;
 }
 
 // ---- Village actions -----------------------------------------------------------
@@ -121,6 +143,12 @@ export interface MapVillageDto extends Coords {
   points: number;
   /** Under beginner protection (players only). */
   protected: boolean;
+  /** Owner's tribe tag; null for abandoned villages and tribeless players. */
+  tribeTag: string | null;
+  /** Owner's tribe id (open it with GET /api/tribes/:id); null for abandoned villages and tribeless players. */
+  tribeId: number | null;
+  /** Owner's relation to the viewer; null for abandoned villages. Drives map colours and the Send button. */
+  relation: PlayerRelation | null;
 }
 
 export interface MapResponse {
@@ -138,12 +166,19 @@ export interface ReportSummaryDto {
   title: string;
   /** attack = I attacked; defense = I was attacked. */
   side: 'attack' | 'defense';
-  /** From the report owner's point of view. */
+  /** From the report owner's point of view. Always false for a called-off attack. */
   won: boolean;
   read: boolean;
+  /** Same meaning as `BattleReportData.outcome`; lets the list tell a called-off attack from a lost battle. */
+  outcome: 'battle' | 'called_off';
 }
 
 export interface BattleReportData {
+  /**
+   * called_off: on arrival the target belonged to the attacker's tribe, an ally or a NAP partner, so no
+   * battle happened and the troops turned back (powers 0, no losses, no loot, defender fields null).
+   */
+  outcome: 'battle' | 'called_off';
   attacker: VillageRefDto;
   defender: VillageRefDto;
   attackerWon: boolean;
@@ -165,4 +200,182 @@ export interface ReportDto extends ReportSummaryDto {
 
 export interface ReportListResponse {
   reports: ReportSummaryDto[];
+}
+
+// ---- Tribes (docs/GAME_DESIGN.md section 11) -------------------------------------------
+// Any signed-in player:
+//   GET  /api/tribes?q=<name or tag>   -> 200 TribeListResponse (by points desc, max 100)
+//   GET  /api/tribes/:id               -> 200 TribeDto
+//   POST /api/tribes                   body CreateTribeRequest -> 201 MyTribeResponse (caller becomes leader)
+//   POST /api/tribes/:id/join          -> 200 MyTribeResponse (recruitment 'open' only)
+//   POST /api/tribes/:id/apply         body ApplyRequest -> 201 MyTribeResponse (recruitment 'application')
+// Mine (the caller's own tribe; 409 not_in_tribe when tribeless unless noted):
+//   GET  /api/tribe                    -> 200 MyTribeResponse (works when tribeless: tribe null)
+//   POST /api/tribe/settings           body TribeSettingsRequest -> 200 MyTribeResponse
+//   POST /api/tribe/invites            body InviteRequest -> 201 MyTribeResponse
+//   POST /api/tribe/invites/:id/cancel -> 200 MyTribeResponse
+//   POST /api/tribe/applications/:id/accept | /decline -> 200 MyTribeResponse
+//   POST /api/tribe/members/:playerId/kick -> 200 MyTribeResponse
+//   POST /api/tribe/members/:playerId/role  body RoleRequest -> 200 MyTribeResponse
+//   POST /api/tribe/transfer           body TransferRequest -> 200 MyTribeResponse
+//   POST /api/tribe/leave              -> 200 MyTribeResponse (tribe null)
+//   POST /api/tribe/disband            -> 200 MyTribeResponse (tribe null)
+//   POST /api/tribe/diplomacy          body DiplomacyRequest -> 201 MyTribeResponse
+//   POST /api/tribe/diplomacy/proposals/:id/accept | /decline | /withdraw -> 200 MyTribeResponse
+//   POST /api/tribe/diplomacy/relations/:id/cancel -> 200 MyTribeResponse
+//   GET  /api/tribe/chat?after=<messageId> -> 200 ChatResponse (oldest first; last 100 when no `after`)
+//   POST /api/tribe/chat               body ChatRequest -> 201 ChatMessageDto
+// The invited / applying player (works when tribeless):
+//   POST /api/invites/:id/accept | /decline -> 200 MyTribeResponse
+//   POST /api/applications/:id/withdraw     -> 200 MyTribeResponse
+
+export interface TribeSummaryDto {
+  id: number;
+  name: string;
+  tag: string;
+  members: number;
+  /** Sum of members' points. */
+  points: number;
+  recruitment: Recruitment;
+  /** 1-based rank by points among all tribes. */
+  rank: number;
+}
+
+export interface TribeListResponse {
+  tribes: TribeSummaryDto[];
+}
+
+export interface TribeMemberDto {
+  playerId: number;
+  username: string;
+  role: TribeRole;
+  points: number;
+  /** Main village, for jumping to it on the map. */
+  villageX: number;
+  villageY: number;
+  joinedAt: number;
+}
+
+export interface TribeRelationDto {
+  /** Relation id (for cancel). */
+  id: number;
+  kind: DiplomacyKind;
+  other: { id: number; name: string; tag: string };
+  since: number;
+  /** Set while a cancelled alliance/NAP serves its notice; it still protects until then. */
+  endsAt: number | null;
+  /** For enemy: true when my tribe declared it. */
+  declaredByUs: boolean;
+}
+
+/** Public view of any tribe. */
+export interface TribeDto extends TribeSummaryDto {
+  description: string;
+  createdAt: number;
+  members: number;
+  memberList: TribeMemberDto[];
+  /** Active relations (incl. those serving notice). */
+  relations: TribeRelationDto[];
+}
+
+export interface TribeInviteDto {
+  id: number;
+  tribe: { id: number; name: string; tag: string };
+  playerId: number;
+  username: string;
+  invitedBy: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
+export interface TribeApplicationDto {
+  id: number;
+  tribe: { id: number; name: string; tag: string };
+  playerId: number;
+  username: string;
+  /** Applicant's points when listed. */
+  points: number;
+  message: string;
+  createdAt: number;
+}
+
+export interface DiplomacyProposalDto {
+  id: number;
+  kind: Exclude<DiplomacyKind, 'enemy'>;
+  /** incoming = the other tribe proposed to us. */
+  direction: 'incoming' | 'outgoing';
+  other: { id: number; name: string; tag: string };
+  createdAt: number;
+}
+
+export interface TribeEventDto {
+  id: number;
+  createdAt: number;
+  /** Plain English sentence written by the server, e.g. "anna joined the tribe." */
+  text: string;
+}
+
+export interface MyTribeResponse {
+  /** null when the caller has no tribe. */
+  tribe: TribeDto | null;
+  /** The caller's role, or null. */
+  role: TribeRole | null;
+  /** Tribeless: invitations addressed to me. In a tribe: invitations my tribe has sent (officers+ only, else []). */
+  invites: TribeInviteDto[];
+  /** Tribeless: my open applications. In a tribe: applications to my tribe (officers+ only, else []). */
+  applications: TribeApplicationDto[];
+  /** Pending ally/NAP proposals to or from my tribe ([] when tribeless). */
+  proposals: DiplomacyProposalDto[];
+  /** Newest first, max 50 ([] when tribeless). */
+  events: TribeEventDto[];
+}
+
+export interface CreateTribeRequest {
+  name: string;
+  tag: string;
+  description?: string;
+  recruitment: Recruitment;
+}
+
+export interface ApplyRequest {
+  message: string;
+}
+
+export interface TribeSettingsRequest {
+  description?: string;
+  recruitment?: Recruitment;
+}
+
+export interface InviteRequest {
+  username: string;
+}
+
+export interface RoleRequest {
+  role: Exclude<TribeRole, 'leader'>;
+}
+
+export interface TransferRequest {
+  playerId: number;
+}
+
+export interface DiplomacyRequest {
+  /** The other tribe's tag (case-insensitive). */
+  tag: string;
+  kind: DiplomacyKind;
+}
+
+export interface ChatMessageDto {
+  id: number;
+  playerId: number;
+  username: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface ChatResponse {
+  messages: ChatMessageDto[];
+}
+
+export interface ChatRequest {
+  text: string;
 }

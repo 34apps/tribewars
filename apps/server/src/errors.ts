@@ -27,6 +27,10 @@ export function statusFor(code: GameErrorCode): number {
     case 'not_enough_troops':
     case 'target_protected':
     case 'username_taken':
+    case 'tribe_name_taken':
+    case 'tribe_full':
+    case 'already_in_tribe':
+    case 'not_in_tribe':
       return 409;
     case 'internal_error':
       return 500;

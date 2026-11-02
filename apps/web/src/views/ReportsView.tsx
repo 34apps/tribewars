@@ -25,6 +25,31 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
+/** Won / Lost for a battle; a called-off attack is neither. */
+function OutcomeTag({ report }: { report: ReportSummaryDto }) {
+  if (report.outcome === 'called_off') return <span className="tag tag-muted">Called off</span>;
+  return <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{report.won ? 'Won' : 'Lost'}</span>;
+}
+
+function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['side'] }) {
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role="Attacker" v={b.attacker} won={false} />
+        <span className="vs" aria-hidden="true">→</span>
+        <VillageCell role="Target" v={b.defender} won={false} />
+      </div>
+      <p className="notice notice-block called-off" role="note">
+        <span aria-hidden="true">🛡️</span>{' '}
+        <span>
+          Attack called off. The target is now protected by a pact or tribe, so {side === 'attack' ? 'your troops turned back' : 'the attackers turned back'}.
+          No battle took place: no losses, no loot.
+        </span>
+      </p>
+    </>
+  );
+}
+
 function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean }) {
   const defenderKnown = b.defenderUnits !== null;
   const rows = UNIT_IDS.filter((u) => b.attackerUnits[u] > 0 || (b.defenderUnits?.[u] ?? 0) > 0);
@@ -132,6 +157,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
 
 function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
   const { now } = useGame();
+  const calledOff = report.outcome === 'called_off';
   return (
     <article className="card report-detail" aria-labelledby="report-title">
       <button className="btn btn-small back" onClick={onBack}>
@@ -140,11 +166,11 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
       <header className="report-head">
         <h2 id="report-title" className="card-title">{report.title}</h2>
         <div className="report-meta">
-          <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{report.won ? 'Won' : 'Lost'}</span>
+          <OutcomeTag report={report} />
           <span className="muted">{report.side === 'attack' ? 'You attacked' : 'You were attacked'} · {formatClock(report.createdAt, now)}</span>
         </div>
       </header>
-      <BattleDetail b={report.battle} ownerWon={report.won} />
+      {calledOff ? <CalledOffDetail b={report.battle} side={report.side} /> : <BattleDetail b={report.battle} ownerWon={report.won} />}
     </article>
   );
 }
@@ -237,7 +263,7 @@ export function ReportsView() {
                       </span>
                       <span className="muted report-sub">{formatAgo(r.createdAt, now)}</span>
                     </span>
-                    <span className={`tag ${r.won ? 'tag-ok' : 'tag-bad'}`}>{r.won ? 'Won' : 'Lost'}</span>
+                    <OutcomeTag report={r} />
                   </button>
                 </li>
               ))}

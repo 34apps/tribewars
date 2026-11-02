@@ -1,6 +1,8 @@
 // Canvas drawing for the world map. Pure functions of (view, data); the caller decides when to redraw.
 
 import type { Coords, MapVillageDto } from '@tribewars/engine';
+import { RELATION_STYLE } from '../relations.ts';
+import type { RelationKey } from '../relations.ts';
 import { CHUNK } from './chunks.ts';
 import type { MapChunks } from './chunks.ts';
 import { FOREST, GRASS, HILLS, LAKE, MOUNTAIN } from './terrain.ts';
@@ -37,11 +39,17 @@ const GROUND = ['#aebd79', '#6e8c55', '#c9b27c', '#968e81', '#7ba9bf'] as const;
 const DETAIL = { tree: '#4b6b3b', tuft: '#8fa45b', hill: '#a68c55', rock: '#6f685d', snow: '#f1eee6', wave: '#b3d6e6' };
 const FONT = '600 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
-const KIND_STYLE = {
-  own: { body: '#f4c542', roof: '#b57f06' },
-  player: { body: '#dc5a52', roof: '#8c2b25' },
-  abandoned: { body: '#bba78c', roof: '#76624c' },
-} as const;
+/** Smallest tile size (px) at which village names / tribe tags are drawn. */
+const NAME_TILE = 36;
+const TAG_TILE = 28;
+const TAG_FONT = '700 10px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+/** Colour key of a village: yours, abandoned, or its owner's relation to you (neutral when unknown). */
+export function relationKey(v: MapVillageDto): RelationKey {
+  if (v.kind === 'own') return 'self';
+  if (v.kind === 'abandoned') return 'abandoned';
+  return v.relation ?? 'neutral';
+}
 
 /** Small deterministic hash -> [0, 1) used for decoration placement. */
 function rand(x: number, y: number, k: number): number {
@@ -284,25 +292,40 @@ function drawVillages(
   visible.sort((a, b) => a.y - b.y);
   for (const v of visible) drawVillage(ctx, v, sx(v.x), sy(v.y), t);
 
-  if (t >= 36) {
-    ctx.font = FONT;
+  if (t >= TAG_TILE) {
+    ctx.lineJoin = 'round';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.lineJoin = 'round';
+    if (t >= NAME_TILE) {
+      ctx.font = FONT;
+      for (const v of visible) {
+        const cx = sx(v.x) + t / 2;
+        const by = sy(v.y) + t - 3;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(251, 246, 233, 0.92)';
+        ctx.strokeText(v.name, cx, by, t * 2.2);
+        ctx.fillStyle = '#2c2318';
+        ctx.fillText(v.name, cx, by, t * 2.2);
+      }
+    }
+    // Tribe tag: a small pill in the relation colour, under the name when names are shown, else at the tile bottom.
+    ctx.font = TAG_FONT;
     for (const v of visible) {
+      if (!v.tribeTag) continue;
+      const label = `[${v.tribeTag}]`;
+      const w = Math.min(ctx.measureText(label).width + 8, t * 2.2);
       const cx = sx(v.x) + t / 2;
-      const by = sy(v.y) + t - 3;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(251, 246, 233, 0.92)';
-      ctx.strokeText(v.name, cx, by, t * 2.2);
-      ctx.fillStyle = '#2c2318';
-      ctx.fillText(v.name, cx, by, t * 2.2);
+      const top = sy(v.y) + (t >= NAME_TILE ? t + 1 : t - 14);
+      ctx.fillStyle = RELATION_STYLE[relationKey(v)].roof;
+      ctx.fillRect(Math.round(cx - w / 2), top, Math.round(w), 13);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, cx, top + 10, w - 4);
     }
   }
 }
 
 function drawVillage(ctx: CanvasRenderingContext2D, v: MapVillageDto, px: number, py: number, t: number): void {
-  const style = KIND_STYLE[v.kind];
+  const style = RELATION_STYLE[relationKey(v)];
   const f = 0.42 + 0.5 * Math.min(1, Math.sqrt(Math.max(0, v.points) / 90));
   const s = Math.max(8, t * f);
   const cx = px + t / 2;

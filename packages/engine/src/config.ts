@@ -1,7 +1,7 @@
 // Game balance data. Formulas that use these numbers are described in docs/GAME_DESIGN.md.
 // Change numbers here (not in logic files) when tuning the game.
 
-import type { BuildingDef, BuildingId, ResourceId, Resources, UnitDef, UnitId, WorldSettings } from './types.ts';
+import type { BuildingDef, BuildingId, ResourceId, Resources, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
 
 const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
 
@@ -331,4 +331,50 @@ export const TERRAIN = {
   hills: 0.63,
   lake: 0.7,
   forest: 0.55,
+};
+
+// ---- Tribes ----
+
+/** Town Hall level needed to found a tribe (joining has no requirement). */
+export const TRIBE_FOUND_HALL_LEVEL = 3;
+export const TRIBE_MAX_MEMBERS = 30;
+/** Active + pending alliances per tribe. Non-aggression pacts and enemies are unlimited... */
+export const TRIBE_MAX_ALLIES = 3;
+/** ...except NAPs, capped here (active + pending). */
+export const TRIBE_MAX_NAPS = 10;
+/** Cancelling an alliance or NAP takes effect after this notice (divided by world speed): no surprise backstabs. */
+export const PACT_NOTICE_HOURS = 24;
+/** Invitations a tribe may have open at once; each expires after TRIBE_INVITE_TTL_HOURS (real hours, not world speed). */
+export const TRIBE_MAX_OPEN_INVITES = 20;
+export const TRIBE_INVITE_TTL_HOURS = 7 * 24;
+/** Open applications a player may have at once. */
+export const PLAYER_MAX_APPLICATIONS = 3;
+
+export const TRIBE_NAME_MIN = 3;
+export const TRIBE_NAME_MAX = 30;
+/** Letters (any language), digits, spaces, and - ' . — no leading/trailing/double spaces. */
+export const TRIBE_NAME_PATTERN = "^[\\p{L}\\p{N}](?:[\\p{L}\\p{N}'.-]| (?! ))*[\\p{L}\\p{N}.]$";
+export const TRIBE_TAG_MIN = 2;
+export const TRIBE_TAG_MAX = 6;
+/** Tags are stored upper-case: A-Z and 0-9 only. */
+export const TRIBE_TAG_PATTERN = '^[A-Z0-9]{2,6}$';
+export const TRIBE_DESCRIPTION_MAX = 1000;
+export const TRIBE_APPLICATION_MESSAGE_MAX = 300;
+export const TRIBE_CHAT_MESSAGE_MAX = 500;
+/** Chat history kept per tribe (older messages are deleted). */
+export const TRIBE_CHAT_KEEP = 500;
+/** Tribe event log entries kept per tribe. */
+export const TRIBE_EVENTS_KEEP = 200;
+
+/** Who may do what. The leader can always do everything. */
+export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
+  edit_settings: ['leader', 'officer'],
+  invite: ['leader', 'officer'],
+  handle_applications: ['leader', 'officer'],
+  kick: ['leader', 'officer'],
+  diplomacy: ['leader', 'officer'],
+  set_roles: ['leader'],
+  transfer_leadership: ['leader'],
+  disband: ['leader'],
+  chat: ['leader', 'officer', 'member'],
 };

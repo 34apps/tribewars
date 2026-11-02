@@ -139,6 +139,33 @@ export interface Coords {
 
 export type Terrain = 'grass' | 'forest' | 'hills' | 'mountain' | 'lake';
 
+// ---- Tribes (docs/GAME_DESIGN.md section 11) ----
+
+export const TRIBE_ROLES = ['leader', 'officer', 'member'] as const;
+export type TribeRole = (typeof TRIBE_ROLES)[number];
+
+/** open = anyone joins at once; application = players apply, officers decide; invite = invitations only. */
+export const RECRUITMENT_MODES = ['open', 'application', 'invite'] as const;
+export type Recruitment = (typeof RECRUITMENT_MODES)[number];
+
+/** ally and nap need both tribes to agree; enemy is declared by one side. */
+export const DIPLOMACY_KINDS = ['ally', 'nap', 'enemy'] as const;
+export type DiplomacyKind = (typeof DIPLOMACY_KINDS)[number];
+
+/** How a player's village relates to the viewer, for map colours and attack rules. */
+export type PlayerRelation = 'self' | 'tribe' | 'ally' | 'nap' | 'enemy' | 'neutral';
+
+export type TribeAction =
+  | 'edit_settings'
+  | 'invite'
+  | 'handle_applications'
+  | 'kick'
+  | 'set_roles'
+  | 'transfer_leadership'
+  | 'diplomacy'
+  | 'disband'
+  | 'chat';
+
 /** Result of a rule check. Server sends `reason` to the client as an error code. */
 export type CheckResult<T> = ({ ok: true } & T) | { ok: false; reason: GameErrorCode; message: string };
 
@@ -159,6 +186,10 @@ export type GameErrorCode =
   | 'unauthorized'
   | 'rate_limited'
   | 'username_taken'
+  | 'tribe_name_taken'
+  | 'tribe_full'
+  | 'already_in_tribe'
+  | 'not_in_tribe'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */
   | 'internal_error';
 

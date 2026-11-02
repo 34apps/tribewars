@@ -1,8 +1,13 @@
 import { createContext, useContext } from 'react';
 import type { MovementDto, OwnVillageDto, PlayerDto, SendResponse, VillageState, WorldSettings } from '@tribewars/engine';
 
-export type Tab = 'village' | 'map' | 'army' | 'reports';
-export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
+export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe';
+export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe'];
+
+/** A tribe the Tribe tab should open in its public view. */
+export interface TribeTarget {
+  id: number;
+}
 
 export interface MapFocus {
   x: number;
@@ -27,6 +32,17 @@ export interface GameApi {
   now: number;
   movements: MovementDto[];
   unreadReports: number;
+  /** Open tribe invitations addressed to me. */
+  tribeInvites: number;
+  /** Bumped after every tribe action so the map refetches its colours and tags. */
+  tribeVersion: number;
+  /** Set when another tab asked to show a tribe; the Tribe tab reads it once and clears it. */
+  tribeFocus: TribeTarget | null;
+  clearTribeFocus: () => void;
+  /** Open a tribe's public page in the Tribe tab. */
+  viewTribe: (target: TribeTarget) => void;
+  /** Call after any tribe change: refreshes /api/state and invalidates map data. */
+  tribeChanged: () => void;
   /** Last polling error, null when connected. */
   connectionError: string | null;
   tab: Tab;

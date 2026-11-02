@@ -12,7 +12,9 @@ import {
   applyTrain,
   checkSend,
   emptyResources,
+  emptyUnits,
   hashSeed,
+  isAttackForbidden,
   resolveBattle,
   settleVillage,
   totalUnits,
@@ -32,6 +34,7 @@ import {
   type VillageRefDto,
   type WorldSettings,
 } from '@tribewars/engine';
+import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, VillageRecord, VillageStub } from './store.ts';
 
 const BATCH_SIZE = 100;
@@ -131,6 +134,11 @@ export class GameService {
       return null;
     }
     const at = m.arriveAt;
+    // Relations may have changed while the troops marched: an alliance, NAP or shared tribe calls the attack off.
+    if (origin.ownerId !== null && target.ownerId !== null) {
+      const rel = relationBetweenPlayers(this.store.tribes, origin.ownerId, target.ownerId, at);
+      if (isAttackForbidden(rel.relation)) return this.callOffAttack(m, origin, target);
+    }
     const originState = settleVillage(origin.state, at, s);
     const targetState = settleVillage(target.state, at, s);
 
@@ -142,6 +150,7 @@ export class GameService {
 
     const survived = totalUnits(result.attackerSurvivors) > 0;
     const full: BattleReportData = {
+      outcome: 'battle',
       attacker: refOf(origin),
       defender: refOf(target),
       attackerWon: result.attackerWon,
@@ -196,6 +205,51 @@ export class GameService {
     return spawned;
   }
 
+  /**
+   * The target turned out to be protected on arrival (same tribe, ally or NAP partner): no battle, the troops
+   * turn back at once with nothing, and the attacker gets a "called off" report. Returns the return's arrival time.
+   */
+  private callOffAttack(m: MovementRow, origin: VillageRecord, target: VillageRecord): number | null {
+    const at = m.arriveAt;
+    if (origin.ownerId !== null) {
+      this.store.insertReport({
+        playerId: origin.ownerId,
+        side: 'attack',
+        won: false,
+        title: `Attack on ${target.name} (${target.x}|${target.y}) called off`,
+        createdAt: at,
+        battle: {
+          outcome: 'called_off',
+          attacker: refOf(origin),
+          defender: refOf(target),
+          attackerWon: false,
+          luck: 0,
+          attackPower: 0,
+          defensePower: 0,
+          attackerUnits: m.units,
+          attackerLosses: emptyUnits(),
+          defenderUnits: null,
+          defenderLosses: null,
+          wallLevel: null,
+          loot: emptyResources(),
+        },
+      });
+    }
+    const back = travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, m.units, this.settings);
+    const arriveAt = at + back;
+    this.store.insertMovement({
+      kind: 'return',
+      originVillageId: origin.id,
+      targetVillageId: target.id,
+      units: m.units,
+      loot: emptyResources(),
+      departAt: at,
+      arriveAt,
+    });
+    this.store.deleteMovement(m.id);
+    return arriveAt;
+  }
+
   private resolveReturn(m: MovementRow): null {
     const origin = this.store.getVillage(m.originVillageId);
     if (origin) {
@@ -210,10 +264,11 @@ export class GameService {
 
   getState(player: PlayerRow, t: number): GameStateResponse {
     const fresh = this.store.getPlayer(player.id) ?? player;
+    const dto = this.playerDto(fresh);
     return {
       serverTime: t,
       settings: this.settings,
-      player: this.playerDto(fresh),
+      player: dto,
       villages: this.store.villagesOfPlayer(player.id).map((v) => {
         const settled = settleVillage(v.state, t, this.settings);
         // Builds finish lazily; keep the map's cached points current once the owner looks.
@@ -223,6 +278,8 @@ export class GameService {
       }),
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id)),
       unreadReports: this.store.unreadReportCount(player.id),
+      // Invitations only matter to tribeless players: they cannot accept while in a tribe.
+      tribeInvites: dto.tribe === null ? this.store.tribes.countInvitesForPlayer(player.id, t) : 0,
     };
   }
 
@@ -232,6 +289,8 @@ export class GameService {
     if (w < 1 || h < 1 || w > MAP_MAX_SPAN || h > MAP_MAX_SPAN) {
       throw new GameError('invalid_input', `w and h must be from 1 to ${MAP_MAX_SPAN}.`);
     }
+    // The viewer's tribe and relations are read once; the owner's tribe comes with each map row.
+    const viewer = loadRelationViewer(this.store.tribes, player.id, t);
     const villages: MapVillageDto[] = this.store.mapVillages(x, x + w - 1, y, y + h - 1).map((r) => ({
       id: r.id,
       name: r.name,
@@ -241,6 +300,9 @@ export class GameService {
       ownerName: r.ownerName,
       points: r.points,
       protected: r.ownerId !== null && r.ownerProtectedUntil > t,
+      tribeTag: r.ownerId === null ? null : r.ownerTribeTag,
+      tribeId: r.ownerId === null ? null : r.ownerTribeId,
+      relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
     }));
     return { villages };
   }
@@ -254,6 +316,7 @@ export class GameService {
         side: r.side,
         won: r.won,
         read: r.read,
+        outcome: r.outcome,
       })),
     };
   }
@@ -264,7 +327,7 @@ export class GameService {
       const r = this.store.getReport(player.id, id);
       if (!r) throw new GameError('not_found', 'Report not found.');
       if (!r.read) this.store.markReportRead(player.id, id);
-      return { id: r.id, createdAt: r.createdAt, title: r.title, side: r.side, won: r.won, read: true, battle: r.battle };
+      return { id: r.id, createdAt: r.createdAt, title: r.title, side: r.side, won: r.won, read: true, outcome: r.outcome, battle: r.battle };
     });
   }
 
@@ -295,6 +358,7 @@ export class GameService {
       const target = this.store.getVillageAt(x, y);
       if (!target) throw new GameError('invalid_target', 'There is no village at those coordinates.');
       if (target.id === v.id || target.ownerId === player.id) throw new GameError('invalid_target', 'You cannot attack your own village.');
+      if (target.ownerId !== null) this.refuseProtectedByTribe(player.id, target.ownerId, t);
       if (target.ownerId !== null && target.ownerProtectedUntil > t) {
         throw new GameError('target_protected', `${target.ownerName ?? 'This player'} is under beginner protection.`);
       }
@@ -327,7 +391,17 @@ export class GameService {
   // ---- helpers -----------------------------------------------------------------------------------
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id) };
+  }
+
+  /** Tribe-mates, allies and NAP partners (also while a cancelled pact serves its notice) cannot be attacked. */
+  private refuseProtectedByTribe(attackerId: number, ownerId: number, t: number): void {
+    const rel = relationBetweenPlayers(this.store.tribes, attackerId, ownerId, t);
+    if (!isAttackForbidden(rel.relation)) return;
+    if (rel.relation === 'tribe') throw new GameError('invalid_target', "You can't attack members of your own tribe.");
+    const pact = rel.relation === 'ally' ? 'an alliance' : 'a non-aggression pact';
+    const ending = rel.endsAt === null ? '' : ' (it is being cancelled but still protects them during the notice period)';
+    throw new GameError('target_protected', `You can't attack [${rel.tag ?? '?'}]: your tribe has ${pact} with them${ending}.`);
   }
 
   private ownedVillage(player: PlayerRow, villageId: number): VillageRecord {

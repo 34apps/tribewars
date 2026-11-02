@@ -81,3 +81,21 @@ export function formatSignedPercent(fraction: number): string {
   const p = Math.round(fraction * 1000) / 10;
   return `${p < 0 ? '−' : '+'}${Math.abs(p).toFixed(1)}%`;
 }
+
+const timeHm = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' });
+const weekdayShort = new Intl.DateTimeFormat([], { weekday: 'short' });
+const dayMonth = new Intl.DateTimeFormat([], { day: 'numeric', month: 'short' });
+
+/** Chat time: "14:05" today, "Mon 14:05" within a week, else "12 Oct 14:05". `now` is server-corrected time. */
+export function formatChatTime(ts: number, now: number): string {
+  const d = new Date(ts);
+  const time = timeHm.format(d);
+  if (sameDay(d, new Date(now))) return time;
+  if (now - ts < 6 * 86_400_000) return `${weekdayShort.format(d)} ${time}`;
+  return `${dayMonth.format(d)} ${time}`;
+}
+
+/** "12 Oct 2026" style date. */
+export function formatDate(ts: number): string {
+  return new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+}

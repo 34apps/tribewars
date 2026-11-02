@@ -1,7 +1,9 @@
 // All SQL lives here: prepared statements with bound parameters only.
 
-import type { DatabaseSync, StatementSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 import type { BattleReportData, Resources, Units, VillageState, WorldSettings } from '@tribewars/engine';
+import { SqlBase, type Raw } from './sql.ts';
+import { TribeStore } from './tribe-store.ts';
 
 /** Newest reports kept per player; older ones are deleted when a new one arrives. */
 export const REPORTS_KEEP = 200;
@@ -64,6 +66,9 @@ export interface MapRow {
   x: number;
   y: number;
   points: number;
+  /** The owner's tribe, if any (joined in the same query so the map needs no per-village lookups). */
+  ownerTribeId: number | null;
+  ownerTribeTag: string | null;
 }
 
 export interface ReportRow {
@@ -74,6 +79,7 @@ export interface ReportRow {
   title: string;
   createdAt: number;
   read: boolean;
+  outcome: 'battle' | 'called_off';
 }
 
 export interface NewReport {
@@ -84,8 +90,6 @@ export interface NewReport {
   createdAt: number;
   battle: BattleReportData;
 }
-
-type Raw = Record<string, unknown>;
 
 const MOVEMENT_VIEW_SQL = `
 SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at,
@@ -161,7 +165,7 @@ function toPlayer(r: Raw): PlayerRow {
   };
 }
 
-function toReport(r: Raw): ReportRow {
+function toReport(r: Raw, outcome: ReportRow['outcome']): ReportRow {
   return {
     id: r.id as number,
     playerId: r.player_id as number,
@@ -170,35 +174,18 @@ function toReport(r: Raw): ReportRow {
     title: r.title as string,
     createdAt: r.created_at as number,
     read: r.read === 1,
+    outcome,
   };
 }
 
-export class Store {
-  private readonly cache = new Map<string, StatementSync>();
+export class Store extends SqlBase {
   private depth = 0;
+  /** Tribe tables. Shares this connection, so it takes part in `tx`. */
+  readonly tribes: TribeStore;
 
-  constructor(readonly db: DatabaseSync) {}
-
-  private q(sql: string): StatementSync {
-    let st = this.cache.get(sql);
-    if (!st) {
-      st = this.db.prepare(sql);
-      this.cache.set(sql, st);
-    }
-    return st;
-  }
-
-  private get(sql: string, ...params: Array<string | number | null>): Raw | undefined {
-    return this.q(sql).get(...params) as Raw | undefined;
-  }
-
-  private all(sql: string, ...params: Array<string | number | null>): Raw[] {
-    return this.q(sql).all(...params) as Raw[];
-  }
-
-  private run(sql: string, ...params: Array<string | number | null>): { changes: number; id: number } {
-    const r = this.q(sql).run(...params);
-    return { changes: Number(r.changes), id: Number(r.lastInsertRowid) };
+  constructor(db: DatabaseSync) {
+    super(db);
+    this.tribes = new TribeStore(db);
   }
 
   /** Run `fn` inside BEGIN IMMEDIATE ... COMMIT; roll back and rethrow on error. Re-entrant. */
@@ -321,8 +308,12 @@ export class Store {
 
   mapVillages(x0: number, x1: number, y0: number, y1: number): MapRow[] {
     return this.all(
-      `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until
-       FROM villages v LEFT JOIN players p ON p.id = v.owner_id
+      `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
+              tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag
+       FROM villages v
+       LEFT JOIN players p ON p.id = v.owner_id
+       LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
+       LEFT JOIN tribes tr ON tr.id = tm.tribe_id
        WHERE v.x BETWEEN ? AND ? AND v.y BETWEEN ? AND ?
        ORDER BY v.y, v.x`,
       x0,
@@ -338,6 +329,8 @@ export class Store {
       x: r.x as number,
       y: r.y as number,
       points: r.points as number,
+      ownerTribeId: (r.owner_tribe_id as number | null) ?? null,
+      ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
     }));
   }
 
@@ -411,15 +404,21 @@ export class Store {
 
   listReports(playerId: number, limit: number): ReportRow[] {
     return this.all(
-      'SELECT id, player_id, side, won, title, created_at, read FROM reports WHERE player_id = ? ORDER BY created_at DESC, id DESC LIMIT ?',
+      // Reports stored before tribes existed have no `outcome` in their JSON: they were all battles.
+      `SELECT id, player_id, side, won, title, created_at, read, json_extract(battle_json, '$.outcome') AS outcome
+       FROM reports WHERE player_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`,
       playerId,
       limit,
-    ).map(toReport);
+    ).map((r) => toReport(r, r.outcome === 'called_off' ? 'called_off' : 'battle'));
   }
 
   getReport(playerId: number, id: number): (ReportRow & { battle: BattleReportData }) | null {
     const r = this.get('SELECT * FROM reports WHERE id = ? AND player_id = ?', id, playerId);
-    return r ? { ...toReport(r), battle: JSON.parse(r.battle_json as string) as BattleReportData } : null;
+    if (!r) return null;
+    // Reports stored before tribes existed have no `outcome`: they were all battles.
+    const battle = JSON.parse(r.battle_json as string) as Omit<BattleReportData, 'outcome'> & { outcome?: BattleReportData['outcome'] };
+    const outcome = battle.outcome ?? 'battle';
+    return { ...toReport(r, outcome), battle: { ...battle, outcome } };
   }
 
   markReportRead(playerId: number, id: number): void {

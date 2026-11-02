@@ -9,3 +9,4 @@ export * from './economy.ts';
 export * from './village.ts';
 export * from './army.ts';
 export * from './world.ts';
+export * from './tribes.ts';

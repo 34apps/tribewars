@@ -2,18 +2,33 @@
 
 import type {
   ApiError,
+  ApplyRequest,
   AuthRequest,
   BuildRequest,
+  ChatMessageDto,
+  ChatRequest,
+  ChatResponse,
+  CreateTribeRequest,
+  DiplomacyKind,
+  DiplomacyRequest,
   GameErrorCode,
   GameStateResponse,
+  InviteRequest,
   MapResponse,
   MeResponse,
+  MyTribeResponse,
   OwnVillageDto,
   ReportDto,
   ReportListResponse,
   SendRequest,
+  RoleRequest,
   SendResponse,
   TrainRequest,
+  TransferRequest,
+  TribeDto,
+  TribeListResponse,
+  TribeRole,
+  TribeSettingsRequest,
 } from '@tribewars/engine';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
@@ -77,4 +92,36 @@ export const api = {
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
+
+  // ---- Tribes ----
+  tribes: (q: string) => request<TribeListResponse>('GET', `/api/tribes${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  tribe: (id: number) => request<TribeDto>('GET', `/api/tribes/${id}`),
+  myTribe: () => request<MyTribeResponse>('GET', '/api/tribe'),
+  createTribe: (body: CreateTribeRequest) => request<MyTribeResponse>('POST', '/api/tribes', body),
+  joinTribe: (id: number) => request<MyTribeResponse>('POST', `/api/tribes/${id}/join`, {}),
+  applyToTribe: (id: number, message: string) =>
+    request<MyTribeResponse>('POST', `/api/tribes/${id}/apply`, { message } satisfies ApplyRequest),
+  acceptInvite: (id: number) => request<MyTribeResponse>('POST', `/api/invites/${id}/accept`, {}),
+  declineInvite: (id: number) => request<MyTribeResponse>('POST', `/api/invites/${id}/decline`, {}),
+  withdrawApplication: (id: number) => request<MyTribeResponse>('POST', `/api/applications/${id}/withdraw`, {}),
+  tribeSettings: (body: TribeSettingsRequest) => request<MyTribeResponse>('POST', '/api/tribe/settings', body),
+  invitePlayer: (username: string) => request<MyTribeResponse>('POST', '/api/tribe/invites', { username } satisfies InviteRequest),
+  cancelInvite: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/invites/${id}/cancel`, {}),
+  acceptApplication: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/applications/${id}/accept`, {}),
+  declineApplication: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/applications/${id}/decline`, {}),
+  kickMember: (playerId: number) => request<MyTribeResponse>('POST', `/api/tribe/members/${playerId}/kick`, {}),
+  setMemberRole: (playerId: number, role: Exclude<TribeRole, 'leader'>) =>
+    request<MyTribeResponse>('POST', `/api/tribe/members/${playerId}/role`, { role } satisfies RoleRequest),
+  transferLeadership: (playerId: number) =>
+    request<MyTribeResponse>('POST', '/api/tribe/transfer', { playerId } satisfies TransferRequest),
+  leaveTribe: () => request<MyTribeResponse>('POST', '/api/tribe/leave', {}),
+  disbandTribe: () => request<MyTribeResponse>('POST', '/api/tribe/disband', {}),
+  proposeDiplomacy: (tag: string, kind: DiplomacyKind) =>
+    request<MyTribeResponse>('POST', '/api/tribe/diplomacy', { tag, kind } satisfies DiplomacyRequest),
+  acceptProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/accept`, {}),
+  declineProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/decline`, {}),
+  withdrawProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/withdraw`, {}),
+  cancelRelation: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/relations/${id}/cancel`, {}),
+  chat: (after?: number) => request<ChatResponse>('GET', `/api/tribe/chat${after ? `?after=${after}` : ''}`),
+  sendChat: (text: string) => request<ChatMessageDto>('POST', '/api/tribe/chat', { text } satisfies ChatRequest),
 };

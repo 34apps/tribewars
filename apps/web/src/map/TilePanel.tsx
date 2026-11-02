@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { UNITS, UNIT_IDS, checkSend, distance, emptyUnits, totalUnits, travelTimeMs } from '@tribewars/engine';
+import { UNITS, UNIT_IDS, checkSend, distance, emptyUnits, isAttackForbidden, totalUnits, travelTimeMs } from '@tribewars/engine';
 import type { Coords, MapVillageDto, UnitId, Units } from '@tribewars/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { UNIT_ICON } from '../icons.ts';
+import { ATTACK_BLOCKED_TEXT, RELATION_STYLE } from '../relations.ts';
+import { relationKey } from './render.ts';
 import { TERRAIN_NAME } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -138,12 +140,15 @@ function SendForm({ tile, target }: { tile: Coords; target: MapVillageDto }) {
 }
 
 export function TilePanel({ tile, village, loaded, terrain, onClose }: Props) {
-  const { village: mine, navigate } = useGame();
+  const { village: mine, navigate, viewTribe } = useGame();
   const isOwn = village?.kind === 'own' || (tile.x === mine.x && tile.y === mine.y);
   const terrainName = TERRAIN_NAME[terrain.get(tile.x, tile.y)] ?? 'Land';
   const dist = distance(mine, tile);
   const icon = isOwn ? '🏠' : village ? (village.kind === 'abandoned' ? '🏚️' : '🏘️') : '🌿';
   const owner = isOwn ? 'You' : village ? (village.ownerName ?? 'Abandoned') : null;
+  const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
+  const tribeId = village && !isOwn ? village.tribeId : null;
+  const blocked = relation !== null && isAttackForbidden(relation);
 
   return (
     <aside className="map-panel" aria-label="Selected tile">
@@ -167,6 +172,27 @@ export function TilePanel({ tile, village, loaded, terrain, onClose }: Props) {
           <div>
             <dt>Owner</dt>
             <dd>{owner}</dd>
+          </div>
+        )}
+        {village && village.tribeTag && tribeId !== null && (
+          <div>
+            <dt>Tribe</dt>
+            <dd>
+              <button className="link" onClick={() => viewTribe({ id: tribeId })} aria-label={`Open tribe ${village.tribeTag}`}>
+                [{village.tribeTag}]
+              </button>
+            </dd>
+          </div>
+        )}
+        {village && !isOwn && (
+          <div>
+            <dt>Relation</dt>
+            <dd>
+              <span className="relation-chip">
+                <span className="swatch" style={{ background: RELATION_STYLE[relationKey(village)].body, borderColor: RELATION_STYLE[relationKey(village)].roof }} aria-hidden="true" />
+                {RELATION_STYLE[relationKey(village)].label}
+              </span>
+            </dd>
           </div>
         )}
         {village && (
@@ -198,7 +224,12 @@ export function TilePanel({ tile, village, loaded, terrain, onClose }: Props) {
           Open my village
         </button>
       )}
-      {village && !isOwn && <SendForm key={`${tile.x}|${tile.y}`} tile={tile} target={village} />}
+      {village && !isOwn && blocked && relation && (
+        <p className="notice notice-block" role="note">
+          <span aria-hidden="true">🛡️</span> {ATTACK_BLOCKED_TEXT[relation] ?? 'Attacks on this village are blocked.'}
+        </p>
+      )}
+      {village && !isOwn && !blocked && <SendForm key={`${tile.x}|${tile.y}`} tile={tile} target={village} />}
     </aside>
   );
 }

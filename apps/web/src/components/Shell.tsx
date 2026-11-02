@@ -5,8 +5,8 @@ import type { Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 
-const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports' };
-const TAB_ICON: Record<Tab, string> = { village: '🏘️', map: '🗺️', army: '⚔️', reports: '📜' };
+const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe' };
+const TAB_ICON: Record<Tab, string> = { village: '🏘️', map: '🗺️', army: '⚔️', reports: '📜', tribe: '🚩' };
 
 function ResourceBar() {
   const { live, settings } = useGame();
@@ -86,10 +86,11 @@ function Strip() {
 }
 
 function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
-  const { tab: current, navigate, unreadReports, movements } = useGame();
+  const { tab: current, navigate, unreadReports, tribeInvites, movements } = useGame();
   const active = current === tab;
   const incoming = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').length : 0;
-  const badge = tab === 'reports' ? unreadReports : incoming;
+  const badge = tab === 'reports' ? unreadReports : tab === 'tribe' ? tribeInvites : incoming;
+  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'tribe' ? `${badge} ${badge === 1 ? 'invitation' : 'invitations'}` : `${badge} incoming`;
   return (
     <button
       className={`tab tab-${variant}${active ? ' is-active' : ''}`}
@@ -99,7 +100,7 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
       <span className="tab-icon" aria-hidden="true">{TAB_ICON[tab]}</span>
       <span className="tab-label">{TAB_LABEL[tab]}</span>
       {badge > 0 && (
-        <span className={`badge${tab === 'army' ? ' badge-danger' : ''}`} aria-label={tab === 'reports' ? `${badge} unread` : `${badge} incoming`}>
+        <span className={`badge${tab === 'army' ? ' badge-danger' : ''}`} aria-label={badgeLabel}>
           {badge > 99 ? '99+' : badge}
         </span>
       )}
@@ -122,7 +123,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         </nav>
         <div className="who">
           <div className="who-text">
-            <strong>{player.username}</strong>
+            <strong>
+              {player.tribe && <span className="who-tag" title={player.tribe.name}>[{player.tribe.tag}] </span>}
+              {player.username}
+            </strong>
             <span>
               <span className="who-village">{village.name} </span>({formatCoords(village.x, village.y)})
             </span>

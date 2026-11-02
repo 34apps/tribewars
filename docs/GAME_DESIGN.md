@@ -191,12 +191,87 @@ villagePoints(state: VillageState): number
 `findSpawnLocation`'s `isOccupied(x, y)` returns true if a village stands on that exact tile; the
 function itself checks spacing by probing the surrounding tiles.
 
-## 11. Roadmap (not in v0.1)
+## 11. Tribes
 
-1. **Tribes**: found/join/leave a tribe (name + tag), roles (leader, officer, member), invites,
-   tribe chat. Tribe diplomacy with other tribes: ally, non-aggression pact, enemy. Allies' villages
-   shown in a different colour; no attacks on own tribe.
-2. Support troops to allies' villages (defending reinforcements), scouting, reports for scouts.
+Players band together in tribes. Numbers in `config.ts` (`TRIBE_*`, `PACT_NOTICE_HOURS`); shared
+rule helpers in `packages/engine/src/tribes.ts`; HTTP contract at the end of `api.ts`.
+
+**Founding and identity.** Any tribeless player whose Town Hall is at least `TRIBE_FOUND_HALL_LEVEL`
+can found a tribe and becomes its leader. Name: normalized with `normalizeTribeName`, then
+`checkTribeIdentity`; unique case-insensitively. Tag: `normalizeTribeTag` (upper-case), 2–6 A–Z/0–9,
+unique. Both are permanent in v1. Description up to `TRIBE_DESCRIPTION_MAX` characters (plain text;
+the client must render it as text, never HTML).
+
+**Membership.** A player is in at most one tribe. At most `TRIBE_MAX_MEMBERS` members (`tribe_full`).
+Recruitment mode (leader/officers can change it):
+- `open` — any tribeless player joins at once.
+- `application` — players apply with a short message (max `TRIBE_APPLICATION_MESSAGE_MAX`); officers
+  accept or decline. A player may have `PLAYER_MAX_APPLICATIONS` open applications; joining any
+  tribe withdraws the rest.
+- `invite` — invitations only. (Invitations also work in the other two modes.)
+Invitations: officers+ invite by username (tribeless or not — they can accept only once tribeless);
+at most `TRIBE_MAX_OPEN_INVITES` open per tribe; one open invite per player per tribe; expire after
+`TRIBE_INVITE_TTL_HOURS` real hours. Accepting checks the member cap again.
+
+**Roles and permissions** (`TRIBE_PERMISSIONS`, `canTribe`, `canKick`): leader (exactly one), officers,
+members. Officers can edit settings, invite, handle applications, run diplomacy and remove members;
+only the leader removes officers, sets roles, transfers leadership (old leader becomes officer) and
+disbands. Anyone can leave, except the leader while other members remain (transfer first). When the
+last member leaves, the tribe is disbanded. Disbanding removes all memberships, invites,
+applications, proposals and relations.
+
+**Diplomacy** — one relation per pair of tribes:
+- `ally` and `nap` (non-aggression pact): one tribe proposes, the other accepts or declines; the
+  proposer can withdraw. Limits per tribe: `TRIBE_MAX_ALLIES` allies, `TRIBE_MAX_NAPS` NAPs (active +
+  pending outgoing). Accepting replaces any existing relation between the pair (e.g. ends a war).
+  Only one pending proposal per pair.
+- `enemy`: declared by one tribe, takes effect at once, visible to both. Not allowed while an
+  alliance/NAP between the pair is active or serving notice. Either side may cancel it at once.
+- Cancelling an alliance/NAP starts a notice of `pactNoticeMs(settings)` (24 h ÷ world speed). It
+  keeps protecting both sides until `endsAt`; both tribes see the countdown. Expired relations are
+  ignored on read and cleaned up lazily.
+
+**Effects on attacks** (`isAttackForbidden`): you can't attack your own villages, members of your
+tribe, allies or NAP partners. The server checks at send time (`invalid_target` for own tribe,
+`target_protected` for pacts, with a clear message) and again on arrival: if the relation became
+protected while troops marched, they turn back without a battle (report `outcome: 'called_off'`).
+Enemy status has no rule effect in v1 beyond colour (it marks who you're at war with).
+
+**Map colours by relation**: self (gold), tribe (green), ally (blue), NAP (purple), enemy (red),
+neutral players (orange), abandoned (grey-brown). Villages show their tribe tag.
+
+**Tribe page**: overview (name, tag, rank, points, members, recruitment, description), member list
+with role and points, relations, pending proposals, invitations, applications, an event log
+("anna joined", "Alliance with [WOLF] accepted", …; last `TRIBE_EVENTS_KEEP` kept) and tribe chat
+(plain text, max `TRIBE_CHAT_MESSAGE_MAX` chars, last `TRIBE_CHAT_KEEP` kept, polled while open).
+Tribe list = ranking: all tribes by points (sum of members' points; ties → older tribe first),
+searchable by name/tag.
+
+**Details settled while building v0.2** (keep consistent):
+- All tribe routes need sign-in. `join` only works on `open` tribes and `apply` only on `application`
+  tribes (403 otherwise); both refuse a full tribe. Invites may be sent while the tribe is full; accepting re-checks.
+- Invitations count in the badge only while the player is tribeless; an invite to a player who joined
+  elsewhere stays and reappears if they leave (until it expires). Applications don't expire.
+- Limit reached / duplicate / "leader must transfer first" → `requirements_not_met` (409); missing
+  permission or wrong recruitment mode → `forbidden` (403).
+- Diplomacy: a pact already in force can't be proposed again, but one serving notice can (accepting
+  renews it). Proposals during a war are fine; accepting replaces the war. Declaring enemy deletes a
+  pending proposal between the pair. Pacts in notice count toward caps; accepting needs room on the
+  accepting side too.
+- Arrival re-check is judged at the arrival time; a pact whose `endsAt` equals the arrival no longer
+  protects. Only the attacker gets the "called off" report; beginner protection (ended by sending) isn't restored.
+- Text (descriptions, applications, chat): NFC-normalized; control characters, bidi overrides and
+  lone surrogates rejected; newlines allowed; lengths counted in code points. Chat limit: 1 message/s
+  and 20/min per player.
+- Event log: joins, leaves, kicks, role changes, leadership transfer, settings, diplomacy; disbanding
+  or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
+
+## 12. Roadmap (not yet built)
+
+1. Support troops to tribe-mates and allies (reinforcements), shared incoming-attack alerts for the
+   tribe, scouts and scout reports.
+2. Tribe forum threads, mass messages, member notes; player-to-player messages.
 3. More villages per player (settlers / conquest), market trading, siege units vs. wall.
-4. Live push (WebSocket) for incoming attacks; mobile polish (PWA, install prompt).
-5. World lifecycle: rankings, inactive players turning into abandoned villages, world end.
+4. Live push (WebSocket) for incoming attacks and chat; mobile polish (PWA, install prompt).
+5. World lifecycle: player/tribe rankings history, inactive players turning into abandoned
+   villages, world end and winners.

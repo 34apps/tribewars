@@ -14,7 +14,9 @@ import { GameService } from './game.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
 import { reportRoutes } from './routes/reports.ts';
+import { tribeRoutes } from './routes/tribes.ts';
 import { Store } from './store.ts';
+import { TribeService } from './tribe-service.ts';
 import { initWorld } from './world.ts';
 
 export const BODY_LIMIT = 16 * 1024;
@@ -73,6 +75,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     limiter: new RateLimiter(10, 60_000),
     auth: new AuthService(store, settings, now),
     game: new GameService(store, settings, app.log),
+    tribes: new TribeService(store, settings),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
@@ -149,6 +152,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   authRoutes(app, ctx);
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);
+  tribeRoutes(app, ctx);
 
   // ---- static client + SPA fallback --------------------------------------------------------------
   const webDist = resolve(opts.webDistDir ?? DEFAULT_WEB_DIST);

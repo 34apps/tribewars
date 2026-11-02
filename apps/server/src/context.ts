@@ -2,12 +2,14 @@ import type { WorldSettings } from '@tribewars/engine';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { GameService } from './game.ts';
 import type { PlayerRow, Store } from './store.ts';
+import type { TribeService } from './tribe-service.ts';
 
 /** Everything the routes need. Exposed as `app.ctx` (tests use it for white-box checks). */
 export interface AppContext {
   store: Store;
   auth: AuthService;
   game: GameService;
+  tribes: TribeService;
   settings: WorldSettings;
   limiter: RateLimiter;
   now: () => number;

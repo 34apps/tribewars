@@ -7,6 +7,7 @@ import { MapChunks } from '../map/chunks.ts';
 import { MAX_TILE, MIN_TILE, clampView, drawMap, screenToTile } from '../map/render.ts';
 import type { View } from '../map/render.ts';
 import { TERRAIN_NAME, TerrainCache } from '../map/terrain.ts';
+import { Legend } from '../map/Legend.tsx';
 import { TilePanel } from '../map/TilePanel.tsx';
 
 const TAP_SLOP_MOUSE = 4;
@@ -14,7 +15,7 @@ const TAP_SLOP_TOUCH = 9;
 const NARROW = '(max-width: 767px)';
 
 export function MapView({ active }: { active: boolean }) {
-  const { settings, village, mapFocus } = useGame();
+  const { settings, village, mapFocus, tribeVersion, player } = useGame();
   const radius = settings.radius;
 
   const terrain = useMemo(() => new TerrainCache(settings.seed), [settings.seed]);
@@ -140,6 +141,13 @@ export function MapView({ active }: { active: boolean }) {
   useEffect(() => {
     if (active) schedule();
   }, [active, schedule]);
+
+  // My tribe or a diplomatic relation changed: villages change colour and tag, so refetch the visible chunks.
+  const tribeId = player.tribe?.id ?? 0;
+  useEffect(() => {
+    chunks.invalidate();
+    schedule();
+  }, [chunks, schedule, tribeVersion, tribeId]);
 
   /** Pan so a freshly selected tile is not hidden behind the bottom sheet on phones. */
   const reveal = useCallback((c: Coords) => {
@@ -397,6 +405,7 @@ export function MapView({ active }: { active: boolean }) {
             onKeyDown={onKeyDown}
           />
           <div className="map-readout" ref={readoutRef} aria-live="off" />
+          <Legend />
           <div className="map-zoom">
             <button className="btn btn-icon" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
             <button className="btn btn-icon" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
