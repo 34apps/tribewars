@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TRIBE_MAX_MEMBERS, canKick, canTribe } from '@clanfire/engine';
 import type { TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
+import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RoleBadge } from './bits.tsx';
@@ -41,47 +42,50 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
 
   return (
     <li className="member-row">
-      <div className="member-main">
-        <strong className="member-name">{m.username}</strong>
-        {isMe && <span className="muted small">(you)</span>}
-        <RoleBadge role={m.role} />
-        {hasActions && (
-          <button className="btn btn-small member-manage" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            Manage
-          </button>
-        )}
-      </div>
-      <div className="member-sub">
-        <span>{formatInt(m.points)} pts</span>
-        <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
-          {formatCoords(m.villageX, m.villageY)} on map
-        </button>
-        <span className="muted">joined {formatAgo(m.joinedAt, now)}</span>
-      </div>
-      {open && hasActions && (
-        <div className="member-actions">
-          {canSetRole && m.role === 'member' && (
-            <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'officer'), { ok: `${m.username} is now an officer.` })}>
-              Make officer
-            </button>
-          )}
-          {canSetRole && m.role === 'officer' && (
-            <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'member'), { ok: `${m.username} is now a member.` })}>
-              Make member
-            </button>
-          )}
-          {canTransfer && (
-            <button className="btn" disabled={busy} onClick={() => void transfer()}>
-              Make leader
-            </button>
-          )}
-          {canRemove && (
-            <button className="btn btn-danger-outline" disabled={busy} onClick={() => void remove()}>
-              Remove
+      <ChieftainAvatar id={m.chieftain} size={40} className="member-avatar" />
+      <div className="member-body">
+        <div className="member-main">
+          <strong className="member-name">{m.username}</strong>
+          {isMe && <span className="muted small">(you)</span>}
+          <RoleBadge role={m.role} />
+          {hasActions && (
+            <button className="btn btn-small member-manage" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+              Manage
             </button>
           )}
         </div>
-      )}
+        <div className="member-sub">
+          <span>{formatInt(m.points)} pts</span>
+          <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
+            {formatCoords(m.villageX, m.villageY)} on map
+          </button>
+          <span className="muted">joined {formatAgo(m.joinedAt, now)}</span>
+        </div>
+        {open && hasActions && (
+          <div className="member-actions">
+            {canSetRole && m.role === 'member' && (
+              <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'officer'), { ok: `${m.username} is now an officer.` })}>
+                Make officer
+              </button>
+            )}
+            {canSetRole && m.role === 'officer' && (
+              <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'member'), { ok: `${m.username} is now a member.` })}>
+                Make member
+              </button>
+            )}
+            {canTransfer && (
+              <button className="btn" disabled={busy} onClick={() => void transfer()}>
+                Make leader
+              </button>
+            )}
+            {canRemove && (
+              <button className="btn btn-danger-outline" disabled={busy} onClick={() => void remove()}>
+                Remove
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   );
 }

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { FormEvent } from 'react';
+import { CHIEFTAINS, DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+
+const ChieftainPicker = lazy(() => import('./ChieftainPicker.tsx'));
 
 type Mode = 'login' | 'register';
 
@@ -11,6 +14,9 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Create account is two steps: username and password, then the chieftain. */
+  const [step, setStep] = useState<'account' | 'chieftain'>('account');
+  const [chieftain, setChieftain] = useState<string>(DEFAULT_CHIEFTAIN);
 
   const register = mode === 'register';
 
@@ -28,16 +34,65 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
       setError(problem);
       return;
     }
-    setBusy(true);
     setError(null);
+    if (register) {
+      setStep('chieftain');
+      return;
+    }
+    setBusy(true);
     try {
-      const body = { username: username.trim(), password };
-      await (register ? api.register(body) : api.login(body));
+      await api.login({ username: username.trim(), password });
       onAuthed();
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
     }
+  }
+
+  async function leadClan() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.register({ username: username.trim(), password, chieftain });
+      onAuthed();
+    } catch (err) {
+      // Most failures (name taken, rate limit) are about the account fields: go back to them with the message.
+      setError(errorMessage(err));
+      setStep('account');
+      setBusy(false);
+    }
+  }
+
+  if (register && step === 'chieftain') {
+    const chosen = CHIEFTAINS.find((c) => c.id === chieftain) ?? CHIEFTAINS[0];
+    return (
+      <div className="auth">
+        <div className="auth-card auth-card-wide">
+          <div className="auth-step-head">
+            <button type="button" className="btn btn-icon" aria-label="Back to account details" disabled={busy} onClick={() => setStep('account')}>
+              <span aria-hidden="true">←</span>
+            </button>
+            <div>
+              <p className="auth-step-count">Step 2 of 2</p>
+              <h1 className="auth-step-title">Choose your chieftain</h1>
+            </div>
+          </div>
+          <Suspense fallback={<p className="muted auth-step-loading" role="status">Loading chieftains…</p>}>
+            <ChieftainPicker value={chieftain} onChange={setChieftain} welcome disabled={busy} />
+          </Suspense>
+          <div className="auth-step-foot">
+            <div className="form-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+            <button type="button" className="btn btn-primary btn-block btn-lead" disabled={busy} onClick={() => void leadClan()}>
+              {busy ? 'Please wait…' : 'Lead your clan'}
+            </button>
+            <p className="auth-step-note">{chosen.name} will lead your clan.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -58,6 +113,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
             className={!register ? 'is-active' : ''}
             onClick={() => {
               setMode('login');
+              setStep('account');
               setError(null);
             }}
             type="button"
@@ -70,6 +126,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
             className={register ? 'is-active' : ''}
             onClick={() => {
               setMode('register');
+              setStep('account');
               setError(null);
             }}
             type="button"
@@ -122,7 +179,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
             {error}
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : register ? 'Create account and start' : 'Sign in'}
+            {busy ? 'Please wait…' : register ? 'Next: choose your chieftain' : 'Sign in'}
           </button>
         </form>
 

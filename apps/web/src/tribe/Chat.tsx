@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX } from '@clanfire/engine';
 import type { ChatMessageDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
+import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatChatTime } from '../format.ts';
 import { useGame } from '../game.ts';
 import { CharCount, PlainText } from './bits.tsx';
@@ -14,12 +15,15 @@ const STICK_PX = 48;
 /** One message. Memoised: `minute` changes once a minute, so a long history is not re-rendered every second. */
 const ChatMessage = memo(function ChatMessage({ m, own, minute }: { m: ChatMessageDto; own: boolean; minute: number }) {
   return (
-    <div className={`chat-msg${own ? ' is-own' : ''}`}>
-      <div className="chat-meta">
-        <strong>{own ? 'You' : m.username}</strong>
-        <span>{formatChatTime(m.createdAt, minute)}</span>
+    <div className={`chat-row${own ? ' is-own' : ''}`}>
+      <ChieftainAvatar id={m.chieftain} size={36} className="chat-avatar" />
+      <div className={`chat-msg${own ? ' is-own' : ''}`}>
+        <div className="chat-meta">
+          <strong>{own ? 'You' : m.username}</strong>
+          <span>{formatChatTime(m.createdAt, minute)}</span>
+        </div>
+        <PlainText text={m.text} />
       </div>
-      <PlainText text={m.text} />
     </div>
   );
 });

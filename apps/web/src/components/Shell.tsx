@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@clanfire/engine';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
@@ -8,6 +8,8 @@ import { useGame, TABS } from '../game.ts';
 import type { Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+
+const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 
 const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe' };
 /** "+3k/h" style rate for the narrow phone strip. */
@@ -144,8 +146,8 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
   );
 }
 
-/** Chieftain avatar + name [TAG]; opens a small menu with the village and Sign out. */
-function Who({ onSignOut, compact }: { onSignOut: () => void; compact?: boolean }) {
+/** Chieftain avatar + name [TAG]; opens a small menu with the village, Change chieftain and Sign out. */
+function Who({ onSignOut, onChangeChieftain, compact }: { onSignOut: () => void; onChangeChieftain: () => void; compact?: boolean }) {
   const { player, village } = useGame();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -174,7 +176,7 @@ function Who({ onSignOut, compact }: { onSignOut: () => void; compact?: boolean 
         onClick={() => setOpen((o) => !o)}
       >
         <span className="avatar-ring">
-          <ChieftainAvatar id={player.chieftain} size={compact ? 40 : 46} />
+          <ChieftainAvatar id={player.chieftain} size={compact ? 40 : 46} eager />
         </span>
         {!compact && (
           <span className="who-text" aria-hidden="true">
@@ -191,6 +193,15 @@ function Who({ onSignOut, compact }: { onSignOut: () => void; compact?: boolean 
               {village.name} ({formatCoords(village.x, village.y)})
             </div>
           </div>
+          <button
+            className="btn btn-block"
+            onClick={() => {
+              setOpen(false);
+              onChangeChieftain();
+            }}
+          >
+            Change chieftain
+          </button>
           <button className="btn btn-block" onClick={onSignOut}>
             Sign out
           </button>
@@ -202,6 +213,7 @@ function Who({ onSignOut, compact }: { onSignOut: () => void; compact?: boolean 
 
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const { tab } = useGame();
+  const [choosing, setChoosing] = useState(false);
   return (
     <div className={`app app-${tab}`}>
       <header className="topbar">
@@ -215,10 +227,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           ))}
         </nav>
         <Resources />
-        <Who onSignOut={onSignOut} />
+        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} />
       </header>
       <div className="resstrip">
-        <Who onSignOut={onSignOut} compact />
+        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} compact />
         <Resources compact />
       </div>
       <Strip />
@@ -230,6 +242,11 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           <TabButton key={t} tab={t} variant="bottom" />
         ))}
       </nav>
+      {choosing && (
+        <Suspense fallback={null}>
+          <ChieftainDialog onClose={() => setChoosing(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type {
   ApplyRequest,
   AuthRequest,
   BuildRequest,
+  ChieftainRequest,
   ChatMessageDto,
   ChatRequest,
   ChatResponse,
@@ -87,6 +88,7 @@ export const api = {
   login: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/login', body),
   register: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/register', body),
   logout: () => request<void>('POST', '/api/auth/logout', {}),
+  setChieftain: (chieftain: string) => request<MeResponse>('POST', '/api/me/chieftain', { chieftain } satisfies ChieftainRequest),
   state: () => request<GameStateResponse>('GET', '/api/state'),
   build: (villageId: number, building: string) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/build`, { building } satisfies BuildRequest),

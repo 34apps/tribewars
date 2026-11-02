@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { TribeDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
+import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatCoords, formatDate, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import type { TribeTarget } from '../game.ts';
@@ -85,15 +86,18 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
             <ul className="member-list">
               {members.map((m) => (
                 <li key={m.playerId} className="member-row">
-                  <div className="member-main">
-                    <strong className="member-name">{m.username}</strong>
-                    <RoleBadge role={m.role} />
-                  </div>
-                  <div className="member-sub">
-                    <span>{formatInt(m.points)} pts</span>
-                    <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
-                      {formatCoords(m.villageX, m.villageY)} on map
-                    </button>
+                  <ChieftainAvatar id={m.chieftain} size={40} className="member-avatar" />
+                  <div className="member-body">
+                    <div className="member-main">
+                      <strong className="member-name">{m.username}</strong>
+                      <RoleBadge role={m.role} />
+                    </div>
+                    <div className="member-sub">
+                      <span>{formatInt(m.points)} pts</span>
+                      <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
+                        {formatCoords(m.villageX, m.villageY)} on map
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}

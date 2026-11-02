@@ -5,14 +5,18 @@ import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
+import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
-  const { showOnMap } = useGame();
+  const { showOnMap, player } = useGame();
+  // Reports carry no chieftain for the other side (no API change yet): only your own portrait can be shown.
+  const mine = v.ownerName !== null && v.ownerName === player.username;
   return (
-    <div className={`side ${won ? 'is-winner' : ''}`}>
+    <div className={`side${won ? ' is-winner' : ''}${mine ? ' has-avatar' : ''}`}>
+      {mine && <ChieftainAvatar id={player.chieftain} size={40} className="side-avatar" />}
       <div className="side-role">{role}{won && <span className="tag tag-ok">Winner</span>}</div>
       <div className="side-name">{v.ownerName ?? 'Abandoned village'}</div>
       <button className="link" onClick={() => showOnMap(v.x, v.y)}>

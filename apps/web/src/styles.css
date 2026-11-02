@@ -440,6 +440,294 @@ textarea {
   gap: 12px;
 }
 
+/* Chieftain step of Create account: wider card, sticky "Lead your clan" button */
+.auth-card-wide {
+  max-width: 640px;
+  padding: 14px 14px 0;
+}
+
+.auth-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.auth-step-count {
+  color: var(--c-teal-hi);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.auth-step-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.7rem;
+  line-height: 1.05;
+  color: var(--c-cream);
+}
+
+.auth-step-loading {
+  min-height: 320px;
+}
+
+.auth-step-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  margin: 10px -14px 0;
+  padding: 10px 14px 14px;
+  border-radius: 0 0 22px 22px;
+  background: var(--panel);
+  box-shadow: 0 -10px 12px -6px var(--panel);
+}
+
+.auth-step-foot .form-error:empty {
+  display: none;
+}
+
+.btn-lead {
+  min-height: 54px;
+  font-size: 1.3rem;
+}
+
+.auth-step-note {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+/* ---- Chieftain picker (sign-up step and Change chieftain dialog) ---------------------------------- */
+
+.cp {
+  display: grid;
+  gap: 12px;
+}
+
+.cp-mags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-mags-face {
+  flex: none;
+  display: block;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 3px solid var(--c-edge);
+  background: var(--c-sun-hi);
+}
+
+.cp-mags-face img {
+  display: block;
+  width: 112px;
+  max-width: none;
+  height: auto;
+  margin: -2px 0 0 -24px;
+}
+
+.cp-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 3px solid var(--c-edge);
+  border-radius: 16px;
+  background: var(--c-teal-hi);
+  box-shadow: 0 3px 0 var(--c-edge);
+  color: var(--c-ink);
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.cp-bubble::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 22px;
+  width: 14px;
+  height: 14px;
+  border-left: 3px solid var(--c-edge);
+  border-bottom: 3px solid var(--c-edge);
+  background: var(--c-teal-hi);
+  transform: rotate(45deg);
+}
+
+.cp-bubble strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.cp-stage {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.cp-big {
+  width: 150px;
+  height: 150px;
+}
+
+.cp-info {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-height: 112px;
+}
+
+.cp-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--c-cream);
+}
+
+.cp-pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border: 2.5px solid var(--c-edge);
+  border-radius: 999px;
+  box-shadow: 0 2px 0 var(--c-edge);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cp-line {
+  max-width: 34ch;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--c-ink-deep);
+  box-shadow: inset 0 3px 0 var(--c-edge);
+}
+
+.cp-tile {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-height: 92px;
+  padding: 8px 2px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--c-ink-2);
+  box-shadow: inset 0 3px 0 var(--c-ink-deep);
+  color: var(--c-cream);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.cp-tile:hover:not(:disabled) {
+  background: var(--c-ink-3);
+}
+
+.cp-tile.is-on {
+  background: var(--c-teal-lo);
+  box-shadow: inset 0 0 0 3px var(--c-sun-hi), 0 3px 0 var(--c-edge);
+}
+
+.cp-tile:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.cp-thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.cp-tile-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cp-check {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--c-edge);
+  border-radius: 50%;
+  background: var(--c-sun);
+}
+
+.confirm.chief-dialog {
+  width: min(640px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chief-dialog .cp {
+  margin-top: 8px;
+}
+
+@media (min-width: 560px) {
+  .cp-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .cp-tile-name {
+    font-size: 0.8rem;
+  }
+
+  .cp-big {
+    width: 170px;
+    height: 170px;
+  }
+
+  .auth-card-wide {
+    padding: 18px 22px 0;
+  }
+
+  .auth-step-foot {
+    margin: 12px -22px 0;
+    padding: 10px 22px 18px;
+  }
+}
+
+@media (max-height: 760px) {
+  .cp-big {
+    width: 120px;
+    height: 120px;
+  }
+
+  .cp-info {
+    min-height: 100px;
+  }
+}
+
 .auth-blurb {
   display: grid;
   gap: 8px;
@@ -1569,6 +1857,22 @@ button.strip {
   background: var(--ok-bg);
 }
 
+.side.has-avatar {
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 8px;
+}
+
+.side.has-avatar > :not(.side-avatar) {
+  grid-column: 2;
+}
+
+.side-avatar {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 40px;
+  height: 40px;
+}
+
 .side-role {
   display: flex;
   flex-wrap: wrap;
@@ -2168,15 +2472,16 @@ button.strip {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: var(--panel);
+  color: var(--c-cream);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .subtab.is-active {
-  background: var(--brand);
-  border-color: var(--brand-dark);
-  color: var(--on-brand);
+  background: var(--c-sun, #f2b33d);
+  border-color: var(--c-edge);
+  color: var(--c-ink);
 }
 
 /* Tribe list */
@@ -2270,14 +2575,29 @@ button.strip {
 }
 
 .member-row {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .member-row:last-child {
   border-bottom: 0;
+}
+
+.member-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin-top: 1px;
+}
+
+.member-body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
 }
 
 .member-main {
@@ -2379,9 +2699,27 @@ button.strip {
   background: var(--panel-2);
 }
 
-.chat-msg {
+.chat-row {
+  display: flex;
+  align-items: flex-end;
   align-self: flex-start;
-  max-width: 88%;
+  gap: 6px;
+  max-width: 94%;
+  min-width: 0;
+}
+
+.chat-row.is-own {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chat-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+
+.chat-msg {
   min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--line);
@@ -2390,7 +2728,6 @@ button.strip {
 }
 
 .chat-msg.is-own {
-  align-self: flex-end;
   border-color: var(--brand-dark);
   border-radius: 12px 12px 3px 12px;
   background: var(--brand);
