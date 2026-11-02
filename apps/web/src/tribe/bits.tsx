@@ -1,6 +1,6 @@
 // Small shared pieces of the Tribe tab. All user-written text goes through React children only (never HTML).
 
-import type { DiplomacyKind, TribeRole } from '@tribewars/engine';
+import type { DiplomacyKind, TribeRole } from '@clanfire/engine';
 import { DIPLOMACY_SHORT, ROLE_NAME } from '../relations.ts';
 
 export function TribeLabel({ tag, name }: { tag: string; name?: string }) {

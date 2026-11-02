@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { TRIBE_MAX_ALLIES, TRIBE_MAX_NAPS, pactNoticeMs, type MyTribeResponse, type TribeDto } from '@tribewars/engine';
+import { TRIBE_MAX_ALLIES, TRIBE_MAX_NAPS, pactNoticeMs, type MyTribeResponse, type TribeDto } from '@clanfire/engine';
 import { HOUR, errorOf, makeApp, ok } from './helpers.ts';
 import { count, fillerTribe, formPact, inviteAndAccept, myTribe, newLeader, newPlayer, setHall, type P } from './tribe-helpers.ts';
 

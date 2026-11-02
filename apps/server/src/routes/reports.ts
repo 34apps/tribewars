@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { ReportDto, ReportListResponse } from '@tribewars/engine';
+import type { ReportDto, ReportListResponse } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
 

@@ -1,5 +1,5 @@
-import type { MapVillageDto } from '@tribewars/engine';
-import { MAP_MAX_SPAN } from '@tribewars/engine';
+import type { MapVillageDto } from '@clanfire/engine';
+import { MAP_MAX_SPAN } from '@clanfire/engine';
 import { api } from '../api.ts';
 
 export const CHUNK = 30;

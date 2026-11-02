@@ -1,8 +1,8 @@
 // Public page of any tribe: description, members, relations, and join controls for tribeless viewers.
 
 import { useEffect, useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS } from '@tribewars/engine';
-import type { TribeDto } from '@tribewars/engine';
+import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
+import type { TribeDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatCoords, formatDate, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';

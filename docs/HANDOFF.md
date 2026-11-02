@@ -1,4 +1,4 @@
-# Handoff — TribeWars
+# Handoff — Clanfire
 
 Written 2026-11-02 (after v0.2 tribes). Read this first, then `docs/AI-WORKFLOW.md` (the main session orchestrates;
 haiku agents `runner`/`scout`/`editor`, sonnet agent `implementer`), the top of `CHANGELOG.md`,
@@ -50,5 +50,4 @@ one small follow-up agent for contract gaps → lead ran `npm run check`/build/p
 
 ## Open items for the owner
 
-1. Pick a final game name (trademark risk with "Tribal Wars"); suggestions in `NEXT_STEPS.md`.
-2. Decide where to host the game server.
+1. Decide where to host the game server.

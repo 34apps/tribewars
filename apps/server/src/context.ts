@@ -1,4 +1,4 @@
-import type { WorldSettings } from '@tribewars/engine';
+import type { WorldSettings } from '@clanfire/engine';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { GameService } from './game.ts';
 import type { PlayerRow, Store } from './store.ts';

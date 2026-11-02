@@ -18,7 +18,7 @@ import {
   productionFromLevels,
   storageCapForLevel,
   vaultForLevel,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import type {
   BuildingId,
   BuildingLevels,
@@ -30,7 +30,7 @@ import type {
   Units,
   VillageState,
   WorldSettings,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { formatCompact, formatInt, formatRate } from './format.ts';
 import { RESOURCE_ICON } from './icons.ts';
 

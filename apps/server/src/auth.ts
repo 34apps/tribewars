@@ -11,7 +11,7 @@ import {
   villagePoints,
   type PlayerDto,
   type WorldSettings,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import type { PlayerRow, Store } from './store.ts';
 
 export const SESSION_COOKIE = 'tw_session';

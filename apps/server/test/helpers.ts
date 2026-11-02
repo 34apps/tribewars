@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
-import type { GameStateResponse, MapResponse, OwnVillageDto, WorldSettings } from '@tribewars/engine';
+import type { GameStateResponse, MapResponse, OwnVillageDto, WorldSettings } from '@clanfire/engine';
 import { buildApp, type BuildAppOptions } from '../src/app.ts';
 
 export const MINUTE = 60_000;
 export const HOUR = 3_600_000;
-export const HOST = 'tribewars.test';
+export const HOST = 'clanfire.test';
 export const PASSWORD = 'correct horse battery';
 
 /** Small, fast, static world: no abandoned-village growth during tests. */

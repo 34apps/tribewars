@@ -1,6 +1,6 @@
 // How one player relates to another through tribes and diplomacy (map colours, attack rules).
 
-import type { DiplomacyKind, PlayerRelation } from '@tribewars/engine';
+import type { DiplomacyKind, PlayerRelation } from '@clanfire/engine';
 import type { TribeStore } from './tribe-store.ts';
 
 export interface RelationInfo {

@@ -43,7 +43,7 @@ import {
   type TribeSettingsRequest,
   type TribeSummaryDto,
   type WorldSettings,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import type { PlayerRow, Store } from './store.ts';
 import type { ApplicationRow, InviteRow, MembershipRow, ProposalRow, RankedTribeRow, RelationSideRow, TribeRow } from './tribe-store.ts';
 

@@ -8,8 +8,8 @@ import {
   checkBuild,
   netProductionPerHour,
   storageCap,
-} from '@tribewars/engine';
-import type { BuildingId } from '@tribewars/engine';
+} from '@clanfire/engine';
+import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatClock, formatDuration } from '../format.ts';

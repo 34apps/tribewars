@@ -1,5 +1,5 @@
 {
-  "name": "@tribewars/server",
+  "name": "@clanfire/server",
   "version": "0.1.0",
   "private": true,
   "description": "Authoritative game server: Fastify HTTP API + SQLite (node:sqlite).",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
     "@fastify/static": "^10.1.8",
-    "@tribewars/engine": "*",
+    "@clanfire/engine": "*",
     "fastify": "^5.12.8",
     "tsx": "^4.23.15"
   },

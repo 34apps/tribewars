@@ -10,8 +10,8 @@ import {
   productionPerHour,
   trainTimeMs,
   upkeepPerHour,
-} from '@tribewars/engine';
-import type { MovementDto, TrainJob, TrainingBuildingId, UnitId, VillageRefDto } from '@tribewars/engine';
+} from '@clanfire/engine';
+import type { MovementDto, TrainJob, TrainingBuildingId, UnitId, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';

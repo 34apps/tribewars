@@ -1,5 +1,5 @@
-import { terrainAt } from '@tribewars/engine';
-import type { Terrain } from '@tribewars/engine';
+import { terrainAt } from '@clanfire/engine';
+import type { Terrain } from '@clanfire/engine';
 
 export const GRASS = 0;
 export const FOREST = 1;

@@ -19,7 +19,7 @@ import {
   type TribeDto,
   type TribeListResponse,
   type TribeSettingsRequest,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
 

@@ -1,6 +1,6 @@
 // How a village relates to the viewer: map colours, labels and the words used in panels.
 
-import type { DiplomacyKind, PlayerRelation, TribeRole } from '@tribewars/engine';
+import type { DiplomacyKind, PlayerRelation, TribeRole } from '@clanfire/engine';
 
 /** PlayerRelation plus 'abandoned' (villages without an owner). */
 export type RelationKey = PlayerRelation | 'abandoned';

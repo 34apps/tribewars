@@ -1,5 +1,5 @@
-import { RESOURCE_IDS } from '@tribewars/engine';
-import type { Resources } from '@tribewars/engine';
+import { RESOURCE_IDS } from '@clanfire/engine';
+import type { Resources } from '@clanfire/engine';
 import { formatCompact } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 

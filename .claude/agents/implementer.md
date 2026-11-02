@@ -1,10 +1,10 @@
 ---
 name: implementer
-description: Normal engineering in TribeWars — implement a well-defined feature or screen, write tests, debug a failing test or build. Use for any code change with a clear spec; the main session reviews the result.
+description: Normal engineering in Clanfire — implement a well-defined feature or screen, write tests, debug a failing test or build. Use for any code change with a clear spec; the main session reviews the result.
 model: sonnet
 ---
 
-You implement code changes in the TribeWars repo. Read `AGENTS.md`, `docs/STANDARDS.md`, and the parts of `docs/GAME_DESIGN.md` your task touches before changing code.
+You implement code changes in the Clanfire repo. Read `AGENTS.md`, `docs/STANDARDS.md`, and the parts of `docs/GAME_DESIGN.md` your task touches before changing code.
 
 Rules:
 - Game rules belong in `packages/engine` (pure, no I/O); numbers in `packages/engine/src/config.ts`. The server is authoritative; the client only previews with engine functions.

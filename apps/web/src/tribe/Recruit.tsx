@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { TRIBE_INVITE_TTL_HOURS, TRIBE_MAX_MEMBERS, TRIBE_MAX_OPEN_INVITES, canTribe } from '@tribewars/engine';
+import { TRIBE_INVITE_TTL_HOURS, TRIBE_MAX_MEMBERS, TRIBE_MAX_OPEN_INVITES, canTribe } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatAgo, formatInt, formatLeft } from '../format.ts';
 import { useGame } from '../game.ts';

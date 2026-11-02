@@ -9,7 +9,7 @@ import {
   type ReportListResponse,
   type SendResponse,
   type Units,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { HOUR, errorOf, makeApp, ok, register, trainRaiders, weakestAbandoned } from './helpers.ts';
 
 const sum = (r: Record<string, number>): number => Object.values(r).reduce((a, b) => a + b, 0);

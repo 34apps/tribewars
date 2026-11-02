@@ -1,7 +1,7 @@
 // SQL for the tribe tables: prepared statements with bound parameters only. Rules live in tribe-service.ts.
 // Expired invites and relations are filtered out by every read here ("ignored on read") and deleted lazily.
 
-import type { DiplomacyKind, PlayerTribeDto, Recruitment, TribeRole } from '@tribewars/engine';
+import type { DiplomacyKind, PlayerTribeDto, Recruitment, TribeRole } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
 
 export interface TribeRow {

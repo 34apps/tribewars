@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GameStateResponse, OwnVillageDto, SendResponse } from '@tribewars/engine';
+import type { GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 
 const POLL_MS = 10_000;

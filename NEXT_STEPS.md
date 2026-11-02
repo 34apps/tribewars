@@ -3,9 +3,8 @@
 Current open work and decisions only (history goes in `CHANGELOG.md`). Newest priorities first.
 
 ## Decisions for the owner
-- **Game name.** Owner agreed to rename ("TribeWars" is too close to "Tribal Wars"). Suggested:
-  Clanfire (no game found by that name, 2026-11-02 search), Banner Age; avoid Hearthfall and
-  Stoneholds (existing games). Needs a trademark + domain check before launch.
+- **Name: Clanfire** (owner, 2026-11-02). Before launch: trademark + domain check. The GitHub repo
+  is still called `tribewars`; the owner can rename it in GitHub → Settings → General (old links redirect).
 - **Hosting.** Where the game server runs (one small always-on server is enough at first; the
   database is a single SQLite file that needs backups).
 - **World pace.** Default world speed 1 (slow, days-long game) vs a faster world (e.g. 3×).

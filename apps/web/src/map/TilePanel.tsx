@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { UNITS, UNIT_IDS, checkSend, distance, emptyUnits, isAttackForbidden, totalUnits, travelTimeMs } from '@tribewars/engine';
-import type { Coords, MapVillageDto, UnitId, Units } from '@tribewars/engine';
+import { UNITS, UNIT_IDS, checkSend, distance, emptyUnits, isAttackForbidden, totalUnits, travelTimeMs } from '@clanfire/engine';
+import type { Coords, MapVillageDto, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';

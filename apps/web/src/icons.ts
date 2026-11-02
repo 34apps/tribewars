@@ -1,4 +1,4 @@
-import type { BuildingId, ResourceId, UnitId } from '@tribewars/engine';
+import type { BuildingId, ResourceId, UnitId } from '@clanfire/engine';
 
 export const RESOURCE_ICON: Record<ResourceId, string> = {
   wood: '🪵',

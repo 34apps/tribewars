@@ -1,4 +1,4 @@
-import type { GameErrorCode } from '@tribewars/engine';
+import type { GameErrorCode } from '@clanfire/engine';
 
 /**
  * HTTP status for a game error code. 400 = the request can never be valid as sent;

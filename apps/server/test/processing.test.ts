@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { emptyUnits, type ReportDto, type ReportListResponse, type Units, type VillageState } from '@tribewars/engine';
+import { emptyUnits, type ReportDto, type ReportListResponse, type Units, type VillageState } from '@clanfire/engine';
 import { REPORTS_KEEP } from '../src/store.ts';
 import { HOUR, makeApp, ok, register, weakestAbandoned } from './helpers.ts';
 

@@ -1,4 +1,4 @@
-# AI workflow — how sessions work on TribeWars
+# AI workflow — how sessions work on Clanfire
 
 Standing rules for every AI session (Claude Code locally or in Claude cloud, or any other
 assistant). `AGENTS.md` links here. They come from the owner, so don't ask them to repeat them.

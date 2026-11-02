@@ -1,7 +1,7 @@
 // All SQL lives here: prepared statements with bound parameters only.
 
 import type { DatabaseSync } from 'node:sqlite';
-import type { BattleReportData, Resources, Units, VillageState, WorldSettings } from '@tribewars/engine';
+import type { BattleReportData, Resources, Units, VillageState, WorldSettings } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
 import { TribeStore } from './tribe-store.ts';
 

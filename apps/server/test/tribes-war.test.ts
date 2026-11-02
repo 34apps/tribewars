@@ -12,7 +12,7 @@ import {
   type ReportDto,
   type ReportListResponse,
   type SendResponse,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { Client, PASSWORD, errorOf, makeApp, ok } from './helpers.ts';
 import { count, formPact, inviteAndAccept, myTribe, newLeader, newPlayer, warSetup } from './tribe-helpers.ts';
 

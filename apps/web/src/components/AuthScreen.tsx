@@ -44,7 +44,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
       <div className="auth-card">
         <div className="auth-brand">
           <span className="auth-crest" aria-hidden="true">🏰</span>
-          <h1>TribeWars</h1>
+          <h1>Clanfire</h1>
           <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
         </div>
 

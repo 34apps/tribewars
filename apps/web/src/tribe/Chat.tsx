@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
-import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX } from '@tribewars/engine';
-import type { ChatMessageDto } from '@tribewars/engine';
+import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX } from '@clanfire/engine';
+import type { ChatMessageDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatChatTime } from '../format.ts';
 import { useGame } from '../game.ts';

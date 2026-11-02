@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@tribewars/engine';
+import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@clanfire/engine';
 import { useGame, TABS } from '../game.ts';
 import type { Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
@@ -114,7 +114,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span aria-hidden="true">🏰</span> TribeWars
+          <span aria-hidden="true">🏰</span> Clanfire
         </div>
         <nav className="toptabs" aria-label="Main">
           {TABS.map((t) => (

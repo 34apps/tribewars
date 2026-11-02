@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
-import type { MeResponse } from '@tribewars/engine';
+import type { MeResponse } from '@clanfire/engine';
 import { Client, HOUR, MINUTE, PASSWORD, errorOf, makeApp, ok, register } from './helpers.ts';
 
 const DAY = 24 * HOUR;
@@ -201,14 +201,14 @@ test('cross-site POSTs are refused (Origin must match Host)', async () => {
   const c = new Client(app);
   const body = { username: 'kate', password: PASSWORD };
   errorOf(await c.post('/api/auth/register', body, { origin: 'https://evil.example' }), 403, 'forbidden');
-  errorOf(await c.post('/api/auth/register', body, { origin: 'http://tribewars.test.evil.example' }), 403, 'forbidden');
+  errorOf(await c.post('/api/auth/register', body, { origin: 'http://clanfire.test.evil.example' }), 403, 'forbidden');
   errorOf(await c.post('/api/auth/register', body, { origin: 'null' }), 403, 'forbidden');
   errorOf(await c.post('/api/auth/register', body, { origin: 'not a url' }), 403, 'forbidden');
   assert.equal((app.ctx.store.db.prepare('SELECT COUNT(*) AS n FROM players').get() as { n: number }).n, 0);
   // Same host passes, whatever the scheme (TLS is usually terminated by a proxy).
-  ok(await c.post('/api/auth/register', body, { origin: 'https://tribewars.test' }), 201);
+  ok(await c.post('/api/auth/register', body, { origin: 'https://clanfire.test' }), 201);
   // Non-browser clients send no Origin at all.
-  const noOrigin = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { host: 'tribewars.test' }, payload: body });
+  const noOrigin = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { host: 'clanfire.test' }, payload: body });
   ok(noOrigin);
   // The check also guards logged-in actions.
   const villageId = (await c.village()).id;
@@ -221,7 +221,7 @@ test('cross-site POSTs are refused (Origin must match Host)', async () => {
 test('only JSON bodies are accepted, and they are size limited', async () => {
   const { app } = await makeApp();
   const post = (headers: Record<string, string>, payload: string) =>
-    app.inject({ method: 'POST', url: '/api/auth/register', headers: { host: 'tribewars.test', ...headers }, payload });
+    app.inject({ method: 'POST', url: '/api/auth/register', headers: { host: 'clanfire.test', ...headers }, payload });
 
   const form = await post({ 'content-type': 'application/x-www-form-urlencoded' }, 'username=lena&password=' + PASSWORD);
   assert.equal(form.statusCode, 415, form.body);
@@ -237,7 +237,7 @@ test('only JSON bodies are accepted, and they are size limited', async () => {
   const empty = await app.inject({
     method: 'POST',
     url: '/api/auth/logout',
-    headers: { host: 'tribewars.test', 'content-type': 'application/json' },
+    headers: { host: 'clanfire.test', 'content-type': 'application/json' },
     payload: '',
   });
   assert.equal(empty.statusCode, 204);

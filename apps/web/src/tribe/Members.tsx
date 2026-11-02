@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS, canKick, canTribe } from '@tribewars/engine';
-import type { TribeMemberDto } from '@tribewars/engine';
+import { TRIBE_MAX_MEMBERS, canKick, canTribe } from '@clanfire/engine';
+import type { TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';

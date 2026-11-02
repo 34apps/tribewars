@@ -17,7 +17,7 @@ import {
   type MeResponse,
   type MyTribeResponse,
   type TribeDto,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { HOUR, MINUTE, TEST_WORLD, errorOf, makeApp, ok, register } from './helpers.ts';
 import {
@@ -92,7 +92,7 @@ test('founding validates identity, description and shape; names and tags are uni
   setHall(app, b.id, 3);
 
   // Nothing leaks through without a session.
-  const anon = await app.inject({ method: 'POST', url: '/api/tribes', headers: { host: 'tribewars.test', 'content-type': 'application/json' }, payload: '{}' });
+  const anon = await app.inject({ method: 'POST', url: '/api/tribes', headers: { host: 'clanfire.test', 'content-type': 'application/json' }, payload: '{}' });
   assert.equal(anon.statusCode, 401);
 
   const good = { name: 'Ünïcode Wölfe', tag: 'uw', recruitment: 'application' };
@@ -586,7 +586,7 @@ test('permissions: members are refused leader/officer actions, outsiders get not
 
   // Signed-out callers get 401 everywhere, including the read routes.
   for (const url of ['/api/tribes', '/api/tribes/1', '/api/tribe', '/api/tribe/chat']) {
-    const res = await app.inject({ method: 'GET', url, headers: { host: 'tribewars.test' } });
+    const res = await app.inject({ method: 'GET', url, headers: { host: 'clanfire.test' } });
     assert.equal(res.statusCode, 401, url);
   }
   // Malformed ids never reach the database.
@@ -747,7 +747,7 @@ test('an older database without tribe tables is upgraded in place on start', asy
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      headers: { host: 'tribewars.test', origin: 'http://tribewars.test', 'content-type': 'application/json' },
+      headers: { host: 'clanfire.test', origin: 'http://clanfire.test', 'content-type': 'application/json' },
       payload: JSON.stringify({ username: 'veteran', password: 'correct horse battery' }),
     });
     assert.equal(login.statusCode, 200);

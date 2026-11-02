@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { MovementDto, OwnVillageDto, PlayerDto, SendResponse, VillageState, WorldSettings } from '@tribewars/engine';
+import type { MovementDto, OwnVillageDto, PlayerDto, SendResponse, VillageState, WorldSettings } from '@clanfire/engine';
 
 export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe';
 export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe'];

@@ -1,6 +1,6 @@
 // World creation: settings are stored in the database on first start and win over the environment.
 
-import { DEFAULT_WORLD, createNpcVillage, generateNpcPlacements, villagePoints, type WorldSettings } from '@tribewars/engine';
+import { DEFAULT_WORLD, createNpcVillage, generateNpcPlacements, villagePoints, type WorldSettings } from '@clanfire/engine';
 import type { Store } from './store.ts';
 
 export const NPC_VILLAGE_NAME = 'Abandoned village';

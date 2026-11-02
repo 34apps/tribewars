@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { TRIBE_MAX_ALLIES, TRIBE_MAX_NAPS, TRIBE_TAG_MAX, TRIBE_TAG_PATTERN, canTribe, normalizeTribeTag, pactNoticeMs } from '@tribewars/engine';
-import type { DiplomacyKind, DiplomacyProposalDto, TribeRelationDto } from '@tribewars/engine';
+import { TRIBE_MAX_ALLIES, TRIBE_MAX_NAPS, TRIBE_TAG_MAX, TRIBE_TAG_PATTERN, canTribe, normalizeTribeTag, pactNoticeMs } from '@clanfire/engine';
+import type { DiplomacyKind, DiplomacyProposalDto, TribeRelationDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatAgo, formatLeft } from '../format.ts';
 import { useGame } from '../game.ts';

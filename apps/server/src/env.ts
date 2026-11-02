@@ -1,6 +1,6 @@
 // Server configuration from environment variables. Fails fast on malformed values.
 
-import type { WorldSettings } from '@tribewars/engine';
+import type { WorldSettings } from '@clanfire/engine';
 
 export interface ServerEnv {
   port: number;
@@ -38,7 +38,7 @@ export function loadEnv(env: Env = process.env): ServerEnv {
   return {
     port: num(env, 'PORT', (n) => Number.isInteger(n) && n >= 0 && n <= 65535, 'a port number') ?? 3000,
     host: env.HOST?.trim() || '0.0.0.0',
-    databasePath: env.DATABASE_PATH?.trim() || './data/tribewars.sqlite',
+    databasePath: env.DATABASE_PATH?.trim() || './data/clanfire.sqlite',
     nodeEnv,
     isProduction: nodeEnv === 'production',
     trustProxy: /^(1|true|yes)$/i.test(env.TRUST_PROXY ?? ''),

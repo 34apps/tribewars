@@ -13,8 +13,8 @@ import {
   checkTribeIdentity,
   normalizeTribeName,
   normalizeTribeTag,
-} from '@tribewars/engine';
-import type { Recruitment, TribeSummaryDto } from '@tribewars/engine';
+} from '@clanfire/engine';
+import type { Recruitment, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatInt, formatLeft } from '../format.ts';
 import { useGame } from '../game.ts';

@@ -1,4 +1,4 @@
-# TribeWars — game design (v0.1)
+# Clanfire — game design (v0.1)
 
 Original browser strategy game. Players each own a village on a shared square world map,
 grow it with four resources, train troops, raid abandoned villages and (later) fight other

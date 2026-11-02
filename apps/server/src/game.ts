@@ -33,7 +33,7 @@ import {
   type Units,
   type VillageRefDto,
   type WorldSettings,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, VillageRecord, VillageStub } from './store.ts';
 

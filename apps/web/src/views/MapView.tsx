@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
-import type { Coords } from '@tribewars/engine';
+import type { Coords } from '@clanfire/engine';
 import { useGame } from '../game.ts';
 import { formatCoords } from '../format.ts';
 import { MapChunks } from '../map/chunks.ts';

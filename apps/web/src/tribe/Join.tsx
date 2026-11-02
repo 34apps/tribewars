@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { PLAYER_MAX_APPLICATIONS, TRIBE_APPLICATION_MESSAGE_MAX, TRIBE_MAX_MEMBERS } from '@tribewars/engine';
-import type { Recruitment } from '@tribewars/engine';
+import { PLAYER_MAX_APPLICATIONS, TRIBE_APPLICATION_MESSAGE_MAX, TRIBE_MAX_MEMBERS } from '@clanfire/engine';
+import type { Recruitment } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { CharCount } from './bits.tsx';
 import { useTribe } from './context.ts';

@@ -10,7 +10,7 @@ import {
   type OwnVillageDto,
   type ReportListResponse,
   type VillageState,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { HOUR, MINUTE, errorOf, makeApp, ok, register, type Client } from './helpers.ts';
 
 /** White-box helper: rewrite a village's stored state. */

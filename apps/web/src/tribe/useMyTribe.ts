@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MyTribeResponse } from '@tribewars/engine';
+import type { MyTribeResponse } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { useGame } from '../game.ts';
 

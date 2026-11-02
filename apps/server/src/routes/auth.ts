@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, type AuthRequest, type MeResponse } from '@tribewars/engine';
+import { GameError, type AuthRequest, type MeResponse } from '@clanfire/engine';
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';

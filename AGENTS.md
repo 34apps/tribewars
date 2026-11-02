@@ -1,9 +1,9 @@
-# TribeWars
+# Clanfire
 
 Original browser strategy game: villages on a shared world map, four resources (wood, food,
 iron, gold), buildings, troops, raids on abandoned villages, later tribes and diplomacy.
 Web first, then mobile browsers. **This repo is the only project for this game — don't work on,
-read or log other repos (e.g. MeetingNote) from a TribeWars session.**
+read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 
 ## Read at the start of every session (in this order)
 

@@ -1,8 +1,8 @@
 // Tribe tab: find/found a tribe when tribeless, or the member area (overview, members, diplomacy, recruit, chat, log).
 
 import { useEffect, useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS, canTribe } from '@tribewars/engine';
-import type { MyTribeResponse, TribeDto, TribeRole } from '@tribewars/engine';
+import { TRIBE_MAX_MEMBERS, canTribe } from '@clanfire/engine';
+import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import type { TribeTarget } from '../game.ts';

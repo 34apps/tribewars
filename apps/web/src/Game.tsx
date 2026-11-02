@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { settleVillage } from '@tribewars/engine';
+import { settleVillage } from '@clanfire/engine';
 import { api } from './api.ts';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';

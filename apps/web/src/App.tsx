@@ -44,7 +44,7 @@ export function App() {
     return (
       <div className="splash" role="status">
         <div className="splash-logo" aria-hidden="true">🏰</div>
-        <p>Loading TribeWars…</p>
+        <p>Loading Clanfire…</p>
       </div>
     );
   }

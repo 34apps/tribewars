@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RESOURCE_IDS, UNITS, UNIT_IDS } from '@tribewars/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, VillageRefDto } from '@tribewars/engine';
+import { RESOURCE_IDS, UNITS, UNIT_IDS } from '@clanfire/engine';
+import type { BattleReportData, ReportDto, ReportSummaryDto, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';

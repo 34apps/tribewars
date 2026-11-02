@@ -8,7 +8,7 @@ import { loadEnv } from '../src/env.ts';
 import { Clock, PASSWORD, TEST_WORLD, Client, errorOf, makeApp, ok } from './helpers.ts';
 
 test('stored world settings win over the environment on restart; data persists', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tribewars-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-test-'));
   try {
     const dbPath = join(dir, 'nested', 'game.sqlite'); // the folder is created
     const clock = new Clock();
@@ -48,7 +48,7 @@ test('stored world settings win over the environment on restart; data persists',
 });
 
 test('world creation warns when the environment differs from the stored world', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tribewars-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-test-'));
   try {
     const dbPath = join(dir, 'w.sqlite');
     const clock = new Clock();
@@ -72,7 +72,7 @@ test('world creation warns when the environment differs from the stored world', 
 
 test('environment parsing', () => {
   const d = loadEnv({});
-  assert.deepEqual([d.port, d.host, d.databasePath, d.isProduction, d.trustProxy], [3000, '0.0.0.0', './data/tribewars.sqlite', false, false]);
+  assert.deepEqual([d.port, d.host, d.databasePath, d.isProduction, d.trustProxy], [3000, '0.0.0.0', './data/clanfire.sqlite', false, false]);
   assert.deepEqual(d.worldOverrides, {});
   const e = loadEnv({ PORT: '8080', HOST: '127.0.0.1', DATABASE_PATH: '/x/y.sqlite', NODE_ENV: 'production', WORLD_SPEED: '10', WORLD_SEED: '7', WORLD_RADIUS: '40', TRUST_PROXY: '1' });
   assert.deepEqual([e.port, e.host, e.databasePath, e.isProduction, e.trustProxy], [8080, '127.0.0.1', '/x/y.sqlite', true, true]);
@@ -83,7 +83,7 @@ test('environment parsing', () => {
 });
 
 test('serves the built web client with an SPA fallback, never for /api', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tribewars-web-'));
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-web-'));
   try {
     mkdirSync(join(dir, 'assets'));
     writeFileSync(join(dir, 'index.html'), '<!doctype html><div id="root"></div>');

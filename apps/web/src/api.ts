@@ -1,4 +1,4 @@
-// Typed fetch wrapper for the TribeWars HTTP API (contract: packages/engine/src/api.ts).
+// Typed fetch wrapper for the Clanfire HTTP API (contract: packages/engine/src/api.ts).
 
 import type {
   ApiError,
@@ -29,7 +29,7 @@ import type {
   TribeListResponse,
   TribeRole,
   TribeSettingsRequest,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
 

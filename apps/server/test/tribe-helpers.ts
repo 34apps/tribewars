@@ -8,7 +8,7 @@ import {
   type MyTribeResponse,
   type Recruitment,
   type SendResponse,
-} from '@tribewars/engine';
+} from '@clanfire/engine';
 import { Client, HOUR, errorOf, makeApp, ok, register, trainRaiders, type Clock } from './helpers.ts';
 
 export type App = FastifyInstance;

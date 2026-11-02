@@ -1,5 +1,5 @@
 {
-  "name": "tribewars",
+  "name": "clanfire",
   "version": "0.1.0",
   "private": true,
   "description": "Browser strategy game: villages on a world map, resources, buildings, troops, abandoned villages to raid, tribes.",
@@ -12,9 +12,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @tribewars/server\" \"npm run dev -w @tribewars/web\"",
-    "build": "npm run build -w @tribewars/web",
-    "start": "npm start -w @tribewars/server",
+    "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @clanfire/server\" \"npm run dev -w @clanfire/web\"",
+    "build": "npm run build -w @clanfire/web",
+    "start": "npm start -w @clanfire/server",
     "test": "npm run test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "check": "npm run type-check && npm test"

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { MyTribeResponse, TribeDto, TribeRole } from '@tribewars/engine';
+import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import type { TribeTarget } from '../game.ts';
 import type { ConfirmOptions } from './Confirm.tsx';
 import type { RunAction } from './useMyTribe.ts';

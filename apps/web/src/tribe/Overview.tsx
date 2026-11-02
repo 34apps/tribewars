@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { TRIBE_DESCRIPTION_MAX, TRIBE_MAX_MEMBERS, canTribe, checkTribeDescription } from '@tribewars/engine';
-import type { Recruitment } from '@tribewars/engine';
+import { TRIBE_DESCRIPTION_MAX, TRIBE_MAX_MEMBERS, canTribe, checkTribeDescription } from '@clanfire/engine';
+import type { Recruitment } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatDate, formatInt } from '../format.ts';
 import { CharCount, PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME, RECRUITMENT_OPTIONS, Segmented } from './bits.tsx';

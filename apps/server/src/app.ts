@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import { GameError, type ApiError, type GameErrorCode, type WorldSettings } from '@tribewars/engine';
+import { GameError, type ApiError, type GameErrorCode, type WorldSettings } from '@clanfire/engine';
 import { AuthService, RateLimiter } from './auth.ts';
 import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';

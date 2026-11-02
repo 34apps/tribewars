@@ -1,4 +1,4 @@
-# TribeWars
+# Clanfire
 
 An original browser strategy game. Every player gets a village somewhere on a shared world map.
 Grow it with **wood, food, iron and gold**, upgrade buildings, train troops, and send them across

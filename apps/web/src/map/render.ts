@@ -1,6 +1,6 @@
 // Canvas drawing for the world map. Pure functions of (view, data); the caller decides when to redraw.
 
-import type { Coords, MapVillageDto } from '@tribewars/engine';
+import type { Coords, MapVillageDto } from '@clanfire/engine';
 import { RELATION_STYLE } from '../relations.ts';
 import type { RelationKey } from '../relations.ts';
 import { CHUNK } from './chunks.ts';

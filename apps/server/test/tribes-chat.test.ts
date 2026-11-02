@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX, type ChatMessageDto, type ChatResponse } from '@tribewars/engine';
+import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX, type ChatMessageDto, type ChatResponse } from '@clanfire/engine';
 import { errorOf, makeApp, ok } from './helpers.ts';
 import { addMember, count, newLeader, newPlayer, type P } from './tribe-helpers.ts';
 
