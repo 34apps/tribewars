@@ -4,7 +4,10 @@ import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, Su
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
-import { BUILDING_ICON, MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { BuildingArt } from '../art/BuildingArt.tsx';
+import { Icon } from '../art/Icon.tsx';
+import type { IconName } from '../art/Icon.tsx';
+import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
   const { showOnMap } = useGame();
@@ -28,10 +31,10 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
 const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support' };
 const SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Attack', defense: 'Defense', support: 'Support' };
 
-function reportIcon(r: ReportSummaryDto): string {
+function reportIcon(r: ReportSummaryDto): IconName {
   if (r.type === 'scout') return MISSION_ICON.scout;
   if (r.type === 'support' || r.side === 'support') return MISSION_ICON.support;
-  return r.side === 'attack' ? MISSION_ICON.attack : '🛡️';
+  return r.side === 'attack' ? MISSION_ICON.attack : 'shield';
 }
 
 /** What happened, from the report owner's point of view. */
@@ -62,7 +65,7 @@ function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['si
         <VillageCell role="Target" v={b.defender} won={false} />
       </div>
       <p className="notice notice-block called-off" role="note">
-        <span aria-hidden="true">🛡️</span>{' '}
+        <Icon name="shield" size={20} className="inline-icon" />{' '}
         <span>
           Attack called off. The target is now protected by a pact or tribe, so {side === 'attack' ? 'your troops turned back' : 'the attackers turned back'}.
           No battle took place: no losses, no loot.
@@ -117,7 +120,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
                 rows.map((u) => (
                   <tr key={u}>
                     <th scope="row">
-                      <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
                     </th>
                     <td className="num"><Num value={att[u]} /></td>
                     <td className="num"><Num value={attLost[u]} loss /></td>
@@ -130,13 +133,13 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
                 <>
                   <tr className="group-row">
                     <th scope="rowgroup" colSpan={5}>
-                      <span aria-hidden="true">{MISSION_ICON.support}</span> Support troops (defending)
+                      <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> Support troops (defending)
                     </th>
                   </tr>
                   {supportRows.map((u) => (
                     <tr key={`support-${u}`} className="support-row">
                       <th scope="row">
-                        <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+                        <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
                       </th>
                       <td className="num"><span className="muted">–</span></td>
                       <td className="num"><span className="muted">–</span></td>
@@ -191,7 +194,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
           <ul className="loot">
             {RESOURCE_IDS.filter((r) => b.loot[r] > 0).map((r) => (
               <li key={r}>
-                <span aria-hidden="true">{RESOURCE_ICON[r]}</span> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+                <Icon name={RESOURCE_ICON[r]} size={18} className="inline-icon" /> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
                 <strong>{formatInt(b.loot[r])}</strong>
               </li>
             ))}
@@ -231,7 +234,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
         <VillageCell role="Target" v={s.target} won={false} />
       </div>
       <p className={`notice called-off ${s.success === sender ? 'notice-ok' : 'notice-block'}`} role="note">
-        <span aria-hidden="true">{MISSION_ICON.scout}</span> <span>{result}</span>
+        <Icon name={MISSION_ICON.scout} size={20} className="inline-icon" /> <span>{result}</span>
       </p>
 
       <section className="subsection" aria-label="Scouts">
@@ -266,7 +269,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
               <ul className="loot">
                 {RESOURCE_IDS.map((r) => (
                   <li key={r}>
-                    <span aria-hidden="true">{RESOURCE_ICON[r]}</span> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+                    <Icon name={RESOURCE_ICON[r]} size={18} className="inline-icon" /> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
                     <strong>{formatInt(intel.resources[r] ?? 0)}</strong>
                   </li>
                 ))}
@@ -282,7 +285,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
                 <ul className="loot">
                   {troopRows.map((u) => (
                     <li key={u}>
-                      <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name} <strong>{formatInt(troops[u])}</strong>
+                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{formatInt(troops[u])}</strong>
                     </li>
                   ))}
                 </ul>
@@ -299,7 +302,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
                   {buildingRows.map((b) => (
                     <div key={b}>
                       <dt>
-                        <span aria-hidden="true">{BUILDING_ICON[b]}</span> {BUILDINGS[b].name}
+                        <BuildingArt id={b} level={1} size={24} className="inline-icon" /> {BUILDINGS[b].name}
                       </dt>
                       <dd>{intel.buildings[b]}</dd>
                     </div>
@@ -336,7 +339,7 @@ function SupportDetail({ s }: { s: SupportReportData }) {
         <VillageCell role="Sent to" v={s.host} won={false} />
       </div>
       <p className="notice called-off" role="note">
-        <span aria-hidden="true">{MISSION_ICON.support}</span> <span>Support turned back. {reason}</span>
+        <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> <span>Support turned back. {reason}</span>
       </p>
       <section className="subsection" aria-label="Troops">
         <h3 className="subtitle">Troops</h3>
@@ -346,7 +349,7 @@ function SupportDetail({ s }: { s: SupportReportData }) {
           <ul className="loot">
             {rows.map((u) => (
               <li key={u}>
-                <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name} <strong>{formatInt(units[u])}</strong>
+                <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{formatInt(units[u])}</strong>
               </li>
             ))}
           </ul>
@@ -468,7 +471,9 @@ export function ReportsView() {
                     onClick={() => setSelected(r.id)}
                     aria-current={selected === r.id ? 'true' : undefined}
                   >
-                    <span className="report-icon" aria-hidden="true">{reportIcon(r)}</span>
+                    <span className="report-icon" aria-hidden="true">
+                      <Icon name={reportIcon(r)} size={26} />
+                    </span>
                     <span className="report-main">
                       <span className="report-title">
                         {!r.read && <span className="dot" aria-label="Unread" />}

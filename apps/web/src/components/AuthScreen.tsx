@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, errorMessage } from '../api.ts';
+import { Icon } from '../art/Icon.tsx';
 
 type Mode = 'login' | 'register';
 
@@ -43,7 +44,9 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
     <div className="auth">
       <div className="auth-card">
         <div className="auth-brand">
-          <span className="auth-crest" aria-hidden="true">🏰</span>
+          <span className="auth-crest" aria-hidden="true">
+            <Icon name="flame" size={52} />
+          </span>
           <h1>Clanfire</h1>
           <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
         </div>
@@ -124,9 +127,9 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
         </form>
 
         <ul className="auth-blurb">
-          <li><span aria-hidden="true">🌾</span> Grow wood, food, iron and gold in your own village.</li>
-          <li><span aria-hidden="true">⚔️</span> Train raiders and cavalry, then plunder abandoned villages.</li>
-          <li><span aria-hidden="true">🛡️</span> New villages are protected for the first days. Take your time.</li>
+          <li><Icon name="food" size={26} /> Grow wood, food, iron and gold in your own village.</li>
+          <li><Icon name="send" size={26} /> Train raiders and cavalry, then plunder abandoned villages.</li>
+          <li><Icon name="shield" size={26} /> New villages are protected for the first days. Take your time.</li>
         </ul>
       </div>
     </div>

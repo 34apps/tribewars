@@ -21,6 +21,7 @@ import { useGame } from '../game.ts';
 import { CharCount, PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME, RECRUITMENT_OPTIONS, Segmented, TribeLabel } from './bits.tsx';
 import { useTribe } from './context.ts';
 import { ApplyForm, JoinButton } from './Join.tsx';
+import { Icon } from '../art/Icon.tsx';
 
 function Invitations() {
   const { data, busy, run, openTribe } = useTribe();
@@ -201,7 +202,7 @@ function FoundForm() {
         <span className="card-title">Found a tribe</span>
         {locked && (
           <span className="tag tag-warn">
-            <span aria-hidden="true">🔒</span> Needs Town Hall {TRIBE_FOUND_HALL_LEVEL}
+            <Icon name="lock" size={18} className="inline-icon" /> Needs Town Hall {TRIBE_FOUND_HALL_LEVEL}
           </span>
         )}
       </summary>

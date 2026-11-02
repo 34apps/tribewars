@@ -37,7 +37,7 @@ import type {
   WorldSettings,
 } from '@clanfire/engine';
 import { formatCompact, formatInt, formatRate } from './format.ts';
-import { RESOURCE_ICON } from './icons.ts';
+import { RESOURCE_NAME } from './icons.ts';
 
 export interface UnmetRequirement {
   building: BuildingId;
@@ -176,8 +176,8 @@ export function maxTrainable(live: VillageState, u: UnitId, now: number, s: Worl
 
 export function resourceText(r: Resources): string {
   return RESOURCE_IDS.filter((id) => r[id] > 0)
-    .map((id) => `${RESOURCE_ICON[id]} ${formatCompact(r[id])}`)
-    .join('  ');
+    .map((id) => `${formatCompact(r[id])} ${RESOURCE_NAME[id].toLowerCase()}`)
+    .join(', ');
 }
 
 export function unitListText(units: Units): string {

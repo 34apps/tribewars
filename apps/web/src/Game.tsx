@@ -14,6 +14,7 @@ import { MapView } from './views/MapView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
+import { Icon } from './art/Icon.tsx';
 
 function readTab(): Tab {
   const h = window.location.hash.replace(/^#\/?/, '');
@@ -144,7 +145,9 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   if (!ctx) {
     return (
       <div className="splash" role={store.error ? 'alert' : 'status'}>
-        <div className="splash-logo" aria-hidden="true">🏰</div>
+        <div className="splash-logo" aria-hidden="true">
+          <Icon name="flame" size={44} />
+        </div>
         <p>{store.error ?? 'Gathering your village…'}</p>
         {store.error && (
           <button className="btn btn-primary" onClick={() => void store.refresh()}>

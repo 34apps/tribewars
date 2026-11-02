@@ -1,10 +1,13 @@
-import type { BuildingId, Mission, ResourceId, UnitId } from '@clanfire/engine';
+import type { Mission, ResourceId, UnitId } from '@clanfire/engine';
+import type { IconName } from './art/Icon.tsx';
 
-export const RESOURCE_ICON: Record<ResourceId, string> = {
-  wood: '🪵',
-  food: '🌾',
-  iron: '⛓️',
-  gold: '🪙',
+// Names of the drawn icons (src/art/Icon.tsx) per game thing. Buildings use their sprites (src/art/buildings.ts).
+
+export const RESOURCE_ICON: Record<ResourceId, IconName> = {
+  wood: 'wood',
+  food: 'food',
+  iron: 'iron',
+  gold: 'gold',
 };
 
 export const RESOURCE_NAME: Record<ResourceId, string> = {
@@ -14,36 +17,23 @@ export const RESOURCE_NAME: Record<ResourceId, string> = {
   gold: 'Gold',
 };
 
-export const BUILDING_ICON: Record<BuildingId, string> = {
-  hall: '🏰',
-  lumber: '🪓',
-  farm: '🌾',
-  mine: '⛏️',
-  goldmine: '💰',
-  storehouse: '📦',
-  barracks: '⚔️',
-  stables: '🐴',
-  wall: '🧱',
-  vault: '🔒',
-};
-
-export const UNIT_ICON: Record<UnitId, string> = {
-  pikeman: '🔱',
-  guard: '🛡️',
-  raider: '🗡️',
-  outrider: '🐎',
-  knight: '🏇',
-  pathfinder: '🧭',
+export const UNIT_ICON: Record<UnitId, IconName> = {
+  pikeman: 'pikeman',
+  guard: 'guard',
+  raider: 'raider',
+  outrider: 'outrider',
+  knight: 'knight',
+  pathfinder: 'pathfinder',
 };
 
 /** Movement kinds: the three missions plus the trip home. */
 export type MovementKind = Mission | 'return';
 
-export const MISSION_ICON: Record<MovementKind, string> = {
-  attack: '⚔️',
-  scout: '🧭',
-  support: '🤝',
-  return: '↩️',
+export const MISSION_ICON: Record<MovementKind, IconName> = {
+  attack: 'send',
+  scout: 'scout',
+  support: 'support',
+  return: 'return',
 };
 
 export const MISSION_NAME: Record<MovementKind, string> = {

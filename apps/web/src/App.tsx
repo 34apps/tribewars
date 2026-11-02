@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from './api.ts';
 import { AuthScreen } from './components/AuthScreen.tsx';
 import { Game } from './Game.tsx';
+import { Icon } from './art/Icon.tsx';
 
 type Session = 'loading' | 'out' | 'in';
 
@@ -32,7 +33,9 @@ export function App() {
   if (bootError) {
     return (
       <div className="splash" role="alert">
-        <div className="splash-logo" aria-hidden="true">🏰</div>
+        <div className="splash-logo" aria-hidden="true">
+          <Icon name="flame" size={44} />
+        </div>
         <p>{bootError}</p>
         <button className="btn btn-primary" onClick={() => setAttempt((n) => n + 1)}>
           Try again
@@ -43,7 +46,9 @@ export function App() {
   if (session === 'loading') {
     return (
       <div className="splash" role="status">
-        <div className="splash-logo" aria-hidden="true">🏰</div>
+        <div className="splash-logo" aria-hidden="true">
+          <Icon name="flame" size={44} />
+        </div>
         <p>Loading Clanfire…</p>
       </div>
     );

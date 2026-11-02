@@ -1,6 +1,7 @@
 import { RESOURCE_IDS } from '@clanfire/engine';
 import type { Resources } from '@clanfire/engine';
 import { formatCompact } from '../format.ts';
+import { Icon } from '../art/Icon.tsx';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 
 export function ProgressBar({ value, label, tone = 'brand' }: { value: number; label?: string; tone?: 'brand' | 'danger' | 'ok' }) {
@@ -27,7 +28,7 @@ export function Cost({ cost, have, cap }: { cost: Resources; have?: Resources; c
         const short = have ? Math.floor(have[r] + 1e-9) < cost[r] || (cap !== undefined && cost[r] > cap) : false;
         return (
           <span key={r} className={`cost-item${short ? ' is-short' : ''}`} title={`${RESOURCE_NAME[r]}${short ? ' (not enough)' : ''}`}>
-            <span aria-hidden="true">{RESOURCE_ICON[r]}</span>
+            <Icon name={RESOURCE_ICON[r]} size={18} className="inline-icon" />
             <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
             {formatCompact(cost[r])}
             {short && <span className="visually-hidden"> (not enough)</span>}

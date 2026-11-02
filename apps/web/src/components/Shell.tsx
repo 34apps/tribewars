@@ -1,54 +1,78 @@
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@clanfire/engine';
+import { ChieftainAvatar } from '../art/Chieftain.tsx';
+import { Icon } from '../art/Icon.tsx';
+import type { IconName } from '../art/Icon.tsx';
 import { useGame, TABS } from '../game.ts';
 import type { Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 
 const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe' };
-const TAB_ICON: Record<Tab, string> = { village: '🏘️', map: '🗺️', army: '⚔️', reports: '📜', tribe: '🚩' };
+/** "+3k/h" style rate for the narrow phone strip. */
+function compactRate(perHour: number): string {
+  const r = Math.round(perHour);
+  const abs = Math.abs(r);
+  if (abs < 1000) return formatRate(r);
+  return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k/h`;
+}
 
-function ResourceBar() {
+const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', tribe: 'tribe' };
+
+/** Wood/food/iron/gold counters: amount/cap, rate, fill bar. `compact` (phone strip) hides cap and bar via CSS. */
+function Resources({ compact }: { compact?: boolean }) {
   const { live, settings } = useGame();
   const cap = storageCap(live);
   const net = netProductionPerHour(live, settings);
   return (
-    <section className="resbar" aria-label="Resources">
-      <ul>
-        {RESOURCE_IDS.map((r) => {
-          const amount = Math.floor(live.resources[r] + 1e-9);
-          const ratio = cap > 0 ? live.resources[r] / cap : 0;
-          const nearFull = ratio >= 0.9;
-          const full = ratio >= 0.999;
-          const rate = net[r];
-          const bad = r === 'food' && rate <= 0;
-          const cls = ['res', nearFull ? 'is-near-full' : '', full ? 'is-full' : '', bad ? 'is-bad' : ''].filter(Boolean).join(' ');
-          return (
-            <li key={r} className={cls}>
-              <span className="res-top">
-                <span className="res-icon" aria-hidden="true">{RESOURCE_ICON[r]}</span>
-                <span className="res-amount">
-                  <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
-                  {formatInt(amount)}
+    <ul className="resources" aria-label="Resources">
+      {RESOURCE_IDS.map((r) => {
+        const amount = Math.floor(live.resources[r] + 1e-9);
+        const ratio = cap > 0 ? live.resources[r] / cap : 0;
+        const nearFull = ratio >= 0.9;
+        const full = ratio >= 0.999;
+        const rate = net[r];
+        const bad = r === 'food' && rate <= 0;
+        const cls = [
+          'res',
+          nearFull ? 'is-near-full' : '',
+          full ? 'is-full' : '',
+          bad ? 'is-bad' : '',
+          Math.round(rate) === 0 ? 'is-zero' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return (
+          <li key={r} className={cls}>
+            <span className="token" aria-hidden="true">
+              <Icon name={RESOURCE_ICON[r]} size={compact ? 20 : 24} />
+            </span>
+            <span className="res-text">
+              <span className="res-amount">
+                <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
+                {compact ? formatCompact(amount) : formatInt(amount)}
+                <span className="res-cap">
+                  <span aria-hidden="true"> /</span>
+                  <span className="visually-hidden"> of </span>
+                  {formatInt(cap)}
+                  {full && <span className="visually-hidden"> (full)</span>}
                 </span>
               </span>
               <span className="res-sub">
-                <span className="res-cap">
-                  <span aria-hidden="true">/</span>
-                  <span className="visually-hidden"> of </span>
-                  {formatCompact(cap)}
-                  {full && <span className="visually-hidden"> (full)</span>}
+                <span className="res-meter" aria-hidden="true">
+                  <span style={{ width: `${Math.min(100, ratio * 100)}%` }} />
                 </span>
-                <span className="res-rate">{formatRate(rate)}</span>
+                <span className="res-rate">
+                  {compact ? compactRate(rate) : formatRate(rate)}
+                  {r === 'food' && !compact ? ' net' : ''}
+                </span>
               </span>
-              <span className="res-meter" aria-hidden="true">
-                <span style={{ width: `${Math.min(100, ratio * 100)}%` }} />
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -66,7 +90,7 @@ function Strip() {
       )}
       {first && (
         <button className="strip strip-danger" onClick={() => navigate('army')}>
-          <span aria-hidden="true">⚠️</span>
+          <Icon name="warning" size={22} />
           <span>
             {incoming.length > 1 ? `${incoming.length} attacks incoming` : 'Attack incoming'}: first lands in{' '}
             <strong>{formatDuration(first.arriveAt - now)}</strong>
@@ -75,7 +99,7 @@ function Strip() {
       )}
       {protectedLeft > 0 && (
         <div className="strip strip-protect">
-          <span aria-hidden="true">🛡️</span>
+          <Icon name="shield" size={22} />
           <span>
             Beginner protection: <strong>{formatLeft(protectedLeft)}</strong> left
           </span>
@@ -99,13 +123,17 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
   const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'tribe' ? tribeLabel : `${badge} incoming`;
   // Red for attacks (yours or your tribe's); invitations alone stay calm.
   const danger = tab === 'army' || (tab === 'tribe' && tribeAlerts > 0);
+  const iconSize = variant === 'top' ? (active ? 28 : 25) : active ? 26 : 23;
   return (
     <button
       className={`tab tab-${variant}${active ? ' is-active' : ''}`}
       aria-current={active ? 'page' : undefined}
+      title={TAB_LABEL[tab]}
       onClick={() => navigate(tab)}
     >
-      <span className="tab-icon" aria-hidden="true">{TAB_ICON[tab]}</span>
+      <span className="tab-token" aria-hidden="true">
+        <Icon name={TAB_ICON[tab]} size={iconSize} />
+      </span>
       <span className="tab-label">{TAB_LABEL[tab]}</span>
       {badge > 0 && (
         <span className={`badge${danger ? ' badge-danger' : ''}`} aria-label={badgeLabel}>
@@ -116,37 +144,85 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
   );
 }
 
-export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
-  const { player, village, tab } = useGame();
+/** Chieftain avatar + name [TAG]; opens a small menu with the village and Sign out. */
+function Who({ onSignOut, compact }: { onSignOut: () => void; compact?: boolean }) {
+  const { player, village } = useGame();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const tag = player.tribe ? `[${player.tribe.tag}]` : '';
   return (
-    <div className="app">
+    <div className="who" ref={ref}>
+      <button
+        className="who-button"
+        aria-expanded={open}
+        aria-label={`${player.username}${tag ? ` ${tag}` : ''}, account`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="avatar-ring">
+          <ChieftainAvatar id={player.chieftain} size={compact ? 40 : 46} />
+        </span>
+        {!compact && (
+          <span className="who-text" aria-hidden="true">
+            <span className="who-name">{player.username}</span>
+            {tag && <span className="who-tag">{tag}</span>}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="who-menu">
+          <div>
+            <strong>{player.username}</strong> {tag && <span className="who-tag">{tag}</span>}
+            <div className="muted">
+              {village.name} ({formatCoords(village.x, village.y)})
+            </div>
+          </div>
+          <button className="btn btn-block" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
+  const { tab } = useGame();
+  return (
+    <div className={`app app-${tab}`}>
       <header className="topbar">
         <div className="brand">
-          <span aria-hidden="true">🏰</span> Clanfire
+          <Icon name="flame" size={32} />
+          Clanfire
         </div>
         <nav className="toptabs" aria-label="Main">
           {TABS.map((t) => (
             <TabButton key={t} tab={t} variant="top" />
           ))}
         </nav>
-        <div className="who">
-          <div className="who-text">
-            <strong>
-              {player.tribe && <span className="who-tag" title={player.tribe.name}>[{player.tribe.tag}] </span>}
-              {player.username}
-            </strong>
-            <span>
-              <span className="who-village">{village.name} </span>({formatCoords(village.x, village.y)})
-            </span>
-          </div>
-          <button className="btn btn-ghost" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
+        <Resources />
+        <Who onSignOut={onSignOut} />
       </header>
-      <ResourceBar />
+      <div className="resstrip">
+        <Who onSignOut={onSignOut} compact />
+        <Resources compact />
+      </div>
       <Strip />
-      <main className={`main${tab === 'map' ? ' main-map' : ''}`} id="main">
+      <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main">
         {children}
       </main>
       <nav className="bottomnav" aria-label="Main">

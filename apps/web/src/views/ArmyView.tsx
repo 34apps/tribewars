@@ -18,7 +18,9 @@ import { api, errorMessage } from '../api.ts';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
-import { BUILDING_ICON, MISSION_NAME, RESOURCE_ICON, UNIT_ICON } from '../icons.ts';
+import { BuildingArt } from '../art/BuildingArt.tsx';
+import { Icon } from '../art/Icon.tsx';
+import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
 
@@ -49,7 +51,7 @@ function TroopsTable() {
               return (
                 <tr key={u} className={none ? 'is-zero' : ''}>
                   <th scope="row">
-                    <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+                    <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
                   </th>
                   <td className="num">{formatInt(live.troops[u])}</td>
                   <td className="num">{formatInt(live.away[u])}</td>
@@ -61,7 +63,7 @@ function TroopsTable() {
         </table>
       </div>
       <p className="muted upkeep">
-        <span aria-hidden="true">{RESOURCE_ICON.food}</span> Troops eat {formatInt(upkeep)}/h of the {formatInt(farm)}/h your farms grow.
+        <Icon name={RESOURCE_ICON.food} size={20} className="inline-icon" /> Troops eat {formatInt(upkeep)}/h of the {formatInt(farm)}/h your farms grow.
       </p>
     </section>
   );
@@ -94,7 +96,7 @@ function MovementRow({ m }: { m: MovementDto }) {
   const other = m.origin.villageId === village.id ? m.target : m.origin;
   const left = m.arriveAt - now;
   const total = Math.max(1, m.arriveAt - m.departAt);
-  const lootText = m.loot ? RESOURCE_IDS.filter((r) => (m.loot?.[r] ?? 0) > 0).map((r) => `${RESOURCE_ICON[r]} ${formatInt(m.loot?.[r] ?? 0)}`) : [];
+  const lootItems = m.loot ? RESOURCE_IDS.filter((r) => (m.loot?.[r] ?? 0) > 0) : [];
   const carriers = m.units ? UNIT_IDS.some((u) => (m.units?.[u] ?? 0) > 0 && UNITS[u].carry > 0) : false;
 
   let label: string;
@@ -140,7 +142,22 @@ function MovementRow({ m }: { m: MovementDto }) {
       <div className="movement-foot">
         <span>
           {foot}
-          {m.kind === 'return' && (lootText.length > 0 ? <> · Loot: {lootText.join('  ')}</> : carriers ? <> · No loot</> : null)}
+          {m.kind === 'return' &&
+            (lootItems.length > 0 ? (
+              <>
+                {' '}
+                · Loot:{' '}
+                {lootItems.map((r) => (
+                  <span key={r} className="loot-item">
+                    <Icon name={RESOURCE_ICON[r]} size={16} className="inline-icon" />
+                    <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+                    {formatInt(m.loot?.[r] ?? 0)}{' '}
+                  </span>
+                ))}
+              </>
+            ) : carriers ? (
+              <> · No loot</>
+            ) : null)}
         </span>
         <span className="muted">arrives {formatClock(m.arriveAt, now)}</span>
       </div>
@@ -201,7 +218,7 @@ function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onR
         {present.map((u) => (
           <li key={u}>
             <label htmlFor={`recall-${s.id}-${u}`} className="send-label">
-              <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+              <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
               <span className="muted"> / {formatInt(have[u])}</span>
             </label>
             <input
@@ -357,7 +374,7 @@ function TrainBatchRow({ job }: { job: TrainJob }) {
     <li className="job">
       <div className="job-head">
         <span className="job-name">
-          <span aria-hidden="true">{UNIT_ICON[job.unit]}</span> {formatInt(job.count)} × {def.name}
+          <Icon name={UNIT_ICON[job.unit]} size={20} className="inline-icon" /> {formatInt(job.count)} × {def.name}
           <span className="muted"> ({job.done}/{job.count})</span>
         </span>
         <span className="job-time">
@@ -419,7 +436,9 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   return (
     <article className={`card unit${locked ? ' is-locked' : ''}`} aria-labelledby={`u-${unit}`}>
       <header className="unit-head">
-        <span className="building-icon" aria-hidden="true">{UNIT_ICON[unit]}</span>
+        <span className="building-icon" aria-hidden="true">
+          <Icon name={UNIT_ICON[unit]} size={30} />
+        </span>
         <div className="building-title">
           <h4 id={`u-${unit}`}>{def.name}</h4>
           <div className="level">{def.unitClass === 'cavalry' ? 'Cavalry' : 'Infantry'} · {formatInt(live.troops[unit])} at home</div>
@@ -427,23 +446,23 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
       </header>
       <p className="building-desc">{def.description}</p>
       <dl className="stats">
-        <div><dt>⚔️ Attack</dt><dd>{def.attack}</dd></div>
-        <div><dt>🛡️ vs infantry</dt><dd>{def.defenseInfantry}</dd></div>
-        <div><dt>🐎 vs cavalry</dt><dd>{def.defenseCavalry}</dd></div>
-        <div><dt>👟 Speed</dt><dd>{formatInt(speed)} tiles/h</dd></div>
-        <div><dt>🎒 Carry</dt><dd>{def.carry}</dd></div>
-        <div><dt>🍖 Upkeep</dt><dd>{formatInt(upkeep)} food/h</dd></div>
+        <div><dt>Attack</dt><dd>{def.attack}</dd></div>
+        <div><dt>Defence vs infantry</dt><dd>{def.defenseInfantry}</dd></div>
+        <div><dt>Defence vs cavalry</dt><dd>{def.defenseCavalry}</dd></div>
+        <div><dt>Speed</dt><dd>{formatInt(speed)} tiles/h</dd></div>
+        <div><dt>Carry</dt><dd>{def.carry}</dd></div>
+        <div><dt>Upkeep</dt><dd>{formatInt(upkeep)} food/h</dd></div>
       </dl>
       {locked ? (
         <p className="requirements">
-          <span aria-hidden="true">🔒</span> Requires {requirementText(unmet)}
+          <Icon name="lock" size={18} className="inline-icon" /> Requires {requirementText(unmet)}
         </p>
       ) : (
         <>
           <div className="building-cost">
             <Cost cost={def.cost} have={live.resources} />
             <span className="time" title="Time per unit">
-              <span aria-hidden="true">⏱</span> {formatDuration(perUnit)} each
+              <Icon name="time" size={18} className="inline-icon" /> {formatDuration(perUnit)} each
             </span>
           </div>
           <div className="train-row">
@@ -496,7 +515,7 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
   return (
     <section className="card training" aria-labelledby={`t-${building}`}>
       <h2 id={`t-${building}`} className="card-title">
-        <span aria-hidden="true">{BUILDING_ICON[building]}</span> {def.name}
+        <BuildingArt id={building} level={1} size={24} className="inline-icon" /> {def.name}
         {level > 0 && <span className="muted"> level {level}</span>}
       </h2>
       {level === 0 ? (
