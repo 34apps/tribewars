@@ -13,7 +13,14 @@ Owner's direction (2026-11-02). Read before any visual work.
   become 3D.
 - Work **one piece at a time**, each approved by the owner before it goes into the game.
 
-## Style directions (pick one)
+## Chosen style: D · Toy Diorama (owner, 2026-11-02)
+Chunky tabletop toy pieces, 3-tone block shading lit from the top-left, vinyl-toy characters on round
+bases (3D-ready for Tripo3D later). Palette Moss #5E8C3A, Terracotta #C4623A, Sky teal #2F9AA0,
+Sunflower #F2B33D, Plum #7A3B5E, Warm ink #2B211C; neutrals Bone #F1E1C2, Table wood #B07D46,
+Iron #A39E94. Fonts Bagel Fat One (display) + Rubik (text). Advisor: Mags the Tinker. Source art:
+`design/style-directions/artboards/Toy*.dc.html`.
+
+## Style directions (explored)
 Canvas with four directions, each shown as a phone village screen, desktop village screen, character
 sheet (6 units, 2 chieftains, advisor) and isometric map:
 https://claude.ai/artifact/MBeYhuGXimx6ASUkUGGQDB (private to the owner)

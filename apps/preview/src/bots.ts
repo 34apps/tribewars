@@ -2,13 +2,27 @@
 //  - seedBots(): on a fresh world, 8 bot players with villages of different sizes in 3 bot tribes (made with the real
 //    TribeService, so they appear in the ranking, map and tribe finder like anyone else);
 //  - botTick(): reacts to the human with the real services (accept applications after ~20 s, answer diplomacy proposals
-//    after ~20-30 s, welcome newcomers in tribe chat) and now and then sends a bot raid at an abandoned village.
-// Reactions are driven by timestamps already in the database, so they survive a page reload. Bots never attack players.
+//    after ~20-30 s, welcome newcomers in tribe chat) and keeps the map moving: raids and scouting missions on abandoned
+//    villages, an attack by a rival tribe's bot on a bot village of the human's tribe every few minutes (so tribe alerts
+//    and "Send support" can be tried), and a rare, weak raid on the human's own village once protection is over.
+// Reactions are driven by timestamps already in the database, so they survive a page reload.
 
-import { BUILDING_IDS, BUILDINGS, UNITS, UNIT_IDS, createPlayerVillage, findSpawnLocation, mulberry32, settleVillage, storageCapForLevel, villagePoints } from '@clanfire/engine';
-import type { BuildingId, Recruitment, Units, VillageState } from '@clanfire/engine';
+import {
+  BUILDINGS,
+  UNITS,
+  UNIT_IDS,
+  createPlayerVillage,
+  emptyUnits,
+  findSpawnLocation,
+  mulberry32,
+  settleVillage,
+  storageCapForLevel,
+  travelTimeMs,
+  villagePoints,
+} from '@clanfire/engine';
+import type { BuildingId, Mission, Recruitment, Units, VillageState } from '@clanfire/engine';
 import type { AppContext } from '../../server/src/context.ts';
-import type { PlayerRow } from '../../server/src/store.ts';
+import type { PlayerRow, VillageRecord } from '../../server/src/store.ts';
 
 interface BotPlan {
   name: string;
@@ -16,6 +30,8 @@ interface BotPlan {
   level: number;
   tribe: 'EMBR' | 'ASH' | 'MIST';
   role: 'leader' | 'officer' | 'member';
+  /** Pathfinders this village keeps at home (only with Barracks 2). They defend against enemy scouts and scout abandoned villages. */
+  scouts?: number;
 }
 
 interface TribePlan {
@@ -62,13 +78,13 @@ const TRIBES: TribePlan[] = [
 ];
 
 const BOTS: BotPlan[] = [
-  { name: 'Brannoch', level: 9, tribe: 'EMBR', role: 'leader' },
+  { name: 'Brannoch', level: 9, tribe: 'EMBR', role: 'leader', scouts: 6 },
   { name: 'Ysolde_K', level: 6, tribe: 'EMBR', role: 'officer' },
   { name: 'Ironhart', level: 4, tribe: 'EMBR', role: 'member' },
-  { name: 'Tolvek', level: 10, tribe: 'ASH', role: 'leader' },
-  { name: 'Grimwald', level: 7, tribe: 'ASH', role: 'officer' },
+  { name: 'Tolvek', level: 10, tribe: 'ASH', role: 'leader', scouts: 8 },
+  { name: 'Grimwald', level: 7, tribe: 'ASH', role: 'officer', scouts: 3 },
   { name: 'Odalys', level: 5, tribe: 'ASH', role: 'member' },
-  { name: 'Mira_of_Vale', level: 6, tribe: 'MIST', role: 'leader' },
+  { name: 'Mira_of_Vale', level: 6, tribe: 'MIST', role: 'leader', scouts: 2 },
   { name: 'Sable', level: 3, tribe: 'MIST', role: 'member' },
 ];
 
@@ -77,12 +93,27 @@ const ACCEPT_APPLICATION_AFTER_MS = 20_000;
 const WELCOME_AFTER_MS = 3_000;
 const FIRST_RAID_MS = 75_000;
 const RAID_EVERY_MS = 150_000;
+const FIRST_SCOUT_MS = 40_000;
+const SCOUT_EVERY_MS = 110_000;
+/** First rival-tribe attack on the human's tribe-mates comes this long after the human joins a tribe with bot members. */
+const FIRST_TRIBE_ATTACK_MS = 50_000;
+const TRIBE_ATTACK_EVERY_MS = 4 * 60_000;
+/** Bots top their villages up (army, stores) this often, so attacked or raiding villages recover. */
+const RESTOCK_EVERY_MS = 3 * 60_000;
+/** A bot raid on the human's own village: only after protection, never more often than this, and small. */
+const HUMAN_RAID_AFTER_PROTECTION_MS = 5 * 60_000;
+const HUMAN_RAID_EVERY_MS = 10 * 60_000;
+const HUMAN_RAID_RAIDERS = 6;
+/** Bump when bots change in a way that existing saved worlds need to catch up with (see upgradeBots). */
+const BOT_VERSION = 2;
 
 interface BotMeta {
   /** playerId -> tribe tag */
   bots: Record<string, string>;
   /** tribe tag -> tribe id */
   tribes: Record<string, number>;
+  /** Absent in worlds saved before warfare (version 1). */
+  v?: number;
 }
 
 function loadMeta(ctx: AppContext): BotMeta | null {
@@ -110,14 +141,15 @@ function botVillage(level: number, t: number): VillageState {
 }
 
 /** Fill a bot village's army and stores to its standing levels (what it "keeps trained"). */
-function restock(v: VillageState): void {
+function restock(v: VillageState, scouts = 0): void {
   const level = v.buildings.hall;
   const want: Partial<Units> = {};
   for (const u of UNIT_IDS) {
     const def = UNITS[u];
     const ok = (Object.keys(def.requires) as BuildingId[]).every((b) => v.buildings[b] >= (def.requires[b] ?? 0));
     if (!ok) continue;
-    want[u] = u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : 0;
+    want[u] =
+      u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : u === 'pathfinder' ? scouts : 0;
   }
   for (const u of UNIT_IDS) v.troops[u] = Math.max(v.troops[u], want[u] ?? 0);
   const cap = storageCapForLevel(v.buildings.storehouse);
@@ -131,7 +163,7 @@ export function seedBots(ctx: AppContext): void {
   const { store, tribes, settings } = ctx;
   const t = ctx.now();
   const rng = mulberry32(settings.seed ^ 0x5bd1e995);
-  const meta: BotMeta = { bots: {}, tribes: {} };
+  const meta: BotMeta = { bots: {}, tribes: {}, v: BOT_VERSION };
   const rows = new Map<string, PlayerRow>();
 
   store.tx(() => {
@@ -140,7 +172,7 @@ export function seedBots(ctx: AppContext): void {
       const id = store.insertPlayer(bot.name, 'bot', t, 0);
       const spot = findSpawnLocation((x, y) => store.villageExistsAt(x, y), rng, settings);
       const state = botVillage(bot.level, t);
-      restock(state);
+      restock(state, bot.scouts);
       store.insertVillage(id, `${bot.name}'s village`, spot.x, spot.y, villagePoints(state), state);
       const row = store.getPlayer(id);
       if (!row) throw new Error('bot vanished after insert');
@@ -182,36 +214,215 @@ export function seedBots(ctx: AppContext): void {
 // ---- behaviour ---------------------------------------------------------------------------------------
 
 let nextRaidAt = 0;
+let nextScoutAt = 0;
+let nextRestockAt = 0;
+let nextWarCheckAt = 0;
+/** Human's tribe id -> when the next rival attack on that tribe's bot villages is due (resets with the page). */
+const nextTribeAttackAt = new Map<number, number>();
+/** Human player id -> do not try a raid on them before this (after a failed try). */
+const nextHumanRaidTry = new Map<number, number>();
 
-/** Pick a bot at random and send raiders at a nearby abandoned village. */
-function botRaid(ctx: AppContext, meta: BotMeta, t: number): boolean {
-  const { store, game, settings } = ctx;
-  const ids = Object.keys(meta.bots).map(Number);
-  const id = ids[Math.floor(Math.random() * ids.length)];
-  if (id === undefined) return false;
-  const player = store.getPlayer(id);
-  const home = store.villagesOfPlayer(id)[0];
-  if (!player || !home) return false;
+interface Bot {
+  player: PlayerRow;
+  home: VillageRecord;
+  plan: BotPlan | undefined;
+}
 
-  const state = settleVillage(home.state, t, settings);
-  restock(state);
-  store.saveVillage(home.id, state, villagePoints(state));
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-  const R = 14;
-  const near = store
-    .mapVillages(home.x - R, home.x + R, home.y - R, home.y + R)
-    .filter((m) => m.ownerId === null)
-    .sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y))
-    .slice(0, 4);
-  const target = near[Math.floor(Math.random() * near.length)];
-  if (!target) return false;
-  const raiders = Math.min(state.troops.raider, 40 + state.buildings.hall * 4);
+function loadBots(ctx: AppContext, meta: BotMeta): Bot[] {
+  const out: Bot[] = [];
+  for (const id of Object.keys(meta.bots).map(Number)) {
+    const player = ctx.store.getPlayer(id);
+    const home = ctx.store.villagesOfPlayer(id)[0];
+    if (player && home) out.push({ player, home, plan: BOTS.find((b) => b.name === player.username) });
+  }
+  return out;
+}
+
+/** Settle a bot village to now and top its army and stores up to the standing levels. Returns the new state. */
+function restockBot(ctx: AppContext, bot: Bot, t: number): VillageState {
+  const state = settleVillage(bot.home.state, t, ctx.settings);
+  restock(state, bot.plan?.scouts);
+  ctx.store.saveVillage(bot.home.id, state, villagePoints(state));
+  bot.home = { ...bot.home, state };
+  return state;
+}
+
+/** Existing saved worlds (built before warfare) get Pathfinders and the new schedule here. */
+function upgradeBots(ctx: AppContext, meta: BotMeta, t: number): void {
+  if ((meta.v ?? 1) >= BOT_VERSION) return;
+  for (const bot of loadBots(ctx, meta)) restockBot(ctx, bot, t);
+  meta.v = BOT_VERSION;
+  ctx.store.setMeta(META_KEY, JSON.stringify(meta));
+}
+
+/** Has any movement of its own out (marching, or coming home): a busy bot is left alone. */
+const isBusy = (ctx: AppContext, playerId: number): boolean => ctx.store.movementViewsForPlayer(playerId).some((m) => m.origin.ownerId === playerId);
+
+const underAttack = (ctx: AppContext, playerId: number): boolean =>
+  ctx.store.movementViewsForPlayer(playerId).some((m) => m.kind === 'attack' && m.target.ownerId === playerId);
+
+/** Send on a mission; false when the real rules refuse (pact, protection, troops away...). */
+function trySend(ctx: AppContext, bot: Bot, x: number, y: number, units: Partial<Units>, mission: Mission, t: number): boolean {
   try {
-    game.send(player, home.id, target.x, target.y, { raider: raiders }, t);
+    ctx.game.send(bot.player, bot.home.id, x, y, units, mission, t);
     return true;
   } catch {
-    return false; // e.g. the troops are still out: try again next time
+    return false;
   }
+}
+
+/** A few abandoned villages near a bot, nearest first. */
+function nearbyAbandoned(ctx: AppContext, home: VillageRecord, take: number) {
+  const R = 14;
+  return ctx.store
+    .mapVillages(home.x - R, home.x + R, home.y - R, home.y + R)
+    .filter((m) => m.ownerId === null)
+    .sort((a, b) => dist(a, home) - dist(b, home))
+    .slice(0, take);
+}
+
+const pick = <T>(list: readonly T[]): T | undefined => list[Math.floor(Math.random() * list.length)];
+
+/** Pick a bot at random and send raiders at a nearby abandoned village. */
+function botRaid(ctx: AppContext, bots: Bot[], t: number): boolean {
+  const bot = pick(bots);
+  if (!bot) return false;
+  const state = restockBot(ctx, bot, t);
+  const target = pick(nearbyAbandoned(ctx, bot.home, 4));
+  if (!target) return false;
+  const raiders = Math.min(state.troops.raider, 40 + state.buildings.hall * 4);
+  return trySend(ctx, bot, target.x, target.y, { raider: raiders }, 'attack', t);
+}
+
+/** A bot with Pathfinders scouts a nearby abandoned village (the report goes to the bot; this keeps the machinery busy). */
+function botScout(ctx: AppContext, bots: Bot[], t: number): boolean {
+  const bot = pick(bots.filter((b) => (b.plan?.scouts ?? 0) > 0 && !isBusy(ctx, b.player.id)));
+  if (!bot) return false;
+  const state = restockBot(ctx, bot, t);
+  const target = pick(nearbyAbandoned(ctx, bot.home, 4));
+  if (!target || state.troops.pathfinder < 1) return false;
+  return trySend(ctx, bot, target.x, target.y, { pathfinder: Math.min(state.troops.pathfinder, 2) }, 'scout', t);
+}
+
+/** Every human player (anyone who is not a bot). */
+function humanPlayers(ctx: AppContext, meta: BotMeta): PlayerRow[] {
+  const rows = ctx.store.db.prepare('SELECT id FROM players ORDER BY id').all() as Array<{ id: number }>;
+  return rows.filter((r) => !(String(r.id) in meta.bots)).flatMap((r) => ctx.store.getPlayer(r.id) ?? []);
+}
+
+interface Attack {
+  bot: Bot;
+  units: Partial<Units>;
+  travelMs: number;
+}
+
+const MIN_WARNING_MS = 90_000;
+const IDEAL_TRAVEL_MS = 5 * 60_000;
+
+/**
+ * Idle bots outside `exclude` as possible attackers of `target`, best first. Everything runs at 25x, but a 55-tile march
+ * still takes 20 minutes with infantry, so a bot with stables sends Outriders (fast) and the candidates are ranked by how
+ * close their travel time is to ~5 minutes (never under ~90 s, so the target's tribe has time to see the alert).
+ */
+function attacksOn(ctx: AppContext, bots: Bot[], exclude: Set<Bot>, target: { x: number; y: number }, t: number, raiders: (hall: number) => number): Attack[] {
+  const out: Attack[] = [];
+  for (const bot of bots) {
+    if (exclude.has(bot) || isBusy(ctx, bot.player.id)) continue;
+    const state = restockBot(ctx, bot, t);
+    const cap = raiders(state.buildings.hall);
+    const units: Partial<Units> = state.troops.outrider >= 6 ? { outrider: Math.min(state.troops.outrider, cap) } : { raider: Math.min(state.troops.raider, cap) };
+    if (Object.values(units).every((n) => n === 0)) continue;
+    const travelMs = travelTimeMs(bot.home, target, { ...emptyUnits(), ...units }, ctx.settings);
+    out.push({ bot, units, travelMs });
+  }
+  const rank = (a: Attack): number => Math.abs(a.travelMs - IDEAL_TRAVEL_MS) + (a.travelMs < MIN_WARNING_MS ? 10 * 60_000 : 0);
+  return out.sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * Tribe warfare for the human to watch: when the human is in a tribe that has bot members, a bot from another tribe
+ * attacks the bot village of that tribe nearest to the human, every few minutes (tribe alerts appear; "Send support"
+ * can be tried). The real rules apply: tribe-mates and allies of the attacker's tribe are refused and skipped.
+ */
+function tribeAttacks(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number): boolean {
+  let changed = false;
+  const humanTribes = new Map<number, PlayerRow>();
+  for (const h of humans) {
+    const m = ctx.store.tribes.membership(h.id);
+    if (m && !humanTribes.has(m.tribeId)) humanTribes.set(m.tribeId, h);
+  }
+  for (const tribeId of [...nextTribeAttackAt.keys()]) if (!humanTribes.has(tribeId)) nextTribeAttackAt.delete(tribeId);
+
+  for (const [tribeId, human] of humanTribes) {
+    const mates = bots.filter((b) => ctx.store.tribes.membership(b.player.id)?.tribeId === tribeId);
+    if (mates.length === 0) continue;
+    const due = nextTribeAttackAt.get(tribeId);
+    if (due === undefined) {
+      nextTribeAttackAt.set(tribeId, t + FIRST_TRIBE_ATTACK_MS);
+      continue;
+    }
+    if (t < due) continue;
+    nextTribeAttackAt.set(tribeId, t + TRIBE_ATTACK_EVERY_MS * (0.8 + Math.random() * 0.4));
+
+    const hv = ctx.store.villagesOfPlayer(human.id)[0];
+    if (!hv) continue;
+    const target = mates
+      .filter((m) => !underAttack(ctx, m.player.id))
+      .sort((a, b) => dist(a.home, hv) - dist(b.home, hv))[0];
+    if (!target) continue;
+    for (const a of attacksOn(ctx, bots, new Set(mates), target.home, t, (hall) => 20 + 3 * hall).slice(0, 4)) {
+      if (trySend(ctx, a.bot, target.home.x, target.home.y, a.units, 'attack', t)) {
+        changed = true;
+        break;
+      }
+    }
+  }
+  return changed;
+}
+
+/**
+ * A rare, weak raid on a human village: only once beginner protection is over (and a few minutes after it), then at
+ * most one every ~10 minutes, six raiders. Never while protected; the server refuses that too.
+ */
+function humanRaids(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number): boolean {
+  let changed = false;
+  for (const human of humans) {
+    const hv = ctx.store.villagesOfPlayer(human.id)[0];
+    if (!hv || hv.ownerProtectedUntil > t) continue;
+    if ((nextHumanRaidTry.get(human.id) ?? 0) > t) continue;
+    const key = `preview_human_raid_${human.id}`;
+    const last = Number(ctx.store.getMeta(key) ?? Number.NaN);
+    const dueAt = Number.isFinite(last)
+      ? last + HUMAN_RAID_EVERY_MS * (1 + (human.id % 3) * 0.15)
+      : Math.max(human.protectedUntil, human.createdAt) + HUMAN_RAID_AFTER_PROTECTION_MS;
+    if (t < dueAt || underAttack(ctx, human.id)) continue;
+
+    const own = ctx.store.tribes.membership(human.id)?.tribeId;
+    const friends = new Set(bots.filter((b) => own !== undefined && ctx.store.tribes.membership(b.player.id)?.tribeId === own));
+    let sent = false;
+    // Small and slow: six raiders, from the nearest idle bot outside the human's tribe.
+    const nearest = bots
+      .filter((b) => !friends.has(b) && !isBusy(ctx, b.player.id))
+      .sort((a, b) => dist(a.home, hv) - dist(b.home, hv))
+      .slice(0, 4);
+    for (const attacker of nearest) {
+      const state = restockBot(ctx, attacker, t);
+      if (state.troops.raider < HUMAN_RAID_RAIDERS) continue;
+      if (trySend(ctx, attacker, hv.x, hv.y, { raider: HUMAN_RAID_RAIDERS }, 'attack', t)) {
+        sent = true;
+        break;
+      }
+    }
+    if (sent) {
+      ctx.store.setMeta(key, String(t));
+      changed = true;
+    } else {
+      nextHumanRaidTry.set(human.id, t + 30_000); // pacts or busy bots: look again in a bit
+    }
+  }
+  return changed;
 }
 
 /**
@@ -276,11 +487,38 @@ export function botTick(ctx: AppContext): boolean {
     }
   }
 
-  // 4. An occasional bot raid on an abandoned village, so the map keeps moving.
-  if (nextRaidAt === 0) nextRaidAt = t + FIRST_RAID_MS;
-  if (t >= nextRaidAt) {
-    nextRaidAt = t + RAID_EVERY_MS * (0.7 + Math.random() * 0.6);
-    if (botRaid(ctx, meta, t)) changed = true;
+  // 4. Keeping the map moving. Bots are loaded only when something is due.
+  if (nextRaidAt === 0) {
+    nextRaidAt = t + FIRST_RAID_MS;
+    nextScoutAt = t + FIRST_SCOUT_MS;
+    nextRestockAt = t + RESTOCK_EVERY_MS;
+  }
+  const upgrade = (meta.v ?? 1) < BOT_VERSION;
+  if (upgrade || t >= nextRaidAt || t >= nextScoutAt || t >= nextRestockAt || t >= nextWarCheckAt) {
+    if (upgrade) {
+      upgradeBots(ctx, meta, t);
+      changed = true;
+    }
+    const bots = loadBots(ctx, meta);
+    if (t >= nextRestockAt) {
+      nextRestockAt = t + RESTOCK_EVERY_MS;
+      for (const bot of bots) restockBot(ctx, bot, t);
+      changed = true;
+    }
+    if (t >= nextRaidAt) {
+      nextRaidAt = t + RAID_EVERY_MS * (0.7 + Math.random() * 0.6);
+      if (botRaid(ctx, bots, t)) changed = true;
+    }
+    if (t >= nextScoutAt) {
+      nextScoutAt = t + SCOUT_EVERY_MS * (0.7 + Math.random() * 0.6);
+      if (botScout(ctx, bots, t)) changed = true;
+    }
+    if (t >= nextWarCheckAt) {
+      nextWarCheckAt = t + 5_000;
+      const humans = humanPlayers(ctx, meta);
+      if (tribeAttacks(ctx, bots, humans, t)) changed = true;
+      if (humanRaids(ctx, bots, humans, t)) changed = true;
+    }
   }
   return changed;
 }
