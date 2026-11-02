@@ -10,9 +10,12 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - **World pace.** Default world speed 1 (slow, days-long game) vs a faster world (e.g. 3×).
 
 ## Next big pieces
-- **Redesign** — waiting for the owner to pick a style on the canvas (four directions, phone +
-  desktop). Plan, structure (illustrated walled village view; map villages that grow in stages) and
-  order of work: `docs/ART_DIRECTION.md`. One piece at a time, each approved before building.
+- **Redesign (Toy Diorama)** — built in: village view, map stages, chieftains. Waiting for owner
+  approval on canvas rows H (units), I (tutorial + practice-ruin decision), J (building panels +
+  reports), K (terrain + armies); then build each in. Reports need the opponent's chieftain in
+  `VillageRefDto` (server) to show both faces. Rivers need engine support before river tiles can be used.
+- Clean-up: old `.map-*` / `.map-legend` rules in `apps/web/src/styles.css` are unused; `RELATION_STYLE`
+  / `LEGEND_ORDER` in `relations.ts` unused by the map.
 - Tribe forum threads / mass message; player-to-player messages.
 
 ## Gameplay follow-ups

@@ -2339,6 +2339,7 @@ button.strip {
 .tribe-title {
   margin: 0 0 6px;
   overflow-wrap: anywhere;
+  color: var(--c-cream);
 }
 
 .tribe-head {
@@ -2725,6 +2726,8 @@ button.strip {
   border: 1px solid var(--line);
   border-radius: 12px 12px 12px 3px;
   background: #fffdf6;
+  color: var(--c-ink);
+  --ink-soft: #6b5442;
 }
 
 .chat-msg.is-own {

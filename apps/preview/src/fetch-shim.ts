@@ -18,9 +18,29 @@ function apiPath(input: RequestInfo | URL): string | null {
   return null;
 }
 
+/** fetch() of a data: URL (the client reads its bundled SVG art this way) is answered here: under a strict CSP without connect-src the browser would refuse it. */
+function dataUrlResponse(url: string): Response | null {
+  const m = /^data:([^,]*?)(;base64)?,([\s\S]*)$/i.exec(url);
+  if (!m) return null;
+  const mime = (m[1] ?? '').split(';')[0] || 'text/plain';
+  const payload = m[3] ?? '';
+  let body: BodyInit;
+  if (m[2]) {
+    const bin = atob(payload);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    body = bytes;
+  } else body = decodeURIComponent(payload);
+  return new Response(body, { status: 200, headers: { 'content-type': mime } });
+}
+
 export function installFetchShim(backend: Backend, onWrite: () => void): void {
   const realFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    if (typeof input === 'string' && input.startsWith('data:')) {
+      const res = dataUrlResponse(input);
+      if (res) return res;
+    }
     const path = apiPath(input);
     if (path === null) return realFetch(input, init);
     const method = (init?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET')).toUpperCase();
