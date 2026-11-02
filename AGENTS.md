@@ -19,6 +19,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
   Numbers in `src/config.ts`, data model in `src/types.ts`, HTTP contract in `src/api.ts`.
 - `apps/server` — Fastify API, SQLite (`node:sqlite`), authoritative game state.
 - `apps/web` — Vite + React client (map canvas, village, troops, reports). Mobile-first.
+- `apps/preview` — single-file in-browser preview: runs the real server code on sql.js plus the real web client, no server. Computer players for tribe features. Output `apps/preview/dist/index.html`.
 
 ## Commands (repo root)
 
@@ -26,6 +27,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run dev` — server + web client with hot reload (fast world speed for testing).
 - `npm run check` — type-check + all tests. **Must pass before every commit.**
 - `npm run build` — production build of the web client.
+- `npm run build:preview` / `npm run dev:preview` — build / hot-reload the single-file preview (`apps/preview`).
 - `npm start` — production server (serves the built client).
 
 ## Rules

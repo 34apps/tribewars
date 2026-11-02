@@ -1,0 +1,19 @@
+/*
+ * Preview-only tweaks, loaded after the web client's own styles (apps/web is untouched).
+ *
+ * 1. The client's .visually-hidden helper is position:absolute inside <main>, which is not a containing block, so the
+ *    hidden 1px boxes at the bottom of a long page stretch the document and the whole window scrolls (under the fixed
+ *    tab bar). Making <main> the containing block keeps them inside its own scroller; the app lays itself out at exactly
+ *    100dvh, so the window itself must never scroll.
+ * 2. The client already pads for the notch (.topbar) and the home indicator (.bottomnav). A host page that also pads
+ *    :root by the safe-area insets would add them twice, so :root padding is zeroed.
+ */
+.main {
+  position: relative;
+}
+
+:root {
+  overflow: hidden;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
