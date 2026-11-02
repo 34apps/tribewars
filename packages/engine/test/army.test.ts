@@ -113,10 +113,10 @@ describe('checkSend / applySend', () => {
     const base = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
     const training = applyTrain(base, 'pikeman', 2, 0, S1);
     assert.equal(checkSend(training, { pikeman: 1 }).ok, false);
-    const out = applySend(training, { pikeman: 1 }, 90_000, S1);
+    const out = applySend(training, { pikeman: 1 }, 270_000, S1);
     assert.equal(out.away.pikeman, 1);
     assert.equal(out.troops.pikeman, 0);
-    assert.equal(out.lastUpdate, 90_000);
+    assert.equal(out.lastUpdate, 270_000);
   });
 });
 

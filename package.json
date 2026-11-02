@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @clanfire/server\" \"npm run dev -w @clanfire/web\"",
+    "dev:fast": "concurrently -k -n server,web -c blue,green \"npm run dev:fast -w @clanfire/server\" \"npm run dev -w @clanfire/web\"",
     "dev:preview": "npm run dev -w @clanfire/preview",
     "build": "npm run build -w @clanfire/web",
     "build:preview": "npm run build -w @clanfire/preview",

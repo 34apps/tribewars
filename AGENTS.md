@@ -25,7 +25,8 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 ## Commands (repo root)
 
 - `npm install` — install all workspaces.
-- `npm run dev` — server + web client with hot reload (fast world speed for testing).
+- `npm run dev` — server + web client with hot reload, world speed 1 (real pace).
+- `npm run dev:fast` — same at speed 10 with its own database (`apps/server/data/clanfire-fast.sqlite`).
 - `npm run check` — type-check + all tests. **Must pass before every commit.**
 - `npm run build` — production build of the web client.
 - `npm run build:preview` / `npm run dev:preview` — build / hot-reload the single-file preview (`apps/preview`).

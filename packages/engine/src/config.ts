@@ -44,7 +44,7 @@ export const VAULT_BASE = 120;
 export const VAULT_GROWTH = 1.35;
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
-export const HALL_TIME_FACTOR = 0.96;
+export const HALL_TIME_FACTOR = 0.95;
 /** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
 export const TRAIN_TIME_FACTOR = 0.94;
 
@@ -84,7 +84,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: {},
     baseCost: res(90, 80, 70),
     costGrowth: 1.26,
-    baseTimeSec: 90,
+    baseTimeSec: 600,
     timeGrowth: 1.32,
   },
   lumber: {
@@ -96,7 +96,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: {},
     baseCost: res(50, 40, 30),
     costGrowth: 1.25,
-    baseTimeSec: 60,
+    baseTimeSec: 360,
     timeGrowth: 1.3,
   },
   farm: {
@@ -108,7 +108,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: {},
     baseCost: res(60, 30, 30),
     costGrowth: 1.25,
-    baseTimeSec: 60,
+    baseTimeSec: 360,
     timeGrowth: 1.3,
   },
   mine: {
@@ -120,7 +120,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: {},
     baseCost: res(65, 45, 20),
     costGrowth: 1.25,
-    baseTimeSec: 70,
+    baseTimeSec: 420,
     timeGrowth: 1.3,
   },
   goldmine: {
@@ -132,7 +132,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 3 },
     baseCost: res(150, 120, 180),
     costGrowth: 1.3,
-    baseTimeSec: 300,
+    baseTimeSec: 1500,
     timeGrowth: 1.32,
   },
   storehouse: {
@@ -144,7 +144,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: {},
     baseCost: res(70, 50, 40),
     costGrowth: 1.24,
-    baseTimeSec: 80,
+    baseTimeSec: 480,
     timeGrowth: 1.3,
   },
   barracks: {
@@ -156,7 +156,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 2 },
     baseCost: res(200, 150, 120),
     costGrowth: 1.26,
-    baseTimeSec: 180,
+    baseTimeSec: 900,
     timeGrowth: 1.32,
   },
   stables: {
@@ -168,7 +168,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 5, barracks: 3 },
     baseCost: res(260, 200, 300, 20),
     costGrowth: 1.27,
-    baseTimeSec: 400,
+    baseTimeSec: 1800,
     timeGrowth: 1.32,
   },
   wall: {
@@ -180,7 +180,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { barracks: 1 },
     baseCost: res(100, 40, 60),
     costGrowth: 1.26,
-    baseTimeSec: 150,
+    baseTimeSec: 720,
     timeGrowth: 1.32,
   },
   vault: {
@@ -192,7 +192,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 2 },
     baseCost: res(40, 50, 30),
     costGrowth: 1.28,
-    baseTimeSec: 100,
+    baseTimeSec: 540,
     timeGrowth: 1.32,
   },
 };
@@ -210,7 +210,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 15,
     upkeep: 1,
     cost: res(50, 30, 25),
-    trainTimeSec: 90,
+    trainTimeSec: 270,
     building: 'barracks',
     requires: { barracks: 1 },
   },
@@ -226,7 +226,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 10,
     upkeep: 1,
     cost: res(40, 35, 70),
-    trainTimeSec: 120,
+    trainTimeSec: 330,
     building: 'barracks',
     requires: { barracks: 3 },
   },
@@ -242,7 +242,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 30,
     upkeep: 1,
     cost: res(70, 40, 50),
-    trainTimeSec: 110,
+    trainTimeSec: 300,
     building: 'barracks',
     requires: { barracks: 2 },
   },
@@ -258,7 +258,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 70,
     upkeep: 3,
     cost: res(120, 90, 150),
-    trainTimeSec: 240,
+    trainTimeSec: 720,
     building: 'stables',
     requires: { stables: 1 },
   },
@@ -274,7 +274,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 40,
     upkeep: 4,
     cost: res(200, 150, 250, 30),
-    trainTimeSec: 420,
+    trainTimeSec: 1320,
     building: 'stables',
     requires: { stables: 5, hall: 10 },
   },
@@ -290,7 +290,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 0,
     upkeep: 1,
     cost: res(35, 30, 25),
-    trainTimeSec: 75,
+    trainTimeSec: 180,
     building: 'barracks',
     requires: { barracks: 2 },
   },

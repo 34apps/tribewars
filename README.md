@@ -20,8 +20,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and create an account. The dev world runs at 10× speed so things
-happen quickly (set `WORLD_SPEED` to change it; delete `apps/server/data/` to start a fresh world).
+Open http://localhost:5173 and create an account. The dev world runs at speed 1 (real pace; `npm run dev:fast` runs 10× with its own database) so things
+happen at the real pace (set `WORLD_SPEED` to change it; delete `apps/server/data/` to start a fresh world).
 
 ## Production
 
