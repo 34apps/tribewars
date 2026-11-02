@@ -1,53 +1,54 @@
 # Handoff — Clanfire
 
-Written 2026-11-02 (after v0.2 tribes). Read this first, then `docs/AI-WORKFLOW.md` (the main session orchestrates;
-haiku agents `runner`/`scout`/`editor`, sonnet agent `implementer`), the top of `CHANGELOG.md`,
-and the parts of `NEXT_STEPS.md` you need.
+Written 2026-11-02 (late, during the redesign). Read this first, then `docs/AI-WORKFLOW.md` (main
+session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`; opus for art/design
+agents), `docs/ART_DIRECTION.md`, the top of `CHANGELOG.md`, and the parts of `NEXT_STEPS.md` you need.
 
 ## State in one minute
 
-- v0.2 is playable: register → village on the world map → resources tick → build/upgrade →
-  train troops → send to coordinates → battle report → troops return with loot. Abandoned
-  villages grow over time. **Tribes** (v0.2): found/join/apply/invite, roles, diplomacy (ally, NAP
-  with 24 h cancel notice, enemy), attack blocking for tribe/allies/NAP, chat, log, ranking, map colours.
-- Code: `packages/engine` (pure rules, 101 tests), `apps/server` (Fastify + `node:sqlite`, 67 tests),
-  `apps/web` (Vite + React, mobile-first, 102 kB gzip JS). `npm run check` and `npm run build` pass.
-- `main` = latest work (owner asked to merge 2026-11-02). Work branch `claude/brave-rubin-tyvvnm`.
-- Not deployed anywhere yet. No CI yet.
+- Game (renamed **Clanfire**; GitHub repo still `34apps/tribewars`) v0.3 is playable: villages,
+  resources, buildings, troops, raids, abandoned villages that grow, tribes + diplomacy, tribe warfare
+  (Pathfinder scouts, support troops, tribe alerts). Engine 160 tests, server 120 tests.
+- **Playable preview** (whole game in one page, real server code on sql.js, computer tribes):
+  https://claude.ai/artifact/EkSiAxXuuTvVTLpLJyEuyv — rebuild with `npm run build:preview`, publish
+  `apps/preview/dist/artifact.html` to that URL (Artifact tool, same URL).
+- **Design canvas** (all art for approval, rows A–J): https://claude.ai/artifact/MBeYhuGXimx6ASUkUGGQDB.
+  Re-read its `project/canvas.json` before every index publish and merge — the page itself saves it.
+  Artboard sources + renders are copied into `design/style-directions/`, sprites into `design/sprites/`.
+- `main` = work branch `claude/brave-rubin-tyvvnm` up to the warfare/preview merge; later commits are
+  on the branch only until the redesign build passes checks.
+- Not deployed anywhere; no CI yet.
 
-## Work in flight / next
+## Owner decisions (don't re-ask)
 
-| What | Who |
+- Same genre as Tribal Wars but original and better — never copy. Web app first (desktop + phone
+  browsers), native app later.
+- Style **D · Toy Diorama** chosen. Approved: village view (E), map growth stages (F), chieftains (G).
+  Owner may still tweak designs → keep art swappable via sprite map modules.
+- Village view = walled village around a square, resource buildings outside, level badges, click opens
+  panel. Map = 2.5D isometric; villages grow in 6 stages by points (`mapStage`), ruins for abandoned.
+
+## Work in flight (at the moment of writing)
+
+| What | Status |
 |---|---|
-| Owner to choose: final game name (suggestions in NEXT_STEPS); hosting | Owner |
-| Phase 3: support troops, tribe-wide attack alerts, scouts (`NEXT_STEPS.md`) — lead writes rules in `docs/GAME_DESIGN.md` + contract in `api.ts` first, then `implementer` agents build `apps/server` and `apps/web` in parallel | Claude |
+| Build village view + Toy design system + new shell into apps/web | agent running |
+| Isometric map with stage sprites (apps/web/src/map/**) | agent running |
+| Chieftains server side | done (`048baed`) |
+| Chieftain web UI (sign-up picker, avatars) | next, after village view lands (Shell conflicts) |
+| Designs for approval: unit characters (H), advisor tutorial (I), building panels + reports (J) | agents drawing; publish to canvas rows H/I/J, merge index with live |
 
-## Decisions already made (don't re-ask)
-
-- Resources: wood, food, iron, gold. Troops eat food (upkeep); training is refused if net food would go below 0.
-- Original building/unit names and numbers (`packages/engine/src/config.ts`); don't copy other games.
-- Server is authoritative; the client previews with the same engine. Lazy settlement, no per-village timers.
-- One village per player in v1; random spawn anywhere on the map; 72 h beginner protection (÷ world speed).
-- Abandoned villages: 5 tiers, grow one building level every 6 h (÷ speed), refill 25% garrison per step, have a gold mine.
-- Dev world runs at 10× speed (`npm run dev`); production default 1×.
-- Same genre as Tribal Wars, but original and better — never copy names, numbers, text or layouts (owner).
-- Tribes: one tribe per player, 30 members, found at Town Hall 3; alliances/NAPs need both sides,
-  cancelling gives 24 h notice (÷ speed); enemy is one-sided. Details settled in `GAME_DESIGN.md` §11.
+Next after those: verify (`npm run check`, build, Playwright at 1440/390), rebuild + republish preview,
+CHANGELOG/NEXT_STEPS, push branch, merge to `main`.
 
 ## Traps
 
-- Vite 8's dev proxy rewrites Host unless `changeOrigin: false` — the server then rejects POSTs (403). Keep it explicit in `apps/web/vite.config.ts`.
-- `node:sqlite` prints an "experimental" warning on start; harmless.
-- World settings are stored in the DB at world creation; changing `WORLD_SPEED` later needs a fresh DB (delete `apps/server/data/`).
-- Return movements: in the DB `origin` is the army's home; in the API `origin`/`target` follow travel direction.
-- A session started from another repo loads that repo's agents; brief general-purpose agents with `model: "haiku"`/`"sonnet"` instead.
-
-## How this session worked (repeat it)
-
-Lead wrote rules + `api.ts` contract → server and web `implementer` (sonnet) agents in parallel, each
-owning one folder, no `npm install` by agents → lead reviewed security-critical code and screenshots →
-one small follow-up agent for contract gaps → lead ran `npm run check`/build/prod smoke → log → push.
+- Vite dev proxy needs `changeOrigin: false` (server's Origin check).
+- Old databases upgrade in place on start (new columns/tables; movements/reports tables rebuilt).
+- Preview build must stay CSP-safe: sql.js asm build (no wasm), no Ajv/eval, no network.
+- Several agents share `apps/web`: give each a disjoint set of files.
 
 ## Open items for the owner
 
-1. Decide where to host the game server.
+1. Approve designs H, I, J when published.
+2. Where to host the real server (needed for playing with other people).
