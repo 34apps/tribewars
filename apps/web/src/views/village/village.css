@@ -823,6 +823,16 @@ th[scope='row'] {
   color: var(--c-ink);
   max-height: 60vh;
   overflow-y: auto;
+  scroll-margin-bottom: 24px;
+}
+
+.askmags.compact {
+  max-height: none;
+  overflow: visible;
+}
+
+.askmags-live {
+  scroll-margin-bottom: 24px;
 }
 
 .askmags-head {

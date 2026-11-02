@@ -1,7 +1,7 @@
 // "Ask Mags": the player types a question, Mags the Tinker answers with an AI tip (POST /api/advisor/ask).
 // Answers are plain text only. The last few exchanges live in component state for the session.
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { ADVISOR_QUESTION_MAX } from '@clanfire/engine';
 import { api, ApiRequestError } from '../../api.ts';
@@ -33,6 +33,12 @@ export function AskMags({ compact }: { compact?: boolean }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const fieldId = useId();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const liveRef = useRef<HTMLDivElement>(null);
+
+  // Keep the thinking line / newest answer in view (phone sheet: below the fold, behind the nav).
+  useEffect(() => {
+    if (busy || log.length) liveRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [busy, log.length]);
 
   async function submit(e?: FormEvent) {
     e?.preventDefault();
@@ -107,7 +113,7 @@ export function AskMags({ compact }: { compact?: boolean }) {
           </div>
         )}
       </form>
-      <div aria-live="polite" className="askmags-live">
+      <div aria-live="polite" className="askmags-live" ref={liveRef}>
         {busy && <p className="askmags-think">Mags is thinking…</p>}
         {latest && !busy && (
           <div className="askmags-answer">
