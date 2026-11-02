@@ -1,0 +1,17 @@
+{
+  "viewBox": "-64 -116 128 156",
+  "size": [
+    128,
+    156
+  ],
+  "anchor": [
+    64,
+    116
+  ],
+  "note": "(0,0) = the army's current point on its route (ground level), same frame as the village sprites. Draw armies after terrain and villages, sorted by screen y.",
+  "files": "<mission>-<size>-<dir>.svg; mission attack | scout | support | return | return-loot (sacks + cart when loot > 0); size small (2 pieces) | medium (3) | large (5); dir se | sw (front views) | ne | nw (back views).",
+  "direction": "Pick dir from the screen vector of the route: dy >= 0 ? (dx >= 0 ? se : sw) : (dx >= 0 ? ne : nw).",
+  "routes": "attack: ink 8 + terracotta #C4623A 4.4, solid, arrowhead; scout: bone dots (dash 0.1 12, round caps, 90%) over faint ink; support: ink 8 + teal #2F9AA0 4.4 with bone chevrons every 26 px; return: ink 8 + sunflower #F2B33D 4.4, dash 12 9.",
+  "incoming": "incoming-ring.svg centred on the target tile centre (back arc behind the village, rings pulse 0.86 -> 1.18 scale over 1.8 s, off under prefers-reduced-motion) + an \"Incoming · mm:ss\" chip above the village (terracotta dark #843A23, bone text).",
+  "selected": "selected-ring.svg under the tray + sunflower pointer above the banner; popover lists units, mission, target, arrival and Recall for support."
+}

@@ -252,6 +252,27 @@
       "w": 390,
       "h": 844,
       "title": "J \u00b7 Battle report \u2014 phone"
+    },
+    "MapTerrain.dc.html": {
+      "x": 0,
+      "y": 13060,
+      "w": 1440,
+      "h": 900,
+      "title": "K \u00b7 Terrain tiles"
+    },
+    "MapArmies.dc.html": {
+      "x": 1520,
+      "y": 13060,
+      "w": 1440,
+      "h": 900,
+      "title": "K \u00b7 Marching armies"
+    },
+    "MapWorldScene.dc.html": {
+      "x": 3040,
+      "y": 13060,
+      "w": 1440,
+      "h": 900,
+      "title": "K \u00b7 The world, assembled"
     }
   },
   "createdOnFiles": {
@@ -336,6 +357,13 @@
       "text": "J \u00b7 Building panels & battle reports \u2014 for approval",
       "kind": "title1",
       "maxW": 5970
+    },
+    "rowK": {
+      "x": 0,
+      "y": 12800,
+      "text": "K \u00b7 World map terrain & marching armies \u2014 for approval",
+      "kind": "title1",
+      "maxW": 4560
     }
   },
   "order": [
@@ -373,7 +401,10 @@
     "BuildingPanelPhoneTraining.dc.html",
     "Reports.dc.html",
     "ReportVariants.dc.html",
-    "ReportPhone.dc.html"
+    "ReportPhone.dc.html",
+    "MapTerrain.dc.html",
+    "MapArmies.dc.html",
+    "MapWorldScene.dc.html"
   ],
   "pages": [],
   "title": "Clanfire style directions"

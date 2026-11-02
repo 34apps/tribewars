@@ -1,0 +1,26 @@
+{
+  "tile": {
+    "width": 96,
+    "height": 48
+  },
+  "viewBox": "-64 -116 128 156",
+  "size": [
+    128,
+    156
+  ],
+  "anchor": [
+    64,
+    116
+  ],
+  "note": "Same frame as design/sprites/map/anchors.json: viewBox point (0,0) = tile centre on the ground; footprint diamond x -48..48, y -24..24. Land tiles are thick blocks: top at z=0 (hills 12, mountains/massif 14), sides down to 14 px below the top; water sits 8 px lower. Draw tiles back to front (i+j ascending, then i), each tile then its overlays, props and village.",
+  "layers": {
+    "base": "one tile per cell from terrainAt: grass -> grass-1/2/3 (soft noise, patches not static), meadow, wheat-1/2 (next to own/tribe/ally villages), rocky (next to mountains); forest -> forest-light-1/2 or forest-dense-1/2; hills -> hills-1/2; mountain -> mountain-1/2 or a 2x2 massif; lake -> water-1/2/3",
+    "shore": "on a water tile: shore-edge-<ne|se|sw|nw> for each side whose neighbour is land (ne = j-1, se = i+1, sw = j+1, nw = i-1); shore-corner-<n|e|s|w> where only the diagonal neighbour is land. River tiles count as water.",
+    "river": "river-<a>-<b> joins two edge midpoints (straights ne-sw, se-nw; bends ne-se, se-sw, sw-nw, ne-nw); river-source-<edge> is a spring; river-bridge-ne-sw / river-bridge-se-nw. Not in terrainAt yet: needs river data from the engine (follow-up).",
+    "massif": "four massif-base tiles in a 2x2 block + massif-peak drawn once with its (0,0) on the FRONT (south, max i and j) tile centre, after the whole diagonal of that tile. viewBox -112 -200 224 240.",
+    "props": "stump, bush, bush-berries, rocks, rocks-pair, sheep, sheep-grazing, flowers, haystack, log, reeds, plus grass dressing tufts, pebbles, clover, daisies: (0,0) = where the prop stands. Place at hashed points inside the tile (u,v in 0.18..0.82), 0-2 per tile, never centred; sheep may be mirrored.",
+    "rim": "rim-sw sits outside the tile row j = max (anchor = that edge tile centre, grid y 1..1.34); rim-se outside column i = max; rim-corner on the corner tile. Coordinates are app text on the rim face: Rubik 700 14 px, skewed with matrix(1 0.5 0 1) on rim-sw and matrix(1 -0.5 0 1) on rim-se, centred at grid (0.5, 1.34, z -24).",
+    "far": "far/<kind>.svg: 48x24 tile, viewBox -24 -16 48 32, (0,0) = tile centre. Flat diamonds, no outlines or props, for zoom below 50%. Villages become allegiance-coloured pips sized by stage."
+  },
+  "light": "One warm lamp, top-left: top faces lightest, +y (left) faces mid, +x (right) faces darkest. Board gets a faint sunflower radial pool (max 18%) from the top-left."
+}
