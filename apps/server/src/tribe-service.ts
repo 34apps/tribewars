@@ -534,7 +534,7 @@ export class TribeService {
   chatList(player: PlayerRow, after: number | null): ChatResponse {
     const m = this.requireMember(player, 'chat');
     const rows = after === null ? this.ts.lastMessages(m.tribeId, CHAT_PAGE) : this.ts.messagesAfter(m.tribeId, after, CHAT_PAGE);
-    return { messages: rows.map((r) => ({ id: r.id, playerId: r.playerId, username: r.username, text: r.text, createdAt: r.createdAt })) };
+    return { messages: rows.map((r) => ({ id: r.id, playerId: r.playerId, username: r.username, chieftain: r.chieftain, text: r.text, createdAt: r.createdAt })) };
   }
 
   chatPost(player: PlayerRow, rawText: string, t: number): ChatMessageDto {
@@ -548,7 +548,7 @@ export class TribeService {
         throw new GameError('rate_limited', 'You are sending messages too fast. Please slow down.');
       }
       const id = this.ts.insertMessage(m.tribeId, player.id, text, t, TRIBE_CHAT_KEEP);
-      return { id, playerId: player.id, username: player.username, text, createdAt: t };
+      return { id, playerId: player.id, username: player.username, chieftain: player.chieftain, text, createdAt: t };
     });
   }
 
@@ -693,6 +693,7 @@ export class TribeService {
       .map((x) => ({
         playerId: x.playerId,
         username: x.username,
+        chieftain: x.chieftain,
         role: x.role,
         points: x.points,
         villageX: x.villageX,

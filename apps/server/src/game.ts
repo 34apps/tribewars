@@ -537,10 +537,12 @@ export class GameService {
       y: r.y,
       kind: r.ownerId === null ? 'abandoned' : r.ownerId === player.id ? 'own' : 'player',
       ownerName: r.ownerName,
-      points: r.points,
+      // Abandoned villages grow lazily and their stored points only refresh when raided: settle in memory (no write on GET).
+      points: r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points,
       protected: r.ownerId !== null && r.ownerProtectedUntil > t,
       tribeTag: r.ownerId === null ? null : r.ownerTribeTag,
       tribeId: r.ownerId === null ? null : r.ownerTribeId,
+      ownerChieftain: r.ownerId === null ? null : r.ownerChieftain,
       relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
     }));
     return { villages };
@@ -731,7 +733,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain };
   }
 
   /** Tribe-mates, allies and NAP partners (also while a cancelled pact serves its notice) cannot be attacked or scouted. */

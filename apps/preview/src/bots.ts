@@ -20,7 +20,7 @@ import {
   travelTimeMs,
   villagePoints,
 } from '@clanfire/engine';
-import type { BuildingId, Mission, Recruitment, Units, VillageState } from '@clanfire/engine';
+import type { BuildingId, ChieftainId, Mission, Recruitment, Units, VillageState } from '@clanfire/engine';
 import type { AppContext } from '../../server/src/context.ts';
 import type { PlayerRow, VillageRecord } from '../../server/src/store.ts';
 
@@ -32,6 +32,8 @@ interface BotPlan {
   role: 'leader' | 'officer' | 'member';
   /** Pathfinders this village keeps at home (only with Barracks 2). They defend against enemy scouts and scout abandoned villages. */
   scouts?: number;
+  /** Fixed portrait (CHIEFTAINS id), so the preview shows variety. */
+  chieftain: ChieftainId;
 }
 
 interface TribePlan {
@@ -78,14 +80,14 @@ const TRIBES: TribePlan[] = [
 ];
 
 const BOTS: BotPlan[] = [
-  { name: 'Brannoch', level: 9, tribe: 'EMBR', role: 'leader', scouts: 6 },
-  { name: 'Ysolde_K', level: 6, tribe: 'EMBR', role: 'officer' },
-  { name: 'Ironhart', level: 4, tribe: 'EMBR', role: 'member' },
-  { name: 'Tolvek', level: 10, tribe: 'ASH', role: 'leader', scouts: 8 },
-  { name: 'Grimwald', level: 7, tribe: 'ASH', role: 'officer', scouts: 3 },
-  { name: 'Odalys', level: 5, tribe: 'ASH', role: 'member' },
-  { name: 'Mira_of_Vale', level: 6, tribe: 'MIST', role: 'leader', scouts: 2 },
-  { name: 'Sable', level: 3, tribe: 'MIST', role: 'member' },
+  { name: 'Brannoch', level: 9, tribe: 'EMBR', role: 'leader', scouts: 6, chieftain: 'brannoc' },
+  { name: 'Ysolde_K', level: 6, tribe: 'EMBR', role: 'officer', chieftain: 'ysra' },
+  { name: 'Ironhart', level: 4, tribe: 'EMBR', role: 'member', chieftain: 'hild' },
+  { name: 'Tolvek', level: 10, tribe: 'ASH', role: 'leader', scouts: 8, chieftain: 'corwen' },
+  { name: 'Grimwald', level: 7, tribe: 'ASH', role: 'officer', scouts: 3, chieftain: 'old-orm' },
+  { name: 'Odalys', level: 5, tribe: 'ASH', role: 'member', chieftain: 'saffi' },
+  { name: 'Mira_of_Vale', level: 6, tribe: 'MIST', role: 'leader', scouts: 2, chieftain: 'maelis' },
+  { name: 'Sable', level: 3, tribe: 'MIST', role: 'member', chieftain: 'wren' },
 ];
 
 const META_KEY = 'preview_bots';
@@ -169,7 +171,7 @@ export function seedBots(ctx: AppContext): void {
   store.tx(() => {
     for (const bot of BOTS) {
       // Bots cannot sign in: "bot" is not a valid password hash, so verifyPassword always refuses it.
-      const id = store.insertPlayer(bot.name, 'bot', t, 0);
+      const id = store.insertPlayer(bot.name, 'bot', t, 0, bot.chieftain);
       const spot = findSpawnLocation((x, y) => store.villageExistsAt(x, y), rng, settings);
       const state = botVillage(bot.level, t);
       restock(state, bot.scouts);

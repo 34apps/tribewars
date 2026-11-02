@@ -3,6 +3,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 
 // ---- Tables with a CHECK that grew after release -----------------------------------------------------------
 // SQLite cannot alter a CHECK, so `rebuildOutdatedTables` copies older databases into the new shape (see applySchema).
@@ -58,7 +59,8 @@ CREATE TABLE IF NOT EXISTS players (
   username_lower  TEXT    NOT NULL UNIQUE,
   password_hash   TEXT    NOT NULL,
   created_at      INTEGER NOT NULL,
-  protected_until INTEGER NOT NULL DEFAULT 0
+  protected_until INTEGER NOT NULL DEFAULT 0,
+  chieftain       TEXT    NOT NULL DEFAULT 'old-orm'
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -208,6 +210,15 @@ CREATE INDEX IF NOT EXISTS idx_tribe_messages_tribe ON tribe_messages(tribe_id, 
 export function applySchema(db: DatabaseSync): void {
   rebuildOutdatedTables(db);
   db.exec(SCHEMA);
+  addMissingColumns(db);
+}
+
+/** Columns added after release: SQLite has no ADD COLUMN IF NOT EXISTS, so check the table first. */
+function addMissingColumns(db: DatabaseSync): void {
+  const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'chieftain')) {
+    db.exec(`ALTER TABLE players ADD COLUMN chieftain TEXT NOT NULL DEFAULT '${DEFAULT_CHIEFTAIN}'`);
+  }
 }
 
 /**

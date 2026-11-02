@@ -26,6 +26,7 @@ export interface MembershipRow {
 export interface MemberRow {
   playerId: number;
   username: string;
+  chieftain: string;
   role: TribeRole;
   joinedAt: number;
   points: number;
@@ -115,6 +116,7 @@ export interface MessageRow {
   id: number;
   playerId: number;
   username: string;
+  chieftain: string;
   text: string;
   createdAt: number;
 }
@@ -315,7 +317,7 @@ export class TribeStore extends SqlBase {
 
   members(tribeId: number): MemberRow[] {
     return this.all(
-      `SELECT m.player_id, p.username, m.role, m.joined_at,
+      `SELECT m.player_id, p.username, p.chieftain, m.role, m.joined_at,
               (SELECT COALESCE(SUM(v.points), 0) FROM villages v WHERE v.owner_id = m.player_id) AS points,
               COALESCE((SELECT v.x FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vx,
               COALESCE((SELECT v.y FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vy
@@ -325,6 +327,7 @@ export class TribeStore extends SqlBase {
     ).map((r) => ({
       playerId: r.player_id as number,
       username: r.username as string,
+      chieftain: r.chieftain as string,
       role: r.role as TribeRole,
       joinedAt: r.joined_at as number,
       points: r.points as number,
@@ -608,7 +611,7 @@ export class TribeStore extends SqlBase {
   /** Messages with id > `after`, oldest first. */
   messagesAfter(tribeId: number, after: number, limit: number): MessageRow[] {
     return this.all(
-      `SELECT c.id, c.player_id, p.username, c.text, c.created_at
+      `SELECT c.id, c.player_id, p.username, p.chieftain, c.text, c.created_at
        FROM tribe_messages c JOIN players p ON p.id = c.player_id
        WHERE c.tribe_id = ? AND c.id > ? ORDER BY c.id ASC LIMIT ?`,
       tribeId,
@@ -621,7 +624,7 @@ export class TribeStore extends SqlBase {
   lastMessages(tribeId: number, limit: number): MessageRow[] {
     return this.all(
       `SELECT * FROM (
-         SELECT c.id, c.player_id, p.username, c.text, c.created_at
+         SELECT c.id, c.player_id, p.username, p.chieftain, c.text, c.created_at
          FROM tribe_messages c JOIN players p ON p.id = c.player_id
          WHERE c.tribe_id = ? ORDER BY c.id DESC LIMIT ?
        ) ORDER BY id ASC`,
@@ -632,7 +635,7 @@ export class TribeStore extends SqlBase {
 
   getMessage(id: number): MessageRow | null {
     const r = this.get(
-      `SELECT c.id, c.player_id, p.username, c.text, c.created_at
+      `SELECT c.id, c.player_id, p.username, p.chieftain, c.text, c.created_at
        FROM tribe_messages c JOIN players p ON p.id = c.player_id WHERE c.id = ?`,
       id,
     );
@@ -653,6 +656,7 @@ function toMessage(r: Raw): MessageRow {
     id: r.id as number,
     playerId: r.player_id as number,
     username: r.username as string,
+    chieftain: r.chieftain as string,
     text: r.text as string,
     createdAt: r.created_at as number,
   };

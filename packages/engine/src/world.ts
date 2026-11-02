@@ -1,6 +1,10 @@
 // World: terrain, abandoned-village placement, player spawn, protection, points.
 
 import {
+  CHIEFTAINS,
+  MAP_STAGE_MIN_POINTS,
+  RUIN_STAGE_MIN_POINTS,
+  type ChieftainId,
   NPC_MIN_SPACING,
   NPC_PLACEMENT_ATTEMPTS_PER_VILLAGE,
   NPC_TIER_WEIGHTS,
@@ -166,4 +170,22 @@ export function villagePoints(state: VillageState): number {
   let total = 0;
   for (const b of BUILDING_IDS) total += state.buildings[b];
   return total;
+}
+
+/** Map picture stage 1..6 for a player village's points. */
+export function mapStage(points: number): number {
+  let stage = 1;
+  for (let i = 0; i < MAP_STAGE_MIN_POINTS.length; i++) if (points >= MAP_STAGE_MIN_POINTS[i]!) stage = i + 1;
+  return stage;
+}
+
+/** Ruin picture 1..3 (hamlet, town, fort) for an abandoned village's points. */
+export function ruinStage(points: number): number {
+  let stage = 1;
+  for (let i = 0; i < RUIN_STAGE_MIN_POINTS.length; i++) if (points >= RUIN_STAGE_MIN_POINTS[i]!) stage = i + 1;
+  return stage;
+}
+
+export function isChieftainId(x: unknown): x is ChieftainId {
+  return typeof x === 'string' && CHIEFTAINS.some((c) => c.id === x);
 }

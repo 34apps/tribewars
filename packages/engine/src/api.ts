@@ -32,6 +32,13 @@ export interface AuthRequest {
   username: string;
   /** 8-128 chars. */
   password: string;
+  /** Register only: chieftain portrait id; defaults to DEFAULT_CHIEFTAIN. */
+  chieftain?: string;
+}
+
+// POST /api/me/chieftain  body { chieftain: string } -> 200 MeResponse (change portrait any time)
+export interface ChieftainRequest {
+  chieftain: string;
 }
 
 export interface PlayerDto {
@@ -41,6 +48,8 @@ export interface PlayerDto {
   protectedUntil: number;
   /** The player's tribe, or null. */
   tribe: PlayerTribeDto | null;
+  /** Chosen chieftain portrait id (CHIEFTAINS in config.ts). */
+  chieftain: string;
 }
 
 export interface PlayerTribeDto {
@@ -181,6 +190,8 @@ export interface MapVillageDto extends Coords {
   tribeTag: string | null;
   /** Owner's tribe id (open it with GET /api/tribes/:id); null for abandoned villages and tribeless players. */
   tribeId: number | null;
+  /** Owner's chieftain portrait id; null for abandoned villages. */
+  ownerChieftain: string | null;
   /** Owner's relation to the viewer; null for abandoned villages. Drives map colours and the Send button. */
   relation: PlayerRelation | null;
 }
@@ -318,6 +329,7 @@ export interface TribeListResponse {
 export interface TribeMemberDto {
   playerId: number;
   username: string;
+  chieftain: string;
   role: TribeRole;
   points: number;
   /** Main village, for jumping to it on the map. */
@@ -438,6 +450,7 @@ export interface ChatMessageDto {
   id: number;
   playerId: number;
   username: string;
+  chieftain: string;
   text: string;
   createdAt: number;
 }

@@ -403,3 +403,27 @@ export const SCOUT_UNIT: UnitId = 'pathfinder';
 export const SCOUT_DEFENSE_FACTOR = 1;
 /** Loss ratio exponent for scouting fights (as battles). */
 export const SCOUT_LOSS_EXPONENT = 1.5;
+
+// ---- Art-facing rules (docs/ART_DIRECTION.md) ----
+
+/** Map picture stage by village points: stage n starts at MAP_STAGE_MIN_POINTS[n-1]. */
+export const MAP_STAGE_MIN_POINTS = [0, 15, 35, 65, 100, 150] as const;
+export const MAP_STAGE_NAMES = ['Hamlet', 'Palisade village', 'Stockade town', 'Stone-walled town', 'Fortified town', 'Castle'] as const;
+/** Abandoned villages show a ruin: hamlet below the first, town below the second, fort above. */
+export const RUIN_STAGE_MIN_POINTS = [0, 35, 100] as const;
+
+/** Selectable chieftain portraits (art in design/sprites/chieftains/<id>.svg). */
+export const CHIEFTAINS = [
+  { id: 'old-orm', name: 'Old Orm', title: 'The Elder' },
+  { id: 'ysra', name: 'Ysra', title: 'The Firebrand' },
+  { id: 'brannoc', name: 'Brannoc One-Eye', title: 'The Old Raider' },
+  { id: 'hild', name: 'Hild Ironveil', title: 'The Shieldmaiden' },
+  { id: 'barley-tam', name: 'Barley Tam', title: 'The Farmer-Chief' },
+  { id: 'maelis', name: 'Seer Maelis', title: 'The Grove Elder' },
+  { id: 'corwen', name: 'Corwen', title: 'The Hot-headed Heir' },
+  { id: 'khorza', name: 'Khorza Longmane', title: 'The Horse-Lord' },
+  { id: 'saffi', name: 'Saffi Goldhand', title: 'The Merchant-Queen' },
+  { id: 'wren', name: 'Wren', title: 'The Quiet Huntress' },
+] as const;
+export type ChieftainId = (typeof CHIEFTAINS)[number]['id'];
+export const DEFAULT_CHIEFTAIN: ChieftainId = 'old-orm';

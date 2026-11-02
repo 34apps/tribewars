@@ -2,6 +2,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import {
+  DEFAULT_CHIEFTAIN,
   normalizeUnits,
   normalizeVillage,
   type BattleReportData,
@@ -26,6 +27,8 @@ export interface PlayerRow {
   passwordHash: string;
   createdAt: number;
   protectedUntil: number;
+  /** Chieftain portrait id (CHIEFTAINS in the engine). */
+  chieftain: string;
 }
 
 export interface VillageRecord {
@@ -106,6 +109,9 @@ export interface MapRow {
   /** The owner's tribe, if any (joined in the same query so the map needs no per-village lookups). */
   ownerTribeId: number | null;
   ownerTribeTag: string | null;
+  ownerChieftain: string | null;
+  /** The stored village state, only for abandoned villages (they grow lazily; the map settles them to now). */
+  npcState: VillageState | null;
 }
 
 export type ReportSide = 'attack' | 'defense' | 'support';
@@ -234,6 +240,7 @@ function toPlayer(r: Raw): PlayerRow {
     passwordHash: r.password_hash as string,
     createdAt: r.created_at as number,
     protectedUntil: r.protected_until as number,
+    chieftain: r.chieftain as string,
   };
 }
 
@@ -373,15 +380,26 @@ export class Store extends SqlBase {
     return r ? toPlayer(r) : null;
   }
 
-  insertPlayer(username: string, passwordHash: string, createdAt: number, protectedUntil: number): number {
+  insertPlayer(
+    username: string,
+    passwordHash: string,
+    createdAt: number,
+    protectedUntil: number,
+    chieftain: string = DEFAULT_CHIEFTAIN,
+  ): number {
     return this.run(
-      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until, chieftain) VALUES (?, ?, ?, ?, ?, ?)',
       username,
       username.toLowerCase(),
       passwordHash,
       createdAt,
       protectedUntil,
+      chieftain,
     ).id;
+  }
+
+  setChieftain(playerId: number, chieftain: string): void {
+    this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
   }
 
   setProtectedUntil(playerId: number, t: number): void {
@@ -445,7 +463,8 @@ export class Store extends SqlBase {
   mapVillages(x0: number, x1: number, y0: number, y1: number): MapRow[] {
     return this.all(
       `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
-              tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag
+              tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag, p.chieftain AS owner_chieftain,
+              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json
        FROM villages v
        LEFT JOIN players p ON p.id = v.owner_id
        LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
@@ -467,6 +486,8 @@ export class Store extends SqlBase {
       points: r.points as number,
       ownerTribeId: (r.owner_tribe_id as number | null) ?? null,
       ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
+      ownerChieftain: (r.owner_chieftain as string | null) ?? null,
+      npcState: r.npc_state_json ? normalizeVillage(JSON.parse(r.npc_state_json as string) as VillageState) : null,
     }));
   }
 

@@ -42,6 +42,14 @@ Source files: `design/style-directions/` (artboards + renders).
 3. **Characters**: a portrait/figure for each unit, selectable chieftain avatars for players, an
    advisor/guide character for tips and the tutorial, and building art.
 
+## Status
+- Village view (row E) — **approved** 2026-11-02; being built into the game. Owner may still change or
+  improve designs later: keep art swappable (one sprite map module, sprites in `design/sprites/`).
+- Map growth stages (row F) and chieftain portraits (row G) — **approved** 2026-11-02; being built in.
+  Map stage = `mapStage(points)` (0/15/35/65/100/150), ruins = `ruinStage(points)`; chieftains in `CHIEFTAINS`
+  (config.ts), chosen at sign-up and changeable. Note: map stage follows total points while the village
+  view's wall follows the Wall level (owner told; may be revisited).
+
 ## Order of work (after the owner picks a style)
 1. Design system for the chosen style (tokens, type, buttons, panels, icons) + new app shell.
 2. Village view (structure above), approved, then built into the game.

@@ -210,7 +210,7 @@ test('map: bounds are validated and kinds are relative to the requester', async 
   assert.equal(bobView.find((v) => v.id === va.id)?.kind, 'player');
   assert.equal(bobView.find((v) => v.id === vb.id)?.kind, 'own');
   // Public info only.
-  assert.deepEqual(Object.keys(theirs ?? {}).sort(), ['id', 'kind', 'name', 'ownerName', 'points', 'protected', 'relation', 'tribeId', 'tribeTag', 'x', 'y']);
+  assert.deepEqual(Object.keys(theirs ?? {}).sort(), ['id', 'kind', 'name', 'ownerChieftain', 'ownerName', 'points', 'protected', 'relation', 'tribeId', 'tribeTag', 'x', 'y']);
   assert.deepEqual([theirs?.relation, theirs?.tribeTag, theirs?.tribeId, npc?.relation, npc?.tribeTag, npc?.tribeId], ['neutral', null, null, null, null, null]);
 
   // The rectangle is [x, x+w) x [y, y+h).

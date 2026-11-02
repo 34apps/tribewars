@@ -3,6 +3,7 @@
 import { createHash, randomBytes, randomInt, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import {
+  DEFAULT_CHIEFTAIN,
   GameError,
   createPlayerVillage,
   findSpawnLocation,
@@ -98,11 +99,11 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain };
   }
 
   /** Create a player and their first village atomically, then sign them in. */
-  async register(username: string, password: string): Promise<SessionGrant> {
+  async register(username: string, password: string, chieftain: string = DEFAULT_CHIEFTAIN): Promise<SessionGrant> {
     const hash = await hashPassword(password);
     try {
       return this.store.tx(() => {
@@ -110,7 +111,7 @@ export class AuthService {
           throw new GameError('username_taken', 'That username is already taken.');
         }
         const t = this.now();
-        const playerId = this.store.insertPlayer(username, hash, t, protectionEndsAt(t, this.settings));
+        const playerId = this.store.insertPlayer(username, hash, t, protectionEndsAt(t, this.settings), chieftain);
         let spot;
         try {
           spot = findSpawnLocation((x, y) => this.store.villageExistsAt(x, y), mulberry32(randomInt(0, 0xffffffff)), this.settings);
@@ -137,6 +138,12 @@ export class AuthService {
     const ok = player ? await verifyPassword(password, player.passwordHash) : (await burnVerify(password), false);
     if (!player || !ok) throw new GameError('unauthorized', 'Wrong username or password.');
     return this.store.tx(() => this.openSession(player, this.now()));
+  }
+
+  /** Change the player's chieftain portrait and return the updated row. */
+  setChieftain(player: PlayerRow, chieftain: string): PlayerRow {
+    this.store.setChieftain(player.id, chieftain);
+    return this.store.getPlayer(player.id) ?? { ...player, chieftain };
   }
 
   logout(token: string | undefined): void {

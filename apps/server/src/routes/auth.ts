@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, type AuthRequest, type MeResponse } from '@clanfire/engine';
+import { GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type MeResponse } from '@clanfire/engine';
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
@@ -37,8 +37,20 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       properties: {
         username: { type: 'string', pattern: USERNAME_PATTERN },
         password: { type: 'string', minLength: PASSWORD_MIN, maxLength: PASSWORD_MAX },
+        chieftain: { type: 'string', maxLength: 64 },
       },
     },
+  };
+  const chieftainSchema = {
+    body: {
+      type: 'object',
+      required: ['chieftain'],
+      additionalProperties: false,
+      properties: { chieftain: { type: 'string', maxLength: 64 } },
+    },
+  };
+  const checkChieftain = (id: string): void => {
+    if (!isChieftainId(id)) throw new GameError('invalid_input', 'Unknown chieftain.');
   };
   // Sign-in is lenient about format: a wrong shape is just "wrong username or password".
   const loginSchema = {
@@ -67,7 +79,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/auth/register',
     { schema: registerSchema, onRequest: rateLimit(ctx, 'register') },
     async (req, reply): Promise<MeResponse> => {
-      const grant = await ctx.auth.register(req.body.username, req.body.password);
+      if (req.body.chieftain !== undefined) checkChieftain(req.body.chieftain);
+      const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain);
       setSession(reply, grant);
       void reply.code(201);
       return { player: ctx.auth.toDto(grant.player) };
@@ -89,6 +102,15 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     void reply.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', secure: ctx.secureCookies });
     return reply.code(204).send();
   });
+
+  app.post<{ Body: ChieftainRequest }>(
+    '/api/me/chieftain',
+    { onRequest: requireAuth(ctx), schema: chieftainSchema },
+    async (req): Promise<MeResponse> => {
+      checkChieftain(req.body.chieftain);
+      return { player: ctx.auth.toDto(ctx.auth.setChieftain(playerOf(req), req.body.chieftain)) };
+    },
+  );
 
   app.get('/api/auth/me', async (req): Promise<MeResponse> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
