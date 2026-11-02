@@ -165,6 +165,21 @@
       "w": 1440,
       "h": 900,
       "title": "F \u00b7 Map \u2014 stages in context"
+    },
+    "Units.dc.html": {
+      "x": 0,
+      "y": 9220,
+      "w": 1440,
+      "h": 900,
+      "title": "H \u00b7 Units \u2014 poses and stats"
+    },
+    "UnitCards.dc.html": {
+      "x": 1520,
+      "y": 9220,
+      "w": 1440,
+      "h": 900,
+      "title": "H \u00b7 Units in the game UI",
+      "is_interactive": true
     }
   },
   "createdOnFiles": {
@@ -218,14 +233,21 @@
     "rowG": {
       "x": 0,
       "y": 7680,
-      "text": "G \u00b7 Chieftain portraits \u2014 for approval",
+      "text": "G \u00b7 Chieftain portraits \u2014 approved",
       "kind": "title1",
       "maxW": 4070
     },
     "rowF": {
       "x": 0,
       "y": 6400,
-      "text": "F \u00b7 Map village growth stages \u2014 for approval",
+      "text": "F \u00b7 Map village growth stages \u2014 approved",
+      "kind": "title1",
+      "maxW": 4070
+    },
+    "rowH": {
+      "x": 0,
+      "y": 8960,
+      "text": "H \u00b7 Unit characters \u2014 for approval",
       "kind": "title1",
       "maxW": 4070
     }
@@ -253,7 +275,9 @@
     "MapVillageStages.dc.html",
     "MapStagesInContext.dc.html",
     "Chieftains.dc.html",
-    "ChieftainPicker.dc.html"
+    "ChieftainPicker.dc.html",
+    "Units.dc.html",
+    "UnitCards.dc.html"
   ],
   "pages": [],
   "title": "Clanfire style directions"
