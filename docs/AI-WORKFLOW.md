@@ -79,3 +79,15 @@ owner in one line that it's a good moment to start a new session.
 
 `CLAUDE.md`/`AGENTS.md` are read every turn: standing rules and pointers only (under ~5 KB).
 Long write-ups go under `docs/` and get grepped.
+
+## 8. Running tasks on API credits
+
+`npm run agent -- "task text"` (`scripts/agent/run.ts`) runs one task with the Claude Agent SDK in the
+repo root, loads `CLAUDE.md`/`AGENTS.md` (project settings only), streams text and tool names, then
+prints status, turns, duration and cost per model. It **bills the `ANTHROPIC_API_KEY`** in the
+environment (required; no subscription fallback). Flags: `--model` (default `claude-sonnet-5-5`),
+`--max-usd` (default 2, hard stop), `--max-turns` (default 40). Safety: no prompts (`dontAsk`); allowed
+are Read/Glob/Grep/Edit/Write and Bash only for `npm run check|build|build:preview`, `npm test*`,
+`git status|diff|log`; commit, push, reset, rm, installs, curl and web tools are denied. The agent
+leaves changes uncommitted; review with `git diff`. Cost is the SDK's estimate, not the invoice.
+
