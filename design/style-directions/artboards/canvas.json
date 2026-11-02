@@ -1,126 +1,212 @@
 {
   "v": 3,
-  "createdOnFiles": {
-    "v": 1,
-    "at": "2026-11-02T13:20:00Z"
+  "attachments": {},
+  "boards": {
+    "EmberCast.dc.html": {
+      "h": 844,
+      "title": "A \u00b7 Ember & Ash \u2014 Characters",
+      "w": 1200,
+      "x": 470,
+      "y": 260
+    },
+    "EmberDesktop.dc.html": {
+      "h": 900,
+      "title": "A \u00b7 Ember & Ash \u2014 Village (desktop web)",
+      "w": 1440,
+      "x": 2630,
+      "y": 260
+    },
+    "EmberMap.dc.html": {
+      "h": 844,
+      "title": "A \u00b7 Ember & Ash \u2014 Isometric map",
+      "w": 800,
+      "x": 1750,
+      "y": 260
+    },
+    "HeraldCast.dc.html": {
+      "h": 844,
+      "title": "C \u00b7 Heraldic \u2014 Characters",
+      "w": 1200,
+      "x": 470,
+      "y": 2820
+    },
+    "HeraldDesktop.dc.html": {
+      "h": 900,
+      "title": "C \u00b7 Heraldic \u2014 Village (desktop web)",
+      "w": 1440,
+      "x": 2630,
+      "y": 2820
+    },
+    "HeraldMap.dc.html": {
+      "h": 844,
+      "title": "C \u00b7 Heraldic \u2014 Isometric map",
+      "w": 800,
+      "x": 1750,
+      "y": 2820
+    },
+    "HeraldVillage.dc.html": {
+      "h": 844,
+      "title": "C \u00b7 Heraldic \u2014 Village (phone)",
+      "w": 390,
+      "x": 0,
+      "y": 2820
+    },
+    "InkCast.dc.html": {
+      "h": 844,
+      "title": "B \u00b7 Ink & Vermilion \u2014 Characters",
+      "w": 1200,
+      "x": 470,
+      "y": 1540
+    },
+    "InkDesktop.dc.html": {
+      "h": 900,
+      "title": "B \u00b7 Ink & Vermilion \u2014 Village (desktop web)",
+      "w": 1440,
+      "x": 2630,
+      "y": 1540
+    },
+    "InkMap.dc.html": {
+      "h": 844,
+      "title": "B \u00b7 Ink & Vermilion \u2014 Isometric map",
+      "w": 800,
+      "x": 1750,
+      "y": 1540
+    },
+    "InkVillage.dc.html": {
+      "h": 844,
+      "title": "B \u00b7 Ink & Vermilion \u2014 Village (phone)",
+      "w": 390,
+      "x": 0,
+      "y": 1540
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "title": "A \u00b7 Ember & Ash \u2014 Village (phone)",
+      "w": 390,
+      "x": 0,
+      "y": 260
+    },
+    "ToyCast.dc.html": {
+      "h": 844,
+      "title": "D \u00b7 Toy Diorama \u2014 Characters",
+      "w": 1200,
+      "x": 470,
+      "y": 4100
+    },
+    "ToyDesktop.dc.html": {
+      "h": 900,
+      "title": "D \u00b7 Toy Diorama \u2014 Village (desktop web)",
+      "w": 1440,
+      "x": 2630,
+      "y": 4100
+    },
+    "ToyMap.dc.html": {
+      "h": 844,
+      "title": "D \u00b7 Toy Diorama \u2014 Isometric map",
+      "w": 800,
+      "x": 1750,
+      "y": 4100
+    },
+    "ToyVillage.dc.html": {
+      "h": 844,
+      "title": "D \u00b7 Toy Diorama \u2014 Village (phone)",
+      "w": 390,
+      "x": 0,
+      "y": 4100
+    },
+    "VillageViewPhone.dc.html": {
+      "x": 0,
+      "y": 5380,
+      "w": 390,
+      "h": 844,
+      "title": "E \u00b7 Village view \u2014 phone (clickable)",
+      "is_interactive": true
+    },
+    "VillageViewDesktop.dc.html": {
+      "x": 470,
+      "y": 5380,
+      "w": 1440,
+      "h": 900,
+      "title": "E \u00b7 Village view \u2014 desktop (clickable)",
+      "is_interactive": true
+    },
+    "BuildingStages.dc.html": {
+      "x": 1990,
+      "y": 5380,
+      "w": 1440,
+      "h": 900,
+      "title": "E \u00b7 Buildings by level"
+    },
+    "Chieftains.dc.html": {
+      "x": 0,
+      "y": 7940,
+      "w": 1440,
+      "h": 900,
+      "title": "G \u00b7 Chieftain portraits"
+    },
+    "ChieftainPicker.dc.html": {
+      "x": 1520,
+      "y": 7940,
+      "w": 390,
+      "h": 844,
+      "title": "G \u00b7 Choose your chieftain (phone, clickable)",
+      "is_interactive": true
+    }
   },
-  "title": "Clanfire style directions",
+  "createdOnFiles": {
+    "at": "2026-11-02T13:20:00Z",
+    "v": 1
+  },
+  "designSystems": [],
   "launch": {
     "view": "canvas"
   },
-  "pages": [],
-  "boards": {
-    "Main.dc.html": {
+  "notes": {
+    "rowA": {
+      "kind": "title1",
+      "maxW": 4070,
+      "text": "A \u00b7 Ember & Ash \u2014 firelit night",
+      "w": 240,
       "x": 0,
-      "y": 260,
-      "w": 390,
-      "h": 844,
-      "title": "A \u00b7 Ember & Ash \u2014 Village (phone)"
+      "y": 0
     },
-    "EmberCast.dc.html": {
-      "x": 470,
-      "y": 260,
-      "w": 1200,
-      "h": 844,
-      "title": "A \u00b7 Ember & Ash \u2014 Characters"
-    },
-    "EmberMap.dc.html": {
-      "x": 1750,
-      "y": 260,
-      "w": 800,
-      "h": 844,
-      "title": "A \u00b7 Ember & Ash \u2014 Isometric map"
-    },
-    "EmberDesktop.dc.html": {
-      "x": 2630,
-      "y": 260,
-      "w": 1440,
-      "h": 900,
-      "title": "A \u00b7 Ember & Ash \u2014 Village (desktop web)"
-    },
-    "InkVillage.dc.html": {
+    "rowB": {
+      "kind": "title1",
+      "maxW": 4070,
+      "text": "B \u00b7 Ink & Vermilion \u2014 woodcut chronicle",
+      "w": 240,
       "x": 0,
-      "y": 1540,
-      "w": 390,
-      "h": 844,
-      "title": "B \u00b7 Ink & Vermilion \u2014 Village (phone)"
+      "y": 1280
     },
-    "InkCast.dc.html": {
-      "x": 470,
-      "y": 1540,
-      "w": 1200,
-      "h": 844,
-      "title": "B \u00b7 Ink & Vermilion \u2014 Characters"
-    },
-    "InkMap.dc.html": {
-      "x": 1750,
-      "y": 1540,
-      "w": 800,
-      "h": 844,
-      "title": "B \u00b7 Ink & Vermilion \u2014 Isometric map"
-    },
-    "InkDesktop.dc.html": {
-      "x": 2630,
-      "y": 1540,
-      "w": 1440,
-      "h": 900,
-      "title": "B \u00b7 Ink & Vermilion \u2014 Village (desktop web)"
-    },
-    "HeraldVillage.dc.html": {
+    "rowC": {
+      "kind": "title1",
+      "maxW": 4070,
+      "text": "C \u00b7 Heraldic \u2014 flat banners and tinctures",
+      "w": 240,
       "x": 0,
-      "y": 2820,
-      "w": 390,
-      "h": 844,
-      "title": "C \u00b7 Heraldic \u2014 Village (phone)"
+      "y": 2560
     },
-    "HeraldCast.dc.html": {
-      "x": 470,
-      "y": 2820,
-      "w": 1200,
-      "h": 844,
-      "title": "C \u00b7 Heraldic \u2014 Characters"
-    },
-    "HeraldMap.dc.html": {
-      "x": 1750,
-      "y": 2820,
-      "w": 800,
-      "h": 844,
-      "title": "C \u00b7 Heraldic \u2014 Isometric map"
-    },
-    "HeraldDesktop.dc.html": {
-      "x": 2630,
-      "y": 2820,
-      "w": 1440,
-      "h": 900,
-      "title": "C \u00b7 Heraldic \u2014 Village (desktop web)"
-    },
-    "ToyVillage.dc.html": {
+    "rowD": {
+      "kind": "title1",
+      "maxW": 4070,
+      "text": "D \u00b7 Toy Diorama \u2014 chunky tabletop pieces",
+      "w": 240,
       "x": 0,
-      "y": 4100,
-      "w": 390,
-      "h": 844,
-      "title": "D \u00b7 Toy Diorama \u2014 Village (phone)"
+      "y": 3840
     },
-    "ToyCast.dc.html": {
-      "x": 470,
-      "y": 4100,
-      "w": 1200,
-      "h": 844,
-      "title": "D \u00b7 Toy Diorama \u2014 Characters"
+    "rowE": {
+      "x": 0,
+      "y": 5120,
+      "text": "E \u00b7 Village view in Toy Diorama \u2014 for approval",
+      "kind": "title1",
+      "maxW": 4070
     },
-    "ToyMap.dc.html": {
-      "x": 1750,
-      "y": 4100,
-      "w": 800,
-      "h": 844,
-      "title": "D \u00b7 Toy Diorama \u2014 Isometric map"
-    },
-    "ToyDesktop.dc.html": {
-      "x": 2630,
-      "y": 4100,
-      "w": 1440,
-      "h": 900,
-      "title": "D \u00b7 Toy Diorama \u2014 Village (desktop web)"
+    "rowG": {
+      "x": 0,
+      "y": 7680,
+      "text": "G \u00b7 Chieftain portraits \u2014 for approval",
+      "kind": "title1",
+      "maxW": 4070
     }
   },
   "order": [
@@ -139,37 +225,13 @@
     "ToyVillage.dc.html",
     "ToyCast.dc.html",
     "ToyMap.dc.html",
-    "ToyDesktop.dc.html"
+    "ToyDesktop.dc.html",
+    "VillageViewPhone.dc.html",
+    "VillageViewDesktop.dc.html",
+    "BuildingStages.dc.html",
+    "Chieftains.dc.html",
+    "ChieftainPicker.dc.html"
   ],
-  "notes": {
-    "rowA": {
-      "x": 0,
-      "y": 0,
-      "text": "A \u00b7 Ember & Ash \u2014 firelit night",
-      "kind": "title1",
-      "maxW": 4070
-    },
-    "rowB": {
-      "x": 0,
-      "y": 1280,
-      "text": "B \u00b7 Ink & Vermilion \u2014 woodcut chronicle",
-      "kind": "title1",
-      "maxW": 4070
-    },
-    "rowC": {
-      "x": 0,
-      "y": 2560,
-      "text": "C \u00b7 Heraldic \u2014 flat banners and tinctures",
-      "kind": "title1",
-      "maxW": 4070
-    },
-    "rowD": {
-      "x": 0,
-      "y": 3840,
-      "text": "D \u00b7 Toy Diorama \u2014 chunky tabletop pieces",
-      "kind": "title1",
-      "maxW": 4070
-    }
-  },
-  "designSystems": []
+  "pages": [],
+  "title": "Clanfire style directions"
 }
