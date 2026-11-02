@@ -1,0 +1,757 @@
+/* World map (Toy Diorama). Self-contained: tokens fall back to the docs/ART_DIRECTION.md palette. */
+
+.wm {
+  --wm-ink: var(--toy-ink, #2b211c);
+  --wm-bone: var(--toy-bone, #f1e1c2);
+  --wm-paper: #fff8e8;
+  --wm-sun: var(--toy-sunflower, #f2b33d);
+  --wm-sun-hi: #ffdc7a;
+  --wm-moss: var(--toy-moss, #5e8c3a);
+  --wm-terra: var(--toy-terracotta, #c4623a);
+  --wm-sky: var(--toy-sky, #2f9aa0);
+  --wm-plum: var(--toy-plum, #7a3b5e);
+  --wm-wood: var(--toy-wood, #b07d46);
+  --wm-iron: var(--toy-iron, #a39e94);
+  --wm-soft: #5a4a3c;
+  --wm-display: var(--font-display, 'Bagel Fat One'), 'Rubik', system-ui, sans-serif;
+  --wm-text: var(--font-text, 'Rubik'), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #c99a62;
+  color: var(--wm-ink);
+  font-family: var(--wm-text);
+}
+
+.wm[hidden] {
+  display: none;
+}
+
+.wm-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wm-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wm-canvas:active {
+  cursor: grabbing;
+}
+
+.wm-canvas:focus-visible {
+  outline: 3px solid var(--wm-sun);
+  outline-offset: -4px;
+}
+
+.wm-ico {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- Buttons and inputs (chunky toy pieces) ---- */
+
+.wm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 14px;
+  background: var(--wm-paper);
+  color: var(--wm-ink);
+  box-shadow: 0 4px 0 var(--wm-ink);
+  font: 600 0.95rem/1 var(--wm-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+
+.wm-btn:hover {
+  background: #fff;
+}
+
+.wm-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--wm-ink);
+}
+
+.wm-btn:focus-visible {
+  outline: 3px solid var(--wm-sky);
+  outline-offset: 2px;
+}
+
+.wm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.wm-btn-sun {
+  background: var(--wm-sun);
+}
+
+.wm-btn-sun:hover {
+  background: var(--wm-sun-hi);
+}
+
+.wm-btn-icon {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+
+.wm-btn-small {
+  padding: 0 10px;
+  font-size: 0.85rem;
+}
+
+.wm-btn-big {
+  width: 100%;
+  min-height: 56px;
+  font: 400 1.2rem/1 var(--wm-display);
+  letter-spacing: 0.01em;
+}
+
+.wm-input {
+  width: 64px;
+  height: 44px;
+  padding: 0 6px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 12px;
+  background: var(--wm-paper);
+  color: var(--wm-ink);
+  font: 600 1rem var(--wm-text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.wm-input:focus-visible {
+  outline: 3px solid var(--wm-sky);
+  outline-offset: 1px;
+}
+
+/* ---- Floating controls ---- */
+
+.wm-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: calc(100% - 88px);
+  max-height: calc(100% - 24px);
+  pointer-events: none;
+}
+
+.wm-top > * {
+  pointer-events: auto;
+}
+
+.wm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wm-goto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 18px;
+  background: var(--wm-ink);
+  box-shadow: inset 0 2px 0 #4a3a2f, 0 4px 0 #120c09;
+}
+
+.wm-goto .wm-btn {
+  box-shadow: none;
+  background: var(--wm-sun);
+}
+
+.wm-goto-sep {
+  color: var(--wm-bone);
+  font-weight: 800;
+}
+
+.wm-go-error {
+  flex-basis: 100%;
+  padding: 6px 10px;
+  border: 2px solid var(--wm-ink);
+  border-radius: 10px;
+  background: #fbe1dc;
+  color: #8f1f17;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.wm-zoom {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+}
+
+.wm-readout {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  max-width: calc(100% - 24px);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(43, 33, 28, 0.82);
+  color: var(--wm-paper);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.wm-readout:empty {
+  display: none;
+}
+
+@media (hover: none) {
+  .wm-readout {
+    display: none;
+  }
+}
+
+/* ---- Map key ---- */
+
+.wm-legend {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-width: 290px;
+  border-radius: 18px;
+  background: var(--wm-ink);
+  color: var(--wm-paper);
+  box-shadow: inset 0 2px 0 #4a3a2f, 0 5px 0 #120c09;
+}
+
+.wm-legend summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  font: 400 1.05rem/1 var(--wm-display);
+  list-style: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.wm-legend summary::-webkit-details-marker {
+  display: none;
+}
+
+.wm-legend summary:focus-visible {
+  outline: 3px solid var(--wm-sun);
+  outline-offset: 2px;
+  border-radius: 18px;
+}
+
+.wm-legend-body {
+  max-height: calc(100dvh - 300px);
+  overflow-y: auto;
+  padding: 0 16px 14px;
+}
+
+.wm-legend h3 {
+  margin: 6px 0;
+  color: #cdba98;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wm-legend ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wm-legend-stages li {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 1px 0;
+}
+
+/* Sprites sit low in a tall frame: crop to the building so the thumbnail reads at 44 px. */
+.wm-thumb {
+  display: block;
+  width: 44px;
+  height: 48px;
+  overflow: hidden;
+}
+
+.wm-thumb img {
+  display: block;
+  width: 52px;
+  height: 64px;
+  margin: -8px 0 0 -4px;
+}
+
+.wm-legend-stages b {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.wm-legend-stages small {
+  color: var(--wm-sun);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.wm-legend-banners {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+}
+
+.wm-legend-banners li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.wm-legend-banners img {
+  width: 26px;
+  height: 30px;
+}
+
+.wm-legend-wide {
+  grid-column: 1 / -1;
+}
+
+.wm-ring-sample {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 12px;
+  border: 3px solid var(--wm-iron);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.wm-ring-sample[data-al='own'] { border-color: var(--wm-sun); }
+.wm-ring-sample[data-al='tribe'] { border-color: var(--wm-moss); }
+.wm-ring-sample[data-al='ally'] { border-color: var(--wm-sky); }
+.wm-ring-sample[data-al='nap'] { border-color: #b86c92; border-style: dashed; }
+.wm-ring-sample[data-al='enemy'] { border-color: var(--wm-terra); }
+.wm-ring-sample[data-al='neutral'] { border-color: var(--wm-iron); border-style: dotted; }
+.wm-ring-sample[data-al='abandoned'] { border-color: #6e675e; border-style: dashed; border-width: 2px; }
+
+.wm-dome-sample {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 18px;
+  border: 2.5px solid var(--wm-sky);
+  border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+  background: rgba(221, 244, 241, 0.45);
+}
+
+/* ---- Tile panel: side panel on desktop, bottom sheet on phones ---- */
+
+.wm-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  max-height: 64%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 3px solid var(--wm-ink);
+  border-radius: 24px 24px 0 0;
+  background: var(--wm-bone);
+  box-shadow: 0 -6px 0 rgba(43, 33, 28, 0.25), 0 -12px 28px rgba(18, 12, 9, 0.35);
+}
+
+.wm-panel-grip {
+  justify-self: center;
+  width: 48px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--wm-wood);
+}
+
+.wm-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 18px;
+  background: var(--wm-ink);
+  color: var(--wm-paper);
+  box-shadow: inset 0 2px 0 #4a3a2f, 0 5px 0 #120c09;
+}
+
+.wm-panel-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.wm-panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 6px;
+  font: 400 1.4rem/1.1 var(--wm-display);
+  overflow-wrap: anywhere;
+}
+
+.wm-head-banner {
+  width: 24px;
+  height: 28px;
+  flex: none;
+}
+
+.wm-owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 0.95rem;
+}
+
+.wm-badge {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.wm-owner-name {
+  font-weight: 600;
+}
+
+.wm-dim {
+  color: #cdba98;
+  font-weight: 500;
+}
+
+.wm-tag {
+  position: relative;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 2px solid #b86c92;
+  border-radius: 9px;
+  background: var(--wm-plum);
+  color: var(--wm-paper);
+  font: 700 0.85rem var(--wm-text);
+  cursor: pointer;
+}
+
+/* Grow the tag's hit area to 46 px tall without making the chip look bigger. */
+.wm-tag::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.wm-tag:focus-visible {
+  outline: 3px solid var(--wm-sun);
+  outline-offset: 2px;
+}
+
+.wm-allegiance {
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  filter: brightness(1.3);
+}
+
+.wm-close {
+  width: 44px;
+  height: 44px;
+  box-shadow: 0 3px 0 #120c09;
+}
+
+.wm-stagecard {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 16px;
+  background: var(--wm-paper);
+  box-shadow: 0 4px 0 var(--wm-ink);
+}
+
+.wm-stagecard .wm-thumb {
+  width: 64px;
+  height: 72px;
+}
+
+.wm-stagecard .wm-thumb img {
+  width: 72px;
+  height: 88px;
+  margin: -10px 0 0 -4px;
+}
+
+.wm-stagecard-kicker {
+  color: #8a5b30;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wm-stagecard-name {
+  margin: 2px 0 4px;
+  font: 400 1.05rem/1.15 var(--wm-display);
+}
+
+.wm-stagecard-al {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--wm-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.wm-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  margin: 0;
+}
+
+.wm-facts > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 2px dotted rgba(43, 33, 28, 0.25);
+}
+
+.wm-facts dt {
+  color: var(--wm-soft);
+  font-size: 0.85rem;
+}
+
+.wm-facts dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.wm-protected {
+  color: #1a646b;
+}
+
+.wm-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--wm-ink);
+  border-radius: 12px;
+  background: #ffe9c2;
+  font-size: 0.9rem;
+}
+
+.wm-error {
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid #8f1f17;
+  border-radius: 12px;
+  background: #fbe1dc;
+  color: #8f1f17;
+  font-weight: 600;
+}
+
+.wm-muted {
+  margin: 0;
+  color: var(--wm-soft);
+  font-size: 0.88rem;
+}
+
+.wm-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wm-plum);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.wm-send {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 2.5px dashed rgba(43, 33, 28, 0.35);
+}
+
+.wm-send-title {
+  margin: 0;
+  font: 400 1.1rem/1.1 var(--wm-display);
+}
+
+.wm-units {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wm-units li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.wm-units label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.wm-units .wm-input {
+  width: 76px;
+}
+
+.wm-facts-send {
+  grid-template-columns: 1fr;
+}
+
+.wm-why {
+  color: var(--wm-soft);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .wm-toolbar > .wm-btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .wm-toolbar > .wm-btn {
+    width: 48px;
+    padding: 0;
+  }
+
+  .wm-input {
+    width: 58px;
+  }
+
+  .wm-legend {
+    max-width: calc(100vw - 100px);
+  }
+
+  .wm-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .wm-panel {
+    position: relative;
+    flex: none;
+    width: 380px;
+    max-height: none;
+    padding: 16px;
+    border-top: 0;
+    border-left: 3px solid var(--wm-ink);
+    border-radius: 0;
+    box-shadow: -6px 0 0 rgba(43, 33, 28, 0.18);
+  }
+
+  .wm-panel-grip {
+    display: none;
+  }
+
+  .wm-top {
+    top: 16px;
+    left: 16px;
+  }
+
+  .wm-zoom {
+    top: 16px;
+    right: 16px;
+  }
+}
+
+/* Mission switch inside the panel (shared Segmented component, restyled as toy toggles here). */
+.wm-panel .segmented {
+  max-width: none;
+  gap: 6px;
+  padding: 4px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 14px;
+  background: var(--wm-paper);
+}
+
+.wm-panel .segment {
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wm-ink);
+  font: 600 0.95rem var(--wm-text);
+}
+
+.wm-panel .segment.is-active {
+  background: var(--wm-ink);
+  color: var(--wm-paper);
+}
+
+.wm-panel .segment:focus-visible {
+  outline: 3px solid var(--wm-sky);
+  outline-offset: 1px;
+}

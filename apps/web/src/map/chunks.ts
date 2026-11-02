@@ -42,8 +42,19 @@ export class MapChunks {
     this.onChange = null;
   }
 
-  /** Make sure every chunk touching the tile rectangle is loaded and fresh, nearest to (cx, cy) first. */
-  ensure(minX: number, minY: number, maxX: number, maxY: number, cx: number, cy: number): void {
+  /**
+   * Make sure every chunk touching the tile rectangle is loaded and fresh, nearest to (cx, cy) first.
+   * `onScreen` (tile rect -> bool) skips chunks in the rectangle's corners that the diamond view never shows.
+   */
+  ensure(
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+    cx: number,
+    cy: number,
+    onScreen?: (x0: number, y0: number, x1: number, y1: number) => boolean,
+  ): void {
     const r = this.radius;
     const x0 = Math.max(-r, minX);
     const x1 = Math.min(r, maxX);
@@ -60,6 +71,7 @@ export class MapChunks {
           if (failed !== undefined && now - failed < RETRY_MS) continue;
           const have = this.chunks.get(key);
           if (have && now - have.fetchedAt < STALE_MS) continue;
+          if (onScreen && !onScreen(ci * CHUNK, cj * CHUNK, ci * CHUNK + CHUNK - 1, cj * CHUNK + CHUNK - 1)) continue;
           const dx = ci * CHUNK + CHUNK / 2 - cx;
           const dy = cj * CHUNK + CHUNK / 2 - cy;
           wanted.push({ ci, cj, d: dx * dx + dy * dy });

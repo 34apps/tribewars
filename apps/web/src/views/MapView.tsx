@@ -1,31 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
-import type { Coords, Mission } from '@clanfire/engine';
+import type { Coords, Mission, MovementDto } from '@clanfire/engine';
 import { useGame } from '../game.ts';
 import { formatCoords } from '../format.ts';
+import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
-import { MAX_TILE, MIN_TILE, clampView, drawMap, screenToTile } from '../map/render.ts';
-import type { View } from '../map/render.ts';
+import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
+import type { View } from '../map/iso.ts';
+import { drawMap, pickTile, pickVillage } from '../map/render.ts';
+import type { DrawnVillage } from '../map/render.ts';
+import { loadMapArt } from '../map/sprites.ts';
 import { TERRAIN_NAME, TerrainCache } from '../map/terrain.ts';
 import { Legend } from '../map/Legend.tsx';
 import { TilePanel } from '../map/TilePanel.tsx';
+import '../map/map.css';
 
 const TAP_SLOP_MOUSE = 4;
 const TAP_SLOP_TOUCH = 9;
 const NARROW = '(max-width: 767px)';
+/** After the last wheel/pinch step, wait this long before rasterising sprites for the new zoom level. */
+const ZOOM_SETTLE_MS = 160;
+
+declare global {
+  interface Window {
+    /** Dev builds only: recent map frame times (ms) for performance checks. */
+    __mapFrames?: number[];
+  }
+}
 
 export function MapView({ active }: { active: boolean }) {
-  const { settings, village, mapFocus, tribeVersion, player } = useGame();
+  const { settings, village, mapFocus, tribeVersion, player, movements, now } = useGame();
   const radius = settings.radius;
 
   const terrain = useMemo(() => new TerrainCache(settings.seed), [settings.seed]);
+  const blocks = useMemo(() => new TerrainBlocks(terrain, radius), [terrain, radius]);
   const chunks = useMemo(() => new MapChunks(radius), [radius]);
   const own = useMemo<Coords>(() => ({ x: village.x, y: village.y }), [village.x, village.y]);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const readoutRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<View>({ cx: village.x + 0.5, cy: village.y + 0.5, tile: 32 });
+  const viewRef = useRef<View>({ cx: village.x, cy: village.y, tile: DEFAULT_TILE });
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
   const selectedRef = useRef<Coords | null>(null);
   const hoverRef = useRef<Coords | null>(null);
@@ -33,6 +48,15 @@ export function MapView({ active }: { active: boolean }) {
   const rafRef = useRef(0);
   const activeRef = useRef(active);
   const ownRef = useRef(own);
+  const movementsRef = useRef<readonly MovementDto[]>(movements);
+  /** Server time minus local time, so markers move smoothly between the 1 s game ticks. */
+  const clockOffset = useRef(now - Date.now());
+  const drawnRef = useRef<DrawnVillage[]>([]);
+  /** The view as last drawn (zoom snapped to device pixels), for picking. */
+  const drawnViewRef = useRef<View>(viewRef.current);
+  const zoomedAt = useRef(0);
+  const settleTimer = useRef(0);
+  const marchTimer = useRef(0);
   const lastReadout = useRef('');
 
   const [selected, setSelected] = useState<Coords | null>(null);
@@ -46,16 +70,22 @@ export function MapView({ active }: { active: boolean }) {
   useEffect(() => {
     activeRef.current = active;
     ownRef.current = own;
-  }, [active, own]);
+    movementsRef.current = movements;
+    clockOffset.current = now - Date.now();
+  }, [active, own, movements, now]);
+
+  const size = () => ({ w: sizeRef.current.w, h: sizeRef.current.h });
 
   const ensureChunks = useCallback(() => {
     const { w, h } = sizeRef.current;
     if (w === 0 || h === 0) return;
     const v = viewRef.current;
-    const halfW = w / (2 * v.tile);
-    const halfH = h / (2 * v.tile);
-    chunks.ensure(Math.floor(v.cx - halfW) - 1, Math.floor(v.cy - halfH) - 1, Math.floor(v.cx + halfW) + 1, Math.floor(v.cy + halfH) + 1, v.cx, v.cy);
+    const b = visibleTileBounds(v, { w, h }, 3);
+    chunks.ensure(b.x0, b.y0, b.x1, b.y1, v.cx, v.cy, (x0, y0, x1, y1) => rectOnScreen(v, { w, h }, x0, y0, x1, y1, v.tile * 2));
   }, [chunks]);
+
+  // `schedule` is defined below; frames re-arm themselves through this ref.
+  const scheduleRef = useRef<() => void>(() => {});
 
   const frame = useCallback(() => {
     rafRef.current = 0;
@@ -65,9 +95,14 @@ export function MapView({ active }: { active: boolean }) {
     if (!canvas || w === 0 || h === 0 || !activeRef.current) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const view = viewRef.current;
+    // Draw with whole device pixels per tile so cached bitmaps blit 1:1 without resampling;
+    // the precise zoom stays in viewRef so small wheel steps still add up.
+    const view = { ...viewRef.current, tile: Math.round(viewRef.current.tile * dpr) / dpr };
+    drawnViewRef.current = view;
     ensureChunks();
-    drawMap({
+    const t0 = performance.now();
+    const quick = t0 - zoomedAt.current < ZOOM_SETTLE_MS;
+    const res = drawMap({
       ctx,
       width: w,
       height: h,
@@ -75,15 +110,35 @@ export function MapView({ active }: { active: boolean }) {
       view,
       radius,
       terrain,
+      blocks,
       chunks,
       selected: selectedRef.current,
       hover: hoverRef.current,
       own: ownRef.current,
+      movements: movementsRef.current,
+      now: Date.now() + clockOffset.current,
+      quick,
     });
+    if (import.meta.env.DEV) {
+      const list = (window.__mapFrames ??= []);
+      list.push(performance.now() - t0);
+      if (list.length > 600) list.splice(0, list.length - 600);
+    }
+    drawnRef.current = res.villages;
+    if (res.stale || quick) {
+      window.clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(() => scheduleRef.current(), ZOOM_SETTLE_MS);
+    }
+    // Marching markers: redraw about when the fastest one has moved a pixel (and every second for the clocks).
+    window.clearTimeout(marchTimer.current);
+    if (res.markerSpeed >= 0) {
+      const ms = Math.max(120, Math.min(1000, 1000 / Math.max(0.001, res.markerSpeed)));
+      marchTimer.current = window.setTimeout(() => scheduleRef.current(), ms);
+    }
     const el = readoutRef.current;
     if (el) {
       const hov = hoverRef.current;
-      let text = `Centre ${formatCoords(Math.floor(view.cx), Math.floor(view.cy))}`;
+      let text = `Centre ${formatCoords(Math.round(view.cx), Math.round(view.cy))}`;
       if (hov && Math.abs(hov.x) <= radius && Math.abs(hov.y) <= radius) {
         const v = chunks.villageAt(hov.x, hov.y);
         text += ` · ${formatCoords(hov.x, hov.y)} ${v ? v.name : (TERRAIN_NAME[terrain.get(hov.x, hov.y)] ?? '')}`;
@@ -93,13 +148,28 @@ export function MapView({ active }: { active: boolean }) {
         el.textContent = text;
       }
     }
-  }, [chunks, ensureChunks, radius, terrain]);
+  }, [blocks, chunks, ensureChunks, radius, terrain]);
 
   const schedule = useCallback(() => {
     if (dirtyRef.current) return;
     dirtyRef.current = true;
     rafRef.current = window.requestAnimationFrame(frame);
   }, [frame]);
+
+  useEffect(() => {
+    scheduleRef.current = schedule;
+  }, [schedule]);
+
+  // Sprites and fonts arrive asynchronously: redraw as they do.
+  useEffect(() => {
+    const stop = loadMapArt(schedule);
+    const fonts = document.fonts as FontFaceSet | undefined;
+    fonts?.addEventListener?.('loadingdone', schedule);
+    return () => {
+      stop();
+      fonts?.removeEventListener?.('loadingdone', schedule);
+    };
+  }, [schedule]);
 
   // Resize: keep the canvas backing store matched to its CSS size and the device pixel ratio.
   useEffect(() => {
@@ -109,7 +179,7 @@ export function MapView({ active }: { active: boolean }) {
     const resize = () => {
       const w = wrap.clientWidth;
       const h = wrap.clientHeight;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
       sizeRef.current = { w, h, dpr };
       canvas.width = Math.max(1, Math.round(w * dpr));
       canvas.height = Math.max(1, Math.round(h * dpr));
@@ -121,6 +191,8 @@ export function MapView({ active }: { active: boolean }) {
     return () => {
       ro.disconnect();
       window.cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(settleTimer.current);
+      window.clearTimeout(marchTimer.current);
       dirtyRef.current = false;
     };
   }, [schedule]);
@@ -142,9 +214,9 @@ export function MapView({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (active) schedule();
-  }, [active, schedule]);
+  }, [active, schedule, movements]);
 
-  // My tribe or a diplomatic relation changed: villages change colour and tag, so refetch the visible chunks.
+  // My tribe or a diplomatic relation changed: villages change banners and tags, so refetch the visible chunks.
   const tribeId = player.tribe?.id ?? 0;
   useEffect(() => {
     chunks.invalidate();
@@ -155,10 +227,10 @@ export function MapView({ active }: { active: boolean }) {
   const reveal = useCallback((c: Coords) => {
     if (!window.matchMedia(NARROW).matches) return;
     const v = viewRef.current;
-    const { h } = sizeRef.current;
-    const py = (c.y + 0.5 - v.cy) * v.tile + h / 2;
-    if (py > h * 0.42 || py < 0) {
-      v.cy = c.y + 0.5 + (0.25 * h) / v.tile;
+    const { w, h } = sizeRef.current;
+    const p = toScreen(v, { w, h }, c.x, c.y);
+    if (p.y > h * 0.4 || p.y < v.tile) {
+      panBy(v, w / 2 - p.x, h * 0.34 - p.y);
       clampView(v, radius);
     }
   }, [radius]);
@@ -177,8 +249,8 @@ export function MapView({ active }: { active: boolean }) {
   const centerOn = useCallback(
     (x: number, y: number, minTile?: number) => {
       const v = viewRef.current;
-      v.cx = x + 0.5;
-      v.cy = y + 0.5;
+      v.cx = x;
+      v.cy = y;
       if (minTile) v.tile = Math.max(v.tile, minTile);
       clampView(v, radius);
       schedule();
@@ -191,21 +263,15 @@ export function MapView({ active }: { active: boolean }) {
   useEffect(() => {
     if (!mapFocus) return;
     const c = { x: Math.max(-radius, Math.min(radius, mapFocus.x)), y: Math.max(-radius, Math.min(radius, mapFocus.y)) };
-    centerOn(c.x, c.y, 36);
+    centerOn(c.x, c.y, 72);
     select(c, { reveal: true, mission: mapFocus.mission, nonce: mapFocus.nonce });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
 
   const zoomAt = useCallback(
     (px: number, py: number, nextTile: number) => {
-      const v = viewRef.current;
-      const { w, h } = sizeRef.current;
-      const wx = v.cx + (px - w / 2) / v.tile;
-      const wy = v.cy + (py - h / 2) / v.tile;
-      v.tile = Math.max(MIN_TILE, Math.min(MAX_TILE, nextTile));
-      v.cx = wx - (px - w / 2) / v.tile;
-      v.cy = wy - (py - h / 2) / v.tile;
-      clampView(v, radius);
+      zoomedAt.current = performance.now();
+      zoomAround(viewRef.current, size(), px, py, nextTile, radius);
       schedule();
     },
     [radius, schedule],
@@ -238,6 +304,12 @@ export function MapView({ active }: { active: boolean }) {
     const [a, b] = [...pointers.current.values()];
     if (!a || !b) return null;
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+  };
+
+  /** Village sprite under the point first (tall castles cover tiles behind them), else the tile. */
+  const tileAt = (x: number, y: number): Coords => {
+    const v = pickVillage(drawnRef.current, x, y);
+    return v ? { x: v.x, y: v.y } : pickTile(drawnViewRef.current, size(), terrain, x, y);
   };
 
   function onPointerDown(e: PointerEvent<HTMLCanvasElement>) {
@@ -273,7 +345,7 @@ export function MapView({ active }: { active: boolean }) {
     const p = local(e);
     if (!prev) {
       if (e.pointerType === 'mouse') {
-        const tile = screenToTile(viewRef.current, sizeRef.current.w, sizeRef.current.h, p.x, p.y);
+        const tile = tileAt(p.x, p.y);
         const h = hoverRef.current;
         if (!h || h.x !== tile.x || h.y !== tile.y) {
           hoverRef.current = tile;
@@ -286,16 +358,14 @@ export function MapView({ active }: { active: boolean }) {
     const v = viewRef.current;
     const g = gesture.current;
     if (pointers.current.size === 1) {
-      v.cx -= (p.x - prev.x) / v.tile;
-      v.cy -= (p.y - prev.y) / v.tile;
+      panBy(v, p.x - prev.x, p.y - prev.y);
       if (!g.moved && Math.hypot(p.x - g.startX, p.y - g.startY) > (e.pointerType === 'mouse' ? TAP_SLOP_MOUSE : TAP_SLOP_TOUCH)) g.moved = true;
       clampView(v, radius);
       schedule();
     } else {
       const pr = pair();
       if (!pr) return;
-      v.cx -= (pr.mx - g.mx) / v.tile;
-      v.cy -= (pr.my - g.my) / v.tile;
+      panBy(v, pr.mx - g.mx, pr.my - g.my);
       if (g.dist > 0 && pr.dist > 0) zoomAt(pr.mx, pr.my, v.tile * (pr.dist / g.dist));
       else schedule();
       g.dist = pr.dist;
@@ -310,7 +380,7 @@ export function MapView({ active }: { active: boolean }) {
     pointers.current.delete(e.pointerId);
     const g = gesture.current;
     if (e.type === 'pointerup' && pointers.current.size === 0 && !g.moved && !g.multi && performance.now() - g.startT < 800) {
-      const tile = screenToTile(viewRef.current, sizeRef.current.w, sizeRef.current.h, p.x, p.y);
+      const tile = tileAt(p.x, p.y);
       if (Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius) select(tile, { reveal: true });
       else select(null);
     }
@@ -325,15 +395,15 @@ export function MapView({ active }: { active: boolean }) {
 
   function onKeyDown(e: KeyboardEvent<HTMLCanvasElement>) {
     const v = viewRef.current;
-    const step = (e.shiftKey ? 6 : 2);
+    const step = v.tile * (e.shiftKey ? 4 : 1.5);
     let handled = true;
     switch (e.key) {
-      case 'ArrowLeft': v.cx -= step; break;
-      case 'ArrowRight': v.cx += step; break;
-      case 'ArrowUp': v.cy -= step; break;
-      case 'ArrowDown': v.cy += step; break;
-      case '+': case '=': v.tile *= 1.2; break;
-      case '-': case '_': v.tile /= 1.2; break;
+      case 'ArrowLeft': panBy(v, step, 0); break;
+      case 'ArrowRight': panBy(v, -step, 0); break;
+      case 'ArrowUp': panBy(v, 0, step / 2); break;
+      case 'ArrowDown': panBy(v, 0, -step / 2); break;
+      case '+': case '=': zoomedAt.current = performance.now(); v.tile *= 1.2; break;
+      case '-': case '_': zoomedAt.current = performance.now(); v.tile /= 1.2; break;
       case 'Escape': select(null); break;
       default: handled = false;
     }
@@ -352,7 +422,7 @@ export function MapView({ active }: { active: boolean }) {
       return;
     }
     setGoError(null);
-    centerOn(x, y, 32);
+    centerOn(x, y, 72);
     select({ x, y }, { reveal: true });
   }
 
@@ -370,61 +440,71 @@ export function MapView({ active }: { active: boolean }) {
   const selectedLoaded = selected ? chunks.isLoaded(selected.x, selected.y) : false;
 
   return (
-    <div className="map-view" hidden={!active}>
-      <form className="map-toolbar" onSubmit={submitGo} aria-label="Map controls">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            centerOn(own.x, own.y, 28);
-          }}
-        >
-          <span aria-hidden="true">📍</span> My village
-        </button>
-        <div className="goto">
-          <label className="visually-hidden" htmlFor="go-x">X coordinate</label>
-          <input id="go-x" className="input input-coord" type="number" placeholder="x" value={goX} onChange={(e) => setGoX(e.target.value)} />
-          <span aria-hidden="true" className="goto-sep">|</span>
-          <label className="visually-hidden" htmlFor="go-y">Y coordinate</label>
-          <input id="go-y" className="input input-coord" type="number" placeholder="y" value={goY} onChange={(e) => setGoY(e.target.value)} />
-          <button type="submit" className="btn">Go</button>
-        </div>
-        {goError && <span className="form-error map-go-error" role="alert">{goError}</span>}
-      </form>
-
-      <div className="map-body">
-        <div className="map-stage" ref={wrapRef}>
-          <canvas
-            ref={canvasRef}
-            className="map-canvas"
-            tabIndex={0}
-            role="application"
-            aria-label="World map. Drag to move, scroll or pinch to zoom, tap a tile to select it. Arrow keys move, plus and minus zoom."
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            onPointerLeave={onPointerLeave}
-            onKeyDown={onKeyDown}
-          />
-          <div className="map-readout" ref={readoutRef} aria-live="off" />
+    <div className={`wm${selected ? ' wm-has-panel' : ''}`} hidden={!active}>
+      <div className="wm-stage" ref={wrapRef}>
+        <canvas
+          ref={canvasRef}
+          className="wm-canvas"
+          tabIndex={0}
+          role="application"
+          aria-label="World map. Drag to move, scroll or pinch to zoom, tap a village or tile to select it. Arrow keys move, plus and minus zoom."
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerLeave}
+          onKeyDown={onKeyDown}
+        />
+        <div className="wm-top">
+          <form className="wm-toolbar" onSubmit={submitGo} aria-label="Map controls">
+            <button type="button" className="wm-btn wm-btn-sun" onClick={() => centerOn(own.x, own.y, 72)}>
+              <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+              </svg>
+              <span>My village</span>
+            </button>
+            <div className="wm-goto">
+              <label className="visually-hidden" htmlFor="go-x">X coordinate</label>
+              <input id="go-x" className="wm-input" type="number" inputMode="numeric" placeholder="x" value={goX} onChange={(e) => setGoX(e.target.value)} />
+              <span aria-hidden="true" className="wm-goto-sep">|</span>
+              <label className="visually-hidden" htmlFor="go-y">Y coordinate</label>
+              <input id="go-y" className="wm-input" type="number" inputMode="numeric" placeholder="y" value={goY} onChange={(e) => setGoY(e.target.value)} />
+              <button type="submit" className="wm-btn">Go</button>
+            </div>
+            {goError && (
+              <span className="wm-go-error" role="alert">
+                {goError}
+              </span>
+            )}
+          </form>
           <Legend />
-          <div className="map-zoom">
-            <button className="btn btn-icon" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
-            <button className="btn btn-icon" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
-          </div>
         </div>
-        {selected && (
-          <TilePanel
-            tile={selected}
-            village={selectedVillage}
-            loaded={selectedLoaded}
-            terrain={terrain}
-            preferred={preferred && preferred.x === selected.x && preferred.y === selected.y ? preferred : null}
-            onClose={() => select(null)}
-          />
-        )}
+        <div className="wm-readout" ref={readoutRef} aria-live="off" />
+        <div className="wm-zoom">
+          <button type="button" className="wm-btn wm-btn-icon" onClick={() => zoomBy(1.3)} aria-label="Zoom in">
+            <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <button type="button" className="wm-btn wm-btn-icon" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">
+            <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+          </button>
+          <button type="button" className="wm-btn wm-btn-icon wm-btn-sun" onClick={() => centerOn(own.x, own.y)} aria-label="Centre on my village">
+            <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="6" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+          </button>
+        </div>
       </div>
+      {selected && (
+        <TilePanel
+          tile={selected}
+          village={selectedVillage}
+          loaded={selectedLoaded}
+          terrain={terrain}
+          preferred={preferred && preferred.x === selected.x && preferred.y === selected.y ? preferred : null}
+          onClose={() => select(null)}
+        />
+      )}
     </div>
   );
 }

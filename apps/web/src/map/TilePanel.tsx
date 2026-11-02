@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { SCOUT_UNIT, UNITS, UNIT_IDS, checkMission, checkSend, distance, emptyUnits, totalUnits, travelTimeMs } from '@clanfire/engine';
+import { MAP_STAGE_NAMES, SCOUT_UNIT, UNITS, UNIT_IDS, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelTimeMs } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
-import { ATTACK_BLOCKED_TEXT, MISSION_HINT, RELATION_STYLE } from '../relations.ts';
+import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { allowedMissions } from '../rules.ts';
 import { Segmented } from '../tribe/bits.tsx';
-import { relationKey } from './render.ts';
+import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
+import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -106,13 +107,13 @@ function SendForm({
 
   return (
     <form
-      className="send"
+      className="wm-send"
       onSubmit={(e) => {
         e.preventDefault();
         void send();
       }}
     >
-      <h3 className="subtitle">{missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`}</h3>
+      <h3 className="wm-send-title">{missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`}</h3>
       {missions.length > 1 && (
         <Segmented
           label="Mission"
@@ -124,26 +125,26 @@ function SendForm({
           }}
         />
       )}
-      <p className="muted small send-hint">{MISSION_HINT[mission]}</p>
+      <p className="wm-muted">{MISSION_HINT[mission]}</p>
       {visible.length === 0 ? (
-        <p className="muted">
+        <p className="wm-muted">
           {scouting ? 'No Pathfinders at home. ' : 'No troops at home. '}
-          <button type="button" className="link" onClick={() => navigate('army')}>
+          <button type="button" className="wm-link" onClick={() => navigate('army')}>
             Train some in the Army tab
           </button>
           .
         </p>
       ) : (
-        <ul className="send-units">
+        <ul className="wm-units">
           {visible.map((u) => (
             <li key={u}>
-              <label htmlFor={`send-${u}`} className="send-label">
+              <label htmlFor={`send-${u}`}>
                 <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
-                <span className="muted"> / {formatInt(live.troops[u])}</span>
+                <span className="wm-muted"> / {formatInt(live.troops[u])}</span>
               </label>
               <input
                 id={`send-${u}`}
-                className="input"
+                className="wm-input"
                 type="number"
                 inputMode="numeric"
                 min={0}
@@ -153,8 +154,8 @@ function SendForm({
                 value={counts[u] ?? ''}
                 onChange={(e) => setCount(u, e.target.value)}
               />
-              <button type="button" className="btn" onClick={() => setCount(u, String(live.troops[u]))}>
-                all
+              <button type="button" className="wm-btn wm-btn-small" onClick={() => setCount(u, String(live.troops[u]))}>
+                All
               </button>
             </li>
           ))}
@@ -162,7 +163,7 @@ function SendForm({
       )}
 
       {total > 0 && Number.isFinite(travel) && (
-        <dl className="facts send-facts">
+        <dl className="wm-facts wm-facts-send">
           <div>
             <dt>Travel time</dt>
             <dd>{formatDuration(travel)}</dd>
@@ -180,88 +181,103 @@ function SendForm({
         </dl>
       )}
       {breaksProtection && !targetProtected && (
-        <p className="notice">{scouting ? 'Scouting' : 'Attacking'} another player ends your beginner protection.</p>
+        <p className="wm-note">{scouting ? 'Scouting' : 'Attacking'} another player ends your beginner protection.</p>
       )}
       {error && (
-        <p className="form-error" role="alert">
+        <p className="wm-error" role="alert">
           {error}
         </p>
       )}
-      <button className="btn btn-primary btn-block btn-tall" type="submit" disabled={!!reason || busy}>
+      <button className="wm-btn wm-btn-sun wm-btn-big" type="submit" disabled={!!reason || busy}>
+        <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 4l11 11M20 4 9 15M6 18l-2 2M18 18l2 2M13 17l4 4M11 17l-4 4" />
+        </svg>
         {busy ? 'Sending…' : SEND_LABEL[mission]}
       </button>
-      {reason && <div className="why">{reason}</div>}
+      {reason && <div className="wm-why">{reason}</div>}
     </form>
   );
 }
 
 export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }: Props) {
-  const { village: mine, navigate, viewTribe } = useGame();
+  const { village: mine, player, navigate, viewTribe } = useGame();
   const isOwn = village?.kind === 'own' || (tile.x === mine.x && tile.y === mine.y);
   const terrainName = TERRAIN_NAME[terrain.get(tile.x, tile.y)] ?? 'Land';
   const dist = distance(mine, tile);
-  const icon = isOwn ? '🏠' : village ? (village.kind === 'abandoned' ? '🏚️' : '🏘️') : '🌿';
-  const owner = isOwn ? 'You' : village ? (village.ownerName ?? 'Abandoned') : null;
+  const al = village ? allegianceOf(village) : isOwn ? 'own' : null;
+  const style = al ? ALLEGIANCE_STYLE[al] : null;
+  const owner = isOwn ? player.username : village ? (village.ownerName ?? null) : null;
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
   const missions = village && !isOwn ? allowedMissions(village.kind, village.relation) : [];
   // Attack and scout go together, so a missing attack means the relation blocks both.
   const attackBlocked = relation !== null && !missions.includes('attack');
+  // ownerChieftain may be missing from an older server; badgeUrl treats undefined as "no portrait".
+  const badge = badgeUrl(isOwn ? player.chieftain : village?.ownerChieftain);
+  const stageNo = village ? (village.kind === 'abandoned' ? ruinStage(village.points) : mapStage(village.points)) : 0;
+  const stageCount = village?.kind === 'abandoned' ? RUIN_NAMES.length : MAP_STAGE_NAMES.length;
 
   return (
-    <aside className="map-panel" aria-label="Selected tile">
-      <div className="map-panel-grip" aria-hidden="true" />
-      <header className="map-panel-head">
-        <span className="building-icon" aria-hidden="true">{icon}</span>
-        <div className="building-title">
-          <h2>{village ? village.name : isOwn ? mine.name : terrainName}</h2>
-          <div className="level">
-            {formatCoords(tile.x, tile.y)}
-            {!village && !isOwn && <span> · {loaded ? 'No village here' : 'Loading…'}</span>}
+    <aside className="wm-panel" aria-label="Selected tile">
+      <div className="wm-panel-grip" aria-hidden="true" />
+      <header className="wm-panel-head">
+        <div className="wm-panel-titles">
+          <h2>
+            {al && al !== 'abandoned' && <img className="wm-head-banner" src={artUrl(`banner-${al}`)} alt="" width={24} height={28} />}
+            {village ? village.name : isOwn ? mine.name : terrainName}
+          </h2>
+          <div className="wm-owner">
+            {badge && <img className="wm-badge" src={badge} alt="" width={28} height={28} />}
+            {owner && <span className="wm-owner-name">{owner}</span>}
+            {village && village.tribeTag && tribeId !== null && (
+              <button type="button" className="wm-tag" onClick={() => viewTribe({ id: tribeId })} aria-label={`Open tribe ${village.tribeTag}`}>
+                [{village.tribeTag}]
+              </button>
+            )}
+            {!village && !isOwn && <span className="wm-owner-name wm-dim">{loaded ? 'No village here' : 'Loading…'}</span>}
+            {style && (
+              <span className="wm-allegiance" style={{ color: style.ring }}>
+                {style.words}
+              </span>
+            )}
           </div>
         </div>
-        <button className="btn btn-icon" onClick={onClose} aria-label="Close panel">
-          ×
+        <button type="button" className="wm-btn wm-btn-icon wm-close" onClick={onClose} aria-label="Close panel">
+          <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
         </button>
       </header>
 
-      <dl className="facts">
-        {owner && (
+      {village && (
+        <div className="wm-stagecard">
+          <span className="wm-thumb" aria-hidden="true">
+            <img src={artUrl(villageSprite(village))} alt="" width={72} height={88} />
+          </span>
           <div>
-            <dt>Owner</dt>
-            <dd>{owner}</dd>
+            <div className="wm-stagecard-kicker">
+              {village.kind === 'abandoned' ? 'Ruin' : 'Stage'} {stageNo} of {stageCount}
+            </div>
+            <div className="wm-stagecard-name">
+              {stageName(village)} · {formatInt(village.points)} points
+            </div>
+            {style && (
+              <div className="wm-stagecard-al">
+                <span className="wm-ring-sample" data-al={al ?? undefined} aria-hidden="true" />
+                {style.words}
+                {al !== 'abandoned' && ` · ${style.banner.toLowerCase()}`}
+              </div>
+            )}
           </div>
-        )}
-        {village && village.tribeTag && tribeId !== null && (
-          <div>
-            <dt>Tribe</dt>
-            <dd>
-              <button className="link" onClick={() => viewTribe({ id: tribeId })} aria-label={`Open tribe ${village.tribeTag}`}>
-                [{village.tribeTag}]
-              </button>
-            </dd>
-          </div>
-        )}
-        {village && !isOwn && (
-          <div>
-            <dt>Relation</dt>
-            <dd>
-              <span className="relation-chip">
-                <span className="swatch" style={{ background: RELATION_STYLE[relationKey(village)].body, borderColor: RELATION_STYLE[relationKey(village)].roof }} aria-hidden="true" />
-                {RELATION_STYLE[relationKey(village)].label}
-              </span>
-            </dd>
-          </div>
-        )}
-        {village && (
-          <div>
-            <dt>Points</dt>
-            <dd>{formatInt(village.points)}</dd>
-          </div>
-        )}
+        </div>
+      )}
+
+      <dl className="wm-facts">
+        <div>
+          <dt>Location</dt>
+          <dd>{formatCoords(tile.x, tile.y)}</dd>
+        </div>
         <div>
           <dt>Distance</dt>
-          <dd>{isOwn ? '–' : `${dist.toFixed(1)} tiles`}</dd>
+          <dd>{isOwn ? '–' : `${dist.toFixed(1)} fields`}</dd>
         </div>
         <div>
           <dt>Terrain</dt>
@@ -270,21 +286,19 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
         {village?.protected && village.kind !== 'abandoned' && (
           <div>
             <dt>Status</dt>
-            <dd>
-              <span className="tag tag-info">🛡️ Beginner protection</span>
-            </dd>
+            <dd className="wm-protected">Beginner protection</dd>
           </div>
         )}
       </dl>
 
       {isOwn && (
-        <button className="btn btn-block" onClick={() => navigate('village')}>
+        <button type="button" className="wm-btn wm-btn-sun wm-btn-big" onClick={() => navigate('village')}>
           Open my village
         </button>
       )}
       {village && !isOwn && attackBlocked && relation && (
-        <p className="notice notice-block" role="note">
-          <span aria-hidden="true">🛡️</span> {ATTACK_BLOCKED_TEXT[relation] ?? 'Attacks on this village are blocked.'}
+        <p className="wm-note" role="note">
+          {ATTACK_BLOCKED_TEXT[relation] ?? 'Attacks on this village are blocked.'}
         </p>
       )}
       {village && !isOwn && missions.length > 0 && (
