@@ -14,7 +14,7 @@ const app = await buildApp({
   logger: true,
   advisorClient: env.anthropicApiKey ? createAnthropicClient(env.anthropicApiKey) : null,
 });
-if (!env.anthropicApiKey) app.log.info('ANTHROPIC_API_KEY not set: the advisor is off');
+if (!env.anthropicApiKey) app.log.info('Advisor (Ask Mags) is off (needs ADVISOR_ENABLED=true and ANTHROPIC_API_KEY)');
 
 // Arrivals are also processed at the start of every API request; the tick covers idle periods.
 const tick = setInterval(() => {

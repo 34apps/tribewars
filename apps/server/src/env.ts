@@ -13,7 +13,7 @@ export interface ServerEnv {
   trustProxy: boolean;
   /** World settings given in the environment. Only used when a new world is created. */
   worldOverrides: Partial<WorldSettings>;
-  /** Anthropic key for Mags's advisor; null = advisor off. Secret: never log it. */
+  /** Anthropic key for Mags's advisor; null = advisor off. Only set when ADVISOR_ENABLED=true (owner: no AI spend by default). Secret: never log it. */
   anthropicApiKey: string | null;
 }
 
@@ -52,6 +52,6 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     isProduction: nodeEnv === 'production',
     trustProxy: /^(1|true|yes)$/i.test(env.TRUST_PROXY ?? ''),
     worldOverrides,
-    anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
+    anthropicApiKey: /^(1|true|yes)$/i.test(env.ADVISOR_ENABLED ?? '') ? env.ANTHROPIC_API_KEY?.trim() || null : null,
   };
 }

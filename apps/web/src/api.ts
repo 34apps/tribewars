@@ -1,8 +1,6 @@
 // Typed fetch wrapper for the Clanfire HTTP API (contract: packages/engine/src/api.ts).
 
 import type {
-  AdvisorAskRequest,
-  AdvisorAskResponse,
   ApiError,
   ApplyRequest,
   AuthRequest,
@@ -106,7 +104,6 @@ export const api = {
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
 
-  askMags: (question: string) => request<AdvisorAskResponse>('POST', '/api/advisor/ask', { question } satisfies AdvisorAskRequest),
 
   // ---- Tribes ----
   tribes: (q: string) => request<TribeListResponse>('GET', `/api/tribes${q ? `?q=${encodeURIComponent(q)}` : ''}`),
