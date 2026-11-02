@@ -10,9 +10,9 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - **World pace.** Default world speed 1 (slow, days-long game) vs a faster world (e.g. 3×).
 
 ## Next big pieces
-- **Redesign** in the style the owner picks from the style canvas (four directions, phone + desktop):
-  new visual system, unit/chieftain/advisor characters, building art, 2.5D isometric map. Web app
-  first (desktop + phone browsers); native app later. Tripo3D models possible later.
+- **Redesign** — waiting for the owner to pick a style on the canvas (four directions, phone +
+  desktop). Plan, structure (illustrated walled village view; map villages that grow in stages) and
+  order of work: `docs/ART_DIRECTION.md`. One piece at a time, each approved before building.
 - Tribe forum threads / mass message; player-to-player messages.
 
 ## Gameplay follow-ups

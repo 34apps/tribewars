@@ -1,0 +1,42 @@
+# Art direction and redesign plan
+
+Owner's direction (2026-11-02). Read before any visual work.
+
+## Rules
+- **Original art only.** Same genre as Tribal Wars and similar games, but never copy their art,
+  layouts, icons or text. Reference screenshots the owner shares describe *structure*, not look;
+  don't store them in this repo.
+- **No generic "AI" look**: no emoji icons, no cream/parchment card UI, no gradient washes, no stock
+  fantasy fonts. Every icon and picture is drawn for Clanfire.
+- **Web app first**: desktop browsers and phone browsers from one responsive app; native mobile app later.
+- Art starts as hand-drawn SVG; 3D models (e.g. Tripo3D) may come later, so prefer forms that can
+  become 3D.
+- Work **one piece at a time**, each approved by the owner before it goes into the game.
+
+## Style directions (pick one)
+Canvas with four directions, each shown as a phone village screen, desktop village screen, character
+sheet (6 units, 2 chieftains, advisor) and isometric map:
+https://claude.ai/artifact/MBeYhuGXimx6ASUkUGGQDB (private to the owner)
+- A · Ember & Ash — firelit night, carved Nordic shapes (Eczar + Sofia Sans Semi Condensed)
+- B · Ink & Vermilion — woodcut/linocut chronicle on grey-green paper (Vollkorn)
+- C · Heraldic — flat heraldic tinctures, poster style (Alfa Slab One + Archivo)
+- D · Toy Diorama — chunky tabletop toy pieces, 3D-ready (Bagel Fat One + Rubik)
+Source files: `design/style-directions/` (artboards + renders).
+
+## Structure the owner wants (from his references — structure only)
+1. **Village view**: a full illustrated village seen at an isometric angle. Town Hall and the other
+   core buildings sit around a central square inside a ring wall; resource buildings (Lumber Camp at
+   the forest edge, Farm fields, Iron Mine in rocks, Gold Mine) sit outside the wall, joined by paths.
+   Every building shows a level badge and opens its panel when clicked; buildings look different as
+   they level up; not-yet-built buildings show as empty plots.
+2. **World map**: 2.5D isometric. Each village's picture grows in visible stages as it gains points —
+   e.g. a small hamlet with a palisade → larger palisade village → stone walls → walled town → castle
+   (with moat at the top). Abandoned villages look ruined. Tribe allegiance shown by banners/colours.
+3. **Characters**: a portrait/figure for each unit, selectable chieftain avatars for players, an
+   advisor/guide character for tips and the tutorial, and building art.
+
+## Order of work (after the owner picks a style)
+1. Design system for the chosen style (tokens, type, buttons, panels, icons) + new app shell.
+2. Village view (structure above), approved, then built into the game.
+3. Map village growth stages + terrain tiles, approved, then built in.
+4. Character set (units, chieftains, advisor) used across screens; building panels and reports.

@@ -11,7 +11,8 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 2. `docs/AI-WORKFLOW.md` — **how to work**: the main session orchestrates; hands-on work goes to
    cheaper agents (`.claude/agents/`: `runner`, `scout`, `editor` on haiku; `implementer` on sonnet).
 3. Top of `CHANGELOG.md`; `grep` `NEXT_STEPS.md` for your topic.
-4. `docs/GAME_DESIGN.md` before touching game rules; `docs/STANDARDS.md` before any code change.
+4. `docs/GAME_DESIGN.md` before touching game rules; `docs/STANDARDS.md` before any code change;
+   `docs/ART_DIRECTION.md` before any visual work.
 
 ## Layout
 
