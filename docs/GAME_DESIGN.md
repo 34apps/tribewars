@@ -1,0 +1,202 @@
+# TribeWars — game design (v0.1)
+
+Original browser strategy game. Players each own a village on a shared square world map,
+grow it with four resources, train troops, raid abandoned villages and (later) fight other
+players together with their tribe. Web first, mobile browsers next: every screen must work
+with touch at 360 px wide.
+
+Numbers live in `packages/engine/src/config.ts`; types in `packages/engine/src/types.ts`;
+the HTTP contract in `packages/engine/src/api.ts`. This file holds the **rules and formulas**.
+When a rule changes, change it here in the same commit.
+
+## 1. Time and world speed
+
+- All times are ms since epoch. Durations in config are at speed 1.
+- `speed` (WorldSettings) multiplies production and upkeep, and divides every duration
+  (build, train, travel, protection, abandoned-village growth). Dev servers run fast (e.g. 10).
+- Nothing runs on a timer inside the engine. State is brought up to date lazily with
+  `settleVillage(state, t, settings)`; the server also processes troop movements in time order.
+
+## 2. Resources
+
+`wood`, `food`, `iron`, `gold`. Stored as floats; players see `Math.floor`.
+
+- Production per hour (speed 1) of building level L for lumber→wood, farm→food, mine→iron,
+  goldmine→gold: `L == 0 ? PRODUCTION_LEVEL0 (gold: 0) : round(PRODUCTION_BASE[b] * PRODUCTION_GROWTH^(L-1))`.
+  Multiply by `speed`.
+- **Food upkeep.** Every unit eats `upkeep * speed` food per hour while queued for training, at home
+  or away. Net food per hour = farm production − upkeep. Training is refused if it would make net
+  food negative (`not_enough_food`). Net food can only go negative through rule changes; settlement
+  then clamps food at 0 (no starvation in v1). Abandoned villages pay no upkeep.
+- **Storage cap** (same for every resource) from the storehouse level:
+  `L == 0 ? STORAGE_LEVEL0 : round(STORAGE_BASE * STORAGE_GROWTH^(L-1))`. Production stops at the
+  cap. Anything added (refunds, loot coming home) is also clamped to the cap.
+- **Vault** protects `L == 0 ? 0 : round(VAULT_BASE * VAULT_GROWTH^(L-1))` of each resource from loot.
+
+## 3. Buildings
+
+Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages start at
+`startLevel` for each building.
+
+- Cost of level L: each resource `round(baseCost[r] * costGrowth^(L-1))`.
+- Build time of level L in ms:
+  `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
+  using the Town Hall level when the job is queued.
+- Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
+- **Queue:** at most `MAX_BUILD_QUEUE` jobs. Cost paid when queued. A job starts at
+  `max(now, finishAt of the previous job)`. Queuing the same building twice targets the next level
+  after the queued one (target = current level + jobs for it in queue + 1). Refuse with:
+  `max_level` (target > maxLevel), `requirements_not_met`, `exceeds_storage` (any cost > cap — can never
+  be afforded), `not_enough_resources`, `queue_full`.
+- Effects: hall → faster building; lumber/farm/mine/goldmine → production; storehouse → cap;
+  barracks/stables → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
+  vault → loot protection.
+
+## 4. Units and training
+
+Five units (`UNITS`): infantry Pikeman (anti-cavalry defense), Shieldbearer (anti-infantry defense),
+Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, costs gold).
+
+- Train batch of `count` (1..MAX_TRAIN_BATCH) in the unit's building. Cost = unit cost × count, paid
+  up front. Needs `requires` met. At most `MAX_TRAIN_QUEUE` batches per building.
+- Time per unit (ms): `round(trainTimeSec * TRAIN_TIME_FACTOR^(buildingLevel-1) / speed * 1000)`,
+  fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
+  end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
+- Upkeep for the whole batch counts from the moment it is queued (so training never changes the
+  food rate later — this keeps settlement simple).
+
+## 5. Settlement — `settleVillage(state, t, settings)`
+
+Pure; returns a new state with `lastUpdate = t`. If `t <= lastUpdate` return the state unchanged.
+
+1. Walk build jobs that finish at or before `t`, in order. For each: add production from the
+   current time to `finishAt` (at the rates before the upgrade), clamp to cap, then raise the level
+   and drop the job. Then add production from the last point to `t`.
+2. For each training batch: finished = clamp(floor((t − startAt) / perUnitMs), 0, count);
+   move `finished − done` units into `troops`; drop batches with done = count.
+3. Abandoned villages: apply growth (section 8).
+
+Resource accrual for a span: `amount = clamp(amount + ratePerHour * hours, 0, cap)` but never
+reduce an amount that is already above the cap (only stop it growing).
+
+## 6. Map, distance, travel
+
+- World tiles `x, y` in `[-radius, radius]`. Distance is Euclidean: `sqrt(dx² + dy²)`.
+- An army moves at the speed of its slowest unit. Travel ms =
+  `ceil(distance / (slowestSpeed * speed) * 3_600_000)`.
+- Sending: target must be a village tile other than your own village; at least one unit; you must
+  have the units at home. Units move from `troops` to `away` when sent.
+- Arrival → battle (section 7) → survivors travel home along the same route at their own slowest
+  speed, carrying loot. On return: `away` −= survivors, `troops` += survivors, resources += loot (clamped).
+  Units lost in battle are removed from `away` at battle time.
+- **Terrain** is decoration in v1 (`terrainAt(x, y, seed)`: grass, forest, hills, mountain, lake),
+  deterministic from the seed so the client draws it without asking the server. Villages are never
+  placed on mountain or lake tiles. Use smooth value noise so terrain forms patches, not static.
+
+## 7. Battle — `resolveBattle({ attackerUnits, defender, seed })`
+
+Deterministic for a given seed (`mulberry32`).
+
+1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`.
+2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
+3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
+4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
+   at home. `D = (D_units + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall) × (1 + WALL_BONUS_PER_LEVEL × wall)`.
+5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
+   unit; every defender unit dies.
+   Else defender wins: defender loses `round(count × (A/D)^BATTLE_LOSS_EXPONENT)` of each unit;
+   every attacker unit dies.
+6. Loot (attacker won only): capacity = Σ survivors × carry. Lootable per resource =
+   `max(0, floor(amount) − vaultProtection)`. Fill evenly ("water-filling"): split remaining capacity
+   equally over resources that still have lootable stock; repeat until capacity or stock runs out.
+   Loot values are integers.
+
+`applyBattleToDefender(defender, result)` removes defender losses and the loot.
+
+## 8. Abandoned villages
+
+Computer-run villages for players to raid. They have `npc` info and no owner.
+
+- Created at world start: `round((2r+1)² × npcDensity)` villages at random free tiles (seeded),
+  at least `NPC_MIN_SPACING` (Chebyshev) from each other. Tier from `NPC_TIER_WEIGHTS`.
+- Start levels for tier T: hall T; lumber, farm, mine, storehouse 2T; wall, vault and gold mine T−1;
+  others 0. Wood, food and iron start at half the cap; gold at `NPC_START_GOLD_PER_TIER × T` (their
+  gold mine adds more over time, so stronger abandoned villages are the gold source). Garrison starts full.
+- Full garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit.
+- **Growth:** every `npcGrowthHours / speed` hours since `createdAt` is one step. Step n raises
+  `NPC_GROWTH_ORDER[n % length]` by one level (skip buildings at `NPC_MAX_LEVEL`; if all are maxed,
+  nothing grows) and refills `ceil(full × NPC_GARRISON_REGEN)` of each garrison unit (never above
+  full). Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses
+  the levels at that time (accuracy within one step is fine).
+- They produce resources like player villages (no upkeep), which is what raiders take.
+
+## 9. Players, spawn, protection
+
+- Register → one village named "<username>'s village" at a random free tile anywhere in the world
+  (not mountain/lake, at least `SPAWN_MIN_SPACING` from every village). Up to 2000 random tries, then
+  scan outward from a random tile.
+- Beginner protection: nobody can attack the player's villages until
+  `createdAt + protectionHours / speed`. It ends early when the player attacks another *player*
+  (raiding abandoned villages keeps it).
+- Points = sum of building levels (shown on the map).
+
+## 10. Engine public API (`packages/engine/src/index.ts`)
+
+Everything is pure and synchronous; inputs are never mutated.
+
+```ts
+// data
+export * from './types.ts'; export * from './config.ts'; export * from './api.ts';
+// random + math
+mulberry32(seed: number): () => number          // [0,1)
+hashSeed(...parts: number[]): number              // stable 32-bit mix, e.g. hashSeed(worldSeed, x, y)
+distance(a: Coords, b: Coords): number
+emptyUnits(): Units; emptyResources(): Resources; totalUnits(u: Units): number
+// economy
+buildingCost(b: BuildingId, level: number): Resources
+buildTimeMs(b: BuildingId, level: number, hallLevel: number, s: WorldSettings): number
+productionPerHour(state: VillageState, s: WorldSettings): Resources   // gross, speed applied
+upkeepPerHour(state: VillageState, s: WorldSettings): number          // 0 for npc
+netProductionPerHour(state: VillageState, s: WorldSettings): Resources // food minus upkeep
+storageCap(state: VillageState): number
+vaultProtection(state: VillageState): number
+canAfford(r: Resources, cost: Resources): boolean
+// lifecycle
+createPlayerVillage(t: number): VillageState
+createNpcVillage(tier: number, t: number): VillageState
+settleVillage(state: VillageState, t: number, s: WorldSettings): VillageState
+// actions: check* never throws; apply* settles to t first and throws GameError when the check fails
+checkBuild(state, b, t, s): CheckResult<{ targetLevel: number; cost: Resources; timeMs: number }>
+applyBuild(state, b, t, s): VillageState
+trainTimeMs(u: UnitId, state: VillageState, s: WorldSettings): number
+checkTrain(state, u, count, t, s): CheckResult<{ cost: Resources; perUnitMs: number }>
+applyTrain(state, u, count, t, s): VillageState
+armySpeed(units: Units): number                    // slowest unit's tiles/hour, 0 if none
+travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number
+checkSend(state, units: Partial<Units>): CheckResult<{ units: Units }>   // normalises to full Units
+applySend(state, units, t, s): VillageState        // troops -> away
+resolveBattle(input: BattleInput): BattleResult
+applyBattleToDefender(defender: VillageState, r: BattleResult): VillageState
+applyAttackerLosses(origin: VillageState, losses: Units): VillageState    // away -= losses
+applyReturn(origin: VillageState, survivors: Units, loot: Resources, t, s): VillageState
+// world
+terrainAt(x: number, y: number, seed: number): Terrain
+isBuildableTerrain(t: Terrain): boolean
+generateNpcPlacements(s: WorldSettings): Array<Coords & { tier: number }>
+findSpawnLocation(isOccupied: (x: number, y: number) => boolean, rng: () => number, s: WorldSettings): Coords
+protectionEndsAt(createdAt: number, s: WorldSettings): number
+villagePoints(state: VillageState): number
+```
+
+`findSpawnLocation`'s `isOccupied(x, y)` returns true if a village stands on that exact tile; the
+function itself checks spacing by probing the surrounding tiles.
+
+## 11. Roadmap (not in v0.1)
+
+1. **Tribes**: found/join/leave a tribe (name + tag), roles (leader, officer, member), invites,
+   tribe chat. Tribe diplomacy with other tribes: ally, non-aggression pact, enemy. Allies' villages
+   shown in a different colour; no attacks on own tribe.
+2. Support troops to allies' villages (defending reinforcements), scouting, reports for scouts.
+3. More villages per player (settlers / conquest), market trading, siege units vs. wall.
+4. Live push (WebSocket) for incoming attacks; mobile polish (PWA, install prompt).
+5. World lifecycle: rankings, inactive players turning into abandoned villages, world end.

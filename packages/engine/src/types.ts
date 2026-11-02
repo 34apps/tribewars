@@ -1,0 +1,195 @@
+// Core data model shared by the server (authoritative) and the web client (previews).
+// All times are milliseconds since the Unix epoch. All "per hour" values are at world speed 1
+// unless a function says otherwise; the engine applies WorldSettings.speed.
+
+export const RESOURCE_IDS = ['wood', 'food', 'iron', 'gold'] as const;
+export type ResourceId = (typeof RESOURCE_IDS)[number];
+/** Resource amounts. Stored as floats (fractional production); show Math.floor() to players. */
+export type Resources = Record<ResourceId, number>;
+
+export const BUILDING_IDS = [
+  'hall',
+  'lumber',
+  'farm',
+  'mine',
+  'goldmine',
+  'storehouse',
+  'barracks',
+  'stables',
+  'wall',
+  'vault',
+] as const;
+export type BuildingId = (typeof BUILDING_IDS)[number];
+/** Level per building; 0 = not built. */
+export type BuildingLevels = Record<BuildingId, number>;
+
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight'] as const;
+export type UnitId = (typeof UNIT_IDS)[number];
+export type UnitClass = 'infantry' | 'cavalry';
+/** Unit counts. Every UnitId is always present (0 when none) to keep arithmetic simple. */
+export type Units = Record<UnitId, number>;
+
+/** Buildings that train units. */
+export type TrainingBuildingId = 'barracks' | 'stables';
+
+export interface BuildingDef {
+  id: BuildingId;
+  name: string;
+  description: string;
+  maxLevel: number;
+  /** Level every new player village starts with. */
+  startLevel: number;
+  /** Other buildings (and levels) needed before level 1 can be started. */
+  requires: Partial<Record<BuildingId, number>>;
+  /** Cost of level 1; level L costs baseCost * costGrowth^(L-1), each resource rounded. */
+  baseCost: Resources;
+  costGrowth: number;
+  /** Build time of level 1 in seconds at speed 1 with Town Hall level 1. */
+  baseTimeSec: number;
+  timeGrowth: number;
+}
+
+export interface UnitDef {
+  id: UnitId;
+  name: string;
+  description: string;
+  unitClass: UnitClass;
+  attack: number;
+  /** Defense against attacking infantry. */
+  defenseInfantry: number;
+  /** Defense against attacking cavalry. */
+  defenseCavalry: number;
+  /** Map tiles per hour at world speed 1. */
+  speed: number;
+  /** Resources one unit can carry home from a raid. */
+  carry: number;
+  /** Food eaten per hour at world speed 1 (counted while queued, at home and away). */
+  upkeep: number;
+  cost: Resources;
+  /** Training time per unit in seconds at speed 1 with the training building at level 1. */
+  trainTimeSec: number;
+  building: TrainingBuildingId;
+  /** Buildings (and levels) required to train this unit. Always includes `building`. */
+  requires: Partial<Record<BuildingId, number>>;
+}
+
+export interface WorldSettings {
+  /** Seed for terrain and abandoned-village placement. */
+  seed: number;
+  /** Multiplies production/upkeep and divides all durations. 1 = normal pace. */
+  speed: number;
+  /** World spans x and y from -radius to +radius (inclusive). */
+  radius: number;
+  /** Abandoned villages per map tile at world creation (e.g. 0.02 = 1 per 50 tiles). */
+  npcDensity: number;
+  /** New player villages can't be attacked for this many hours (divided by speed). */
+  protectionHours: number;
+  /** Abandoned villages grow one step every this many hours (divided by speed). */
+  npcGrowthHours: number;
+}
+
+export interface BuildJob {
+  building: BuildingId;
+  targetLevel: number;
+  startAt: number;
+  finishAt: number;
+}
+
+export interface TrainJob {
+  unit: UnitId;
+  count: number;
+  /** Units of this batch already moved into `troops`. */
+  done: number;
+  /** Time per unit in ms, fixed when the batch was queued. */
+  perUnitMs: number;
+  /** When the first unit of this batch starts training. */
+  startAt: number;
+}
+
+export interface NpcInfo {
+  /** 1 (weak) .. 5 (strong); sets starting levels and garrison size. */
+  tier: number;
+  /** Growth steps already applied (see GAME_DESIGN.md "Abandoned villages"). */
+  growthSteps: number;
+  /** Growth clock origin. */
+  createdAt: number;
+}
+
+export interface VillageState {
+  resources: Resources;
+  /** Time `resources`, queues and troops were last brought up to date. */
+  lastUpdate: number;
+  buildings: BuildingLevels;
+  /** Units at home (can defend and be sent). */
+  troops: Units;
+  /** Units currently out on a movement (still eat food). */
+  away: Units;
+  /** In order; at most MAX_BUILD_QUEUE entries. Costs already paid. */
+  buildQueue: BuildJob[];
+  /** Per training building, in order; at most MAX_TRAIN_QUEUE batches each. Costs paid. */
+  trainQueues: Record<TrainingBuildingId, TrainJob[]>;
+  /** Present only on abandoned (computer-run) villages. */
+  npc?: NpcInfo;
+}
+
+export interface Coords {
+  x: number;
+  y: number;
+}
+
+export type Terrain = 'grass' | 'forest' | 'hills' | 'mountain' | 'lake';
+
+/** Result of a rule check. Server sends `reason` to the client as an error code. */
+export type CheckResult<T> = ({ ok: true } & T) | { ok: false; reason: GameErrorCode; message: string };
+
+export type GameErrorCode =
+  | 'invalid_input'
+  | 'max_level'
+  | 'requirements_not_met'
+  | 'not_enough_resources'
+  | 'exceeds_storage'
+  | 'queue_full'
+  | 'not_enough_food'
+  | 'not_enough_troops'
+  | 'no_troops'
+  | 'invalid_target'
+  | 'target_protected'
+  | 'not_found'
+  | 'forbidden'
+  | 'unauthorized'
+  | 'rate_limited'
+  | 'username_taken'
+  /** Unexpected server failure (HTTP 500). Never thrown by the engine. */
+  | 'internal_error';
+
+export class GameError extends Error {
+  readonly code: GameErrorCode;
+  constructor(code: GameErrorCode, message: string) {
+    super(message);
+    this.name = 'GameError';
+    this.code = code;
+  }
+}
+
+export interface BattleInput {
+  attackerUnits: Units;
+  /** Defender village, already settled to the battle time. */
+  defender: VillageState;
+  /** Deterministic luck: same seed, same result. */
+  seed: number;
+}
+
+export interface BattleResult {
+  attackerWon: boolean;
+  /** -0.1 .. +0.1, applied to attack power. */
+  luck: number;
+  attackPower: number;
+  defensePower: number;
+  attackerLosses: Units;
+  attackerSurvivors: Units;
+  /** Defender units at home that took part. */
+  defenderUnits: Units;
+  defenderLosses: Units;
+  /** Resources taken from the defender (0s when the attacker lost). */
+  loot: Resources;
+}

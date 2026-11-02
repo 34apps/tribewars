@@ -1,0 +1,133 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { settleVillage } from '@tribewars/engine';
+import { api } from './api.ts';
+import { Shell } from './components/Shell.tsx';
+import { Toasts } from './components/Toasts.tsx';
+import type { ToastItem } from './components/Toasts.tsx';
+import { GameContext, TABS } from './game.ts';
+import type { GameApi, MapFocus, Tab, ToastOptions } from './game.ts';
+import { useGameState } from './hooks/useGameState.ts';
+import { useNow } from './hooks/useNow.ts';
+import { ArmyView } from './views/ArmyView.tsx';
+import { MapView } from './views/MapView.tsx';
+import { ReportsView } from './views/ReportsView.tsx';
+import { VillageView } from './views/VillageView.tsx';
+
+function readTab(): Tab {
+  const h = window.location.hash.replace(/^#\/?/, '');
+  return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'village';
+}
+
+function useTab(): [Tab, (t: Tab) => void] {
+  const [tab, setTab] = useState<Tab>(readTab);
+  useEffect(() => {
+    const onHash = () => setTab(readTab());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const navigate = useCallback((t: Tab) => {
+    if (window.location.hash !== `#${t}`) window.location.hash = t;
+    setTab(t);
+  }, []);
+  return [tab, navigate];
+}
+
+export function Game({ onSignedOut }: { onSignedOut: () => void }) {
+  const store = useGameState(onSignedOut);
+  const now = useNow(store.serverOffset);
+  const [tab, navigate] = useTab();
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
+  const [highlightMovementId, setHighlight] = useState<number | null>(null);
+  const toastId = useRef(0);
+  const mapVisited = useRef(false);
+  if (tab === 'map') mapVisited.current = true;
+
+  const { data } = store;
+  const village = data?.villages[0] ?? null;
+  const settings = data?.settings ?? null;
+  const live = useMemo(() => (village && settings ? settleVillage(village.state, now, settings) : null), [village, settings, now]);
+
+  const toast = useCallback((message: string, options?: ToastOptions) => {
+    const id = ++toastId.current;
+    setToasts((list) => [...list.slice(-3), { id, message, kind: options?.kind ?? 'ok', action: options?.action }]);
+    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), options?.action ? 9000 : 5000);
+  }, []);
+  const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
+
+  const showOnMap = useCallback(
+    (x: number, y: number) => {
+      setMapFocus({ x, y, nonce: Date.now() });
+      navigate('map');
+    },
+    [navigate],
+  );
+
+  const viewMovement = useCallback(
+    (id: number) => {
+      setHighlight(id);
+      navigate('army');
+      window.setTimeout(() => setHighlight((cur) => (cur === id ? null : cur)), 8000);
+    },
+    [navigate],
+  );
+
+  const signOut = useCallback(async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Cookie may already be gone; fall through to the sign-in screen either way.
+    }
+    onSignedOut();
+  }, [onSignedOut]);
+
+  const ctx = useMemo<GameApi | null>(() => {
+    if (!data || !village || !settings || !live) return null;
+    return {
+      settings,
+      player: data.player,
+      village,
+      live,
+      now,
+      movements: data.movements,
+      unreadReports: data.unreadReports,
+      connectionError: store.error,
+      tab,
+      navigate,
+      showOnMap,
+      mapFocus,
+      highlightMovementId,
+      viewMovement,
+      refresh: store.refresh,
+      applyVillage: store.applyVillage,
+      applySend: store.applySend,
+      toast,
+    };
+  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast]);
+
+  if (!ctx) {
+    return (
+      <div className="splash" role={store.error ? 'alert' : 'status'}>
+        <div className="splash-logo" aria-hidden="true">🏰</div>
+        <p>{store.error ?? 'Gathering your village…'}</p>
+        {store.error && (
+          <button className="btn btn-primary" onClick={() => void store.refresh()}>
+            Try again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <GameContext.Provider value={ctx}>
+      <Shell onSignOut={signOut}>
+        {tab === 'village' && <VillageView />}
+        {tab === 'army' && <ArmyView />}
+        {tab === 'reports' && <ReportsView />}
+        {mapVisited.current && <MapView active={tab === 'map'} />}
+      </Shell>
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
+    </GameContext.Provider>
+  );
+}

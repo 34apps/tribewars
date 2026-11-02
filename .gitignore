@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+# local game database
+data/
+*.sqlite
+*.sqlite-journal
+*.db
+# test / tool output
+coverage/
+playwright-report/
+test-results/
+.DS_Store

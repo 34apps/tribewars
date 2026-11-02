@@ -1,0 +1,334 @@
+// Game balance data. Formulas that use these numbers are described in docs/GAME_DESIGN.md.
+// Change numbers here (not in logic files) when tuning the game.
+
+import type { BuildingDef, BuildingId, ResourceId, Resources, UnitDef, UnitId, WorldSettings } from './types.ts';
+
+const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
+
+export const DEFAULT_WORLD: WorldSettings = {
+  seed: 20261102,
+  speed: 1,
+  radius: 100,
+  npcDensity: 0.02,
+  protectionHours: 72,
+  npcGrowthHours: 6,
+};
+
+export const START_RESOURCES: Resources = res(600, 600, 600, 100);
+
+/** Build queue: one job building + one waiting. */
+export const MAX_BUILD_QUEUE = 2;
+/** Batches waiting per training building. */
+export const MAX_TRAIN_QUEUE = 5;
+/** Largest single training batch. */
+export const MAX_TRAIN_BATCH = 1000;
+
+/** Production per hour at level 1 (speed 1). Level L gives base * PRODUCTION_GROWTH^(L-1). */
+export const PRODUCTION_BASE: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
+  lumber: 30,
+  farm: 40,
+  mine: 30,
+  goldmine: 10,
+};
+export const PRODUCTION_GROWTH = 1.17;
+/** Wood/food/iron trickle per hour when the producing building is level 0. Gold has none. */
+export const PRODUCTION_LEVEL0 = 5;
+
+/** Storehouse cap per resource: level 0 -> STORAGE_LEVEL0, level L -> base * growth^(L-1). */
+export const STORAGE_LEVEL0 = 800;
+export const STORAGE_BASE = 1000;
+export const STORAGE_GROWTH = 1.24;
+
+/** Vault: resources per type raiders can't take. Level 0 -> 0, level L -> base * growth^(L-1). */
+export const VAULT_BASE = 120;
+export const VAULT_GROWTH = 1.35;
+
+/** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
+export const HALL_TIME_FACTOR = 0.96;
+/** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
+export const TRAIN_TIME_FACTOR = 0.94;
+
+/** Wall: defense * (1 + WALL_BONUS_PER_LEVEL * level), plus militia WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * level. */
+export const WALL_BONUS_PER_LEVEL = 0.05;
+export const WALL_BASE_DEFENSE = 20;
+export const WALL_DEFENSE_PER_LEVEL = 15;
+
+/** Battle: loser-side loss ratio = (weaker / stronger) ^ BATTLE_LOSS_EXPONENT. Luck is +-BATTLE_LUCK. */
+export const BATTLE_LOSS_EXPONENT = 1.5;
+export const BATTLE_LUCK = 0.1;
+
+/** Abandoned villages. */
+export const NPC_MAX_LEVEL = 10;
+/** Share of abandoned villages per tier 1..5 (sums to 1). */
+export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
+/** Building that grows on growth step n is NPC_GROWTH_ORDER[n % length] (skipping maxed ones). */
+export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'];
+/** Full garrison = per-unit count * Town Hall level. */
+export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
+/** Each growth step refills this share of the full garrison (rounded up), never above full. */
+export const NPC_GARRISON_REGEN = 0.25;
+/** Growth steps applied per settle call at most; older steps are skipped (village is maxed by then anyway). */
+export const NPC_MAX_STEPS_PER_SETTLE = 500;
+
+/** Villages may not be closer than this (Chebyshev distance) to another village. */
+export const NPC_MIN_SPACING = 2;
+export const SPAWN_MIN_SPACING = 3;
+
+export const BUILDINGS: Record<BuildingId, BuildingDef> = {
+  hall: {
+    id: 'hall',
+    name: 'Town Hall',
+    description: 'Heart of the village. Each level makes construction faster and unlocks new buildings.',
+    maxLevel: 20,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(90, 80, 70),
+    costGrowth: 1.26,
+    baseTimeSec: 90,
+    timeGrowth: 1.32,
+  },
+  lumber: {
+    id: 'lumber',
+    name: 'Lumber Camp',
+    description: 'Woodcutters bring in wood every hour.',
+    maxLevel: 20,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(50, 40, 30),
+    costGrowth: 1.25,
+    baseTimeSec: 60,
+    timeGrowth: 1.3,
+  },
+  farm: {
+    id: 'farm',
+    name: 'Farm',
+    description: 'Grows food. Your troops eat food every hour, so more farms mean a bigger army.',
+    maxLevel: 20,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(60, 30, 30),
+    costGrowth: 1.25,
+    baseTimeSec: 60,
+    timeGrowth: 1.3,
+  },
+  mine: {
+    id: 'mine',
+    name: 'Iron Mine',
+    description: 'Miners dig iron for weapons and stronger buildings.',
+    maxLevel: 20,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(65, 45, 20),
+    costGrowth: 1.25,
+    baseTimeSec: 70,
+    timeGrowth: 1.3,
+  },
+  goldmine: {
+    id: 'goldmine',
+    name: 'Gold Mine',
+    description: 'Slowly produces gold, needed for cavalry and elite troops.',
+    maxLevel: 15,
+    startLevel: 0,
+    requires: { hall: 3 },
+    baseCost: res(150, 120, 180),
+    costGrowth: 1.3,
+    baseTimeSec: 300,
+    timeGrowth: 1.32,
+  },
+  storehouse: {
+    id: 'storehouse',
+    name: 'Storehouse',
+    description: 'Raises how much of each resource the village can hold.',
+    maxLevel: 20,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(70, 50, 40),
+    costGrowth: 1.24,
+    baseTimeSec: 80,
+    timeGrowth: 1.3,
+  },
+  barracks: {
+    id: 'barracks',
+    name: 'Barracks',
+    description: 'Trains infantry. Higher levels train faster and unlock new units.',
+    maxLevel: 20,
+    startLevel: 0,
+    requires: { hall: 2 },
+    baseCost: res(200, 150, 120),
+    costGrowth: 1.26,
+    baseTimeSec: 180,
+    timeGrowth: 1.32,
+  },
+  stables: {
+    id: 'stables',
+    name: 'Stables',
+    description: 'Trains fast cavalry that can carry more loot.',
+    maxLevel: 15,
+    startLevel: 0,
+    requires: { hall: 5, barracks: 3 },
+    baseCost: res(260, 200, 300, 20),
+    costGrowth: 1.27,
+    baseTimeSec: 400,
+    timeGrowth: 1.32,
+  },
+  wall: {
+    id: 'wall',
+    name: 'Wall',
+    description: 'Makes defenders stronger and adds village militia.',
+    maxLevel: 20,
+    startLevel: 0,
+    requires: { barracks: 1 },
+    baseCost: res(100, 40, 60),
+    costGrowth: 1.26,
+    baseTimeSec: 150,
+    timeGrowth: 1.32,
+  },
+  vault: {
+    id: 'vault',
+    name: 'Hidden Vault',
+    description: 'Hides some of each resource so raiders cannot take it.',
+    maxLevel: 10,
+    startLevel: 0,
+    requires: { hall: 2 },
+    baseCost: res(40, 50, 30),
+    costGrowth: 1.28,
+    baseTimeSec: 100,
+    timeGrowth: 1.32,
+  },
+};
+
+export const UNITS: Record<UnitId, UnitDef> = {
+  pikeman: {
+    id: 'pikeman',
+    name: 'Pikeman',
+    description: 'Cheap defender with long pikes. Very good against cavalry.',
+    unitClass: 'infantry',
+    attack: 10,
+    defenseInfantry: 15,
+    defenseCavalry: 45,
+    speed: 6,
+    carry: 15,
+    upkeep: 1,
+    cost: res(50, 30, 25),
+    trainTimeSec: 90,
+    building: 'barracks',
+    requires: { barracks: 1 },
+  },
+  guard: {
+    id: 'guard',
+    name: 'Shieldbearer',
+    description: 'Heavy shield wall. Very good against infantry.',
+    unitClass: 'infantry',
+    attack: 15,
+    defenseInfantry: 45,
+    defenseCavalry: 25,
+    speed: 5,
+    carry: 10,
+    upkeep: 1,
+    cost: res(40, 35, 70),
+    trainTimeSec: 120,
+    building: 'barracks',
+    requires: { barracks: 3 },
+  },
+  raider: {
+    id: 'raider',
+    name: 'Raider',
+    description: 'Fierce attacker on foot. Weak in defense.',
+    unitClass: 'infantry',
+    attack: 40,
+    defenseInfantry: 10,
+    defenseCavalry: 5,
+    speed: 6,
+    carry: 30,
+    upkeep: 1,
+    cost: res(70, 40, 50),
+    trainTimeSec: 110,
+    building: 'barracks',
+    requires: { barracks: 2 },
+  },
+  outrider: {
+    id: 'outrider',
+    name: 'Outrider',
+    description: 'Fast light cavalry. Carries the most loot.',
+    unitClass: 'cavalry',
+    attack: 60,
+    defenseInfantry: 20,
+    defenseCavalry: 15,
+    speed: 14,
+    carry: 70,
+    upkeep: 3,
+    cost: res(120, 90, 150),
+    trainTimeSec: 240,
+    building: 'stables',
+    requires: { stables: 1 },
+  },
+  knight: {
+    id: 'knight',
+    name: 'Knight',
+    description: 'Armoured elite rider, strong in attack and defense. Costs gold.',
+    unitClass: 'cavalry',
+    attack: 110,
+    defenseInfantry: 70,
+    defenseCavalry: 50,
+    speed: 10,
+    carry: 40,
+    upkeep: 4,
+    cost: res(200, 150, 250, 30),
+    trainTimeSec: 420,
+    building: 'stables',
+    requires: { stables: 5, hall: 10 },
+  },
+};
+
+// ---- Additions used by the engine logic (kept here so tuning never touches logic files) ----------
+
+/** Which building produces which resource. Level 0 produces PRODUCTION_LEVEL0 (gold: nothing). */
+export const RESOURCE_PRODUCER: Record<ResourceId, 'lumber' | 'farm' | 'mine' | 'goldmine'> = {
+  wood: 'lumber',
+  food: 'farm',
+  iron: 'mine',
+  gold: 'goldmine',
+};
+
+/** Largest count of one unit type accepted in a send order (input sanity bound). */
+export const MAX_UNIT_COUNT = 1_000_000;
+
+/** Abandoned-village start level of building b at tier T: perTier * T + offset (min 0, max NPC_MAX_LEVEL). */
+export const NPC_START_LEVELS: Partial<Record<BuildingId, { perTier: number; offset: number }>> = {
+  hall: { perTier: 1, offset: 0 },
+  lumber: { perTier: 2, offset: 0 },
+  farm: { perTier: 2, offset: 0 },
+  mine: { perTier: 2, offset: 0 },
+  storehouse: { perTier: 2, offset: 0 },
+  wall: { perTier: 1, offset: -1 },
+  vault: { perTier: 1, offset: -1 },
+  goldmine: { perTier: 1, offset: -1 },
+};
+/** Abandoned villages start with this share of their storage cap in wood, food and iron. */
+export const NPC_START_RESOURCE_SHARE = 0.5;
+/** ...and with this much gold per tier (gold is rare; their Gold Mine adds more over time). */
+export const NPC_START_GOLD_PER_TIER = 40;
+/** Random placement tries per abandoned village before giving up (only matters for very dense worlds). */
+export const NPC_PLACEMENT_ATTEMPTS_PER_VILLAGE = 100;
+/** Random spawn tries before scanning outward. */
+export const SPAWN_RANDOM_TRIES = 2000;
+
+/** Seed salts so terrain noise fields and placement streams are independent. */
+export const SEED_SALT = { elevation: 11, wetness: 23, npcPlacement: 37 } as const;
+
+/**
+ * Terrain: two smooth value-noise fields (elevation, wetness), each made of a coarse octave and a finer
+ * one. Elevation >= mountain -> mountain; >= hills -> hills; else wetness >= lake -> lake;
+ * >= forest -> forest; else grass. Scales are in tiles.
+ */
+export const TERRAIN = {
+  elevationScale: 18,
+  wetnessScale: 12,
+  /** Second octave: scale divisor and weight relative to the first octave (weight 1). */
+  detailScaleDivisor: 2.6,
+  detailWeight: 0.45,
+  mountain: 0.74,
+  hills: 0.63,
+  lake: 0.7,
+  forest: 0.55,
+};

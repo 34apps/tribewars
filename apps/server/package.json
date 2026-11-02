@@ -1,0 +1,24 @@
+{
+  "name": "@tribewars/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoritative game server: Fastify HTTP API + SQLite (node:sqlite).",
+  "type": "module",
+  "scripts": {
+    "dev": "WORLD_SPEED=${WORLD_SPEED:-10} NODE_ENV=development tsx watch src/index.ts",
+    "start": "NODE_ENV=production tsx src/index.ts",
+    "type-check": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/static": "^10.1.8",
+    "@tribewars/engine": "*",
+    "fastify": "^5.12.8",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3"
+  }
+}
