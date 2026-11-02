@@ -33,6 +33,16 @@ conclusion, no file dumps). Never let two agents edit the same files at the same
 folder (e.g. `apps/server` vs `apps/web`). Verify what an agent reports (read the diff, rerun
 the checks) before telling the owner it's done.
 
+## 2b. Cost rules (owner pays per use: Console / API billing)
+
+- Main session: Opus 5.5 at **medium** effort (`/effort medium`); high only for big design/architecture
+  decisions, then back to medium. Keep the main session's own reading and writing small — delegate.
+- Default delegation: `runner`/`scout`/`editor` (haiku) for checks, lookups, mechanical edits;
+  `implementer` (sonnet) for building. Use opus agents **only** for art/design work, and run **one**
+  opus design agent at a time (no parallel art batches) unless the owner asks for speed.
+- Don't re-read big files or dump long logs into the main context; ask agents for short reports.
+- Before a big multi-agent job, tell the owner in one line roughly how big it is.
+
 ## 3. Reporting to the owner
 
 The owner isn't a developer and wants **short** replies.
