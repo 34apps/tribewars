@@ -1,6 +1,6 @@
 # Handoff — Clanfire
 
-Written 2026-11-02 (after v0.4: Toy Diorama village view, map, chieftains built in). Read this first, then `docs/AI-WORKFLOW.md` (main
+Written 2026-11-02 (after v0.4, slower pace, Agent SDK runner; Ask Mags AI box built then removed by owner). Read this first, then `docs/AI-WORKFLOW.md` (main
 session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`; opus for art/design
 agents), `docs/ART_DIRECTION.md`, the top of `CHANGELOG.md`, and the parts of `NEXT_STEPS.md` you need.
 
@@ -38,6 +38,24 @@ agents), `docs/ART_DIRECTION.md`, the top of `CHANGELOG.md`, and the parts of `N
 
 Verify every build: `npm run check`, `npm run build`, `npm run build:preview` (single file), Playwright at
 1440 and 390, then republish the preview and merge to `main` (owner allowed merging).
+
+## Added this session (2026-11-02, later)
+
+- **Slower original pace** (owner approved): builds ~6–30 min at level 1, ~1–3 h mid, ~8–24 h late; Town Hall
+  -5%/level; troops 3–22 min. Benchmarked only against the genre's pace (never copy numbers). `npm run dev` =
+  speed 1 (`apps/server/data/clanfire.sqlite`, fresh world); `npm run dev:fast` = speed 10 (`clanfire-fast.sqlite`,
+  the old world). Preview (speed 25) not rebuilt/republished with the new pace yet.
+- **Ask Mags AI advisor**: server endpoint + tests exist (`apps/server/src/advisor.ts`) but are **off** unless
+  `ADVISOR_ENABLED=true` + key. Web box removed (owner: AI credit spend). The free fixed **Mags tip box stays** —
+  owner wants it as the first tooltips of the web app. Don't re-add AI features without a budget decision.
+- **`npm run agent -- "task"`**: Claude Agent SDK runner billed to `ANTHROPIC_API_KEY` (sonnet default, $2 cap,
+  no commit/push/install/network). `docs/AI-WORKFLOW.md` §8. Owner's key is in the shell environment.
+
+## Traps (new)
+
+- A world keeps the speed it was created with; changing `WORLD_SPEED` needs a new database.
+- GitHub `main` gets commits from other sessions (design rows): `git fetch` + rebase before pushing, fix the
+  changelog hash after a rebase.
 
 ## Traps
 
