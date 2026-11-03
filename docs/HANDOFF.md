@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03: village scene now fades unbuilt buildings whose requirements are unmet and shows a lock badge instead of the level (VillageScene.tsx `locked`, village.css `.is-locked`). Unbuilt-but-buildable plots and click-to-open panel already existed.
-Checks NOT run and nothing committed: Bash was denied mid-run (don't-ask mode), so `npm run check`/`build` could not run. Changes (plus earlier uncommitted art/village edits) sit in the working tree.
-Very next step: run `npm run check` + `npm run build`, view the village at 360/1440 px (check `Icon name="lock"` exists), then commit + changelog.
-Possible follow-up: TW-style "Not yet available" list with requirements in the build panel.
+2026-11-03 (`6dc963b`): Town Hall panel now lists all buildings (Build/Level buttons, cost) plus a "Not yet available" group with requirements (`HallBuildings` in Panels.tsx, `.hb-*` in village.css); locked plots in the scene are faded with a lock badge. Earlier uncommitted art/village edits went into the same commit.
+Left: never viewed in a browser (360 and 1440 px); styling of the list is basic.
+Very next step: `npm run dev:fast`, click the Town Hall, check the list at both widths, tidy styling.
+Checks passed (`npm run check`, `npm run build`).
 
 ## Read first
 `docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.
