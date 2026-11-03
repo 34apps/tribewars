@@ -21,6 +21,7 @@ import {
   applyCancelTrain,
   type CancelResponse,
   buildQueueLimit,
+  researchQueueLimit,
   applyReturn,
   applySend,
   applyShipmentArrival,
@@ -831,10 +832,10 @@ export class GameService {
   }
 
   /** Cancel the running research; CANCEL_REFUND_PERCENT of its cost comes back. */
-  cancelResearch(player: PlayerRow, villageId: number, t: number): CancelResponse {
+  cancelResearch(player: PlayerRow, villageId: number, index: number, t: number): CancelResponse {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const { state, refund } = applyCancelResearch(v.state, t, this.settings);
+      const { state, refund } = applyCancelResearch(v.state, index, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
       return { village: ownDto(v, state), refund };
     });
@@ -844,7 +845,7 @@ export class GameService {
   research(player: PlayerRow, villageId: number, unit: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyResearch(v.state, unit, t, this.settings);
+      const next = applyResearch(v.state, unit, t, this.settings, researchQueueLimit(player.premium));
       this.store.saveVillage(v.id, next, villagePoints(next));
       return ownDto(v, next);
     });

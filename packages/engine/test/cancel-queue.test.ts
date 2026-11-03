@@ -9,6 +9,7 @@ import {
   applyCancelResearch,
   applyCancelTrain,
   applyResearch,
+  settleVillage,
   applyTrain,
   buildingCost,
 } from '../src/index.ts';
@@ -76,12 +77,39 @@ describe('cancelling research', () => {
     const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
     const started = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
     const cost = UNITS.guard.research!.cost;
-    const { state, refund } = applyCancelResearch(started, 0, S1);
-    assert.equal(state.researchJob, undefined);
+    const { state, refund } = applyCancelResearch(started, 0, 0, S1);
+    assert.equal(state.researchQueue, undefined);
     assert.equal(refund.wood, Math.floor(cost.wood * 0.8));
     assert.equal(state.resources.wood, started.resources.wood + refund.wood);
     assert.ok(!(state.researched ?? []).includes('guard'));
-    fail(() => applyCancelResearch(state, 0, S1));
-    assert.ok(applyResearch(state, 'guard', 0, S1).researchJob);
+    fail(() => applyCancelResearch(state, 0, 0, S1));
+    assert.ok(applyResearch(state, 'guard', 0, S1).researchQueue?.length);
+  });
+
+  it('cancelling the running research starts the waiting one right away', () => {
+    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+    const a = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
+    const b = applyResearch(a, 'outrider', 0, S1);
+    const outMs = UNITS.outrider.research!.timeSec * 1000;
+    assert.equal(b.researchQueue![1]!.startAt, b.researchQueue![0]!.finishAt);
+    const t = 1000;
+    const { state } = applyCancelResearch(b, 0, t, S1);
+    assert.deepEqual(state.researchQueue, [{ unit: 'outrider', startAt: t, finishAt: t + outMs }]);
+  });
+});
+
+describe('research queue', () => {
+  const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+  it('holds 2 by default, more with a larger limit, and finishes jobs one after another', () => {
+    const a = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
+    const b = applyResearch(a, 'outrider', 0, S1);
+    assert.throws(() => applyResearch(b, 'knight', 0, S1), (e: unknown) => e instanceof GameError && e.code === 'queue_full');
+    fail(() => applyResearch(b, 'guard', 0, S1));
+    const c = applyResearch(b, 'knight', 0, S1, 4);
+    assert.equal(c.researchQueue?.length, 3);
+    const guardMs = UNITS.guard.research!.timeSec * 1000;
+    const mid = settleVillage(c, guardMs, S1);
+    assert.deepEqual(mid.researched, ['guard']);
+    assert.equal(mid.researchQueue?.[0]?.unit, 'outrider');
   });
 });

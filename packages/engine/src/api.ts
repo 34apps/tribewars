@@ -181,7 +181,7 @@ export interface StationedDto {
 // POST /api/villages/:id/train  body TrainRequest -> 200 OwnVillageDto
 // POST /api/villages/:id/cancel-build  body CancelBuildRequest -> 200 CancelResponse (newest job only; 80% back)
 // POST /api/villages/:id/cancel-train  body CancelTrainRequest -> 200 CancelResponse (80% of the untrained rest back)
-// POST /api/villages/:id/cancel-research  (no body) -> 200 CancelResponse (80% of the research cost back)
+// POST /api/villages/:id/cancel-research  body CancelResearchRequest -> 200 CancelResponse (80% back; the next queued research starts)
 // POST /api/villages/:id/send   body SendRequest  -> 201 SendResponse
 // Support troops (section 12):
 // POST /api/stationed/:id/recall     body RecallRequest -> 201 { movement: MovementDto }  (owner of the troops)
@@ -193,6 +193,10 @@ export interface BuildRequest {
 
 export interface CancelBuildRequest {
   index: number; // position in buildQueue; must be the newest (last) job
+}
+
+export interface CancelResearchRequest {
+  index: number; // position in researchQueue (0 = running)
 }
 
 export interface CancelTrainRequest {
@@ -212,7 +216,7 @@ export interface TrainRequest {
 }
 
 // Drillyard (docs/GAME_DESIGN.md section 15), all -> 200 OwnVillageDto (owner only; time is the server's):
-// POST /api/villages/:id/research  body ResearchRequest -> starts the one research job (cost paid now)
+// POST /api/villages/:id/research  body ResearchRequest -> queues a research (cost paid now; queue size by premium)
 // POST /api/villages/:id/rank      body RankRequest     -> buys the next rank of a track (instant)
 // POST /api/villages/:id/respec    body RankRequest     -> resets a track to rank 0 (gold fee, points return)
 export interface ResearchRequest {

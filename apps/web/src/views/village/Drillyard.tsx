@@ -1,4 +1,4 @@
-// Drillyard panel: unit research (one job at a time) and Training Point ranks. Rules come from the engine; the server decides.
+// Drillyard panel: unit research (a queue) and Training Point ranks. Rules come from the engine; the server decides.
 
 import {
   CANCEL_REFUND_PERCENT,
@@ -15,6 +15,7 @@ import {
   pointsSpent,
   pointsTotal,
   rankOf,
+  researchQueueLimit,
 } from '@clanfire/engine';
 import type { RankTrack, UnitId } from '@clanfire/engine';
 import { useState } from 'react';
@@ -38,7 +39,7 @@ const trackApplies = (unit: UnitId, track: RankTrack) =>
   track === 'keen' ? unit === SCOUT_UNIT : track === 'might' ? unit !== SCOUT_UNIT : true;
 
 export function DrillyardPanel() {
-  const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
+  const { live, now, settings, village, applyVillage, refresh, toast, player } = useGame();
   const { confirm, dialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const cancel = useCancelJob();
@@ -74,7 +75,8 @@ export function DrillyardPanel() {
 
   const total = pointsTotal(live);
   const spent = pointsSpent(live);
-  const job = live.researchJob;
+  const queue = live.researchQueue ?? [];
+  const limit = researchQueueLimit(player.premium);
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = UNIT_IDS.filter((u) => isResearched(live, u));
 
@@ -82,18 +84,24 @@ export function DrillyardPanel() {
 
   return (
     <div className="drill">
-      <h3 className="eyebrow">Research</h3>
+      <h3 className="eyebrow">
+        Research · queue {queue.length}/{limit}
+      </h3>
       <ul className="drill-list">
         {researchable.map((u) => {
           const def = UNITS[u];
           const rule = def.research!;
           const done = isResearched(live, u);
-          const active = job?.unit === u;
-          const check = checkResearch(live, u, now, settings);
+          const qi = queue.findIndex((j) => j.unit === u);
+          const job = qi >= 0 ? queue[qi] : undefined;
+          const active = !!job;
+          const check = checkResearch(live, u, now, settings, limit);
           const reason = done || active ? null : !check.ok ? reasonText(check) : null;
           let status: string;
           if (done) status = 'Researched';
-          else if (active && job) status = `Researching · ${formatDuration(job.finishAt - now)} left`;
+          else if (active && job) {
+            status = qi === 0 ? `Researching · ${formatDuration(job.finishAt - now)} left` : `Waiting (#${qi + 1}) · starts in ${formatDuration(job.startAt - now)}`;
+          }
           else if (level < rule.drillyard) status = `Needs Drillyard level ${rule.drillyard}`;
           else status = 'Available';
           return (
@@ -104,7 +112,7 @@ export function DrillyardPanel() {
               <div className="drill-main">
                 <div className="drill-name">{def.name}</div>
                 <div className="drill-status">{status}</div>
-                {active && job && <ProgressBar value={(now - job.startAt) / Math.max(1, job.finishAt - job.startAt)} label={`${def.name} research progress`} />}
+                {active && job && qi === 0 && <ProgressBar value={(now - job.startAt) / Math.max(1, job.finishAt - job.startAt)} label={`${def.name} research progress`} />}
                 {!done && !active && (
                   <div className="drill-cost">
                     <Cost cost={rule.cost} have={live.resources} />
@@ -120,7 +128,7 @@ export function DrillyardPanel() {
                   type="button"
                   className="btn btn-small drill-btn"
                   disabled={busy || cancel.busy}
-                  onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost)}
+                  onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost, qi)}
                 >
                   Cancel ({CANCEL_REFUND_PERCENT}% back)
                 </button>

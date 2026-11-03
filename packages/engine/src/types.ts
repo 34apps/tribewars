@@ -157,8 +157,8 @@ export interface VillageState {
   npc?: NpcInfo;
   /** Units researched in this village (units without a `research` rule are always allowed). */
   researched?: UnitId[];
-  /** The one research in progress; cost already paid. */
-  researchJob?: ResearchJob;
+  /** Research queue: [0] is running, the rest wait and start one after another; cost already paid. */
+  researchQueue?: ResearchJob[];
   /** Bought ranks per unit (Drillyard Training Points). */
   ranks?: VillageRanks;
 }

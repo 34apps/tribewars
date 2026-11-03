@@ -12,7 +12,9 @@ import {
   type BuildRequest,
   type CancelBuildRequest,
   type CancelResponse,
+  type CancelResearchRequest,
   type CancelTrainRequest,
+  MAX_RESEARCH_QUEUE_PREMIUM,
   MAX_TRAIN_QUEUE,
   MAX_BUILD_QUEUE_PREMIUM,
   type GameStateResponse,
@@ -62,6 +64,13 @@ const cancelBuildBody = {
   required: ['index'],
   additionalProperties: false,
   properties: { index: { type: 'integer', minimum: 0, maximum: MAX_BUILD_QUEUE_PREMIUM } },
+} as const;
+
+const cancelResearchBody = {
+  type: 'object',
+  required: ['index'],
+  additionalProperties: false,
+  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_RESEARCH_QUEUE_PREMIUM } },
 } as const;
 
 const cancelTrainBody = {
@@ -202,10 +211,10 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
       ctx.game.cancelTrain(playerOf(req), Number(req.params.id), req.body.building, req.body.index, req.nowMs),
   );
 
-  app.post<{ Params: { id: string } }>(
+  app.post<{ Params: { id: string }; Body: CancelResearchRequest }>(
     '/api/villages/:id/cancel-research',
-    { ...auth, schema: { params: idParams } },
-    async (req): Promise<CancelResponse> => ctx.game.cancelResearch(playerOf(req), Number(req.params.id), req.nowMs),
+    { ...auth, schema: { params: idParams, body: cancelResearchBody } },
+    async (req): Promise<CancelResponse> => ctx.game.cancelResearch(playerOf(req), Number(req.params.id), req.body.index, req.nowMs),
   );
 
   app.post<{ Params: { id: string }; Body: ResearchRequest }>(

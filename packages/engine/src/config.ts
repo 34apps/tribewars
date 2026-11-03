@@ -22,6 +22,11 @@ export const MAX_BUILD_QUEUE = 2;
 export const MAX_BUILD_QUEUE_PREMIUM = 5;
 /** Build queue length allowed for a player. */
 export const buildQueueLimit = (premium: boolean): number => (premium ? MAX_BUILD_QUEUE_PREMIUM : MAX_BUILD_QUEUE);
+/** Research queue for players without a premium subscription: two researches (one running, one waiting). */
+export const MAX_RESEARCH_QUEUE = 2;
+/** Research queue for premium subscribers. */
+export const MAX_RESEARCH_QUEUE_PREMIUM = 4;
+export const researchQueueLimit = (premium: boolean): number => (premium ? MAX_RESEARCH_QUEUE_PREMIUM : MAX_RESEARCH_QUEUE);
 /** Batches waiting per training building. */
 export const MAX_TRAIN_QUEUE = 5;
 /** Share (percent) of the paid cost that comes back when a queued build or training batch is cancelled. The rest is lost. */

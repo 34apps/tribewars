@@ -66,9 +66,9 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   (later levels depend on earlier ones); `cancel-train {building,index}` cancels any batch (units already
   trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the paid cost (of the untrained
   rest for training) comes back, rounded down, capped by the storehouse; the rest is lost. The client shows a
-  confirm dialog with the amounts before and a toast after. `POST /api/villages/:id/cancel-research` (no body)
-  cancels the running Drillyard research the same way (80% of its cost back; research is one job at a time,
-  so nothing queued follows; the unit can be researched again). Queues belong to the village: if a village ever
+  confirm dialog with the amounts before and a toast after. `POST /api/villages/:id/cancel-research {index}`
+  cancels a queued Drillyard research the same way (80% of its cost back; index 0 = running: the next queued
+  research then starts right away; waiting ones move up; the unit can be researched again). Queues belong to the village: if a village ever
   changes owner (no conquest exists yet), its builds and training must carry on unchanged.
 - Effects: hall → faster building; lumber/farm/mine/goldmine → production; storehouse → cap;
   barracks/stables → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
@@ -86,7 +86,10 @@ Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, co
   end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
 - **Research gate (Drillyard, see §15):** Shieldbearer, Outrider and Knight have `UnitDef.research`
   (Drillyard level to start, cost, time). They can only be trained after the research finished in that
-  village (`VillageState.researched`); refusal is `requirements_not_met`. One research at a time per village;
+  village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
+  (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting) without a premium subscription,
+  `MAX_RESEARCH_QUEUE_PREMIUM` (4) with one (`researchQueueLimit(premium)`; server reads the flag). Cost is paid when
+  queued; jobs run one after another; the same unit can't be queued twice (full queue is `queue_full`);
   time is divided by world speed. Pikeman, Raider and Pathfinder need none. Villages saved before the Drillyard
   keep every unit they already have (home, away or queued count as researched; abandoned villages never train).
 - Upkeep for the whole batch counts from the moment it is queued (so training never changes the
@@ -573,7 +576,7 @@ training) and the web Drillyard panel is built. Still not built: ranks stamped o
 the server does not pass them yet), scout intel tiers. Earlier status: **engine built.** The building is called **Drillyard** (it stands in for the
 "Armory" name above, per the owner's rename). Engine: `drillyard.ts` (`checkResearch/applyResearch`, `pointsTotal/pointsSpent`,
 `checkRank/applyRank`, `checkRespec/applyRespec`, `mightMultiplier/bulwarkMultiplier/keenMultiplier`), optional
-`VillageState.researched/researchJob/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
+`VillageState.researched/researchQueue/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
 `KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
 Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. Respec resets one track to 0: points return in full,
 resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark

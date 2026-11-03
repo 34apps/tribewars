@@ -3,6 +3,7 @@
 import {
   DRILLYARD_POINTS_PER_LEVEL,
   KEEN_BONUS,
+  MAX_RESEARCH_QUEUE,
   RANK_BONUS,
   RANK_COST,
   RANK_MAX,
@@ -50,12 +51,14 @@ interface ResearchPlan {
   timeMs: number;
 }
 
-function planResearch(v: VillageState, u: unknown, s: WorldSettings): CheckResult<ResearchPlan> {
+function planResearch(v: VillageState, u: unknown, s: WorldSettings, queueLimit: number): CheckResult<ResearchPlan> {
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   const rule = UNITS[u].research;
   if (!rule) return fail('invalid_input', `${UNITS[u].name} needs no research.`);
   if (isResearched(v, u)) return fail('invalid_input', `${UNITS[u].name} is already researched.`);
-  if (v.researchJob) return fail('queue_full', 'Another research is already in progress.');
+  const queue = v.researchQueue ?? [];
+  if (queue.some((j) => j.unit === u)) return fail('invalid_input', `${UNITS[u].name} is already being researched.`);
+  if (queue.length >= queueLimit) return fail('queue_full', 'The research queue is full.');
   if (v.buildings.drillyard < rule.drillyard) {
     return fail('requirements_not_met', `Requires Drillyard level ${rule.drillyard}.`);
   }
@@ -73,35 +76,59 @@ export function checkResearch(
   u: UnitId | (string & {}),
   t: number,
   s: WorldSettings,
+  queueLimit: number = MAX_RESEARCH_QUEUE,
 ): CheckResult<{ cost: Resources; timeMs: number }> {
   if (!Number.isFinite(t)) return fail('invalid_input', 'Invalid time.');
-  const plan = planResearch(settleVillage(state, t, s), u, s);
+  const plan = planResearch(settleVillage(state, t, s), u, s, queueLimit);
   if (!plan.ok) return plan;
   return { ok: true, cost: plan.cost, timeMs: plan.timeMs };
 }
 
 /** Settle to t, pay and start the research. Throws GameError with the check's reason when invalid. */
-export function applyResearch(state: VillageState, u: UnitId | (string & {}), t: number, s: WorldSettings): VillageState {
+export function applyResearch(
+  state: VillageState,
+  u: UnitId | (string & {}),
+  t: number,
+  s: WorldSettings,
+  queueLimit: number = MAX_RESEARCH_QUEUE,
+): VillageState {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);
-  const plan = planResearch(v, u, s);
+  const plan = planResearch(v, u, s, queueLimit);
   if (!plan.ok) throw new GameError(plan.reason, plan.message);
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
-  v.researchJob = { unit: plan.unit, startAt: v.lastUpdate, finishAt: v.lastUpdate + plan.timeMs };
+  const queue = (v.researchQueue ??= []);
+  const startAt = queue.length > 0 ? queue[queue.length - 1]!.finishAt : v.lastUpdate;
+  queue.push({ unit: plan.unit, startAt, finishAt: startAt + plan.timeMs });
   return v;
 }
 
 /**
- * Settle to t and cancel the running research. CANCEL_REFUND_PERCENT of its cost comes back (never above the
- * storehouse); the unit stays unresearched. Research is one job at a time, so no queued job follows.
+ * Settle to t and cancel the queued research at `index` (0 = running). CANCEL_REFUND_PERCENT of its cost comes
+ * back (never above the storehouse); the unit stays unresearched. Later jobs move up: if the running one was
+ * cancelled the next starts now, otherwise they start when the job before them ends.
  */
-export function applyCancelResearch(state: VillageState, t: number, s: WorldSettings): { state: VillageState; refund: Resources } {
+export function applyCancelResearch(
+  state: VillageState,
+  index: number,
+  t: number,
+  s: WorldSettings,
+): { state: VillageState; refund: Resources } {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);
-  const job = v.researchJob;
-  if (!job) throw new GameError('invalid_input', 'No research is in progress.');
+  const queue = v.researchQueue ?? [];
+  const job = Number.isInteger(index) ? queue[index] : undefined;
+  if (!job) throw new GameError('invalid_input', 'No such research in the queue.');
   const rule = UNITS[job.unit].research;
-  delete v.researchJob;
+  queue.splice(index, 1);
+  let cursor = index === 0 ? v.lastUpdate : queue[0]!.startAt;
+  for (const j of queue) {
+    const dur = j.finishAt - j.startAt;
+    j.startAt = cursor;
+    j.finishAt = cursor + dur;
+    cursor = j.finishAt;
+  }
+  if (queue.length === 0) delete v.researchQueue;
   const refund = refundOf(rule ? rule.cost : emptyResources());
   addRefund(v, refund);
   return { state: v, refund };

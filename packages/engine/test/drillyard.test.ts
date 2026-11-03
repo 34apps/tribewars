@@ -43,12 +43,12 @@ describe('research gate', () => {
     assert.equal(checkResearch(low, 'guard', 0, S1).ok, false);
     const v = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
     assert.equal(v.resources.wood, 1e6 - (UNITS.guard.research?.cost.wood ?? 0));
-    assert.equal(v.researchJob?.unit, 'guard');
-    expectGameError(() => applyResearch(v, 'outrider', 0, S1), 'queue_full');
+    assert.equal(v.researchQueue?.[0]?.unit, 'guard');
+    expectGameError(() => applyResearch(v, 'outrider', 0, S1, 1), 'queue_full');
     const durMs = (UNITS.guard.research?.timeSec ?? 0) * 1000;
     assert.equal(checkTrain(v, 'guard', 1, durMs - 1, S1).ok, false);
     const done = settleVillage(v, durMs, S1);
-    assert.equal(done.researchJob, undefined);
+    assert.equal(done.researchQueue, undefined);
     assert.deepEqual(done.researched, ['guard']);
     assert.equal(checkTrain(done, 'guard', 1, durMs, S1).ok, true);
     expectGameError(() => applyResearch(done, 'guard', durMs, S1), 'invalid_input');

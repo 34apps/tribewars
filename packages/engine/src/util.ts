@@ -2,7 +2,7 @@
 
 import { BUILDINGS, UNITS } from './config.ts';
 import { BUILDING_IDS, UNIT_IDS } from './types.ts';
-import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
+import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, ResearchJob, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
 
 export const MS_PER_HOUR = 3_600_000;
 
@@ -91,7 +91,10 @@ export function normalizeVillage(v: VillageState): VillageState {
     if (out.troops[id] > 0 || out.away[id] > 0 || queued) researched.add(id);
   }
   if (researched.size > 0) out.researched = UNIT_IDS.filter((id) => researched.has(id));
-  if (v.researchJob && isUnitId(v.researchJob.unit)) out.researchJob = { ...v.researchJob };
+  // `researchJob` is the pre-queue single-job field; old saved villages carry it.
+  const legacy = (v as { researchJob?: ResearchJob }).researchJob;
+  const jobs = [...(legacy ? [legacy] : []), ...(v.researchQueue ?? [])].filter((j) => isUnitId(j.unit));
+  if (jobs.length > 0) out.researchQueue = jobs.map((j) => ({ ...j }));
   if (v.ranks) {
     const ranks: VillageRanks = {};
     for (const id of UNIT_IDS) {

@@ -87,7 +87,7 @@ test('caretaker queues builds for an idle owner only, never touches troops, move
   assert.ok(v);
   assert.deepEqual(v.state.troops, troopsBefore, 'no troops trained');
   assert.equal(totalUnits(v.state.away), 0);
-  assert.equal(v.state.researchJob, undefined, 'no research');
+  assert.equal(v.state.researchQueue, undefined, 'no research');
   assert.deepEqual(v.state.trainQueues, { barracks: [], stables: [] });
   assert.equal(app.ctx.store.movementViewsForPlayer(idle.id).length, 0, 'no movements or shipments');
   assert.equal(app.ctx.store.shipmentsInTransit(idleId), 0);

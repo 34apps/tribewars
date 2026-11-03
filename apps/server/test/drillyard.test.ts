@@ -27,16 +27,19 @@ test('research: pays now, finishes on the server clock, then the unit can be tra
   const before = (await village(alice)).state.resources.wood;
   const res = await post(alice, id, 'research', { unit: 'guard' });
   ok(res, 200);
-  const job = res.json<{ state: { researchJob?: { unit: string; finishAt: number }; resources: Resources } }>().state;
-  assert.equal(job.researchJob?.unit, 'guard');
+  const job = res.json<{ state: { researchQueue?: { unit: string; finishAt: number }[]; resources: Resources } }>().state;
+  assert.equal(job.researchQueue?.[0]?.unit, 'guard');
   assert.ok(job.resources.wood < before, 'cost paid');
-  assert.ok(Math.abs(job.researchJob!.finishAt - clock.now() - (UNITS.guard.research!.timeSec / app.ctx.game.settings.speed) * 1000) < 2000);
+  assert.ok(Math.abs(job.researchQueue![0]!.finishAt - clock.now() - (UNITS.guard.research!.timeSec / app.ctx.game.settings.speed) * 1000) < 2000);
 
-  errorOf(await post(alice, id, 'research', { unit: 'outrider' }), 409, 'queue_full');
-  clock.advance(UNITS.guard.research!.timeSec * 1000 + 1000);
+  // Free players queue two researches; the third is refused.
+  ok(await post(alice, id, 'research', { unit: 'outrider' }), 200);
+  errorOf(await post(alice, id, 'research', { unit: 'knight' }), 409, 'queue_full');
+  clock.advance((UNITS.guard.research!.timeSec / app.ctx.game.settings.speed) * 1000 + 1000);
   const after = (await village(alice)).state;
   assert.ok(after.researched?.includes('guard'));
-  assert.equal(after.researchJob, undefined);
+  assert.equal(after.researchQueue?.[0]?.unit, 'outrider', 'the waiting research started by itself');
+  clock.advance(UNITS.outrider.research!.timeSec * 1000);
   ok(await post(alice, id, 'train', { unit: 'guard', count: 1 }), 200);
 });
 
@@ -92,5 +95,5 @@ test('authorization: another player cannot research, buy or reset in my village;
   const mine = (await village(alice)).state;
   assert.equal(mine.ranks?.pikeman?.bulwark ?? 0, 0);
   assert.equal(mine.ranks?.pikeman?.might, 1);
-  assert.equal(mine.researchJob, undefined);
+  assert.equal(mine.researchQueue, undefined);
 });

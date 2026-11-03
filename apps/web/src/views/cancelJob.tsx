@@ -54,7 +54,8 @@ export function useCancelJob() {
     busy,
     dialog,
     cancelBuild: (what: string, paid: Resources, index: number) => run(what, paid, () => api.cancelBuild(village.id, index)),
-    cancelResearch: (what: string, paid: Resources) => run(what, paid, () => api.cancelResearch(village.id)),
+    cancelResearch: (what: string, paid: Resources, index: number) =>
+      run(what, paid, () => api.cancelResearch(village.id, index)),
     cancelTrain: (what: string, paid: Resources, building: string, index: number) =>
       run(what, paid, () => api.cancelTrain(village.id, building, index)),
   };

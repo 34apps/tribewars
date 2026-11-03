@@ -8,6 +8,7 @@ import type {
   ChieftainRequest,
   HouseholdRequest,
   CancelBuildRequest,
+  CancelResearchRequest,
   CancelResponse,
   CancelTrainRequest,
   ChatMessageDto,
@@ -125,7 +126,8 @@ export const api = {
     request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-build`, { index } satisfies CancelBuildRequest),
   cancelTrain: (villageId: number, building: string, index: number) =>
     request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-train`, { building, index } satisfies CancelTrainRequest),
-  cancelResearch: (villageId: number) => request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-research`, {}),
+  cancelResearch: (villageId: number, index: number) =>
+    request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-research`, { index } satisfies CancelResearchRequest),
   train: (villageId: number, unit: string, count: number) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/train`, { unit, count } satisfies TrainRequest),
   research: (villageId: number, unit: string) =>

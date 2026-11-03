@@ -167,11 +167,14 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
 
   advance(t);
 
-  // Research finishes (one job at a time).
-  if (v.researchJob && v.researchJob.finishAt <= t) {
-    const done = v.researchJob.unit;
-    v.researched = [...new Set([...(v.researched ?? []), done])];
-    delete v.researchJob;
+  // Research finishes in queue order; waiting jobs were scheduled to start when the one before them ends.
+  const rq = v.researchQueue;
+  if (rq) {
+    while (rq[0] && rq[0].finishAt <= t) {
+      const done = rq.shift()!.unit;
+      v.researched = [...new Set([...(v.researched ?? []), done])];
+    }
+    if (rq.length === 0) delete v.researchQueue;
   }
 
   // 3. Training: units finish one by one.
