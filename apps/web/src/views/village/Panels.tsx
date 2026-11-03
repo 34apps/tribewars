@@ -2,6 +2,7 @@
 
 import {
   BUILDINGS,
+  BUILDING_IDS,
   buildQueueLimit,
   RESOURCE_IDS,
   UNITS,
@@ -44,11 +45,13 @@ export function BuildingPanel({
   busy,
   onBuild,
   headingId,
+  onPick,
 }: {
   id: BuildingId;
   busy: boolean;
   onBuild: (id: BuildingId) => void;
   headingId: string;
+  onPick?: (id: BuildingId) => void;
 }) {
   const { live, now, settings, navigate, player } = useGame();
   const def = BUILDINGS[id];
@@ -187,7 +190,83 @@ export function BuildingPanel({
       ) : null}
       {trains.length > 0 && <div className="bpanel-note">Trains {trains.map((u) => UNITS[u].name).join(' · ')}</div>}
       {id === 'drillyard' && <DrillyardPanel />}
+      {id === 'hall' && <HallBuildings busy={busy} onBuild={onBuild} onPick={onPick} />}
     </section>
+  );
+}
+
+// ---- Town Hall: every building in one list ---------------------------------------------------------------------
+
+/** All buildings at a glance: built / buildable ones with a quick build button, then the ones still locked. */
+function HallBuildings({
+  busy,
+  onBuild,
+  onPick,
+}: {
+  busy: boolean;
+  onBuild: (id: BuildingId) => void;
+  onPick?: (id: BuildingId) => void;
+}) {
+  const { live, now, settings, player } = useGame();
+  const limit = buildQueueLimit(player.premium);
+  const ids = BUILDING_IDS.filter((b) => b !== 'hall');
+  const isLocked = (b: BuildingId) => live.buildings[b] === 0 && unmetRequirements(live.buildings, BUILDINGS[b].requires).length > 0;
+  const open = ids.filter((b) => !isLocked(b));
+  const locked = ids.filter(isLocked);
+
+  const row = (b: BuildingId) => {
+    const def = BUILDINGS[b];
+    const level = live.buildings[b];
+    const queued = live.buildQueue.filter((j) => j.building === b).length;
+    const target = level + queued + 1;
+    const atMax = target > def.maxLevel;
+    const unmet = unmetRequirements(live.buildings, def.requires);
+    const check = checkBuild(live, b, now, settings, limit);
+    const reason = atMax ? 'Max level' : !check.ok ? reasonText(check, unmet) : null;
+    const cost = atMax ? null : check.ok ? check.cost : buildingCost(b, target);
+    return (
+      <li key={b} className={`hb-row${unmet.length > 0 && level === 0 ? ' is-locked' : ''}`}>
+        <button type="button" className="hb-pick" onClick={() => onPick?.(b)} aria-label={`${def.name}, level ${level}. Show details`}>
+          <BuildingArt id={b} level={level} size={44} building={queued > 0} className="hb-art" />
+          <span className="hb-name">
+            {def.name}
+            <span className="hb-sub">
+              {level === 0 ? (unmet.length > 0 ? `Needs ${requirementText(unmet)}` : 'Not built') : `Level ${level}`}
+              {queued > 0 ? ` · +${queued} queued` : ''}
+            </span>
+          </span>
+        </button>
+        {unmet.length === 0 || level > 0 ? (
+          <span className="hb-cost" aria-hidden="true">
+            {cost ? RESOURCE_IDS.filter((r) => cost[r] > 0).map((r) => `${formatCompact(cost[r])}`).join(' · ') : ''}
+          </span>
+        ) : null}
+        {unmet.length === 0 || level > 0 ? (
+          <button
+            type="button"
+            className="btn btn-primary hb-btn"
+            disabled={!!reason || busy}
+            title={reason ?? undefined}
+            onClick={() => onBuild(b)}
+          >
+            {atMax ? 'Max' : level === 0 && queued === 0 ? 'Build' : `Level ${target}`}
+          </button>
+        ) : null}
+      </li>
+    );
+  };
+
+  return (
+    <div className="hb">
+      <div className="eyebrow">Buildings</div>
+      <ul className="hb-list">{open.map(row)}</ul>
+      {locked.length > 0 && (
+        <>
+          <div className="eyebrow">Not yet available</div>
+          <ul className="hb-list">{locked.map(row)}</ul>
+        </>
+      )}
+    </div>
   );
 }
 

@@ -25,6 +25,7 @@ import { GROUND_URL, MARKET_DEPTH, MARKET_URL, SceneryDefs, WallPlan, sceneryIte
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
+import { unmetRequirements } from '../../rules.ts';
 import { useGame } from '../../game.ts';
 
 type ViewBox = ReturnType<typeof sceneViewBox>;
@@ -35,6 +36,8 @@ interface ArtState {
   stage: Stage;
   /** Has a job in the build queue. */
   queued: boolean;
+  /** Not built and its requirements are not met yet: drawn as a faded plot with a lock. */
+  locked: boolean;
 }
 
 export type Arts = Record<BuildingId, ArtState>;
@@ -125,7 +128,7 @@ export const SceneArt = memo(function SceneArt({
     if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
     const node = (
-      <g className="vv-b" onClick={() => onPick(id)}>
+      <g className={`vv-b${art.locked ? ' is-locked' : ''}`} onClick={() => onPick(id)}>
         <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />
         {art.queued && art.stage > 0 && id !== 'wall' && <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />}
       </g>
@@ -147,6 +150,34 @@ export const SceneArt = memo(function SceneArt({
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
+      <g className="vv-life" aria-hidden="true">
+        {[
+          [323, 52, 0],
+          [440, 78, 1.1],
+          [208, 80, 0.6],
+        ].map(([x, y, d]) => (
+          <g key={`sm-${x}`} transform={`translate(${x} ${y})`}>
+            {[0, 1, 2].map((i) => (
+              <circle key={i} className="vv-puff" r={3.2} fill="#F3EEE4" style={{ animationDelay: `${(d ?? 0) + i * 1.2}s` }} />
+            ))}
+          </g>
+        ))}
+        {[
+          { x: 100, y: 214, dx: 26, dy: 12, t: 0 },
+          { x: 480, y: 214, dx: -24, dy: 11, t: 1.5 },
+        ].map((w) => (
+          <g key={`w-${w.x}`} transform={`translate(${w.x} ${w.y})`}>
+            <g
+              className="vv-worker"
+              style={{ '--wx': `${w.dx}px`, '--wy': `${w.dy}px`, animationDelay: `${w.t}s` } as CSSProperties}
+            >
+              <ellipse cx={0} cy={1} rx={4} ry={1.6} fill="#2B211C" opacity={0.25} />
+              <rect x={-2.2} y={-8} width={4.4} height={8} rx={1.6} fill="#C4623A" stroke="#2B211C" strokeWidth={0.9} />
+              <circle cx={0} cy={-11} r={2.6} fill="#E8B88A" stroke="#2B211C" strokeWidth={0.9} />
+            </g>
+          </g>
+        ))}
+      </g>
       {selected && (
         <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path d={footprintFront(selected)} stroke="#2B211C" strokeWidth={7} />
@@ -172,6 +203,7 @@ function BuildingHit({
   vb,
   box,
   level,
+  locked,
   selected,
   finishIn,
   queuedNotStarted,
@@ -182,6 +214,7 @@ function BuildingHit({
   vb: ViewBox;
   box: Box;
   level: number;
+  locked: boolean;
   selected: boolean;
   finishIn: number | null;
   queuedNotStarted: boolean;
@@ -190,13 +223,13 @@ function BuildingHit({
 }) {
   const name = BUILDINGS[id].name;
   const upgrading = finishIn !== null;
-  const aria = `${name}, level ${level}${level === 0 ? ', not built' : ''}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ', queued' : ''}`;
+  const aria = `${name}, level ${level}${level === 0 ? (locked ? ', locked, requirements not met' : ', not built') : ''}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ', queued' : ''}`;
   const cx = pct(box.x + box.w / 2 - vb.x, vb.w);
   return (
     <>
       <button
         type="button"
-        className={`vv-hit${selected ? ' is-selected' : ''}${level === 0 ? ' is-empty' : ''}`}
+        className={`vv-hit${selected ? ' is-selected' : ''}${level === 0 ? ' is-empty' : ''}${locked ? ' is-locked' : ''}`}
         style={{ left: cx, top: pct(box.y - vb.y, vb.h) }}
         aria-label={aria}
         aria-pressed={selected}
@@ -210,9 +243,11 @@ function BuildingHit({
           </span>
         )}
         <span className="vv-label" aria-hidden="true">
-          <span className="vv-label-full">{name}</span>
-          <span className="vv-label-short">{SHORT_NAME[id] ?? name}</span>
-          <span className="vv-lv">{level}</span>
+          <span className="vv-name">
+            <span className="vv-label-full">{name}</span>
+            <span className="vv-label-short">{SHORT_NAME[id] ?? name}</span>
+          </span>
+          <span className="vv-lv">{locked ? <Icon name="lock" size={13} /> : level}</span>
         </span>
       </button>
       {(upgrading || queuedNotStarted) && (
@@ -260,14 +295,17 @@ export function VillageScene({
 
   const queue = live.buildQueue;
   const artKey = BUILDING_IDS.map(
-    (id) => `${buildingStage(id, live.buildings[id])}${queue.some((j) => j.building === id) ? 'q' : ''}`,
+    (id) =>
+      `${buildingStage(id, live.buildings[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
+        live.buildings[id] === 0 && unmetRequirements(live.buildings, BUILDINGS[id].requires).length > 0 ? 'l' : ''
+      }`,
   ).join(',');
   const arts = useMemo(() => {
     const out = {} as Arts;
     const parts = artKey.split(',');
     BUILDING_IDS.forEach((id, i) => {
       const p = parts[i] ?? '0';
-      out[id] = { stage: Number(p[0]) as Stage, queued: p.endsWith('q') };
+      out[id] = { stage: Number(p[0]) as Stage, queued: p.includes('q'), locked: p.includes('l') };
     });
     return out;
   }, [artKey]);
@@ -404,6 +442,7 @@ export function VillageScene({
                 vb={vb}
                 box={boxes[id] ?? defaultBox(id)}
                 level={live.buildings[id]}
+                locked={arts[id].locked}
                 selected={selected === id}
                 finishIn={active ? active.finishAt - now : null}
                 queuedNotStarted={!active && jobs.length > 0}

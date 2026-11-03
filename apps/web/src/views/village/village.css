@@ -220,7 +220,7 @@ th[scope='row'] {
   outline: none;
 }
 
-.vv-hit:focus-visible .vv-label {
+.vv-hit:focus-visible .vv-lv {
   outline: 3px solid var(--c-teal-hi);
   outline-offset: 2px;
 }
@@ -229,12 +229,20 @@ th[scope='row'] {
   z-index: 2;
 }
 
+/* Only the level badge sits on the building; the name pill appears on hover, focus and selection. */
 .vv-label {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 3px 2px 9px;
+  pointer-events: none;
+}
+
+.vv-name {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  transform: translateX(-50%);
+  padding: 2px 9px;
   border: 2px solid var(--c-cream);
   border-radius: 999px;
   background: var(--c-ink);
@@ -244,6 +252,8 @@ th[scope='row'] {
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -254,29 +264,117 @@ th[scope='row'] {
 .vv-lv {
   display: grid;
   place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 3px;
-  border-radius: 10px;
-  border: 1.5px solid var(--c-ink);
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 11px;
+  border: 2px solid var(--c-ink);
   background: var(--c-sun);
+  box-shadow: 0 2px 0 var(--c-edge);
   color: var(--c-ink);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .vv-hit.is-empty .vv-lv {
   background: var(--c-bone);
 }
 
-.vv-hit:hover .vv-label {
-  border-color: var(--c-sun-hi);
+/* Town Hall: all buildings in one list. */
+.hb-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
 }
 
-.vv-hit.is-selected .vv-label {
+.hb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hb-row.is-locked {
+  opacity: 0.6;
+}
+
+.hb-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hb-name {
+  display: grid;
+  font-weight: 700;
+}
+
+.hb-sub {
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.hb-cost {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hb-btn {
+  min-height: 44px;
+  min-width: 64px;
+}
+
+@media (max-width: 480px) {
+  .hb-cost {
+    display: none;
+  }
+}
+
+/* Locked plots (requirements not met): faded so players see what comes later. */
+.vv-svg .vv-b.is-locked {
+  opacity: 0.55;
+}
+
+.vv-hit.is-locked .vv-lv {
+  opacity: 0.9;
+}
+
+.vv-hit:focus-visible .vv-name,
+.vv-hit.is-selected .vv-name {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (hover: hover) {
+  .vv-hit:hover {
+    z-index: 3;
+  }
+  .vv-hit:hover .vv-name {
+    opacity: 1;
+    visibility: visible;
+    border-color: var(--c-sun-hi);
+  }
+}
+
+.vv-hit.is-selected .vv-name {
   border-color: var(--c-ink);
   background: var(--c-sun);
   color: var(--c-ink);
-  z-index: 2;
 }
 
 .vv-hit.is-selected .vv-lv {
@@ -796,9 +894,9 @@ th[scope='row'] {
   overflow: hidden;
 }
 
-.vv-phone .vv-label {
+.vv-phone .vv-name {
   font-size: 13px;
-  padding: 3px 4px 3px 10px;
+  padding: 3px 10px;
 }
 
 .vv-phone .vv-label-full,
@@ -1195,7 +1293,70 @@ th[scope='row'] {
   }
 }
 
+/* Scene life: chimney smoke, walking workers, mine carts. Decoration only, never clickable. */
+.vv-life {
+  pointer-events: none;
+}
+
+.vv-puff {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vv-smoke 3.6s ease-out infinite;
+}
+
+@keyframes vv-smoke {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  20% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(7px, -22px) scale(1.7);
+  }
+}
+
+.vv-worker {
+  animation: vv-walk 7s ease-in-out infinite alternate;
+}
+
+@keyframes vv-walk {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--wx), var(--wy));
+  }
+}
+
+.vv-svg .anim-cart {
+  transform-box: fill-box;
+  animation: vv-cart 4.5s ease-in-out infinite alternate;
+}
+
+@keyframes vv-cart {
+  from {
+    transform: translate(-5px, -2.5px);
+  }
+  to {
+    transform: translate(7px, 3.5px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .vv-puff,
+  .vv-worker,
+  .vv-svg .anim-cart {
+    animation: none;
+  }
+
+  .vv-puff {
+    opacity: 0;
+  }
+
   .vv-marker {
     animation: none;
   }

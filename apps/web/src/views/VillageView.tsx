@@ -68,7 +68,7 @@ function DesktopVillage() {
         <Production />
       </section>
       <aside className="vv-side" aria-label="Village details">
-        <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" />
+        <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" onPick={setSelected} />
         <BuildQueue onPick={setSelected} />
         <Advisor id={selected} />
       </aside>
@@ -159,7 +159,7 @@ function PhoneVillage() {
           <div className="vv-sheet-body">
             {sheet.kind === 'building' ? (
               <>
-                <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" />
+                <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" onPick={(b) => setSheet({ kind: 'building', id: b })} />
                 <Advisor id={sheet.id} compact />
               </>
             ) : (

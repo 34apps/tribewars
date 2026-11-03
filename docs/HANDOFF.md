@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`881f8b6`): agent runner now remembers: each run resumes the previous conversation (id in `.agent/last-session`), `--new` starts fresh, final answer saved to `.agent/last-reply.md`; README + AI-WORKFLOW §8 updated.
-Left: not tried against the live API (needs a key). Unrelated uncommitted art/village changes (buildings.ts, mine/lumber SVGs, VillageScene, village.css) were in the tree before this run and were left alone.
-Very next step: run `npm run agent -- "..."` twice to confirm the second run continues; then look at the village layout in `npm run dev:fast` (see previous run: layout never viewed in a browser).
-Checks passed (`npm run check`).
+2026-11-03: village scene now fades unbuilt buildings whose requirements are unmet and shows a lock badge instead of the level (VillageScene.tsx `locked`, village.css `.is-locked`). Unbuilt-but-buildable plots and click-to-open panel already existed.
+Checks NOT run and nothing committed: Bash was denied mid-run (don't-ask mode), so `npm run check`/`build` could not run. Changes (plus earlier uncommitted art/village edits) sit in the working tree.
+Very next step: run `npm run check` + `npm run build`, view the village at 360/1440 px (check `Icon name="lock"` exists), then commit + changelog.
+Possible follow-up: TW-style "Not yet available" list with requirements in the build panel.
 
 ## Read first
 `docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.
