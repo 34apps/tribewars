@@ -1388,3 +1388,57 @@ th[scope='row'] {
     transition: none;
   }
 }
+
+/* Armies on the road (village summary) and the desktop side-panel close button. */
+.vv-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--c-ink);
+  color: var(--c-cream);
+  font-size: 13px;
+}
+
+.vv-moves-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vv-moves-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vv-moves-row.is-incoming .vv-moves-what {
+  color: var(--c-sun-hi);
+}
+
+.vv-moves-sub {
+  color: var(--c-dust);
+  font-size: 12px;
+}
+
+.vv-moves-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-moves-float {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 58px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.vv-side-close {
+  align-self: flex-end;
+}

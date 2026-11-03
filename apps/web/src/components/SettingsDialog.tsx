@@ -7,7 +7,7 @@ import { useGame } from '../game.ts';
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { player, refresh, toast } = useGame();
-  const [busy, setBusy] = useState<'max' | 'reset' | null>(null);
+  const [busy, setBusy] = useState<'max' | 'reset' | 'warp' | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDialogElement>(null);
@@ -39,6 +39,21 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
+  async function warp(seconds: number) {
+    if (busy) return;
+    setBusy('warp');
+    setError(null);
+    try {
+      await api.sandboxWarp(seconds);
+      await refresh();
+      toast(seconds === 0 ? 'Armies arrived now.' : `Armies arrive in ${seconds} s.`);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <dialog
       ref={ref}
@@ -62,6 +77,14 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('max')}>
             {busy === 'max' ? 'Working…' : 'Max out my village'}
           </button>
+          <p className="muted">Armies on the road (outgoing, returning, incoming) arrive after:</p>
+          <div className="confirm-actions">
+            {[0, 10, 60].map((s) => (
+              <button key={s} type="button" className="btn" disabled={busy !== null} onClick={() => void warp(s)}>
+                {s === 0 ? 'Now' : `${s} s`}
+              </button>
+            ))}
+          </div>
           {confirmReset ? (
             <div>
               <p className="muted">This wipes your villages back to the start: buildings, troops, resources and queues.</p>

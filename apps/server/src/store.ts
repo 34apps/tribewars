@@ -402,6 +402,23 @@ export class Store extends SqlBase {
     this.run('DELETE FROM stationed WHERE home_village_id = ?', villageId);
   }
 
+  /**
+   * Sandbox time warp: every movement sent from, returning to or heading for this player's villages that is due later
+   * than `arriveAt` is pulled forward to arrive then (departure moved back if needed so the span stays positive).
+   */
+  warpMovementsOfPlayer(playerId: number, arriveAt: number): void {
+    this.run(
+      `UPDATE movements SET depart_at = MIN(depart_at, ? - 1000), arrive_at = MIN(arrive_at, ?)
+       WHERE arrive_at > ? AND (origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?)
+          OR target_village_id IN (SELECT id FROM villages WHERE owner_id = ?))`,
+      arriveAt,
+      arriveAt,
+      arriveAt,
+      playerId,
+      playerId,
+    );
+  }
+
   /** Run `fn` inside BEGIN IMMEDIATE ... COMMIT; roll back and rethrow on error. Re-entrant. */
   tx<T>(fn: () => T): T {
     if (this.depth > 0) return fn();

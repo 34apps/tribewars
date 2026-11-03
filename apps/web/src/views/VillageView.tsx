@@ -7,6 +7,7 @@ import { formatCoords, formatDuration } from '../format.ts';
 import { useGame } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
+import { MovementsSummary } from './village/MovementsSummary.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
 import './village/village.css';
 
@@ -30,8 +31,16 @@ function useBuild() {
 
 function DesktopVillage() {
   const { village, player } = useGame();
-  const [selected, setSelected] = useState<BuildingId>('hall');
+  const [selected, setSelected] = useState<BuildingId | null>('hall');
   const { busy, build } = useBuild();
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selected]);
   return (
     <div className="vv vv-desktop">
       <section className="vv-board" aria-labelledby="vv-title">
@@ -48,9 +57,19 @@ function DesktopVillage() {
         <Production />
       </section>
       <aside className="vv-side" aria-label="Village details">
-        <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" onPick={setSelected} />
+        <MovementsSummary />
+        {selected ? (
+          <>
+            <button type="button" className="btn btn-small vv-side-close" onClick={() => setSelected(null)} aria-label="Close building details">
+              <Icon name="close" size={16} /> Close
+            </button>
+            <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" onPick={setSelected} />
+          </>
+        ) : (
+          <p className="muted vv-side-hint">Click a building to see its details.</p>
+        )}
         <BuildQueue onPick={setSelected} />
-        <Advisor id={selected} />
+        {selected && <Advisor id={selected} />}
       </aside>
     </div>
   );
@@ -108,6 +127,11 @@ function PhoneVillage() {
         <h1 className="vv-namepill-name">{village.name}</h1>
         <span className="vv-namepill-xy">{formatCoords(village.x, village.y)}</span>
       </div>
+      {!sheet && (
+        <div className="vv-moves-float">
+          <MovementsSummary compact />
+        </div>
+      )}
       {!panned && !sheet && (
         <div className="vv-draghint" aria-hidden="true">
           <Icon name="drag" size={22} />

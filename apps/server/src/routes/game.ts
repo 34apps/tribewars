@@ -124,6 +124,26 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     });
   }
 
+  app.post<{ Body: { seconds: number } }>(
+    '/api/sandbox/warp',
+    {
+      ...auth,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['seconds'],
+          additionalProperties: false,
+          properties: { seconds: { type: 'integer', minimum: 0, maximum: 3600 } },
+        },
+      },
+    },
+    async (req): Promise<GameStateResponse> => {
+      const res = ctx.game.sandboxWarp(playerOf(req), req.body.seconds, req.nowMs);
+      req.log.warn({ playerId: playerOf(req).id, action: 'warp', seconds: req.body.seconds }, 'sandbox action');
+      return res;
+    },
+  );
+
   app.get('/api/state', auth, async (req): Promise<GameStateResponse> => ctx.game.getState(playerOf(req), req.nowMs));
 
   app.post<{ Params: { id: string }; Body: BuildRequest }>(

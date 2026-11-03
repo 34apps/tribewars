@@ -1096,6 +1096,14 @@ export class GameService {
     return this.getState(player, t);
   }
 
+  /** Sandbox time warp: all my movements (and attacks/support heading for me) arrive in `seconds` from now. */
+  sandboxWarp(player: PlayerRow, seconds: number, t: number): GameStateResponse {
+    if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
+    this.store.tx(() => this.store.warpMovementsOfPlayer(player.id, t + Math.round(seconds) * 1000));
+    this.processDue(t);
+    return this.getState(player, t);
+  }
+
   /** Accounts that share a connection may not attack, scout or support each other's villages (abandoned ones stay fair game). */
   private refuseHousehold(senderId: number, ownerId: number, what = 'troops'): void {
     if (this.store.shareAnIp(senderId, ownerId)) {

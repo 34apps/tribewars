@@ -31,6 +31,21 @@ test('sandbox is off for everyone when the list is empty', async () => {
   errorOf(await alice.c.post('/api/sandbox/max', {}), 403, 'forbidden');
 });
 
+test('warp: pulls my movements forward, refuses others and bad input', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  errorOf(await bob.c.post('/api/sandbox/warp', { seconds: 5 }), 403, 'forbidden');
+  giveTroops(app, alice, { raider: 5 });
+  await sendOk(alice, bob, 'attack', { raider: 5 });
+  const before = (await movementsOf(alice))[0]!;
+  errorOf(await alice.c.post('/api/sandbox/warp', { seconds: -1 }), 400, 'invalid_input');
+  const res = await alice.c.post('/api/sandbox/warp', { seconds: 60 });
+  ok(res);
+  const after = res.json<GameStateResponse>().movements[0]!;
+  assert.ok(after.arriveAt < before.arriveAt, 'arrives sooner');
+  assert.ok(after.departAt < after.arriveAt, 'span stays positive');
+});
+
 test('max: every building at max, stores full, an army of every unit, queues cleared; reset: fresh village', async () => {
   const { app, alice, bob } = await world();
   app.ctx.store.sandboxUsers = new Set(['alice']);
