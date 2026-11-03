@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatChatTime } from '../format.ts';
 import { useGame } from '../game.ts';
+import { ReportButton } from '../components/supportBits.tsx';
 import { CharCount, PlainText } from './bits.tsx';
 
 const POLL_MS = 5000;
@@ -23,6 +24,7 @@ const ChatMessage = memo(function ChatMessage({ m, own, minute }: { m: ChatMessa
           <span>{formatChatTime(m.createdAt, minute)}</span>
         </div>
         <PlainText text={m.text} />
+        {!own && <ReportButton kind="chat" refId={m.id} about={`a message by ${m.username}`} className="btn btn-small chat-report" />}
       </div>
     </div>
   );

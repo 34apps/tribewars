@@ -51,6 +51,35 @@ import type {
   Units,
 } from '@clanfire/engine';
 import type {
+  AssignTicketRequest,
+  AuditListResponse,
+  BanRequest,
+  CreateMessageReportRequest,
+  CreateTicketRequest,
+  MessageReportCategory,
+  MessageReportReceipt,
+  MessageReportStatus,
+  MuteRequest,
+  ResolveReportRequest,
+  StaffPlayerDetailDto,
+  StaffPlayerListResponse,
+  StaffReportDto,
+  StaffReportListResponse,
+  StaffTicketDto,
+  StaffTicketListResponse,
+  StaffTicketReplyRequest,
+  TemplateListResponse,
+  TicketCategory,
+  TicketDto,
+  TicketListResponse,
+  TicketPriority,
+  TicketPriorityRequest,
+  TicketReplyRequest,
+  TicketStatus,
+  TicketStatusRequest,
+  WarnRequest,
+} from '@clanfire/engine';
+import type {
   ForumBoardDto,
   ForumBoardsResponse,
   ForumPostDto,
@@ -203,4 +232,56 @@ export const api = {
   forumEditPost: (id: number, body: string) => request<ForumPostDto>('PUT', `/api/tribe/forum/posts/${id}`, { body }),
   forumDeletePost: (id: number) => request<void>('DELETE', `/api/tribe/forum/posts/${id}`),
   sendChat: (text: string) => request<ChatMessageDto>('POST', '/api/tribe/chat', { text } satisfies ChatRequest),
+
+  // ---- Support and reports (player) ----
+  createTicket: (body: CreateTicketRequest) => request<TicketDto>('POST', '/api/tickets', body),
+  tickets: () => request<TicketListResponse>('GET', '/api/tickets'),
+  ticket: (id: number) => request<TicketDto>('GET', `/api/tickets/${id}`),
+  replyTicket: (id: number, body: string) => request<TicketDto>('POST', `/api/tickets/${id}/messages`, { body } satisfies TicketReplyRequest),
+  closeTicket: (id: number) => request<TicketDto>('POST', `/api/tickets/${id}/close`, {}),
+  reportMessage: (body: CreateMessageReportRequest) => request<MessageReportReceipt>('POST', '/api/reports', body),
+
+  // ---- Staff ----
+  staffTickets: (f: { status?: TicketStatus; category?: TicketCategory; assignee?: number; unassigned?: boolean; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (f.status) q.set('status', f.status);
+    if (f.category) q.set('category', f.category);
+    if (f.assignee !== undefined) q.set('assignee', String(f.assignee));
+    if (f.unassigned) q.set('unassigned', '1');
+    if (f.offset) q.set('offset', String(f.offset));
+    const s = q.toString();
+    return request<StaffTicketListResponse>('GET', `/api/staff/tickets${s ? `?${s}` : ''}`);
+  },
+  staffTicket: (id: number) => request<StaffTicketDto>('GET', `/api/staff/tickets/${id}`),
+  staffReplyTicket: (id: number, body: StaffTicketReplyRequest) => request<StaffTicketDto>('POST', `/api/staff/tickets/${id}/messages`, body),
+  staffAssignTicket: (id: number, assigneeId: number | null) =>
+    request<StaffTicketDto>('POST', `/api/staff/tickets/${id}/assign`, { assigneeId } satisfies AssignTicketRequest),
+  staffTicketStatus: (id: number, status: TicketStatus) =>
+    request<StaffTicketDto>('POST', `/api/staff/tickets/${id}/status`, { status } satisfies TicketStatusRequest),
+  staffTicketPriority: (id: number, priority: TicketPriority) =>
+    request<StaffTicketDto>('POST', `/api/staff/tickets/${id}/priority`, { priority } satisfies TicketPriorityRequest),
+  staffTemplates: () => request<TemplateListResponse>('GET', '/api/staff/templates'),
+  staffReports: (f: { status?: MessageReportStatus; category?: MessageReportCategory; before?: number }) => {
+    const q = new URLSearchParams();
+    if (f.status) q.set('status', f.status);
+    if (f.category) q.set('category', f.category);
+    if (f.before !== undefined) q.set('before', String(f.before));
+    const s = q.toString();
+    return request<StaffReportListResponse>('GET', `/api/staff/reports${s ? `?${s}` : ''}`);
+  },
+  staffResolveReport: (id: number, body: ResolveReportRequest) => request<StaffReportDto>('POST', `/api/staff/reports/${id}/resolve`, body),
+  staffPlayers: (query: string) => request<StaffPlayerListResponse>('GET', `/api/staff/players?query=${encodeURIComponent(query)}`),
+  staffPlayer: (id: number) => request<StaffPlayerDetailDto>('GET', `/api/staff/players/${id}`),
+  staffMute: (id: number, body: MuteRequest) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/mute`, body),
+  staffUnmute: (id: number) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/unmute`, {}),
+  staffBan: (id: number, body: BanRequest) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/ban`, body),
+  staffUnban: (id: number) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/unban`, {}),
+  staffWarn: (id: number, body: WarnRequest) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/warn`, body),
+  staffAudit: (f: { player?: number; before?: number }) => {
+    const q = new URLSearchParams();
+    if (f.player !== undefined) q.set('player', String(f.player));
+    if (f.before !== undefined) q.set('before', String(f.before));
+    const s = q.toString();
+    return request<AuditListResponse>('GET', `/api/staff/audit${s ? `?${s}` : ''}`);
+  },
 };

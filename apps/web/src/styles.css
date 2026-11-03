@@ -3761,6 +3761,98 @@ button.strip {
   }
 }
 
+/* ---- Support and staff tools ---------------------------------------------------------------------- */
+
+.ticket-thread {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticket-msg {
+  display: grid;
+  gap: 4px;
+}
+
+.ticket-msg.is-staff .mail-text {
+  border-color: var(--brand);
+}
+
+.ticket-msg.is-internal .mail-text {
+  border-style: dashed;
+  background: transparent;
+}
+
+.ticket-msg-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.staff-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.staff-sections {
+  flex: 1 1 280px;
+  max-width: 520px;
+}
+
+.staff-filters,
+.staff-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.staff-assign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.staff-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.staff-audit {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.report-form {
+  display: grid;
+  gap: 10px;
+}
+
+.chat-report {
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
 /* ---- Motion --------------------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,7 @@ import { FORUM_POST_MAX, FORUM_THREAD_TITLE_MAX } from '@clanfire/engine';
 import type { ForumBoardDto, ForumPostDto, ForumThreadResponse, ForumThreadSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { useGame } from '../game.ts';
+import { ReportButton } from '../components/supportBits.tsx';
 import { PlainText } from './bits.tsx';
 import { useTribe } from './context.ts';
 
@@ -10,7 +11,7 @@ const EMOJI = ['😀', '😂', '👍', '🔥', '⚔️', '🛡️', '🎉', '❤
 
 /** Tribe forum: boards -> threads -> posts. Text and emoji only; the server decides who may do what. */
 export function Forum() {
-  const { toast } = useGame();
+  const { toast, player } = useGame();
   const { data } = useTribe();
   const can = (r: string) => (data.rights as string[]).includes(r);
   const [boards, setBoards] = useState<ForumBoardDto[] | null>(null);
@@ -73,6 +74,7 @@ export function Forum() {
             <div className="row">
               {p.canEdit && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => setText(p.body)}>Copy to edit</button>}
               {p.canEdit && text.trim() !== '' && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumEditPost(p.id, text), refresh)}>Save as edit</button>}
+              {p.authorId !== player.id && <ReportButton kind="forum_post" refId={p.id} about={`a post by ${p.author}`} className="btn btn-small btn-danger-outline" />}
               {p.canDelete && <button className="btn btn-small btn-danger-outline" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumDeletePost(p.id), refresh)}>Delete</button>}
             </div>
           </article>

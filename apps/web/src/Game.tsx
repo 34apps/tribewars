@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { settleVillage } from '@clanfire/engine';
 import type { Mission } from '@clanfire/engine';
 import { api } from './api.ts';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
-import { GameContext, TABS } from './game.ts';
+import { GameContext, MENU_PAGES, TABS } from './game.ts';
 import type { GameApi, MailDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { useNow } from './hooks/useNow.ts';
@@ -16,11 +16,14 @@ import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
+import { SupportView } from './views/SupportView.tsx';
 import { Icon } from './art/Icon.tsx';
+
+const StaffView = lazy(() => import('./views/StaffView.tsx'));
 
 function readTab(): Tab {
   const h = window.location.hash.replace(/^#\/?/, '');
-  return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'village';
+  return (TABS as readonly string[]).includes(h) || (MENU_PAGES as readonly string[]).includes(h) ? (h as Tab) : 'village';
 }
 
 function useTab(): [Tab, (t: Tab) => void] {
@@ -180,6 +183,12 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'mail' && <MailView />}
         {tab === 'tribe' && <TribeView />}
         {tab === 'ranks' && <RankingsView />}
+        {tab === 'support' && <SupportView />}
+        {tab === 'staff' && (
+          <Suspense fallback={<p className="muted page">Loading…</p>}>
+            <StaffView />
+          </Suspense>
+        )}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Shell>
       <Toasts toasts={toasts} onDismiss={dismissToast} />

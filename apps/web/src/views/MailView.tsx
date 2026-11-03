@@ -5,6 +5,7 @@ import type { MailBox, MailDto, MailSummaryDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo } from '../format.ts';
 import { useGame } from '../game.ts';
+import { ReportButton } from '../components/supportBits.tsx';
 
 /** A small fixed set; each button appends its emoji to the end of the text. */
 const EMOJI = ['😀', '😂', '🙂', '😉', '😎', '😢', '😡', '👍', '👏', '🙏', '🔥', '⚔️', '🛡️', '🏹', '💰', '🎉'];
@@ -146,6 +147,7 @@ function Reader({ id, box, onBack, onReply, onDeleted, onRead }: { id: number; b
                 Write again
               </button>
             )}
+            {box === 'inbox' && <ReportButton kind="mail" refId={mail.id} about={`mail from ${mail.from}`} className="btn" />}
             <button type="button" className="btn btn-danger-outline" disabled={busy} onClick={() => void remove()}>
               Delete
             </button>

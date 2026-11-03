@@ -1,8 +1,13 @@
 import { createContext, useContext } from 'react';
 import type { Mission, MovementDto, OwnVillageDto, PlayerDto, SendResponse, StationedDto, VillageState, WorldSettings } from '@clanfire/engine';
 
-export type Tab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
-export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
+/** Tabs shown in the main navigation. */
+export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
+/** Pages reached from the account menu (not in the navigation bar). */
+export type MenuPage = 'support' | 'staff';
+export type Tab = NavTab | MenuPage;
+export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {

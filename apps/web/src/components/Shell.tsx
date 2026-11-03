@@ -6,7 +6,7 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { useGame, TABS } from '../game.ts';
-import type { Tab } from '../game.ts';
+import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 
@@ -181,7 +181,7 @@ function Who({
   onSettings: () => void;
   compact?: boolean;
 }) {
-  const { player, village, tribeChanged, toast } = useGame();
+  const { player, village, tribeChanged, toast, navigate } = useGame();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -235,6 +235,26 @@ function Who({
           >
             Change chieftain
           </button>
+          <button
+            className="btn btn-block"
+            onClick={() => {
+              setOpen(false);
+              navigate('support');
+            }}
+          >
+            Contact support
+          </button>
+          {player.staffRole && (
+            <button
+              className="btn btn-block"
+              onClick={() => {
+                setOpen(false);
+                navigate('staff');
+              }}
+            >
+              Staff tools
+            </button>
+          )}
           {player.sandbox && (
             <button
               className="btn btn-block"
