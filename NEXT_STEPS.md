@@ -14,7 +14,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   or the newest stamp.
 
 ## Next big pieces
-- **Test-mode follow-ups** (built 2026-11-03): look at the "On the road" summary (360/1440 px) and the desktop side-panel Close; if the phone sheet still can't be dismissed after opening the Town Hall, find where (not reproduced in code). Possible: warp build/training queues too.
+- **Test-mode follow-ups** (built 2026-11-03): look at the "On the road" summary (360/1440 px) and the desktop side-panel Close; if the phone sheet still can't be dismissed after opening the Town Hall, find where (not reproduced in code). Possible: warp build/training queues too. Cancel (80% back, built 2026-11-03): add a server route test, look at the Cancel buttons and dialog at 360/1440 px; maybe let any build job be cancelled (now newest only); cancelling research is not covered. If conquest is ever built, the village must keep its queues.
 - **Stats/achievements/caretaker follow-ups** (built 2026-11-03): look at the profile sheet and top-bar Pop chip at 360/1440 px; tune `BOT_*` and achievement tiers; tribe/world achievements; abandoned-village follow-ups (check the new notice banner and the Members online/last-seen line at 360 px; old stationed support is deliberately unreachable for the returning player); run the caretaker in the preview.
 - **Population follow-ups** (built 2026-11-03): playtest and tune `POP_*` numbers in `config.ts` (a full-level village vs the cap); population in the battle/support views if troops stationed elsewhere should count; older villages already over the cap just can't build/train more until the Farm grows.
 - **Redesign (Toy Diorama)** — built in: village view, map stages, chieftains. Waiting for owner

@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`710ec52`): test-mode send form has "Way out (s)" / "Way home (s)" inputs (server: `travelSeconds`/`returnSeconds`, `movements.return_secs`). Abandoned villages never recruit now (for everyone; keeps what they have). Earlier: `50436c3` empty-abandoned button, `99162a0` warp.
-Left: nothing seen in a browser. Owner to confirm the no-recruit rule applies to all players, not just test mode (one-line revert point: `applyNpcStep` in engine `village.ts`).
-Very next step: `npm run dev:fast`, send an attack with own seconds, check the return; press "Empty abandoned villages" once.
+2026-11-03 (`f268a34`): owner clarified the no-recruit rule = abandoned (computer) villages only, which is how it already works (`applyNpcStep`; player villages, incl. any future conquered one, keep queues). New: cancel build (newest job) / training batch refunds 80% (`CANCEL_REFUND_PERCENT`), confirm dialog + toast (`apps/web/src/views/cancelJob.tsx`, engine `applyCancelBuild/Train`).
+Left: no server route test for cancel; nothing seen in a browser; no conquest mechanic exists yet.
+Very next step: `npm run dev:fast`, queue a build and a batch, cancel both, check the 80% and the dialog at 360/1440 px.
 Checks passed (type-check, tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
