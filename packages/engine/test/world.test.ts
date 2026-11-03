@@ -4,11 +4,17 @@ import {
   DEFAULT_WORLD,
   GameError,
   NPC_MIN_SPACING,
+  NPC_RING_BASE,
+  NPC_RING_EXTRA_MAX,
   NPC_TIER_WEIGHTS,
   SPAWN_MIN_SPACING,
   createPlayerVillage,
+  expandingRadius,
+  findExpandingSpawn,
   findSpawnLocation,
+  generateExpandingStartNpcs,
   generateNpcPlacements,
+  generateNpcsForSpawn,
   isBuildableTerrain,
   mulberry32,
   protectionEndsAt,
@@ -48,7 +54,10 @@ describe('terrain', () => {
     }
     for (const t of TERRAINS) assert.ok((counts.get(t) ?? 0) / total > 0.03, `${t} is too rare`);
     assert.ok((counts.get('grass') ?? 0) / total > 0.3, 'grass should dominate');
-    assert.ok(((counts.get('mountain') ?? 0) + (counts.get('lake') ?? 0)) / total < 0.3, 'most tiles are buildable');
+    const blocked = ((counts.get('mountain') ?? 0) + (counts.get('lake') ?? 0)) / total;
+    assert.ok(blocked < 0.15, `room for many players: mountains + lakes are only ${(blocked * 100).toFixed(1)}% of tiles, want < 15%`);
+    const forest = (counts.get('forest') ?? 0) / total;
+    assert.ok(forest < 0.25, `forest is ${(forest * 100).toFixed(1)}% of tiles, want < 25%`);
     assert.ok(sameRight / total > 0.8, 'neighbouring tiles usually share terrain');
   });
 
@@ -60,6 +69,51 @@ describe('terrain', () => {
     for (const [x, y] of [[-1, -1], [0, 0], [-100, 100], [100000, -100000]] as const) {
       assert.ok(TERRAINS.includes(terrainAt(x, y, 1)));
     }
+  });
+});
+
+describe('expanding layout', () => {
+  const world: WorldSettings = { ...DEFAULT_WORLD, radius: 250, layout: 'expanding' };
+
+  it('start rings are deterministic, spaced, buildable and near the centre', () => {
+    const a = generateExpandingStartNpcs(world);
+    assert.deepEqual(a, generateExpandingStartNpcs({ ...world }));
+    assert.ok(a.length >= 15, `got ${a.length}`);
+    for (const p of a) {
+      assert.ok(isBuildableTerrain(terrainAt(p.x, p.y, world.seed)));
+      assert.ok(Math.hypot(p.x, p.y) <= 30);
+    }
+    for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) assert.ok(chebyshev(a[i]!, a[j]!) >= NPC_MIN_SPACING);
+  });
+
+  it('spawns fill a disc that grows with the player count; newcomers bring spaced abandoned villages', () => {
+    const rng = mulberry32(99);
+    const occupied = new Set<string>();
+    const isOcc = (x: number, y: number): boolean => occupied.has(`${x},${y}`);
+    const spots: Array<{ x: number; y: number }> = [];
+    let ringTotal = 0;
+    for (let n = 0; n < 60; n++) {
+      const spot = findExpandingSpawn(isOcc, rng, world, n);
+      assert.ok(Math.hypot(spot.x, spot.y) <= expandingRadius(n) * 1.3 + 1);
+      assert.ok(isBuildableTerrain(terrainAt(spot.x, spot.y, world.seed)));
+      occupied.add(`${spot.x},${spot.y}`);
+      spots.push(spot);
+      const npcs = generateNpcsForSpawn(spot, isOcc, rng, world);
+      ringTotal += npcs.length;
+      for (const p of npcs) {
+        assert.ok(chebyshev(p, spot) >= NPC_MIN_SPACING);
+        assert.ok(!isOcc(p.x, p.y));
+        occupied.add(`${p.x},${p.y}`);
+      }
+    }
+    assert.ok(ringTotal >= 60 * 2, `about three abandoned villages per newcomer, got ${ringTotal} for 60`);
+    assert.ok(ringTotal <= 60 * (NPC_RING_BASE + NPC_RING_EXTRA_MAX));
+    const far = Math.max(...spots.map((s) => Math.hypot(s.x, s.y)));
+    assert.ok(far < 80, `60 players stay within a small disc, farthest ${far.toFixed(1)}`);
+  });
+
+  it('expandingRadius grows with the count', () => {
+    assert.ok(expandingRadius(0) < expandingRadius(10) && expandingRadius(10) < expandingRadius(100));
   });
 });
 

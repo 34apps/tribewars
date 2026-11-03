@@ -412,6 +412,25 @@ export const NPC_PLACEMENT_ATTEMPTS_PER_VILLAGE = 100;
 /** Random spawn tries before scanning outward. */
 export const SPAWN_RANDOM_TRIES = 2000;
 
+/**
+ * 'expanding' world layout. Players land in a disc around the centre that grows with the player count
+ * (EXPAND_TILES_PER_PLAYER tiles of disc per player village, plus EXPAND_CORE_RADIUS). Every newcomer brings
+ * NPC_RING_BASE abandoned villages at evenly spaced angles around them (NPC_RING_MIN..MAX_RADIUS tiles away),
+ * and each extra roll (chance NPC_RING_EXTRA_CHANCE, at most NPC_RING_EXTRA_MAX) adds one more nearby.
+ */
+export const EXPAND_CORE_RADIUS = 8;
+export const EXPAND_TILES_PER_PLAYER = 150;
+export const NPC_RING_BASE = 3;
+export const NPC_RING_MIN_RADIUS = 3.5;
+export const NPC_RING_MAX_RADIUS = 7;
+export const NPC_RING_EXTRA_CHANCE = 0.4;
+export const NPC_RING_EXTRA_MAX = 3;
+/** Abandoned villages around the empty centre at world creation: [count, minRadius, maxRadius] per ring. */
+export const EXPAND_START_RINGS: ReadonlyArray<readonly [number, number, number]> = [
+  [8, 4, 11],
+  [14, 12, 24],
+];
+
 /** Seed salts so terrain noise fields and placement streams are independent. */
 export const SEED_SALT = { elevation: 11, wetness: 23, npcPlacement: 37 } as const;
 
@@ -426,10 +445,10 @@ export const TERRAIN = {
   /** Second octave: scale divisor and weight relative to the first octave (weight 1). */
   detailScaleDivisor: 2.6,
   detailWeight: 0.45,
-  mountain: 0.74,
-  hills: 0.63,
-  lake: 0.7,
-  forest: 0.55,
+  mountain: 0.8,
+  hills: 0.7,
+  lake: 0.78,
+  forest: 0.64,
 };
 
 // ---- Resource shipments (GAME_DESIGN section 13) ----

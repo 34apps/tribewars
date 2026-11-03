@@ -5,8 +5,11 @@ import { promisify } from 'node:util';
 import {
   DEFAULT_CHIEFTAIN,
   GameError,
+  createNpcVillage,
   createPlayerVillage,
+  findExpandingSpawn,
   findSpawnLocation,
+  generateNpcsForSpawn,
   mulberry32,
   protectionEndsAt,
   villagePoints,
@@ -16,6 +19,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import type { PlayerRow, Store } from './store.ts';
+import { NPC_VILLAGE_NAME } from './world.ts';
 
 /** The "your villages were abandoned" news for the player DTO, or null when there is none. */
 export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings): AbandonedNoticeDto | null {
@@ -136,15 +140,12 @@ export class AuthService {
         }
         const t = this.now();
         const playerId = this.store.insertPlayer(username, hash, t, protectionEndsAt(t, this.settings), chieftain);
-        let spot;
         try {
-          spot = findSpawnLocation((x, y) => this.store.villageExistsAt(x, y), mulberry32(randomInt(0, 0xffffffff)), this.settings);
+          this.spawnVillage(playerId, `${username}'s village`, t);
         } catch (err) {
           if (err instanceof GameError && err.code === 'not_found') throw new GameError('forbidden', 'This world is full.');
           throw err;
         }
-        const state = createPlayerVillage(t);
-        this.store.insertVillage(playerId, `${username}'s village`, spot.x, spot.y, villagePoints(state), state);
         const player = this.store.getPlayer(playerId);
         if (!player) throw new Error('player vanished after insert');
         if (ip) this.store.recordIp(player.id, ip, t);
@@ -183,11 +184,29 @@ export class AuthService {
     if (this.store.villagesOfPlayer(player.id).length > 0) return;
     this.store.tx(() => {
       const t = this.now();
-      const spot = findSpawnLocation((x, y) => this.store.villageExistsAt(x, y), mulberry32(randomInt(0, 0xffffffff)), this.settings);
-      const state = createPlayerVillage(t);
-      this.store.insertVillage(player.id, `${player.username}'s village`, spot.x, spot.y, villagePoints(state), state);
+      this.spawnVillage(player.id, `${player.username}'s village`, t);
       this.store.setProtectedUntil(player.id, protectionEndsAt(t, this.settings));
     });
+  }
+
+  /**
+   * Place a new player village. In the 'expanding' layout it lands at the edge of the growing populated disc and
+   * brings abandoned villages around it (a fixed few plus a chance of more); otherwise it lands anywhere free.
+   */
+  private spawnVillage(playerId: number, name: string, t: number): void {
+    const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
+    const rng = mulberry32(randomInt(0, 0xffffffff));
+    const expanding = this.settings.layout === 'expanding';
+    const spot = expanding
+      ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount())
+      : findSpawnLocation(occupied, rng, this.settings);
+    const state = createPlayerVillage(t);
+    this.store.insertVillage(playerId, name, spot.x, spot.y, villagePoints(state), state);
+    if (!expanding) return;
+    for (const p of generateNpcsForSpawn(spot, occupied, rng, this.settings)) {
+      const npc = createNpcVillage(p.tier, t);
+      this.store.insertVillage(null, NPC_VILLAGE_NAME, p.x, p.y, villagePoints(npc), npc);
+    }
   }
 
   /** Change the player's chieftain portrait and return the updated row. */

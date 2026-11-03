@@ -706,6 +706,11 @@ export class Store extends SqlBase {
     return this.get('SELECT 1 AS one FROM villages WHERE x = ? AND y = ?', x, y) !== undefined;
   }
 
+  /** Number of villages that have an owner (drives the 'expanding' world layout). */
+  playerVillageCount(): number {
+    return Number(this.get('SELECT COUNT(*) AS n FROM villages WHERE owner_id IS NOT NULL')?.n ?? 0);
+  }
+
   insertVillage(ownerId: number | null, name: string, x: number, y: number, points: number, state: VillageState): number {
     return this.run('INSERT INTO villages (owner_id, name, x, y, points, state_json) VALUES (?, ?, ?, ?, ?, ?)', ownerId, name, x, y, points, JSON.stringify(state)).id;
   }

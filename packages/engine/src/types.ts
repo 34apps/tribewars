@@ -111,6 +111,12 @@ export interface WorldSettings {
   protectionHours: number;
   /** Abandoned villages grow one step every this many hours (divided by speed). */
   npcGrowthHours: number;
+  /**
+   * 'scattered' (default): abandoned villages everywhere at world creation, players land anywhere.
+   * 'expanding': a populated disc grows from the centre; each new player lands at its edge and brings
+   * abandoned villages around them.
+   */
+  layout?: 'scattered' | 'expanding';
 }
 
 export interface BuildJob {

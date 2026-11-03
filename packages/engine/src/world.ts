@@ -1,6 +1,14 @@
 // World: terrain, abandoned-village placement, player spawn, protection, points.
 
 import {
+  EXPAND_CORE_RADIUS,
+  EXPAND_START_RINGS,
+  EXPAND_TILES_PER_PLAYER,
+  NPC_RING_BASE,
+  NPC_RING_EXTRA_CHANCE,
+  NPC_RING_EXTRA_MAX,
+  NPC_RING_MAX_RADIUS,
+  NPC_RING_MIN_RADIUS,
   CHIEFTAINS,
   MAP_STAGE_MIN_POINTS,
   RUIN_STAGE_MIN_POINTS,
@@ -156,6 +164,113 @@ export function findSpawnLocation(isOccupied: (x: number, y: number) => boolean,
     }
   }
   throw new GameError('not_found', 'There is no free place left in this world.');
+}
+
+// ---- Expanding layout ---------------------------------------------------------------------------
+
+/** Radius of the populated disc when the world holds `playerVillages` player villages and one more is about to land. */
+export function expandingRadius(playerVillages: number): number {
+  return EXPAND_CORE_RADIUS + Math.sqrt(((Math.max(0, playerVillages) + 1) * EXPAND_TILES_PER_PLAYER) / Math.PI);
+}
+
+/**
+ * Spawn tile for a new player village in the 'expanding' layout: random point of the disc that grows with the
+ * player count (so early players cluster around the centre and later ones ring outward). Falls back to a wider disc,
+ * then to the plain scan of findSpawnLocation. Throws GameError('not_found') only if the whole world is full.
+ */
+export function findExpandingSpawn(
+  isOccupied: (x: number, y: number) => boolean,
+  rng: () => number,
+  s: WorldSettings,
+  playerVillages: number,
+): Coords {
+  const radius = Math.max(0, Math.floor(s.radius));
+  const fits = (x: number, y: number): boolean =>
+    Math.abs(x) <= radius &&
+    Math.abs(y) <= radius &&
+    isBuildableTerrain(terrainAt(x, y, s.seed)) &&
+    !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied);
+  let reach = Math.min(expandingRadius(playerVillages), radius);
+  for (let round = 0; round < 8; round++) {
+    for (let i = 0; i < 300; i++) {
+      const angle = rng() * 2 * Math.PI;
+      const r = Math.sqrt(rng()) * reach;
+      const x = Math.round(Math.cos(angle) * r);
+      const y = Math.round(Math.sin(angle) * r);
+      if (fits(x, y)) return { x, y };
+    }
+    reach = Math.min(reach * 1.3, radius);
+  }
+  return findSpawnLocation(isOccupied, rng, s);
+}
+
+/**
+ * Abandoned villages in a ring around `center`: `count` at evenly spaced angles (random phase, jittered) plus, when
+ * `extras` is set, up to NPC_RING_EXTRA_MAX more each with chance NPC_RING_EXTRA_CHANCE. Skips unbuildable or crowded tiles.
+ * Tiers use the normal weights, so they match the abandoned villages of a classic world.
+ */
+export function generateNpcRing(
+  center: Coords,
+  count: number,
+  minRadius: number,
+  maxRadius: number,
+  extras: boolean,
+  isOccupied: (x: number, y: number) => boolean,
+  rng: () => number,
+  s: WorldSettings,
+): Array<Coords & { tier: number }> {
+  const radius = Math.max(0, Math.floor(s.radius));
+  const chosen = new Set<string>();
+  const taken = (x: number, y: number): boolean => isOccupied(x, y) || chosen.has(`${x},${y}`);
+  const out: Array<Coords & { tier: number }> = [];
+  const place = (angle: number, r: number): void => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const jitter = attempt === 0 ? 0 : 2;
+      const x = Math.round(center.x + Math.cos(angle) * r + (rng() * 2 - 1) * jitter);
+      const y = Math.round(center.y + Math.sin(angle) * r + (rng() * 2 - 1) * jitter);
+      if (Math.abs(x) > radius || Math.abs(y) > radius) continue;
+      if (villageNearby(x, y, NPC_MIN_SPACING, radius, taken)) continue;
+      if (!isBuildableTerrain(terrainAt(x, y, s.seed))) continue;
+      chosen.add(`${x},${y}`);
+      out.push({ x, y, tier: pickTier(rng()) });
+      return;
+    }
+  };
+  const phase = rng() * 2 * Math.PI;
+  const n = Math.max(0, Math.floor(count));
+  for (let i = 0; i < n; i++) {
+    place(phase + (i * 2 * Math.PI) / n + (rng() - 0.5) * 0.7, minRadius + rng() * (maxRadius - minRadius));
+  }
+  if (extras) {
+    for (let e = 0; e < NPC_RING_EXTRA_MAX && rng() < NPC_RING_EXTRA_CHANCE; e++) {
+      place(rng() * 2 * Math.PI, minRadius + rng() * (maxRadius - minRadius));
+    }
+  }
+  return out;
+}
+
+/** The abandoned villages a newcomer at `spot` brings in the 'expanding' layout. */
+export function generateNpcsForSpawn(
+  spot: Coords,
+  isOccupied: (x: number, y: number) => boolean,
+  rng: () => number,
+  s: WorldSettings,
+): Array<Coords & { tier: number }> {
+  return generateNpcRing(spot, NPC_RING_BASE, NPC_RING_MIN_RADIUS, NPC_RING_MAX_RADIUS, true, isOccupied, rng, s);
+}
+
+/** Abandoned villages at the creation of an 'expanding' world: rings around the empty centre. */
+export function generateExpandingStartNpcs(s: WorldSettings): Array<Coords & { tier: number }> {
+  const rng = mulberry32(hashSeed(s.seed, SEED_SALT.npcPlacement));
+  const out: Array<Coords & { tier: number }> = [];
+  const has = new Set<string>();
+  for (const [count, minR, maxR] of EXPAND_START_RINGS) {
+    for (const p of generateNpcRing({ x: 0, y: 0 }, count, minR, maxR, true, (x, y) => has.has(`${x},${y}`), rng, s)) {
+      has.add(`${p.x},${p.y}`);
+      out.push(p);
+    }
+  }
+  return out;
 }
 
 // ---- Protection and points ----------------------------------------------------------------------

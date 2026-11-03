@@ -165,6 +165,16 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Register → one village named "<username>'s village" at a random free tile anywhere in the world
   (not mountain/lake, at least `SPAWN_MIN_SPACING` from every village). Up to 2000 random tries, then
   scan outward from a random tile.
+- **Expanding layout** (`layout: 'expanding'`, env `WORLD_LAYOUT`; owner, 2026-11-03; `npm run dev` uses it with
+  radius 250 = 501×501 tiles and its own database `clanfire-world.sqlite`). The world starts with only
+  abandoned villages in rings around the empty centre (`EXPAND_START_RINGS`, same tiers as always).
+  A newcomer lands at a random point of a disc of radius `EXPAND_CORE_RADIUS + sqrt((players+1) ×
+  EXPAND_TILES_PER_PLAYER / π)` (grows with the player count; wider disc if crowded), and brings
+  `NPC_RING_BASE` abandoned villages at evenly spaced angles `NPC_RING_MIN_RADIUS..MAX_RADIUS` tiles
+  around them, plus up to `NPC_RING_EXTRA_MAX` extra ones, each with chance `NPC_RING_EXTRA_CHANCE`,
+  so early raiding is close by and the owner of a village grows fast. Existing abandoned villages are never removed.
+  The default layout is `'scattered'` (everything above, random anywhere).
+- Terrain shares are tuned so mountains, lakes and forest leave room for many players (mountain+lake < 15% of tiles).
 - Beginner protection: nobody can attack the player's villages until
   `createdAt + protectionHours / speed`. It ends early when the player attacks another *player*
   (raiding abandoned villages keeps it).

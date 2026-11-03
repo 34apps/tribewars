@@ -1,6 +1,6 @@
 // World creation: settings are stored in the database on first start and win over the environment.
 
-import { DEFAULT_WORLD, createNpcVillage, generateNpcPlacements, villagePoints, type WorldSettings } from '@clanfire/engine';
+import { DEFAULT_WORLD, createNpcVillage, generateExpandingStartNpcs, generateNpcPlacements, villagePoints, type WorldSettings } from '@clanfire/engine';
 import type { Store } from './store.ts';
 
 export const NPC_VILLAGE_NAME = 'Abandoned village';
@@ -26,13 +26,14 @@ export function initWorld(
 
   const settings: WorldSettings = { ...DEFAULT_WORLD };
   for (const key of Object.keys(overrides) as Array<keyof WorldSettings>) {
-    if (overrides[key] !== undefined) settings[key] = overrides[key];
+    if (overrides[key] !== undefined) Object.assign(settings, { [key]: overrides[key] });
   }
 
   store.tx(() => {
     store.setMeta('world_settings', JSON.stringify(settings));
     store.setMeta('world_created_at', String(now));
-    for (const p of generateNpcPlacements(settings)) {
+    const placements = settings.layout === 'expanding' ? generateExpandingStartNpcs(settings) : generateNpcPlacements(settings);
+    for (const p of placements) {
       const state = createNpcVillage(p.tier, now);
       store.insertVillage(null, NPC_VILLAGE_NAME, p.x, p.y, villagePoints(state), state);
     }

@@ -47,6 +47,11 @@ export function loadEnv(env: Env = process.env): ServerEnv {
   if (speed !== undefined) worldOverrides.speed = speed;
   if (seed !== undefined) worldOverrides.seed = seed;
   if (radius !== undefined) worldOverrides.radius = radius;
+  const layout = env.WORLD_LAYOUT?.trim();
+  if (layout) {
+    if (layout !== 'scattered' && layout !== 'expanding') throw new Error(`Invalid WORLD_LAYOUT="${layout}": expected scattered or expanding.`);
+    worldOverrides.layout = layout;
+  }
 
   return {
     port: num(env, 'PORT', (n) => Number.isInteger(n) && n >= 0 && n <= 65535, 'a port number') ?? 3000,

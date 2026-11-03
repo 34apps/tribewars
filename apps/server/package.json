@@ -5,7 +5,7 @@
   "description": "Authoritative game server: Fastify HTTP API + SQLite (node:sqlite).",
   "type": "module",
   "scripts": {
-    "dev": "WORLD_SPEED=${WORLD_SPEED:-1} NODE_ENV=development tsx watch src/index.ts",
+    "dev": "WORLD_SPEED=${WORLD_SPEED:-1} WORLD_RADIUS=${WORLD_RADIUS:-250} WORLD_LAYOUT=${WORLD_LAYOUT:-expanding} DATABASE_PATH=${DATABASE_PATH:-./data/clanfire-world.sqlite} NODE_ENV=development tsx watch src/index.ts",
     "dev:fast": "WORLD_SPEED=10 DATABASE_PATH=./data/clanfire-fast.sqlite NODE_ENV=development tsx watch src/index.ts",
     "start": "NODE_ENV=production tsx src/index.ts",
     "admin": "tsx src/admin.ts",
