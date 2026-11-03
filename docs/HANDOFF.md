@@ -2,11 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`1eb842a`): players idle 30 days (`ABANDON_IDLE_DAYS`) lose villages: owner NULL, state untouched (troops/queues stay), done in `runCaretaker`. Returning player gets a new village + protection (`Auth.ensureVillage`, login and stale-activity requests).
-Owner decision (`50020b8`, docs only): a tribe member/leader with no villages stays in the tribe with the same role and restarts like a new player; no code change needed.
-Left: stationed support of an abandoned player untouched; no "you were abandoned" message; not seen in a browser; earlier: Pop chip/achievements unseen, tribe mass message.
-Very next step: `npm run dev:fast`, check Pop chip at 360 px.
-Checks passed (type-check, engine + 191 server tests).
+2026-11-03 (`3158569`): returning players see a dismissible banner (village view) that N villages were abandoned after 30 days away (`players.abandoned_notice`, `PlayerDto.abandonedNotice`, dismiss endpoint). Owner decision: stationed support of an abandoned player stays (tested, nothing breaks).
+Left: returning player can't see/recall old stationed support (`stationedAbroad` keyed by home-village owner); banner and Pop chip not seen in a browser.
+Very next step: `npm run dev:fast`, check banner and Pop chip at 360 px.
+Checks passed (type-check, 206 server + 193 engine tests, build, build:preview).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 

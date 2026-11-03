@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-03 (`3158569`) — Returning players see a dismissible notice that their villages were abandoned (`players.abandoned_notice`, `PlayerDto.abandonedNotice`, `POST /api/me/abandoned-notice/dismiss`, banner on village view). Stationed support stays (test). Check and build pass; not seen in a browser.
 - 2026-11-03 (`50020b8`) — Decision recorded in GAME_DESIGN §17: a tribe member/leader who lost all villages keeps tribe and role and restarts like a new player (already how the code behaves). Docs only; check passes.
 - 2026-11-03 (`1eb842a`) — Players idle 30 days (`ABANDON_IDLE_DAYS`) lose their villages to the map as abandoned villages; troops and queues stay; a returning player gets a fresh village. GAME_DESIGN §17, test. Check passes; build not needed (no web change).
 - 2026-11-03 (`25ff8fe`) — Population chip in the top bar; player stats + 20 achievements (bronze/silver/gold) on the profile; caretaker bot that queues random affordable builds for villages of players idle 3+ days (never trains, researches or sends). GAME_DESIGN §16–17, SECURITY_ROADMAP note, tests. Check and build pass; not seen in a browser.
