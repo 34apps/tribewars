@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TRIBE_MAX_MEMBERS, canKick, canTribe } from '@clanfire/engine';
-import type { TribeMemberDto } from '@clanfire/engine';
+import type { TribeAction, TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
@@ -18,7 +18,11 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
   const canSetRole = canTribe(role, 'set_roles') && !isMe && m.role !== 'leader';
   const canRemove = !isMe && canKick(role, m.role);
   const canTransfer = canTribe(role, 'transfer_leadership') && !isMe && m.role !== 'leader';
-  const hasActions = canSetRole || canRemove || canTransfer;
+  // Only the leader sets individual rights (the server checks it too); officers already have view_activity by role.
+  const canGrant = role === 'leader' && !isMe && m.role === 'member';
+  const hasActions = canSetRole || canRemove || canTransfer || canGrant;
+  const grants: TribeAction[] = m.grants ?? [];
+  const seesActivity = grants.includes('view_activity');
 
   async function remove() {
     const ok = await confirm({
@@ -68,6 +72,25 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
         </div>
         {open && hasActions && (
           <div className="member-actions">
+            {canGrant && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={seesActivity}
+                  disabled={busy}
+                  onChange={() =>
+                    void run(
+                      async () => {
+                        await api.setGrants(m.playerId, seesActivity ? grants.filter((g) => g !== 'view_activity') : [...grants, 'view_activity']);
+                        return api.myTribe();
+                      },
+                      { ok: seesActivity ? `${m.username} can no longer see who is online.` : `${m.username} can now see who is online.` },
+                    )
+                  }
+                />{' '}
+                Can see members' online status
+              </label>
+            )}
             {canSetRole && m.role === 'member' && (
               <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'officer'), { ok: `${m.username} is now an officer.` })}>
                 Make officer

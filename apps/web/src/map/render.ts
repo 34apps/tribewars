@@ -666,6 +666,15 @@ function dots(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number,
   ctx.stroke(path);
 }
 
+/** " · 12 troops · loot 340" for a returning army (troop count, total loot); empty parts are left out. */
+function returnCargoText(mv: MovementDto): string {
+  let troops = 0;
+  for (const n of Object.values(mv.units ?? {})) troops += n ?? 0;
+  let loot = 0;
+  for (const n of Object.values(mv.loot ?? {})) loot += n ?? 0;
+  return `${troops > 0 ? ` · ${troops} troops` : ''}${loot > 0 ? ` · loot ${Math.round(loot)}` : ''}`;
+}
+
 /** Marching armies: dotted route ahead of each marker, a toy soldier at its current place. */
 function drawMovements(sc: Scene): number {
   const { ctx, view, width: W, height: H, now, movements } = sc;
@@ -707,7 +716,7 @@ function drawMovements(sc: Scene): number {
       else if (mv.kind === 'attack') text = `${mv.target.ownerName ? 'Attack on' : 'Raid on'} ${where} · ${left}`;
       else if (mv.kind === 'scout') text = `Scouting ${where} · ${left}`;
       else if (mv.kind === 'support') text = `Support to ${where} · ${left}`;
-      else text = `Home in ${left}`;
+      else text = `Returning${returnCargoText(mv)} · home in ${left}`;
       const fs = Math.max(10, Math.min(14, tile * 0.13));
       labels.push(() => pill(ctx, text, x, y - m * 1.55 - fs, fs, incoming ? '#C4623A' : SUN, incoming ? BONE : INK));
     }
