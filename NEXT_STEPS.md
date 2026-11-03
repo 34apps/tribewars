@@ -14,7 +14,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   or the newest stamp.
 
 ## Next big pieces
-- **Stats/achievements/caretaker follow-ups** (built 2026-11-03): look at the profile sheet and top-bar Pop chip at 360/1440 px; tune `BOT_*` and achievement tiers; tribe/world achievements; abandoned-village follow-ups (tribe leave/leadership when a member loses all villages, their stationed support in other villages, notify the returning player); run the caretaker in the preview.
+- **Stats/achievements/caretaker follow-ups** (built 2026-11-03): look at the profile sheet and top-bar Pop chip at 360/1440 px; tune `BOT_*` and achievement tiers; tribe/world achievements; abandoned-village follow-ups (their stationed support in other villages, notify the returning player); run the caretaker in the preview.
 - **Population follow-ups** (built 2026-11-03): playtest and tune `POP_*` numbers in `config.ts` (a full-level village vs the cap); population in the battle/support views if troops stationed elsewhere should count; older villages already over the cap just can't build/train more until the Farm grows.
 - **Redesign (Toy Diorama)** — built in: village view, map stages, chieftains. Waiting for owner
   approval on canvas rows H (units), I (tutorial + practice-ruin decision), J (building panels +
