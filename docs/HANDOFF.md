@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`66fd376`): rank reset in the Drillyard is now free (no gold; engine, UI, tests, GAME_DESIGN updated). Ring wall enlarged (`WALL_RING` 270x135 in `apps/web/src/art/buildings.ts`) and all 12 buildings re-placed inside it with more space; Drillyard is in the middle of the square.
-Left: layout was computed on paper, never looked at in a browser (check overlaps with the market-square art, roads, gates, the wall plot at the front-right, 360 px and 1440 px; tune `PLACEMENT`).
-Very next step: run `npm run dev:fast`, open a village, adjust positions.
-Checks passed (`npm run check`, `npm run build`).
+2026-11-03 (`881f8b6`): agent runner now remembers: each run resumes the previous conversation (id in `.agent/last-session`), `--new` starts fresh, final answer saved to `.agent/last-reply.md`; README + AI-WORKFLOW §8 updated.
+Left: not tried against the live API (needs a key). Unrelated uncommitted art/village changes (buildings.ts, mine/lumber SVGs, VillageScene, village.css) were in the tree before this run and were left alone.
+Very next step: run `npm run agent -- "..."` twice to confirm the second run continues; then look at the village layout in `npm run dev:fast` (see previous run: layout never viewed in a browser).
+Checks passed (`npm run check`).
 
 ## Read first
 `docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.
