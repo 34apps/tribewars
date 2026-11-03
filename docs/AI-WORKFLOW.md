@@ -92,7 +92,12 @@ are Read/Glob/Grep/Edit/Write and Bash only for `npm run check|build|build:previ
 push, other branches/remotes, reset, checkout, rebase, clean, rm, installs, curl and web tools are
 denied). Cost is the SDK's estimate, not the invoice.
 
-**Every run is self-contained** (the run prompt in `scripts/agent/run.ts` enforces this):
+**Memory:** by default each run *resumes the previous run's conversation* (Agent SDK `resume`; the
+session id is stored in `.agent/last-session`). `npm run agent -- --new "task"` starts a fresh
+conversation. Every successful run's final answer is written to `.agent/last-reply.md`. `.agent/` is
+git-ignored. Long chains get expensive (history is re-read): use `--new` for unrelated tasks.
+
+**Every run finishes its own task completely** (the run prompt in `scripts/agent/run.ts` enforces this):
 - *Question-only run* (answer/explain/review): changes nothing, commits nothing.
 - *Run that changed files*: `npm run check` (and `build` if `apps/`/deps changed). If it **passes**:
   commit the work, add a `CHANGELOG.md` line with that hash, update `NEXT_STEPS.md`, rewrite the

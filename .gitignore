@@ -9,6 +9,8 @@ data/
 *.sqlite
 *.sqlite-journal
 *.db
+# agent runner state (session id, last reply)
+.agent/
 # test / tool output
 coverage/
 playwright-report/

@@ -2,10 +2,16 @@
 // Usage: npm run agent -- [--model id] [--max-usd n] [--max-turns n] "task text"
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { fileURLToPath } from "node:url";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const stateDir = join(repoRoot, ".agent");
+const sessionFile = join(stateDir, "last-session");
+const replyFile = join(stateDir, "last-reply.md");
 
-const USAGE = `Usage: npm run agent -- [--model <id>] [--max-usd <n>] [--max-turns <n>] "task text"
+const USAGE = `Usage: npm run agent -- [--new] [--model <id>] [--max-usd <n>] [--max-turns <n>] "task text"
+By default continues the previous conversation; --new starts a fresh one.
 Defaults: --model claude-sonnet-5-5  --max-usd 2  --max-turns 40
 Needs ANTHROPIC_API_KEY in the environment (billed to that key, never to a subscription).`;
 
@@ -17,11 +23,13 @@ function fail(msg: string): never {
 let model = "claude-sonnet-5-5";
 let maxUsd = 2;
 let maxTurns = 40;
+let fresh = false;
 const words: string[] = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "--help" || a === "-h") fail(USAGE);
+  else if (a === "--new") fresh = true;
   else if (a === "--model" || a === "--max-usd" || a === "--max-turns") {
     const v = argv[++i];
     if (v === undefined) fail(`${a} needs a value.\n${USAGE}`);
@@ -43,7 +51,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const APPEND = `You are running unattended via "npm run agent" on the Clanfire repo (this repo only: never touch other repos). Follow AGENTS.md and docs/STANDARDS.md. Do not install packages. You cannot ask questions; make reasonable choices and state them in your final answer.
 
-Every run is self-contained. Decide which kind of run this is:
+Each run may continue an earlier conversation, but treat the task as its own: finish it completely and end in a clean state. Decide which kind of run this is:
 
 A) Question-only run (the task only asks for an answer, explanation or review): change nothing. No file edits, no commit, no push. Just answer.
 
@@ -78,6 +86,13 @@ const disallowedTools = [
   ].map(bash),
 ];
 
+let resumeId: string | undefined;
+if (!fresh && existsSync(sessionFile)) {
+  const id = readFileSync(sessionFile, "utf8").trim();
+  if (/^[0-9a-zA-Z-]{8,}$/.test(id)) resumeId = id;
+}
+console.log(resumeId ? `Continuing previous conversation (${resumeId}). Use --new for a fresh one.` : "Starting a new conversation.");
+
 const started = Date.now();
 let turns = 0;
 let exitCode = 1;
@@ -97,10 +112,15 @@ try {
       allowedTools,
       disallowedTools,
       env: { ...process.env },
+      ...(resumeId ? { resume: resumeId } : {}),
     },
   });
 
   for await (const m of q) {
+    if ("session_id" in m && typeof m.session_id === "string" && m.session_id) {
+      mkdirSync(stateDir, { recursive: true });
+      writeFileSync(sessionFile, m.session_id + "\n");
+    }
     if (m.type === "assistant") {
       for (const block of m.message.content) {
         if (block.type === "text" && block.text.trim()) console.log(block.text.trim());
@@ -112,6 +132,10 @@ try {
       }
     } else if (m.type === "result") {
       sawResult = true;
+      if (m.subtype === "success" && typeof m.result === "string") {
+        mkdirSync(stateDir, { recursive: true });
+        writeFileSync(replyFile, m.result.trim() + "\n");
+      }
       turns = m.num_turns;
       const secs = (m.duration_ms / 1000).toFixed(1);
       console.log("\n--- result ---");

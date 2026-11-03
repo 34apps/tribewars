@@ -39,7 +39,8 @@ The server listens on `PORT` (default 3000) and serves the built web client. Set
 ## Running AI tasks
 
 `npm run agent -- "task"` (needs `ANTHROPIC_API_KEY`; flags `--model`, `--max-usd`, `--max-turns`) runs
-one self-contained task. Question-only tasks change nothing. Tasks that change files end with
+one task. Each run continues the previous conversation (session id in `.agent/last-session`);
+`npm run agent -- --new "task"` starts fresh. The final answer is saved to `.agent/last-reply.md`. Question-only tasks change nothing. Tasks that change files end with
 `npm run check`; if it passes, the run commits, updates `CHANGELOG.md`, `NEXT_STEPS.md` and the
 "Last run" box in `docs/HANDOFF.md`, and pushes to `main`. If the check fails, nothing is committed
 and the failure is written into "Last run". Details: `docs/AI-WORKFLOW.md` §8.
