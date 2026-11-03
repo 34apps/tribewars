@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`818796e`): balance review written to `docs/BALANCE.md`, no code or numbers changed. Findings: "400/h" is dev:fast (speed 10); speed-1 curve is fine; food upkeep caps armies; proposal for conquest (Banner Hall, Standard-bearer, Loyalty, weighted points).
-Left: owner approval of the proposal; nothing implemented (agent run could not run simulation scripts).
-Very next step: owner approves/edits BALANCE.md §3.1 + §4; implementer lowers troop upkeep first.
-Checks passed (type-check, tests 200). Earlier: village desktop layout fix `e1da4ba` still unseen in a browser.
+2026-11-03 (`b2881af`): staff tooling backend committed (roles, support tickets, reports, mute, audit, templates). The "server had a problem" came from 7 failing tests of the interrupted run; fixed (short test usernames, `staffRole` missing in app state, test timing).
+Left: no staff/moderation UI yet; docs for staff roles (GAME_DESIGN/SECURITY_ROADMAP ticks) not reviewed; balance proposal `docs/BALANCE.md` awaits owner.
+Very next step: build the staff/support screens in apps/web (360 px + desktop) and tick SECURITY_ROADMAP items.
+Checks passed (type-check, tests 219 + 208), build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
