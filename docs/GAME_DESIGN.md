@@ -476,7 +476,9 @@ stored and sent as plain text and the client renders it as text (line breaks kep
   `ABANDON_IDLE_DAYS` (30, divided by world speed): `owner_id` becomes NULL and the name "Abandoned village". The stored
   state is untouched, so troops stay and queued builds/training carry on, and the village can be raided like any
   abandoned one. Movements already under way finish normally. The player keeps the account; on their next login or
-  request without any village they get a fresh village and new beginner protection.
+  request without any village they get a fresh village and new beginner protection. Nothing else changes (owner,
+  2026-11-03): a tribe member or leader who lost all villages stays in the tribe with the same role and rights and starts
+  again like a new player; no automatic leave or leadership handover.
 - Security gate: no new input or endpoint; it only reads and writes the owner's own village through the build planner,
   so it cannot send resources or troops to anyone.
 
