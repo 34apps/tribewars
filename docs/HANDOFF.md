@@ -2,14 +2,11 @@
 
 ## Last run
 
-2026-11-03 (`2b1b69d`): Mail built (Mail tab + unread badge, server `mail-service.ts`/`mail-store.ts`, `routes/mail.ts`, `MailView.tsx`, tests). Left: never viewed in a browser (360/1440 px; 7 tabs are tight in the phone bottom bar); no blocking/reporting/audit log; rate-limit memory resets on restart; control characters are refused, not stripped. Very next step: `npm run dev:fast`, send mail between two accounts, check badge and layouts. Design work is paused by the owner (brain of the game first).
-Earlier (`78f180c`): no more empty plots/workers/legend in the village scene (unbuilt = invisible, started from the Town Hall list); lumber/iron/gold sprites redrawn (3 stages). Sprites were written blind by a subagent: LOOK at them in `npm run dev:fast` (levels 1/6/13 for lumber & iron) and fix composition; other buildings (Town Hall, farm, storehouse, barracks...) still to redo in the same grander style.
-Earlier (`f60a832`): fixed sideways scroll in the Town Hall list (two-line rows in village.css `.hb-*`, `.vv-side` overflow-x hidden). Owner wants to test the side panel first; full-screen Town Hall page is the fallback. Not viewed in a browser by me; checks passed.
-Earlier (`4bdf97d`): Population built as a second limit (owner's call): building levels + troops vs Farm-based cap, refused with `population_full` in `planBuild`/`planTrain`; Farm takes 0 pop; NPC exempt. Config `POP_*`, `economy.ts`, UI in Town Hall list + Army view, `GAME_DESIGN.md`, `population.test.ts`.
-Left: numbers are untuned guesses; not in the top bar; nothing viewed in a browser yet.
-Very next step: `npm run dev:fast`, open Town Hall + Army, check pop numbers feel right, tune `config.ts`.
-Very next step: `npm run dev:fast`, click the Town Hall, check the list at both widths, tidy styling.
-Checks passed (`npm run check`, `npm run build`).
+2026-11-03 (`3210b57`): agent runner is now fresh-per-run with last reply as context (`.agent/last-reply.md`), `--continue`, `--budget` default 10; docs updated. Checks passed.
+WARNING, uncommitted and unfinished: an interrupted forum + per-member tribe rights run left partial work in the tree (new forum-service/store, routes/forum.ts, tribes-forum.test.ts, tribe/Forum.tsx; edits in tribe-service/store, config, types, api, db, TribeView, GAME_DESIGN, SECURITY_ROADMAP). `npm run check` passes with it but it was never reviewed or completed. Not committed on purpose.
+Very next step: re-run the forum/rights task (agent should first read `git status`/diff and finish what exists), then build + commit.
+
+Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
 ## Read first
 `docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.
