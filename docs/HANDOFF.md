@@ -2,7 +2,8 @@
 
 ## Last run
 
-2026-11-03 (`4bdf97d`): Population built as a second limit (owner's call): building levels + troops vs Farm-based cap, refused with `population_full` in `planBuild`/`planTrain`; Farm takes 0 pop; NPC exempt. Config `POP_*`, `economy.ts`, UI in Town Hall list + Army view, `GAME_DESIGN.md`, `population.test.ts`.
+2026-11-03 (`f60a832`): fixed sideways scroll in the Town Hall list (two-line rows in village.css `.hb-*`, `.vv-side` overflow-x hidden). Owner wants to test the side panel first; full-screen Town Hall page is the fallback. Not viewed in a browser by me; checks passed.
+Earlier (`4bdf97d`): Population built as a second limit (owner's call): building levels + troops vs Farm-based cap, refused with `population_full` in `planBuild`/`planTrain`; Farm takes 0 pop; NPC exempt. Config `POP_*`, `economy.ts`, UI in Town Hall list + Army view, `GAME_DESIGN.md`, `population.test.ts`.
 Left: numbers are untuned guesses; not in the top bar; nothing viewed in a browser yet.
 Very next step: `npm run dev:fast`, open Town Hall + Army, check pop numbers feel right, tune `config.ts`.
 Very next step: `npm run dev:fast`, click the Town Hall, check the list at both widths, tidy styling.
