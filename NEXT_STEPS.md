@@ -32,7 +32,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Test mode follow-ups: warp for build/training queues; look at the new "Way out / Way home" inputs in the send form at 360/1440 px. Owner to confirm: abandoned villages never recruit for ALL players now (raided ones stay empty for good), not only in test mode.
 - Market follow-ups: draw real Market sprites (placeholder = Storehouse; swap `FILE.market` in `apps/web/src/art/buildings.ts`, check scene spot); NPC villages have no Market; set `SANDBOX_USERS` on the live server if the owner's username differs.
 - Shipments follow-ups: tune capacity/speed after playtests. Cancel follow-ups: show Cancel also on the map/tile panel; optional "cancelled" note in reports; tune the 2-minute window.
-- Cancel a build/training job (refund rule to decide).
+- Cancel follow-ups: server route tests for cancel-build/train/research; look at the Cancel buttons in a browser; optionally let any build job (not only the newest) be cancelled; optional research queue.
 - Rankings follow-ups: weekly/daily gains, filters (own tribe), paging beyond 100.
 - More villages per player (settlers or conquest); market trading between players.
 

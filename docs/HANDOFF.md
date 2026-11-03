@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`f268a34`): owner clarified the no-recruit rule = abandoned (computer) villages only, which is how it already works (`applyNpcStep`; player villages, incl. any future conquered one, keep queues). New: cancel build (newest job) / training batch refunds 80% (`CANCEL_REFUND_PERCENT`), confirm dialog + toast (`apps/web/src/views/cancelJob.tsx`, engine `applyCancelBuild/Train`).
-Left: no server route test for cancel; nothing seen in a browser; no conquest mechanic exists yet.
-Very next step: `npm run dev:fast`, queue a build and a batch, cancel both, check the 80% and the dialog at 360/1440 px.
+2026-11-03 (`e245210`): added cancel for Drillyard research (`applyCancelResearch`, `POST /api/villages/:id/cancel-research`, Cancel button in `Drillyard.tsx` via `useCancelJob`): 80% back, job cleared. Research is one job at a time, so no next job starts (a research queue does not exist). Earlier (`f268a34`): cancel build (newest job) / training batch, same 80% rule.
+Left: no server route tests for the cancel endpoints; nothing seen in a browser; no conquest mechanic yet; research queue only if the owner wants one.
+Very next step: `npm run dev:fast`, queue a build, a batch and a research, cancel each, check the 80% and the dialog at 360/1440 px.
 Checks passed (type-check, tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
