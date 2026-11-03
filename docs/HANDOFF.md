@@ -2,8 +2,8 @@
 
 ## Last run
 
-2026-11-03 (`6dc963b`): Town Hall panel now lists all buildings (Build/Level buttons, cost) plus a "Not yet available" group with requirements (`HallBuildings` in Panels.tsx, `.hb-*` in village.css); locked plots in the scene are faded with a lock badge. Earlier uncommitted art/village edits went into the same commit.
-Left: never viewed in a browser (360 and 1440 px); styling of the list is basic.
+2026-11-03 (`513ad1f`): Town Hall list (`HallBuildings` in Panels.tsx) now shows build time per building too (earlier `6dc963b`: list + "Not yet available" requirements + locked plots faded).
+Left: population (pop per building/troop, Farm cap) NOT built: it is a rule change needing owner answers, see NEXT_STEPS. Nothing viewed in a browser yet.
 Very next step: `npm run dev:fast`, click the Town Hall, check the list at both widths, tidy styling.
 Checks passed (`npm run check`, `npm run build`).
 

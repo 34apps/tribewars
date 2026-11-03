@@ -4,6 +4,7 @@ Rolling, human-readable history of notable changes, newest first. Lets any AI se
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
 ## 2026-11-03
+- Town Hall list shows build time per building (`513ad1f`; `npm run check` and `npm run build` green).
 - Town Hall building list (`6dc963b`; `npm run check` and `npm run build` green; not looked at in a browser): selecting the Town Hall now shows every building in one list with a quick Build/Level button and cost, then a "Not yet available" group with the missing requirements; click a row to open that building. Locked empty plots in the village scene are faded with a lock badge instead of the level.
 - Agent runner memory (`881f8b6`; `npm run check` green): `npm run agent` resumes the previous run's conversation by default (SDK `resume`, id in `.agent/last-session`); `--new` starts fresh; each successful final answer is saved to `.agent/last-reply.md`; `.agent/` git-ignored. Not tried against the live API.
 - Free rank reset + village layout (`66fd376`; `npm run check` and `npm run build` green; NOT looked at in a browser): resetting a Drillyard rank track no longer costs gold (`RESPEC_GOLD_FEE` removed; points return, resources do not). The ring wall is bigger (`WALL_RING` 270x135) and all twelve buildings, Drillyard included (now the middle of the square), stand inside it with open ground between them (scales about 10% smaller); trees/rocks inside the new ring are dropped.
