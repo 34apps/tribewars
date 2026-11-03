@@ -6,7 +6,6 @@ import {
   RANK_BONUS,
   RANK_COST,
   RANK_MAX,
-  RESPEC_GOLD_FEE,
   SCOUT_APPROX_STEP,
   SCOUT_INTEL_KEEN,
   SCOUT_UNIT,
@@ -238,7 +237,6 @@ function planRespec(v: VillageState, u: unknown, track: unknown): CheckResult<{ 
   if (!isTrack(track)) return fail('invalid_input', 'Unknown rank track.');
   const rank = rankOf(v.ranks, u, track);
   if (rank <= 0) return fail('invalid_input', 'Nothing to reset in this track.');
-  if (v.resources.gold < RESPEC_GOLD_FEE) return fail('not_enough_resources', `Resetting costs ${RESPEC_GOLD_FEE} gold.`);
   return { ok: true, unit: u, track, refund: (rank * (rank + 1)) / 2 };
 }
 
@@ -249,20 +247,19 @@ export function checkRespec(
   track: RankTrack | (string & {}),
   t: number,
   s: WorldSettings,
-): CheckResult<{ refund: number; goldFee: number }> {
+): CheckResult<{ refund: number }> {
   if (!Number.isFinite(t)) return fail('invalid_input', 'Invalid time.');
   const plan = planRespec(settleVillage(state, t, s), u, track);
   if (!plan.ok) return plan;
-  return { ok: true, refund: plan.refund, goldFee: RESPEC_GOLD_FEE };
+  return { ok: true, refund: plan.refund };
 }
 
-/** Settle to t, pay the gold fee and reset one track to rank 0 (its points return in full, its resources do not). */
+/** Settle to t and reset one track to rank 0, free of charge (points return in full; the resources paid for the ranks do not). */
 export function applyRespec(state: VillageState, u: UnitId | (string & {}), track: RankTrack | (string & {}), t: number, s: WorldSettings): VillageState {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);
   const plan = planRespec(v, u, track);
   if (!plan.ok) throw new GameError(plan.reason, plan.message);
-  v.resources.gold -= RESPEC_GOLD_FEE;
   v.ranks = { ...(v.ranks ?? {}), [plan.unit]: { ...emptyRanks(), ...v.ranks?.[plan.unit], [plan.track]: 0 } };
   return v;
 }

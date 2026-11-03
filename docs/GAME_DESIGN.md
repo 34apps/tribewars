@@ -412,8 +412,8 @@ improve. We keep the idea of a scarce budget but design our own system.
 - Effect per rank: +4% on that stat (max +20%); Sight: +10% scout duel strength per rank.
 - The budget makes maxing everything impossible: 5 fighting units × 2 tracks × 15 = 150 points vs 30 at best.
   Typical choices: one village maxes Edge on raiders + outriders (30), another maxes Guard on pikemen + guards.
-- **Respec:** refund one unit track for a resource/gold fee and a cooldown, so a village can change role
-  (offence ↔ defence) but not on the fly mid-war.
+- **Respec:** reset one unit track to rank 0, **free (no gold)** (owner, 2026-11-03): the points return in full, the
+  resources paid for the ranks are lost, so a village can change role (offence ↔ defence) but it still costs real resources.
 - Ranks belong to the **home village** of the troops. Away/support troops fight with their home village's ranks,
   stamped on the movement at send time so a later respec can't change a march in flight.
 - Server-authoritative: new table `unit_ranks(village_id, unit, track, rank)` and research jobs like training.
@@ -439,7 +439,7 @@ The defender's own Pathfinder Sight adds to its side of the duel. Failed scouts 
 3. Bonus is a stepped per-rank percentage like the genre's unit upgrades, with our own numbers: **+5% per rank, max +25%**
    (replaces the 4% / +20% above; `RANK_BONUS` in config).
 4. **Ranks never change speed or carry** — only attack, defence (Might/Bulwark) and scout strength (Keen).
-Still open: respec cost, and a "what you could see at higher Keen" hint in scout reports.
+Still open: a "what you could see at higher Keen" hint in scout reports.
 Status (2026-11-03, latest): **ranks reach battles and scouting.** The home village's ranks are stamped on each attack/scout/support
 movement when it leaves (a respec in flight changes nothing); the defender fights with its current ranks; a support contingent defends
 with the stamp of its newest arrival. The scout duel uses Keen on both sides, and a successful scout's intel depends on the sender's Keen
@@ -452,9 +452,9 @@ the server does not pass them yet), scout intel tiers. Earlier status: **engine 
 "Armory" name above, per the owner's rename). Engine: `drillyard.ts` (`checkResearch/applyResearch`, `pointsTotal/pointsSpent`,
 `checkRank/applyRank`, `checkRespec/applyRespec`, `mightMultiplier/bulwarkMultiplier/keenMultiplier`), optional
 `VillageState.researched/researchJob/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
-`KEEN_BONUS` 0.1, `RANK_COST`, `RESPEC_GOLD_FEE`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
+`KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
 Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. Respec resets one track to 0: points return in full,
-resources do not, gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
+resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
 on the village's own troops and on each support contingent with its own home ranks); omitted = identical to before. Not built: server
 tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored only), web panel.
 

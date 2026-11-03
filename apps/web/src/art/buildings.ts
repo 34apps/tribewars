@@ -104,18 +104,19 @@ export interface Placement {
 
 /** Where each building stands. Wall: the anchor of its plot/scaffold on the front-right wall edge. */
 export const PLACEMENT: Record<BuildingId, Placement> = {
-  hall: { x: 300, y: 126.3, scale: 1.3 },
-  barracks: { x: 392.3, y: 172.5, scale: 1.15 },
-  storehouse: { x: 209, y: 173.1, scale: 1.15 },
-  lumber: { x: 76.4, y: 174.4, scale: 1.1 },
-  mine: { x: 524.9, y: 177.6, scale: 1.05 },
-  vault: { x: 357.2, y: 212.1, scale: 0.62 },
-  goldmine: { x: 454.7, y: 216.7, scale: 1 },
-  stables: { x: 300, y: 221.2, scale: 1.1 },
-  farm: { x: 300, y: 287.5, scale: 1.1 },
-  wall: { x: 372, y: 238.5, scale: 0.55 },
-  market: { x: 190, y: 250, scale: 0.95 },
-  drillyard: { x: 90, y: 262, scale: 0.9 },
+  // All twelve stand inside the (larger) ring wall with open ground between them; the Drillyard is in the middle.
+  hall: { x: 300, y: 99.6, scale: 1.17 },
+  barracks: { x: 408, y: 138.3, scale: 1.03 },
+  storehouse: { x: 192, y: 138.3, scale: 1.03 },
+  lumber: { x: 132.6, y: 179.6, scale: 1 },
+  mine: { x: 467.4, y: 180.9, scale: 0.95 },
+  vault: { x: 348.6, y: 174.8, scale: 0.56 },
+  goldmine: { x: 413.4, y: 222.7, scale: 0.9 },
+  stables: { x: 186.6, y: 220.1, scale: 1 },
+  farm: { x: 354, y: 257.9, scale: 1 },
+  wall: { x: 470, y: 271.7, scale: 0.55 },
+  market: { x: 246, y: 261.5, scale: 0.86 },
+  drillyard: { x: 300, y: 198, scale: 0.81 },
 };
 
 /** Painter's order: things further down the screen are drawn later. */
@@ -138,10 +139,10 @@ export function footprintFront(id: BuildingId): string {
 }
 
 /** The ring wall around the market square: an isometric diamond. Gates sit where the roads cross each edge. */
-export const WALL_RING = { cx: 300, cy: 205.6, hw: 166.4, hh: 83.2, gateHalf: 11 } as const;
+export const WALL_RING = { cx: 300, cy: 205.6, hw: 270, hh: 135, gateHalf: 11 } as const;
 
 /** Label area for the wall: on the front-right edge, between the vault and the gold mine. */
-export const WALL_HIT: Box = { x: 352, y: 236, w: 40, h: 30 };
+export const WALL_HIT: Box = { x: 450, y: 271, w: 40, h: 30 };
 
 // ---- Sprite loading ----------------------------------------------------------------------------------------
 

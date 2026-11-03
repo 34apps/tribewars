@@ -345,8 +345,6 @@ export const RANK_COST: readonly Resources[] = [
   res(380, 260, 380, 15),
   res(650, 450, 650, 40),
 ];
-/** Gold fee to respec (refund) one track. Points are refunded in full; the resources are not. */
-export const RESPEC_GOLD_FEE = 25;
 
 // ---- Additions used by the engine logic (kept here so tuning never touches logic files) ----------
 

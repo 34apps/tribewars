@@ -132,7 +132,10 @@ const PROPS: [Prop, number, number, number][] = [
 ];
 
 export function sceneryItems(): DepthItem[] {
-  return PROPS.map(([kind, x, y, s], i) => ({
+  // Trees and rocks stay outside the ring wall (it is bigger than the area they were placed around).
+  const outside = ([, x, y]: (typeof PROPS)[number]) =>
+    Math.abs(x - WALL_RING.cx) / WALL_RING.hw + Math.abs(y - WALL_RING.cy) / WALL_RING.hh > 1.1;
+  return PROPS.filter(outside).map(([kind, x, y, s], i) => ({
     key: `t${i}`,
     depth: y,
     node: <use href={`#vt-${kind}`} transform={`translate(${x} ${y}) scale(${s})`} />,

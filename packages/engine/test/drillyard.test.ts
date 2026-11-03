@@ -111,13 +111,13 @@ describe('ranks and training points', () => {
     assert.equal(checkRank(fresh, 'raider', 'nonsense', 0, S1).ok, false);
   });
 
-  it('respec refunds the points for a gold fee', () => {
+  it('respec refunds the points and costs no gold', () => {
     let v = researched();
     v = applyRank(applyRank(v, 'raider', 'might', 0, S1), 'raider', 'might', 0, S1);
     const gold = v.resources.gold;
     const r = applyRespec(v, 'raider', 'might', 0, S1);
     assert.equal(pointsSpent(r), 0);
-    assert.ok(r.resources.gold < gold);
+    assert.equal(r.resources.gold, gold);
     expectGameError(() => applyRespec(r, 'raider', 'might', 0, S1), 'invalid_input');
   });
 });

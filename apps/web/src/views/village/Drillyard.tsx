@@ -4,7 +4,6 @@ import {
   KEEN_BONUS,
   RANK_BONUS,
   RANK_MAX,
-  RESPEC_GOLD_FEE,
   SCOUT_UNIT,
   UNITS,
   UNIT_IDS,
@@ -56,12 +55,12 @@ export function DrillyardPanel() {
     }
   }
 
-  async function reset(unit: UnitId, track: RankTrack, refund: number, fee: number) {
+  async function reset(unit: UnitId, track: RankTrack, refund: number) {
     const ok = await confirm({
       title: `Reset ${UNITS[unit].name} ${trackName(track)}?`,
       body: (
         <p>
-          It costs {fee} gold. You get {refund} Training {refund === 1 ? 'Point' : 'Points'} back, but the resources you paid for the ranks are lost.
+          Resetting is free. You get {refund} Training {refund === 1 ? 'Point' : 'Points'} back, but the resources you paid for the ranks are lost.
         </p>
       ),
       confirmLabel: 'Reset',
@@ -193,10 +192,10 @@ export function DrillyardPanel() {
                           type="button"
                           className="btn btn-small drill-reset"
                           disabled={!respec?.ok || busy}
-                          title={respec && !respec.ok ? reasonText(respec) : `Costs ${RESPEC_GOLD_FEE} gold, returns ${respec?.ok ? respec.refund : 0} points`}
-                          onClick={() => respec?.ok && void reset(u, t.id, respec.refund, respec.goldFee)}
+                          title={respec && !respec.ok ? reasonText(respec) : `Free, returns ${respec?.ok ? respec.refund : 0} points`}
+                          onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
                         >
-                          Reset · {RESPEC_GOLD_FEE} gold
+                          Reset · free
                           {respec?.ok ? ` · +${respec.refund} pts` : ''}
                         </button>
                       )}

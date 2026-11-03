@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { UNITS, RESPEC_GOLD_FEE, type Resources } from '@clanfire/engine';
+import { UNITS, type Resources } from '@clanfire/engine';
 import { errorOf, ok } from './helpers.ts';
 import { village, world, type App, type P } from './warfare-helpers.ts';
 
@@ -71,7 +71,7 @@ test('ranks: points per Drillyard level, researched only, track rules, respec re
   ok(back, 200);
   const st = back.json<{ state: { ranks: { pikeman: { might: number } }; resources: Resources } }>().state;
   assert.equal(st.ranks.pikeman.might, 0);
-  assert.ok(Math.abs(st.resources.gold - (gold - RESPEC_GOLD_FEE)) < 1);
+  assert.ok(Math.abs(st.resources.gold - gold) < 1);
   errorOf(await post(alice, id, 'respec', { unit: 'pikeman', track: 'might' }), 400, 'invalid_input'); // nothing left to reset
   ok(await post(alice, id, 'rank', { unit: 'pikeman', track: 'bulwark' }), 200);
 });
