@@ -334,6 +334,14 @@ th[scope='row'] {
   white-space: nowrap;
 }
 
+.hb-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .hb-btn {
   min-height: 44px;
   min-width: 64px;

@@ -224,6 +224,7 @@ function HallBuildings({
     const check = checkBuild(live, b, now, settings, limit);
     const reason = atMax ? 'Max level' : !check.ok ? reasonText(check, unmet) : null;
     const cost = atMax ? null : check.ok ? check.cost : buildingCost(b, target);
+    const timeMs = atMax ? null : check.ok ? check.timeMs : buildTimeMs(b, target, live.buildings.hall, settings);
     return (
       <li key={b} className={`hb-row${unmet.length > 0 && level === 0 ? ' is-locked' : ''}`}>
         <button type="button" className="hb-pick" onClick={() => onPick?.(b)} aria-label={`${def.name}, level ${level}. Show details`}>
@@ -239,6 +240,11 @@ function HallBuildings({
         {unmet.length === 0 || level > 0 ? (
           <span className="hb-cost" aria-hidden="true">
             {cost ? RESOURCE_IDS.filter((r) => cost[r] > 0).map((r) => `${formatCompact(cost[r])}`).join(' · ') : ''}
+          </span>
+        ) : null}
+        {(unmet.length === 0 || level > 0) && timeMs !== null ? (
+          <span className="hb-time" aria-label={`Build time ${formatDuration(timeMs)}`}>
+            <Icon name="time" size={14} /> {formatDuration(timeMs)}
           </span>
         ) : null}
         {unmet.length === 0 || level > 0 ? (
