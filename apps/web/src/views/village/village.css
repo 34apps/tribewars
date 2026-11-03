@@ -121,8 +121,13 @@ th[scope='row'] {
   gap: 14px;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding-bottom: 6px;
+}
+
+.vv-side > * {
+  min-width: 0;
 }
 
 /* ---- Scene ---- */
@@ -289,10 +294,13 @@ th[scope='row'] {
   gap: 6px;
 }
 
+/* Two lines per building so nothing is wider than the side panel: name on top, cost + time + button below. */
 .hb-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
+  min-width: 0;
   padding: 4px 6px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.35);
@@ -303,7 +311,7 @@ th[scope='row'] {
 }
 
 .hb-pick {
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
   min-height: 44px;
   display: flex;
@@ -332,6 +340,13 @@ th[scope='row'] {
 .hb-cost {
   font-size: 12px;
   white-space: nowrap;
+  margin-left: 52px;
+}
+
+.hb-pop {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .hb-time {
@@ -343,14 +358,14 @@ th[scope='row'] {
 }
 
 .hb-btn {
-  min-height: 44px;
-  min-width: 64px;
+  min-height: 40px;
+  min-width: 72px;
+  margin-left: auto;
 }
 
-@media (max-width: 480px) {
-  .hb-cost {
-    display: none;
-  }
+.hb-pick .hb-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Locked plots (requirements not met): faded so players see what comes later. */

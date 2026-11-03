@@ -269,9 +269,9 @@ function HallBuildings({
 
   return (
     <div className="hb">
-      <div className="eyebrow">
-        Buildings · Population {formatInt(pop.total)} / {formatInt(populationCap(live))} (buildings {formatInt(pop.buildings)}, troops{' '}
-        {formatInt(pop.troops)})
+      <div className="eyebrow">Buildings</div>
+      <div className="hb-pop" title={`Buildings ${pop.buildings}, troops ${pop.troops}`}>
+        Population {formatInt(pop.total)} / {formatInt(populationCap(live))}
       </div>
       <ul className="hb-list">{open.map(row)}</ul>
       {locked.length > 0 && (
