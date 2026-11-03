@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`d16c935`): Drillyard research queue. `researchQueue` (replaces `researchJob`; legacy field migrated in `normalizeVillage`), limit 2 free / 4 premium (`researchQueueLimit` in config.ts; premium number is my choice), next job starts automatically, `cancel-research {index}` cancels any queued one (80% back, later jobs move up). UI in `Drillyard.tsx`.
-Left: no server route tests for cancel endpoints; nothing seen in a browser; no conquest yet.
-Very next step: `npm run dev:fast`, queue two researches, cancel the first, check the second starts; check 360/1440 px.
-Checks passed (type-check, tests, build).
+2026-11-03 (`898fb42`): desktop village side panel lost its inner scrollbar (page scrolls, board stretches; `village.css`). Added server tests for `cancel-research`. Owner's standing preferences (no inner scrollbars, check phone+desktop, always add backend tests) are in AGENTS.md and memory.
+Left: layout not seen in a browser (no browser tool in the agent run). "Don't resize the window" read as: don't shrink the desktop layout; phone sheet unchanged.
+Very next step: open village at 1440/1280/360 px; then the Drillyard queue check (queue two, cancel first).
+Checks passed (type-check, tests 200, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
