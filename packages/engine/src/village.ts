@@ -14,6 +14,7 @@ import {
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
   NPC_TIER_WEIGHTS,
+  POP_PER_UNIT,
   START_RESOURCES,
   TRAIN_TIME_FACTOR,
   UNITS,
@@ -23,7 +24,10 @@ import {
   buildTimeMs,
   buildingCost,
   canAfford,
+  buildingPop,
   netProductionPerHour,
+  populationCap,
+  populationUsage,
   productionFromLevels,
   storageCap,
   storageCapForLevel,
@@ -226,6 +230,12 @@ function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: numb
   }
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
   if (v.buildQueue.length >= maxQueue) return fail('queue_full', 'The build queue is full.');
+  if (!v.npc) {
+    const extra = buildingPop(b, targetLevel) - buildingPop(b, targetLevel - 1);
+    if (populationUsage(v).total + extra > populationCap(v)) {
+      return fail('population_full', 'Not enough population room. Upgrade the Farm or spend troops first.');
+    }
+  }
   return { ok: true, building: b, targetLevel, cost, timeMs: buildTimeMs(b, targetLevel, v.buildings.hall, s) };
 }
 
@@ -301,6 +311,9 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
   for (const r of RESOURCE_IDS) cost[r] = def.cost[r] * count;
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
   if (!v.npc) {
+    if (populationUsage(v).total + count * POP_PER_UNIT[u] > populationCap(v)) {
+      return fail('population_full', 'Not enough population room. Upgrade the Farm to train more troops.');
+    }
     const netAfter = netProductionPerHour(v, s).food - count * def.upkeep * s.speed;
     if (netAfter < -EPSILON) return fail('not_enough_food', 'Your farms cannot feed that many troops. Upgrade the Farm.');
   }

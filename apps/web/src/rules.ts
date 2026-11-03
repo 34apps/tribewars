@@ -5,6 +5,7 @@ import {
   BUILDINGS,
   HALL_TIME_FACTOR,
   MAX_TRAIN_BATCH,
+  POP_PER_UNIT,
   RESOURCE_IDS,
   RESOURCE_PRODUCER,
   TRAIN_TIME_FACTOR,
@@ -17,6 +18,8 @@ import {
   isAttackForbidden,
   isSupportAllowed,
   netProductionPerHour,
+  populationCap,
+  populationUsage,
   productionFromLevels,
   shipmentCapacity,
   storageCapForLevel,
@@ -177,6 +180,8 @@ export function maxTrainable(live: VillageState, u: UnitId, now: number, s: Worl
   }
   const upkeep = def.upkeep * s.speed;
   if (upkeep > 0) n = Math.min(n, Math.floor(netProductionPerHour(live, s).food / upkeep + 1e-9));
+  const popLeft = populationCap(live) - populationUsage(live).total;
+  if (POP_PER_UNIT[u] > 0) n = Math.min(n, Math.floor(popLeft / POP_PER_UNIT[u]));
   n = Math.max(0, n);
   for (let i = 0; i < 6 && n > 0 && !checkTrain(live, u, n, now, s).ok; i++) n -= 1;
   return n;

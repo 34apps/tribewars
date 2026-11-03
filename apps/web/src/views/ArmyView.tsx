@@ -10,6 +10,9 @@ import {
   emptyUnits,
   isResearched,
   normalizeUnits,
+  POP_PER_UNIT,
+  populationCap,
+  populationUsage,
   productionPerHour,
   trainTimeMs,
   upkeepPerHour,
@@ -64,7 +67,7 @@ function TroopsTable() {
         </table>
       </div>
       <p className="muted upkeep">
-        <Icon name={RESOURCE_ICON.food} size={20} className="inline-icon" /> Troops eat {formatInt(upkeep)}/h of the {formatInt(farm)}/h your farms grow.
+        <Icon name={RESOURCE_ICON.food} size={20} className="inline-icon" /> Troops eat {formatInt(upkeep)}/h of the {formatInt(farm)}/h your farms grow. Population {formatInt(populationUsage(live).total)} / {formatInt(populationCap(live))} (buildings and troops; the Farm raises the cap).
       </p>
     </section>
   );
@@ -482,6 +485,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
         <div><dt>Speed</dt><dd>{formatInt(speed)} tiles/h</dd></div>
         <div><dt>Carry</dt><dd>{def.carry}</dd></div>
         <div><dt>Upkeep</dt><dd>{formatInt(upkeep)} food/h</dd></div>
+        <div><dt>Population</dt><dd>{POP_PER_UNIT[unit]}</dd></div>
       </dl>
       {locked ? (
         <p className="requirements">

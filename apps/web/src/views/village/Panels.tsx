@@ -9,8 +9,11 @@ import {
   UNIT_IDS,
   buildTimeMs,
   buildingCost,
+  buildingPop,
   checkBuild,
   netProductionPerHour,
+  populationCap,
+  populationUsage,
   storageCap,
 } from '@clanfire/engine';
 import type { BuildingId, ResourceId } from '@clanfire/engine';
@@ -209,6 +212,7 @@ function HallBuildings({
 }) {
   const { live, now, settings, player } = useGame();
   const limit = buildQueueLimit(player.premium);
+  const pop = populationUsage(live);
   const ids = BUILDING_IDS.filter((b) => b !== 'hall');
   const isLocked = (b: BuildingId) => live.buildings[b] === 0 && unmetRequirements(live.buildings, BUILDINGS[b].requires).length > 0;
   const open = ids.filter((b) => !isLocked(b));
@@ -225,6 +229,7 @@ function HallBuildings({
     const reason = atMax ? 'Max level' : !check.ok ? reasonText(check, unmet) : null;
     const cost = atMax ? null : check.ok ? check.cost : buildingCost(b, target);
     const timeMs = atMax ? null : check.ok ? check.timeMs : buildTimeMs(b, target, live.buildings.hall, settings);
+    const popCost = atMax ? 0 : buildingPop(b, target) - buildingPop(b, target - 1);
     return (
       <li key={b} className={`hb-row${unmet.length > 0 && level === 0 ? ' is-locked' : ''}`}>
         <button type="button" className="hb-pick" onClick={() => onPick?.(b)} aria-label={`${def.name}, level ${level}. Show details`}>
@@ -243,8 +248,8 @@ function HallBuildings({
           </span>
         ) : null}
         {(unmet.length === 0 || level > 0) && timeMs !== null ? (
-          <span className="hb-time" aria-label={`Build time ${formatDuration(timeMs)}`}>
-            <Icon name="time" size={14} /> {formatDuration(timeMs)}
+          <span className="hb-time" aria-label={`Build time ${formatDuration(timeMs)}, population ${popCost}`}>
+            <Icon name="time" size={14} /> {formatDuration(timeMs)} · {popCost} pop
           </span>
         ) : null}
         {unmet.length === 0 || level > 0 ? (
@@ -264,7 +269,10 @@ function HallBuildings({
 
   return (
     <div className="hb">
-      <div className="eyebrow">Buildings</div>
+      <div className="eyebrow">
+        Buildings · Population {formatInt(pop.total)} / {formatInt(populationCap(live))} (buildings {formatInt(pop.buildings)}, troops{' '}
+        {formatInt(pop.troops)})
+      </div>
       <ul className="hb-list">{open.map(row)}</ul>
       {locked.length > 0 && (
         <>

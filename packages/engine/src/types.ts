@@ -209,6 +209,7 @@ export type GameErrorCode =
   | 'queue_full'
   | 'too_late'
   | 'not_enough_food'
+  | 'population_full'
   | 'not_enough_troops'
   | 'no_troops'
   | 'invalid_target'

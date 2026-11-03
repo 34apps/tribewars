@@ -47,6 +47,34 @@ export const STORAGE_GROWTH = 1.24;
 export const VAULT_BASE = 120;
 export const VAULT_GROWTH = 1.35;
 
+/**
+ * Population: a second limit next to food. Every building level and every troop (home, away or in training)
+ * takes population; the Farm sets the cap. Queued building levels are reserved when queued. Abandoned villages
+ * are exempt. Building at level L takes ceil(first * POP_BUILDING_GROWTH^(L-1)); the Farm itself takes none, so a
+ * full village can always still upgrade its Farm.
+ */
+export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
+  hall: 4,
+  lumber: 3,
+  farm: 0,
+  mine: 3,
+  goldmine: 3,
+  market: 4,
+  storehouse: 3,
+  barracks: 5,
+  stables: 6,
+  drillyard: 5,
+  wall: 2,
+  vault: 2,
+};
+export const POP_BUILDING_GROWTH = 1.12;
+/** Population per troop type (separate from food upkeep). */
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 3, knight: 4, pathfinder: 1 };
+/** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
+export const POP_CAP_LEVEL0 = 120;
+export const POP_CAP_BASE = 150;
+export const POP_CAP_GROWTH = 1.17;
+
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
 export const HALL_TIME_FACTOR = 0.95;
 /** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */

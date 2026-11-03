@@ -3,6 +3,12 @@
 import {
   BUILDINGS,
   HALL_TIME_FACTOR,
+  POP_BUILDING_FIRST,
+  POP_BUILDING_GROWTH,
+  POP_CAP_BASE,
+  POP_CAP_GROWTH,
+  POP_CAP_LEVEL0,
+  POP_PER_UNIT,
   PRODUCTION_BASE,
   PRODUCTION_GROWTH,
   PRODUCTION_LEVEL0,
@@ -14,7 +20,7 @@ import {
   VAULT_BASE,
   VAULT_GROWTH,
 } from './config.ts';
-import { RESOURCE_IDS, UNIT_IDS } from './types.ts';
+import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type { BuildingId, BuildingLevels, Resources, VillageState, WorldSettings } from './types.ts';
 import { emptyResources, ipow } from './util.ts';
 
@@ -66,6 +72,37 @@ export function upkeepPerHour(state: VillageState, s: WorldSettings): number {
     for (const job of queue) food += (job.count - job.done) * UNITS[job.unit].upkeep;
   }
   return food * s.speed;
+}
+
+/** Population taken by `b` at `level`. */
+export function buildingPop(b: BuildingId, level: number): number {
+  if (level <= 0 || POP_BUILDING_FIRST[b] <= 0) return 0;
+  return Math.ceil(POP_BUILDING_FIRST[b] * ipow(POP_BUILDING_GROWTH, level - 1) - 1e-9);
+}
+
+/** Population cap for a Farm level. */
+export function popCapForLevel(farmLevel: number): number {
+  return farmLevel <= 0 ? POP_CAP_LEVEL0 : Math.round(POP_CAP_BASE * ipow(POP_CAP_GROWTH, farmLevel - 1));
+}
+
+export function populationCap(state: VillageState): number {
+  return popCapForLevel(state.buildings.farm);
+}
+
+/** Population in buildings (queued levels count already) and in troops (home, away, queued for training). */
+export function populationUsage(state: VillageState): { buildings: number; troops: number; total: number } {
+  let buildings = 0;
+  for (const b of BUILDING_IDS) {
+    let level = state.buildings[b];
+    for (const job of state.buildQueue) if (job.building === b && job.targetLevel > level) level = job.targetLevel;
+    buildings += buildingPop(b, level);
+  }
+  let troops = 0;
+  for (const u of UNIT_IDS) troops += ((state.troops[u] || 0) + (state.away[u] || 0)) * POP_PER_UNIT[u];
+  for (const queue of [state.trainQueues.barracks, state.trainQueues.stables]) {
+    for (const job of queue) troops += (job.count - job.done) * POP_PER_UNIT[job.unit];
+  }
+  return { buildings, troops, total: buildings + troops };
 }
 
 /** Production per hour with food upkeep subtracted (food may be negative). */

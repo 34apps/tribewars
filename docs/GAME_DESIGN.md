@@ -28,6 +28,13 @@ When a rule changes, change it here in the same commit.
   or away. Net food per hour = farm production − upkeep. Training is refused if it would make net
   food negative (`not_enough_food`). Net food can only go negative through rule changes; settlement
   then clamps food at 0 (no starvation in v1). Abandoned villages pay no upkeep.
+- **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
+  population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
+  (queued levels are reserved when queued; the Farm takes 0). Each troop takes `POP_PER_UNIT[u]`
+  whether at home, away or queued for training. Cap = `popCapForLevel(farm level)` (level 0:
+  `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
+  that would push used above the cap is refused (`population_full`); losses free population. Checked
+  server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
 - **Storage cap** (same for every resource) from the storehouse level:
   `L == 0 ? STORAGE_LEVEL0 : round(STORAGE_BASE * STORAGE_GROWTH^(L-1))`. Production stops at the
   cap. Anything added (refunds, loot coming home) is also clamped to the cap.
