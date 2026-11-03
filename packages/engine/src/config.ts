@@ -505,7 +505,32 @@ export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   transfer_leadership: ['leader'],
   disband: ['leader'],
   chat: ['leader', 'officer', 'member'],
+  // Forum: managing boards and moderating threads. Officers have both by default; the leader can grant either
+  // (or any other right in TRIBE_GRANTABLE) to a single member (docs/GAME_DESIGN.md section 11).
+  forum_manage: ['leader', 'officer'],
+  forum_moderate: ['leader', 'officer'],
 };
+
+/** Rights the leader may grant to an individual member (stored on the membership). Everything else stays role-bound. */
+export const TRIBE_GRANTABLE = ['invite', 'handle_applications', 'kick', 'diplomacy', 'edit_settings', 'forum_manage', 'forum_moderate'] as const satisfies readonly TribeAction[];
+
+// ---- Tribe forum (docs/GAME_DESIGN.md section 11) ----
+export const FORUM_BOARD_NAME_MAX = 40;
+export const FORUM_THREAD_TITLE_MAX = 80;
+export const FORUM_POST_MAX = 3000;
+/** Boards per tribe. */
+export const FORUM_BOARDS_MAX = 8;
+/** Threads kept per board; when full the oldest unpinned thread is dropped. */
+export const FORUM_THREADS_KEEP = 200;
+/** Posts per thread (the first post included); a full thread refuses replies. */
+export const FORUM_POSTS_PER_THREAD = 500;
+/** The author may edit a post this long after writing it (moderators editing their own posts: always). */
+export const FORUM_EDIT_WINDOW_MS = 15 * 60_000;
+export const FORUM_PAGE_SIZE = 30;
+/** Spam guard per member for new threads and replies together. */
+export const FORUM_MIN_GAP_MS = 3000;
+export const FORUM_PER_MINUTE = 6;
+export const FORUM_PER_HOUR = 60;
 
 // ---- Tribe warfare (section 12) ----
 

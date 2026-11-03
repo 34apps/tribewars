@@ -240,7 +240,35 @@ members. Officers can edit settings, invite, handle applications, run diplomacy 
 only the leader removes officers, sets roles, transfers leadership (old leader becomes officer) and
 disbands. Anyone can leave, except the leader while other members remain (transfer first). When the
 last member leaves, the tribe is disbanded. Disbanding removes all memberships, invites,
-applications, proposals and relations.
+applications, proposals, relations and the forum.
+
+**Individual rights.** Effective right = role default OR an explicit grant stored on the membership
+(`tribe_members.grants`, JSON, re-validated on read). Only the leader sets grants
+(`PUT /api/tribe/members/:id/permissions`); logged in the tribe event log. Grantable (`TRIBE_GRANTABLE`):
+`invite`, `handle_applications`, `kick` (still never over officers or the leader), `diplomacy`,
+`edit_settings`, `forum_manage`, `forum_moderate`. Never grantable (leader only): `set_roles`,
+`transfer_leadership`, `disband`, changing grants. Grants are kept when the role changes and cleared
+when the member leaves or is removed. The tribe state carries `rights` (the caller's effective list).
+
+| right | leader | officer | member (default) |
+|---|---|---|---|
+| edit_settings, invite, handle_applications, kick, diplomacy | yes | yes | grant |
+| forum_manage, forum_moderate | yes | yes | grant |
+| set_roles, transfer_leadership, disband | yes | no | never |
+| chat | yes | yes | yes |
+
+**Forum.** Members only (everyone else gets `not_found`); text and emoji only. Boards (max
+`FORUM_BOARDS_MAX` = 8; defaults Announcements [leadership starts threads], General, Leadership
+[visible to leadership]) have `visibility` (`members`|`leadership`) and `postRule` (who starts threads).
+Leadership = leader, officers and members with `forum_moderate` or `forum_manage`. Replies need a
+visible board and an unlocked thread. `forum_manage`: create/rename/delete boards, set visibility and
+post rule. `forum_moderate`: pin, lock, delete threads, delete any post. Authors edit their own posts
+for 15 minutes (moderators editing their own: any time) and delete their own posts; deleting the first
+post deletes the thread. Limits (`FORUM_*` in config.ts): 3000 characters per post, 80 per title,
+200 threads per board (oldest unpinned dropped), 500 posts per thread, per-member 3 s gap, 6/min, 60/h.
+Posts stay (with the author's name) when a member leaves. Unread = threads with a post newer than the
+member's read marker (their join time at first); `forumUnread` feeds the Tribe tab badge. Tribes that
+predate the forum get the default boards when the forum is first opened.
 
 **Diplomacy** — one relation per pair of tribes:
 - `ally` and `nap` (non-aggression pact): one tribe proposes, the other accepts or declines; the

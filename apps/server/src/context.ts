@@ -1,5 +1,6 @@
 import type { WorldSettings } from '@clanfire/engine';
 import type { AuthService, RateLimiter } from './auth.ts';
+import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
 import type { MailService } from './mail-service.ts';
 import type { PlayerRow, Store } from './store.ts';
@@ -12,6 +13,7 @@ export interface AppContext {
   game: GameService;
   tribes: TribeService;
   mail: MailService;
+  forum: ForumService;
   settings: WorldSettings;
   limiter: RateLimiter;
   now: () => number;

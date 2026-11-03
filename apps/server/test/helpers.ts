@@ -51,7 +51,7 @@ export class Client {
     readonly ip = '127.0.0.1',
   ) {}
 
-  async call(method: 'GET' | 'POST' | 'DELETE', url: string, body?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
+  async call(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
     const h: Record<string, string> = { host: HOST, ...headers };
     if (method !== 'GET' && h.origin === undefined) h.origin = `http://${HOST}`;
     if (this.cookie) h.cookie = this.cookie;
@@ -69,6 +69,10 @@ export class Client {
 
   post(url: string, body?: unknown, headers?: Record<string, string>) {
     return this.call('POST', url, body, headers);
+  }
+
+  put(url: string, body?: unknown) {
+    return this.call('PUT', url, body);
   }
 
   delete(url: string) {

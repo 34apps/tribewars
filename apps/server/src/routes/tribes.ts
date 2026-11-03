@@ -15,8 +15,10 @@ import {
   type InviteRequest,
   type MyTribeResponse,
   type RoleRequest,
+  type SetGrantsRequest,
   type TransferRequest,
   type TribeDto,
+  type TribeMemberDto,
   type TribeAlertsResponse,
   type TribeListResponse,
   type TribeSettingsRequest,
@@ -75,6 +77,14 @@ const roleBody = {
   required: ['role'],
   additionalProperties: false,
   properties: { role: { type: 'string', enum: TRIBE_ROLES.filter((r) => r !== 'leader') } },
+} as const;
+
+// Which rights are grantable is the engine's call (parseGrants in the service); this only bounds the shape.
+const grantsBody = {
+  type: 'object',
+  required: ['grants'],
+  additionalProperties: false,
+  properties: { grants: { type: 'array', maxItems: 16, items: { type: 'string', maxLength: 40 } } },
 } as const;
 
 const transferBody = {
@@ -206,6 +216,12 @@ export function tribeRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/tribe/members/:playerId/role',
     { ...auth, schema: { params: params('playerId'), body: roleBody } },
     async (req): Promise<MyTribeResponse> => svc.setRole(playerOf(req), Number(req.params.playerId), req.body.role, req.nowMs),
+  );
+
+  app.put<{ Params: { playerId: string }; Body: SetGrantsRequest }>(
+    '/api/tribe/members/:playerId/permissions',
+    { ...auth, schema: { params: params('playerId'), body: grantsBody } },
+    async (req): Promise<TribeMemberDto> => svc.setGrants(playerOf(req), Number(req.params.playerId), req.body.grants, req.nowMs),
   );
 
   app.post<{ Body: TransferRequest }>(

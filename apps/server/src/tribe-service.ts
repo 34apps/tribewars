@@ -19,9 +19,12 @@ import {
   canTribe,
   checkTribeDescription,
   checkTribeIdentity,
+  effectiveRights,
   normalizeTribeName,
   normalizeTribeTag,
   pactNoticeMs,
+  parseGrants,
+  seesLeadershipBoards,
   settleVillage,
   villagePoints,
   type ChatMessageDto,
@@ -45,7 +48,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import type { PlayerRow, Store } from './store.ts';
-import type { ApplicationRow, InviteRow, MembershipRow, ProposalRow, RankedTribeRow, RelationSideRow, TribeRow } from './tribe-store.ts';
+import type { ApplicationRow, InviteRow, MemberRow, MembershipRow, ProposalRow, RankedTribeRow, RelationSideRow, TribeRow } from './tribe-store.ts';
 
 const MS_PER_HOUR = 3_600_000;
 const LIST_LIMIT = 100;
@@ -69,6 +72,8 @@ const DENIED: Record<TribeAction, string> = {
   transfer_leadership: 'Only the leader can hand over leadership.',
   disband: 'Only the leader can disband the tribe.',
   chat: "You can't use the tribe chat.",
+  forum_manage: "You don't have the right to manage the forum boards.",
+  forum_moderate: "You don't have the right to moderate the forum.",
 };
 
 const RECRUITMENT_LABEL: Record<Recruitment, string> = {
@@ -195,6 +200,7 @@ export class TribeService {
 
       const tribeId = this.ts.insertTribe(identity.name, identity.tag, desc, body.recruitment, t);
       this.ts.insertMember(player.id, tribeId, 'leader', t);
+      this.store.forum.createDefaultBoards(tribeId, t);
       this.ts.deleteApplicationsOfPlayer(player.id);
       this.event(tribeId, t, `${player.username} founded the tribe.`);
       return this.view(player.id, t);
@@ -344,7 +350,7 @@ export class TribeService {
       const m = this.requireMember(player, 'kick');
       if (targetId === player.id) throw new GameError('invalid_target', 'Use "Leave tribe" to leave your own tribe.');
       const target = this.tribeMate(m, targetId);
-      if (!canKick(m.role, target.role)) {
+      if (!canKick(m.role, target.role, m.grants)) {
         throw new GameError('forbidden', target.role === 'leader' ? "The leader can't be removed." : 'Only the leader can remove officers.');
       }
       this.ts.deleteMember(target.playerId);
@@ -370,6 +376,30 @@ export class TribeService {
         );
       }
       return this.view(player.id, t);
+    });
+  }
+
+  /**
+   * Leader only: replace the explicit rights of one member (on top of their role). Only TRIBE_GRANTABLE rights
+   * can be given. Grants stay when the role changes and are cleared when the member leaves or is removed.
+   */
+  setGrants(player: PlayerRow, targetId: number, rawGrants: unknown, t: number): TribeMemberDto {
+    const grants = parseGrants(rawGrants);
+    if (!grants) throw invalid('Grants must be a list of distinct, grantable rights.');
+    return this.mutate(t, () => {
+      const m = this.requireMember(player);
+      if (m.role !== 'leader') throw new GameError('forbidden', 'Only the leader can change members\' rights.');
+      if (targetId === player.id) throw new GameError('invalid_target', 'The leader already has every right.');
+      const target = this.tribeMate(m, targetId);
+      const before = target.grants.join(',');
+      this.ts.setMemberGrants(target.playerId, grants);
+      if (before !== grants.join(',')) {
+        const name = this.nameOf(target.playerId);
+        this.event(m.tribeId, t, `${player.username} ${grants.length > 0 ? `set ${name}'s extra rights to: ${grants.join(', ')}` : `removed ${name}'s extra rights`}.`);
+      }
+      const row = this.ts.members(m.tribeId).find((x) => x.playerId === target.playerId);
+      if (!row) throw new GameError('not_found', 'That player is not in your tribe.');
+      return memberDto(row, true);
     });
   }
 
@@ -566,7 +596,7 @@ export class TribeService {
   private requireMember(player: PlayerRow, action?: TribeAction): MembershipRow {
     const m = this.ts.membership(player.id);
     if (!m) throw new GameError('not_in_tribe', 'You are not in a tribe.');
-    if (action && !canTribe(m.role, action)) throw new GameError('forbidden', DENIED[action]);
+    if (action && !canTribe(m.role, action, m.grants)) throw new GameError('forbidden', DENIED[action]);
     return m;
   }
 
@@ -681,7 +711,8 @@ export class TribeService {
     return { id: r.id, name: r.name, tag: r.tag, members: r.members, points: r.points, villages: r.villages, recruitment: r.recruitment, rank };
   }
 
-  private tribeDto(tribeId: number, t: number): TribeDto {
+  /** `withGrants`: include each member's explicit grants (only for the tribe's own members). */
+  private tribeDto(tribeId: number, t: number, withGrants = false): TribeDto {
     const tribe = this.tribeOrThrow(tribeId);
     const ranking = this.ts.ranking();
     const index = ranking.findIndex((r) => r.id === tribeId);
@@ -699,6 +730,7 @@ export class TribeService {
         villageX: x.villageX,
         villageY: x.villageY,
         joinedAt: x.joinedAt,
+        ...(withGrants ? { grants: x.grants } : {}),
       }));
     return {
       ...this.summary(ranked, index + 1),
@@ -720,17 +752,35 @@ export class TribeService {
         applications: this.ts.applicationsOfPlayer(playerId).map(applicationDto),
         proposals: [],
         events: [],
+        rights: [],
+        forumUnread: 0,
       };
     }
     return {
-      tribe: this.tribeDto(m.tribeId, t),
+      tribe: this.tribeDto(m.tribeId, t, true),
       role: m.role,
-      invites: canTribe(m.role, 'invite') ? this.ts.invitesOfTribe(m.tribeId, t).map(inviteDto) : [],
-      applications: canTribe(m.role, 'handle_applications') ? this.ts.applicationsOfTribe(m.tribeId).map(applicationDto) : [],
+      invites: canTribe(m.role, 'invite', m.grants) ? this.ts.invitesOfTribe(m.tribeId, t).map(inviteDto) : [],
+      applications: canTribe(m.role, 'handle_applications', m.grants) ? this.ts.applicationsOfTribe(m.tribeId).map(applicationDto) : [],
       proposals: this.ts.proposalsOfTribe(m.tribeId).map((p) => proposalDto(p, m.tribeId)),
       events: this.ts.events(m.tribeId, EVENTS_SHOWN).map((e): TribeEventDto => ({ id: e.id, createdAt: e.createdAt, text: e.text })),
+      rights: effectiveRights(m.role, m.grants),
+      forumUnread: this.store.forum.unreadCount(playerId, m.tribeId, seesLeadershipBoards(m.role, m.grants)),
     };
   }
+}
+
+function memberDto(x: MemberRow, withGrants: boolean): TribeMemberDto {
+  return {
+    playerId: x.playerId,
+    username: x.username,
+    chieftain: x.chieftain,
+    role: x.role,
+    points: x.points,
+    villageX: x.villageX,
+    villageY: x.villageY,
+    joinedAt: x.joinedAt,
+    ...(withGrants ? { grants: x.grants } : {}),
+  };
 }
 
 function inviteDto(i: InviteRow): TribeInviteDto {

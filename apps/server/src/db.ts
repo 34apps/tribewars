@@ -143,7 +143,9 @@ CREATE TABLE IF NOT EXISTS tribe_members (
   player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
   tribe_id  INTEGER NOT NULL REFERENCES tribes(id) ON DELETE CASCADE,
   role      TEXT    NOT NULL CHECK (role IN ('leader', 'officer', 'member')),
-  joined_at INTEGER NOT NULL
+  joined_at INTEGER NOT NULL,
+  -- Individual rights the leader granted on top of the role: a JSON array of TRIBE_GRANTABLE names.
+  grants    TEXT    NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_tribe_members_tribe ON tribe_members(tribe_id);
 -- At most one leader per tribe.
@@ -219,6 +221,50 @@ CREATE TABLE IF NOT EXISTS tribe_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_tribe_messages_tribe ON tribe_messages(tribe_id, id);
 
+-- ---- Tribe forum (section 11). Everything cascades with the tribe; authors' posts stay when they leave the tribe.
+CREATE TABLE IF NOT EXISTS forum_boards (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  tribe_id   INTEGER NOT NULL REFERENCES tribes(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  visibility TEXT    NOT NULL CHECK (visibility IN ('members', 'leadership')),
+  post_rule  TEXT    NOT NULL DEFAULT 'members' CHECK (post_rule IN ('members', 'leadership')),
+  position   INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forum_boards_tribe ON forum_boards(tribe_id, position);
+
+CREATE TABLE IF NOT EXISTS forum_threads (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  board_id     INTEGER NOT NULL REFERENCES forum_boards(id) ON DELETE CASCADE,
+  tribe_id     INTEGER NOT NULL REFERENCES tribes(id) ON DELETE CASCADE,
+  author_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  title        TEXT    NOT NULL,
+  pinned       INTEGER NOT NULL DEFAULT 0,
+  locked       INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL,
+  last_post_at INTEGER NOT NULL,
+  post_count   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_forum_threads_board ON forum_threads(board_id, pinned, last_post_at);
+
+CREATE TABLE IF NOT EXISTS forum_posts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id  INTEGER NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+  author_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  body       TEXT    NOT NULL,
+  created_at INTEGER NOT NULL,
+  edited_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_forum_posts_thread ON forum_posts(thread_id, id);
+
+-- Per-member read marker: a thread is unread when its last post is newer than this (or than the join time).
+CREATE TABLE IF NOT EXISTS forum_reads (
+  player_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  thread_id    INTEGER NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+  last_read_at INTEGER NOT NULL,
+  PRIMARY KEY (player_id, thread_id)
+);
+
 -- ---- Mail: player-to-player messages (plain text). Each side hides its own copy; the row goes when both did.
 CREATE TABLE IF NOT EXISTS mail (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -273,6 +319,8 @@ function addMissingColumns(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'household_shared')) db.exec('ALTER TABLE players ADD COLUMN household_shared INTEGER NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'banned_at')) db.exec('ALTER TABLE players ADD COLUMN banned_at INTEGER');
   if (!cols.some((c) => c.name === 'ban_reason')) db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
+  const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
+  if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).
   for (const table of ['movements', 'stationed']) {
     const t = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;

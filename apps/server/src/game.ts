@@ -64,6 +64,7 @@ import {
   type Units,
   type VillageRefDto,
   type WorldSettings,
+  seesLeadershipBoards,
 } from '@clanfire/engine';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, StationedRow, StationedView, VillageRecord, VillageStub } from './store.ts';
@@ -559,6 +560,7 @@ export class GameService {
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
       unreadReports: this.store.unreadReportCount(player.id),
       unreadMail: this.store.mail.unreadCount(player.id),
+      forumUnread: this.forumUnread(player.id),
       // Invitations only matter to tribeless players: they cannot accept while in a tribe.
       tribeInvites: dto.tribe === null ? this.store.tribes.countInvitesForPlayer(player.id, t) : 0,
       // Incoming attacks on any member's village (scouts and support don't count).
@@ -571,6 +573,12 @@ export class GameService {
   }
 
   /** Villages in the rectangle [x, x+w) x [y, y+h). */
+  /** Forum threads with new posts for the player (0 when tribeless). */
+  private forumUnread(playerId: number): number {
+    const m = this.store.tribes.membership(playerId);
+    return m ? this.store.forum.unreadCount(playerId, m.tribeId, seesLeadershipBoards(m.role, m.grants)) : 0;
+  }
+
   map(player: PlayerRow, x: number, y: number, w: number, h: number, t: number): MapResponse {
     if (![x, y, w, h].every(Number.isInteger)) throw new GameError('invalid_input', 'x, y, w and h must be whole numbers.');
     if (w < 1 || h < 1 || w > MAP_MAX_SPAN || h > MAP_MAX_SPAN) {

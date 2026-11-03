@@ -11,6 +11,9 @@ import {
   TRIBE_ROLES,
   canKick,
   canTribe,
+  effectiveRights,
+  parseGrants,
+  seesLeadershipBoards,
   checkTribeDescription,
   checkTribeIdentity,
   isAttackForbidden,
@@ -36,7 +39,39 @@ const ACTIONS: TribeAction[] = [
   'diplomacy',
   'disband',
   'chat',
+  'forum_manage',
+  'forum_moderate',
 ];
+
+describe('explicit grants', () => {
+  it('a grant adds a right to a member; leader-only rights cannot be granted', () => {
+    assert.equal(canTribe('member', 'invite'), false);
+    assert.equal(canTribe('member', 'invite', ['invite']), true);
+    assert.equal(canTribe('member', 'forum_moderate', ['forum_moderate']), true);
+    assert.equal(canTribe('member', 'disband', ['disband' as TribeAction]), false);
+    assert.equal(canTribe('member', 'set_roles', ['set_roles' as TribeAction]), false);
+    assert.equal(canKick('member', 'member', ['kick']), true);
+    assert.equal(canKick('member', 'officer', ['kick']), false);
+    assert.equal(canKick('member', 'leader', ['kick']), false);
+  });
+
+  it('parseGrants validates against the allow-list', () => {
+    assert.deepEqual(parseGrants(['kick', 'invite']), ['invite', 'kick']);
+    assert.deepEqual(parseGrants([]), []);
+    for (const bad of [['disband'], ['set_roles'], ['transfer_leadership'], ['chat'], ['kick', 'kick'], ['nope'], 'kick', null, [1]]) {
+      assert.equal(parseGrants(bad), null, JSON.stringify(bad));
+    }
+  });
+
+  it('lists the effective rights and who sees leadership boards', () => {
+    assert.deepEqual(effectiveRights('member'), ['chat']);
+    assert.ok(effectiveRights('member', ['kick']).includes('kick'));
+    assert.equal(seesLeadershipBoards('member'), false);
+    assert.equal(seesLeadershipBoards('member', ['forum_moderate']), true);
+    assert.equal(seesLeadershipBoards('member', ['kick']), false);
+    assert.equal(seesLeadershipBoards('officer'), true);
+  });
+});
 
 describe('canTribe: who may do what', () => {
   // [action, leader, officer, member] -- GAME_DESIGN section 11.
@@ -50,6 +85,8 @@ describe('canTribe: who may do what', () => {
     ['transfer_leadership', true, false, false],
     ['disband', true, false, false],
     ['chat', true, true, true],
+    ['forum_manage', true, true, false],
+    ['forum_moderate', true, true, false],
   ];
 
   it('matches the rules table for every action and role', () => {

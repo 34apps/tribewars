@@ -46,6 +46,15 @@ import type {
   TribeSettingsRequest,
   Units,
 } from '@clanfire/engine';
+import type {
+  ForumBoardDto,
+  ForumBoardsResponse,
+  ForumPostDto,
+  ForumThreadResponse,
+  ForumThreadsResponse,
+  TribeAction,
+  TribeMemberDto,
+} from '@clanfire/engine';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
 
@@ -65,7 +74,7 @@ export function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong.';
 }
 
-async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -167,5 +176,18 @@ export const api = {
   cancelRelation: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/relations/${id}/cancel`, {}),
   tribeAlerts: () => request<TribeAlertsResponse>('GET', '/api/tribe/alerts'),
   chat: (after?: number) => request<ChatResponse>('GET', `/api/tribe/chat${after ? `?after=${after}` : ''}`),
+  setGrants: (playerId: number, grants: TribeAction[]) => request<TribeMemberDto>('PUT', `/api/tribe/members/${playerId}/permissions`, { grants }),
+  forumBoards: () => request<ForumBoardsResponse>('GET', '/api/tribe/forum/boards'),
+  forumCreateBoard: (name: string, visibility: string, postRule: string) => request<ForumBoardDto>('POST', '/api/tribe/forum/boards', { name, visibility, postRule }),
+  forumUpdateBoard: (id: number, patch: { name?: string; visibility?: string; postRule?: string }) => request<ForumBoardDto>('PUT', `/api/tribe/forum/boards/${id}`, patch),
+  forumDeleteBoard: (id: number) => request<void>('DELETE', `/api/tribe/forum/boards/${id}`),
+  forumThreads: (boardId: number, page: number) => request<ForumThreadsResponse>('GET', `/api/tribe/forum/boards/${boardId}/threads?page=${page}`),
+  forumNewThread: (boardId: number, title: string, body: string) => request<ForumThreadResponse>('POST', `/api/tribe/forum/boards/${boardId}/threads`, { title, body }),
+  forumThread: (id: number, page: number) => request<ForumThreadResponse>('GET', `/api/tribe/forum/threads/${id}?page=${page}`),
+  forumUpdateThread: (id: number, patch: { pinned?: boolean; locked?: boolean }) => request<unknown>('PUT', `/api/tribe/forum/threads/${id}`, patch),
+  forumDeleteThread: (id: number) => request<void>('DELETE', `/api/tribe/forum/threads/${id}`),
+  forumReply: (threadId: number, body: string) => request<ForumPostDto>('POST', `/api/tribe/forum/threads/${threadId}/posts`, { body }),
+  forumEditPost: (id: number, body: string) => request<ForumPostDto>('PUT', `/api/tribe/forum/posts/${id}`, { body }),
+  forumDeletePost: (id: number) => request<void>('DELETE', `/api/tribe/forum/posts/${id}`),
   sendChat: (text: string) => request<ChatMessageDto>('POST', '/api/tribe/chat', { text } satisfies ChatRequest),
 };

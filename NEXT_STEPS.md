@@ -21,7 +21,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   `VillageRefDto` (server) to show both faces. Rivers need engine support before river tiles can be used.
 - Clean-up: old `.map-*` / `.map-legend` rules in `apps/web/src/styles.css` are unused; `RELATION_STYLE`
   / `LEGEND_ORDER` in `relations.ts` unused by the map.
-- Tribe forum threads / mass message; player-to-player messages.
+- Tribe mass message (forum threads and player mail are done). Look at the forum + per-member tribe rights in a browser.
 
 ## Gameplay follow-ups
 - **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px, and check the new village layout (bigger ring wall, buildings spread out, Drillyard in the middle: tune `PLACEMENT` in `apps/web/src/art/buildings.ts`); show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).

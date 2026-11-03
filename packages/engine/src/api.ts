@@ -10,6 +10,7 @@ import type {
   PlayerRelation,
   Recruitment,
   Resources,
+  TribeAction,
   TribeRole,
   Units,
   VillageRanks,
@@ -139,6 +140,8 @@ export interface GameStateResponse {
   unreadReports: number;
   /** Unread mails in my inbox (badge on the Mail tab). */
   unreadMail: number;
+  /** Tribe forum threads with posts the player hasn't opened yet (0 when tribeless). */
+  forumUnread: number;
   /** Open tribe invitations addressed to me (badge on the Tribe tab). */
   tribeInvites: number;
   /** Incoming attacks on any member of my tribe, me included (badge on the Tribe tab). 0 when tribeless. */
@@ -464,6 +467,8 @@ export interface TribeMemberDto {
   villageX: number;
   villageY: number;
   joinedAt: number;
+  /** Individual rights the leader granted on top of the role. Only filled in the caller's own tribe view, else omitted. */
+  grants?: TribeAction[];
 }
 
 export interface TribeRelationDto {
@@ -538,6 +543,14 @@ export interface MyTribeResponse {
   proposals: DiplomacyProposalDto[];
   /** Newest first, max 50 ([] when tribeless). */
   events: TribeEventDto[];
+  /** Everything the caller may do: role defaults plus explicit grants ([] when tribeless). The server re-checks each one. */
+  rights: TribeAction[];
+  /** Forum threads with new posts since the caller last opened them (0 when tribeless). */
+  forumUnread: number;
+}
+
+export interface SetGrantsRequest {
+  grants: TribeAction[];
 }
 
 export interface CreateTribeRequest {
@@ -663,4 +676,114 @@ export interface SendMailRequest {
   to: string;
   subject: string;
   body: string;
+}
+
+// ---- Tribe forum ---------------------------------------------------------------------------
+// Members of the tribe only (everyone else, and everything they may not see, is not_found). Text and emoji only.
+// PUT    /api/tribe/members/:playerId/permissions body SetGrantsRequest -> 200 TribeMemberDto (leader only;
+//        replaces the member's explicit grants; only TRIBE_GRANTABLE rights; not for the leader's own row)
+// GET    /api/tribe/forum/boards                 -> 200 ForumBoardsResponse (boards the caller may see)
+// POST   /api/tribe/forum/boards  body CreateBoardRequest -> 201 ForumBoardDto            (forum_manage)
+// PUT    /api/tribe/forum/boards/:id body UpdateBoardRequest -> 200 ForumBoardDto          (forum_manage)
+// DELETE /api/tribe/forum/boards/:id             -> 204 (threads and posts go with it)    (forum_manage)
+// GET    /api/tribe/forum/boards/:id/threads?page=0 -> 200 ForumThreadsResponse (pinned first, then latest post)
+// POST   /api/tribe/forum/boards/:id/threads body CreateThreadRequest -> 201 ForumThreadResponse
+// GET    /api/tribe/forum/threads/:id?page=0     -> 200 ForumThreadResponse (marks the thread read)
+// PUT    /api/tribe/forum/threads/:id body UpdateThreadRequest -> 200 ForumThreadSummaryDto  (forum_moderate)
+// DELETE /api/tribe/forum/threads/:id            -> 204                                    (forum_moderate)
+// POST   /api/tribe/forum/threads/:id/posts body ReplyRequest -> 201 ForumPostDto
+// PUT    /api/tribe/forum/posts/:id body EditPostRequest -> 200 ForumPostDto
+// DELETE /api/tribe/forum/posts/:id              -> 204 (own post or forum_moderate; deleting the first post deletes the thread)
+
+export type ForumVisibility = 'members' | 'leadership';
+export type ForumPostRule = 'members' | 'leadership';
+
+export interface ForumBoardDto {
+  id: number;
+  name: string;
+  /** Who may see the board. */
+  visibility: ForumVisibility;
+  /** Who may start new threads (replies need only visibility and an unlocked thread). */
+  postRule: ForumPostRule;
+  position: number;
+  threadCount: number;
+  /** Threads with posts newer than the caller's last visit. */
+  unread: number;
+  /** Whether the caller may start a thread here. */
+  canPost: boolean;
+}
+
+export interface ForumBoardsResponse {
+  boards: ForumBoardDto[];
+}
+
+export interface ForumThreadSummaryDto {
+  id: number;
+  boardId: number;
+  title: string;
+  authorId: number;
+  author: string;
+  pinned: boolean;
+  locked: boolean;
+  createdAt: number;
+  lastPostAt: number;
+  postCount: number;
+  unread: boolean;
+}
+
+export interface ForumThreadsResponse {
+  board: ForumBoardDto;
+  threads: ForumThreadSummaryDto[];
+  page: number;
+  hasMore: boolean;
+}
+
+export interface ForumPostDto {
+  id: number;
+  threadId: number;
+  authorId: number;
+  author: string;
+  body: string;
+  createdAt: number;
+  editedAt: number | null;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export interface ForumThreadResponse {
+  thread: ForumThreadSummaryDto;
+  board: ForumBoardDto;
+  posts: ForumPostDto[];
+  page: number;
+  hasMore: boolean;
+}
+
+export interface CreateBoardRequest {
+  name: string;
+  visibility?: ForumVisibility;
+  postRule?: ForumPostRule;
+}
+
+export interface UpdateBoardRequest {
+  name?: string;
+  visibility?: ForumVisibility;
+  postRule?: ForumPostRule;
+}
+
+export interface CreateThreadRequest {
+  title: string;
+  body: string;
+}
+
+export interface ReplyRequest {
+  body: string;
+}
+
+export interface EditPostRequest {
+  body: string;
+}
+
+export interface UpdateThreadRequest {
+  pinned?: boolean;
+  locked?: boolean;
 }

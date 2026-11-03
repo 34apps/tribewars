@@ -1,7 +1,7 @@
 // Tribe tab: find/found a tribe when tribeless, or the member area (overview, members, diplomacy, recruit, chat, log).
 
 import { useEffect, useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS, canTribe } from '@clanfire/engine';
+import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -15,6 +15,7 @@ import { TribeContext } from '../tribe/context.ts';
 import type { TribeApi } from '../tribe/context.ts';
 import { Diplomacy } from '../tribe/Diplomacy.tsx';
 import { Finder } from '../tribe/Finder.tsx';
+import { Forum } from '../tribe/Forum.tsx';
 import { Log } from '../tribe/Log.tsx';
 import { Members } from '../tribe/Members.tsx';
 import { Overview } from '../tribe/Overview.tsx';
@@ -22,7 +23,7 @@ import { PublicTribe } from '../tribe/PublicTribe.tsx';
 import { Recruit } from '../tribe/Recruit.tsx';
 import { useMyTribe } from '../tribe/useMyTribe.ts';
 
-type Section = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'recruit' | 'chat' | 'log';
+type Section = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'recruit' | 'chat' | 'forum' | 'log';
 
 const SECTION_LABEL: Record<Section, string> = {
   alerts: 'Alerts',
@@ -31,6 +32,7 @@ const SECTION_LABEL: Record<Section, string> = {
   diplomacy: 'Diplomacy',
   recruit: 'Recruit',
   chat: 'Chat',
+  forum: 'Forum',
   log: 'Log',
 };
 
@@ -41,12 +43,12 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   const { tribeAlerts } = useGame();
   // First visit with attacks incoming lands on the alerts.
   const [chosen, setChosen] = useState<Section>(lastSection ?? (tribeAlerts > 0 ? 'alerts' : 'overview'));
-  const canRecruit = canTribe(role, 'invite') || canTribe(role, 'handle_applications');
+  const canRecruit = data.rights.includes('invite') || data.rights.includes('handle_applications');
   const sections = useMemo<Section[]>(
     () =>
       canRecruit
-        ? ['alerts', 'overview', 'members', 'diplomacy', 'recruit', 'chat', 'log']
-        : ['alerts', 'overview', 'members', 'diplomacy', 'chat', 'log'],
+        ? ['alerts', 'overview', 'members', 'diplomacy', 'recruit', 'chat', 'forum', 'log']
+        : ['alerts', 'overview', 'members', 'diplomacy', 'chat', 'forum', 'log'],
     [canRecruit],
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
@@ -55,7 +57,8 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   const badges: Partial<Record<Section, number>> = {
     alerts: tribeAlerts,
     diplomacy: data.proposals.filter((p) => p.direction === 'incoming').length,
-    recruit: canTribe(role, 'handle_applications') ? data.applications.length : 0,
+    recruit: data.rights.includes('handle_applications') ? data.applications.length : 0,
+    forum: data.forumUnread,
   };
 
   return (
@@ -100,6 +103,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
         {section === 'diplomacy' && <Diplomacy tribe={tribe} role={role} />}
         {section === 'recruit' && <Recruit tribe={tribe} role={role} />}
         {section === 'chat' && <Chat />}
+        {section === 'forum' && <Forum />}
         {section === 'log' && <Log />}
       </div>
     </>

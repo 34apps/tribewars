@@ -17,6 +17,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
+import { ForumStore } from './forum-store.ts';
 import { MailStore } from './mail-store.ts';
 import { TribeStore } from './tribe-store.ts';
 import { addUnits } from './units.ts';
@@ -369,6 +370,7 @@ export class Store extends SqlBase {
   readonly tribes: TribeStore;
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
+  readonly forum: ForumStore;
 
   /** Lowercase usernames allowed to use sandbox (test) mode: SANDBOX_USERS. Set once at start-up. */
   sandboxUsers: ReadonlySet<string> = new Set();
@@ -377,6 +379,7 @@ export class Store extends SqlBase {
     super(db);
     this.tribes = new TribeStore(db);
     this.mail = new MailStore(db);
+    this.forum = new ForumStore(db);
   }
 
   isSandboxUser(username: string): boolean {

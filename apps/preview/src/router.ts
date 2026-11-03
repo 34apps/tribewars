@@ -190,6 +190,9 @@ export class FakeApp {
   post(path: string, a: RouteOptions | Handler, b?: Handler): void {
     this.add('POST', path, a, b);
   }
+  put(path: string, a: RouteOptions | Handler, b?: Handler): void {
+    this.add('PUT', path, a, b);
+  }
   delete(path: string, a: RouteOptions | Handler, b?: Handler): void {
     this.add('DELETE', path, a, b);
   }

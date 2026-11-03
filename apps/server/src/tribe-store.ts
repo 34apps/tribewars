@@ -1,7 +1,7 @@
 // SQL for the tribe tables: prepared statements with bound parameters only. Rules live in tribe-service.ts.
 // Expired invites and relations are filtered out by every read here ("ignored on read") and deleted lazily.
 
-import type { DiplomacyKind, PlayerTribeDto, Recruitment, TribeRole } from '@clanfire/engine';
+import { parseGrants, type DiplomacyKind, type PlayerTribeDto, type Recruitment, type TribeAction, type TribeRole } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
 
 export interface TribeRow {
@@ -19,6 +19,8 @@ export interface MembershipRow {
   tribeId: number;
   role: TribeRole;
   joinedAt: number;
+  /** Individual rights granted by the leader (valid TRIBE_GRANTABLE names only). */
+  grants: TribeAction[];
   tribeName: string;
   tribeTag: string;
 }
@@ -29,6 +31,7 @@ export interface MemberRow {
   chieftain: string;
   role: TribeRole;
   joinedAt: number;
+  grants: TribeAction[];
   points: number;
   villageX: number;
   villageY: number;
@@ -133,12 +136,22 @@ function toTribe(r: Raw): TribeRow {
   };
 }
 
+/** Stored grants are re-validated on every read: anything not in the allow-list is ignored. */
+function grantsOf(raw: unknown): TribeAction[] {
+  try {
+    return parseGrants(JSON.parse(String(raw))) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 function toMembership(r: Raw): MembershipRow {
   return {
     playerId: r.player_id as number,
     tribeId: r.tribe_id as number,
     role: r.role as TribeRole,
     joinedAt: r.joined_at as number,
+    grants: grantsOf(r.grants),
     tribeName: r.tribe_name as string,
     tribeTag: r.tribe_tag as string,
   };
@@ -221,7 +234,7 @@ JOIN tribes f ON f.id = q.from_tribe_id
 JOIN tribes o ON o.id = q.to_tribe_id`;
 
 const MEMBERSHIP_SQL = `
-SELECT m.player_id, m.tribe_id, m.role, m.joined_at, t.name AS tribe_name, t.tag AS tribe_tag
+SELECT m.player_id, m.tribe_id, m.role, m.joined_at, m.grants, t.name AS tribe_name, t.tag AS tribe_tag
 FROM tribe_members m JOIN tribes t ON t.id = m.tribe_id`;
 
 const ACTIVE = '(r.ends_at IS NULL OR r.ends_at > ?)';
@@ -308,8 +321,15 @@ export class TribeStore extends SqlBase {
     this.run('UPDATE tribe_members SET role = ? WHERE player_id = ?', role, playerId);
   }
 
+  /** Replace the explicit grants (already validated by the service). */
+  setMemberGrants(playerId: number, grants: TribeAction[]): void {
+    this.run('UPDATE tribe_members SET grants = ? WHERE player_id = ?', JSON.stringify(grants), playerId);
+  }
+
+  /** Leaving or being removed clears the grants (they live on the row) and the forum read markers. */
   deleteMember(playerId: number): void {
     this.run('DELETE FROM tribe_members WHERE player_id = ?', playerId);
+    this.run('DELETE FROM forum_reads WHERE player_id = ?', playerId);
   }
 
   memberCount(tribeId: number): number {
@@ -319,7 +339,7 @@ export class TribeStore extends SqlBase {
 
   members(tribeId: number): MemberRow[] {
     return this.all(
-      `SELECT m.player_id, p.username, p.chieftain, m.role, m.joined_at,
+      `SELECT m.player_id, p.username, p.chieftain, m.role, m.joined_at, m.grants,
               (SELECT COALESCE(SUM(v.points), 0) FROM villages v WHERE v.owner_id = m.player_id) AS points,
               COALESCE((SELECT v.x FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vx,
               COALESCE((SELECT v.y FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vy
@@ -332,6 +352,7 @@ export class TribeStore extends SqlBase {
       chieftain: r.chieftain as string,
       role: r.role as TribeRole,
       joinedAt: r.joined_at as number,
+      grants: grantsOf(r.grants),
       points: r.points as number,
       villageX: r.vx as number,
       villageY: r.vy as number,
