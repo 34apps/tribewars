@@ -24,6 +24,8 @@ export const MAX_BUILD_QUEUE_PREMIUM = 5;
 export const buildQueueLimit = (premium: boolean): number => (premium ? MAX_BUILD_QUEUE_PREMIUM : MAX_BUILD_QUEUE);
 /** Batches waiting per training building. */
 export const MAX_TRAIN_QUEUE = 5;
+/** Share (percent) of the paid cost that comes back when a queued build or training batch is cancelled. The rest is lost. */
+export const CANCEL_REFUND_PERCENT = 80;
 /** Largest single training batch. */
 export const MAX_TRAIN_BATCH = 1000;
 

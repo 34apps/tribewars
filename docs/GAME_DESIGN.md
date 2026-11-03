@@ -62,6 +62,12 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   after the queued one (target = current level + jobs for it in queue + 1). Refuse with:
   `max_level` (target > maxLevel), `requirements_not_met`, `exceeds_storage` (any cost > cap — can never
   be afforded), `not_enough_resources`, `queue_full`.
+- **Cancel** (owner, 2026-11-03): `POST /api/villages/:id/cancel-build {index}` cancels the newest job only
+  (later levels depend on earlier ones); `cancel-train {building,index}` cancels any batch (units already
+  trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the paid cost (of the untrained
+  rest for training) comes back, rounded down, capped by the storehouse; the rest is lost. The client shows a
+  confirm dialog with the amounts before and a toast after. Queues belong to the village: if a village ever
+  changes owner (no conquest exists yet), its builds and training must carry on unchanged.
 - Effects: hall → faster building; lumber/farm/mine/goldmine → production; storehouse → cap;
   barracks/stables → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
   vault → loot protection.

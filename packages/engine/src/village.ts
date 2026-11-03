@@ -2,6 +2,7 @@
 
 import {
   BUILDINGS,
+  CANCEL_REFUND_PERCENT,
   MAX_BUILD_QUEUE,
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
@@ -34,10 +35,12 @@ import {
 } from './economy.ts';
 import { BUILDING_IDS, GameError, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type {
+  BuildJob,
   BuildingId,
   CheckResult,
   Resources,
   TrainJob,
+  TrainingBuildingId,
   UnitId,
   Units,
   VillageState,
@@ -343,4 +346,71 @@ export function applyTrain(
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
   queue.push(job);
   return v;
+}
+
+// ---- Cancelling a queued job --------------------------------------------------------------------
+
+/** What comes back for a cancelled job: CANCEL_REFUND_PERCENT of the cost, rounded down per resource. */
+export function refundOf(cost: Resources): Resources {
+  const out = emptyResources();
+  for (const r of RESOURCE_IDS) out[r] = Math.floor((cost[r] * CANCEL_REFUND_PERCENT) / 100);
+  return out;
+}
+
+function addRefund(v: VillageState, refund: Resources): void {
+  const cap = storageCap(v);
+  // Never above the storehouse, but never take away what is already there.
+  for (const r of RESOURCE_IDS) v.resources[r] = Math.max(v.resources[r], Math.min(cap, v.resources[r] + refund[r]));
+}
+
+/**
+ * Settle to t, then cancel the newest construction job (only the last one: later levels depend on earlier ones).
+ * Returns the new state and the refund (CANCEL_REFUND_PERCENT of the paid cost).
+ */
+export function applyCancelBuild(state: VillageState, index: unknown, t: number, s: WorldSettings): { state: VillageState; refund: Resources } {
+  if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
+  const v = settleVillage(state, t, s);
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= v.buildQueue.length) {
+    throw new GameError('invalid_input', 'That construction job is not in the queue any more.');
+  }
+  if (index !== v.buildQueue.length - 1) throw new GameError('invalid_input', 'Only the newest job in the construction queue can be cancelled.');
+  const job = v.buildQueue[index] as BuildJob;
+  v.buildQueue.pop();
+  const refund = refundOf(buildingCost(job.building, job.targetLevel));
+  addRefund(v, refund);
+  return { state: v, refund };
+}
+
+/**
+ * Settle to t, then cancel one training batch. Units already trained stay; the untrained rest is refunded at
+ * CANCEL_REFUND_PERCENT. Batches queued behind it move up.
+ */
+export function applyCancelTrain(
+  state: VillageState,
+  building: unknown,
+  index: unknown,
+  t: number,
+  s: WorldSettings,
+): { state: VillageState; refund: Resources } {
+  if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
+  if (building !== 'barracks' && building !== 'stables') throw new GameError('invalid_input', 'Unknown training building.');
+  const v = settleVillage(state, t, s);
+  const queue = v.trainQueues[building as TrainingBuildingId];
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= queue.length) {
+    throw new GameError('invalid_input', 'That training batch is not in the queue any more.');
+  }
+  const job = queue[index] as TrainJob;
+  queue.splice(index, 1);
+  // The batches behind it close the gap.
+  for (let i = index; i < queue.length; i++) {
+    const prev = queue[i - 1];
+    const cur = queue[i] as TrainJob;
+    cur.startAt = Math.max(v.lastUpdate, prev ? prev.startAt + prev.count * prev.perUnitMs : 0);
+  }
+  const left = job.count - job.done;
+  const cost = emptyResources();
+  for (const r of RESOURCE_IDS) cost[r] = UNITS[job.unit].cost[r] * left;
+  const refund = refundOf(cost);
+  addRefund(v, refund);
+  return { state: v, refund };
 }

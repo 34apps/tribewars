@@ -7,6 +7,9 @@ import type {
   BuildRequest,
   ChieftainRequest,
   HouseholdRequest,
+  CancelBuildRequest,
+  CancelResponse,
+  CancelTrainRequest,
   ChatMessageDto,
   ChatRequest,
   ChatResponse,
@@ -118,6 +121,10 @@ export const api = {
   state: () => request<GameStateResponse>('GET', '/api/state'),
   build: (villageId: number, building: string) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/build`, { building } satisfies BuildRequest),
+  cancelBuild: (villageId: number, index: number) =>
+    request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-build`, { index } satisfies CancelBuildRequest),
+  cancelTrain: (villageId: number, building: string, index: number) =>
+    request<CancelResponse>('POST', `/api/villages/${villageId}/cancel-train`, { building, index } satisfies CancelTrainRequest),
   train: (villageId: number, unit: string, count: number) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/train`, { unit, count } satisfies TrainRequest),
   research: (villageId: number, unit: string) =>

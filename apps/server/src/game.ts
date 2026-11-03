@@ -16,6 +16,9 @@ import {
   applyAttackerLosses,
   applyBattleToDefender,
   applyBuild,
+  applyCancelBuild,
+  applyCancelTrain,
+  type CancelResponse,
   buildQueueLimit,
   applyReturn,
   applySend,
@@ -803,6 +806,26 @@ export class GameService {
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { troopsTrained: count });
       return ownDto(v, next);
+    });
+  }
+
+  /** Cancel the newest construction job; CANCEL_REFUND_PERCENT of the cost comes back. */
+  cancelBuild(player: PlayerRow, villageId: number, index: number, t: number): CancelResponse {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const { state, refund } = applyCancelBuild(v.state, index, t, this.settings);
+      this.store.saveVillage(v.id, state, villagePoints(state));
+      return { village: ownDto(v, state), refund };
+    });
+  }
+
+  /** Cancel one training batch; CANCEL_REFUND_PERCENT of the untrained rest comes back. */
+  cancelTrain(player: PlayerRow, villageId: number, building: string, index: number, t: number): CancelResponse {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const { state, refund } = applyCancelTrain(v.state, building, index, t, this.settings);
+      this.store.saveVillage(v.id, state, villagePoints(state));
+      return { village: ownDto(v, state), refund };
     });
   }
 

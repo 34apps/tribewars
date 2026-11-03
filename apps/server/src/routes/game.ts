@@ -10,6 +10,11 @@ import {
   type RankRequest,
   type ResearchRequest,
   type BuildRequest,
+  type CancelBuildRequest,
+  type CancelResponse,
+  type CancelTrainRequest,
+  MAX_TRAIN_QUEUE,
+  MAX_BUILD_QUEUE_PREMIUM,
   type GameStateResponse,
   type MapResponse,
   type MovementResponse,
@@ -49,6 +54,23 @@ const trainBody = {
   properties: {
     unit: { type: 'string', enum: [...UNIT_IDS] },
     count: { type: 'integer', minimum: 1, maximum: MAX_TRAIN_BATCH },
+  },
+} as const;
+
+const cancelBuildBody = {
+  type: 'object',
+  required: ['index'],
+  additionalProperties: false,
+  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_BUILD_QUEUE_PREMIUM } },
+} as const;
+
+const cancelTrainBody = {
+  type: 'object',
+  required: ['building', 'index'],
+  additionalProperties: false,
+  properties: {
+    building: { type: 'string', enum: ['barracks', 'stables'] },
+    index: { type: 'integer', minimum: 0, maximum: MAX_TRAIN_QUEUE },
   },
 } as const;
 
@@ -165,6 +187,19 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     { ...auth, schema: { params: idParams, body: trainBody } },
     async (req): Promise<OwnVillageDto> =>
       ctx.game.train(playerOf(req), Number(req.params.id), req.body.unit, req.body.count, req.nowMs),
+  );
+
+  app.post<{ Params: { id: string }; Body: CancelBuildRequest }>(
+    '/api/villages/:id/cancel-build',
+    { ...auth, schema: { params: idParams, body: cancelBuildBody } },
+    async (req): Promise<CancelResponse> => ctx.game.cancelBuild(playerOf(req), Number(req.params.id), req.body.index, req.nowMs),
+  );
+
+  app.post<{ Params: { id: string }; Body: CancelTrainRequest }>(
+    '/api/villages/:id/cancel-train',
+    { ...auth, schema: { params: idParams, body: cancelTrainBody } },
+    async (req): Promise<CancelResponse> =>
+      ctx.game.cancelTrain(playerOf(req), Number(req.params.id), req.body.building, req.body.index, req.nowMs),
   );
 
   app.post<{ Params: { id: string }; Body: ResearchRequest }>(

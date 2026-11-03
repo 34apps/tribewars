@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BUILDINGS,
+  CANCEL_REFUND_PERCENT,
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
   RESOURCE_IDS,
@@ -17,7 +18,7 @@ import {
   trainTimeMs,
   upkeepPerHour,
 } from '@clanfire/engine';
-import type { MovementDto, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
+import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
@@ -26,6 +27,7 @@ import { BuildingArt } from '../art/BuildingArt.tsx';
 import { Icon } from '../art/Icon.tsx';
 import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
+import { useCancelJob } from './cancelJob.tsx';
 import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
@@ -395,7 +397,7 @@ function SupportPanel() {
 
 // ---- Training -----------------------------------------------------------------------------------------
 
-function TrainBatchRow({ job }: { job: TrainJob }) {
+function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: () => void; disabled: boolean }) {
   const { now } = useGame();
   const def = UNITS[job.unit];
   const total = job.count * job.perUnitMs;
@@ -423,6 +425,9 @@ function TrainBatchRow({ job }: { job: TrainJob }) {
       <div className="job-foot muted">
         Batch done in {formatDuration(endAt - now)} · {formatClock(endAt, now)}
       </div>
+      <button type="button" className="btn btn-small" disabled={disabled} onClick={onCancel}>
+        Cancel ({CANCEL_REFUND_PERCENT}% back)
+      </button>
     </li>
   );
 }
@@ -537,6 +542,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
 function TrainingPanel({ building }: { building: TrainingBuildingId }) {
   const { live, navigate } = useGame();
   const [busy, setBusy] = useState(false);
+  const cancel = useCancelJob();
   const def = BUILDINGS[building];
   const level = live.buildings[building];
   const queue = live.trainQueues[building];
@@ -548,6 +554,7 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
   );
   return (
     <section className="card training" aria-labelledby={`t-${building}`}>
+      {cancel.dialog}
       <h2 id={`t-${building}`} className="card-title">
         <BuildingArt id={building} level={1} size={24} className="inline-icon" /> {def.name}
         {level > 0 && <span className="muted"> level {level}</span>}
@@ -569,7 +576,16 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
               </h3>
               <ol className="job-list">
                 {queue.map((job, i) => (
-                  <TrainBatchRow key={`${job.unit}-${job.startAt}-${i}`} job={job} />
+                  <TrainBatchRow
+                    key={`${job.unit}-${job.startAt}-${i}`}
+                    job={job}
+                    disabled={cancel.busy}
+                    onCancel={() => {
+                      const left = job.count - job.done;
+                      const paid = Object.fromEntries(RESOURCE_IDS.map((r) => [r, UNITS[job.unit].cost[r] * left])) as Resources;
+                      void cancel.cancelTrain(`${formatInt(left)} × ${UNITS[job.unit].name}`, paid, building, i);
+                    }}
+                  />
                 ))}
               </ol>
             </div>

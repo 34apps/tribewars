@@ -3,6 +3,7 @@
 import {
   BUILDINGS,
   BUILDING_IDS,
+  CANCEL_REFUND_PERCENT,
   buildQueueLimit,
   RESOURCE_IDS,
   UNITS,
@@ -27,6 +28,7 @@ import { formatClock, formatCompact, formatDuration, formatInt, formatRate } fro
 import { useGame } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
+import { useCancelJob } from '../cancelJob.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
 import { tipFor } from './tips.ts';
 
@@ -291,8 +293,10 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
   const maxQueue = buildQueueLimit(player.premium);
   const jobs = live.buildQueue;
   const last = jobs[jobs.length - 1];
+  const cancel = useCancelJob();
   return (
     <section className="vv-card queue" aria-labelledby="queue-title">
+      {cancel.dialog}
       <div className="queue-head">
         <Icon name="queue" size={22} />
         <h2 id="queue-title" className="vv-h2">
@@ -304,7 +308,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
       </div>
       {jobs.length > 0 && (
         <ol className="qjobs">
-          {jobs.map((job) => {
+          {jobs.map((job, index) => {
             const def = BUILDINGS[job.building];
             const started = now >= job.startAt;
             const total = job.finishAt - job.startAt;
@@ -337,6 +341,18 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
                         : 'Waiting for a builder'}
                   </div>
                   <ProgressBar value={started ? (now - job.startAt) / total : 0} label={`${def.name} progress`} />
+                  {index === jobs.length - 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      disabled={cancel.busy}
+                      onClick={() =>
+                        void cancel.cancelBuild(`${def.name} level ${job.targetLevel}`, buildingCost(job.building, job.targetLevel), index)
+                      }
+                    >
+                      Cancel ({CANCEL_REFUND_PERCENT}% back)
+                    </button>
+                  )}
                 </div>
               </li>
             );
