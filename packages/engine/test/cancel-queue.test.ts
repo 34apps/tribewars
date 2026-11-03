@@ -6,7 +6,9 @@ import {
   UNITS,
   applyBuild,
   applyCancelBuild,
+  applyCancelResearch,
   applyCancelTrain,
+  applyResearch,
   applyTrain,
   buildingCost,
 } from '../src/index.ts';
@@ -66,5 +68,20 @@ describe('cancelling queued jobs', () => {
     const v = village({ resources: rich, buildings: { barracks: 3 } });
     fail(() => applyCancelTrain(v, 'barracks', 0, 0, S1));
     fail(() => applyCancelTrain(v, 'tavern', 0, 0, S1));
+  });
+});
+
+describe('cancelling research', () => {
+  it('refunds 80% of the cost, clears the job and leaves the unit unresearched', () => {
+    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+    const started = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
+    const cost = UNITS.guard.research!.cost;
+    const { state, refund } = applyCancelResearch(started, 0, S1);
+    assert.equal(state.researchJob, undefined);
+    assert.equal(refund.wood, Math.floor(cost.wood * 0.8));
+    assert.equal(state.resources.wood, started.resources.wood + refund.wood);
+    assert.ok(!(state.researched ?? []).includes('guard'));
+    fail(() => applyCancelResearch(state, 0, S1));
+    assert.ok(applyResearch(state, 'guard', 0, S1).researchJob);
   });
 });

@@ -27,7 +27,7 @@ import type {
   WorldSettings,
 } from './types.ts';
 import { emptyResources, fail, isUnitId } from './util.ts';
-import { settleVillage } from './village.ts';
+import { addRefund, refundOf, settleVillage } from './village.ts';
 
 const isTrack = (x: unknown): x is RankTrack => typeof x === 'string' && (RANK_TRACKS as readonly string[]).includes(x);
 
@@ -89,6 +89,22 @@ export function applyResearch(state: VillageState, u: UnitId | (string & {}), t:
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
   v.researchJob = { unit: plan.unit, startAt: v.lastUpdate, finishAt: v.lastUpdate + plan.timeMs };
   return v;
+}
+
+/**
+ * Settle to t and cancel the running research. CANCEL_REFUND_PERCENT of its cost comes back (never above the
+ * storehouse); the unit stays unresearched. Research is one job at a time, so no queued job follows.
+ */
+export function applyCancelResearch(state: VillageState, t: number, s: WorldSettings): { state: VillageState; refund: Resources } {
+  if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
+  const v = settleVillage(state, t, s);
+  const job = v.researchJob;
+  if (!job) throw new GameError('invalid_input', 'No research is in progress.');
+  const rule = UNITS[job.unit].research;
+  delete v.researchJob;
+  const refund = refundOf(rule ? rule.cost : emptyResources());
+  addRefund(v, refund);
+  return { state: v, refund };
 }
 
 // ---- Ranks --------------------------------------------------------------------------------------

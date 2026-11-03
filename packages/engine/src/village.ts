@@ -357,7 +357,7 @@ export function refundOf(cost: Resources): Resources {
   return out;
 }
 
-function addRefund(v: VillageState, refund: Resources): void {
+export function addRefund(v: VillageState, refund: Resources): void {
   const cap = storageCap(v);
   // Never above the storehouse, but never take away what is already there.
   for (const r of RESOURCE_IDS) v.resources[r] = Math.max(v.resources[r], Math.min(cap, v.resources[r] + refund[r]));

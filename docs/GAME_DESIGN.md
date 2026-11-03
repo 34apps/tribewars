@@ -66,7 +66,9 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   (later levels depend on earlier ones); `cancel-train {building,index}` cancels any batch (units already
   trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the paid cost (of the untrained
   rest for training) comes back, rounded down, capped by the storehouse; the rest is lost. The client shows a
-  confirm dialog with the amounts before and a toast after. Queues belong to the village: if a village ever
+  confirm dialog with the amounts before and a toast after. `POST /api/villages/:id/cancel-research` (no body)
+  cancels the running Drillyard research the same way (80% of its cost back; research is one job at a time,
+  so nothing queued follows; the unit can be researched again). Queues belong to the village: if a village ever
   changes owner (no conquest exists yet), its builds and training must carry on unchanged.
 - Effects: hall → faster building; lumber/farm/mine/goldmine → production; storehouse → cap;
   barracks/stables → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;

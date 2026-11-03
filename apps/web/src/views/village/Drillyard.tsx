@@ -1,6 +1,7 @@
 // Drillyard panel: unit research (one job at a time) and Training Point ranks. Rules come from the engine; the server decides.
 
 import {
+  CANCEL_REFUND_PERCENT,
   KEEN_BONUS,
   RANK_BONUS,
   RANK_MAX,
@@ -25,6 +26,7 @@ import { useGame } from '../../game.ts';
 import { UNIT_ICON } from '../../icons.ts';
 import { reasonText } from '../../rules.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
+import { useCancelJob } from '../cancelJob.tsx';
 
 const TRACKS: readonly { id: RankTrack; name: string; hint: string }[] = [
   { id: 'might', name: 'Might', hint: 'attack' },
@@ -39,6 +41,7 @@ export function DrillyardPanel() {
   const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
   const { confirm, dialog } = useConfirm();
   const [busy, setBusy] = useState(false);
+  const cancel = useCancelJob();
   const level = live.buildings.drillyard;
 
   async function run(call: () => Promise<Parameters<typeof applyVillage>[0]>, okText?: string) {
@@ -112,6 +115,16 @@ export function DrillyardPanel() {
                 )}
                 {reason && level >= rule.drillyard && <div className="why drill-why">{reason}</div>}
               </div>
+              {active && (
+                <button
+                  type="button"
+                  className="btn btn-small drill-btn"
+                  disabled={busy || cancel.busy}
+                  onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost)}
+                >
+                  Cancel ({CANCEL_REFUND_PERCENT}% back)
+                </button>
+              )}
               {!done && !active && (
                 <button
                   type="button"
@@ -208,6 +221,7 @@ export function DrillyardPanel() {
         })}
       </ul>
       {dialog}
+      {cancel.dialog}
     </div>
   );
 }

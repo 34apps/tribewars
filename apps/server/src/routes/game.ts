@@ -202,6 +202,12 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
       ctx.game.cancelTrain(playerOf(req), Number(req.params.id), req.body.building, req.body.index, req.nowMs),
   );
 
+  app.post<{ Params: { id: string } }>(
+    '/api/villages/:id/cancel-research',
+    { ...auth, schema: { params: idParams } },
+    async (req): Promise<CancelResponse> => ctx.game.cancelResearch(playerOf(req), Number(req.params.id), req.nowMs),
+  );
+
   app.post<{ Params: { id: string }; Body: ResearchRequest }>(
     '/api/villages/:id/research',
     { ...auth, schema: { params: idParams, body: researchBody } },

@@ -181,6 +181,7 @@ export interface StationedDto {
 // POST /api/villages/:id/train  body TrainRequest -> 200 OwnVillageDto
 // POST /api/villages/:id/cancel-build  body CancelBuildRequest -> 200 CancelResponse (newest job only; 80% back)
 // POST /api/villages/:id/cancel-train  body CancelTrainRequest -> 200 CancelResponse (80% of the untrained rest back)
+// POST /api/villages/:id/cancel-research  (no body) -> 200 CancelResponse (80% of the research cost back)
 // POST /api/villages/:id/send   body SendRequest  -> 201 SendResponse
 // Support troops (section 12):
 // POST /api/stationed/:id/recall     body RecallRequest -> 201 { movement: MovementDto }  (owner of the troops)
