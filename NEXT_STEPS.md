@@ -7,12 +7,11 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   is still called `tribewars`; the owner can rename it in GitHub → Settings → General (old links redirect).
 - **Hosting.** Where the game server runs (one small always-on server is enough at first; the
   database is a single SQLite file that needs backups).
-- **World pace.** Default world speed 1 (slow, days-long game) vs a faster world (e.g. 3×).
-- **Drillyard follow-ups:** look at the panel and the new Drillyard sprites (3 stages) in a browser at 360 and 1440 px, run `npm run build`; show battle reports' ranks if wanted; decide whether merged support should keep per-arrival ranks instead of the newest stamp.
-- **Troop ranks + Armory + scout intel tiers (asked 2026-11-03).** Full proposal in
-  `docs/GAME_DESIGN.md` §15: per-village Training Point budget so a village can't max everything,
-  Edge/Guard/Sight ranks, Sight gates how much a scout reveals. Needs the owner's answers to the
-  open questions there, then build.
+- **World pace.** Done 2026-11-02: slower original pace, default speed 1; revisit after playtests.
+- **Troop ranks + Armory (asked 2026-11-03).** Proposal in `docs/GAME_DESIGN.md` §15 (Training
+  Point budget per village, rank tiers). Engine/server/web Drillyard is built; the owner's answers
+  to the open questions there decide the rest. Also decide: merged support keeps per-arrival ranks
+  or the newest stamp.
 
 ## Next big pieces
 - **Redesign (Toy Diorama)** — built in: village view, map stages, chieftains. Waiting for owner
@@ -24,7 +23,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Tribe forum threads / mass message; player-to-player messages.
 
 ## Gameplay follow-ups
-- **Drillyard (engine built, server/web pending)** — URGENT: the engine now refuses Shieldbearer/Outrider/Knight training until researched, so the server needs persistence for `researched`, `researchJob` and `ranks` plus endpoints (research, buy rank, respec), each through the SECURITY_ROADMAP §4 gate; the server must stamp the home village's ranks on movements (attack/support) and pass them to `resolveBattle`. Web: Drillyard panel (research list, points bar, rank buttons, respec), real Drillyard sprite (placeholder = Barracks). Later: new units unlocked after each building level (a ranged Barracks unit, a heavy Stables unit, with art), scout Keen tiers (intel by Keen rank, GAME_DESIGN §15), use `keenMultiplier` in the scout duel, tune research/rank costs.
+- **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px and run `npm run build`; show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
 - Map panel for abandoned villages: show a rough strength hint (e.g. "weak / strong") so players
   don't send 3 Pikemen into a big one. Their map size (points) is also only refreshed when raided.
 - Market follow-ups: draw real Market sprites (placeholder = Storehouse; swap `FILE.market` in `apps/web/src/art/buildings.ts`, check scene spot); NPC villages have no Market; set `SANDBOX_USERS` on the live server if the owner's username differs.
@@ -36,14 +35,13 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 
 ## Tech follow-ups
 - Ask Mags AI advisor is off (owner: credit spend). If revived: decide a budget first; server code is ready behind `ADVISOR_ENABLED`; add stationed support troops to her snapshot.
-- Live updates (WebSocket) for incoming attacks instead of 10 s polling.
 - Mobile polish: installable web app (PWA), haptics-free touch tuning, landscape layout.
 - Deployment: Dockerfile, health checks, daily database backup; compile the server instead of
   running through `tsx` in production.
-- Security: work through `docs/SECURITY_ROADMAP.md` Phase 1 (CSP, global rate limits, session expiry, password policy, CI audit) before any public server.
-- WebSocket push (design in the roadmap) and a tick-lag metric for troop arrivals.
-- Map: measure pan frame times on a real phone (`window.__mapFrames` in dev) after the fling/prefetch change; if still slow, blit-shift the previous frame while panning.
-- Test map drag/pinch on a real phone (only simulated so far).
+- Security: work through `docs/SECURITY_ROADMAP.md` Phase 1 (CSP, session expiry, password policy, CI audit; global rate limits are done) before any public server.
+- WebSocket push (design in the roadmap, also replaces 10 s polling above) and a tick-lag metric for troop arrivals.
+- Map: if pan is still slow on a phone (`window.__mapFrames` in dev), blit-shift the previous frame while panning.
+- Test map drag/pinch and pan frame times on a real phone (only simulated so far).
 - Warfare: support owners get no report when their stationed Pathfinders die to enemy scouts;
   stationed troops stay when a relation breaks (by design for now — revisit after playtests).
 - Tribes: notify applicants when accepted/declined (now they see it on next poll); look-alike
