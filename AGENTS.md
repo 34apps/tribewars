@@ -39,6 +39,8 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
   never copy their names, numbers, formulas, art, text or screen layouts (owner, 2026-11-02).
 - The server is authoritative. Every rule lives in `packages/engine`; the client only previews.
   Never trust client input.
+- **Security is part of every feature** (owner, 2026-11-02): run the gate in `docs/SECURITY_ROADMAP.md` §4
+  and follow its movement-timing rules (§2); tick off roadmap items you land.
 - Balance numbers only in `config.ts`. A rule change updates `docs/GAME_DESIGN.md` in the same commit.
 - **Web app first** (desktop browsers AND phone browsers, same responsive app); a native mobile app
   comes later (owner, 2026-11-02). Every screen works at 360 px wide with touch and uses the space

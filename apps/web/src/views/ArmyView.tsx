@@ -8,6 +8,7 @@ import {
   UNIT_IDS,
   checkTrain,
   emptyUnits,
+  isResearched,
   normalizeUnits,
   productionPerHour,
   trainTimeMs,
@@ -80,11 +81,26 @@ function VillageLink({ v }: { v: VillageRefDto }) {
   );
 }
 
-const KIND_TAG: Record<MovementDto['kind'], string> = { attack: 'tag-warn', scout: 'tag-info', support: 'tag-ok', return: 'tag-muted' };
+const KIND_TAG: Record<MovementDto['kind'], string> = { attack: 'tag-warn', scout: 'tag-info', support: 'tag-ok', return: 'tag-muted', shipment: 'tag-ok' };
 
 function MovementRow({ m }: { m: MovementDto }) {
-  const { now, village, highlightMovementId } = useGame();
+  const { now, village, highlightMovementId, refresh, toast } = useGame();
   const ref = useRef<HTMLLIElement>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const cancelLeft = m.cancellableUntil === null ? 0 : m.cancellableUntil - now;
+  async function cancel() {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      const res = await api.cancelMovement(m.id);
+      toast(`Called back. They are home in ${formatDuration(res.movement.arriveAt - res.movement.departAt)}.`);
+    } catch (e) {
+      toast(errorMessage(e), { kind: 'error' });
+    } finally {
+      setCancelling(false);
+      await refresh();
+    }
+  }
   const highlighted = highlightMovementId === m.id;
   useEffect(() => {
     if (highlighted) ref.current?.scrollIntoView({ block: 'nearest' });
@@ -96,7 +112,8 @@ function MovementRow({ m }: { m: MovementDto }) {
   const other = m.origin.villageId === village.id ? m.target : m.origin;
   const left = m.arriveAt - now;
   const total = Math.max(1, m.arriveAt - m.departAt);
-  const lootItems = m.loot ? RESOURCE_IDS.filter((r) => (m.loot?.[r] ?? 0) > 0) : [];
+  const cargo = m.kind === 'shipment' ? m.resources : m.loot;
+  const lootItems = cargo ? RESOURCE_IDS.filter((r) => (cargo[r] ?? 0) > 0) : [];
   const carriers = m.units ? UNIT_IDS.some((u) => (m.units?.[u] ?? 0) > 0 && UNITS[u].carry > 0) : false;
 
   let label: string;
@@ -108,6 +125,10 @@ function MovementRow({ m }: { m: MovementDto }) {
     preposition = 'from';
   } else if (supportIn) {
     label = 'Incoming support';
+    tagClass = 'tag-ok';
+    preposition = 'from';
+  } else if (incoming && m.kind === 'shipment') {
+    label = 'Incoming resources';
     tagClass = 'tag-ok';
     preposition = 'from';
   } else {
@@ -142,16 +163,16 @@ function MovementRow({ m }: { m: MovementDto }) {
       <div className="movement-foot">
         <span>
           {foot}
-          {m.kind === 'return' &&
+          {(m.kind === 'return' || m.kind === 'shipment') &&
             (lootItems.length > 0 ? (
               <>
                 {' '}
-                · Loot:{' '}
+                {m.kind === 'shipment' ? '' : '· Loot: '}
                 {lootItems.map((r) => (
                   <span key={r} className="loot-item">
                     <Icon name={RESOURCE_ICON[r]} size={16} className="inline-icon" />
                     <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
-                    {formatInt(m.loot?.[r] ?? 0)}{' '}
+                    {formatInt(cargo?.[r] ?? 0)}{' '}
                   </span>
                 ))}
               </>
@@ -161,6 +182,14 @@ function MovementRow({ m }: { m: MovementDto }) {
         </span>
         <span className="muted">arrives {formatClock(m.arriveAt, now)}</span>
       </div>
+      {cancelLeft > 0 && (
+        <div className="movement-foot">
+          <button className="btn btn-small" disabled={cancelling} onClick={() => void cancel()}>
+            Cancel ({formatDuration(cancelLeft)})
+          </button>
+          <span className="muted">They come back in the time already travelled.</span>
+        </div>
+      )}
     </li>
   );
 }
@@ -410,6 +439,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
 
   let reason: string | null = null;
   if (locked) reason = `Needs ${requirementText(unmet)}`;
+  else if (!isResearched(live, unit)) reason = 'Research it in the Drillyard';
   else if (queueFull) reason = 'Queue full';
   else if (count < 1) reason = max < 1 ? 'Not enough resources or food for even one' : 'Enter how many to train';
   else if (!check.ok) reason = reasonText(check, unmet);

@@ -170,6 +170,13 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
 
   advance(t);
 
+  // Research finishes (one job at a time).
+  if (v.researchJob && v.researchJob.finishAt <= t) {
+    const done = v.researchJob.unit;
+    v.researched = [...new Set([...(v.researched ?? []), done])];
+    delete v.researchJob;
+  }
+
   // 3. Training: units finish one by one.
   for (const queue of [v.trainQueues.barracks, v.trainQueues.stables]) {
     for (const job of queue) {
@@ -199,7 +206,7 @@ interface BuildPlan {
 }
 
 /** Rule check on an already settled village. */
-function planBuild(v: VillageState, b: unknown, s: WorldSettings): CheckResult<BuildPlan> {
+function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: number): CheckResult<BuildPlan> {
   if (!isBuildingId(b)) return fail('invalid_input', 'Unknown building.');
   const def = BUILDINGS[b];
   let queued = 0;
@@ -218,7 +225,7 @@ function planBuild(v: VillageState, b: unknown, s: WorldSettings): CheckResult<B
     if (cost[r] > cap) return fail('exceeds_storage', 'The cost is more than the storehouse can hold. Upgrade the Storehouse first.');
   }
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
-  if (v.buildQueue.length >= MAX_BUILD_QUEUE) return fail('queue_full', 'The build queue is full.');
+  if (v.buildQueue.length >= maxQueue) return fail('queue_full', 'The build queue is full.');
   return { ok: true, building: b, targetLevel, cost, timeMs: buildTimeMs(b, targetLevel, v.buildings.hall, s) };
 }
 
@@ -228,18 +235,25 @@ export function checkBuild(
   b: BuildingId | (string & {}),
   t: number,
   s: WorldSettings,
+  maxQueue: number = MAX_BUILD_QUEUE,
 ): CheckResult<{ targetLevel: number; cost: Resources; timeMs: number }> {
   if (!Number.isFinite(t)) return fail('invalid_input', 'Invalid time.');
-  const plan = planBuild(settleVillage(state, t, s), b, s);
+  const plan = planBuild(settleVillage(state, t, s), b, s, maxQueue);
   if (!plan.ok) return plan;
   return { ok: true, targetLevel: plan.targetLevel, cost: plan.cost, timeMs: plan.timeMs };
 }
 
 /** Settle to t, then queue `b`. Throws GameError with the check's reason when invalid. */
-export function applyBuild(state: VillageState, b: BuildingId | (string & {}), t: number, s: WorldSettings): VillageState {
+export function applyBuild(
+  state: VillageState,
+  b: BuildingId | (string & {}),
+  t: number,
+  s: WorldSettings,
+  maxQueue: number = MAX_BUILD_QUEUE,
+): VillageState {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);
-  const plan = planBuild(v, b, s);
+  const plan = planBuild(v, b, s, maxQueue);
   if (!plan.ok) throw new GameError(plan.reason, plan.message);
   const last = v.buildQueue[v.buildQueue.length - 1];
   const startAt = Math.max(v.lastUpdate, last ? last.finishAt : 0);
@@ -276,6 +290,9 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
     if (v.buildings[req] < need) {
       return fail('requirements_not_met', `Requires ${BUILDINGS[req].name} level ${need}.`);
     }
+  }
+  if (def.research && !(v.researched ?? []).includes(u)) {
+    return fail('requirements_not_met', `${def.name} must be researched in the Drillyard first.`);
   }
   if (v.trainQueues[def.building].length >= MAX_TRAIN_QUEUE) {
     return fail('queue_full', `The ${BUILDINGS[def.building].name} queue is full.`);

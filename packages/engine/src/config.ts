@@ -16,8 +16,12 @@ export const DEFAULT_WORLD: WorldSettings = {
 
 export const START_RESOURCES: Resources = res(600, 600, 600, 100);
 
-/** Build queue: one job building + one waiting. */
+/** Build queue for players without a premium subscription: one job building + one waiting. */
 export const MAX_BUILD_QUEUE = 2;
+/** Build queue for premium subscribers. */
+export const MAX_BUILD_QUEUE_PREMIUM = 5;
+/** Build queue length allowed for a player. */
+export const buildQueueLimit = (premium: boolean): number => (premium ? MAX_BUILD_QUEUE_PREMIUM : MAX_BUILD_QUEUE);
 /** Batches waiting per training building. */
 export const MAX_TRAIN_QUEUE = 5;
 /** Largest single training batch. */
@@ -135,6 +139,18 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     baseTimeSec: 1500,
     timeGrowth: 1.32,
   },
+  market: {
+    id: 'market',
+    name: 'Market',
+    description: 'Traders carry resources to your other villages and to friends. Higher levels carry more per shipment.',
+    maxLevel: 10,
+    startLevel: 0,
+    requires: { hall: 3 },
+    baseCost: res(100, 70, 60),
+    costGrowth: 1.27,
+    baseTimeSec: 1200,
+    timeGrowth: 1.3,
+  },
   storehouse: {
     id: 'storehouse',
     name: 'Storehouse',
@@ -169,6 +185,18 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     baseCost: res(260, 200, 300, 20),
     costGrowth: 1.27,
     baseTimeSec: 1800,
+    timeGrowth: 1.32,
+  },
+  drillyard: {
+    id: 'drillyard',
+    name: 'Drillyard',
+    description: 'Veterans research stronger troops and drill them. Each level gives Training Points; a village cannot max everything.',
+    maxLevel: 10,
+    startLevel: 0,
+    requires: { barracks: 3, hall: 5 },
+    baseCost: res(240, 180, 260, 15),
+    costGrowth: 1.28,
+    baseTimeSec: 1500,
     timeGrowth: 1.32,
   },
   wall: {
@@ -229,6 +257,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     trainTimeSec: 330,
     building: 'barracks',
     requires: { barracks: 3 },
+    research: { drillyard: 1, cost: res(150, 120, 200), timeSec: 3600 },
   },
   raider: {
     id: 'raider',
@@ -261,6 +290,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     trainTimeSec: 720,
     building: 'stables',
     requires: { stables: 1 },
+    research: { drillyard: 3, cost: res(300, 220, 350, 20), timeSec: 7200 },
   },
   knight: {
     id: 'knight',
@@ -277,6 +307,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     trainTimeSec: 1320,
     building: 'stables',
     requires: { stables: 5, hall: 10 },
+    research: { drillyard: 6, cost: res(600, 450, 700, 80), timeSec: 14400 },
   },
   pathfinder: {
     id: 'pathfinder',
@@ -295,6 +326,27 @@ export const UNITS: Record<UnitId, UnitDef> = {
     requires: { barracks: 2 },
   },
 };
+
+// ---- Drillyard: research and ranks (docs/GAME_DESIGN.md sections 4 and 15) -----------------------------
+
+/** Training Points a village gets per Drillyard level. */
+export const DRILLYARD_POINTS_PER_LEVEL = 3;
+/** Highest rank per track. */
+export const RANK_MAX = 5;
+/** Might: +attack, Bulwark: +both defences, per rank (max RANK_MAX * 5% = +25%). */
+export const RANK_BONUS = 0.05;
+/** Keen (pathfinder only): +scout strength per rank. */
+export const KEEN_BONUS = 0.1;
+/** Resources paid for buying rank r (index r - 1) of one track. Points cost r. */
+export const RANK_COST: readonly Resources[] = [
+  res(60, 40, 60),
+  res(120, 80, 120),
+  res(220, 150, 220, 5),
+  res(380, 260, 380, 15),
+  res(650, 450, 650, 40),
+];
+/** Gold fee to respec (refund) one track. Points are refunded in full; the resources are not. */
+export const RESPEC_GOLD_FEE = 25;
 
 // ---- Additions used by the engine logic (kept here so tuning never touches logic files) ----------
 
@@ -348,6 +400,25 @@ export const TERRAIN = {
   lake: 0.7,
   forest: 0.55,
 };
+
+// ---- Resource shipments (GAME_DESIGN section 13) ----
+
+/** Most one shipment can carry (all four resources together): base + per Market level of the sending village. */
+export const SHIPMENT_BASE_CAPACITY = 300;
+export const SHIPMENT_CAPACITY_PER_MARKET_LEVEL = 200;
+/** Market level the sending village needs to send a shipment. */
+export const SHIPMENT_MIN_MARKET_LEVEL = 1;
+
+// ---- Sandbox / test mode (allow-listed accounts only; see SECURITY_ROADMAP.md) ----
+/** Troops of every type a village gets from "Max out" (at least this many at home). */
+export const SANDBOX_ARMY_PER_UNIT = 500;
+/** Carriers walk at this many tiles per hour (speed 1; scaled by world speed like units). */
+export const SHIPMENT_SPEED = 8;
+/** Shipments a single village may have on the road at once. */
+export const SHIPMENT_MAX_IN_TRANSIT = 5;
+
+/** Window after departure in which the sender may cancel an attack, scout, support or shipment (not scaled by world speed). */
+export const CANCEL_WINDOW_MS = 2 * 60 * 1000;
 
 // ---- Tribes ----
 
@@ -403,6 +474,10 @@ export const SCOUT_UNIT: UnitId = 'pathfinder';
 export const SCOUT_DEFENSE_FACTOR = 1;
 /** Loss ratio exponent for scouting fights (as battles). */
 export const SCOUT_LOSS_EXPONENT = 1.5;
+/** Keen rank of the sending village needed for each layer of a successful scout's intel (docs/GAME_DESIGN.md section 15). Resources always show. */
+export const SCOUT_INTEL_KEEN = { approxTroops: 1, exactTroops: 2, wall: 3, buildings: 4, ranks: 5 } as const;
+/** Rough troop counts (Keen 1) are rounded to a multiple of this, and never shown as 0 when some are there. */
+export const SCOUT_APPROX_STEP = 10;
 
 // ---- Art-facing rules (docs/ART_DIRECTION.md) ----
 

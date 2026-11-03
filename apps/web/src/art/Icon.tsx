@@ -754,6 +754,17 @@ const ICONS = {
       </>
     ),
   },
+  ranks: {
+    vb: '0 0 32 32',
+    draw: (u) => (
+      <>
+        <T u={u + 'a'} d="M3 29V17H11V29Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1.2} x={-1.5} y={-1.9} w={1.8} />
+        <T u={u + 'b'} d="M12 29V8H20V29Z" l="#FFDC7A" k="#B07720" m="#F2B33D" s={1.2} x={-1.5} y={-1.9} w={1.8} />
+        <T u={u + 'c'} d="M21 29V20H29V29Z" l="#E0DCD3" k="#665F57" m="#A39E94" s={1.2} x={-1.5} y={-1.9} w={1.8} />
+        <path d="M16 2.5l1.3 2.6l2.9 .4l-2.1 2l.5 2.9l-2.6-1.4l-2.6 1.4l.5-2.9l-2.1-2l2.9-.4z" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.2" strokeLinejoin="round" />
+      </>
+    ),
+  },
 } satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

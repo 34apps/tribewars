@@ -31,6 +31,8 @@ When a rule changes, change it here in the same commit.
 - **Storage cap** (same for every resource) from the storehouse level:
   `L == 0 ? STORAGE_LEVEL0 : round(STORAGE_BASE * STORAGE_GROWTH^(L-1))`. Production stops at the
   cap. Anything added (refunds, loot coming home) is also clamped to the cap.
+- **Market** (start level 0, needs Town Hall 3, max level 10): gates resource shipments and sets their size
+  (section 13). Art: placeholder (Storehouse sprites) until a Market sprite exists.
 - **Vault** protects `L == 0 ? 0 : round(VAULT_BASE * VAULT_GROWTH^(L-1))` of each resource from loot.
 
 ## 3. Buildings
@@ -44,7 +46,9 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   using the Town Hall level when the job is queued.
 - **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 720, knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
-- **Queue:** at most `MAX_BUILD_QUEUE` jobs. Cost paid when queued. A job starts at
+- **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village for players without a premium subscription,
+  `MAX_BUILD_QUEUE_PREMIUM` (5) for premium subscribers (`buildQueueLimit(premium)`; the server reads the
+  player's `premium` flag, never the client). Cost paid when queued. A job starts at
   `max(now, finishAt of the previous job)`. Queuing the same building twice targets the next level
   after the queued one (target = current level + jobs for it in queue + 1). Refuse with:
   `max_level` (target > maxLevel), `requirements_not_met`, `exceeds_storage` (any cost > cap — can never
@@ -63,6 +67,11 @@ Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, co
 - Time per unit (ms): `round(trainTimeSec * TRAIN_TIME_FACTOR^(buildingLevel-1) / speed * 1000)`,
   fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
   end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
+- **Research gate (Drillyard, see §15):** Shieldbearer, Outrider and Knight have `UnitDef.research`
+  (Drillyard level to start, cost, time). They can only be trained after the research finished in that
+  village (`VillageState.researched`); refusal is `requirements_not_met`. One research at a time per village;
+  time is divided by world speed. Pikeman, Raider and Pathfinder need none. Villages saved before the Drillyard
+  keep every unit they already have (home, away or queued count as researched; abandoned villages never train).
 - Upkeep for the whole batch counts from the moment it is queued (so training never changes the
   food rate later — this keeps settlement simple).
 
@@ -272,6 +281,9 @@ searchable by name/tag.
 - Event log: joins, leaves, kicks, role changes, leadership transfer, settings, diplomacy; disbanding
   or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
 
+### Rankings
+Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab.
+
 ## 12. Tribe warfare — scouts, support, alerts
 
 Numbers in `config.ts` (`SCOUT_*`, unit `pathfinder`); contract in `api.ts` (`SendRequest.mission`,
@@ -331,7 +343,48 @@ tables are rebuilt in place on start (ids kept) because their CHECK constraints 
 stationed units, report JSON) must go through `normalizeVillage` / `normalizeUnits`, which add missing
 unit keys as 0.
 
-## 13. Roadmap (not yet built)
+## 13. Resource shipments
+
+A player can send wood, food, iron and gold from a village to any village: their own other
+villages, tribe-mates, allies, NAP partners, neutrals, enemies and abandoned villages (owner, 2026-11-03).
+Accounts that share a connection (`refuseHousehold`) cannot send each other resources.
+
+- **Send** (`POST /api/villages/:id/ship`): amounts are whole numbers >= 0, total > 0, at most the village's
+  stock (after catch-up) and at most the carrier capacity `SHIPMENT_BASE_CAPACITY (300) +
+  SHIPMENT_CAPACITY_PER_MARKET_LEVEL (200) * Market level` of the sending village. **The sending village needs a
+  Market (level >= `SHIPMENT_MIN_MARKET_LEVEL`, 1)**, else `requirements_not_met`; receiving needs none.
+  The cargo leaves the village immediately.
+  A village may have at most `SHIPMENT_MAX_IN_TRANSIT` (5) shipments on the road.
+- **Travel**: `ceil(distance / (SHIPMENT_SPEED (8 tiles/h) * world speed))` hours. Sending does not touch
+  beginner protection (receiving or sending resources is peaceful).
+- **Arrival**: the cargo is added to the target (player or abandoned), each resource capped at the storehouse;
+  **the overflow is lost**. Only if the sending village no longer belongs to anyone does it turn round (`return`, carrier speed).
+- **Visibility**: sender and receiver see the movement with its cargo (`MovementDto.resources`).
+- **Reports** (kind `shipment`, side `shipment`, `ShipmentReportData`): when a shipment is delivered the sender gets
+  "Shipment delivered" and the receiver (if another player) "Shipment received", each with sent / stored / lost
+  (lost = overflow past the storehouse). A shipment that turns round produces no report.
+- **Cancel** (all outgoing orders: attack, scout, support, shipment): the sender may cancel within
+  `CANCEL_WINDOW_MS` (2 minutes, real time, not scaled by world speed) of departure and before arrival
+  (`POST /api/movements/:id/cancel`, `MovementDto.cancellableUntil`). The order becomes a `return` that leaves now
+  and arrives after exactly the time already travelled (minimum 1 s: cancel after 30 s, home in 30 s), so
+  cancel-and-resend cannot shorten a trip. Troops/cargo come home, nothing is looted, no report. Returns cannot be
+  cancelled; others' movements answer 404; a late cancel answers 409 `too_late`.
+- **Report kinds** overall: attack (sender, `side attack`), defence (village owner, `defense`), "Your troops at X
+  were attacked" (owners of stationed troops, `support` side, battle type), support turned back, scout, shipment.
+- Code: `packages/engine/src/shipment.ts`, `GameService.sendShipment/resolveShipment`, web `map/ShipmentForm.tsx`.
+
+### Sandbox (test mode)
+
+Accounts named in the server env `SANDBOX_USERS` (comma list, compared lowercase; default `metinaltinbas`; empty =
+nobody) may call `POST /api/sandbox/max` and `POST /api/sandbox/reset`; everyone else gets 403 `forbidden`.
+`PlayerDto.sandbox` tells the client to show Settings > Test mode. **Max**: every building of every village of the
+player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every unit at home (troops already away
+stay), build/train queues cleared. **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
+with its own outgoing movements and own stationed support removed; works at any time. World speed is never
+changed. Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
+`components/SettingsDialog.tsx` (opened from the account menu).
+
+## 14. Roadmap (not yet built)
 
 1. Tribe forum threads, mass messages, member notes; player-to-player messages.
 2. More villages per player (settlers / conquest), market trading, siege units vs. wall.
@@ -339,3 +392,72 @@ unit keys as 0.
 4. World lifecycle: player/tribe rankings history, inactive players turning into abandoned
    villages, world end and winners.
 5. New visual identity (style directions in progress), characters, isometric map; 3D models later.
+6. Troop ranks, Armory, scout intel tiers — see §15 (proposal).
+
+## 15. DECIDED, NOT BUILT YET (see owner answers below) — troop ranks, Armory, scout intel tiers
+
+Asked by the owner 2026-11-03. Today units have no levels and a successful scout always reveals
+everything (§12). Goals: scouting reveals *tiers* of information; troops can be improved, but a
+village can never max everything, so players specialise (attack village, defence village, scout village).
+
+**What Tribal Wars does (from memory, not verified; we borrow only the idea, never names/numbers):** a research
+building lets unit types be upgraded under a limited per-village upgrade budget, so players choose which units to
+improve. We keep the idea of a scarce budget but design our own system.
+
+**Armory (new building).** Needs Barracks 3 + Town Hall 5, max level 10. Level L gives
+`ARMORY_POINTS_PER_LEVEL (3) × L` **Training Points** *per village* (30 at level 10).
+- Each unit has up to two rank tracks, rank 0–5: **Edge** (attack) and **Guard** (defence, both classes). Pathfinders
+  have **Sight** instead (they do not fight). Buying rank r costs `r` points (1+2+3+4+5 = 15 per track) plus
+  resources and research time (all in config).
+- Effect per rank: +4% on that stat (max +20%); Sight: +10% scout duel strength per rank.
+- The budget makes maxing everything impossible: 5 fighting units × 2 tracks × 15 = 150 points vs 30 at best.
+  Typical choices: one village maxes Edge on raiders + outriders (30), another maxes Guard on pikemen + guards.
+- **Respec:** refund one unit track for a resource/gold fee and a cooldown, so a village can change role
+  (offence ↔ defence) but not on the fly mid-war.
+- Ranks belong to the **home village** of the troops. Away/support troops fight with their home village's ranks,
+  stamped on the movement at send time so a later respec can't change a march in flight.
+- Server-authoritative: new table `unit_ranks(village_id, unit, track, rank)` and research jobs like training.
+  Engine: `resolveBattle` takes optional per-unit multipliers; all numbers in `config.ts`.
+
+**Scout intel tiers** (Sight rank of the sending village, on a *successful* scout):
+
+| Sight | Reveals |
+|---|---|
+| 0 | resources (floored) only |
+| 1 | + troops at home as rough bands (e.g. "about 50") |
+| 2 | + exact troops at home and stationed support |
+| 3 | + wall level |
+| 4 | + all building levels |
+| 5 | + the defender's Edge/Guard ranks and Armory level |
+
+The defender's own Pathfinder Sight adds to its side of the duel. Failed scouts reveal nothing (as today).
+
+**Owner answers (2026-11-03), these override the numbers/names above where they differ:**
+1. Names "kinda okay, maybe change" → proposed new names (easy to swap, they live in config/UI strings only):
+   Armory → **Drillyard**, Edge → **Might**, Guard → **Bulwark**, Sight → **Keen**.
+2. **Every village has its own Training Points** for its Drillyard level (not per account). Ranks belong to the village.
+3. Bonus is a stepped per-rank percentage like the genre's unit upgrades, with our own numbers: **+5% per rank, max +25%**
+   (replaces the 4% / +20% above; `RANK_BONUS` in config).
+4. **Ranks never change speed or carry** — only attack, defence (Might/Bulwark) and scout strength (Keen).
+Still open: respec cost, and a "what you could see at higher Keen" hint in scout reports.
+Status (2026-11-03, latest): **ranks reach battles and scouting.** The home village's ranks are stamped on each attack/scout/support
+movement when it leaves (a respec in flight changes nothing); the defender fights with its current ranks; a support contingent defends
+with the stamp of its newest arrival. The scout duel uses Keen on both sides, and a successful scout's intel depends on the sender's Keen
+(0 resources, 1 rough troops, 2 exact troops, 3 wall, 4 buildings, 5 ranks + Drillyard level); numbers in `config.ts` (`SCOUT_INTEL_KEEN`,
+`SCOUT_APPROX_STEP`). Drillyard has its own sprites. Older notes follow.
+Status (2026-11-03, later): **server endpoints built** (`POST /api/villages/:id/research|rank|respec`, owner-only, server clock,
+schema-validated, saved in the village's `state_json`; research completes in `settleVillage`, which unblocks Shieldbearer/Outrider/Knight
+training) and the web Drillyard panel is built. Still not built: ranks stamped on movements/battles in the server (the engine takes them,
+the server does not pass them yet), scout intel tiers. Earlier status: **engine built.** The building is called **Drillyard** (it stands in for the
+"Armory" name above, per the owner's rename). Engine: `drillyard.ts` (`checkResearch/applyResearch`, `pointsTotal/pointsSpent`,
+`checkRank/applyRank`, `checkRespec/applyRespec`, `mightMultiplier/bulwarkMultiplier/keenMultiplier`), optional
+`VillageState.researched/researchJob/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
+`KEEN_BONUS` 0.1, `RANK_COST`, `RESPEC_GOLD_FEE`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
+Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. Respec resets one track to 0: points return in full,
+resources do not, gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
+on the village's own troops and on each support contingent with its own home ranks); omitted = identical to before. Not built: server
+tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored only), web panel.
+
+**Build order if approved:** config + types → engine (rank multipliers in `resolveBattle`, tier filter on intel,
+tests) → server (table, research queue, security gate per SECURITY_ROADMAP §4) → web (Armory panel with a points
+bar, tiered scout report) → preview + CHANGELOG.

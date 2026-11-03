@@ -72,7 +72,7 @@ const DISPLAY = '"Bagel Fat One", Rubik, system-ui, sans-serif';
 /** Flat tile colours while the terrain art loads. */
 const FLAT = ['#A6C964', '#7FA94A', '#B4D274', '#E3DED3', '#2F9AA0'] as const;
 
-const MOVE_COLOR: Record<string, string> = { attack: '#C4623A', scout: '#7A3B5E', support: '#2F9AA0', return: '#5E8C3A' };
+const MOVE_COLOR: Record<string, string> = { attack: '#C4623A', scout: '#7A3B5E', support: '#2F9AA0', return: '#5E8C3A', shipment: '#B8892B' };
 
 // Shapes from design/style-directions/artboards/MapVillageStages.dc.html, in tile-centre SVG px (tile = 96 wide).
 const RING = new Path2D('M-5.4 -19.9Q0 -22.6 5.4 -19.9L39.8 -2.7Q45.1 0 39.8 2.7L5.4 19.9Q0 22.6 -5.4 19.9L-39.8 2.7Q-45.1 0 -39.8 -2.7Z');
@@ -319,7 +319,9 @@ export function drawMap(sc: Scene): FrameResult {
     ctx.restore();
   }
 
-  if (!rimShown) drawRuler(sc, sxy);
+  // The floating coordinate ruler (drawRuler) is no longer drawn: its numbers sat in the middle of the
+  // map while panning. The centre coordinates are shown in the map's status line instead.
+  void rimShown;
 
   return { stale: painter.stale, villages: drawn, markerSpeed };
 }
@@ -676,8 +678,15 @@ function drawMovements(sc: Scene): number {
     const span = mv.arriveAt - mv.departAt;
     if (span <= 0 || now >= mv.arriveAt) continue;
     const f = Math.max(0, Math.min(1, (now - mv.departAt) / span));
-    const a = toScreen(view, size, mv.origin.x, mv.origin.y);
-    const b = toScreen(view, size, mv.target.x, mv.target.y);
+    const a0 = toScreen(view, size, mv.origin.x, mv.origin.y);
+    const b0 = toScreen(view, size, mv.target.x, mv.target.y);
+    // Start and end the march at the village's edge so the marker doesn't sit on top of the village art.
+    const full = Math.hypot(b0.x - a0.x, b0.y - a0.y);
+    const off = full > tile * 1.2 ? tile * 0.5 : 0;
+    const ux = full > 0 ? (b0.x - a0.x) / full : 0;
+    const uy = full > 0 ? (b0.y - a0.y) / full : 0;
+    const a = { x: a0.x + ux * off, y: a0.y + uy * off };
+    const b = { x: b0.x - ux * off, y: b0.y - uy * off };
     const x = a.x + (b.x - a.x) * f;
     const y = a.y + (b.y - a.y) * f;
     if (Math.max(a.x, b.x) + m * 2 < 0 || Math.min(a.x, b.x) - m * 2 > W || Math.max(a.y, b.y) + m * 2 < 0 || Math.min(a.y, b.y) - m * 3 > H) continue;
@@ -693,7 +702,8 @@ function drawMovements(sc: Scene): number {
       const where = `${mv.target.x}|${mv.target.y}`;
       const left = shortClock(mv.arriveAt - now);
       let text: string;
-      if (incoming) text = mv.kind === 'support' ? `Support to ${where} · ${left}` : `Attack on ${where} · ${left}`;
+      if (mv.kind === 'shipment') text = `${incoming ? 'Resources to' : 'Shipment to'} ${where} · ${left}`;
+      else if (incoming) text = mv.kind === 'support' ? `Support to ${where} · ${left}` : `Attack on ${where} · ${left}`;
       else if (mv.kind === 'attack') text = `${mv.target.ownerName ? 'Attack on' : 'Raid on'} ${where} · ${left}`;
       else if (mv.kind === 'scout') text = `Scouting ${where} · ${left}`;
       else if (mv.kind === 'support') text = `Support to ${where} · ${left}`;

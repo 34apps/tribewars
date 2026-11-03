@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BUILDINGS, MAX_BUILD_QUEUE } from '@clanfire/engine';
+import { BUILDINGS, buildQueueLimit } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -77,7 +77,8 @@ function DesktopVillage() {
 }
 
 function PhoneVillage() {
-  const { village, live, now } = useGame();
+  const { village, live, now, player } = useGame();
+  const maxQueue = buildQueueLimit(player.premium);
   const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | null>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);
@@ -138,11 +139,11 @@ function PhoneVillage() {
           type="button"
           className="vv-queuechip"
           onClick={() => setSheet({ kind: 'queue' })}
-          aria-label={`Construction queue, ${jobs.length} of ${MAX_BUILD_QUEUE} slots used`}
+          aria-label={`Construction queue, ${jobs.length} of ${maxQueue} slots used`}
         >
           <Icon name="queue" size={20} />
           <span>
-            {jobs.length}/{MAX_BUILD_QUEUE}
+            {jobs.length}/{maxQueue}
           </span>
           {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
         </button>

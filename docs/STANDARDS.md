@@ -17,6 +17,10 @@
 - SQL only with prepared statements and bound parameters.
 - Secrets only from environment variables; `.env*` and the database are never committed.
 
+- **Every feature passes the gate in `docs/SECURITY_ROADMAP.md` §4** (ownership, input schema, rate/caps,
+  no leaks, server-side timing, multi-account abuse, audit, tests). Timing rules for troop movements are
+  in §2 there. Open security items are tracked in the same file.
+
 ## Performance
 - Lazy evaluation: no per-second timers per village. State is settled on read; troop movements are
   processed in arrival order (one cheap indexed query per request plus a 1 s server tick).

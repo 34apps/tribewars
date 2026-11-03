@@ -2,11 +2,12 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS, resolveScouting, settleVillage, travelTimeMs } from '@clanfire/engine';
+import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS, keenMultiplier, resolveScouting, settleVillage, travelTimeMs } from '@clanfire/engine';
 import { setBuilding } from './tribe-helpers.ts';
 import { formPact, myTribe, newPlayer } from './tribe-helpers.ts';
 import { ok, weakestAbandoned } from './helpers.ts';
 import {
+  giveKeen,
   giveTroops,
   latestReport,
   movementsOf,
@@ -25,6 +26,7 @@ test('scouting a village with no Pathfinders succeeds untouched; the intel is ex
   giveTroops(app, bob, { pikeman: 10, guard: 3 });
   setBuilding(app, bob.id, 'wall', 2);
   giveTroops(app, alice, { pathfinder: 5 });
+  giveKeen(app, alice, 5); // full intel needs Keen 5 (section 15)
   const bobVillage = await village(bob);
   const home = await village(alice);
 
@@ -62,10 +64,10 @@ test('scouting a village with no Pathfinders succeeds untouched; the intel is ex
   assert.deepEqual([s.scout.villageId, s.scout.ownerName, s.target.villageId, s.target.ownerName], [home.id, 'alice', bobVillage.id, 'bob']);
   assert.ok(s.intel);
   for (const r of RESOURCE_IDS) assert.equal(s.intel.resources[r], Math.floor(settled.resources[r]), `${r} is the floored stock at arrival`);
-  assert.deepEqual(Object.keys(s.intel.buildings).sort(), [...BUILDING_IDS].sort());
+  assert.deepEqual(Object.keys(s.intel.buildings ?? {}).sort(), [...BUILDING_IDS].sort());
   assert.deepEqual(s.intel.buildings, settled.buildings);
   assert.equal(s.intel.wallLevel, 2);
-  assert.deepEqual(Object.keys(s.intel.troops).sort(), [...UNIT_IDS].sort());
+  assert.deepEqual(Object.keys(s.intel.troops ?? {}).sort(), [...UNIT_IDS].sort());
   assert.deepEqual(s.intel.troops, { ...units({}), pikeman: 10, guard: 3 });
 
   // All five scouts walk home.
@@ -86,7 +88,8 @@ test('scouts that outnumber the defending Pathfinders get through but lose some;
   const { app, clock, alice, bob } = await world();
   giveTroops(app, bob, { pathfinder: 3, raider: 2 });
   giveTroops(app, alice, { pathfinder: 7 });
-  const expected = resolveScouting({ scouts: 7, defenderScouts: 3 });
+  giveKeen(app, alice, 2); // exact troops
+  const expected = resolveScouting({ scouts: 7, defenderScouts: 3, scoutMultiplier: keenMultiplier({ pathfinder: { might: 0, bulwark: 0, keen: 2 } }) });
   assert.equal(expected.success, true);
   assert.ok(expected.scoutLosses > 0 && expected.scoutLosses < 7, 'some, not all, scouts are lost');
 
@@ -97,7 +100,7 @@ test('scouts that outnumber the defending Pathfinders get through but lose some;
   assert.ok(mine);
   assert.deepEqual([mine.success, mine.scoutsSent, mine.scoutsLost, mine.defenderScouts, mine.defenderScoutsLost], [true, 7, expected.scoutLosses, 3, 0]);
   assert.ok(mine.intel, 'the sender sees the defending Pathfinders and the intel');
-  assert.deepEqual([mine.intel.troops.pathfinder, mine.intel.troops.raider], [3, 2]);
+  assert.deepEqual([mine.intel.troops?.pathfinder, mine.intel.troops?.raider], [3, 2]);
   // The survivors return; the dead leave the sender's away count straight away.
   const survivors = 7 - expected.scoutLosses;
   assert.equal((await movementsOf(alice))[0]?.units?.pathfinder, survivors);
@@ -213,13 +216,14 @@ test('Pathfinders stationed as support alone are enough to spot scouts, and the 
   giveTroops(app, bob, { pikeman: 5 });
   await stationSupport(app, clock, bea, bob, { pathfinder: 2, guard: 4 });
   giveTroops(app, alice, { pathfinder: 6 });
+  giveKeen(app, alice, 2);
   const { movement } = await sendOk(alice, bob, 'scout', { pathfinder: 6 });
   clock.set(movement.arriveAt);
 
   const mine = (await latestReport(alice)).scout;
   assert.ok(mine?.success && mine.intel);
   assert.equal(mine.defenderScouts, 2);
-  assert.deepEqual([mine.intel.troops.pikeman, mine.intel.troops.guard, mine.intel.troops.pathfinder], [5, 4, 2]);
+  assert.deepEqual([mine.intel.troops?.pikeman, mine.intel.troops?.guard, mine.intel.troops?.pathfinder], [5, 4, 2]);
   const theirs = (await latestReport(bob)).scout;
   assert.deepEqual([theirs?.defenderScouts, theirs?.success], [2, true]);
   // Bea's troops are still stationed, nobody died.
@@ -230,6 +234,7 @@ test('Pathfinders stationed as support alone are enough to spot scouts, and the 
 test('scouting an abandoned village: intel from its garrison, nobody else gets a report', async () => {
   const { app, clock, alice } = await world();
   giveTroops(app, alice, { pathfinder: 2 });
+  giveKeen(app, alice, 5);
   const npc = await weakestAbandoned(alice.c, 12);
   const { movement } = await sendOk(alice, npc, 'scout', { pathfinder: 2 });
   clock.set(movement.arriveAt);
@@ -239,7 +244,7 @@ test('scouting an abandoned village: intel from its garrison, nobody else gets a
   assert.equal(s.scoutsLost, 0);
   const garrison = app.ctx.store.getVillage(npc.id)?.state.troops;
   assert.deepEqual(s.intel.troops, garrison);
-  assert.ok(s.intel.troops.pikeman > 0, 'a real garrison');
+  assert.ok((s.intel.troops?.pikeman ?? 0) > 0, 'a real garrison');
   assert.equal(s.intel.wallLevel, app.ctx.store.getVillage(npc.id)?.state.buildings.wall);
   await app.close();
 });

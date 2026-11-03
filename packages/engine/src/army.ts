@@ -12,6 +12,7 @@ import {
   WALL_BONUS_PER_LEVEL,
   WALL_DEFENSE_PER_LEVEL,
 } from './config.ts';
+import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
 import { GameError, MISSIONS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
@@ -167,7 +168,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
   let attackInfantry = 0;
   let attackCavalry = 0;
   for (const u of UNIT_IDS) {
-    const power = attackerUnits[u] * UNITS[u].attack;
+    const power = attackerUnits[u] * UNITS[u].attack * mightMultiplier(input.attackerRanks, u);
     if (UNITS[u].unitClass === 'infantry') attackInfantry += power;
     else attackCavalry += power;
   }
@@ -180,8 +181,11 @@ export function resolveBattle(input: BattleInput): BattleResult {
   const cavalryShare = 1 - infantryShare;
   let defenseUnits = 0;
   for (const u of UNIT_IDS) {
-    let count = defenderUnits[u];
-    for (const contingent of support) count += contingent[u];
+    // Each source (own troops, every support contingent) counts with its own home village's Bulwark.
+    let count = defenderUnits[u] * bulwarkMultiplier(input.defenderRanks, u);
+    support.forEach((contingent, i) => {
+      count += contingent[u] * bulwarkMultiplier(input.supportRanks?.[i], u);
+    });
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
   const wall = defender.buildings.wall;
@@ -248,13 +252,15 @@ const nonNegative = (n: number): number => (Number.isFinite(n) && n > 0 ? n : 0)
 export function resolveScouting(input: ScoutInput): ScoutResult {
   const scouts = nonNegative(input.scouts);
   const defenderScouts = nonNegative(input.defenderScouts);
-  const defense = defenderScouts * SCOUT_DEFENSE_FACTOR;
+  // Keen ranks scale each side's strength; counts (and so the loss caps) stay real numbers of Pathfinders.
+  const strength = scouts * Math.max(0, input.scoutMultiplier ?? 1);
+  const defense = (input.defenderStrength === undefined ? defenderScouts : Math.max(0, input.defenderStrength)) * SCOUT_DEFENSE_FACTOR;
 
-  if (scouts > defense) {
-    const ratio = defense > 0 ? Math.pow(defense / scouts, SCOUT_LOSS_EXPONENT) : 0;
+  if (strength > defense) {
+    const ratio = defense > 0 ? Math.pow(defense / strength, SCOUT_LOSS_EXPONENT) : 0;
     return { success: true, scoutLosses: Math.min(scouts, Math.round(scouts * ratio)), defenderScoutLosses: 0 };
   }
-  const ratio = defense > 0 ? Math.pow(scouts / defense, SCOUT_LOSS_EXPONENT) : 0;
+  const ratio = defense > 0 ? Math.pow(strength / defense, SCOUT_LOSS_EXPONENT) : 0;
   return { success: false, scoutLosses: scouts, defenderScoutLosses: Math.min(defenderScouts, Math.round(defenderScouts * ratio)) };
 }
 

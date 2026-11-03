@@ -4,7 +4,11 @@ import {
   MAX_TRAIN_BATCH,
   MISSIONS,
   MAX_UNIT_COUNT,
+  RANK_TRACKS,
+  RESOURCE_IDS,
   UNIT_IDS,
+  type RankRequest,
+  type ResearchRequest,
   type BuildRequest,
   type GameStateResponse,
   type MapResponse,
@@ -13,6 +17,8 @@ import {
   type RecallRequest,
   type SendRequest,
   type SendResponse,
+  type SendShipmentRequest,
+  type SendShipmentResponse,
   type TrainRequest,
 } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
@@ -46,6 +52,23 @@ const trainBody = {
   },
 } as const;
 
+const researchBody = {
+  type: 'object',
+  required: ['unit'],
+  additionalProperties: false,
+  properties: { unit: { type: 'string', enum: [...UNIT_IDS] } },
+} as const;
+
+const rankBody = {
+  type: 'object',
+  required: ['unit', 'track'],
+  additionalProperties: false,
+  properties: {
+    unit: { type: 'string', enum: [...UNIT_IDS] },
+    track: { type: 'string', enum: [...RANK_TRACKS] },
+  },
+} as const;
+
 const unitsObject = { type: 'object', additionalProperties: false, properties: unitCounts } as const;
 
 const sendBody = {
@@ -57,6 +80,19 @@ const sendBody = {
     y: COORD,
     units: unitsObject,
     mission: { type: 'string', enum: [...MISSIONS] },
+  },
+} as const;
+
+const resourceAmounts = Object.fromEntries(RESOURCE_IDS.map((r) => [r, { type: 'integer', minimum: 0, maximum: 1_000_000_000 }]));
+
+const shipBody = {
+  type: 'object',
+  required: ['x', 'y', 'resources'],
+  additionalProperties: false,
+  properties: {
+    x: COORD,
+    y: COORD,
+    resources: { type: 'object', additionalProperties: false, properties: resourceAmounts },
   },
 } as const;
 
@@ -79,6 +115,15 @@ const mapQuery = {
 export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
   const auth = { onRequest: requireAuth(ctx) };
 
+  // Test mode: the service refuses accounts outside SANDBOX_USERS (403 forbidden). Logged as an audit line.
+  for (const action of ['max', 'reset'] as const) {
+    app.post(`/api/sandbox/${action}`, auth, async (req): Promise<GameStateResponse> => {
+      const res = ctx.game.sandbox(playerOf(req), action, req.nowMs);
+      req.log.warn({ playerId: playerOf(req).id, action }, 'sandbox action');
+      return res;
+    });
+  }
+
   app.get('/api/state', auth, async (req): Promise<GameStateResponse> => ctx.game.getState(playerOf(req), req.nowMs));
 
   app.post<{ Params: { id: string }; Body: BuildRequest }>(
@@ -94,12 +139,52 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
       ctx.game.train(playerOf(req), Number(req.params.id), req.body.unit, req.body.count, req.nowMs),
   );
 
+  app.post<{ Params: { id: string }; Body: ResearchRequest }>(
+    '/api/villages/:id/research',
+    { ...auth, schema: { params: idParams, body: researchBody } },
+    async (req): Promise<OwnVillageDto> => ctx.game.research(playerOf(req), Number(req.params.id), req.body.unit, req.nowMs),
+  );
+
+  for (const action of ['rank', 'respec'] as const) {
+    app.post<{ Params: { id: string }; Body: RankRequest }>(
+      `/api/villages/:id/${action}`,
+      { ...auth, schema: { params: idParams, body: rankBody } },
+      async (req): Promise<OwnVillageDto> => {
+        const { unit, track } = req.body;
+        const res = ctx.game[action](playerOf(req), Number(req.params.id), unit, track, req.nowMs);
+        if (action === 'respec') req.log.info({ playerId: playerOf(req).id, villageId: req.params.id, unit, track }, 'respec');
+        return res;
+      },
+    );
+  }
+
   app.post<{ Params: { id: string }; Body: SendRequest }>(
     '/api/villages/:id/send',
     { ...auth, schema: { params: idParams, body: sendBody } },
     async (req, reply): Promise<SendResponse> => {
       const { x, y, units, mission } = req.body;
       const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs);
+      void reply.code(201);
+      return res;
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: SendShipmentRequest }>(
+    '/api/villages/:id/ship',
+    { ...auth, schema: { params: idParams, body: shipBody } },
+    async (req, reply): Promise<SendShipmentResponse> => {
+      const { x, y, resources } = req.body;
+      const res = ctx.game.sendShipment(playerOf(req), Number(req.params.id), x, y, resources, req.nowMs);
+      void reply.code(201);
+      return res;
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/movements/:id/cancel',
+    { ...auth, schema: { params: idParams } },
+    async (req, reply): Promise<MovementResponse> => {
+      const res = ctx.game.cancel(playerOf(req), Number(req.params.id), req.nowMs);
       void reply.code(201);
       return res;
     },

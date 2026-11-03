@@ -31,6 +31,8 @@ const FILE: Record<BuildingId, string> = {
   stables: 'stables',
   wall: 'wall',
   vault: 'hidden-vault',
+  market: 'storehouse', // placeholder art: reuses the storehouse sprites until a Market sprite is drawn
+  drillyard: 'drillyard',
 };
 
 /** Last level of stage 1 and stage 2; stage 3 runs to max level (design/style-directions/renders/E-building-stages.webp). */
@@ -45,6 +47,8 @@ const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
   goldmine: [5, 10],
   stables: [5, 10],
   vault: [3, 7],
+  market: [3, 6],
+  drillyard: [3, 6],
 };
 
 export type Stage = 0 | 1 | 2 | 3;
@@ -79,7 +83,8 @@ export const SCENE_VIEWBOX = { x: 10, y: -4, w: 580, h: 376 } as const;
 
 /** The scene grows upwards when the Town Hall gets taller (its label must stay inside). */
 export function sceneViewBox(hallStage: Stage): { x: number; y: number; w: number; h: number } {
-  const top = hallStage >= 3 ? -50 : hallStage === 2 ? -34 : -10;
+  // Extra 30 units of headroom keep the bobbing selection arrow above the Town Hall label from being clipped.
+  const top = (hallStage >= 3 ? -50 : hallStage === 2 ? -34 : -10) - 30;
   return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: SCENE_VIEWBOX.y + SCENE_VIEWBOX.h - top };
 }
 
@@ -109,6 +114,8 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   stables: { x: 300, y: 221.2, scale: 1.1 },
   farm: { x: 300, y: 287.5, scale: 1.1 },
   wall: { x: 372, y: 238.5, scale: 0.55 },
+  market: { x: 190, y: 250, scale: 0.95 },
+  drillyard: { x: 90, y: 262, scale: 0.9 },
 };
 
 /** Painter's order: things further down the screen are drawn later. */

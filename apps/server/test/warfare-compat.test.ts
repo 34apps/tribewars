@@ -10,7 +10,7 @@ import { UNIT_IDS, type VillageState } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { applySchema } from '../src/db.ts';
 import { Client, HOUR, PASSWORD, TEST_WORLD, battleOf, ok, register, weakestAbandoned } from './helpers.ts';
-import { giveTroops, latestReport, movementsOf, reports, sendFails, sendOk, stateOf, units, village, world, type App, type P } from './warfare-helpers.ts';
+import { giveKeen, giveTroops, latestReport, movementsOf, reports, sendFails, sendOk, stateOf, units, village, world, type App, type P } from './warfare-helpers.ts';
 
 /** The five-unit maps of the first release. */
 const OLD_UNITS = { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0 };
@@ -98,10 +98,11 @@ test('stationed units saved without the pathfinder key are normalised on load, a
 
   // It defends: a scout from bob sees it in the intel with a clean 0 Pathfinders.
   giveTroops(app, bob, { pathfinder: 2 });
+  giveKeen(app, bob, 2);
   const { movement } = await sendOk(bob, amy, 'scout', { pathfinder: 2 });
   clock.set(movement.arriveAt);
   const intel = (await latestReport(bob)).scout?.intel;
-  assert.deepEqual([intel?.troops.pikeman, intel?.troops.pathfinder], [10, 0]);
+  assert.deepEqual([intel?.troops?.pikeman, intel?.troops?.pathfinder], [10, 0]);
 
   // And it can be recalled (partially): the stored row is rewritten in the new format.
   const res = await alice.c.post(`/api/stationed/${here[0]?.id}/recall`, { units: { pikeman: 4 } });

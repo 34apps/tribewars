@@ -41,16 +41,41 @@ if (!process.env.ANTHROPIC_API_KEY) {
   fail("ANTHROPIC_API_KEY is not set. Export it first; this runner never falls back to a Claude subscription login.");
 }
 
-const APPEND = `You are running unattended via "npm run agent" on the Clanfire repo. Follow AGENTS.md and docs/STANDARDS.md. Do NOT run git commit, git push or any other git write command, and do not install packages: leave all changes uncommitted in the working tree, the owner reviews them. You cannot ask questions; make reasonable choices and state them in your final answer. Run npm run check before you finish if you changed code.`;
+const APPEND = `You are running unattended via "npm run agent" on the Clanfire repo (this repo only: never touch other repos). Follow AGENTS.md and docs/STANDARDS.md. Do not install packages. You cannot ask questions; make reasonable choices and state them in your final answer.
+
+Every run is self-contained. Decide which kind of run this is:
+
+A) Question-only run (the task only asks for an answer, explanation or review): change nothing. No file edits, no commit, no push. Just answer.
+
+B) Run that changed files. Finish with this protocol, in order:
+ 1. Run "npm run check" (plus "npm run build" if apps/ or dependencies changed).
+ 2. If it PASSES:
+    a. "git add -A" then "git commit" the work (clear message; end it with the Co-Authored-By line from your instructions if you have one). Never commit secrets, data/ or *.sqlite.
+    b. Take the hash from "git log -1 --format=%h". Add a dated line (newest first, with that hash) at the top of CHANGELOG.md; update NEXT_STEPS.md (remove done items, add follow-ups).
+    c. Update the "## Last run" section at the very top of docs/HANDOFF.md (create it right under the title if missing; replace its old content; max 10 lines): what changed, what is left, the very next step, and "checks passed".
+    d. "git add -A", "git commit" (docs commit), then "git push origin main".
+ 3. If it FAILS: do NOT commit and do NOT push. Leave the changes in the working tree and write the failure (which check, first real error, what you tried) into the "## Last run" section of docs/HANDOFF.md (max 10 lines, say "checks FAILED, nothing committed"). That file edit stays uncommitted too.
+ Allowed git: status, diff, log, add, commit, and "git push origin main" only. No force push, other branches, other remotes, reset, checkout, rebase or clean. If a push is rejected, do not work around it: report it in your final answer.
+
+Final answer: say what changed, whether it was committed/pushed (hashes), what is left, and the next step.`;
 
 const bash = (p: string) => `Bash(${p})`;
 const allowedTools = [
   "Read", "Glob", "Grep", "Edit", "Write",
-  ...["npm run check", "npm run build", "npm run build:preview", "npm test", "npm test *", "git status", "git status *", "git diff", "git diff *", "git log", "git log *"].map(bash),
+  ...[
+    "npm run check", "npm run build", "npm run build:preview", "npm test", "npm test *",
+    "git status", "git status *", "git diff", "git diff *", "git log", "git log *",
+    "git add -A", "git add .", "git add *", "git commit *", "git push origin main",
+  ].map(bash),
 ];
+// Deny rules win over allow rules, so force pushes etc. stay blocked.
 const disallowedTools = [
   "WebFetch", "WebSearch",
-  ...["git commit*", "git push*", "git reset*", "git checkout*", "git clean*", "rm *", "sudo *", "npm install*", "npm i *", "curl *", "wget *"].map(bash),
+  ...[
+    "git push --force*", "git push -f*", "git push * --force*", "git push *+*", "git push --delete*", "git push --mirror*",
+    "git -C *", "git remote *", "git config *", "git reset*", "git checkout*", "git switch*", "git rebase*", "git clean*", "git stash*", "git branch -D*",
+    "rm *", "sudo *", "npm install*", "npm i *", "curl *", "wget *",
+  ].map(bash),
 ];
 
 const started = Date.now();

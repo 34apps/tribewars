@@ -42,6 +42,7 @@ export interface RankedTribeRow {
   createdAt: number;
   members: number;
   points: number;
+  villages: number;
 }
 
 export interface InviteRow {
@@ -268,7 +269,7 @@ export class TribeStore extends SqlBase {
   ranking(): RankedTribeRow[] {
     return this.all(
       `SELECT t.id, t.name, t.tag, t.recruitment, t.created_at,
-              COUNT(DISTINCT m.player_id) AS members, COALESCE(SUM(v.points), 0) AS total_points
+              COUNT(DISTINCT m.player_id) AS members, COALESCE(SUM(v.points), 0) AS total_points, COUNT(DISTINCT v.id) AS village_count
        FROM tribes t
        LEFT JOIN tribe_members m ON m.tribe_id = t.id
        LEFT JOIN villages v ON v.owner_id = m.player_id
@@ -282,6 +283,7 @@ export class TribeStore extends SqlBase {
       createdAt: r.created_at as number,
       members: r.members as number,
       points: r.total_points as number,
+      villages: r.village_count as number,
     }));
   }
 

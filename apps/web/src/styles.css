@@ -1158,7 +1158,9 @@ button.strip {
 .tab-bottom {
   flex-direction: column;
   gap: 3px;
-  width: 64px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 64px;
   min-height: 56px;
   border-radius: 14px;
   color: var(--c-sand);
@@ -1172,7 +1174,7 @@ button.strip {
 }
 
 .tab-bottom.is-active {
-  width: 68px;
+  max-width: 68px;
   min-height: 58px;
   gap: 2px;
   padding-bottom: 3px;
@@ -2533,6 +2535,518 @@ button.strip {
 
 .tribe-row-title {
   font-weight: 700;
+}
+
+.subtabs.subtabs-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Rankings (statistics page): header, summary tiles, search, table, pager. */
+.rk-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+
+.rk-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.rk-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.rk-note {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.rk-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rk-tile {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.rk-tile-value {
+  overflow: hidden;
+  font-size: 1.1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rk-search {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: inherit;
+  font: inherit;
+}
+
+.rk-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.rk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.rk-table th,
+.rk-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.rk-table th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rk-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.rk-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rk-table .num {
+  text-align: right;
+}
+
+.rk-c-rank {
+  width: 3.5rem;
+}
+
+.rk-name {
+  display: grid;
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rk-sub {
+  display: none;
+  font-weight: 400;
+}
+
+.rk-tribe-link {
+  justify-self: start;
+  font-weight: 700;
+}
+
+.rk-pts {
+  font-weight: 800;
+}
+
+.rk-you {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--c-sun, #f2b33d);
+  color: #2b211c;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rk-table tr.rk-me,
+.rk-table tr.rk-me td {
+  background: rgba(242, 179, 61, 0.2);
+}
+
+.rk-table tr.rk-me td:first-child {
+  box-shadow: inset 3px 0 0 var(--c-sun, #f2b33d);
+}
+
+.rk-num {
+  display: inline-block;
+  min-width: 1.8em;
+  padding-left: 2px;
+  color: var(--ink-soft);
+  font-weight: 800;
+}
+
+.rk-medal {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border: 2px solid #2b211c;
+  border-radius: 50%;
+  color: #2b211c;
+  font-weight: 800;
+}
+
+.rk-medal-1 {
+  background: #f2b33d;
+}
+
+.rk-medal-2 {
+  background: #d9d5cc;
+}
+
+.rk-medal-3 {
+  background: #c98a52;
+}
+
+.rk-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.rk-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.rk-pager .btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.rk-page.is-active {
+  background: var(--c-sun, #f2b33d);
+  color: #2b211c;
+}
+
+.rk-empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+}
+
+/* Phones: fold villages / tribe tag under the name so the table fits 360 px. */
+@media (max-width: 599px) {
+  .rk-c-vill,
+  .rk-c-tribe {
+    display: none;
+  }
+
+  .rk-sub {
+    display: block;
+  }
+
+  .rk-card {
+    padding: 12px;
+  }
+
+  .rk-table th,
+  .rk-table td {
+    padding: 10px 8px;
+  }
+}
+
+/* Rankings: parchment page with a guard, a tree and birds behind a paper card (original art, code-drawn). */
+.rk-stage {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 12px;
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(255, 248, 232, 0.9), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(176, 119, 32, 0.28), transparent 60%),
+    linear-gradient(160deg, #ead7b0, #d8bf90);
+  color: var(--c-ink);
+  overflow: hidden;
+}
+
+.rk-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.rk-bd-left,
+.rk-bd-right {
+  height: 85%;
+  max-height: 520px;
+  width: auto;
+  opacity: 0.55;
+}
+
+.rk-stage .page-title,
+.rk-stage .muted {
+  color: var(--c-ink-3);
+}
+
+.rk-stage .rk-card {
+  max-width: 920px;
+  width: 100%;
+  margin-inline: auto;
+  border: 2px solid var(--c-wood-line);
+  background: rgba(255, 248, 232, 0.94);
+  color: var(--c-ink);
+}
+
+.rk-stage .rk-tile,
+.rk-stage .rk-search,
+.rk-stage .rk-note {
+  border-color: var(--c-bone-shade);
+  background: var(--c-bone);
+  color: var(--c-ink);
+}
+
+.rk-stage .rk-scroll {
+  border-color: var(--c-bone-shade);
+}
+
+.rk-stage .rk-table th {
+  background: linear-gradient(var(--c-wood-board), var(--c-wood));
+  color: var(--c-ink);
+}
+
+.rk-stage .rk-table th,
+.rk-stage .rk-table td {
+  border-color: var(--c-bone-shade);
+}
+
+.rk-stage .rk-table tbody tr:nth-child(even) {
+  background: rgba(198, 175, 136, 0.22);
+}
+
+.rk-press {
+  cursor: pointer;
+}
+
+.rk-press:hover,
+.rk-press:focus-within {
+  background: rgba(242, 179, 61, 0.28) !important;
+}
+
+.rk-who {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.rk-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  max-width: 560px;
+  width: 100%;
+  margin: 4px auto 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rk-plaque {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 6px;
+  border: 3px solid #6f6a64;
+  border-radius: 8px;
+  background: linear-gradient(#c4623a, #8f4527);
+  box-shadow: inset 0 0 0 2px rgba(255, 220, 122, 0.25), 0 3px 0 var(--c-edge);
+  color: var(--c-cream);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rk-pod-1 .rk-plaque {
+  min-height: 150px;
+}
+
+.rk-pod-2 .rk-plaque {
+  min-height: 125px;
+}
+
+.rk-pod-3 .rk-plaque {
+  min-height: 110px;
+}
+
+.rk-plaque:hover {
+  filter: brightness(1.1);
+}
+
+.rk-crown {
+  width: 56px;
+  height: 42px;
+}
+
+.rk-pod-1 .rk-crown {
+  width: 72px;
+  height: 54px;
+}
+
+.rk-plaque-name {
+  max-width: 100%;
+  padding: 3px 8px;
+  overflow: hidden;
+  border: 2px solid var(--c-bone-shade);
+  border-radius: 6px;
+  background: var(--c-cream);
+  color: var(--c-ink);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-plaque-sub {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  background: rgba(26, 18, 14, 0.55);
+}
+
+.rk-sheet {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 440px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+  border: 2px solid var(--c-wood-line);
+  border-radius: 16px 16px 0 0;
+  background: var(--c-cream);
+  color: var(--c-ink);
+}
+
+.rk-sheet-grip {
+  justify-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--c-bone-shade);
+}
+
+.rk-sheet-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.3rem;
+}
+
+.rk-sheet-sub,
+.rk-sheet-note {
+  margin: 0;
+  color: var(--c-ink-3);
+}
+
+.rk-sheet-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin: 0;
+}
+
+.rk-sheet-facts dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.rk-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rk-sheet-actions .btn {
+  min-height: 44px;
+}
+
+@media (min-width: 700px) {
+  .rk-sheet-wrap {
+    align-items: center;
+  }
+
+  .rk-sheet {
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 599px) {
+  .rk-stage {
+    padding: 8px;
+  }
+
+  .rk-bd-left,
+  .rk-bd-right {
+    opacity: 0.35;
+  }
 }
 
 .tribe-row-action {

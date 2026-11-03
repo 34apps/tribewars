@@ -2,7 +2,7 @@
 
 import { BUILDINGS, UNITS } from './config.ts';
 import { BUILDING_IDS, UNIT_IDS } from './types.ts';
-import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, TrainJob, UnitId, Units, VillageState } from './types.ts';
+import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
 
 export const MS_PER_HOUR = 3_600_000;
 
@@ -80,6 +80,26 @@ export function normalizeVillage(v: VillageState): VillageState {
     },
   };
   if (v.npc) out.npc = { ...v.npc };
+
+  // Research: keep what is saved; units already present (home, away, queued) count as researched so
+  // villages that existed before the Drillyard keep every unit they could train.
+  const researched = new Set<UnitId>();
+  for (const id of v.researched ?? []) if (isUnitId(id)) researched.add(id);
+  for (const id of UNIT_IDS) {
+    if (!UNITS[id].research || out.npc) continue; // abandoned villages never train
+    const queued = [...out.trainQueues.barracks, ...out.trainQueues.stables].some((j) => j.unit === id);
+    if (out.troops[id] > 0 || out.away[id] > 0 || queued) researched.add(id);
+  }
+  if (researched.size > 0) out.researched = UNIT_IDS.filter((id) => researched.has(id));
+  if (v.researchJob && isUnitId(v.researchJob.unit)) out.researchJob = { ...v.researchJob };
+  if (v.ranks) {
+    const ranks: VillageRanks = {};
+    for (const id of UNIT_IDS) {
+      const r = v.ranks[id];
+      if (r) ranks[id] = { might: r.might || 0, bulwark: r.bulwark || 0, keen: r.keen || 0 };
+    }
+    out.ranks = ranks;
+  }
   return out;
 }
 

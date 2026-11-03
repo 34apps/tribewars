@@ -7,7 +7,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { GameError, type ApiError, type GameErrorCode, type WorldSettings } from '@clanfire/engine';
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
-import { AuthService, RateLimiter } from './auth.ts';
+import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
@@ -15,6 +15,7 @@ import { GameService } from './game.ts';
 import { advisorRoutes } from './routes/advisor.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
+import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
 import { tribeRoutes } from './routes/tribes.ts';
 import { Store } from './store.ts';
@@ -22,6 +23,10 @@ import { TribeService } from './tribe-service.ts';
 import { initWorld } from './world.ts';
 
 export const BODY_LIMIT = 16 * 1024;
+/** Global limits per minute (see the rate-limit hook in buildApp). */
+export const RATE_API_PER_IP = 600;
+export const RATE_WRITE_PER_IP = 180;
+export const RATE_WRITE_PER_SESSION = 120;
 
 export interface BuildAppOptions {
   /** SQLite file, or ':memory:'. */
@@ -38,8 +43,12 @@ export interface BuildAppOptions {
   secureCookies?: boolean;
   /** Trust X-Forwarded-For (behind a reverse proxy only). */
   trustProxy?: boolean;
+  /** Multi-account guard: most active accounts that may register from one IP. 0/absent = off. */
+  maxAccountsPerIp?: number;
   /** Claude client for Mags's advisor. Null/absent = advisor answers `advisor_unavailable`. Tests inject a fake. */
   advisorClient?: AdvisorClient | null;
+  /** Usernames allowed to use sandbox/test mode (compared lowercase). Absent = nobody. */
+  sandboxUsers?: readonly string[];
 }
 
 const DEFAULT_WEB_DIST = resolve(import.meta.dirname, '../../web/dist');
@@ -70,6 +79,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     db.close();
   });
   const store = new Store(db);
+  store.sandboxUsers = new Set((opts.sandboxUsers ?? []).map((u) => u.toLowerCase()));
   const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg));
   const ctx: AppContext = {
     store,
@@ -77,7 +87,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     now,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     limiter: new RateLimiter(10, 60_000),
-    auth: new AuthService(store, settings, now),
+    auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
     game: new GameService(store, settings, app.log),
     tribes: new TribeService(store, settings),
   };
@@ -152,11 +162,34 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   // ---- routes ------------------------------------------------------------------------------------
   await app.register(cookie);
+
+  // Global rate limits (registered after the cookie plugin so the session cookie is parsed).
+  // Per IP on every API call, per IP on writes, and per signed-in session on writes. Generous for
+  // real play; stops floods. Sign-in/registration keep their own stricter limit (routes/auth.ts).
+  const apiLimiter = new RateLimiter(RATE_API_PER_IP, 60_000);
+  const writeIpLimiter = new RateLimiter(RATE_WRITE_PER_IP, 60_000);
+  const writeSessionLimiter = new RateLimiter(RATE_WRITE_PER_SESSION, 60_000);
+  app.addHook('onRequest', async (req, reply) => {
+    if (!isApiPath(req.url) || req.url.split('?', 1)[0] === '/api/health') return;
+    const t = req.nowMs;
+    let ok = apiLimiter.allow(req.ip, t);
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+      ok = writeIpLimiter.allow(req.ip, t) && ok;
+      const token = req.cookies[SESSION_COOKIE];
+      if (token) ok = writeSessionLimiter.allow(sha256Hex(token), t) && ok;
+    }
+    if (!ok) {
+      void reply.header('Retry-After', '60');
+      throw new GameError('rate_limited', 'Too many requests. Please slow down and try again in a minute.');
+    }
+  });
+
   app.get('/api/health', async () => ({ ok: true }));
   authRoutes(app, ctx);
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);
   tribeRoutes(app, ctx);
+  rankingRoutes(app, ctx);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 
   // ---- static client + SPA fallback --------------------------------------------------------------

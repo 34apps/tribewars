@@ -27,13 +27,14 @@ export const UNIT_ICON: Record<UnitId, IconName> = {
 };
 
 /** Movement kinds: the three missions plus the trip home. */
-export type MovementKind = Mission | 'return';
+export type MovementKind = Mission | 'return' | 'shipment';
 
 export const MISSION_ICON: Record<MovementKind, IconName> = {
   attack: 'send',
   scout: 'scout',
   support: 'support',
   return: 'return',
+  shipment: 'support',
 };
 
 export const MISSION_NAME: Record<MovementKind, string> = {
@@ -41,4 +42,5 @@ export const MISSION_NAME: Record<MovementKind, string> = {
   scout: 'Scout',
   support: 'Support',
   return: 'Return',
+  shipment: 'Shipment',
 };

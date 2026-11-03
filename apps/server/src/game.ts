@@ -8,9 +8,28 @@ import {
   applyAttackerLosses,
   applyBattleToDefender,
   applyBuild,
+  buildQueueLimit,
   applyReturn,
   applySend,
+  applyShipmentArrival,
+  applyShipmentSend,
+  canCancel,
+  createPlayerVillage,
+  maxOutVillage,
+  cancelDeadline,
+  cancelReturnMs,
+  checkShipment,
+  shipmentTravelMs,
+  SHIPMENT_MAX_IN_TRANSIT,
+  SCOUT_UNIT,
+  buildScoutIntel,
+  keenMultiplier,
+  rankOf,
+  scoutStrength,
   applyTrain,
+  applyResearch,
+  applyRank,
+  applyRespec,
   checkMission,
   checkSend,
   emptyResources,
@@ -39,6 +58,7 @@ import {
   type Resources,
   type ScoutReportData,
   type SendResponse,
+  type SendShipmentResponse,
   type StationedDto,
   type TribeAlertsResponse,
   type Units,
@@ -75,7 +95,7 @@ function stubRef(s: VillageStub): VillageRefDto {
  * Incoming attacks hide their units; incoming support shows them. `asSender` is for the host owner who just
  * sent stationed troops back: the return leaves their village, so it is theirs to see as outgoing.
  */
-function movementDto(m: MovementView, viewerId: number, asSender = false): MovementDto {
+function movementDto(m: MovementView, viewerId: number, now: number, asSender = false): MovementDto {
   const outgoing = asSender || m.origin.ownerId === viewerId;
   const [from, to] = m.kind === 'return' ? [m.target, m.origin] : [m.origin, m.target];
   return {
@@ -88,6 +108,8 @@ function movementDto(m: MovementView, viewerId: number, asSender = false): Movem
     arriveAt: m.arriveAt,
     units: outgoing || m.kind === 'support' ? m.units : null,
     loot: outgoing && m.kind === 'return' ? (m.loot ?? emptyResources()) : null,
+    resources: m.kind === 'shipment' ? (m.loot ?? emptyResources()) : null,
+    cancellableUntil: outgoing && !asSender && canCancel(m, now) ? cancelDeadline(m.departAt) : null,
   };
 }
 
@@ -156,6 +178,8 @@ export class GameService {
         return this.resolveScout(m);
       case 'support':
         return this.resolveSupport(m);
+      case 'shipment':
+        return this.resolveShipment(m);
       case 'return':
         return this.resolveReturn(m);
     }
@@ -184,6 +208,10 @@ export class GameService {
       attackerUnits: m.units,
       defender: targetState,
       support: contingents.map((c) => c.units),
+      // Attacker and support use the ranks stamped when they left home; the defender's are its village's current ones.
+      attackerRanks: m.ranks ?? undefined,
+      defenderRanks: targetState.ranks,
+      supportRanks: contingents.map((c) => c.ranks ?? undefined),
       seed: hashSeed(m.id, at),
     });
     const newTarget = applyBattleToDefender(targetState, result);
@@ -244,7 +272,7 @@ export class GameService {
         playerId: ownerId,
         side: 'support',
         won: !result.attackerWon,
-        title: `Battle at ${target.name} ${coords(target)}`,
+        title: `Your troops at ${target.name} ${coords(target)} were attacked`,
         createdAt: at,
         type: 'battle',
         battle: full,
@@ -332,7 +360,16 @@ export class GameService {
     const defenderScouts = ownScouts + supportScouts.reduce((a, b) => a + b, 0);
     const scoutsSent = m.units.pathfinder;
 
-    const result = resolveScouting({ scouts: scoutsSent, defenderScouts });
+    // Keen ranks tilt the duel: the sender's stamped ranks against each defending Pathfinder's own village ranks.
+    const result = resolveScouting({
+      scouts: scoutsSent,
+      defenderScouts,
+      scoutMultiplier: keenMultiplier(m.ranks ?? undefined),
+      defenderStrength: scoutStrength([
+        { count: ownScouts, ranks: targetState.ranks },
+        ...contingents.map((c) => ({ count: c.units.pathfinder, ranks: c.ranks ?? undefined })),
+      ]),
+    });
 
     // The sender's losses come off their `away` count; the survivors go home.
     const lost = only('pathfinder', result.scoutLosses);
@@ -363,12 +400,13 @@ export class GameService {
       defenderScouts: result.success ? defenderScouts : null,
       defenderScoutsLost: result.defenderScoutLosses,
       intel: result.success
-        ? {
+        ? buildScoutIntel({
+            keen: rankOf(m.ranks ?? undefined, SCOUT_UNIT, 'keen'),
             resources: floorResources(targetState.resources),
-            buildings: { ...targetState.buildings },
+            buildings: targetState.buildings,
             troops: addUnits(targetState.troops, sumUnits(contingents.map((c) => c.units))),
-            wallLevel: targetState.buildings.wall,
-          }
+            ranks: targetState.ranks,
+          })
         : null,
     };
     if (origin.ownerId !== null) {
@@ -438,7 +476,7 @@ export class GameService {
       });
       return this.turnBack(m, origin, host);
     }
-    this.store.addStationed(origin.ownerId, origin.id, host.id, m.units, at);
+    this.store.addStationed(origin.ownerId, origin.id, host.id, m.units, at, m.ranks ?? null);
     this.store.deleteMovement(m.id);
     return null;
   }
@@ -461,14 +499,23 @@ export class GameService {
   }
 
   /** A return movement `from` (where the troops stand) to their home, leaving at `t`. */
-  private insertReturn(home: VillageRecord, from: VillageRecord, units: Units, t: number): { id: number; arriveAt: number } {
-    const arriveAt = t + travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings);
+  private insertReturn(
+    home: VillageRecord,
+    from: VillageRecord,
+    units: Units,
+    t: number,
+    cargo?: Resources,
+  ): { id: number; arriveAt: number } {
+    // A turned-back shipment (no units) travels at carrier speed.
+    const arriveAt = cargo
+      ? t + shipmentTravelMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, this.settings)
+      : t + travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings);
     const id = this.store.insertMovement({
       kind: 'return',
       originVillageId: home.id,
       targetVillageId: from.id,
       units,
-      loot: emptyResources(),
+      loot: cargo ?? emptyResources(),
       departAt: t,
       arriveAt,
     });
@@ -509,7 +556,7 @@ export class GameService {
         if (points !== v.points) this.store.setPoints(v.id, points);
         return ownDto(v, settled);
       }),
-      movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id)),
+      movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
       unreadReports: this.store.unreadReportCount(player.id),
       // Invitations only matter to tribeless players: they cannot accept while in a tribe.
       tribeInvites: dto.tribe === null ? this.store.tribes.countInvitesForPlayer(player.id, t) : 0,
@@ -597,6 +644,7 @@ export class GameService {
         battle: r.battle,
         scout: r.scout,
         support: r.support,
+        shipment: r.shipment,
       };
     });
   }
@@ -606,7 +654,7 @@ export class GameService {
   build(player: PlayerRow, villageId: number, building: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyBuild(v.state, building, t, this.settings);
+      const next = applyBuild(v.state, building, t, this.settings, buildQueueLimit(player.premium));
       this.store.saveVillage(v.id, next, villagePoints(next));
       return ownDto(v, next);
     });
@@ -616,6 +664,34 @@ export class GameService {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
       const next = applyTrain(v.state, unit, count, t, this.settings);
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      return ownDto(v, next);
+    });
+  }
+
+  // Drillyard actions: owner-only (ownedVillage), server clock `t`, one transaction, engine re-checks everything.
+  research(player: PlayerRow, villageId: number, unit: string, t: number): OwnVillageDto {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const next = applyResearch(v.state, unit, t, this.settings);
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      return ownDto(v, next);
+    });
+  }
+
+  rank(player: PlayerRow, villageId: number, unit: string, track: string, t: number): OwnVillageDto {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const next = applyRank(v.state, unit, track, t, this.settings);
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      return ownDto(v, next);
+    });
+  }
+
+  respec(player: PlayerRow, villageId: number, unit: string, track: string, t: number): OwnVillageDto {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const next = applyRespec(v.state, unit, track, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
       return ownDto(v, next);
     });
@@ -635,6 +711,7 @@ export class GameService {
         const what = mission === 'support' ? 'send support to' : mission === 'scout' ? 'scout' : 'attack';
         throw new GameError('invalid_target', `You cannot ${what} your own village.`);
       }
+      if (target.ownerId !== null) this.refuseHousehold(player.id, target.ownerId);
       if (mission === 'support') {
         this.requireSupportable(player.id, target, t);
       } else {
@@ -661,6 +738,7 @@ export class GameService {
         loot: null,
         departAt: t,
         arriveAt: t + travel,
+        ranks: next.ranks ?? null, // stamped now: a later respec can't change a march in flight
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support never does.
@@ -668,7 +746,127 @@ export class GameService {
 
       const view = this.store.getMovementView(movementId);
       if (!view) throw new Error('movement vanished after insert');
-      return { village: ownDto(v, next), movement: movementDto(view, player.id) };
+      return { village: ownDto(v, next), movement: movementDto(view, player.id, t) };
+    });
+  }
+
+  /**
+   * Send resources to any player village (own, tribe-mate, ally, neutral or enemy). The cargo leaves the village at once
+   * (after catch-up) and is credited on arrival. Section 13 of GAME_DESIGN.
+   */
+  sendShipment(player: PlayerRow, villageId: number, x: number, y: number, cargo: unknown, t: number): SendShipmentResponse {
+    const s = this.settings;
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const target = this.store.getVillageAt(x, y);
+      if (!target) throw new GameError('invalid_target', 'There is no village at those coordinates.');
+      if (target.id === v.id) throw new GameError('invalid_target', 'You cannot send resources to the same village.');
+      // Abandoned villages (no owner) may receive too (owner, 2026-11-03); the household check only applies to players.
+      if (target.ownerId !== null && target.ownerId !== player.id) this.refuseHousehold(player.id, target.ownerId, 'resources');
+      if (this.store.shipmentsInTransit(v.id) >= SHIPMENT_MAX_IN_TRANSIT) {
+        throw new GameError('queue_full', `This village already has ${SHIPMENT_MAX_IN_TRANSIT} shipments on the road. Wait for one to arrive.`);
+      }
+      const settled = settleVillage(v.state, t, s);
+      const check = checkShipment(settled, cargo);
+      if (!check.ok) throw new GameError(check.reason, check.message);
+      const next = applyShipmentSend(settled, check.resources, t, s);
+      const travel = shipmentTravelMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, s);
+      const movementId = this.store.insertMovement({
+        kind: 'shipment',
+        originVillageId: v.id,
+        targetVillageId: target.id,
+        units: emptyUnits(),
+        loot: check.resources,
+        departAt: t,
+        arriveAt: t + travel,
+      });
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      const view = this.store.getMovementView(movementId);
+      if (!view) throw new Error('movement vanished after insert');
+      return { village: ownDto(v, next), movement: movementDto(view, player.id, t) };
+    });
+  }
+
+  /**
+   * A shipment arrives. If the receiver is still allowed (own village, tribe-mate or ally) the cargo is added to the
+   * stock, capped at the storehouse (the overflow is lost); otherwise it turns round and goes home.
+   */
+  private resolveShipment(m: MovementRow): number | null {
+    const origin = this.store.getVillage(m.originVillageId);
+    const target = this.store.getVillage(m.targetVillageId);
+    const cargo = m.loot ?? emptyResources();
+    if (!origin || !target) {
+      this.store.deleteMovement(m.id);
+      return null;
+    }
+    const at = m.arriveAt;
+    const allowed = origin.ownerId !== null; // an abandoned target still takes the cargo
+    if (!allowed) {
+      const back = this.insertReturn(origin, target, emptyUnits(), at, cargo);
+      this.store.deleteMovement(m.id);
+      return back.arriveAt;
+    }
+    const before = settleVillage(target.state, at, this.settings);
+    const next = applyShipmentArrival(target.state, cargo, at, this.settings);
+    this.store.saveVillage(target.id, next, villagePoints(next));
+    const stored = emptyResources();
+    const lost = emptyResources();
+    for (const r of RESOURCE_IDS) {
+      stored[r] = Math.max(0, Math.min(cargo[r], Math.floor(next.resources[r] - before.resources[r] + 1e-6)));
+      lost[r] = cargo[r] - stored[r];
+    }
+    const base = { from: refOf(origin), to: refOf(target), resources: cargo, stored, lost };
+    this.store.insertReport({
+      playerId: origin.ownerId!,
+      side: 'shipment',
+      won: true,
+      title: `Shipment delivered to ${target.name} ${coords(target)}`,
+      createdAt: at,
+      type: 'shipment',
+      shipment: { role: 'sent', ...base },
+    });
+    if (target.ownerId !== null && target.ownerId !== origin.ownerId) {
+      this.store.insertReport({
+        playerId: target.ownerId,
+        side: 'shipment',
+        won: true,
+        title: `Shipment received from ${origin.name} ${coords(origin)}`,
+        createdAt: at,
+        type: 'shipment',
+        shipment: { role: 'received', ...base },
+      });
+    }
+    this.store.deleteMovement(m.id);
+    return null;
+  }
+
+  /**
+   * The sender calls an outgoing attack, scout, support or shipment back within CANCEL_WINDOW_MS of departure.
+   * The troops (or cargo) return in exactly the time already travelled; nothing is looted. Others' movements look missing.
+   */
+  cancel(player: PlayerRow, movementId: number, t: number): MovementResponse {
+    return this.store.tx(() => {
+      const m = this.store.getMovement(movementId);
+      const origin = m ? this.store.getVillage(m.originVillageId) : null;
+      if (!m || !origin || origin.ownerId !== player.id) throw new GameError('not_found', 'Movement not found.');
+      if (m.kind === 'return') throw new GameError('invalid_target', 'Returning troops cannot be cancelled.');
+      if (t >= m.arriveAt) throw new GameError('too_late', 'It has already arrived.');
+      if (!canCancel(m, t)) throw new GameError('too_late', 'It can only be cancelled in the first two minutes after leaving.');
+      const dest = this.store.getVillage(m.targetVillageId);
+      if (!dest) throw new GameError('not_found', 'Movement not found.');
+      const id = this.store.insertMovement({
+        kind: 'return',
+        originVillageId: origin.id,
+        targetVillageId: dest.id,
+        units: m.units,
+        loot: m.kind === 'shipment' ? (m.loot ?? emptyResources()) : emptyResources(),
+        departAt: t,
+        arriveAt: t + cancelReturnMs(m.departAt, t),
+      });
+      this.store.deleteMovement(m.id);
+      const view = this.store.getMovementView(id);
+      if (!view) throw new Error('movement vanished after insert');
+      return { movement: movementDto(view, player.id, t) };
     });
   }
 
@@ -679,7 +877,7 @@ export class GameService {
       const want = units === undefined ? row.units : normalizeUnits(units);
       if (totalUnits(want) === 0) throw new GameError('no_troops', 'Select at least one unit.');
       if (!isWithin(want, row.units)) throw new GameError('not_enough_troops', 'You do not have that many troops stationed there.');
-      return { movement: movementDto(this.dispatchHome(row, want, t), player.id) };
+      return { movement: movementDto(this.dispatchHome(row, want, t), player.id, t) };
     });
   }
 
@@ -688,7 +886,7 @@ export class GameService {
     return this.store.tx(() => {
       const row = this.stationedFor(player, stationedId, 'host');
       if (totalUnits(row.units) === 0) throw new GameError('no_troops', 'There are no troops in that contingent.');
-      return { movement: movementDto(this.dispatchHome(row, row.units, t), player.id, true) };
+      return { movement: movementDto(this.dispatchHome(row, row.units, t), player.id, t, true) };
     });
   }
 
@@ -733,7 +931,36 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, sandbox: this.store.isSandboxUser(p.username) };
+  }
+
+  /**
+   * Sandbox (test mode): only accounts in SANDBOX_USERS. `max` fills every village of the player; `reset` makes each a
+   * fresh starting village again. Returns the new state. Section "Sandbox" of GAME_DESIGN.
+   */
+  sandbox(player: PlayerRow, action: 'max' | 'reset', t: number): GameStateResponse {
+    if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
+    this.store.tx(() => {
+      for (const v of this.store.villagesOfPlayer(player.id)) {
+        if (action === 'max') {
+          const next = maxOutVillage(settleVillage(v.state, t, this.settings), t);
+          this.store.saveVillage(v.id, next, villagePoints(next));
+        } else {
+          this.store.clearVillageActivity(v.id);
+          const fresh = createPlayerVillage(t);
+          this.store.saveVillage(v.id, fresh, villagePoints(fresh));
+        }
+      }
+    });
+    return this.getState(player, t);
+  }
+
+  /** Accounts that share a connection may not attack, scout or support each other's villages (abandoned ones stay fair game). */
+  private refuseHousehold(senderId: number, ownerId: number, what = 'troops'): void {
+    if (this.store.shareAnIp(senderId, ownerId)) {
+      const tail = what === 'troops' ? ' Abandoned villages are still fine.' : '';
+      throw new GameError('invalid_target', `You share a connection with that player, so you cannot send ${what} to their villages.${tail}`);
+    }
   }
 
   /** Tribe-mates, allies and NAP partners (also while a cancelled pact serves its notice) cannot be attacked or scouted. */

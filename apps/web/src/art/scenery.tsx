@@ -420,7 +420,8 @@ export function WallPlan() {
   const d = `M${cx} ${cy - hh}L${cx + hw} ${cy}L${cx} ${cy + hh}L${cx - hw} ${cy}Z`;
   return (
     <>
-      <path d={d} fill="none" stroke="#FFF8E8" strokeWidth={1.6} strokeDasharray="5 4" opacity={0.75} />
+      <path d={d} fill="none" stroke="#B8955F" strokeWidth={3} strokeLinejoin="round" opacity={0.55} />
+      <path d={d} fill="none" stroke="#E8D3A4" strokeWidth={1.2} strokeLinejoin="round" opacity={0.8} />
       {/* Wide invisible stroke so the planned line is easy to click. */}
       <path d={d} fill="none" stroke="transparent" strokeWidth={12} style={{ pointerEvents: 'stroke' }} />
     </>

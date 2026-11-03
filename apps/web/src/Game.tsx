@@ -11,6 +11,7 @@ import { useGameState } from './hooks/useGameState.ts';
 import { useNow } from './hooks/useNow.ts';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MapView } from './views/MapView.tsx';
+import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
@@ -165,6 +166,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'army' && <ArmyView />}
         {tab === 'reports' && <ReportsView />}
         {tab === 'tribe' && <TribeView />}
+        {tab === 'ranks' && <RankingsView />}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Shell>
       <Toasts toasts={toasts} onDismiss={dismissToast} />

@@ -12,6 +12,7 @@ import type {
   Resources,
   TribeRole,
   Units,
+  VillageRanks,
   VillageState,
   WorldSettings,
 } from './types.ts';
@@ -50,6 +51,23 @@ export interface PlayerDto {
   tribe: PlayerTribeDto | null;
   /** Chosen chieftain portrait id (CHIEFTAINS in config.ts). */
   chieftain: string;
+  /** Premium subscriber: longer build queue (buildQueueLimit in config.ts). */
+  premium: boolean;
+  /** The player reported (Settings) that someone else plays from the same household/connection. */
+  householdShared: boolean;
+  /** This account may use the test-mode endpoints (server env SANDBOX_USERS). Shows the Test mode card in Settings. */
+  sandbox: boolean;
+}
+
+// POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
+//   stores, SANDBOX_ARMY_PER_UNIT of each unit, queues cleared. 403 `forbidden` unless the account is in SANDBOX_USERS.
+// POST /api/sandbox/reset (no body) -> 200 GameStateResponse. Every village of the player back to a fresh starting village
+//   (start levels/resources, no troops, no queues; own outgoing movements and own stationed support are removed).
+//   Works at any time. World speed is unchanged. 403 `forbidden` unless the account is in SANDBOX_USERS.
+
+/** POST /api/me/household -> 200 MeResponse */
+export interface HouseholdRequest {
+  shared: boolean;
 }
 
 export interface PlayerTribeDto {
@@ -88,7 +106,7 @@ export interface VillageRefDto extends Coords {
  */
 export interface MovementDto {
   id: number;
-  kind: Mission | 'return';
+  kind: Mission | 'return' | 'shipment';
   /**
    * outgoing = sent from or returning to one of my villages; incoming = an attack or support coming
    * to one of my villages. Scout missions are never shown as incoming (they're stealthy).
@@ -100,9 +118,16 @@ export interface MovementDto {
   arriveAt: number;
   /** Outgoing movements and incoming support show units; incoming attacks hide them (null). */
   units: Units | null;
-  /** Only on outgoing returns. */
+  /** Only on outgoing returns (the loot, or a turned-back shipment's cargo). */
   loot: Resources | null;
+  /** Cargo of a `shipment`; visible to sender and receiver. null for every other kind. */
+  resources: Resources | null;
+  /** Server time (ms) until which the sender may still cancel this movement; null if it cannot be cancelled (not mine, a return, window over). */
+  cancellableUntil: number | null;
 }
+
+// POST /api/movements/:id/cancel -> 201 { movement: MovementDto }  (sender only, within CANCEL_WINDOW_MS of departure;
+//   the troops/cargo return in the time already travelled; the response is the new return movement)
 
 export interface GameStateResponse {
   serverTime: number;
@@ -148,11 +173,38 @@ export interface TrainRequest {
   count: number;
 }
 
+// Drillyard (docs/GAME_DESIGN.md section 15), all -> 200 OwnVillageDto (owner only; time is the server's):
+// POST /api/villages/:id/research  body ResearchRequest -> starts the one research job (cost paid now)
+// POST /api/villages/:id/rank      body RankRequest     -> buys the next rank of a track (instant)
+// POST /api/villages/:id/respec    body RankRequest     -> resets a track to rank 0 (gold fee, points return)
+export interface ResearchRequest {
+  unit: string; // UnitId
+}
+
+export interface RankRequest {
+  unit: string; // UnitId
+  track: string; // RankTrack
+}
+
 export interface SendRequest extends Coords {
   /** Target tile; a village must stand there. */
   units: Partial<Units>;
   /** attack (default rules), scout (Pathfinders only) or support (tribe-mates and allies only). */
   mission: Mission;
+}
+
+/**
+ * POST /api/villages/:id/ship  body SendShipmentRequest -> 201 SendShipmentResponse
+ * Resources travel from my village to a village of mine, a tribe-mate or an ally (section 13).
+ */
+export interface SendShipmentRequest extends Coords {
+  /** Amounts per resource (whole numbers); omitted ones count as 0. */
+  resources: Partial<Resources>;
+}
+
+export interface SendShipmentResponse {
+  village: OwnVillageDto;
+  movement: MovementDto;
 }
 
 export interface RecallRequest {
@@ -210,9 +262,9 @@ export interface ReportSummaryDto {
   /** e.g. "Raid on Abandoned village (12|-40)". */
   title: string;
   /** attack = I sent the troops; defense = my village was the target; support = my stationed troops were involved. */
-  side: 'attack' | 'defense' | 'support';
-  /** battle = attack (or called off); scout = scouting mission; support = support turned back on arrival. */
-  type: 'battle' | 'scout' | 'support';
+  side: 'attack' | 'defense' | 'support' | 'shipment';
+  /** battle = attack (or called off); scout = scouting mission; support = support turned back on arrival; shipment = resources delivered / received. */
+  type: 'battle' | 'scout' | 'support' | 'shipment';
   /** From the report owner's point of view. Always false for a called-off attack. */
   won: boolean;
   read: boolean;
@@ -254,13 +306,25 @@ export interface ScoutReportData {
   defenderScouts: number | null;
   defenderScoutsLost: number;
   /** What the scouts saw — sender's report on success only; null otherwise. */
-  intel: {
-    resources: Resources;
-    buildings: BuildingLevels;
-    /** Troops at home, own + stationed support. */
-    troops: Units;
-    wallLevel: number;
-  } | null;
+  intel: ScoutIntel | null;
+}
+
+/**
+ * Layers of a successful scout, by the sending village's Keen rank (docs/GAME_DESIGN.md section 15, SCOUT_INTEL_KEEN).
+ * A layer the rank does not reach is null. Reports saved before Keen tiers have every layer and no `keen`.
+ */
+export interface ScoutIntel {
+  /** Keen rank that produced this report (0-5). */
+  keen?: number;
+  resources: Resources;
+  /** Troops at home, own + stationed support. Rough (rounded) when `troopsApprox`. */
+  troops: Units | null;
+  troopsApprox?: boolean;
+  wallLevel: number | null;
+  buildings: BuildingLevels | null;
+  /** The defending village's unit ranks; top tier only. */
+  ranks?: VillageRanks | null;
+  drillyardLevel?: number | null;
 }
 
 export interface SupportReportData {
@@ -271,11 +335,25 @@ export interface SupportReportData {
   units: Units;
 }
 
-/** Exactly one of battle / scout / support is set, matching `type`. */
+/** A shipment that arrived. The sender sees it as `sent`, the receiver as `received` (same data). */
+export interface ShipmentReportData {
+  role: 'sent' | 'received';
+  from: VillageRefDto;
+  to: VillageRefDto;
+  /** What left the sender. */
+  resources: Resources;
+  /** What fitted into the receiver's storehouse. */
+  stored: Resources;
+  /** What was lost because the storehouse was full (resources - stored). */
+  lost: Resources;
+}
+
+/** Exactly one of battle / scout / support / shipment is set, matching `type`. */
 export interface ReportDto extends ReportSummaryDto {
   battle: BattleReportData | null;
   scout: ScoutReportData | null;
   support: SupportReportData | null;
+  shipment: ShipmentReportData | null;
 }
 
 export interface ReportListResponse {
@@ -310,6 +388,52 @@ export interface ReportListResponse {
 //   POST /api/invites/:id/accept | /decline -> 200 MyTribeResponse
 //   POST /api/applications/:id/withdraw     -> 200 MyTribeResponse
 
+// ---- Rankings ----------------------------------------------------------------------------
+//   GET /api/rankings/players -> 200 PlayerRankingResponse (signed in; top 100 by points desc, ties share a rank)
+//   GET /api/players/:id      -> 200 PlayerProfileDto (signed in; 404 for unknown or village-less players)
+// Tribe ranking: GET /api/tribes (TribeSummaryDto.rank).
+
+export interface PlayerRankDto {
+  /** 1-based; players with equal points share the rank (1, 2, 2, 4). */
+  rank: number;
+  playerId: number;
+  username: string;
+  tribe: { id: number; tag: string } | null;
+  villages: number;
+  /** Sum of the player's village points. */
+  points: number;
+  /** Their biggest village, for "show on map". */
+  villageX: number;
+  villageY: number;
+}
+
+/** Public profile of a player: only what anyone can already see on the map and in the rankings. */
+export interface PlayerProfileDto {
+  playerId: number;
+  username: string;
+  chieftain: string;
+  /** Rank by points among all players (ties share a rank). */
+  rank: number;
+  points: number;
+  tribe: { id: number; name: string; tag: string; role: TribeRole } | null;
+  /** When the account was created (server clock, ms). */
+  joinedAt: number;
+  /** Beginner protection still active. */
+  protectedNow: boolean;
+  /** Their villages, biggest first (at most 50). */
+  villages: { id: number; name: string; x: number; y: number; points: number }[];
+  /** Total villages owned (can exceed the list). */
+  villageCount: number;
+}
+
+export interface PlayerRankingResponse {
+  players: PlayerRankDto[];
+  /** The caller's own row, also when outside the top 100. */
+  me: PlayerRankDto | null;
+  /** Players ranked in total. */
+  total: number;
+}
+
 export interface TribeSummaryDto {
   id: number;
   name: string;
@@ -317,6 +441,8 @@ export interface TribeSummaryDto {
   members: number;
   /** Sum of members' points. */
   points: number;
+  /** Villages owned by all members together. */
+  villages: number;
   recruitment: Recruitment;
   /** 1-based rank by points among all tribes. */
   rank: number;

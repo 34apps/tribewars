@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, SupportReportData, VillageRefDto } from '@clanfire/engine';
+import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -32,10 +32,16 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
-const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support' };
-const SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Attack', defense: 'Defense', support: 'Support' };
+const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support', shipment: 'Shipment' };
+const SIDE_NAME: Record<ReportSummaryDto['side'], string> = {
+  attack: 'You attacked',
+  defense: 'You were attacked',
+  support: 'Your troops there were attacked',
+  shipment: 'Resources',
+};
 
 function reportIcon(r: ReportSummaryDto): IconName {
+  if (r.type === 'shipment') return MISSION_ICON.shipment;
   if (r.type === 'scout') return MISSION_ICON.scout;
   if (r.type === 'support' || r.side === 'support') return MISSION_ICON.support;
   return r.side === 'attack' ? MISSION_ICON.attack : 'shield';
@@ -43,7 +49,11 @@ function reportIcon(r: ReportSummaryDto): IconName {
 
 /** What happened, from the report owner's point of view. */
 function OutcomeTag({ report }: { report: ReportSummaryDto }) {
+  if (report.type === 'shipment') return <span className="tag tag-ok">Delivered</span>;
   if (report.type === 'support') return <span className="tag tag-muted">Turned back</span>;
+  if (report.side === 'support' && report.type === 'battle' && report.outcome !== 'called_off') {
+    return <span className="tag tag-info">Troops attacked</span>;
+  }
   if (report.type === 'scout') {
     // The sender wins by getting through; the defender wins by catching the scouts.
     const label = report.side === 'attack' ? (report.won ? 'Success' : 'Failed') : report.won ? 'Caught' : 'Escaped';
@@ -55,8 +65,9 @@ function OutcomeTag({ report }: { report: ReportSummaryDto }) {
 
 function metaText(report: ReportSummaryDto): string {
   if (report.type === 'scout') return report.side === 'attack' ? 'You scouted' : 'Enemy scouts were spotted';
+  if (report.type === 'shipment') return report.side === 'shipment' ? 'Resources arrived' : '';
   if (report.type === 'support') return 'Your support turned back';
-  if (report.side === 'support') return 'Your support troops fought';
+  if (report.side === 'support') return 'Your troops stationed there were attacked';
   return report.side === 'attack' ? 'You attacked' : 'You were attacked';
 }
 
@@ -217,7 +228,8 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
   const intel = s.intel;
   const troops = intel?.troops ? normalizeUnits(intel.troops) : null;
   const troopRows = troops ? UNIT_IDS.filter((u) => troops[u] > 0) : [];
-  const buildingRows = intel?.buildings ? BUILDING_IDS.filter((b) => typeof intel.buildings[b] === 'number' && intel.buildings[b] > 0) : [];
+  const levels = intel?.buildings ?? null;
+  const buildingRows = levels ? BUILDING_IDS.filter((b) => typeof levels[b] === 'number' && levels[b] > 0) : [];
 
   let result: string;
   if (sender) {
@@ -282,21 +294,21 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
           )}
           {troops && (
             <>
-              <h4 className="subtitle-small">Troops in the village</h4>
+              <h4 className="subtitle-small">Troops in the village{intel.troopsApprox ? ' (rough numbers)' : ''}</h4>
               {troopRows.length === 0 ? (
                 <p className="muted">No troops at home.</p>
               ) : (
                 <ul className="loot">
                   {troopRows.map((u) => (
                     <li key={u}>
-                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{formatInt(troops[u])}</strong>
+                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{intel.troopsApprox ? '≈ ' : ''}{formatInt(troops[u])}</strong>
                     </li>
                   ))}
                 </ul>
               )}
             </>
           )}
-          {intel.buildings && (
+          {levels && (
             <>
               <h4 className="subtitle-small">Buildings</h4>
               {buildingRows.length === 0 ? (
@@ -308,7 +320,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
                       <dt>
                         <BuildingArt id={b} level={1} size={24} className="inline-icon" /> {BUILDINGS[b].name}
                       </dt>
-                      <dd>{intel.buildings[b]}</dd>
+                      <dd>{levels[b]}</dd>
                     </div>
                   ))}
                 </dl>
@@ -321,7 +333,16 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
                 <dt>Wall level</dt>
                 <dd>{intel.wallLevel}</dd>
               </div>
+              {typeof intel.drillyardLevel === 'number' && (
+                <div>
+                  <dt>Drillyard level</dt>
+                  <dd>{intel.drillyardLevel}</dd>
+                </div>
+              )}
             </dl>
+          )}
+          {typeof intel.keen === 'number' && intel.keen < 5 && (
+            <p className="muted">Your Pathfinders' Keen rank ({intel.keen}) limits what they can see. Higher ranks reveal more.</p>
           )}
         </section>
       )}
@@ -363,7 +384,48 @@ function SupportDetail({ s }: { s: SupportReportData }) {
   );
 }
 
+/** A shipment that arrived: what was sent, what fitted into the storehouse, what was lost. */
+function ShipmentDetail({ s }: { s: ShipmentReportData }) {
+  const lostTotal = RESOURCE_IDS.reduce((sum, r) => sum + s.lost[r], 0);
+  const row = (label: string, res: ShipmentReportData['resources']) => (
+    <>
+      <h4 className="subtitle-small">{label}</h4>
+      <ul className="loot">
+        {RESOURCE_IDS.filter((r) => res[r] > 0).map((r) => (
+          <li key={r}>
+            <Icon name={RESOURCE_ICON[r]} size={18} className="inline-icon" /> <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+            <strong>{formatInt(res[r])}</strong>
+          </li>
+        ))}
+        {RESOURCE_IDS.every((r) => res[r] === 0) && <li className="muted">Nothing</li>}
+      </ul>
+    </>
+  );
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role="Sent from" v={s.from} won={false} />
+        <span className="vs" aria-hidden="true">→</span>
+        <VillageCell role="Delivered to" v={s.to} won={false} />
+      </div>
+      <p className={`notice called-off ${lostTotal > 0 ? 'notice-block' : 'notice-ok'}`} role="note">
+        <Icon name={MISSION_ICON.shipment} size={20} className="inline-icon" />{' '}
+        <span>
+          {s.role === 'sent' ? 'Your shipment was delivered.' : 'You received a shipment.'}
+          {lostTotal > 0 && ' The storehouse was full, so part of it was lost.'}
+        </span>
+      </p>
+      <section className="subsection" aria-label="Cargo">
+        {row('Sent', s.resources)}
+        {row('Stored', s.stored)}
+        {lostTotal > 0 && row('Lost (storehouse full)', s.lost)}
+      </section>
+    </>
+  );
+}
+
 function ReportBody({ report }: { report: ReportDto }) {
+  if (report.type === 'shipment' && report.shipment) return <ShipmentDetail s={report.shipment} />;
   if (report.type === 'scout' && report.scout) return <ScoutDetail s={report.scout} side={report.side} />;
   if (report.type === 'support' && report.support) return <SupportDetail s={report.support} />;
   if (report.type === 'battle' && report.battle) {

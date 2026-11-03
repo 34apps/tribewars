@@ -11,10 +11,14 @@ export interface ServerEnv {
   isProduction: boolean;
   /** Trust X-Forwarded-* headers (only enable behind a reverse proxy you control). */
   trustProxy: boolean;
+  /** Most active accounts per IP at registration (MAX_ACCOUNTS_PER_IP). Default 3 in production (households may share; troops between them are blocked), 0 (off) in development. */
+  maxAccountsPerIp: number;
   /** World settings given in the environment. Only used when a new world is created. */
   worldOverrides: Partial<WorldSettings>;
   /** Anthropic key for Mags's advisor; null = advisor off. Only set when ADVISOR_ENABLED=true (owner: no AI spend by default). Secret: never log it. */
   anthropicApiKey: string | null;
+  /** Lowercase usernames allowed to use sandbox/test mode (SANDBOX_USERS, comma list; default metinaltinbas; empty = nobody). */
+  sandboxUsers: string[];
 }
 
 type Env = Record<string, string | undefined>;
@@ -51,7 +55,12 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     nodeEnv,
     isProduction: nodeEnv === 'production',
     trustProxy: /^(1|true|yes)$/i.test(env.TRUST_PROXY ?? ''),
+    maxAccountsPerIp: num(env, 'MAX_ACCOUNTS_PER_IP', (n) => Number.isInteger(n) && n >= 0 && n <= 1000, 'an integer from 0 to 1000') ?? (nodeEnv === 'production' ? 3 : 0),
     worldOverrides,
+    sandboxUsers: (env.SANDBOX_USERS ?? 'metinaltinbas')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s !== ''),
     anthropicApiKey: /^(1|true|yes)$/i.test(env.ADVISOR_ENABLED ?? '') ? env.ANTHROPIC_API_KEY?.trim() || null : null,
   };
 }

@@ -4,6 +4,7 @@ import {
   BUILDINGS,
   GameError,
   MAX_BUILD_QUEUE,
+  buildQueueLimit,
   MAX_TRAIN_QUEUE,
   applyBuild,
   applyTrain,
@@ -262,6 +263,16 @@ describe('checkBuild / applyBuild', () => {
     );
   });
 
+  it('premium players can queue 5 jobs, free players 2', () => {
+    assert.equal(buildQueueLimit(false), 2);
+    assert.equal(buildQueueLimit(true), 5);
+    let v = village({ resources: { wood: 9000, food: 9000, iron: 9000 } });
+    const max = buildQueueLimit(true);
+    for (let i = 0; i < max; i++) v = applyBuild(v, i % 2 ? 'farm' : 'lumber', 0, S1, max);
+    assert.equal(v.buildQueue.length, 5);
+    expectGameError(() => applyBuild(v, 'mine', 0, S1, max), 'queue_full');
+  });
+
   it('refuses with queue_full beyond MAX_BUILD_QUEUE', () => {
     let v = village({ resources: { wood: 900, food: 900, iron: 900 } });
     for (let i = 0; i < MAX_BUILD_QUEUE; i++) v = applyBuild(v, i % 2 ? 'farm' : 'lumber', 0, S1);
@@ -449,6 +460,7 @@ describe('checkTrain / applyTrain', () => {
       buildings: { barracks: 3, stables: 1, hall: 5, storehouse: 10 },
       resources: { wood: 5000, food: 5000, iron: 5000, gold: 1000 },
     });
+    v.researched = ['outrider']; // Outrider needs Drillyard research (docs/GAME_DESIGN.md section 4)
     const out = applyTrain(applyTrain(v, 'pikeman', 1, 0, S1), 'outrider', 1, 0, S1);
     assert.equal(out.trainQueues.barracks.length, 1);
     assert.equal(out.trainQueues.stables.length, 1);

@@ -6,6 +6,7 @@ import type {
   AuthRequest,
   BuildRequest,
   ChieftainRequest,
+  HouseholdRequest,
   ChatMessageDto,
   ChatRequest,
   ChatResponse,
@@ -22,14 +23,20 @@ import type {
   OwnVillageDto,
   ReportDto,
   RecallRequest,
+  RankRequest,
+  ResearchRequest,
   ReportListResponse,
   SendRequest,
   RoleRequest,
   SendResponse,
+  SendShipmentRequest,
+  SendShipmentResponse,
   TrainRequest,
   TransferRequest,
   TribeAlertsResponse,
   TribeDto,
+  PlayerProfileDto,
+  PlayerRankingResponse,
   TribeListResponse,
   TribeRole,
   TribeSettingsRequest,
@@ -87,18 +94,31 @@ export const api = {
   me: () => request<MeResponse>('GET', '/api/auth/me'),
   login: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/login', body),
   register: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/register', body),
+  sandboxMax: () => request<GameStateResponse>('POST', '/api/sandbox/max', {}),
+  sandboxReset: () => request<GameStateResponse>('POST', '/api/sandbox/reset', {}),
   logout: () => request<void>('POST', '/api/auth/logout', {}),
   setChieftain: (chieftain: string) => request<MeResponse>('POST', '/api/me/chieftain', { chieftain } satisfies ChieftainRequest),
+  setHousehold: (shared: boolean) => request<MeResponse>('POST', '/api/me/household', { shared } satisfies HouseholdRequest),
   state: () => request<GameStateResponse>('GET', '/api/state'),
   build: (villageId: number, building: string) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/build`, { building } satisfies BuildRequest),
   train: (villageId: number, unit: string, count: number) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/train`, { unit, count } satisfies TrainRequest),
+  research: (villageId: number, unit: string) =>
+    request<OwnVillageDto>('POST', `/api/villages/${villageId}/research`, { unit } satisfies ResearchRequest),
+  rank: (villageId: number, unit: string, track: string) =>
+    request<OwnVillageDto>('POST', `/api/villages/${villageId}/rank`, { unit, track } satisfies RankRequest),
+  respec: (villageId: number, unit: string, track: string) =>
+    request<OwnVillageDto>('POST', `/api/villages/${villageId}/respec`, { unit, track } satisfies RankRequest),
+  /** Send resources to my other village, a tribe-mate or an ally. */
+  ship: (villageId: number, body: SendShipmentRequest) =>
+    request<SendShipmentResponse>('POST', `/api/villages/${villageId}/ship`, body),
   send: (villageId: number, body: SendRequest) => request<SendResponse>('POST', `/api/villages/${villageId}/send`, body),
   /** Bring support troops home; omit `units` for all of them (the owner of the troops). */
   recall: (stationedId: number, units?: Partial<Units>) =>
     request<MovementResponse>('POST', `/api/stationed/${stationedId}/recall`, (units ? { units } : {}) satisfies RecallRequest),
   /** Send someone else's support troops home (the owner of the host village). */
+  cancelMovement: (movementId: number) => request<MovementResponse>('POST', `/api/movements/${movementId}/cancel`, {}),
   sendBack: (stationedId: number) => request<MovementResponse>('POST', `/api/stationed/${stationedId}/send-back`, {}),
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
@@ -107,6 +127,8 @@ export const api = {
 
   // ---- Tribes ----
   tribes: (q: string) => request<TribeListResponse>('GET', `/api/tribes${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  playerRanking: () => request<PlayerRankingResponse>('GET', '/api/rankings/players'),
+  playerProfile: (id: number) => request<PlayerProfileDto>('GET', `/api/players/${id}`),
   tribe: (id: number) => request<TribeDto>('GET', `/api/tribes/${id}`),
   myTribe: () => request<MyTribeResponse>('GET', '/api/tribe'),
   createTribe: (body: CreateTribeRequest) => request<MyTribeResponse>('POST', '/api/tribes', body),

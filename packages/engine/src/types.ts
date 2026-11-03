@@ -18,6 +18,8 @@ export const BUILDING_IDS = [
   'stables',
   'wall',
   'vault',
+  'market',
+  'drillyard',
 ] as const;
 export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
@@ -79,6 +81,21 @@ export interface UnitDef {
   building: TrainingBuildingId;
   /** Buildings (and levels) required to train this unit. Always includes `building`. */
   requires: Partial<Record<BuildingId, number>>;
+  /** If set, the unit must be researched once per village (Drillyard level needed to START the research). */
+  research?: { drillyard: number; cost: Resources; timeSec: number };
+}
+
+/** Training-point tracks (docs/GAME_DESIGN.md section 15). Keen is for the scout unit only. */
+export const RANK_TRACKS = ['might', 'bulwark', 'keen'] as const;
+export type RankTrack = (typeof RANK_TRACKS)[number];
+/** Rank 0..RANK_MAX per track. */
+export type UnitRanks = Record<RankTrack, number>;
+export type VillageRanks = Partial<Record<UnitId, UnitRanks>>;
+
+export interface ResearchJob {
+  unit: UnitId;
+  startAt: number;
+  finishAt: number;
 }
 
 export interface WorldSettings {
@@ -138,6 +155,12 @@ export interface VillageState {
   trainQueues: Record<TrainingBuildingId, TrainJob[]>;
   /** Present only on abandoned (computer-run) villages. */
   npc?: NpcInfo;
+  /** Units researched in this village (units without a `research` rule are always allowed). */
+  researched?: UnitId[];
+  /** The one research in progress; cost already paid. */
+  researchJob?: ResearchJob;
+  /** Bought ranks per unit (Drillyard Training Points). */
+  ranks?: VillageRanks;
 }
 
 export interface Coords {
@@ -184,6 +207,7 @@ export type GameErrorCode =
   | 'not_enough_resources'
   | 'exceeds_storage'
   | 'queue_full'
+  | 'too_late'
   | 'not_enough_food'
   | 'not_enough_troops'
   | 'no_troops'
@@ -217,6 +241,12 @@ export interface BattleInput {
   defender: VillageState;
   /** Support contingents stationed at the defender village (other players' troops); they fight too. */
   support?: Units[];
+  /** Ranks of the attacking army's home village (Might applies). Omitted = no bonus. */
+  attackerRanks?: VillageRanks;
+  /** Ranks of the defender village (Bulwark applies to its own troops). */
+  defenderRanks?: VillageRanks;
+  /** Home-village ranks per support contingent, same order as `support` (Bulwark applies). */
+  supportRanks?: Array<VillageRanks | undefined>;
   /** Deterministic luck: same seed, same result. */
   seed: number;
 }
@@ -243,6 +273,10 @@ export interface ScoutInput {
   scouts: number;
   /** Pathfinders at the target: the village's own at home plus stationed support. */
   defenderScouts: number;
+  /** Sender's Keen multiplier (keenMultiplier of the sending village's ranks). Default 1. */
+  scoutMultiplier?: number;
+  /** Defender's total scout strength: each defending Pathfinder times its own village's Keen multiplier. Default = defenderScouts. */
+  defenderStrength?: number;
 }
 
 export interface ScoutResult {

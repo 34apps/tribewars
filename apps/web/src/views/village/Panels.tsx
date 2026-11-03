@@ -2,7 +2,7 @@
 
 import {
   BUILDINGS,
-  MAX_BUILD_QUEUE,
+  buildQueueLimit,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
@@ -23,6 +23,7 @@ import { formatClock, formatCompact, formatDuration, formatInt, formatRate } fro
 import { useGame } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
+import { DrillyardPanel } from './Drillyard.tsx';
 import { tipFor } from './tips.ts';
 
 function Chip({ icon, children, short, label }: { icon: IconName; children: ReactNode; short?: boolean; label: string }) {
@@ -49,7 +50,7 @@ export function BuildingPanel({
   onBuild: (id: BuildingId) => void;
   headingId: string;
 }) {
-  const { live, now, settings, navigate } = useGame();
+  const { live, now, settings, navigate, player } = useGame();
   const def = BUILDINGS[id];
   const level = live.buildings[id];
   const jobs = live.buildQueue.filter((j) => j.building === id);
@@ -57,7 +58,7 @@ export function BuildingPanel({
   const target = level + queued + 1;
   const atMax = target > def.maxLevel;
   const unmet = unmetRequirements(live.buildings, def.requires);
-  const check = checkBuild(live, id, now, settings);
+  const check = checkBuild(live, id, now, settings, buildQueueLimit(player.premium));
   const cap = storageCap(live);
   const net = netProductionPerHour(live, settings);
   const cost = atMax ? null : check.ok ? check.cost : buildingCost(id, target);
@@ -185,6 +186,7 @@ export function BuildingPanel({
         </div>
       ) : null}
       {trains.length > 0 && <div className="bpanel-note">Trains {trains.map((u) => UNITS[u].name).join(' · ')}</div>}
+      {id === 'drillyard' && <DrillyardPanel />}
     </section>
   );
 }
@@ -192,7 +194,8 @@ export function BuildingPanel({
 // ---- Construction queue --------------------------------------------------------------------------------------
 
 export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
-  const { live, now, settings } = useGame();
+  const { live, now, settings, player } = useGame();
+  const maxQueue = buildQueueLimit(player.premium);
   const jobs = live.buildQueue;
   const last = jobs[jobs.length - 1];
   return (
@@ -203,7 +206,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
           Construction queue
         </h2>
         <span className="queue-count">
-          {jobs.length} of {MAX_BUILD_QUEUE} slots
+          {jobs.length} of {maxQueue} slots
         </span>
       </div>
       {jobs.length > 0 && (
@@ -247,7 +250,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
           })}
         </ol>
       )}
-      {jobs.length < MAX_BUILD_QUEUE && (
+      {jobs.length < maxQueue && (
         <div className="qfree">
           <span className="qfree-plus" aria-hidden="true">
             +

@@ -36,6 +36,14 @@ npm start
 The server listens on `PORT` (default 3000) and serves the built web client. Settings:
 `apps/server/.env.example`.
 
+## Running AI tasks
+
+`npm run agent -- "task"` (needs `ANTHROPIC_API_KEY`; flags `--model`, `--max-usd`, `--max-turns`) runs
+one self-contained task. Question-only tasks change nothing. Tasks that change files end with
+`npm run check`; if it passes, the run commits, updates `CHANGELOG.md`, `NEXT_STEPS.md` and the
+"Last run" box in `docs/HANDOFF.md`, and pushes to `main`. If the check fails, nothing is committed
+and the failure is written into "Last run". Details: `docs/AI-WORKFLOW.md` §8.
+
 ## Project docs
 
 - `docs/GAME_DESIGN.md` — rules and formulas.

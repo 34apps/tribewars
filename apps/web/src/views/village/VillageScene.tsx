@@ -150,7 +150,7 @@ export const SceneArt = memo(function SceneArt({
       {selected && (
         <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path d={footprintFront(selected)} stroke="#2B211C" strokeWidth={7} />
-          <path d={footprintFront(selected)} stroke="#FFDC7A" strokeWidth={3.6} strokeDasharray="8 6" />
+          <path d={footprintFront(selected)} stroke="#FFDC7A" strokeWidth={3.6} />
         </g>
       )}
     </svg>

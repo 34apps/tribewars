@@ -9,6 +9,7 @@ import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { allowedMissions } from '../rules.ts';
 import { Segmented } from '../tribe/bits.tsx';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
+import { ShipmentForm } from './ShipmentForm.tsx';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
@@ -207,6 +208,8 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
   const al = village ? allegianceOf(village) : isOwn ? 'own' : null;
   const style = al ? ALLEGIANCE_STYLE[al] : null;
   const owner = isOwn ? player.username : village ? (village.ownerName ?? null) : null;
+  // Resources can also go to another village of mine (the server allows it).
+  const canShip = village?.kind === 'own' && (tile.x !== mine.x || tile.y !== mine.y);
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
   const missions = village && !isOwn ? allowedMissions(village.kind, village.relation) : [];
@@ -295,6 +298,9 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
         <button type="button" className="wm-btn wm-btn-sun wm-btn-big" onClick={() => navigate('village')}>
           Open my village
         </button>
+      )}
+      {village && (canShip || (!isOwn && (village.kind === 'player' || village.kind === 'abandoned'))) && (
+        <ShipmentForm key={`ship-${tile.x}|${tile.y}`} tile={tile} target={village} />
       )}
       {village && !isOwn && attackBlocked && relation && (
         <p className="wm-note" role="note">

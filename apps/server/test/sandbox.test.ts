@@ -1,0 +1,59 @@
+// Sandbox / test mode: only accounts in SANDBOX_USERS (SECURITY_ROADMAP.md section 4 gate).
+
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { BUILDINGS, BUILDING_IDS, SANDBOX_ARMY_PER_UNIT, START_RESOURCES, UNIT_IDS, storageCapForLevel, type GameStateResponse } from '@clanfire/engine';
+import { loadEnv } from '../src/env.ts';
+import { errorOf, ok } from './helpers.ts';
+import { giveTroops, movementsOf, sendOk, stateOf, world } from './warfare-helpers.ts';
+
+test('SANDBOX_USERS: default is the owner, list is lowercased, empty means nobody', () => {
+  assert.deepEqual(loadEnv({}).sandboxUsers, ['metinaltinbas']);
+  assert.deepEqual(loadEnv({ SANDBOX_USERS: ' Alice, BOB ,,' }).sandboxUsers, ['alice', 'bob']);
+  assert.deepEqual(loadEnv({ SANDBOX_USERS: '' }).sandboxUsers, []);
+});
+
+test('sandbox endpoints refuse everyone not on the list, and signed-out requests', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  const before = (await stateOf(bob)).villages[0]!.state.buildings;
+  errorOf(await bob.c.post('/api/sandbox/max', {}), 403, 'forbidden');
+  errorOf(await bob.c.post('/api/sandbox/reset', {}), 403, 'forbidden');
+  assert.deepEqual((await stateOf(bob)).villages[0]!.state.buildings, before, 'nothing changed');
+  const anon = await app.inject({ method: 'POST', url: '/api/sandbox/max', payload: {} });
+  errorOf(anon, 401, 'unauthorized');
+  assert.equal((await bob.c.state()).player.sandbox, false);
+  assert.equal((await alice.c.state()).player.sandbox, true);
+});
+
+test('sandbox is off for everyone when the list is empty', async () => {
+  const { alice } = await world();
+  errorOf(await alice.c.post('/api/sandbox/max', {}), 403, 'forbidden');
+});
+
+test('max: every building at max, stores full, an army of every unit, queues cleared; reset: fresh village', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  const res = await alice.c.post('/api/sandbox/max', {});
+  ok(res);
+  const home = res.json<GameStateResponse>().villages[0]!.state;
+  for (const b of BUILDING_IDS) assert.equal(home.buildings[b], BUILDINGS[b].maxLevel, b);
+  for (const u of UNIT_IDS) assert.ok(home.troops[u] >= SANDBOX_ARMY_PER_UNIT, u);
+  const cap = storageCapForLevel(BUILDINGS.storehouse.maxLevel);
+  assert.ok(home.resources.wood >= cap - 1 && home.resources.gold >= cap - 1);
+  assert.deepEqual([home.buildQueue.length, home.trainQueues.barracks.length], [0, 0]);
+
+  // Troops on the road, then reset at any time.
+  giveTroops(app, alice, { raider: 5 });
+  await sendOk(alice, bob, 'attack', { raider: 5 });
+  assert.equal((await movementsOf(alice)).length, 1);
+  const reset = await alice.c.post('/api/sandbox/reset', {});
+  ok(reset);
+  const fresh = reset.json<GameStateResponse>();
+  const v = fresh.villages[0]!.state;
+  for (const b of BUILDING_IDS) assert.equal(v.buildings[b], BUILDINGS[b].startLevel, b);
+  for (const u of UNIT_IDS) assert.equal(v.troops[u] + v.away[u], 0, u);
+  assert.ok(v.resources.wood <= START_RESOURCES.wood + 5);
+  assert.deepEqual(fresh.movements, []);
+  assert.deepEqual(await movementsOf(alice), []);
+});

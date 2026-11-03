@@ -72,6 +72,12 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
       return 'Riders are fast and carry more loot home. Gold pays for them.';
     case 'wall':
       return `Every Wall level makes your defenders ${Math.round(WALL_BONUS_PER_LEVEL * 100)}% stronger and adds village militia.`;
+    case 'drillyard':
+      return 'Research stronger troops here, then spend Training Points on ranks. One village cannot max everything, so pick a role.';
+    case 'market':
+      return level === 0
+        ? 'Without a Market your traders stay home. Build one to send resources to your other villages and to friends.'
+        : 'Each Market level lets one shipment carry more. Receiving needs no Market.';
     case 'vault':
       return level === 0
         ? 'Raiders take what they find. A Hidden Vault keeps some of each resource out of their reach.'

@@ -8,23 +8,24 @@ import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 // ---- Tables with a CHECK that grew after release -----------------------------------------------------------
 // SQLite cannot alter a CHECK, so `rebuildOutdatedTables` copies older databases into the new shape (see applySchema).
 
-/** kind: attack / scout / support go out; return comes home. For every kind `origin_village_id` is the army's home. */
+/** kind: attack / scout / support / shipment go out; return comes home. For every kind `origin_village_id` is the army's home. */
 const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${name} (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'scout', 'support', 'return')),
+  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'scout', 'support', 'return', 'shipment')),
   origin_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
   target_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
   units_json        TEXT    NOT NULL,
   loot_json         TEXT,
   depart_at         INTEGER NOT NULL,
-  arrive_at         INTEGER NOT NULL
+  arrive_at         INTEGER NOT NULL,
+  ranks_json        TEXT
 );`;
 
 /** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
 const reportsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${name} (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  side        TEXT    NOT NULL CHECK (side IN ('attack', 'defense', 'support')),
+  side        TEXT    NOT NULL CHECK (side IN ('attack', 'defense', 'support', 'shipment')),
   won         INTEGER NOT NULL,
   title       TEXT    NOT NULL,
   created_at  INTEGER NOT NULL,
@@ -35,13 +36,13 @@ const reportsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${nam
 const REBUILDS = [
   {
     table: 'movements',
-    marker: "'scout'",
+    marker: "'shipment'",
     create: movementsTable,
     columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at',
   },
   {
     table: 'reports',
-    marker: "'support'",
+    marker: "'shipment')",
     create: reportsTable,
     columns: 'id, player_id, side, won, title, created_at, read, battle_json',
   },
@@ -60,8 +61,23 @@ CREATE TABLE IF NOT EXISTS players (
   password_hash   TEXT    NOT NULL,
   created_at      INTEGER NOT NULL,
   protected_until INTEGER NOT NULL DEFAULT 0,
-  chieftain       TEXT    NOT NULL DEFAULT 'old-orm'
+  chieftain       TEXT    NOT NULL DEFAULT 'old-orm',
+  premium         INTEGER NOT NULL DEFAULT 0,
+  household_shared INTEGER NOT NULL DEFAULT 0,
+  banned_at       INTEGER,
+  ban_reason      TEXT
 );
+
+-- Every IP an account registered or signed in from (multi-account detection). Raw IPs: needed to review and ban;
+-- rows go with the account (cascade).
+CREATE TABLE IF NOT EXISTS player_ips (
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  ip         TEXT    NOT NULL,
+  first_seen INTEGER NOT NULL,
+  last_seen  INTEGER NOT NULL,
+  PRIMARY KEY (player_id, ip)
+);
+CREATE INDEX IF NOT EXISTS idx_player_ips_ip ON player_ips(ip);
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT    PRIMARY KEY,
@@ -102,6 +118,7 @@ CREATE TABLE IF NOT EXISTS stationed (
   host_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
   units_json      TEXT    NOT NULL,
   arrived_at      INTEGER NOT NULL,
+  ranks_json      TEXT,
   UNIQUE (home_village_id, host_village_id)
 );
 CREATE INDEX IF NOT EXISTS idx_stationed_host ON stationed(host_village_id);
@@ -233,6 +250,17 @@ function addMissingColumns(db: DatabaseSync): void {
   const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
   if (!cols.some((c) => c.name === 'chieftain')) {
     db.exec(`ALTER TABLE players ADD COLUMN chieftain TEXT NOT NULL DEFAULT '${DEFAULT_CHIEFTAIN}'`);
+  }
+  if (!cols.some((c) => c.name === 'premium')) {
+    db.exec('ALTER TABLE players ADD COLUMN premium INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.some((c) => c.name === 'household_shared')) db.exec('ALTER TABLE players ADD COLUMN household_shared INTEGER NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'banned_at')) db.exec('ALTER TABLE players ADD COLUMN banned_at INTEGER');
+  if (!cols.some((c) => c.name === 'ban_reason')) db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
+  // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).
+  for (const table of ['movements', 'stationed']) {
+    const t = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!t.some((c) => c.name === 'ranks_json')) db.exec(`ALTER TABLE ${table} ADD COLUMN ranks_json TEXT`);
   }
 }
 

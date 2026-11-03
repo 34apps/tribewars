@@ -18,6 +18,7 @@ import {
   isSupportAllowed,
   netProductionPerHour,
   productionFromLevels,
+  shipmentCapacity,
   storageCapForLevel,
   vaultForLevel,
 } from '@clanfire/engine';
@@ -107,6 +108,13 @@ export function buildingEffects(id: BuildingId, from: number, to: number, speed:
     }
     case 'storehouse':
       lines.push({ label: 'Capacity', from: formatInt(storageCapForLevel(from)), to: formatInt(storageCapForLevel(to)) });
+      break;
+    case 'market':
+      lines.push({
+        label: 'Shipment size',
+        from: from < 1 ? dash : formatInt(shipmentCapacity(from)),
+        to: formatInt(shipmentCapacity(to)),
+      });
       break;
     case 'vault':
       lines.push({ label: 'Hides per resource', from: formatInt(vaultForLevel(from)), to: formatInt(vaultForLevel(to)) });

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@clanfire/engine';
+import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
@@ -10,8 +11,9 @@ import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, for
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
+const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe' };
+const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe', ranks: 'Ranks' };
 /** "+3k/h" style rate for the narrow phone strip. */
 function compactRate(perHour: number): string {
   const r = Math.round(perHour);
@@ -20,7 +22,7 @@ function compactRate(perHour: number): string {
   return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k/h`;
 }
 
-const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', tribe: 'tribe' };
+const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', tribe: 'tribe', ranks: 'ranks' };
 
 /** Wood/food/iron/gold counters: amount/cap, rate, fill bar. `compact` (phone strip) hides cap and bar via CSS. */
 function Resources({ compact }: { compact?: boolean }) {
@@ -147,8 +149,18 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
 }
 
 /** Chieftain avatar + name [TAG]; opens a small menu with the village, Change chieftain and Sign out. */
-function Who({ onSignOut, onChangeChieftain, compact }: { onSignOut: () => void; onChangeChieftain: () => void; compact?: boolean }) {
-  const { player, village } = useGame();
+function Who({
+  onSignOut,
+  onChangeChieftain,
+  onSettings,
+  compact,
+}: {
+  onSignOut: () => void;
+  onChangeChieftain: () => void;
+  onSettings: () => void;
+  compact?: boolean;
+}) {
+  const { player, village, tribeChanged, toast } = useGame();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -202,6 +214,34 @@ function Who({ onSignOut, onChangeChieftain, compact }: { onSignOut: () => void;
           >
             Change chieftain
           </button>
+          {player.sandbox && (
+            <button
+              className="btn btn-block"
+              onClick={() => {
+                setOpen(false);
+                onSettings();
+              }}
+            >
+              Settings (test mode)
+            </button>
+          )}
+          <label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <input
+              type="checkbox"
+              checked={player.householdShared}
+              onChange={(e) => {
+                const shared = e.target.checked;
+                api
+                  .setHousehold(shared)
+                  .then(() => {
+                    tribeChanged();
+                    toast(shared ? 'Reported: someone else plays from your household.' : 'Household report removed.');
+                  })
+                  .catch((err) => toast(errorMessage(err)));
+              }}
+            />
+            <span>Someone else in my household plays Clanfire. Our accounts can't send troops to each other.</span>
+          </label>
           <button className="btn btn-block" onClick={onSignOut}>
             Sign out
           </button>
@@ -214,6 +254,7 @@ function Who({ onSignOut, onChangeChieftain, compact }: { onSignOut: () => void;
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const { tab } = useGame();
   const [choosing, setChoosing] = useState(false);
+  const [settings, setSettings] = useState(false);
   return (
     <div className={`app app-${tab}`}>
       <header className="topbar">
@@ -227,10 +268,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           ))}
         </nav>
         <Resources />
-        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} />
+        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} />
       </header>
       <div className="resstrip">
-        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} compact />
+        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} compact />
         <Resources compact />
       </div>
       <Strip />
@@ -242,6 +283,11 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           <TabButton key={t} tab={t} variant="bottom" />
         ))}
       </nav>
+      {settings && (
+        <Suspense fallback={null}>
+          <SettingsDialog onClose={() => setSettings(false)} />
+        </Suspense>
+      )}
       {choosing && (
         <Suspense fallback={null}>
           <ChieftainDialog onClose={() => setChoosing(false)} />

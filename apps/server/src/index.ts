@@ -11,6 +11,8 @@ const app = await buildApp({
   settings: env.worldOverrides,
   secureCookies: env.isProduction,
   trustProxy: env.trustProxy,
+  maxAccountsPerIp: env.maxAccountsPerIp,
+  sandboxUsers: env.sandboxUsers,
   logger: true,
   advisorClient: env.anthropicApiKey ? createAnthropicClient(env.anthropicApiKey) : null,
 });

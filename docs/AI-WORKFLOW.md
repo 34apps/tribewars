@@ -88,6 +88,16 @@ prints status, turns, duration and cost per model. It **bills the `ANTHROPIC_API
 environment (required; no subscription fallback). Flags: `--model` (default `claude-sonnet-5-5`),
 `--max-usd` (default 2, hard stop), `--max-turns` (default 40). Safety: no prompts (`dontAsk`); allowed
 are Read/Glob/Grep/Edit/Write and Bash only for `npm run check|build|build:preview`, `npm test*`,
-`git status|diff|log`; commit, push, reset, rm, installs, curl and web tools are denied. The agent
-leaves changes uncommitted; review with `git diff`. Cost is the SDK's estimate, not the invoice.
+`git status|diff|log`, plus `git add`, `git commit` and `git push origin main` (this repo only; force
+push, other branches/remotes, reset, checkout, rebase, clean, rm, installs, curl and web tools are
+denied). Cost is the SDK's estimate, not the invoice.
+
+**Every run is self-contained** (the run prompt in `scripts/agent/run.ts` enforces this):
+- *Question-only run* (answer/explain/review): changes nothing, commits nothing.
+- *Run that changed files*: `npm run check` (and `build` if `apps/`/deps changed). If it **passes**:
+  commit the work, add a `CHANGELOG.md` line with that hash, update `NEXT_STEPS.md`, rewrite the
+  short `## Last run` section at the top of `docs/HANDOFF.md` (max 10 lines: what changed, what is
+  left, very next step), commit that as a docs commit and `git push origin main`.
+- If `check` **fails**: nothing is committed or pushed; the failure goes into `## Last run` instead.
+- A rejected push is reported, never worked around. Review afterwards with `git log -p`.
 

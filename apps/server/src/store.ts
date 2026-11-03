@@ -9,8 +9,10 @@ import {
   type Mission,
   type Resources,
   type ScoutReportData,
+  type ShipmentReportData,
   type SupportReportData,
   type Units,
+  type VillageRanks,
   type VillageState,
   type WorldSettings,
 } from '@clanfire/engine';
@@ -29,6 +31,18 @@ export interface PlayerRow {
   protectedUntil: number;
   /** Chieftain portrait id (CHIEFTAINS in the engine). */
   chieftain: string;
+  /** Premium subscription active (longer build queue). Set by billing, never by the client. */
+  premium: boolean;
+  /** The player reported that others play from the same household (self-declared, shown in the admin report). */
+  householdShared: boolean;
+  /** When the account was banned (ms), or null. Banned accounts cannot sign in; their sessions are dead. */
+  bannedAt: number | null;
+  banReason: string | null;
+}
+
+export interface SharedIpGroup {
+  ip: string;
+  players: Array<{ id: number; username: string; bannedAt: number | null; householdShared: boolean }>;
 }
 
 export interface VillageRecord {
@@ -44,7 +58,7 @@ export interface VillageRecord {
   state: VillageState;
 }
 
-export type MovementKind = Mission | 'return';
+export type MovementKind = Mission | 'return' | 'shipment';
 
 /** A movement row as stored. For both kinds `originVillageId` is the army's home village. */
 export interface MovementRow {
@@ -56,6 +70,8 @@ export interface MovementRow {
   loot: Resources | null;
   departAt: number;
   arriveAt: number;
+  /** The home village's unit ranks when the army left (attack, scout, support). Null = none, e.g. returns and old rows. */
+  ranks?: VillageRanks | null;
 }
 
 export interface VillageStub {
@@ -80,6 +96,8 @@ export interface StationedRow {
   hostVillageId: number;
   units: Units;
   arrivedAt: number;
+  /** Home-village ranks stamped on the latest arrival; the contingent defends with them. */
+  ranks?: VillageRanks | null;
 }
 
 export interface StationedView extends StationedRow {
@@ -114,8 +132,8 @@ export interface MapRow {
   npcState: VillageState | null;
 }
 
-export type ReportSide = 'attack' | 'defense' | 'support';
-export type ReportType = 'battle' | 'scout' | 'support';
+export type ReportSide = 'attack' | 'defense' | 'support' | 'shipment';
+export type ReportType = 'battle' | 'scout' | 'support' | 'shipment';
 
 export interface ReportRow {
   id: number;
@@ -134,7 +152,8 @@ export interface ReportRow {
 export type ReportBody =
   | { type: 'battle'; battle: BattleReportData }
   | { type: 'scout'; scout: ScoutReportData }
-  | { type: 'support'; support: SupportReportData };
+  | { type: 'support'; support: SupportReportData }
+  | { type: 'shipment'; shipment: ShipmentReportData };
 
 export type NewReport = ReportBody & {
   playerId: number;
@@ -149,10 +168,11 @@ export type FullReport = ReportRow & {
   battle: BattleReportData | null;
   scout: ScoutReportData | null;
   support: SupportReportData | null;
+  shipment: ShipmentReportData | null;
 };
 
 const MOVEMENT_VIEW_SQL = `
-SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at,
+SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json,
        o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM movements m
@@ -162,7 +182,7 @@ LEFT JOIN players op ON op.id = o.owner_id
 LEFT JOIN players tp ON tp.id = t.owner_id`;
 
 const STATIONED_VIEW_SQL = `
-SELECT s.id, s.owner_player_id, s.home_village_id, s.host_village_id, s.units_json, s.arrived_at,
+SELECT s.id, s.owner_player_id, s.home_village_id, s.host_village_id, s.units_json, s.arrived_at, s.ranks_json,
        h.name AS h_name, h.x AS h_x, h.y AS h_y, h.owner_id AS h_owner_id, hp.username AS h_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM stationed s
@@ -198,6 +218,19 @@ function toVillage(r: Raw): VillageRecord {
   };
 }
 
+/** Stamped ranks as saved; bad or missing JSON means no ranks (the engine ignores malformed entries). */
+function parseRanks(raw: unknown): VillageRanks | null {
+  if (typeof raw !== 'string') return null;
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as VillageRanks) : null;
+  } catch {
+    return null;
+  }
+}
+
+const stampRanks = (ranks: VillageRanks | null | undefined): string | null => (ranks ? JSON.stringify(ranks) : null);
+
 function toMovement(r: Raw): MovementRow {
   return {
     id: r.id as number,
@@ -208,6 +241,7 @@ function toMovement(r: Raw): MovementRow {
     loot: r.loot_json ? (JSON.parse(r.loot_json as string) as Resources) : null,
     departAt: r.depart_at as number,
     arriveAt: r.arrive_at as number,
+    ranks: parseRanks(r.ranks_json),
   };
 }
 
@@ -241,11 +275,15 @@ function toPlayer(r: Raw): PlayerRow {
     createdAt: r.created_at as number,
     protectedUntil: r.protected_until as number,
     chieftain: r.chieftain as string,
+    premium: (r.premium as number) === 1,
+    householdShared: (r.household_shared as number) === 1,
+    bannedAt: (r.banned_at as number | null) ?? null,
+    banReason: (r.ban_reason as string | null) ?? null,
   };
 }
 
 function reportTypeOf(raw: unknown): ReportType {
-  return raw === 'scout' || raw === 'support' ? raw : 'battle'; // reports saved before scouting have no type
+  return raw === 'scout' || raw === 'support' || raw === 'shipment' ? raw : 'battle'; // reports saved before scouting have no type
 }
 
 function toReport(r: Raw): ReportRow {
@@ -271,8 +309,9 @@ function parseReportBody(json: string): ReportBody {
   const type = reportTypeOf(rawType);
   if (type === 'scout') {
     const d = data as unknown as ScoutReportData;
-    return { type, scout: { ...d, intel: d.intel ? { ...d.intel, troops: normalizeUnits(d.intel.troops) } : null } };
+    return { type, scout: { ...d, intel: d.intel ? { ...d.intel, troops: d.intel.troops ? normalizeUnits(d.intel.troops) : null } : null } };
   }
+  if (type === 'shipment') return { type, shipment: data as unknown as ShipmentReportData };
   if (type === 'support') {
     const d = data as unknown as SupportReportData;
     return { type, support: { ...d, units: normalizeUnits(d.units) } };
@@ -295,6 +334,7 @@ function parseReportBody(json: string): ReportBody {
 
 function reportJson(r: ReportBody): string {
   if (r.type === 'scout') return JSON.stringify({ type: 'scout', ...r.scout });
+  if (r.type === 'shipment') return JSON.stringify({ type: 'shipment', ...r.shipment });
   if (r.type === 'support') return JSON.stringify({ type: 'support', ...r.support });
   return JSON.stringify({ type: 'battle', ...r.battle });
 }
@@ -318,6 +358,7 @@ function toStationed(r: Raw): StationedRow {
     hostVillageId: r.host_village_id as number,
     units: normalizeUnits(JSON.parse(r.units_json as string) as Partial<Units>),
     arrivedAt: r.arrived_at as number,
+    ranks: parseRanks(r.ranks_json),
   };
 }
 
@@ -326,9 +367,22 @@ export class Store extends SqlBase {
   /** Tribe tables. Shares this connection, so it takes part in `tx`. */
   readonly tribes: TribeStore;
 
+  /** Lowercase usernames allowed to use sandbox (test) mode: SANDBOX_USERS. Set once at start-up. */
+  sandboxUsers: ReadonlySet<string> = new Set();
+
   constructor(db: DatabaseSync) {
     super(db);
     this.tribes = new TribeStore(db);
+  }
+
+  isSandboxUser(username: string): boolean {
+    return this.sandboxUsers.has(username.toLowerCase());
+  }
+
+  /** Sandbox reset: drop every movement sent from this village and the support it has standing elsewhere. */
+  clearVillageActivity(villageId: number): void {
+    this.run('DELETE FROM movements WHERE origin_village_id = ?', villageId);
+    this.run('DELETE FROM stationed WHERE home_village_id = ?', villageId);
   }
 
   /** Run `fn` inside BEGIN IMMEDIATE ... COMMIT; roll back and rethrow on error. Re-entrant. */
@@ -398,6 +452,10 @@ export class Store extends SqlBase {
     ).id;
   }
 
+  setPremium(playerId: number, premium: boolean): void {
+    this.run('UPDATE players SET premium = ? WHERE id = ?', premium ? 1 : 0, playerId);
+  }
+
   setChieftain(playerId: number, chieftain: string): void {
     this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
   }
@@ -406,13 +464,79 @@ export class Store extends SqlBase {
     this.run('UPDATE players SET protected_until = ? WHERE id = ?', t, playerId);
   }
 
+  // ---- multi-account detection & bans ------------------------------------------------------------
+
+  /** Remember that this account was seen on this IP. */
+  recordIp(playerId: number, ip: string, now: number): void {
+    this.run(
+      'INSERT INTO player_ips (player_id, ip, first_seen, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, ip) DO UPDATE SET last_seen = excluded.last_seen',
+      playerId,
+      ip,
+      now,
+      now,
+    );
+  }
+
+  /** How many accounts that are not banned have been seen on this IP. */
+  countActiveAccountsOnIp(ip: string): number {
+    const r = this.get(
+      'SELECT COUNT(DISTINCT i.player_id) AS n FROM player_ips i JOIN players p ON p.id = i.player_id WHERE i.ip = ? AND p.banned_at IS NULL',
+      ip,
+    );
+    return Number(r?.n ?? 0);
+  }
+
+  setHouseholdShared(playerId: number, shared: boolean): void {
+    this.run('UPDATE players SET household_shared = ? WHERE id = ?', shared ? 1 : 0, playerId);
+  }
+
+  /** True when two different accounts have been seen on the same IP (same household or the same person). */
+  shareAnIp(a: number, b: number): boolean {
+    if (a === b) return false;
+    const r = this.get(
+      `SELECT 1 AS x FROM player_ips i1 JOIN player_ips i2 ON i1.ip = i2.ip
+        WHERE i1.player_id = ? AND i2.player_id = ? LIMIT 1`,
+      a,
+      b,
+    );
+    return r !== undefined && r !== null;
+  }
+
+  /** IPs used by two or more accounts, with the accounts on each (for review and banning). */
+  sharedIpGroups(): SharedIpGroup[] {
+    const rows = this.all(
+      `SELECT i.ip AS ip, p.id AS id, p.username AS username, p.banned_at AS banned_at, p.household_shared AS household_shared
+         FROM player_ips i JOIN players p ON p.id = i.player_id
+        WHERE i.ip IN (SELECT ip FROM player_ips GROUP BY ip HAVING COUNT(*) > 1)
+        ORDER BY i.ip, p.id`,
+    );
+    const groups = new Map<string, SharedIpGroup>();
+    for (const r of rows) {
+      const ip = r.ip as string;
+      const g = groups.get(ip) ?? { ip, players: [] };
+      g.players.push({ id: r.id as number, username: r.username as string, bannedAt: (r.banned_at as number | null) ?? null, householdShared: (r.household_shared as number) === 1 });
+      groups.set(ip, g);
+    }
+    return [...groups.values()];
+  }
+
+  /** Ban an account and end all its sessions. */
+  banPlayer(playerId: number, reason: string, now: number): void {
+    this.run('UPDATE players SET banned_at = ?, ban_reason = ? WHERE id = ?', now, reason, playerId);
+    this.run('DELETE FROM sessions WHERE player_id = ?', playerId);
+  }
+
+  unbanPlayer(playerId: number): void {
+    this.run('UPDATE players SET banned_at = NULL, ban_reason = NULL WHERE id = ?', playerId);
+  }
+
   insertSession(tokenHash: string, playerId: number, createdAt: number, expiresAt: number): void {
     this.run('INSERT INTO sessions (token_hash, player_id, created_at, expires_at) VALUES (?, ?, ?, ?)', tokenHash, playerId, createdAt, expiresAt);
   }
 
   getSessionPlayer(tokenHash: string, now: number): PlayerRow | null {
     const r = this.get(
-      'SELECT p.* FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ? AND s.expires_at > ?',
+      'SELECT p.* FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ? AND s.expires_at > ? AND p.banned_at IS NULL',
       tokenHash,
       now,
     );
@@ -460,6 +584,30 @@ export class Store extends SqlBase {
     this.run('UPDATE villages SET points = ? WHERE id = ?', points, id);
   }
 
+  /** Every player with at least one village, best first (ties: name). Points = sum of village points. */
+  playerRanking(): { id: number; username: string; tribeId: number | null; tribeTag: string | null; villages: number; points: number; mainX: number; mainY: number }[] {
+    return this.all(
+      `SELECT p.id, p.username, tm.tribe_id, tr.tag AS tribe_tag, COUNT(v.id) AS villages, SUM(v.points) AS total_points,
+              (SELECT x FROM villages m WHERE m.owner_id = p.id ORDER BY m.points DESC, m.id ASC LIMIT 1) AS main_x,
+              (SELECT y FROM villages m WHERE m.owner_id = p.id ORDER BY m.points DESC, m.id ASC LIMIT 1) AS main_y
+       FROM players p
+       JOIN villages v ON v.owner_id = p.id
+       LEFT JOIN tribe_members tm ON tm.player_id = p.id
+       LEFT JOIN tribes tr ON tr.id = tm.tribe_id
+       GROUP BY p.id
+       ORDER BY total_points DESC, p.username_lower ASC, p.id ASC`,
+    ).map((r) => ({
+      id: r.id as number,
+      username: r.username as string,
+      tribeId: (r.tribe_id as number | null) ?? null,
+      tribeTag: (r.tribe_tag as string | null) ?? null,
+      villages: r.villages as number,
+      points: r.total_points as number,
+      mainX: r.main_x as number,
+      mainY: r.main_y as number,
+    }));
+  }
+
   mapVillages(x0: number, x1: number, y0: number, y1: number): MapRow[] {
     return this.all(
       `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
@@ -495,7 +643,7 @@ export class Store extends SqlBase {
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
     return this.run(
-      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
       m.targetVillageId,
@@ -503,6 +651,7 @@ export class Store extends SqlBase {
       m.loot ? JSON.stringify(m.loot) : null,
       m.departAt,
       m.arriveAt,
+      stampRanks(m.ranks),
     ).id;
   }
 
@@ -520,6 +669,12 @@ export class Store extends SqlBase {
     return this.all('SELECT * FROM movements WHERE arrive_at <= ? ORDER BY arrive_at, id LIMIT ?', now, limit).map(toMovement);
   }
 
+  /** Shipments sent from this village that have not arrived yet. */
+  shipmentsInTransit(originVillageId: number): number {
+    const r = this.get("SELECT COUNT(*) AS n FROM movements WHERE kind = 'shipment' AND origin_village_id = ?", originVillageId);
+    return Number(r?.n ?? 0);
+  }
+
   getMovementView(id: number): MovementView | null {
     const r = this.get(`${MOVEMENT_VIEW_SQL} WHERE m.id = ?`, id);
     return r ? toMovementView(r) : null;
@@ -534,7 +689,7 @@ export class Store extends SqlBase {
     return this.all(
       `${MOVEMENT_VIEW_SQL}
        WHERE m.origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?)
-          OR (m.kind IN ('attack', 'support') AND m.target_village_id IN (SELECT id FROM villages WHERE owner_id = ?))
+          OR (m.kind IN ('attack', 'support', 'shipment') AND m.target_village_id IN (SELECT id FROM villages WHERE owner_id = ?))
        ORDER BY m.arrive_at, m.id`,
       playerId,
       playerId,
@@ -575,20 +730,29 @@ export class Store extends SqlBase {
   }
 
   /** Station `units` for a (home, host) pair: merges into the pair's existing contingent, keeping its arrival time. */
-  addStationed(ownerPlayerId: number, homeVillageId: number, hostVillageId: number, units: Units, arrivedAt: number): number {
+  addStationed(
+    ownerPlayerId: number,
+    homeVillageId: number,
+    hostVillageId: number,
+    units: Units,
+    arrivedAt: number,
+    ranks: VillageRanks | null = null,
+  ): number {
     const row = this.get('SELECT * FROM stationed WHERE home_village_id = ? AND host_village_id = ?', homeVillageId, hostVillageId);
     if (row) {
+      // The newest arrival's ranks stamp the whole contingent.
       const old = toStationed(row);
-      this.setStationedUnits(old.id, addUnits(old.units, units));
+      this.run('UPDATE stationed SET units_json = ?, ranks_json = ? WHERE id = ?', JSON.stringify(addUnits(old.units, units)), stampRanks(ranks), old.id);
       return old.id;
     }
     return this.run(
-      'INSERT INTO stationed (owner_player_id, home_village_id, host_village_id, units_json, arrived_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO stationed (owner_player_id, home_village_id, host_village_id, units_json, arrived_at, ranks_json) VALUES (?, ?, ?, ?, ?, ?)',
       ownerPlayerId,
       homeVillageId,
       hostVillageId,
       JSON.stringify(units),
       arrivedAt,
+      stampRanks(ranks),
     ).id;
   }
 
@@ -688,6 +852,7 @@ export class Store extends SqlBase {
       battle: body.type === 'battle' ? body.battle : null,
       scout: body.type === 'scout' ? body.scout : null,
       support: body.type === 'support' ? body.support : null,
+      shipment: body.type === 'shipment' ? body.shipment : null,
     };
   }
 

@@ -980,6 +980,175 @@ th[scope='row'] {
   margin-top: 10px;
 }
 
+/* ---- Drillyard: research and ranks (dark card, explicit light text) ---- */
+.drill {
+  color: var(--c-cream);
+}
+
+.drill .eyebrow {
+  margin-top: 18px;
+}
+
+.drill .muted {
+  color: var(--c-dust);
+}
+
+.drill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill-row,
+.drill-unit {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--c-ink-2);
+  color: var(--c-cream);
+}
+
+.drill-row {
+  align-items: center;
+}
+
+.drill-row.is-done {
+  opacity: 0.85;
+}
+
+.drill-unit {
+  flex-direction: column;
+}
+
+.drill-unit-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drill-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-cream);
+}
+
+.drill-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.drill-name {
+  font-weight: 700;
+  color: var(--c-cream);
+}
+
+.drill-status,
+.drill-why {
+  font-size: 0.86rem;
+  color: var(--c-dust);
+}
+
+.drill-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--c-cream);
+}
+
+.drill .time {
+  color: var(--c-dust);
+}
+
+.drill-btn {
+  flex: none;
+  min-height: 44px;
+}
+
+.drill-points {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--c-cream);
+}
+
+.drill-track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-ink-4);
+}
+
+.drill-track-info {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.drill-track-name {
+  font-weight: 700;
+  color: var(--c-cream);
+}
+
+.drill-pips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0;
+}
+
+.drill-pip {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--c-dust);
+  border-radius: 50%;
+}
+
+.drill-pip.is-on {
+  border-color: var(--c-sun);
+  background: var(--c-sun);
+}
+
+.drill-bonus {
+  margin-left: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-cream);
+}
+
+.drill-track-btns {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.drill-reset {
+  min-height: 44px;
+}
+
+@media (max-width: 400px) {
+  .drill-row {
+    flex-wrap: wrap;
+  }
+
+  .drill-track-btns,
+  .drill-track-btns .btn {
+    width: 100%;
+  }
+}
+
 .vv-sheet .chip {
   font-size: 13px;
 }

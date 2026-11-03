@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type MeResponse } from '@clanfire/engine';
+import { GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
@@ -80,7 +80,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     { schema: registerSchema, onRequest: rateLimit(ctx, 'register') },
     async (req, reply): Promise<MeResponse> => {
       if (req.body.chieftain !== undefined) checkChieftain(req.body.chieftain);
-      const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain);
+      const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
       setSession(reply, grant);
       void reply.code(201);
       return { player: ctx.auth.toDto(grant.player) };
@@ -91,7 +91,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/auth/login',
     { schema: loginSchema, onRequest: rateLimit(ctx, 'login') },
     async (req, reply): Promise<MeResponse> => {
-      const grant = await ctx.auth.login(req.body.username, req.body.password);
+      const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
       setSession(reply, grant);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -110,6 +110,15 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       checkChieftain(req.body.chieftain);
       return { player: ctx.auth.toDto(ctx.auth.setChieftain(playerOf(req), req.body.chieftain)) };
     },
+  );
+
+  app.post<{ Body: HouseholdRequest }>(
+    '/api/me/household',
+    {
+      onRequest: requireAuth(ctx),
+      schema: { body: { type: 'object', required: ['shared'], additionalProperties: false, properties: { shared: { type: 'boolean' } } } },
+    },
+    async (req): Promise<MeResponse> => ({ player: ctx.auth.toDto(ctx.auth.setHouseholdShared(playerOf(req), req.body.shared)) }),
   );
 
   app.get('/api/auth/me', async (req): Promise<MeResponse> => {

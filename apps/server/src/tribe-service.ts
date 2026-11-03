@@ -678,7 +678,7 @@ export class TribeService {
   // ---- internals: views --------------------------------------------------------------------------------
 
   private summary(r: RankedTribeRow, rank: number): TribeSummaryDto {
-    return { id: r.id, name: r.name, tag: r.tag, members: r.members, points: r.points, recruitment: r.recruitment, rank };
+    return { id: r.id, name: r.name, tag: r.tag, members: r.members, points: r.points, villages: r.villages, recruitment: r.recruitment, rank };
   }
 
   private tribeDto(tribeId: number, t: number): TribeDto {

@@ -30,6 +30,15 @@ export function giveTroops(app: App, p: P, add: Partial<Units>): void {
   store.saveVillage(v.id, v.state, v.points);
 }
 
+/** Give the player's first village a Pathfinder Keen rank (saved straight into its state; no Drillyard needed). */
+export function giveKeen(app: App, p: P, keen: number): void {
+  const store = app.ctx.store;
+  const v = store.villagesOfPlayer(p.id)[0];
+  assert.ok(v, 'player has a village');
+  v.state.ranks = { ...v.state.ranks, pathfinder: { might: 0, bulwark: 0, keen } };
+  store.saveVillage(v.id, v.state, v.points);
+}
+
 /** End beginner protection (a protected player cannot be attacked or scouted). */
 export function unprotect(app: App, ...players: P[]): void {
   for (const p of players) app.ctx.store.setProtectedUntil(p.id, 0);

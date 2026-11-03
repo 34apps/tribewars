@@ -1,8 +1,8 @@
 import { createContext, useContext } from 'react';
 import type { Mission, MovementDto, OwnVillageDto, PlayerDto, SendResponse, StationedDto, VillageState, WorldSettings } from '@clanfire/engine';
 
-export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe';
-export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe'];
+export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe' | 'ranks';
+export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe', 'ranks'];
 
 /** A tribe the Tribe tab should open in its public view. */
 export interface TribeTarget {

@@ -20,6 +20,11 @@ const TAP_SLOP_TOUCH = 9;
 const NARROW = '(max-width: 767px)';
 /** After the last wheel/pinch step, wait this long before rasterising sprites for the new zoom level. */
 const ZOOM_SETTLE_MS = 160;
+/** Tiles of map data fetched beyond the screen edge so chunks arrive before the player pans to them. */
+const PREFETCH_TILES = 12;
+/** Fling: stop below this speed (px/ms); velocity multiplies by FLING_DECAY per 16 ms. */
+const FLING_MIN = 0.03;
+const FLING_DECAY = 0.93;
 
 declare global {
   interface Window {
@@ -58,6 +63,10 @@ export function MapView({ active }: { active: boolean }) {
   const settleTimer = useRef(0);
   const marchTimer = useRef(0);
   const lastReadout = useRef('');
+  const lastEnsure = useRef({ cx: Infinity, cy: Infinity, tile: 0 });
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  /** Fling momentum after a drag: velocity in CSS px per ms, and the running animation. */
+  const fling = useRef({ vx: 0, vy: 0, raf: 0, last: 0 });
 
   const [selected, setSelected] = useState<Coords | null>(null);
   /** Mission asked for by the tab that sent us here (tribe alert -> support); cleared by any tap on the map. */
@@ -76,12 +85,16 @@ export function MapView({ active }: { active: boolean }) {
 
   const size = () => ({ w: sizeRef.current.w, h: sizeRef.current.h });
 
-  const ensureChunks = useCallback(() => {
+  const ensureChunks = useCallback((force = true) => {
     const { w, h } = sizeRef.current;
     if (w === 0 || h === 0) return;
     const v = viewRef.current;
-    const b = visibleTileBounds(v, { w, h }, 3);
-    chunks.ensure(b.x0, b.y0, b.x1, b.y1, v.cx, v.cy, (x0, y0, x1, y1) => rectOnScreen(v, { w, h }, x0, y0, x1, y1, v.tile * 2));
+    // While panning, only re-plan when the view moved a few tiles (or zoomed); the plan covers a prefetch margin.
+    const last = lastEnsure.current;
+    if (!force && Math.abs(v.cx - last.cx) + Math.abs(v.cy - last.cy) < 3 && v.tile === last.tile) return;
+    lastEnsure.current = { cx: v.cx, cy: v.cy, tile: v.tile };
+    const b = visibleTileBounds(v, { w, h }, PREFETCH_TILES);
+    chunks.ensure(b.x0, b.y0, b.x1, b.y1, v.cx, v.cy, (x0, y0, x1, y1) => rectOnScreen(v, { w, h }, x0, y0, x1, y1, v.tile * PREFETCH_TILES));
   }, [chunks]);
 
   // `schedule` is defined below; frames re-arm themselves through this ref.
@@ -93,13 +106,14 @@ export function MapView({ active }: { active: boolean }) {
     const canvas = canvasRef.current;
     const { w, h, dpr } = sizeRef.current;
     if (!canvas || w === 0 || h === 0 || !activeRef.current) return;
-    const ctx = canvas.getContext('2d');
+    // The board fills the whole canvas, so an opaque context is cheaper to composite.
+    const ctx = (ctxRef.current ??= canvas.getContext('2d', { alpha: false }));
     if (!ctx) return;
     // Draw with whole device pixels per tile so cached bitmaps blit 1:1 without resampling;
     // the precise zoom stays in viewRef so small wheel steps still add up.
     const view = { ...viewRef.current, tile: Math.round(viewRef.current.tile * dpr) / dpr };
     drawnViewRef.current = view;
-    ensureChunks();
+    ensureChunks(false);
     const t0 = performance.now();
     const quick = t0 - zoomedAt.current < ZOOM_SETTLE_MS;
     const res = drawMap({
@@ -191,6 +205,7 @@ export function MapView({ active }: { active: boolean }) {
     return () => {
       ro.disconnect();
       window.cancelAnimationFrame(rafRef.current);
+      window.cancelAnimationFrame(fling.current.raf);
       window.clearTimeout(settleTimer.current);
       window.clearTimeout(marchTimer.current);
       dirtyRef.current = false;
@@ -322,6 +337,7 @@ export function MapView({ active }: { active: boolean }) {
     }
     pointers.current.set(e.pointerId, p);
     const g = gesture.current;
+    stopFling();
     if (pointers.current.size === 1) {
       g.moved = false;
       g.multi = false;
@@ -358,6 +374,13 @@ export function MapView({ active }: { active: boolean }) {
     const v = viewRef.current;
     const g = gesture.current;
     if (pointers.current.size === 1) {
+      // Smoothed drag velocity for the fling on release.
+      const f = fling.current;
+      const nowMs = performance.now();
+      const dt = Math.max(1, nowMs - f.last);
+      f.vx = f.vx * 0.6 + ((p.x - prev.x) / dt) * 0.4;
+      f.vy = f.vy * 0.6 + ((p.y - prev.y) / dt) * 0.4;
+      f.last = nowMs;
       panBy(v, p.x - prev.x, p.y - prev.y);
       if (!g.moved && Math.hypot(p.x - g.startX, p.y - g.startY) > (e.pointerType === 'mouse' ? TAP_SLOP_MOUSE : TAP_SLOP_TOUCH)) g.moved = true;
       clampView(v, radius);
@@ -383,7 +406,44 @@ export function MapView({ active }: { active: boolean }) {
       const tile = tileAt(p.x, p.y);
       if (Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius) select(tile, { reveal: true });
       else select(null);
+    } else if (e.type === 'pointerup' && pointers.current.size === 0 && g.moved && !g.multi) {
+      startFling();
     }
+  }
+
+  function stopFling() {
+    const f = fling.current;
+    window.cancelAnimationFrame(f.raf);
+    f.raf = 0;
+    f.vx = 0;
+    f.vy = 0;
+    f.last = 0;
+  }
+
+  /** Keep gliding after a quick drag, slowing down; any touch stops it. */
+  function startFling() {
+    const f = fling.current;
+    // A pause before release means the player meant to stop.
+    if (performance.now() - f.last > 80 || Math.hypot(f.vx, f.vy) < FLING_MIN * 4) {
+      f.vx = 0;
+      f.vy = 0;
+      return;
+    }
+    let prevT = performance.now();
+    const step = (t: number) => {
+      const dt = Math.min(48, t - prevT);
+      prevT = t;
+      const v = viewRef.current;
+      panBy(v, f.vx * dt, f.vy * dt);
+      clampView(v, radius);
+      const k = Math.pow(FLING_DECAY, dt / 16);
+      f.vx *= k;
+      f.vy *= k;
+      schedule();
+      if (Math.hypot(f.vx, f.vy) > FLING_MIN) f.raf = window.requestAnimationFrame(step);
+      else f.raf = 0;
+    };
+    f.raf = window.requestAnimationFrame(step);
   }
 
   function onPointerLeave(e: PointerEvent<HTMLCanvasElement>) {

@@ -12,6 +12,7 @@ import { openDatabase } from '../../server/src/db.ts';
 import { GameService } from '../../server/src/game.ts';
 import { authRoutes } from '../../server/src/routes/auth.ts';
 import { gameRoutes } from '../../server/src/routes/game.ts';
+import { rankingRoutes } from '../../server/src/routes/rankings.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
 import { Store } from '../../server/src/store.ts';
@@ -114,6 +115,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   gameRoutes(fastifyLike, ctx);
   reportRoutes(fastifyLike, ctx);
   tribeRoutes(fastifyLike, ctx);
+  rankingRoutes(fastifyLike, ctx);
 
   let sessionToken = token;
 
