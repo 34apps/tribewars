@@ -2,7 +2,10 @@
 
 ## Last run
 
-2026-11-03: permissions in `scripts/agent/run.ts` already allowed `npm run check/build/build:preview`, `npm test`, `git add/commit/push origin main` (deny list blocks force push, other remotes, reset etc.), so no change was needed. Rewrote this handoff, added commit hashes to CHANGELOG, de-duplicated NEXT_STEPS. `npm run check` passed (engine + server 162 tests; checks passed).
+2026-11-03 (`66fd376`): rank reset in the Drillyard is now free (no gold; engine, UI, tests, GAME_DESIGN updated). Ring wall enlarged (`WALL_RING` 270x135 in `apps/web/src/art/buildings.ts`) and all 12 buildings re-placed inside it with more space; Drillyard is in the middle of the square.
+Left: layout was computed on paper, never looked at in a browser (check overlaps with the market-square art, roads, gates, the wall plot at the front-right, 360 px and 1440 px; tune `PLACEMENT`).
+Very next step: run `npm run dev:fast`, open a village, adjust positions.
+Checks passed (`npm run check`, `npm run build`).
 
 ## Read first
 `docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.

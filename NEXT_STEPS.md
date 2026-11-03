@@ -23,7 +23,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Tribe forum threads / mass message; player-to-player messages.
 
 ## Gameplay follow-ups
-- **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px and run `npm run build`; show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
+- **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px, and check the new village layout (bigger ring wall, buildings spread out, Drillyard in the middle: tune `PLACEMENT` in `apps/web/src/art/buildings.ts`); show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
 - Map panel for abandoned villages: show a rough strength hint (e.g. "weak / strong") so players
   don't send 3 Pikemen into a big one. Their map size (points) is also only refreshed when raided.
 - Market follow-ups: draw real Market sprites (placeholder = Storehouse; swap `FILE.market` in `apps/web/src/art/buildings.ts`, check scene spot); NPC villages have no Market; set `SANDBOX_USERS` on the live server if the owner's username differs.
