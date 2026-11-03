@@ -79,22 +79,50 @@ function fullGarrison(hallLevel: number): Units {
   return out;
 }
 
-/** An abandoned (computer-run) village of tier 1..5 created at time t. */
-export function createNpcVillage(tier: number, t: number): VillageState {
+/**
+ * An abandoned (computer-run) village of tier 1..5 created at time t.
+ * With `growthSeed` (expanding layout) it starts exactly like a new player village and grows in its own
+ * random building order; without, it starts at its tier's levels and grows in the fixed order.
+ */
+export function createNpcVillage(tier: number, t: number, growthSeed?: number): VillageState {
   if (!Number.isInteger(tier) || tier < 1 || tier > NPC_TIER_WEIGHTS.length) {
     throw new GameError('invalid_input', `Tier must be an integer from 1 to ${NPC_TIER_WEIGHTS.length}.`);
   }
   const v = emptyVillage(t);
-  for (const b of BUILDING_IDS) {
-    const rule = NPC_START_LEVELS[b];
-    const level = rule ? rule.perTier * tier + rule.offset : 0;
-    v.buildings[b] = Math.max(0, Math.min(level, NPC_MAX_LEVEL, BUILDINGS[b].maxLevel));
+  if (growthSeed === undefined) {
+    for (const b of BUILDING_IDS) {
+      const rule = NPC_START_LEVELS[b];
+      const level = rule ? rule.perTier * tier + rule.offset : 0;
+      v.buildings[b] = Math.max(0, Math.min(level, NPC_MAX_LEVEL, BUILDINGS[b].maxLevel));
+    }
+    const half = Math.floor(storageCap(v) * NPC_START_RESOURCE_SHARE);
+    for (const r of RESOURCE_IDS) v.resources[r] = r === 'gold' ? NPC_START_GOLD_PER_TIER * tier : half;
+  } else {
+    for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
+    v.resources = { ...START_RESOURCES };
   }
-  const half = Math.floor(storageCap(v) * NPC_START_RESOURCE_SHARE);
-  for (const r of RESOURCE_IDS) v.resources[r] = r === 'gold' ? NPC_START_GOLD_PER_TIER * tier : half;
   v.troops = fullGarrison(v.buildings.hall);
   v.npc = { tier, growthSteps: 0, createdAt: t };
+  if (growthSeed !== undefined) v.npc.growthSeed = growthSeed >>> 0;
   return v;
+}
+
+/** This village's growth order: the fixed one, or a seeded shuffle of it. */
+function growthOrder(seed: number | undefined): readonly BuildingId[] {
+  if (seed === undefined) return NPC_GROWTH_ORDER;
+  const out = [...NPC_GROWTH_ORDER];
+  let a = seed >>> 0;
+  const rnd = (): number => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [out[i], out[j]] = [out[j] as BuildingId, out[i] as BuildingId];
+  }
+  return out;
 }
 
 // ---- Settlement ---------------------------------------------------------------------------------
@@ -102,7 +130,7 @@ export function createNpcVillage(tier: number, t: number): VillageState {
 /** One abandoned-village growth step n: raise one building, refill part of the garrison. Returns whether anything changed. */
 function applyNpcStep(v: VillageState, n: number): boolean {
   let changed = false;
-  const order = NPC_GROWTH_ORDER;
+  const order = growthOrder(v.npc?.growthSeed);
   for (let k = 0; k < order.length; k++) {
     const b = order[(n + k) % order.length] as BuildingId;
     if (v.buildings[b] < Math.min(NPC_MAX_LEVEL, BUILDINGS[b].maxLevel)) {

@@ -173,6 +173,9 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   `NPC_RING_BASE` abandoned villages at evenly spaced angles `NPC_RING_MIN_RADIUS..MAX_RADIUS` tiles
   around them, plus up to `NPC_RING_EXTRA_MAX` extra ones, each with chance `NPC_RING_EXTRA_CHANCE`,
   so early raiding is close by and the owner of a village grows fast. Existing abandoned villages are never removed.
+  In this layout **every abandoned village (start rings and newcomer rings) starts exactly like a new player
+  village** (start levels and resources, same small garrison) and grows in its **own random building order**
+  (`npc.growthSeed`, a seeded shuffle of `NPC_GROWTH_ORDER`), so they develop in different directions.
   The default layout is `'scattered'` (everything above, random anywhere).
 - Terrain shares are tuned so mountains, lakes and forest leave room for many players (mountain+lake < 15% of tiles).
 - Beginner protection: nobody can attack the player's villages until

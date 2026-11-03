@@ -204,7 +204,7 @@ export class AuthService {
     this.store.insertVillage(playerId, name, spot.x, spot.y, villagePoints(state), state);
     if (!expanding) return;
     for (const p of generateNpcsForSpawn(spot, occupied, rng, this.settings)) {
-      const npc = createNpcVillage(p.tier, t);
+      const npc = createNpcVillage(p.tier, t, randomInt(0, 0xffffffff));
       this.store.insertVillage(null, NPC_VILLAGE_NAME, p.x, p.y, villagePoints(npc), npc);
     }
   }

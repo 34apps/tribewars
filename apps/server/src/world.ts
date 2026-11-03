@@ -1,5 +1,6 @@
 // World creation: settings are stored in the database on first start and win over the environment.
 
+import { randomInt } from 'node:crypto';
 import { DEFAULT_WORLD, createNpcVillage, generateExpandingStartNpcs, generateNpcPlacements, villagePoints, type WorldSettings } from '@clanfire/engine';
 import type { Store } from './store.ts';
 
@@ -33,8 +34,9 @@ export function initWorld(
     store.setMeta('world_settings', JSON.stringify(settings));
     store.setMeta('world_created_at', String(now));
     const placements = settings.layout === 'expanding' ? generateExpandingStartNpcs(settings) : generateNpcPlacements(settings);
+    const expanding = settings.layout === 'expanding';
     for (const p of placements) {
-      const state = createNpcVillage(p.tier, now);
+      const state = createNpcVillage(p.tier, now, expanding ? randomInt(0, 0xffffffff) : undefined);
       store.insertVillage(null, NPC_VILLAGE_NAME, p.x, p.y, villagePoints(state), state);
     }
   });

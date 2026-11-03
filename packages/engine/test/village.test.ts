@@ -189,6 +189,21 @@ describe('abandoned village growth', () => {
     );
   });
 
+  it('seeded villages start like a player village and grow in their own order', () => {
+    const player = createPlayerVillage(0);
+    const a = createNpcVillage(5, 0, 1);
+    assert.deepEqual(a.buildings, player.buildings);
+    assert.deepEqual(a.resources, player.resources);
+    assert.equal(a.npc?.growthSeed, 1);
+    const grown = (seed: number): string =>
+      JSON.stringify(settleVillage(createNpcVillage(1, 0, seed), 18 * HOUR, S1).buildings);
+    assert.equal(grown(7), grown(7));
+    const variants = new Set([1, 2, 3, 4, 5, 6, 7, 8].map(grown));
+    assert.ok(variants.size > 1);
+    const total = (v: VillageState): number => Object.values(v.buildings).reduce((x, y) => x + y, 0);
+    assert.equal(total(settleVillage(createNpcVillage(1, 0, 3), 18 * HOUR, S1)), total(createPlayerVillage(0)) + 3);
+  });
+
   it('steps are not repeated and speed shortens the interval', () => {
     const v = startOf();
     const a = settleVillage(v, 12 * HOUR, S1);

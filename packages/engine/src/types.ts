@@ -144,6 +144,8 @@ export interface NpcInfo {
   growthSteps: number;
   /** Growth clock origin. */
   createdAt: number;
+  /** Seed of this village's own growth order ('expanding' layout); absent = the fixed NPC_GROWTH_ORDER. */
+  growthSeed?: number;
 }
 
 export interface VillageState {
