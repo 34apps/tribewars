@@ -128,11 +128,21 @@ th[scope='row'] {
 .main-village:has(.vv-desktop) {
   overflow-y: auto;
   overflow-x: hidden;
+  container-type: size;
 }
 
 .vv-desktop {
   flex: none;
   min-height: 100%;
+  align-items: flex-start;
+}
+
+/* The board keeps exactly one screen of height and stays in view while the panel scrolls. */
+.vv-desktop > .vv-board {
+  position: sticky;
+  top: 14px;
+  flex: 1;
+  height: calc(100cqh - 30px);
 }
 
 .vv-side > * {
