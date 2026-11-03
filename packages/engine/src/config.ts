@@ -97,8 +97,6 @@ export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
 export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'];
 /** Full garrison = per-unit count * Town Hall level. */
 export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
-/** Each growth step refills this share of the full garrison (rounded up), never above full. */
-export const NPC_GARRISON_REGEN = 0.25;
 /** Growth steps applied per settle call at most; older steps are skipped (village is maxed by then anyway). */
 export const NPC_MAX_STEPS_PER_SETTLE = 500;
 

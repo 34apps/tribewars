@@ -82,6 +82,8 @@ export interface MovementRow {
   arriveAt: number;
   /** The home village's unit ranks when the army left (attack, scout, support). Null = none, e.g. returns and old rows. */
   ranks?: VillageRanks | null;
+  /** Test mode: fixed seconds for the return trip, set when sending. Null = normal travel time. */
+  returnSecs?: number | null;
 }
 
 export interface VillageStub {
@@ -182,7 +184,7 @@ export type FullReport = ReportRow & {
 };
 
 const MOVEMENT_VIEW_SQL = `
-SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json,
+SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json, m.return_secs,
        o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM movements m
@@ -252,6 +254,7 @@ function toMovement(r: Raw): MovementRow {
     departAt: r.depart_at as number,
     arriveAt: r.arrive_at as number,
     ranks: parseRanks(r.ranks_json),
+    returnSecs: (r.return_secs as number | null) ?? null,
   };
 }
 
@@ -755,7 +758,7 @@ export class Store extends SqlBase {
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
     return this.run(
-      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
       m.targetVillageId,
@@ -764,6 +767,7 @@ export class Store extends SqlBase {
       m.departAt,
       m.arriveAt,
       stampRanks(m.ranks),
+      m.returnSecs ?? null,
     ).id;
   }
 

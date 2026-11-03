@@ -199,24 +199,16 @@ describe('abandoned village growth', () => {
     assert.equal(fast.npc?.growthSteps, 1);
   });
 
-  it('refills a share of the garrison on each step, never above full', () => {
+  it('never recruits: the garrison stays as it is while buildings keep growing', () => {
     const v = startOf();
-    v.troops.pikeman = 0;
+    v.troops.pikeman = 1;
     v.troops.guard = 0;
-    const one = settleVillage(v, 6 * HOUR, S1);
-    // hall 1 -> full pikeman 4 / guard 2; regen = ceil(25%) = 1 / 1
-    assert.equal(one.troops.pikeman, 1);
-    assert.equal(one.troops.guard, 1);
-    const four = settleVillage(v, 24 * HOUR, S1); // steps 0-3 raise lumber, farm, mine, storehouse
-    assert.equal(four.troops.pikeman, 4);
-    assert.equal(four.troops.guard, 2);
-    // Step 4 raises the hall to 2: full becomes 8 / 4 and regen 2 / 1.
     const five = settleVillage(v, 30 * HOUR, S1);
-    assert.equal(five.buildings.hall, 2);
-    assert.equal(five.troops.pikeman, 6);
-    assert.equal(five.troops.guard, 3);
-    const full = settleVillage(startOf(), 6 * HOUR, S1);
-    assert.equal(full.troops.pikeman, 4); // already full, stays full
+    assert.equal(five.buildings.hall, 2); // growth still happens
+    assert.equal(five.troops.pikeman, 1);
+    assert.equal(five.troops.guard, 0);
+    const full = settleVillage(startOf(), 30 * HOUR, S1);
+    assert.equal(full.troops.pikeman, 4); // what it had stays
   });
 
   it('stops at the max level and is cheap even when thousands of steps are overdue', () => {
@@ -227,8 +219,7 @@ describe('abandoned village growth', () => {
     for (const b of ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'] as const) {
       assert.equal(out.buildings[b], 10);
     }
-    assert.equal(out.troops.pikeman, 40);
-    assert.equal(out.troops.guard, 20);
+    assert.deepEqual(out.troops, v.troops); // no recruiting
     assert.equal(out.npc?.growthSteps, Math.floor((1e6 * HOUR) / (6 * HOUR)));
     // Nothing else grows once everything is maxed.
     assert.equal(out.buildings.barracks, 0);

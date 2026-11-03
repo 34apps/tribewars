@@ -352,7 +352,7 @@ export class GameService {
 
     let spawned: number | null = null;
     if (survived) {
-      const back = travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
+      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
       spawned = at + back;
       this.store.insertMovement({
         kind: 'return',
@@ -561,7 +561,7 @@ export class GameService {
 
     let spawned: number | null = null;
     if (totalUnits(survivors) > 0) {
-      spawned = at + travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, s);
+      spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, s));
       this.store.insertMovement({
         kind: 'return',
         originVillageId: origin.id,
@@ -838,8 +838,10 @@ export class GameService {
    * Send troops on a mission (attack, scout or support). Order of checks: the target exists and is not yours, the
    * relation and beginner protection allow the mission, the army suits the mission, the troops are at home.
    */
-  send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number): SendResponse {
+  send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}): SendResponse {
     const s = this.settings;
+    const custom = timing.travelSeconds !== undefined || timing.returnSeconds !== undefined;
+    if (custom && !this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
       const target = this.store.getVillageAt(x, y);
@@ -865,9 +867,10 @@ export class GameService {
       const check = checkSend(settled, army);
       if (!check.ok) throw new GameError(check.reason, check.message);
       const next = applySend(settled, check.units, t, s);
-      const travel = travelTimeMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, check.units, s);
+      const travel = timing.travelSeconds !== undefined ? timing.travelSeconds * 1000 : travelTimeMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, check.units, s);
 
       const movementId = this.store.insertMovement({
+        returnSecs: timing.returnSeconds ?? null,
         kind: mission,
         originVillageId: v.id,
         targetVillageId: target.id,

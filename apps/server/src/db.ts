@@ -21,7 +21,8 @@ const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${n
   loot_json         TEXT,
   depart_at         INTEGER NOT NULL,
   arrive_at         INTEGER NOT NULL,
-  ranks_json        TEXT
+  ranks_json        TEXT,
+  return_secs       INTEGER
 );`;
 
 /** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
@@ -347,6 +348,9 @@ function addMissingColumns(db: DatabaseSync): void {
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
   if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).
+  // Test mode only: fixed travel seconds for the way home, chosen when sending.
+  const moveCols = db.prepare('PRAGMA table_info(movements)').all() as Array<{ name: string }>;
+  if (!moveCols.some((c) => c.name === 'return_secs')) db.exec('ALTER TABLE movements ADD COLUMN return_secs INTEGER');
   for (const table of ['movements', 'stationed']) {
     const t = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (!t.some((c) => c.name === 'ranks_json')) db.exec(`ALTER TABLE ${table} ADD COLUMN ranks_json TEXT`);

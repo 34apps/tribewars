@@ -44,6 +44,9 @@ function SendForm({
   const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Test mode only: own seconds for the way out / home (blank = normal travel time).
+  const [outSecs, setOutSecs] = useState('');
+  const [backSecs, setBackSecs] = useState('');
 
   // The relation can change while the panel is open (a pact formed): fall back to an allowed mission.
   const mission: Mission = missions.includes(chosenMission) ? chosenMission : fallback;
@@ -92,7 +95,14 @@ function SendForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission });
+      const timing: { travelSeconds?: number; returnSeconds?: number } = {};
+      if (player.sandbox) {
+        const o = outSecs.trim() === '' ? NaN : Number(outSecs);
+        const b = backSecs.trim() === '' ? NaN : Number(backSecs);
+        if (Number.isInteger(o) && o >= 0 && o <= 86400) timing.travelSeconds = o;
+        if (fights && Number.isInteger(b) && b >= 0 && b <= 86400) timing.returnSeconds = b;
+      }
+      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...timing });
       applySend(res);
       setCounts({});
       toast(`${SENT_TOAST[mission]} ${target.name}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
@@ -180,6 +190,39 @@ function SendForm({
             </div>
           )}
         </dl>
+      )}
+      {player.sandbox && (
+        <div className="wm-muted">
+          <strong>Test mode:</strong> own travel time in seconds (blank = normal)
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <input
+              className="wm-input"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={86400}
+              step={1}
+              placeholder="Way out (s)"
+              aria-label="Test mode: seconds on the way out"
+              value={outSecs}
+              onChange={(e) => setOutSecs(e.target.value)}
+            />
+            {fights && (
+              <input
+                className="wm-input"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={86400}
+                step={1}
+                placeholder="Way home (s)"
+                aria-label="Test mode: seconds on the way home"
+                value={backSecs}
+                onChange={(e) => setBackSecs(e.target.value)}
+              />
+            )}
+          </div>
+        </div>
       )}
       {breaksProtection && !targetProtected && (
         <p className="wm-note">{scouting ? 'Scouting' : 'Attacking'} another player ends your beginner protection.</p>

@@ -61,6 +61,25 @@ test('clear-abandoned: refuses others; afterwards every abandoned village has no
   }
 });
 
+test('own timing: test-mode accounts set the way out and home; others are refused', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  giveTroops(app, alice, { raider: 5 });
+  giveTroops(app, bob, { raider: 5 });
+  const home = await alice.c.village();
+  const target = await bob.c.village();
+  const body = { x: target.x, y: target.y, units: { raider: 5 }, mission: 'attack' };
+  const bobHome = await bob.c.village();
+  errorOf(await bob.c.post(`/api/villages/${bobHome.id}/send`, { x: home.x, y: home.y, units: { raider: 5 }, mission: 'attack', travelSeconds: 5 }), 403, 'forbidden');
+  errorOf(await alice.c.post(`/api/villages/${home.id}/send`, { ...body, travelSeconds: -1 }), 400, 'invalid_input');
+  const res = await alice.c.post(`/api/villages/${home.id}/send`, { ...body, travelSeconds: 30, returnSeconds: 45 });
+  ok(res, 201);
+  const m = res.json<{ movement: { departAt: number; arriveAt: number } }>().movement;
+  assert.equal(m.arriveAt - m.departAt, 30_000);
+  const row = app.ctx.store.db.prepare('SELECT return_secs FROM movements').get() as { return_secs: number };
+  assert.equal(row.return_secs, 45);
+});
+
 test('max: every building at max, stores full, an army of every unit, queues cleared; reset: fresh village', async () => {
   const { app, alice, bob } = await world();
   app.ctx.store.sandboxUsers = new Set(['alice']);

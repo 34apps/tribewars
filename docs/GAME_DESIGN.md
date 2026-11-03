@@ -144,8 +144,8 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Full garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit.
 - **Growth:** every `npcGrowthHours / speed` hours since `createdAt` is one step. Step n raises
   `NPC_GROWTH_ORDER[n % length]` by one level (skip buildings at `NPC_MAX_LEVEL`; if all are maxed,
-  nothing grows) and refills `ceil(full × NPC_GARRISON_REGEN)` of each garrison unit (never above
-  full). Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses
+  nothing grows). **Abandoned villages never recruit** (owner, 2026-11-03): the garrison they have
+  stays as it is, it is never refilled. Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses
   the levels at that time (accuracy within one step is fine).
 - They produce resources like player villages (no upkeep), which is what raiders take.
 
@@ -425,8 +425,9 @@ stay), build/train queues cleared. **Reset**: each village becomes a fresh start
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
 changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
 the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). **Empty abandoned villages** (`POST /api/sandbox/clear-abandoned`, no body): every
-abandoned village is settled to now and its troops set to zero; the garrison refills slowly through the normal growth
-steps, so the button can be pressed again. Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
+abandoned village is settled to now and its troops set to zero (garrisons never refill). **Own timing**: `POST /api/villages/:id/send` also
+takes `travelSeconds` and `returnSeconds` (integers 0–86400, test-mode accounts only, others get `forbidden`): the way out takes exactly that long, and
+the way home after the battle or scout (stored on the movement as `return_secs`). Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
 
 ### Mail (player-to-player messages)

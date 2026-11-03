@@ -80,6 +80,8 @@ const sendBody = {
     y: COORD,
     units: unitsObject,
     mission: { type: 'string', enum: [...MISSIONS] },
+    travelSeconds: { type: 'integer', minimum: 0, maximum: 86400 },
+    returnSeconds: { type: 'integer', minimum: 0, maximum: 86400 },
   },
 } as const;
 
@@ -188,8 +190,8 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/send',
     { ...auth, schema: { params: idParams, body: sendBody } },
     async (req, reply): Promise<SendResponse> => {
-      const { x, y, units, mission } = req.body;
-      const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs);
+      const { x, y, units, mission, travelSeconds, returnSeconds } = req.body;
+      const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs, { travelSeconds, returnSeconds });
       void reply.code(201);
       return res;
     },

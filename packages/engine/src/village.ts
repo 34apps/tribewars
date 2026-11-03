@@ -6,7 +6,6 @@ import {
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
   NPC_GARRISON_PER_HALL,
-  NPC_GARRISON_REGEN,
   NPC_GROWTH_ORDER,
   NPC_MAX_LEVEL,
   NPC_MAX_STEPS_PER_SETTLE,
@@ -109,16 +108,7 @@ function applyNpcStep(v: VillageState, n: number): boolean {
       break;
     }
   }
-  const full = fullGarrison(v.buildings.hall);
-  for (const u of UNIT_IDS) {
-    if (full[u] <= 0) continue;
-    const regen = Math.ceil(full[u] * NPC_GARRISON_REGEN);
-    const next = Math.max(v.troops[u], Math.min(full[u], v.troops[u] + regen));
-    if (next !== v.troops[u]) {
-      v.troops[u] = next;
-      changed = true;
-    }
-  }
+  // Abandoned villages never recruit: the garrison they have stays as it is (owner, 2026-11-03).
   return changed;
 }
 

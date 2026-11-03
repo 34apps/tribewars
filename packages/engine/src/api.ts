@@ -211,6 +211,10 @@ export interface SendRequest extends Coords {
   units: Partial<Units>;
   /** attack (default rules), scout (Pathfinders only) or support (tribe-mates and allies only). */
   mission: Mission;
+  /** Test mode only (accounts on the sandbox list; others get `forbidden`): fixed seconds for the way out. 0 = arrives at once. */
+  travelSeconds?: number;
+  /** Test mode only: fixed seconds for the way home after the battle. */
+  returnSeconds?: number;
 }
 
 /**
