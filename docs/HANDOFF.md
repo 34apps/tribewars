@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`2c4b462`): committed the tribe forum + per-member tribe rights (server forum-service/store/routes, web tribe/Forum.tsx, tests). No type errors were left; I did not do a line-by-line code review.
-Left: look at the forum in a browser; tribe mass message (NEXT_STEPS).
-Very next step: run `npm run dev:fast`, open a tribe and try the Forum tab and rights.
-Checks passed (type-check, 194 + 181 tests, build).
+2026-11-03 (`25ff8fe`): Pop chip in top bar; player stats + achievements on profile (PlayerProfileDto gained `stats`, `achievements`); caretaker bot for players idle 3+ days (builds only, no troops/sends; `runCaretaker` every 60 s).
+Left: none of it seen in a browser; tune BOT_*/tiers; tribe mass message; forum still unseen.
+Very next step: `npm run dev:fast`, open a profile from Ranks and check the Pop chip at 360 px.
+Checks passed (type-check, 206 + 190 tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
