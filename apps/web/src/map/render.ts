@@ -38,6 +38,9 @@ export interface Scene {
 }
 
 /** A drawn village sprite, kept for picking (front-most last). */
+/** Abandoned villages are drawn at this share of the player-village size. */
+const RUIN_DRAW_SCALE = 0.7;
+
 export interface DrawnVillage {
   village: MapVillageDto;
   sprite: string;
@@ -279,7 +282,7 @@ export function drawMap(sc: Scene): FrameResult {
         drawn.push(drawVillage(ctx, painter, vil, gx, gy, s));
         if (isSel) {
           const top = vil.kind === 'abandoned' ? RUIN_TOP[ruinStage(vil.points) - 1] : STAGE_TOP[mapStage(vil.points) - 1];
-          pointerAt = { x: gx, y: gy + ((top ?? -80) - 16) * s };
+          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : 1) - 16) * s };
         }
       } else if (isSel) {
         pointerAt = { x: gx, y: gy - 34 * s };
@@ -384,7 +387,9 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     }
   });
 
-  if (!painter.draw(sprite, x, y)) {
+  // Ruins are drawn smaller than player villages so they never dominate the map.
+  const k = abandoned ? RUIN_DRAW_SCALE : 1;
+  if (!painter.draw(sprite, x, y, k)) {
     ctx.beginPath();
     ctx.arc(x, y - 10 * s, 14 * s, 0, Math.PI * 2);
     ctx.fillStyle = style.ring;
@@ -437,7 +442,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     });
   }
 
-  return { village: v, sprite, x, y, scale: s };
+  return { village: v, sprite, x, y, scale: s * k };
 }
 
 function drawFlatTile(ctx: CanvasRenderingContext2D, code: number, x: number, y: number, s: number): void {

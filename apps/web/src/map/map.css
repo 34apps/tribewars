@@ -236,6 +236,45 @@
   pointer-events: none;
 }
 
+.wm-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  min-width: 150px;
+  max-width: 260px;
+  border-radius: 10px;
+  background: rgba(43, 33, 28, 0.94);
+  color: var(--wm-paper);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wm-tip[hidden] {
+  display: none;
+}
+
+.wm-tip-head {
+  padding: 6px 12px;
+  font-weight: 700;
+  background: rgba(255, 248, 232, 0.14);
+}
+
+.wm-tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 12px;
+}
+
+@media (hover: none) {
+  .wm-tip {
+    display: none;
+  }
+}
+
 .wm-readout:empty {
   display: none;
 }

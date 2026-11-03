@@ -45,6 +45,7 @@ export function MapView({ active }: { active: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const readoutRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View>({ cx: village.x, cy: village.y, tile: DEFAULT_TILE });
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
   const selectedRef = useRef<Coords | null>(null);
@@ -327,8 +328,49 @@ export function MapView({ active }: { active: boolean }) {
     return v ? { x: v.x, y: v.y } : pickTile(drawnViewRef.current, size(), terrain, x, y);
   };
 
+  /** Hover card next to the mouse for the village under it (name, coordinates, points, owner). */
+  function showTip(tile: Coords, px: number, py: number) {
+    const el = tipRef.current;
+    if (!el) return;
+    const v = Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius ? chunks.villageAt(tile.x, tile.y) : null;
+    if (!v) {
+      el.hidden = true;
+      return;
+    }
+    const abandoned = v.kind === 'abandoned';
+    const rows: [string, string][] = [['Points', String(v.points)]];
+    if (!abandoned && v.ownerName) rows.push(['Owner', v.tribeTag ? `${v.ownerName} [${v.tribeTag}]` : v.ownerName]);
+    el.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'wm-tip-head';
+    head.textContent = `${abandoned ? 'Abandoned village' : v.name} (${v.x}|${v.y})`;
+    el.append(head);
+    for (const [k, val] of rows) {
+      const row = document.createElement('div');
+      row.className = 'wm-tip-row';
+      const a = document.createElement('span');
+      a.textContent = k;
+      const b = document.createElement('b');
+      b.textContent = val;
+      row.append(a, b);
+      el.append(row);
+    }
+    el.hidden = false;
+    const { w, h } = size();
+    const tw = el.offsetWidth;
+    const th = el.offsetHeight;
+    const left = px + 16 + tw > w ? Math.max(4, px - 12 - tw) : px + 16;
+    const top = py + 16 + th > h ? Math.max(4, py - 12 - th) : py + 16;
+    el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+  }
+
+  function hideTip() {
+    if (tipRef.current) tipRef.current.hidden = true;
+  }
+
   function onPointerDown(e: PointerEvent<HTMLCanvasElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    hideTip();
     const p = local(e);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -367,6 +409,7 @@ export function MapView({ active }: { active: boolean }) {
           hoverRef.current = tile;
           schedule();
         }
+        showTip(tile, p.x, p.y);
       }
       return;
     }
@@ -447,6 +490,7 @@ export function MapView({ active }: { active: boolean }) {
   }
 
   function onPointerLeave(e: PointerEvent<HTMLCanvasElement>) {
+    hideTip();
     if (e.pointerType === 'mouse' && hoverRef.current) {
       hoverRef.current = null;
       schedule();
@@ -540,6 +584,7 @@ export function MapView({ active }: { active: boolean }) {
           <Legend />
         </div>
         <div className="wm-readout" ref={readoutRef} aria-live="off" />
+        <div className="wm-tip" ref={tipRef} hidden aria-hidden="true" />
         <div className="wm-zoom">
           <button type="button" className="wm-btn wm-btn-icon" onClick={() => zoomBy(1.3)} aria-label="Zoom in">
             <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
