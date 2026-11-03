@@ -86,16 +86,18 @@ Long write-ups go under `docs/` and get grepped.
 repo root, loads `CLAUDE.md`/`AGENTS.md` (project settings only), streams text and tool names, then
 prints status, turns, duration and cost per model. It **bills the `ANTHROPIC_API_KEY`** in the
 environment (required; no subscription fallback). Flags: `--model` (default `claude-sonnet-5-5`),
-`--max-usd` (default 2, hard stop), `--max-turns` (default 40). Safety: no prompts (`dontAsk`); allowed
+`--budget <usd>` (default 10, hard stop; `--max-usd` still works), `--max-turns` (default 40). Safety: no prompts (`dontAsk`); allowed
 are Read/Glob/Grep/Edit/Write and Bash only for `npm run check|build|build:preview`, `npm test*`,
 `git status|diff|log`, plus `git add`, `git commit` and `git push origin main` (this repo only; force
 push, other branches/remotes, reset, checkout, rebase, clean, rm, installs, curl and web tools are
 denied). Cost is the SDK's estimate, not the invoice.
 
-**Memory:** by default each run *resumes the previous run's conversation* (Agent SDK `resume`; the
-session id is stored in `.agent/last-session`). `npm run agent -- --new "task"` starts a fresh
-conversation. Every successful run's final answer is written to `.agent/last-reply.md`. `.agent/` is
-git-ignored. Long chains get expensive (history is re-read): use `--new` for unrelated tasks.
+**Memory (cheap):** every run starts a *fresh* conversation (no session resume), so cost does not grow
+with history. Every successful run's final answer is written to `.agent/last-reply.md` (capped at 60
+lines) and the next run gets it as context in front of its task, so follow-ups like "do step 2" work.
+For the rare task that needs the full previous conversation, use `npm run agent -- --continue "task"`
+(Agent SDK `resume`; session id in `.agent/last-session`). `--new` is accepted and does nothing (fresh is
+the default). `.agent/` is git-ignored.
 
 **Every run finishes its own task completely** (the run prompt in `scripts/agent/run.ts` enforces this):
 - *Question-only run* (answer/explain/review): changes nothing, commits nothing.

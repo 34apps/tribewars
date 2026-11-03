@@ -30,7 +30,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run check` — type-check + all tests. **Must pass before every commit.**
 - `npm run build` — production build of the web client.
 - `npm run build:preview` / `npm run dev:preview` — build / hot-reload the single-file preview (`apps/preview`).
-- `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--model`, `--max-usd`, `--max-turns`); see `docs/AI-WORKFLOW.md`.
+- `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--budget`, `--model`, `--max-turns`, `--continue`); see `docs/AI-WORKFLOW.md`.
 - `npm start` — production server (serves the built client).
 
 ## Rules

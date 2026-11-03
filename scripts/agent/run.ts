@@ -1,5 +1,8 @@
 // Runs one development task with the Claude Agent SDK, billed to ANTHROPIC_API_KEY.
-// Usage: npm run agent -- [--model id] [--max-usd n] [--max-turns n] "task text"
+// Usage: npm run agent -- [--budget n] [--model id] [--max-turns n] [--continue] "task text"
+// Every run starts a FRESH conversation. Memory between runs is the previous final answer (.agent/last-reply.md,
+// max 60 lines), given to the new run as context. --continue resumes the full previous conversation instead
+// (rare; costs more tokens).
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,9 +13,10 @@ const stateDir = join(repoRoot, ".agent");
 const sessionFile = join(stateDir, "last-session");
 const replyFile = join(stateDir, "last-reply.md");
 
-const USAGE = `Usage: npm run agent -- [--new] [--model <id>] [--max-usd <n>] [--max-turns <n>] "task text"
-By default continues the previous conversation; --new starts a fresh one.
-Defaults: --model claude-sonnet-5-5  --max-usd 2  --max-turns 40
+const USAGE = `Usage: npm run agent -- [--budget <usd>] [--model <id>] [--max-turns <n>] [--continue] "task text"
+Every run starts a fresh conversation and gets the previous final answer (.agent/last-reply.md) as context.
+--continue resumes the full previous conversation instead (rare; costs more tokens).
+Defaults: --model claude-sonnet-5-5  --budget 10  --max-turns 40
 Needs ANTHROPIC_API_KEY in the environment (billed to that key, never to a subscription).`;
 
 function fail(msg: string): never {
@@ -21,23 +25,24 @@ function fail(msg: string): never {
 }
 
 let model = "claude-sonnet-5-5";
-let maxUsd = 2;
+let maxUsd = 10;
 let maxTurns = 40;
-let fresh = false;
+let resume = false;
 const words: string[] = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "--help" || a === "-h") fail(USAGE);
-  else if (a === "--new") fresh = true;
-  else if (a === "--model" || a === "--max-usd" || a === "--max-turns") {
+  else if (a === "--continue") resume = true;
+  else if (a === "--new") resume = false; // old flag: a fresh conversation is the default now
+  else if (a === "--model" || a === "--budget" || a === "--max-usd" || a === "--max-turns") {
     const v = argv[++i];
     if (v === undefined) fail(`${a} needs a value.\n${USAGE}`);
     if (a === "--model") model = v;
     else {
       const n = Number(v);
       if (!Number.isFinite(n) || n <= 0) fail(`${a} must be a positive number.`);
-      if (a === "--max-usd") maxUsd = n;
+      if (a === "--budget" || a === "--max-usd") maxUsd = n;
       else maxTurns = Math.floor(n);
     }
   } else words.push(a);
@@ -51,7 +56,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const APPEND = `You are running unattended via "npm run agent" on the Clanfire repo (this repo only: never touch other repos). Follow AGENTS.md and docs/STANDARDS.md. Do not install packages. You cannot ask questions; make reasonable choices and state them in your final answer.
 
-Each run may continue an earlier conversation, but treat the task as its own: finish it completely and end in a clean state. Decide which kind of run this is:
+This run is a fresh conversation. The previous run's final answer may be given before the task as context (for follow-ups such as "do step 2"); treat the task as its own: finish it completely and end in a clean state. Decide which kind of run this is:
 
 A) Question-only run (the task only asks for an answer, explanation or review): change nothing. No file edits, no commit, no push. Just answer.
 
@@ -87,11 +92,26 @@ const disallowedTools = [
 ];
 
 let resumeId: string | undefined;
-if (!fresh && existsSync(sessionFile)) {
+if (resume && existsSync(sessionFile)) {
   const id = readFileSync(sessionFile, "utf8").trim();
   if (/^[0-9a-zA-Z-]{8,}$/.test(id)) resumeId = id;
 }
-console.log(resumeId ? `Continuing previous conversation (${resumeId}). Use --new for a fresh one.` : "Starting a new conversation.");
+if (resume && !resumeId) console.log("No previous conversation to continue; starting a fresh one.");
+console.log(resumeId ? `Continuing previous conversation (${resumeId}).` : "Starting a fresh conversation.");
+
+// Cheap memory: the previous final answer, capped, goes in front of the task.
+const REPLY_MAX_LINES = 60;
+const capLines = (text: string): string => {
+  const lines = text.trim().split("\n");
+  return lines.length <= REPLY_MAX_LINES ? lines.join("\n") : lines.slice(0, REPLY_MAX_LINES - 1).join("\n") + "\n[... shortened to 60 lines]";
+};
+let prompt = task;
+if (!resumeId && existsSync(replyFile)) {
+  const prev = capLines(readFileSync(replyFile, "utf8"));
+  if (prev) {
+    prompt = `Context only (final answer of the previous run; may be outdated, check the repo and docs/HANDOFF.md before relying on it):\n<previous-run>\n${prev}\n</previous-run>\n\nYour task now:\n${task}`;
+  }
+}
 
 const started = Date.now();
 let turns = 0;
@@ -100,7 +120,7 @@ let sawResult = false;
 
 try {
   const q = query({
-    prompt: task,
+    prompt,
     options: {
       cwd: repoRoot,
       model,
@@ -134,7 +154,7 @@ try {
       sawResult = true;
       if (m.subtype === "success" && typeof m.result === "string") {
         mkdirSync(stateDir, { recursive: true });
-        writeFileSync(replyFile, m.result.trim() + "\n");
+        writeFileSync(replyFile, capLines(m.result) + "\n");
       }
       turns = m.num_turns;
       const secs = (m.duration_ms / 1000).toFixed(1);
