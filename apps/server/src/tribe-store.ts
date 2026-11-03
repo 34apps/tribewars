@@ -35,6 +35,8 @@ export interface MemberRow {
   points: number;
   villageX: number;
   villageY: number;
+  /** Last request time (ms). */
+  lastActive: number;
 }
 
 export interface RankedTribeRow {
@@ -339,7 +341,7 @@ export class TribeStore extends SqlBase {
 
   members(tribeId: number): MemberRow[] {
     return this.all(
-      `SELECT m.player_id, p.username, p.chieftain, m.role, m.joined_at, m.grants,
+      `SELECT m.player_id, p.username, p.chieftain, m.role, m.joined_at, m.grants, COALESCE(p.last_active, p.created_at) AS last_active,
               (SELECT COALESCE(SUM(v.points), 0) FROM villages v WHERE v.owner_id = m.player_id) AS points,
               COALESCE((SELECT v.x FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vx,
               COALESCE((SELECT v.y FROM villages v WHERE v.owner_id = m.player_id ORDER BY v.id LIMIT 1), 0) AS vy
@@ -356,6 +358,7 @@ export class TribeStore extends SqlBase {
       points: r.points as number,
       villageX: r.vx as number,
       villageY: r.vy as number,
+      lastActive: r.last_active as number,
     }));
   }
 

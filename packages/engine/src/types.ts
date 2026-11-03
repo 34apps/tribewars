@@ -197,7 +197,8 @@ export type TribeAction =
   | 'disband'
   | 'chat'
   | 'forum_manage'
-  | 'forum_moderate';
+  | 'forum_moderate'
+  | 'view_activity';
 
 /** Result of a rule check. Server sends `reason` to the client as an error code. */
 export type CheckResult<T> = ({ ok: true } & T) | { ok: false; reason: GameErrorCode; message: string };

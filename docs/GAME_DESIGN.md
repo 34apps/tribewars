@@ -248,7 +248,7 @@ applications, proposals, relations and the forum.
 (`tribe_members.grants`, JSON, re-validated on read). Only the leader sets grants
 (`PUT /api/tribe/members/:id/permissions`); logged in the tribe event log. Grantable (`TRIBE_GRANTABLE`):
 `invite`, `handle_applications`, `kick` (still never over officers or the leader), `diplomacy`,
-`edit_settings`, `forum_manage`, `forum_moderate`. Never grantable (leader only): `set_roles`,
+`edit_settings`, `forum_manage`, `forum_moderate`, `view_activity`. Never grantable (leader only): `set_roles`,
 `transfer_leadership`, `disband`, changing grants. Grants are kept when the role changes and cleared
 when the member leaves or is removed. The tribe state carries `rights` (the caller's effective list).
 
@@ -256,8 +256,13 @@ when the member leaves or is removed. The tribe state carries `rights` (the call
 |---|---|---|---|
 | edit_settings, invite, handle_applications, kick, diplomacy | yes | yes | grant |
 | forum_manage, forum_moderate | yes | yes | grant |
+| view_activity | yes | yes | grant |
 | set_roles, transfer_leadership, disband | yes | no | never |
 | chat | yes | yes | yes |
+
+`view_activity`: the caller's own tribe view adds `lastActive` (from `players.last_active`, written at most every
+5 min) and `online` (active within `ONLINE_WINDOW_MS`, 10 min) to each `TribeMemberDto`; omitted without the right
+and in public tribe views. The client shows "Online" or "Offline · last seen 3d ago".
 
 **Forum.** Members only (everyone else gets `not_found`); text and emoji only. Boards (max
 `FORUM_BOARDS_MAX` = 8; defaults Announcements [leadership starts threads], General, Leadership
@@ -480,7 +485,8 @@ stored and sent as plain text and the client renders it as text (line breaks kep
   2026-11-03): a tribe member or leader who lost all villages stays in the tribe with the same role and rights and starts
   again like a new player; no automatic leave or leadership handover.
   Support the player had stationed in other villages simply stays there (owner, 2026-11-03): the host can send it
-  home (it lands in the now-abandoned village); nothing is deleted. Notice: each abandoned village adds 1 to
+  home (it lands in the now-abandoned village); nothing is deleted. The returning player gets no access to those old troops or villages (not listed, not
+  recallable; owner, 2026-11-03). Messages and tribe membership stay. Notice: each abandoned village adds 1 to
   `players.abandoned_notice`; `PlayerDto.abandonedNotice` (`{ villages, idleDays }`, days = `ABANDON_IDLE_DAYS / speed`)
   shows a banner on the village view ("You were away for N days, so your villages were abandoned ... you start over
   with a new village") until the player dismisses it (`POST /api/me/abandoned-notice/dismiss`).

@@ -41,6 +41,7 @@ const ACTIONS: TribeAction[] = [
   'chat',
   'forum_manage',
   'forum_moderate',
+  'view_activity',
 ];
 
 describe('explicit grants', () => {
@@ -87,6 +88,7 @@ describe('canTribe: who may do what', () => {
     ['chat', true, true, true],
     ['forum_manage', true, true, false],
     ['forum_moderate', true, true, false],
+    ['view_activity', true, true, false],
   ];
 
   it('matches the rules table for every action and role', () => {

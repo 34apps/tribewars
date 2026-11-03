@@ -60,6 +60,11 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
             {formatCoords(m.villageX, m.villageY)} on map
           </button>
           <span className="muted">joined {formatAgo(m.joinedAt, now)}</span>
+          {m.lastActive !== undefined && (
+            <span className={m.online ? undefined : 'muted'}>
+              {m.online ? '● Online' : `Offline · last seen ${formatAgo(m.lastActive, now)}`}
+            </span>
+          )}
         </div>
         {open && hasActions && (
           <div className="member-actions">

@@ -509,10 +509,12 @@ export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   // (or any other right in TRIBE_GRANTABLE) to a single member (docs/GAME_DESIGN.md section 11).
   forum_manage: ['leader', 'officer'],
   forum_moderate: ['leader', 'officer'],
+  // See each member's online status and last-online time (members' own tribe view only).
+  view_activity: ['leader', 'officer'],
 };
 
 /** Rights the leader may grant to an individual member (stored on the membership). Everything else stays role-bound. */
-export const TRIBE_GRANTABLE = ['invite', 'handle_applications', 'kick', 'diplomacy', 'edit_settings', 'forum_manage', 'forum_moderate'] as const satisfies readonly TribeAction[];
+export const TRIBE_GRANTABLE = ['invite', 'handle_applications', 'kick', 'diplomacy', 'edit_settings', 'forum_manage', 'forum_moderate', 'view_activity'] as const satisfies readonly TribeAction[];
 
 // ---- Tribe forum (docs/GAME_DESIGN.md section 11) ----
 export const FORUM_BOARD_NAME_MAX = 40;
@@ -610,6 +612,8 @@ export const BOT_BATCH_VILLAGES = 25;
 export const BOT_PASS_INTERVAL_MS = 60_000;
 /** A player's last_active is written at most this often (real ms), so reads never cause write storms. */
 export const ACTIVITY_WRITE_INTERVAL_MS = 5 * 60_000;
+/** A player counts as online when last_active is at most this old (real ms; two write intervals, so a steady player never flickers). */
+export const ONLINE_WINDOW_MS = 2 * ACTIVITY_WRITE_INTERVAL_MS;
 /** Relative chance that the caretaker picks a building; 0 = never. Troop buildings and the Drillyard are left alone. */
 export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
   hall: 2,

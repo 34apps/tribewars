@@ -486,6 +486,10 @@ export interface TribeMemberDto {
   joinedAt: number;
   /** Individual rights the leader granted on top of the role. Only filled in the caller's own tribe view, else omitted. */
   grants?: TribeAction[];
+  /** Last request time (ms, accurate to the 5-minute write interval). Only with the `view_activity` right, else omitted. */
+  lastActive?: number;
+  /** Active within ONLINE_WINDOW_MS. Only with the `view_activity` right, else omitted. */
+  online?: boolean;
 }
 
 export interface TribeRelationDto {

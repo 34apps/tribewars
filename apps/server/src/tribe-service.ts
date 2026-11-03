@@ -14,6 +14,7 @@ import {
   TRIBE_MAX_ALLIES,
   TRIBE_MAX_MEMBERS,
   TRIBE_MAX_NAPS,
+  ONLINE_WINDOW_MS,
   TRIBE_MAX_OPEN_INVITES,
   canKick,
   canTribe,
@@ -74,6 +75,7 @@ const DENIED: Record<TribeAction, string> = {
   chat: "You can't use the tribe chat.",
   forum_manage: "You don't have the right to manage the forum boards.",
   forum_moderate: "You don't have the right to moderate the forum.",
+  view_activity: "You don't have the right to see when members were last online.",
 };
 
 const RECRUITMENT_LABEL: Record<Recruitment, string> = {
@@ -712,7 +714,7 @@ export class TribeService {
   }
 
   /** `withGrants`: include each member's explicit grants (only for the tribe's own members). */
-  private tribeDto(tribeId: number, t: number, withGrants = false): TribeDto {
+  private tribeDto(tribeId: number, t: number, withGrants = false, withActivity = false): TribeDto {
     const tribe = this.tribeOrThrow(tribeId);
     const ranking = this.ts.ranking();
     const index = ranking.findIndex((r) => r.id === tribeId);
@@ -731,6 +733,7 @@ export class TribeService {
         villageY: x.villageY,
         joinedAt: x.joinedAt,
         ...(withGrants ? { grants: x.grants } : {}),
+        ...(withActivity ? { lastActive: x.lastActive, online: t - x.lastActive <= ONLINE_WINDOW_MS } : {}),
       }));
     return {
       ...this.summary(ranked, index + 1),
@@ -757,7 +760,7 @@ export class TribeService {
       };
     }
     return {
-      tribe: this.tribeDto(m.tribeId, t, true),
+      tribe: this.tribeDto(m.tribeId, t, true, canTribe(m.role, 'view_activity', m.grants)),
       role: m.role,
       invites: canTribe(m.role, 'invite', m.grants) ? this.ts.invitesOfTribe(m.tribeId, t).map(inviteDto) : [],
       applications: canTribe(m.role, 'handle_applications', m.grants) ? this.ts.applicationsOfTribe(m.tribeId).map(applicationDto) : [],
