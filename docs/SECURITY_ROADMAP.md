@@ -60,6 +60,7 @@ Status: ✅ done · ◐ partly · ☐ open.
 - ☐ **CI:** run `npm run check` + `npm run build` + audit on every push.
 
 ### Phase 2 — before opening to strangers
+- 🟡 **Mail** (player-to-player, 2026-11-03): ✅ input schema (recipient/subject/body types and lengths, unknown fields refused), ✅ text only, same sanitiser as tribe chat, rendered as React text (`white-space: pre-wrap`), no markup/images/attachments, ✅ rate limit per sender (gap, per minute, per hour), ✅ inbox cap per recipient (`MAIL_INBOX_KEEP`), ✅ authorisation: only sender/recipient read or delete, others get `not_found`, ✅ tests in `apps/server/test/mail.test.ts`. Open: block/mute and report-abuse, audit log entry, multi-account mail spam (per-recipient cap per sender), admin review of reported mail.
 - ☐ **Abuse controls for user text** (names, tribe names/descriptions, chat, messages): length + charset limits (incl. homoglyph check noted in NEXT_STEPS), profanity/report/mute/block, render as text only (React escapes; never `dangerouslySetInnerHTML`).
 - ☐ **Audit log** table: logins, password changes, troop sends, tribe joins/leaves, admin actions (actor, ip, time). Append-only; never log secrets.
 - ☐ **Authorization tests:** every route has a test "player B cannot act on / read player A's village or report" (IDOR). Add as a standing test per new route.

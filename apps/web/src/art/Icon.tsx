@@ -178,6 +178,26 @@ const ICONS = {
       </>
     ),
   },
+  mail: {
+    vb: '0 0 32 32',
+    draw: (u) => (
+      <>
+        <T
+          u={u + '0'}
+          d="M4 8Q4 6 6 6L26 6Q28 6 28 8L28 24Q28 26 26 26L6 26Q4 26 4 24Z"
+          l="#FFF8E8"
+          k="#C6AF88"
+          m="#F1E1C2"
+          s={1.2}
+          x={-1.92}
+          y={-2.4}
+          w={1.8}
+        />
+        <path d="M5 8.5L16 17.5L27 8.5" fill="none" stroke="#7A5A3A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M5 24.5L12.5 15.5M27 24.5L19.5 15.5" fill="none" stroke="#C6AF88" strokeWidth="1.4" strokeLinecap="round" />
+      </>
+    ),
+  },
   tribe: {
     vb: '0 0 32 32',
     draw: (u) => (

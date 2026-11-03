@@ -211,7 +211,7 @@ function Tiles({ items }: { items: { label: string; value: string; sub?: string 
 }
 
 function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: PlayerRankDto[] | null; meId: number | null }) {
-  const { viewTribe, showOnMap } = useGame();
+  const { viewTribe, showOnMap, composeMail } = useGame();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<number | null>(null);
@@ -276,6 +276,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
     ],
     actions: [
       { label: 'Show on map', disabled: pickedRow.playerId < 0, onClick: () => showOnMap(pickedRow.villageX, pickedRow.villageY) },
+      ...(pickedRow.playerId > 0 && pickedRow.playerId !== meId ? [{ label: 'Send mail', onClick: () => composeMail(pickedRow.username) }] : []),
       ...(pickedRow.tribe && pickedRow.tribe.id > 0 ? [{ label: 'View tribe', onClick: () => viewTribe({ id: pickedRow.tribe!.id }) }] : []),
     ],
     note:

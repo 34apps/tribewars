@@ -190,6 +190,9 @@ export class FakeApp {
   post(path: string, a: RouteOptions | Handler, b?: Handler): void {
     this.add('POST', path, a, b);
   }
+  delete(path: string, a: RouteOptions | Handler, b?: Handler): void {
+    this.add('DELETE', path, a, b);
+  }
 
   private match(method: string, pathname: string): { route: Route; params: Record<string, string> } | null {
     const parts = pathname.split('/').filter(Boolean);

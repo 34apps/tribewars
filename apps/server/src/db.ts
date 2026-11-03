@@ -219,6 +219,22 @@ CREATE TABLE IF NOT EXISTS tribe_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_tribe_messages_tribe ON tribe_messages(tribe_id, id);
 
+-- ---- Mail: player-to-player messages (plain text). Each side hides its own copy; the row goes when both did.
+CREATE TABLE IF NOT EXISTS mail (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_player          INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  to_player            INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  subject              TEXT    NOT NULL,
+  body                 TEXT    NOT NULL,
+  created_at           INTEGER NOT NULL,
+  read_at              INTEGER,
+  deleted_by_sender    INTEGER NOT NULL DEFAULT 0,
+  deleted_by_recipient INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_mail_to     ON mail(to_player, created_at);
+CREATE INDEX IF NOT EXISTS idx_mail_from   ON mail(from_player, created_at);
+CREATE INDEX IF NOT EXISTS idx_mail_unread ON mail(to_player) WHERE read_at IS NULL AND deleted_by_recipient = 0;
+
 -- ---- Advisor (Mags, AI tips): one row per question sent to the model. Doubles as the rolling-hour rate limit
 -- (rows with ok = 1) and the token-usage log. Never stores the question or the answer.
 CREATE TABLE IF NOT EXISTS advisor_log (

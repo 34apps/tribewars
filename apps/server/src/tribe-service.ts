@@ -104,12 +104,12 @@ function invalid(message: string): GameError {
 }
 
 /** Plain-text user input: normalised newlines, trimmed, no control characters. Length is the caller's business. */
-function cleanText(raw: string, what: string): string {
+export function cleanText(raw: string, what: string): string {
   if (hasForbiddenChars(raw)) throw invalid(`${what} contains characters that are not allowed.`);
   return raw.replace(/\r\n?/g, '\n').trim();
 }
 
-const len = (s: string): number => [...s].length;
+export const len = (s: string): number => [...s].length;
 
 function fmtUtc(ms: number): string {
   return `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;

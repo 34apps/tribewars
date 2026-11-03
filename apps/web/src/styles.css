@@ -3426,6 +3426,172 @@ button.strip {
   }
 }
 
+/* ---- Mail ----------------------------------------------------------------------------------------- */
+
+.mail {
+  display: grid;
+  gap: 12px;
+}
+
+/* Phone: the list, or the open message / compose form, one at a time. */
+.mail:not(.has-pane) .mail-pane,
+.mail.has-pane .mail-list-card {
+  display: none;
+}
+
+.mail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mail-boxes {
+  flex: 1;
+  min-width: 160px;
+}
+
+.mail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.mail-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mail-item.is-selected {
+  border-color: var(--brand);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.mail-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mail-who,
+.mail-subject-line,
+.mail-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-when {
+  flex: none;
+  font-size: 0.82rem;
+}
+
+.mail-preview {
+  font-size: 0.86rem;
+}
+
+.mail-item.is-unread .mail-who,
+.mail-item.is-unread .mail-subject-line {
+  font-weight: 800;
+}
+
+.mail-more {
+  margin-top: 8px;
+}
+
+.mail-pane {
+  min-width: 0;
+}
+
+.mail-reader,
+.mail-compose {
+  display: grid;
+  gap: 10px;
+}
+
+.mail-back {
+  justify-self: start;
+}
+
+.mail-subject {
+  overflow-wrap: anywhere;
+}
+
+.mail-meta {
+  overflow-wrap: anywhere;
+}
+
+/* The body is untrusted text: keep line breaks, wrap long words, never treat it as markup. */
+.mail-text {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.mail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mail-body-input {
+  min-height: 160px;
+}
+
+.mail-emoji {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mail-emoji-btn {
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+}
+
+.mail-compose-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mail-hint {
+  padding: 24px;
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .mail {
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .mail:not(.has-pane) .mail-pane,
+  .mail.has-pane .mail-list-card {
+    display: block;
+  }
+
+  .mail-back {
+    display: none;
+  }
+}
+
 /* ---- Motion --------------------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {

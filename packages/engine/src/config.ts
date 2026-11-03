@@ -479,6 +479,21 @@ export const TRIBE_CHAT_KEEP = 500;
 /** Tribe event log entries kept per tribe. */
 export const TRIBE_EVENTS_KEEP = 200;
 
+// ---- Mail (player-to-player messages; docs/GAME_DESIGN.md section "Mail") ----------------------------------
+/** Subject length in characters (may be empty). */
+export const MAIL_SUBJECT_MAX = 60;
+/** Body length in characters (1 or more). */
+export const MAIL_BODY_MAX = 2000;
+/** Mails kept per recipient. When full, the oldest READ mail is dropped; if none is read the new mail is refused. */
+export const MAIL_INBOX_KEEP = 200;
+/** Spam guard per sender: at most this many mails per minute, this long between two, and this many per hour. */
+export const MAIL_PER_MINUTE = 6;
+export const MAIL_MIN_GAP_MS = 2000;
+export const MAIL_PER_HOUR = 60;
+/** Mails per list page and characters of body shown in the list preview. */
+export const MAIL_PAGE_SIZE = 30;
+export const MAIL_PREVIEW_CHARS = 120;
+
 /** Who may do what. The leader can always do everything. */
 export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   edit_settings: ['leader', 'officer'],

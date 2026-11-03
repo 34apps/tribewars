@@ -391,6 +391,25 @@ with its own outgoing movements and own stationed support removed; works at any 
 changed. Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
 
+### Mail (player-to-player messages)
+
+Inbox-style mail, not live chat. Text and emoji only: no images, attachments, links with markup or HTML; the body is
+stored and sent as plain text and the client renders it as text (line breaks kept). Same character rules as tribe chat
+(control characters, lone surrogates and bidi overrides are refused with `invalid_input`; tab and newline are fine).
+- A mail has a sender, one recipient (chosen by username, case-insensitive), a subject (0 to `MAIL_SUBJECT_MAX` = 60
+  characters) and a body (1 to `MAIL_BODY_MAX` = 2000 characters, counted in characters, trimmed). You cannot mail yourself;
+  an unknown username is `not_found`.
+- Each side has its own copy: deleting hides it for that side only; the row is removed when both sides deleted it.
+  Only sender and recipient can read or delete a mail; anyone else gets `not_found`.
+- The recipient reading a mail marks it read. The number of unread mails (`unreadMail` in `/api/state`) is the badge on the Mail tab.
+- Each recipient keeps at most `MAIL_INBOX_KEEP` = 200 mails. When full, their oldest read mail is dropped to make room;
+  if all 200 are unread the new mail is refused (`queue_full`, "inbox is full").
+- Spam guard per sender: at least `MAIL_MIN_GAP_MS` (2 s) between mails, `MAIL_PER_MINUTE` (6) per minute and
+  `MAIL_PER_HOUR` (60) per hour (`rate_limited`).
+- Lists page by 30 (`MAIL_PAGE_SIZE`), newest first, with a 120-character preview. There is no blocking yet.
+- Code: `engine/src/config.ts` (numbers), `api.ts` (contract), `server/src/mail-store.ts`, `mail-service.ts`, `routes/mail.ts`,
+  web `views/MailView.tsx`.
+
 ## 14. Roadmap (not yet built)
 
 1. Tribe forum threads, mass messages, member notes; player-to-player messages.

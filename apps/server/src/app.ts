@@ -12,9 +12,11 @@ import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
 import { GameService } from './game.ts';
+import { MailService } from './mail-service.ts';
 import { advisorRoutes } from './routes/advisor.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
+import { mailRoutes } from './routes/mail.ts';
 import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
 import { tribeRoutes } from './routes/tribes.ts';
@@ -90,6 +92,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
     game: new GameService(store, settings, app.log),
     tribes: new TribeService(store, settings),
+    mail: new MailService(store),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
@@ -189,6 +192,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);
   tribeRoutes(app, ctx);
+  mailRoutes(app, ctx);
   rankingRoutes(app, ctx);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 

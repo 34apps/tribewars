@@ -6,10 +6,11 @@ import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { GameContext, TABS } from './game.ts';
-import type { GameApi, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
+import type { GameApi, MailDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { useNow } from './hooks/useNow.ts';
 import { ArmyView } from './views/ArmyView.tsx';
+import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
@@ -51,6 +52,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   const [highlightMovementId, setHighlight] = useState<number | null>(null);
   const [tribeFocus, setTribeFocus] = useState<TribeTarget | null>(null);
   const [tribeVersion, setTribeVersion] = useState(0);
+  const [mailDraft, setMailDraft] = useState<MailDraft | null>(null);
   const toastId = useRef(0);
   const mapVisited = useRef(false);
   if (tab === 'map') mapVisited.current = true;
@@ -96,6 +98,13 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
     [navigate],
   );
   const clearTribeFocus = useCallback(() => setTribeFocus(null), []);
+  const composeMail = useCallback(
+    (to: string, subject = '') => {
+      setMailDraft({ to, subject, nonce: Date.now() });
+      navigate('mail');
+    },
+    [navigate],
+  );
   const { refresh } = store;
   const tribeChanged = useCallback(() => {
     setTribeVersion((v) => v + 1);
@@ -121,6 +130,9 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
       now,
       movements: data.movements,
       unreadReports: data.unreadReports,
+      unreadMail: data.unreadMail ?? 0,
+      composeMail,
+      mailDraft,
       tribeInvites: data.tribeInvites ?? 0,
       tribeAlerts: data.tribeAlerts ?? 0,
       stationed: data.stationed ?? EMPTY_STATIONED,
@@ -141,7 +153,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
       applySend: store.applySend,
       toast,
     };
-  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged]);
+  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft]);
 
   if (!ctx) {
     return (
@@ -165,6 +177,7 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'village' && <VillageView />}
         {tab === 'army' && <ArmyView />}
         {tab === 'reports' && <ReportsView />}
+        {tab === 'mail' && <MailView />}
         {tab === 'tribe' && <TribeView />}
         {tab === 'ranks' && <RankingsView />}
         {mapVisited.current && <MapView active={tab === 'map'} />}

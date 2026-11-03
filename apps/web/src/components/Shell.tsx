@@ -13,7 +13,7 @@ import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', tribe: 'Tribe', ranks: 'Ranks' };
+const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
 /** "+3k/h" style rate for the narrow phone strip. */
 function compactRate(perHour: number): string {
   const r = Math.round(perHour);
@@ -22,7 +22,7 @@ function compactRate(perHour: number): string {
   return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k/h`;
 }
 
-const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', tribe: 'tribe', ranks: 'ranks' };
+const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
 
 /** Wood/food/iron/gold counters: amount/cap, rate, fill bar. `compact` (phone strip) hides cap and bar via CSS. */
 function Resources({ compact }: { compact?: boolean }) {
@@ -114,17 +114,17 @@ function Strip() {
 }
 
 function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
-  const { tab: current, navigate, unreadReports, tribeInvites, tribeAlerts, movements } = useGame();
+  const { tab: current, navigate, unreadReports, unreadMail, tribeInvites, tribeAlerts, movements } = useGame();
   const active = current === tab;
   const incoming = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').length : 0;
-  const badge = tab === 'reports' ? unreadReports : tab === 'tribe' ? tribeInvites + tribeAlerts : incoming;
+  const badge = tab === 'reports' ? unreadReports : tab === 'mail' ? unreadMail : tab === 'tribe' ? tribeInvites + tribeAlerts : incoming;
   const tribeLabel = [
     tribeAlerts > 0 ? `${tribeAlerts} attack ${tribeAlerts === 1 ? 'alert' : 'alerts'}` : '',
     tribeInvites > 0 ? `${tribeInvites} ${tribeInvites === 1 ? 'invitation' : 'invitations'}` : '',
   ]
     .filter(Boolean)
     .join(', ');
-  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'tribe' ? tribeLabel : `${badge} incoming`;
+  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'mail' ? `${badge} unread mail` : tab === 'tribe' ? tribeLabel : `${badge} incoming`;
   // Red for attacks (yours or your tribe's); invitations alone stay calm.
   const danger = tab === 'army' || (tab === 'tribe' && tribeAlerts > 0);
   const iconSize = variant === 'top' ? (active ? 28 : 25) : active ? 26 : 23;

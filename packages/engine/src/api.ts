@@ -137,6 +137,8 @@ export interface GameStateResponse {
   villages: OwnVillageDto[];
   movements: MovementDto[];
   unreadReports: number;
+  /** Unread mails in my inbox (badge on the Mail tab). */
+  unreadMail: number;
   /** Open tribe invitations addressed to me (badge on the Tribe tab). */
   tribeInvites: number;
   /** Incoming attacks on any member of my tribe, me included (badge on the Tribe tab). 0 when tribeless. */
@@ -620,4 +622,45 @@ export interface AdvisorAskResponse {
   answer: string;
   /** Questions the player has left in the current rolling hour. */
   remaining: number;
+}
+
+// ---- Mail --------------------------------------------------------------------------
+// Player-to-player messages, plain text and emoji only (never markup). Each side deletes its own copy.
+// GET    /api/mail?box=inbox|sent&before=<id> -> 200 MailListResponse (30 per page, newest first, body preview only)
+// GET    /api/mail/:id                        -> 200 MailDto (the recipient reading it marks it read)
+// POST   /api/mail  body SendMailRequest      -> 201 MailDto
+// DELETE /api/mail/:id                        -> 204 (hides it for the caller only); not_found for strangers
+
+export type MailBox = 'inbox' | 'sent';
+
+export interface MailSummaryDto {
+  id: number;
+  fromId: number;
+  from: string;
+  toId: number;
+  to: string;
+  subject: string;
+  /** First characters of the body. */
+  preview: string;
+  createdAt: number;
+  /** Always true for mail you sent. */
+  read: boolean;
+}
+
+export interface MailDto extends MailSummaryDto {
+  body: string;
+}
+
+export interface MailListResponse {
+  mails: MailSummaryDto[];
+  /** Pass as `before` to get the next page; null on the last page. */
+  nextBefore: number | null;
+  unread: number;
+}
+
+export interface SendMailRequest {
+  /** Recipient username (case-insensitive). */
+  to: string;
+  subject: string;
+  body: string;
 }

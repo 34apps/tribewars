@@ -16,6 +16,9 @@ import type {
   GameErrorCode,
   GameStateResponse,
   InviteRequest,
+  MailBox,
+  MailDto,
+  MailListResponse,
   MapResponse,
   MeResponse,
   MovementResponse,
@@ -26,6 +29,7 @@ import type {
   RankRequest,
   ResearchRequest,
   ReportListResponse,
+  SendMailRequest,
   SendRequest,
   RoleRequest,
   SendResponse,
@@ -61,7 +65,7 @@ export function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong.';
 }
 
-async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -123,6 +127,11 @@ export const api = {
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
+  mailList: (box: MailBox, before?: number) =>
+    request<MailListResponse>('GET', `/api/mail?box=${box}${before === undefined ? '' : `&before=${before}`}`),
+  mail: (id: number) => request<MailDto>('GET', `/api/mail/${id}`),
+  sendMail: (body: SendMailRequest) => request<MailDto>('POST', '/api/mail', body),
+  deleteMail: (id: number) => request<void>('DELETE', `/api/mail/${id}`),
 
 
   // ---- Tribes ----

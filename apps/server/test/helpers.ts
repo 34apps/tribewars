@@ -51,9 +51,9 @@ export class Client {
     readonly ip = '127.0.0.1',
   ) {}
 
-  async call(method: 'GET' | 'POST', url: string, body?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
+  async call(method: 'GET' | 'POST' | 'DELETE', url: string, body?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
     const h: Record<string, string> = { host: HOST, ...headers };
-    if (method === 'POST' && h.origin === undefined) h.origin = `http://${HOST}`;
+    if (method !== 'GET' && h.origin === undefined) h.origin = `http://${HOST}`;
     if (this.cookie) h.cookie = this.cookie;
     if (body !== undefined) h['content-type'] = 'application/json';
     const payload = body === undefined ? undefined : JSON.stringify(body);
@@ -69,6 +69,10 @@ export class Client {
 
   post(url: string, body?: unknown, headers?: Record<string, string>) {
     return this.call('POST', url, body, headers);
+  }
+
+  delete(url: string) {
+    return this.call('DELETE', url);
   }
 
   async state(): Promise<GameStateResponse> {

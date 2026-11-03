@@ -1,8 +1,16 @@
 import { createContext, useContext } from 'react';
 import type { Mission, MovementDto, OwnVillageDto, PlayerDto, SendResponse, StationedDto, VillageState, WorldSettings } from '@clanfire/engine';
 
-export type Tab = 'village' | 'map' | 'army' | 'reports' | 'tribe' | 'ranks';
-export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'tribe', 'ranks'];
+export type Tab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
+export const TABS: readonly Tab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
+
+/** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
+export interface MailDraft {
+  to: string;
+  subject: string;
+  /** Changes on every request so the same draft can be opened twice. */
+  nonce: number;
+}
 
 /** A tribe the Tribe tab should open in its public view. */
 export interface TribeTarget {
@@ -34,6 +42,12 @@ export interface GameApi {
   now: number;
   movements: MovementDto[];
   unreadReports: number;
+  /** Unread mails in my inbox. */
+  unreadMail: number;
+  /** Open the Mail tab on a new message to `to` (subject optional). */
+  composeMail: (to: string, subject?: string) => void;
+  /** Draft requested by composeMail; the Mail tab consumes it. */
+  mailDraft: MailDraft | null;
   /** Open tribe invitations addressed to me. */
   tribeInvites: number;
   /** Incoming attacks on members of my tribe (me included). */

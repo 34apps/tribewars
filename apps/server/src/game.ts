@@ -558,6 +558,7 @@ export class GameService {
       }),
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
       unreadReports: this.store.unreadReportCount(player.id),
+      unreadMail: this.store.mail.unreadCount(player.id),
       // Invitations only matter to tribeless players: they cannot accept while in a tribe.
       tribeInvites: dto.tribe === null ? this.store.tribes.countInvitesForPlayer(player.id, t) : 0,
       // Incoming attacks on any member's village (scouts and support don't count).
