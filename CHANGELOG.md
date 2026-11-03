@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-03 (`1eb842a`) — Players idle 30 days (`ABANDON_IDLE_DAYS`) lose their villages to the map as abandoned villages; troops and queues stay; a returning player gets a fresh village. GAME_DESIGN §17, test. Check passes; build not needed (no web change).
 - 2026-11-03 (`25ff8fe`) — Population chip in the top bar; player stats + 20 achievements (bronze/silver/gold) on the profile; caretaker bot that queues random affordable builds for villages of players idle 3+ days (never trains, researches or sends). GAME_DESIGN §16–17, SECURITY_ROADMAP note, tests. Check and build pass; not seen in a browser.
 - 2026-11-03 (`2c4b462`) — Tribe forum + per-member tribe rights: threads and posts (server service/store/routes, web Forum tab), tests, GAME_DESIGN and SECURITY_ROADMAP updated. Check and build pass; not yet seen in a browser.
 - 2026-11-03 — Agent runner: allow chained check commands and read-only helpers (head, tail, cat, grep…) so runs stop failing with "Bash denied"; agent told to retry with simpler commands.
