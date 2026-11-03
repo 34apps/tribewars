@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-03 (`9c08b93`) — New tribe right `view_activity` (leader/officer, grantable): the caller's own tribe view shows each member's `online` and `lastActive` ("Online" / "Offline · last seen 3d ago" in Members). Owner decision recorded: a returning player gets no access to old stationed troops/villages; messages and tribe membership stay. Test added; check and build pass; not seen in a browser.
 - 2026-11-03 (`3158569`) — Returning players see a dismissible notice that their villages were abandoned (`players.abandoned_notice`, `PlayerDto.abandonedNotice`, `POST /api/me/abandoned-notice/dismiss`, banner on village view). Stationed support stays (test). Check and build pass; not seen in a browser.
 - 2026-11-03 (`50020b8`) — Decision recorded in GAME_DESIGN §17: a tribe member/leader who lost all villages keeps tribe and role and restarts like a new player (already how the code behaves). Docs only; check passes.
 - 2026-11-03 (`1eb842a`) — Players idle 30 days (`ABANDON_IDLE_DAYS`) lose their villages to the map as abandoned villages; troops and queues stay; a returning player gets a fresh village. GAME_DESIGN §17, test. Check passes; build not needed (no web change).

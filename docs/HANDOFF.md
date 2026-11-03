@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`3158569`): returning players see a dismissible banner (village view) that N villages were abandoned after 30 days away (`players.abandoned_notice`, `PlayerDto.abandonedNotice`, dismiss endpoint). Owner decision: stationed support of an abandoned player stays (tested, nothing breaks).
-Left: returning player can't see/recall old stationed support (`stationedAbroad` keyed by home-village owner); banner and Pop chip not seen in a browser.
-Very next step: `npm run dev:fast`, check banner and Pop chip at 360 px.
-Checks passed (type-check, 206 server + 193 engine tests, build, build:preview).
+2026-11-03 (`9c08b93`): owner decision recorded — a returning (abandoned) player gets NO access to old stationed troops/villages (already how it works); messages and tribe membership stay. New tribe right `view_activity` (leader/officer, grantable): own tribe view adds `online`/`lastActive` per member; Members list shows "Online" / "Offline · last seen …".
+Left: abandonment banner, Members online line and Pop chip not seen in a browser; no UI yet to grant `view_activity` (API only).
+Very next step: `npm run dev:fast`, check banner, Members line and Pop chip at 360 px.
+Checks passed (type-check, server + engine tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
