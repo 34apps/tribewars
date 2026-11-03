@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`11942ab`): expanding world layout. `npm run dev` = fresh 500x500 world (new DB `clanfire-world.sqlite`, old DB untouched), start rings of abandoned villages at centre, each newcomer lands in a growing disc + brings 3(+extras) abandoned villages; terrain has far fewer mountains/lakes/forest.
-Left: not looked at in a browser (map at 360/1440 px); numbers `EXPAND_*`/`NPC_RING_*` untuned; preview app stays 'scattered'; staff UI still unseen.
-Very next step: `npm run dev`, register 3-4 accounts, look at the map.
+2026-11-03 (`012066d`): map polish after owner playtest of the expanding world. Abandoned villages now drawn at 70% size (`RUIN_DRAW_SCALE` in `map/render.ts`); mouse hover card (`.wm-tip`, `MapView.tsx` showTip) shows name, coords, points, owner.
+Left: not viewed in a browser (360/1440 px); 0.7 scale is a guess; `EXPAND_*`/`NPC_RING_*` untuned; preview app stays 'scattered'.
+Very next step: `npm run dev`, hover villages, check ruin size.
 Checks passed (engine 222 + server 210), build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
