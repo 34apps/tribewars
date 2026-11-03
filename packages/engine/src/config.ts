@@ -499,6 +499,39 @@ export const MAIL_PER_HOUR = 60;
 export const MAIL_PAGE_SIZE = 30;
 export const MAIL_PREVIEW_CHARS = 120;
 
+// ---- Support and moderation (tickets, reports, mutes, templates) ---------------------------------------------
+export const TICKET_SUBJECT_MAX = 120;
+/** Ticket message and rendered template length in characters. */
+export const TICKET_BODY_MAX = 4000;
+/** Tickets a player may have open (open or waiting for them) at once; staff notices do not count. */
+export const TICKETS_OPEN_MAX = 5;
+export const TICKETS_PER_DAY = 10;
+/** Ticket reply spam guard per player: gap between two, per minute and per hour. */
+export const TICKET_MSG_MIN_GAP_MS = 2000;
+export const TICKET_MSG_PER_MINUTE = 4;
+export const TICKET_MSG_PER_HOUR = 30;
+/** Rows per page in the player ticket list and the staff lists. */
+export const TICKET_LIST_MAX = 50;
+export const STAFF_PAGE_SIZE = 30;
+export const AUDIT_PAGE_MAX = 100;
+export const AUDIT_DETAIL_MAX = 500;
+
+/** Player reports of messages: note and evidence copy lengths, and how many one player may file. */
+export const REPORT_NOTE_MAX = 500;
+export const REPORT_SNAPSHOT_MAX = 4000;
+export const REPORTS_PER_HOUR = 5;
+export const REPORTS_PER_DAY = 20;
+export const REPORT_RESOLUTION_MAX = 500;
+
+/** Mutes: longest allowed (minutes) and the reason length every moderation action needs. */
+export const MUTE_MAX_MINUTES = 30 * 24 * 60;
+export const MOD_REASON_MAX = 300;
+export const PLAYER_SEARCH_MAX = 20;
+
+export const TEMPLATE_TITLE_MAX = 80;
+export const TEMPLATE_BODY_MAX = 3000;
+export const TEMPLATE_KEY_PATTERN = '^[a-z0-9][a-z0-9_-]{1,39}$';
+
 /** Who may do what. The leader can always do everything. */
 export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   edit_settings: ['leader', 'officer'],

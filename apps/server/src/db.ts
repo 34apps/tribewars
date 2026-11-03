@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_CHIEFTAIN, STAT_KEYS, type StatKey } from '@clanfire/engine';
+import { DEFAULT_TEMPLATES } from './template-defaults.ts';
 
 /** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
 export const statColumn = (k: StatKey): string => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -73,7 +74,12 @@ CREATE TABLE IF NOT EXISTS players (
   -- Last authenticated API request (written at most every few minutes). Drives the caretaker bot.
   last_active     INTEGER,
   -- Villages lost to abandonment (idle too long) that the player has not yet been told about; 0 = nothing to show.
-  abandoned_notice INTEGER NOT NULL DEFAULT 0
+  abandoned_notice INTEGER NOT NULL DEFAULT 0,
+  -- Staff: set only by the server CLI (admin.ts). Re-read from here on every staff request.
+  staff_role      TEXT CHECK (staff_role IN ('support', 'moderator', 'admin')),
+  -- Mute: cannot write mail, chat or forum text until this time (ms).
+  muted_until     INTEGER,
+  mute_reason     TEXT
 );
 
 -- Every IP an account registered or signed in from (multi-account detection). Raw IPs: needed to review and ban;
@@ -291,6 +297,84 @@ CREATE INDEX IF NOT EXISTS idx_mail_to     ON mail(to_player, created_at);
 CREATE INDEX IF NOT EXISTS idx_mail_from   ON mail(from_player, created_at);
 CREATE INDEX IF NOT EXISTS idx_mail_unread ON mail(to_player) WHERE read_at IS NULL AND deleted_by_recipient = 0;
 
+-- ---- Staff tooling: audit log (append-only), player reports of messages, support tickets, formal templates.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  at            INTEGER NOT NULL,
+  actor_id      INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  actor_ip      TEXT,
+  action        TEXT    NOT NULL,
+  target_player INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  detail        TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_log(target_player, id);
+CREATE INDEX IF NOT EXISTS idx_audit_actor  ON audit_log(actor_id, id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, id);
+CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
+BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log
+BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
+
+-- kind 'player' has no ref_id and no snapshot; the others keep a copy of the text so evidence survives deletion.
+CREATE TABLE IF NOT EXISTS message_reports (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  reporter_id        INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  reported_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  kind               TEXT    NOT NULL CHECK (kind IN ('mail', 'forum_post', 'chat', 'player')),
+  ref_id             INTEGER,
+  snapshot           TEXT    NOT NULL DEFAULT '',
+  category           TEXT    NOT NULL CHECK (category IN ('spam', 'abuse', 'threats', 'cheating', 'other')),
+  note               TEXT    NOT NULL DEFAULT '',
+  status             TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'actioned', 'dismissed')),
+  handled_by         INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  handled_at         INTEGER,
+  resolution_note    TEXT    NOT NULL DEFAULT '',
+  created_at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_msgreports_status   ON message_reports(status, id);
+CREATE INDEX IF NOT EXISTS idx_msgreports_reporter ON message_reports(reporter_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_msgreports_reported ON message_reports(reported_player_id, status);
+
+CREATE TABLE IF NOT EXISTS tickets (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id             INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  category              TEXT    NOT NULL CHECK (category IN ('account', 'bug', 'payment', 'report_player', 'gameplay', 'feedback', 'other', 'moderation')),
+  subject               TEXT    NOT NULL,
+  status                TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'solved', 'closed')),
+  priority              TEXT    NOT NULL DEFAULT 'normal' CHECK (priority IN ('normal', 'high')),
+  assigned_to           INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  opened_by_staff       INTEGER NOT NULL DEFAULT 0,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL,
+  last_player_read_at   INTEGER,
+  last_staff_message_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_tickets_player ON tickets(player_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_queue  ON tickets(status, updated_at);
+
+CREATE TABLE IF NOT EXISTS message_templates (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  key        TEXT    NOT NULL UNIQUE,
+  title      TEXT    NOT NULL,
+  kind       TEXT    NOT NULL CHECK (kind IN ('ticket', 'moderation')),
+  body       TEXT    NOT NULL,
+  updated_by INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id   INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  author_id   INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  is_staff    INTEGER NOT NULL DEFAULT 0,
+  internal    INTEGER NOT NULL DEFAULT 0,
+  body        TEXT    NOT NULL,
+  template_id INTEGER REFERENCES message_templates(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id, id);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_author ON ticket_messages(author_id, created_at);
+
 -- ---- Advisor (Mags, AI tips): one row per question sent to the model. Doubles as the rolling-hour rate limit
 -- (rows with ok = 1) and the token-usage log. Never stores the question or the answer.
 CREATE TABLE IF NOT EXISTS advisor_log (
@@ -321,6 +405,17 @@ export function applySchema(db: DatabaseSync): void {
   rebuildOutdatedTables(db);
   db.exec(SCHEMA);
   addMissingColumns(db);
+  seedTemplates(db);
+}
+
+/** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */
+function seedTemplates(db: DatabaseSync): void {
+  const done = db.prepare("SELECT 1 AS x FROM meta WHERE key = 'templates_seeded'").get();
+  if (done) return;
+  const insert = db.prepare('INSERT OR IGNORE INTO message_templates (key, title, kind, body, updated_by, updated_at) VALUES (?, ?, ?, ?, NULL, ?)');
+  const t = Date.now();
+  for (const d of DEFAULT_TEMPLATES) insert.run(d.key, d.title, d.kind, d.body, t);
+  db.prepare("INSERT INTO meta (key, value) VALUES ('templates_seeded', '1')").run();
 }
 
 /** Columns added after release: SQLite has no ADD COLUMN IF NOT EXISTS, so check the table first. */
@@ -341,6 +436,11 @@ function addMissingColumns(db: DatabaseSync): void {
     db.prepare('UPDATE players SET last_active = ?').run(Date.now());
   }
   if (!cols.some((c) => c.name === 'abandoned_notice')) db.exec('ALTER TABLE players ADD COLUMN abandoned_notice INTEGER NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'staff_role')) {
+    db.exec("ALTER TABLE players ADD COLUMN staff_role TEXT CHECK (staff_role IN ('support', 'moderator', 'admin'))");
+  }
+  if (!cols.some((c) => c.name === 'muted_until')) db.exec('ALTER TABLE players ADD COLUMN muted_until INTEGER');
+  if (!cols.some((c) => c.name === 'mute_reason')) db.exec('ALTER TABLE players ADD COLUMN mute_reason TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
   const villageCols = db.prepare('PRAGMA table_info(villages)').all() as Array<{ name: string }>;
   if (!villageCols.some((c) => c.name === 'bot_next_at')) db.exec('ALTER TABLE villages ADD COLUMN bot_next_at INTEGER NOT NULL DEFAULT 0');

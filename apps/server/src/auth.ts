@@ -108,7 +108,7 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole };
   }
 
   /** The player has read the "villages abandoned" news: clear it and return the updated row. */
@@ -148,6 +148,7 @@ export class AuthService {
         const player = this.store.getPlayer(playerId);
         if (!player) throw new Error('player vanished after insert');
         if (ip) this.store.recordIp(player.id, ip, t);
+        this.store.audit({ at: t, actorId: player.id, actorIp: ip ?? null, action: 'register', targetPlayer: player.id });
         return this.openSession(player, t);
       });
     } catch (err) {
@@ -163,10 +164,14 @@ export class AuthService {
     const ok = player ? await verifyPassword(password, player.passwordHash) : (await burnVerify(password), false);
     if (!player || !ok) throw new GameError('unauthorized', 'Wrong username or password.');
     // Only after the password matched, so a ban never reveals whether a name exists.
-    if (player.bannedAt !== null) throw new GameError('forbidden', 'This account has been suspended.');
+    if (player.bannedAt !== null) {
+      this.store.audit({ at: this.now(), actorId: player.id, actorIp: ip ?? null, action: 'login_blocked_banned', targetPlayer: player.id });
+      throw new GameError('forbidden', 'This account has been suspended.');
+    }
     return this.store.tx(() => {
       const t = this.now();
       if (ip) this.store.recordIp(player.id, ip, t);
+      this.store.audit({ at: t, actorId: player.id, actorIp: ip ?? null, action: 'login', targetPlayer: player.id });
       this.store.touchActive(player.id, t, 0);
       this.ensureVillage(player);
       return this.openSession(player, t);

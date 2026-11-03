@@ -21,8 +21,13 @@ import { forumRoutes } from './routes/forum.ts';
 import { mailRoutes } from './routes/mail.ts';
 import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
+import { staffRoutes } from './routes/staff.ts';
+import { supportRoutes } from './routes/support.ts';
 import { tribeRoutes } from './routes/tribes.ts';
+import { ReportService } from './report-service.ts';
+import { StaffService } from './staff-service.ts';
 import { Store } from './store.ts';
+import { SupportService } from './support-service.ts';
 import { TribeService } from './tribe-service.ts';
 import { initWorld } from './world.ts';
 
@@ -85,6 +90,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const store = new Store(db);
   store.sandboxUsers = new Set((opts.sandboxUsers ?? []).map((u) => u.toLowerCase()));
   const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg));
+  const forum = new ForumService(store);
+  const support = new SupportService(store);
   const ctx: AppContext = {
     store,
     settings,
@@ -95,7 +102,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     game: new GameService(store, settings, app.log),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
-    forum: new ForumService(store),
+    forum,
+    support,
+    staff: new StaffService(store, support),
+    msgReports: new ReportService(store, forum),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
@@ -197,6 +207,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   tribeRoutes(app, ctx);
   mailRoutes(app, ctx);
   forumRoutes(app, ctx);
+  supportRoutes(app, ctx);
+  staffRoutes(app, ctx);
   rankingRoutes(app, ctx);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 

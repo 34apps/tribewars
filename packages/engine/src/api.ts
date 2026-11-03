@@ -18,6 +18,16 @@ import type {
   VillageState,
   WorldSettings,
 } from './types.ts';
+import type {
+  MessageReportCategory,
+  MessageReportKind,
+  MessageReportStatus,
+  StaffRole,
+  TemplateKind,
+  TicketCategory,
+  TicketPriority,
+  TicketStatus,
+} from './staff.ts';
 
 export interface ApiError {
   error: GameErrorCode;
@@ -70,6 +80,8 @@ export interface PlayerDto {
   abandonedNotice: AbandonedNoticeDto | null;
   /** This account may use the test-mode endpoints (server env SANDBOX_USERS). Shows the Test mode card in Settings. */
   sandbox: boolean;
+  /** Staff role of this account (support / moderator / admin), else null. Lets the client show a staff entry. */
+  staffRole?: StaffRole | null;
 }
 
 // POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
@@ -837,3 +849,250 @@ export interface UpdateThreadRequest {
   pinned?: boolean;
   locked?: boolean;
 }
+
+// ---- Support, reports and staff tools ------------------------------------------------------------------------
+// Player side (signed in; own data only, anything else is 404 not_found):
+//   POST /api/tickets                 body CreateTicketRequest -> 201 TicketDto
+//   GET  /api/tickets                 -> TicketListResponse (own tickets, last updated first; `unread` = tickets with a staff reply not yet read)
+//   GET  /api/tickets/:id             -> TicketDto (internal staff notes are never included; marks the ticket read)
+//   POST /api/tickets/:id/messages    body TicketReplyRequest -> 201 TicketDto (reopens a solved ticket; 403 forbidden when closed)
+//   POST /api/tickets/:id/close       -> TicketDto
+//   POST /api/reports                 body CreateMessageReportRequest -> 201 MessageReportReceipt
+//     The reported player is derived on the server from the message; the reporter must be able to see it (else 404).
+// Muted players (see StaffPlayerDetailDto.mutedUntil) get 403 `forbidden` on mail, tribe chat, forum posts and tribe texts,
+// but can still use tickets.
+// Staff side (every route re-reads the caller's role; not signed in or not staff = 404 not_found; too low a role = 403 forbidden):
+//   GET  /api/staff/me                                  support+  -> StaffMeResponse
+//   GET  /api/staff/players?query=                      support+  -> StaffPlayerListResponse (max PLAYER_SEARCH_MAX)
+//   GET  /api/staff/players/:id                         support+  -> StaffPlayerDetailDto (IPs for moderator+ only; audited)
+//   POST /api/staff/players/:id/mute|unmute|ban|unban|warn  moderator+  bodies MuteRequest / ModerationNoteRequest / BanRequest / WarnRequest -> StaffPlayerDetailDto
+//   GET  /api/staff/audit?player=&action=&before=&limit=  moderator+  -> AuditListResponse
+//   GET  /api/staff/reports?status=&category=&before=     moderator+  -> StaffReportListResponse
+//   GET  /api/staff/reports/:id                         moderator+  -> StaffReportDto
+//   POST /api/staff/reports/:id/resolve                 moderator+  body ResolveReportRequest -> StaffReportDto
+//   GET  /api/staff/tickets?status=&category=&assignee=&unassigned=&offset=  support+ -> StaffTicketListResponse
+//   GET  /api/staff/tickets/:id                         support+  -> StaffTicketDto
+//   POST /api/staff/tickets/:id/messages|assign|status|priority  support+  -> StaffTicketDto
+//   GET  /api/staff/templates                           support+  -> TemplateListResponse
+//   POST /api/staff/templates, PUT|DELETE /api/staff/templates/:id  admin  -> MessageTemplateDto / 204
+// Staff roles are granted only with the server CLI (apps/server/src/admin.ts), never over HTTP.
+
+export interface StaffMeResponse {
+  staffRole: StaffRole;
+  username: string;
+}
+
+export interface CreateTicketRequest {
+  category: TicketCategory;
+  subject: string;
+  body: string;
+}
+
+export interface TicketReplyRequest {
+  body: string;
+}
+
+export interface TicketMessageDto {
+  id: number;
+  authorId: number | null;
+  authorName: string;
+  isStaff: boolean;
+  /** Staff-only note. Only ever present in staff DTOs. */
+  internal: boolean;
+  body: string;
+  templateId: number | null;
+  createdAt: number;
+}
+
+export interface TicketSummaryDto {
+  id: number;
+  category: TicketCategory;
+  subject: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  openedByStaff: boolean;
+  createdAt: number;
+  updatedAt: number;
+  /** A staff message the player has not read yet. */
+  unread: boolean;
+}
+
+export interface TicketDto extends TicketSummaryDto {
+  messages: TicketMessageDto[];
+}
+
+export interface TicketListResponse {
+  tickets: TicketSummaryDto[];
+  unread: number;
+}
+
+export interface CreateMessageReportRequest {
+  kind: MessageReportKind;
+  /** Mail id, forum post id or tribe chat message id. Not used for kind `player`. */
+  refId?: number;
+  /** Kind `player` only. */
+  username?: string;
+  category: MessageReportCategory;
+  note?: string;
+}
+
+export interface MessageReportReceipt {
+  id: number;
+  status: MessageReportStatus;
+}
+
+export interface StaffPlayerSummaryDto {
+  id: number;
+  username: string;
+  createdAt: number;
+  lastActive: number;
+  staffRole: StaffRole | null;
+  bannedAt: number | null;
+  mutedUntil: number | null;
+}
+
+export interface StaffPlayerListResponse {
+  players: StaffPlayerSummaryDto[];
+}
+
+export interface AuditEntryDto {
+  id: number;
+  at: number;
+  actorId: number | null;
+  actorName: string | null;
+  actorIp: string | null;
+  action: string;
+  targetPlayerId: number | null;
+  targetName: string | null;
+  detail: string;
+}
+
+export interface AuditListResponse {
+  entries: AuditEntryDto[];
+  nextBefore: number | null;
+}
+
+export interface StaffPlayerDetailDto extends StaffPlayerSummaryDto {
+  banReason: string | null;
+  muteReason: string | null;
+  /** Moderator and admin only; empty for support. */
+  ips: Array<{ ip: string; firstSeen: number; lastSeen: number }>;
+  openReportsAgainst: number;
+  ticketCount: number;
+  recentAudit: AuditEntryDto[];
+}
+
+/** Optional formal notice sent with a moderation action: opens a staff-initiated ticket with the rendered template and/or extra text. */
+export interface ModerationNotice {
+  templateId?: number;
+  extra?: string;
+}
+
+export interface MuteRequest extends ModerationNotice {
+  minutes: number;
+  reason: string;
+}
+
+export interface BanRequest extends ModerationNotice {
+  reason: string;
+}
+
+export interface WarnRequest extends ModerationNotice {
+  reason?: string;
+}
+
+export interface ModerationNoteRequest {
+  reason?: string;
+}
+
+export interface StaffReportDto {
+  id: number;
+  kind: MessageReportKind;
+  refId: number | null;
+  reporterId: number;
+  reporterName: string;
+  reportedPlayerId: number;
+  reportedName: string;
+  /** Copy of the text at report time (evidence survives deletion). Empty for kind `player`. */
+  snapshot: string;
+  category: MessageReportCategory;
+  note: string;
+  status: MessageReportStatus;
+  handledBy: number | null;
+  handledAt: number | null;
+  resolutionNote: string;
+  createdAt: number;
+}
+
+export interface StaffReportListResponse {
+  reports: StaffReportDto[];
+  nextBefore: number | null;
+}
+
+export interface ResolveReportRequest {
+  status: 'actioned' | 'dismissed';
+  resolutionNote?: string;
+}
+
+export interface StaffTicketSummaryDto extends TicketSummaryDto {
+  playerId: number;
+  playerName: string;
+  assignedTo: number | null;
+  assignedName: string | null;
+  lastStaffMessageAt: number | null;
+}
+
+export interface StaffTicketListResponse {
+  tickets: StaffTicketSummaryDto[];
+  hasMore: boolean;
+}
+
+export interface StaffTicketDto extends StaffTicketSummaryDto {
+  messages: TicketMessageDto[];
+  player: StaffPlayerSummaryDto;
+}
+
+export interface StaffTicketReplyRequest {
+  body?: string;
+  templateId?: number;
+  /** Staff-only note, hidden from the player. */
+  internal?: boolean;
+  /** Default after a public reply: `pending`. */
+  status?: TicketStatus;
+}
+
+export interface AssignTicketRequest {
+  assigneeId: number | null;
+}
+
+export interface TicketStatusRequest {
+  status: TicketStatus;
+}
+
+export interface TicketPriorityRequest {
+  priority: TicketPriority;
+}
+
+export interface MessageTemplateDto {
+  id: number;
+  key: string;
+  title: string;
+  kind: TemplateKind;
+  /** May contain {player} {staff} {ticket} {category}. */
+  body: string;
+  updatedBy: number | null;
+  updatedAt: number;
+}
+
+export interface TemplateListResponse {
+  templates: MessageTemplateDto[];
+}
+
+export interface TemplateRequest {
+  key: string;
+  title: string;
+  kind: TemplateKind;
+  body: string;
+}
+
+export type UpdateTemplateRequest = Partial<Omit<TemplateRequest, 'key'>>;

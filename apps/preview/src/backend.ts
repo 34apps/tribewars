@@ -19,7 +19,10 @@ import { mailRoutes } from '../../server/src/routes/mail.ts';
 import { rankingRoutes } from '../../server/src/routes/rankings.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
+import { ReportService } from '../../server/src/report-service.ts';
+import { StaffService } from '../../server/src/staff-service.ts';
 import { Store } from '../../server/src/store.ts';
+import { SupportService } from '../../server/src/support-service.ts';
 import { TribeService } from '../../server/src/tribe-service.ts';
 import { initWorld } from '../../server/src/world.ts';
 import { FakeApp } from './router.ts';
@@ -101,6 +104,9 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   const overrides: Partial<WorldSettings> = store.getSettings() ? {} : { ...PREVIEW_WORLD, seed: 1 + Math.floor(Math.random() * 0x7fffffff) };
   const settings = initWorld(store, overrides, now(), (msg) => console.warn(msg));
 
+  // Staff services are wired so the context is complete; the preview mounts no staff or support routes.
+  const forum = new ForumService(store);
+  const support = new SupportService(store);
   const ctx: AppContext = {
     store,
     settings,
@@ -111,7 +117,10 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     game: new GameService(store, settings, { error: (obj, msg) => console.error(msg ?? 'game error', obj) }),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
-    forum: new ForumService(store),
+    forum,
+    support,
+    staff: new StaffService(store, support),
+    msgReports: new ReportService(store, forum),
   };
 
   const app = new FakeApp();

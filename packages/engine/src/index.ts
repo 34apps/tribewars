@@ -16,3 +16,4 @@ export * from './world.ts';
 export * from './tribes.ts';
 export * from './achievements.ts';
 export * from './bot.ts';
+export * from './staff.ts';

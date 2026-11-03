@@ -18,6 +18,7 @@ import {
   type SendMailRequest,
 } from '@clanfire/engine';
 import type { MailRow } from './mail-store.ts';
+import { assertNotMuted } from './mute.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { cleanText, len } from './tribe-service.ts';
 
@@ -105,6 +106,7 @@ export class MailService {
   }
 
   send(player: PlayerRow, req: SendMailRequest, t: number): MailDto {
+    assertNotMuted(player, t);
     const toName = cleanText(req.to, 'The recipient').normalize('NFC');
     const subject = cleanText(req.subject, 'The subject');
     const body = cleanText(req.body, 'The message');

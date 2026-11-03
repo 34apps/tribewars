@@ -7,12 +7,14 @@ import {
   emptyStats,
   normalizeUnits,
   normalizeVillage,
+  isStaffRole,
   type BattleReportData,
   type Mission,
   type PlayerStatsDto,
   type Resources,
   type ScoutReportData,
   type ShipmentReportData,
+  type StaffRole,
   type SupportReportData,
   type Units,
   type VillageRanks,
@@ -23,6 +25,9 @@ import { statColumn } from './db.ts';
 import { SqlBase, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import { MailStore } from './mail-store.ts';
+import { ReportStore } from './report-store.ts';
+import { StaffStore, type NewAudit } from './staff-store.ts';
+import { SupportStore } from './support-store.ts';
 import { TribeStore } from './tribe-store.ts';
 import { addUnits } from './units.ts';
 
@@ -48,6 +53,11 @@ export interface PlayerRow {
   lastActive: number;
   /** Villages abandoned for idleness that the player has not been told about yet (0 = none). */
   abandonedNotice: number;
+  /** Staff role, set only through the server CLI. */
+  staffRole: StaffRole | null;
+  /** Muted (no mail, chat or forum writing) until this time (ms), or null. Check with `isMuted`. */
+  mutedUntil: number | null;
+  muteReason: string | null;
 }
 
 export interface SharedIpGroup {
@@ -294,6 +304,9 @@ function toPlayer(r: Raw): PlayerRow {
     banReason: (r.ban_reason as string | null) ?? null,
     lastActive: (r.last_active as number | null) ?? (r.created_at as number),
     abandonedNotice: (r.abandoned_notice as number | null) ?? 0,
+    staffRole: isStaffRole(r.staff_role) ? r.staff_role : null,
+    mutedUntil: (r.muted_until as number | null) ?? null,
+    muteReason: (r.mute_reason as string | null) ?? null,
   };
 }
 
@@ -384,6 +397,10 @@ export class Store extends SqlBase {
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
   readonly forum: ForumStore;
+  /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
+  readonly staff: StaffStore;
+  readonly support: SupportStore;
+  readonly msgReports: ReportStore;
 
   /** Lowercase usernames allowed to use sandbox (test) mode: SANDBOX_USERS. Set once at start-up. */
   sandboxUsers: ReadonlySet<string> = new Set();
@@ -393,6 +410,14 @@ export class Store extends SqlBase {
     this.tribes = new TribeStore(db);
     this.mail = new MailStore(db);
     this.forum = new ForumStore(db);
+    this.staff = new StaffStore(db);
+    this.support = new SupportStore(db);
+    this.msgReports = new ReportStore(db);
+  }
+
+  /** Append a row to the audit log (never put secrets in `detail`). */
+  audit(entry: NewAudit): void {
+    this.staff.audit(entry);
   }
 
   isSandboxUser(username: string): boolean {

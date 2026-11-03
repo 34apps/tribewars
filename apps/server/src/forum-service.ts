@@ -30,6 +30,7 @@ import {
   type UpdateThreadRequest,
 } from '@clanfire/engine';
 import type { BoardRow, PostRow, ThreadRow } from './forum-store.ts';
+import { assertNotMuted } from './mute.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { cleanText, len } from './tribe-service.ts';
 import type { MembershipRow } from './tribe-store.ts';
@@ -83,6 +84,14 @@ export class ForumService {
     const m = this.store.tribes.membership(player.id);
     if (!m) throw notFound('forum');
     return m;
+  }
+
+  /** For reports: a post (with its thread title) only if the caller may read it; otherwise not_found. */
+  postVisibleTo(player: PlayerRow, postId: number): { post: PostRow; title: string } {
+    const m = this.member(player);
+    const post = this.postFor(m, postId);
+    const { thread } = this.threadFor(m, post.threadId);
+    return { post, title: thread.title };
   }
 
   private leadership(m: MembershipRow): boolean {
@@ -194,6 +203,7 @@ export class ForumService {
   // ---- threads and posts -------------------------------------------------------------------------
 
   createThread(player: PlayerRow, boardId: number, rawTitle: string, rawBody: string, t: number): ForumThreadResponse {
+    assertNotMuted(player, t);
     const title = this.text(rawTitle, 'The title', FORUM_THREAD_TITLE_MAX);
     const body = this.text(rawBody, 'The post', FORUM_POST_MAX);
     const id = this.store.tx(() => {
@@ -218,6 +228,7 @@ export class ForumService {
   }
 
   reply(player: PlayerRow, threadId: number, rawBody: string, t: number): ForumPostDto {
+    assertNotMuted(player, t);
     const body = this.text(rawBody, 'The post', FORUM_POST_MAX);
     return this.store.tx(() => {
       const m = this.member(player);
@@ -237,6 +248,7 @@ export class ForumService {
   }
 
   editPost(player: PlayerRow, postId: number, rawBody: string, t: number): ForumPostDto {
+    assertNotMuted(player, t);
     const body = this.text(rawBody, 'The post', FORUM_POST_MAX);
     return this.store.tx(() => {
       const m = this.member(player);

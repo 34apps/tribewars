@@ -3,7 +3,10 @@ import type { AuthService, RateLimiter } from './auth.ts';
 import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
 import type { MailService } from './mail-service.ts';
+import type { ReportService } from './report-service.ts';
+import type { StaffService } from './staff-service.ts';
 import type { PlayerRow, Store } from './store.ts';
+import type { SupportService } from './support-service.ts';
 import type { TribeService } from './tribe-service.ts';
 
 /** Everything the routes need. Exposed as `app.ctx` (tests use it for white-box checks). */
@@ -14,6 +17,9 @@ export interface AppContext {
   tribes: TribeService;
   mail: MailService;
   forum: ForumService;
+  support: SupportService;
+  staff: StaffService;
+  msgReports: ReportService;
   settings: WorldSettings;
   limiter: RateLimiter;
   now: () => number;

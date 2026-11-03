@@ -659,6 +659,17 @@ export class TribeStore extends SqlBase {
     ).map(toMessage);
   }
 
+  /** A chat message, only if it belongs to this tribe's chat. */
+  messageInTribe(tribeId: number, id: number): MessageRow | null {
+    const r = this.get(
+      `SELECT c.id, c.player_id, p.username, p.chieftain, c.text, c.created_at
+       FROM tribe_messages c JOIN players p ON p.id = c.player_id WHERE c.id = ? AND c.tribe_id = ?`,
+      id,
+      tribeId,
+    );
+    return r ? toMessage(r) : null;
+  }
+
   getMessage(id: number): MessageRow | null {
     const r = this.get(
       `SELECT c.id, c.player_id, p.username, p.chieftain, c.text, c.created_at

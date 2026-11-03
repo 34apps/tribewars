@@ -48,6 +48,7 @@ import {
   type TribeSummaryDto,
   type WorldSettings,
 } from '@clanfire/engine';
+import { assertNotMuted } from './mute.ts';
 import type { PlayerRow, Store } from './store.ts';
 import type { ApplicationRow, InviteRow, MemberRow, MembershipRow, ProposalRow, RankedTribeRow, RelationSideRow, TribeRow } from './tribe-store.ts';
 
@@ -189,6 +190,7 @@ export class TribeService {
     // Input first (400), then game state (409).
     const identity = checkTribeIdentity(normalizeTribeName(body.name.normalize('NFC')), normalizeTribeTag(body.tag));
     if (!identity.ok) throw new GameError(identity.reason, identity.message);
+    if (body.description !== undefined && body.description.trim() !== '') assertNotMuted(player, t);
     const desc = this.description(body.description ?? '');
 
     return this.store.tx(() => {
@@ -223,6 +225,7 @@ export class TribeService {
   }
 
   apply(player: PlayerRow, tribeId: number, rawMessage: string, t: number): MyTribeResponse {
+    if (rawMessage.trim() !== '') assertNotMuted(player, t);
     const message = cleanText(rawMessage, 'The message');
     if (len(message) > TRIBE_APPLICATION_MESSAGE_MAX) throw invalid(`The message may have at most ${TRIBE_APPLICATION_MESSAGE_MAX} characters.`);
 
@@ -249,6 +252,7 @@ export class TribeService {
 
   updateSettings(player: PlayerRow, body: TribeSettingsRequest, t: number): MyTribeResponse {
     if (body.description === undefined && body.recruitment === undefined) throw invalid('Nothing to change.');
+    if (body.description !== undefined) assertNotMuted(player, t);
     const desc = body.description === undefined ? null : this.description(body.description);
 
     return this.mutate(t, () => {
@@ -570,6 +574,7 @@ export class TribeService {
   }
 
   chatPost(player: PlayerRow, rawText: string, t: number): ChatMessageDto {
+    assertNotMuted(player, t);
     const text = cleanText(rawText, 'The message');
     const n = len(text);
     if (n < 1 || n > TRIBE_CHAT_MESSAGE_MAX) throw invalid(`A chat message needs 1 to ${TRIBE_CHAT_MESSAGE_MAX} characters.`);
