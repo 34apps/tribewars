@@ -21,7 +21,7 @@ import {
   spriteUrl,
 } from '../../art/buildings.ts';
 import type { Box, Stage } from '../../art/buildings.ts';
-import { GROUND_URL, MARKET_DEPTH, MARKET_URL, SceneryDefs, WallPlan, sceneryItems, wallItems } from '../../art/scenery.tsx';
+import { GROUND_URL, MARKET_DEPTH, MARKET_URL, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
@@ -124,6 +124,8 @@ export const SceneArt = memo(function SceneArt({
     const art = arts[id];
     // The wall itself is drawn above; its sprite slot only shows building work (and nothing while unbuilt).
     if (id === 'wall' && !art.queued) continue;
+    // Unbuilt buildings show nothing at all (no empty plot): they are started from the Town Hall list.
+    if (art.stage === 0 && !art.queued) continue;
     let url = spriteUrl(id, art.stage);
     if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
@@ -142,11 +144,6 @@ export const SceneArt = memo(function SceneArt({
         <SceneryDefs />
       </defs>
       <image href={GROUND_URL} x={10} y={-4} width={580} height={376} />
-      {wall.stage === 0 && (
-        <g className="vv-b" onClick={() => onPick('wall')}>
-          <WallPlan />
-        </g>
-      )}
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
@@ -160,21 +157,6 @@ export const SceneArt = memo(function SceneArt({
             {[0, 1, 2].map((i) => (
               <circle key={i} className="vv-puff" r={3.2} fill="#F3EEE4" style={{ animationDelay: `${(d ?? 0) + i * 1.2}s` }} />
             ))}
-          </g>
-        ))}
-        {[
-          { x: 100, y: 214, dx: 26, dy: 12, t: 0 },
-          { x: 480, y: 214, dx: -24, dy: 11, t: 1.5 },
-        ].map((w) => (
-          <g key={`w-${w.x}`} transform={`translate(${w.x} ${w.y})`}>
-            <g
-              className="vv-worker"
-              style={{ '--wx': `${w.dx}px`, '--wy': `${w.dy}px`, animationDelay: `${w.t}s` } as CSSProperties}
-            >
-              <ellipse cx={0} cy={1} rx={4} ry={1.6} fill="#2B211C" opacity={0.25} />
-              <rect x={-2.2} y={-8} width={4.4} height={8} rx={1.6} fill="#C4623A" stroke="#2B211C" strokeWidth={0.9} />
-              <circle cx={0} cy={-11} r={2.6} fill="#E8B88A" stroke="#2B211C" strokeWidth={0.9} />
-            </g>
           </g>
         ))}
       </g>
@@ -434,6 +416,7 @@ export function VillageScene({
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);
+            if (live.buildings[id] === 0 && jobs.length === 0) return null;
             const active = jobs.find((j) => now >= j.startAt);
             return (
               <BuildingHit

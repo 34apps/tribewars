@@ -28,25 +28,6 @@ function useBuild() {
   return { busy, build: (id: BuildingId) => void build(id) };
 }
 
-function Legend() {
-  return (
-    <ul className="vv-legend" aria-label="Legend">
-      <li>
-        <span className="token" aria-hidden="true">
-          <Icon name="sign" size={20} />
-        </span>
-        Empty plot · build
-      </li>
-      <li>
-        <span className="token" aria-hidden="true">
-          <Icon name="scaffold" size={20} />
-        </span>
-        Under construction
-      </li>
-    </ul>
-  );
-}
-
 function DesktopVillage() {
   const { village, player } = useGame();
   const [selected, setSelected] = useState<BuildingId>('hall');
@@ -63,7 +44,6 @@ function DesktopVillage() {
             {player.tribe ? ` · ${player.tribe.name} [${player.tribe.tag}]` : ''} · click any building
           </div>
         </div>
-        <Legend />
         <VillageScene mode="fit" selected={selected} onSelect={setSelected} />
         <Production />
       </section>
