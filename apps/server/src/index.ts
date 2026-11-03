@@ -1,5 +1,6 @@
 // Production/dev entry point: listen, and tick the movement processor once a second.
 
+import { BOT_PASS_INTERVAL_MS } from '@clanfire/engine';
 import { createAnthropicClient } from './advisor.ts';
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
@@ -27,12 +28,22 @@ const tick = setInterval(() => {
   }
 }, 1000);
 
+// Caretaker bot: builds for villages whose owner has been away for days (docs/GAME_DESIGN.md section 17).
+const caretaker = setInterval(() => {
+  try {
+    app.ctx.game.runCaretaker(Date.now());
+  } catch (err) {
+    app.log.error({ err }, 'caretaker pass failed');
+  }
+}, BOT_PASS_INTERVAL_MS);
+
 let closing = false;
 async function shutdown(signal: string): Promise<void> {
   if (closing) return;
   closing = true;
   app.log.info(`${signal} received, shutting down`);
   clearInterval(tick);
+  clearInterval(caretaker);
   try {
     await app.close();
   } finally {
@@ -47,5 +58,6 @@ try {
 } catch (err) {
   app.log.error({ err }, 'failed to start');
   clearInterval(tick);
+  clearInterval(caretaker);
   process.exit(1);
 }

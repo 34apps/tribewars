@@ -1,6 +1,7 @@
 // HTTP API contract between apps/server and apps/web. Both sides import these types.
 // JSON over HTTPS, session in an HttpOnly cookie. Errors: non-2xx with ApiError body.
 
+import type { AchievementProgress, PlayerStatsDto } from './achievements.ts';
 import type {
   BuildingLevels,
   Coords,
@@ -395,7 +396,8 @@ export interface ReportListResponse {
 
 // ---- Rankings ----------------------------------------------------------------------------
 //   GET /api/rankings/players -> 200 PlayerRankingResponse (signed in; top 100 by points desc, ties share a rank)
-//   GET /api/players/:id      -> 200 PlayerProfileDto (signed in; 404 for unknown or village-less players)
+//   GET /api/players/:id      -> 200 PlayerProfileDto (signed in; 404 for unknown or village-less players);
+//     includes `stats` (PlayerStatsDto counters) and `achievements` (AchievementProgress[]); read-only, no write endpoint
 // Tribe ranking: GET /api/tribes (TribeSummaryDto.rank).
 
 export interface PlayerRankDto {
@@ -429,6 +431,10 @@ export interface PlayerProfileDto {
   villages: { id: number; name: string; x: number; y: number; points: number }[];
   /** Total villages owned (can exceed the list). */
   villageCount: number;
+  /** Lifetime counters (server-counted; docs/GAME_DESIGN.md section 16). */
+  stats: PlayerStatsDto;
+  /** Progress for every achievement in ACHIEVEMENTS order: tier 0-3, current value, next threshold (null at gold). */
+  achievements: AchievementProgress[];
 }
 
 export interface PlayerRankingResponse {

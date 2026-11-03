@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { RESOURCE_IDS, netProductionPerHour, storageCap } from '@clanfire/engine';
+import { RESOURCE_IDS, netProductionPerHour, populationCap, populationUsage, storageCap } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
@@ -29,6 +29,10 @@ function Resources({ compact }: { compact?: boolean }) {
   const { live, settings } = useGame();
   const cap = storageCap(live);
   const net = netProductionPerHour(live, settings);
+  const pop = populationUsage(live);
+  const popCap = populationCap(live);
+  const popRatio = popCap > 0 ? pop.total / popCap : 0;
+  const popLabel = `Population ${formatInt(pop.total)} of ${formatInt(popCap)}${popRatio >= 0.9 ? (popRatio >= 0.999 ? ' (full)' : ' (almost full)') : ''}`;
   return (
     <ul className="resources" aria-label="Resources">
       {RESOURCE_IDS.map((r) => {
@@ -76,6 +80,23 @@ function Resources({ compact }: { compact?: boolean }) {
           </li>
         );
       })}
+      <li className={`res res-pop${popRatio >= 0.9 ? ' is-near-full' : ''}${popRatio >= 0.999 ? ' is-full' : ''}`} aria-label={popLabel}>
+        <span className="token" aria-hidden="true">
+          <Icon name="pop" size={compact ? 20 : 24} />
+        </span>
+        <span className="res-text">
+          <span className="res-amount" aria-hidden="true">
+            {formatInt(pop.total)}
+            <span className="res-cap"> / {formatInt(popCap)}</span>
+          </span>
+          <span className="res-sub" aria-hidden="true">
+            <span className="res-meter">
+              <span style={{ width: `${Math.min(100, popRatio * 100)}%` }} />
+            </span>
+            <span className="res-rate">Pop</span>
+          </span>
+        </span>
+      </li>
     </ul>
   );
 }

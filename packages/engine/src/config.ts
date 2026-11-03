@@ -568,3 +568,58 @@ export const CHIEFTAINS = [
 ] as const;
 export type ChieftainId = (typeof CHIEFTAINS)[number]['id'];
 export const DEFAULT_CHIEFTAIN: ChieftainId = 'old-orm';
+
+// ---- Achievements (docs/GAME_DESIGN.md section 16): bronze / silver / gold thresholds per achievement ----
+
+export const ACHIEVEMENT_TIERS = {
+  timberBaron: [2_000, 25_000, 250_000],
+  grainGrabber: [2_000, 25_000, 250_000],
+  ironPilferer: [2_000, 25_000, 250_000],
+  goldMagpie: [200, 2_500, 25_000],
+  hoardOfHoards: [10_000, 100_000, 1_000_000],
+  boneCollector: [25, 500, 5_000],
+  hardKnocks: [25, 500, 5_000],
+  fireStarter: [3, 40, 300],
+  plucky: [3, 25, 150],
+  hedgehog: [2, 20, 150],
+  openDoor: [3, 25, 100],
+  battleHardened: [10, 100, 600],
+  nosyNeighbour: [3, 30, 250],
+  keenEyes: [2, 20, 150],
+  brickByBrick: [10, 100, 600],
+  drillSergeant: [50, 1_000, 10_000],
+  generousCart: [1_000, 20_000, 200_000],
+  caravanMaster: [3, 30, 200],
+  ruinRaider: [3, 30, 250],
+  shieldFriend: [2, 20, 150],
+} as const satisfies Record<string, readonly [number, number, number]>;
+
+// ---- Caretaker bot for idle owners (docs/GAME_DESIGN.md section 17) ----
+
+/** An owner who has not made an authenticated request for this many days (divided by world speed) is idle. */
+export const BOT_IDLE_DAYS = 3;
+/** The caretaker acts on an idle village at most once per this many hours (divided by world speed). */
+export const BOT_STEP_HOURS = 2;
+/** Most builds the caretaker queues for one village in one run. */
+export const BOT_MAX_STEPS_PER_RUN = 2;
+/** Most villages the caretaker handles in one pass of the periodic job. */
+export const BOT_BATCH_VILLAGES = 25;
+/** How often the server runs the caretaker pass (real ms, not scaled). */
+export const BOT_PASS_INTERVAL_MS = 60_000;
+/** A player's last_active is written at most this often (real ms), so reads never cause write storms. */
+export const ACTIVITY_WRITE_INTERVAL_MS = 5 * 60_000;
+/** Relative chance that the caretaker picks a building; 0 = never. Troop buildings and the Drillyard are left alone. */
+export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
+  hall: 2,
+  lumber: 5,
+  farm: 4,
+  mine: 5,
+  goldmine: 3,
+  storehouse: 4,
+  barracks: 0,
+  stables: 0,
+  wall: 3,
+  vault: 3,
+  market: 1,
+  drillyard: 0,
+};

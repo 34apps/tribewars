@@ -35,6 +35,8 @@ When a rule changes, change it here in the same commit.
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
   that would push used above the cap is refused (`population_full`); losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
+  The top bar shows a "Population used / cap" chip next to the resources for the current village (own row
+  under the resources on phones), with a mini meter and warning colour from 90% (`aria-label` "Population X of Y").
 - **Storage cap** (same for every resource) from the storehouse level:
   `L == 0 ? STORAGE_LEVEL0 : round(STORAGE_BASE * STORAGE_GROWTH^(L-1))`. Production stops at the
   cap. Anything added (refunds, loot coming home) is also clamped to the cap.
@@ -437,6 +439,41 @@ stored and sent as plain text and the client renders it as text (line breaks kep
 - Lists page by 30 (`MAIL_PAGE_SIZE`), newest first, with a 120-character preview. There is no blocking yet.
 - Code: `engine/src/config.ts` (numbers), `api.ts` (contract), `server/src/mail-store.ts`, `mail-service.ts`, `routes/mail.ts`,
   web `views/MailView.tsx`.
+
+## 16. Player statistics and achievements
+
+- Lifetime counters per player (`player_stats`, one column per `STAT_KEYS` entry in `engine/src/achievements.ts`), counted
+  by the server in the same transaction as the event; there is no write endpoint. Never credited to abandoned villages.
+  - Raids: `lootWood/Food/Iron/Gold` (floor of the battle loot, counted when the battle resolves, not when it arrives home),
+    `attacksWon/Lost`, `abandonedRaided` (won raids on ownerless villages).
+  - Kills: `troopsKilled` = the opponent's losses (attacker: home defenders + all support; defender: attacker losses;
+    a support owner gets a head-count share of the attacker's losses), `troopsLost` = own losses (incl. stationed
+    support and scouts). `defencesWon/Lost` for the village owner only. Scouting: `scoutsSent`, `scoutsSucceeded` per mission.
+  - Orders: `buildingLevelsBuilt` and `troopsTrained` at order time (player orders only; the caretaker bot is not counted),
+    `shipmentsSent` and `resourcesShipped` at send, `supportSent` when support arrives and is stationed.
+- ~20 achievements (`ACHIEVEMENTS`), each reading one counter (or a sum), with bronze / silver / gold thresholds in
+  `ACHIEVEMENT_TIERS` (`config.ts`). `achievementProgress(stats)` gives value, tier 0-3 and next threshold (null at gold).
+- `GET /api/players/:id` returns `stats` and `achievements`; the profile sheet in the Ranks tab shows badge cards (tier colour,
+  progress bar, locked state) and the statistics list.
+
+## 17. Caretaker bot (idle owners)
+
+- Offline progress needs no bot: production, build queues and training are timestamp based and settled lazily
+  (`settleVillage`), so a village read 24 h later has produced resources and finished its queue (test:
+  `apps/server/test/caretaker.test.ts`).
+- `players.last_active` is stamped on login and on authenticated requests, at most once per `ACTIVITY_WRITE_INTERVAL_MS`.
+  Existing accounts are stamped at the upgrade. An owner is idle after `BOT_IDLE_DAYS` (divided by world speed).
+- A server job every `BOT_PASS_INTERVAL_MS` handles at most `BOT_BATCH_VILLAGES` due villages (indexed on
+  `villages.bot_next_at`) whose owner is idle and not banned. Per village: settle to now, then up to
+  `BOT_MAX_STEPS_PER_RUN` times pick ONE random affordable upgrade (`botBuildChoice`, weights `BOT_BUILD_WEIGHTS`,
+  seeded by village id + step, so it is deterministic) and queue it through the normal build rule
+  (`checkBuild`/`applyBuild`: cost, storage, requirements, max level, population cap, regular queue length). Then
+  `bot_next_at = now + BOT_STEP_HOURS / speed`.
+- The bot never trains troops, researches, ranks up, or sends movements, shipments or support; troop buildings and
+  the Drillyard have weight 0. Nothing to undo: the owner's next request moves `last_active` forward and the
+  village is theirs again at once. Abandoned villages already grow by section 8 and are left alone.
+- Security gate: no new input or endpoint; it only reads and writes the owner's own village through the build planner,
+  so it cannot send resources or troops to anyone.
 
 ## 14. Roadmap (not yet built)
 

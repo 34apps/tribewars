@@ -1,7 +1,7 @@
 // Ranking routes (contract: packages/engine/src/api.ts). Signed-in players only; reads only public data.
 
 import type { FastifyInstance } from 'fastify';
-import { GameError, type PlayerProfileDto, type PlayerRankDto, type PlayerRankingResponse } from '@clanfire/engine';
+import { GameError, achievementProgress, type PlayerProfileDto, type PlayerRankDto, type PlayerRankingResponse } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
 
@@ -39,6 +39,7 @@ function playerProfile(ctx: AppContext, id: number, now: number): PlayerProfileD
   const villages = ctx.store
     .villagesOfPlayer(id)
     .sort((a, b) => b.points - a.points || a.id - b.id);
+  const stats = ctx.store.getStats(id);
   return {
     playerId: id,
     username: player.username,
@@ -50,6 +51,8 @@ function playerProfile(ctx: AppContext, id: number, now: number): PlayerProfileD
     protectedNow: player.protectedUntil > now,
     villages: villages.slice(0, PROFILE_VILLAGE_LIMIT).map((v) => ({ id: v.id, name: v.name, x: v.x, y: v.y, points: v.points })),
     villageCount: villages.length,
+    stats,
+    achievements: achievementProgress(stats),
   };
 }
 

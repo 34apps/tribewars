@@ -14,3 +14,5 @@ export * from './sandbox.ts';
 export * from './cancel.ts';
 export * from './world.ts';
 export * from './tribes.ts';
+export * from './achievements.ts';
+export * from './bot.ts';

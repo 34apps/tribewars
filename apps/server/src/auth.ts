@@ -154,6 +154,7 @@ export class AuthService {
     return this.store.tx(() => {
       const t = this.now();
       if (ip) this.store.recordIp(player.id, ip, t);
+      this.store.touchActive(player.id, t, 0);
       return this.openSession(player, t);
     });
   }

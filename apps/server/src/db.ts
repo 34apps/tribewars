@@ -3,7 +3,10 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, STAT_KEYS, type StatKey } from '@clanfire/engine';
+
+/** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
+export const statColumn = (k: StatKey): string => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 // ---- Tables with a CHECK that grew after release -----------------------------------------------------------
 // SQLite cannot alter a CHECK, so `rebuildOutdatedTables` copies older databases into the new shape (see applySchema).
@@ -65,7 +68,9 @@ CREATE TABLE IF NOT EXISTS players (
   premium         INTEGER NOT NULL DEFAULT 0,
   household_shared INTEGER NOT NULL DEFAULT 0,
   banned_at       INTEGER,
-  ban_reason      TEXT
+  ban_reason      TEXT,
+  -- Last authenticated API request (written at most every few minutes). Drives the caretaker bot.
+  last_active     INTEGER
 );
 
 -- Every IP an account registered or signed in from (multi-account detection). Raw IPs: needed to review and ban;
@@ -96,6 +101,8 @@ CREATE TABLE IF NOT EXISTS villages (
   y          INTEGER NOT NULL,
   points     INTEGER NOT NULL DEFAULT 0,
   state_json TEXT    NOT NULL,
+  -- Earliest time the caretaker bot may act on this village again (0 = any time). Only used while the owner is idle.
+  bot_next_at INTEGER NOT NULL DEFAULT 0,
   UNIQUE (x, y)
 );
 CREATE INDEX IF NOT EXISTS idx_villages_owner ON villages(owner_id);
@@ -295,6 +302,12 @@ CREATE TABLE IF NOT EXISTS advisor_log (
   ok                 INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_advisor_log_player ON advisor_log(player_id, asked_at);
+
+-- ---- Player statistics (docs/GAME_DESIGN.md section 16): lifetime counters, one INTEGER column per STAT_KEYS entry.
+CREATE TABLE IF NOT EXISTS player_stats (
+  player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+${STAT_KEYS.map((k) => `  ${statColumn(k)} INTEGER NOT NULL DEFAULT 0`).join(',\n')}
+);
 `;
 
 /**
@@ -319,6 +332,15 @@ function addMissingColumns(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'household_shared')) db.exec('ALTER TABLE players ADD COLUMN household_shared INTEGER NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'banned_at')) db.exec('ALTER TABLE players ADD COLUMN banned_at INTEGER');
   if (!cols.some((c) => c.name === 'ban_reason')) db.exec('ALTER TABLE players ADD COLUMN ban_reason TEXT');
+  // Existing players count as "just active" at upgrade time, so nobody is treated as idle the moment this ships.
+  if (!cols.some((c) => c.name === 'last_active')) {
+    db.exec('ALTER TABLE players ADD COLUMN last_active INTEGER');
+    db.prepare('UPDATE players SET last_active = ?').run(Date.now());
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
+  const villageCols = db.prepare('PRAGMA table_info(villages)').all() as Array<{ name: string }>;
+  if (!villageCols.some((c) => c.name === 'bot_next_at')) db.exec('ALTER TABLE villages ADD COLUMN bot_next_at INTEGER NOT NULL DEFAULT 0');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_villages_bot ON villages(bot_next_at) WHERE owner_id IS NOT NULL');
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
   if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).

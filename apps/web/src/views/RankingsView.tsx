@@ -2,11 +2,13 @@
 // Tribe names open the public tribe page (Tribe tab). Sample data can be switched on to try the screen out.
 
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
+import { ProfileExtras } from './ProfileExtras.tsx';
 import { makeSample } from './rankingsSample.ts';
 
 type Section = 'players' | 'tribes';
@@ -149,6 +151,8 @@ interface SheetData {
   facts: [string, string][];
   actions: SheetAction[];
   note?: string;
+  /** Wider content under the facts (profile: achievements and statistics). */
+  extra?: ReactNode;
 }
 
 /** Options for a pressed player or tribe. Closes on Escape, on the backdrop and after any action. */
@@ -162,7 +166,7 @@ function Sheet({ data, onClose }: { data: SheetData; onClose: () => void }) {
   }, [onClose]);
   return (
     <div className="rk-sheet-wrap" onClick={onClose}>
-      <div className="rk-sheet" role="dialog" aria-modal="true" aria-label={data.title} onClick={(e) => e.stopPropagation()}>
+      <div className={`rk-sheet${data.extra ? ' rk-sheet-wide' : ''}`} role="dialog" aria-modal="true" aria-label={data.title} onClick={(e) => e.stopPropagation()}>
         <div className="rk-sheet-grip" aria-hidden="true" />
         <h2 className="rk-sheet-title">{data.title}</h2>
         <p className="muted small rk-sheet-sub">{data.subtitle}</p>
@@ -174,6 +178,7 @@ function Sheet({ data, onClose }: { data: SheetData; onClose: () => void }) {
             </div>
           ))}
         </dl>
+        {data.extra}
         <div className="rk-sheet-actions">
           {data.actions.map((a) => (
             <button
@@ -279,6 +284,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
       ...(pickedRow.playerId > 0 && pickedRow.playerId !== meId ? [{ label: 'Send mail', onClick: () => composeMail(pickedRow.username) }] : []),
       ...(pickedRow.tribe && pickedRow.tribe.id > 0 ? [{ label: 'View tribe', onClick: () => viewTribe({ id: pickedRow.tribe!.id }) }] : []),
     ],
+    extra: prof ? <ProfileExtras stats={prof.stats} achievements={prof.achievements} /> : undefined,
     note:
       pickedRow.playerId < 0
         ? 'Sample player: not a real account, so there is nothing to open.'

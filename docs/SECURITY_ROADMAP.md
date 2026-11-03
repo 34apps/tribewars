@@ -90,3 +90,7 @@ skipped in `CHANGELOG.md`:
 6. **Is it abusable with many accounts?** Think multi-account, spam, and griefing.
 7. **Is it logged?** Audit-log sensitive actions; never log secrets.
 8. **Does a test prove 1–5?** Add integration tests with the controllable clock.
+
+Gate note, stats/achievements and caretaker bot (2026-11-03): no new input and no write endpoint (profile read only;
+counters written by the server inside the event's transaction). The bot only queues builds on the idle owner's own
+village via the normal build check; it cannot train, send troops, shipments or support. `last_active` writes are throttled.

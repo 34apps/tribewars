@@ -3,10 +3,13 @@
 import type { DatabaseSync } from 'node:sqlite';
 import {
   DEFAULT_CHIEFTAIN,
+  STAT_KEYS,
+  emptyStats,
   normalizeUnits,
   normalizeVillage,
   type BattleReportData,
   type Mission,
+  type PlayerStatsDto,
   type Resources,
   type ScoutReportData,
   type ShipmentReportData,
@@ -16,6 +19,7 @@ import {
   type VillageState,
   type WorldSettings,
 } from '@clanfire/engine';
+import { statColumn } from './db.ts';
 import { SqlBase, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import { MailStore } from './mail-store.ts';
@@ -40,6 +44,8 @@ export interface PlayerRow {
   /** When the account was banned (ms), or null. Banned accounts cannot sign in; their sessions are dead. */
   bannedAt: number | null;
   banReason: string | null;
+  /** Last authenticated request (ms); written at most every ACTIVITY_WRITE_INTERVAL_MS. Drives the caretaker bot. */
+  lastActive: number;
 }
 
 export interface SharedIpGroup {
@@ -281,6 +287,7 @@ function toPlayer(r: Raw): PlayerRow {
     householdShared: (r.household_shared as number) === 1,
     bannedAt: (r.banned_at as number | null) ?? null,
     banReason: (r.ban_reason as string | null) ?? null,
+    lastActive: (r.last_active as number | null) ?? (r.created_at as number),
   };
 }
 
@@ -449,14 +456,64 @@ export class Store extends SqlBase {
     chieftain: string = DEFAULT_CHIEFTAIN,
   ): number {
     return this.run(
-      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until, chieftain) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until, chieftain, last_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
       username,
       username.toLowerCase(),
       passwordHash,
       createdAt,
       protectedUntil,
       chieftain,
+      createdAt,
     ).id;
+  }
+
+  /** Record activity at `t`. Cheap no-op unless the stored time is older than `minGapMs`. Returns whether it wrote. */
+  touchActive(playerId: number, t: number, minGapMs: number): boolean {
+    return Number(this.run('UPDATE players SET last_active = ? WHERE id = ? AND (last_active IS NULL OR last_active <= ?)', t, playerId, t - minGapMs).changes) > 0;
+  }
+
+  // ---- statistics (docs/GAME_DESIGN.md section 16) ---------------------------------------------
+
+  /** Add to a player's lifetime counters. Call inside the transaction of the event being counted. Zero deltas are skipped. */
+  addStats(playerId: number | null, delta: Partial<PlayerStatsDto>): void {
+    if (playerId === null) return;
+    const keys = STAT_KEYS.filter((k) => (delta[k] ?? 0) > 0);
+    if (keys.length === 0) return;
+    const cols = keys.map(statColumn);
+    this.run(
+      `INSERT INTO player_stats (player_id, ${cols.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})
+       ON CONFLICT(player_id) DO UPDATE SET ${cols.map((c) => `${c} = ${c} + excluded.${c}`).join(', ')}`,
+      playerId,
+      ...keys.map((k) => Math.floor(delta[k] ?? 0)),
+    );
+  }
+
+  getStats(playerId: number): PlayerStatsDto {
+    const out = emptyStats();
+    const r = this.get('SELECT * FROM player_stats WHERE player_id = ?', playerId);
+    if (r) for (const k of STAT_KEYS) out[k] = (r[statColumn(k)] as number | undefined) ?? 0;
+    return out;
+  }
+
+  // ---- caretaker bot ----------------------------------------------------------------------------
+
+  /**
+   * Villages of idle, unbanned owners the caretaker may act on at `now` (oldest due first). Uses the
+   * `bot_next_at` index, then filters by the owner's activity.
+   */
+  botDueVillages(now: number, idleBefore: number, limit: number): VillageRecord[] {
+    return this.all(
+      `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND v.bot_next_at <= ? AND p.banned_at IS NULL
+         AND COALESCE(p.last_active, p.created_at) <= ?
+       ORDER BY v.bot_next_at, v.id LIMIT ?`,
+      now,
+      idleBefore,
+      limit,
+    ).map(toVillage);
+  }
+
+  setBotNextAt(villageId: number, t: number): void {
+    this.run('UPDATE villages SET bot_next_at = ? WHERE id = ?', t, villageId);
   }
 
   setPremium(playerId: number, premium: boolean): void {

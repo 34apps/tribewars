@@ -940,6 +940,15 @@ textarea {
   color: var(--c-terra-hi);
 }
 
+/* Population chip: same look as a resource, warning colours from 90% */
+.res-pop .res-rate {
+  color: var(--c-dust);
+}
+
+.res-pop.is-near-full .res-rate {
+  color: var(--c-terra-hi);
+}
+
 /* Player block + account menu */
 .who {
   position: relative;
@@ -1064,6 +1073,36 @@ textarea {
 
 .resstrip .res {
   gap: 4px;
+}
+
+/* Phone strip: the population chip gets its own thin row under the four resources */
+.resstrip .resources {
+  flex-wrap: wrap;
+}
+
+.resstrip .res-pop {
+  flex: 1 0 100%;
+  justify-content: flex-end;
+  min-height: 24px;
+}
+
+.resstrip .res-pop .res-cap {
+  display: inline;
+}
+
+.resstrip .res-pop .res-sub {
+  display: none;
+}
+
+.resstrip .res-pop .res-amount::after {
+  content: ' Pop';
+  color: var(--c-dust);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.resstrip .res-pop.is-near-full .res-amount {
+  color: var(--c-terra-hi);
 }
 
 .resstrip .res .token {
@@ -3026,6 +3065,136 @@ button.strip {
 
 .rk-sheet-actions .btn {
   min-height: 44px;
+}
+
+/* Profile: achievements and statistics */
+.rk-sheet-wide {
+  width: min(100%, 720px);
+}
+
+.prof-extras {
+  display: grid;
+  gap: 12px;
+}
+
+.prof-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.ach-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ach {
+  --ach-c: var(--c-bone-shade);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 2px solid var(--ach-c);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.ach-bronze {
+  --ach-c: #b07d46;
+}
+
+.ach-silver {
+  --ach-c: #a39e94;
+}
+
+.ach-gold {
+  --ach-c: #f2b33d;
+  background: rgba(242, 179, 61, 0.16);
+}
+
+.ach-locked {
+  opacity: 0.62;
+}
+
+.ach-medal {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ach-c);
+  color: var(--c-ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.ach-locked .ach-medal {
+  font-size: 1.1rem;
+  color: var(--c-ink-3);
+}
+
+.ach-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ach-name {
+  font-weight: 800;
+}
+
+.ach-desc,
+.ach-status {
+  color: var(--c-ink-3);
+  font-size: 0.78rem;
+}
+
+.ach-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--c-bone-shade);
+  overflow: hidden;
+}
+
+.ach-meter span {
+  display: block;
+  height: 100%;
+  background: var(--ach-c);
+}
+
+.stat-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin: 0;
+}
+
+.stat-list dd {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 700px) {
+  .ach-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (min-width: 700px) {

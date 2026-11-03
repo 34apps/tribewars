@@ -2,8 +2,15 @@
 // inside one BEGIN IMMEDIATE transaction (see Store.tx), so the database never holds half an action.
 
 import {
+  BOT_BATCH_VILLAGES,
+  BOT_MAX_STEPS_PER_RUN,
   GameError,
   MAP_MAX_SPAN,
+  MAX_BUILD_QUEUE,
+  botBuildChoice,
+  botIdleMs,
+  botStepMs,
+  mulberry32,
   RESOURCE_IDS,
   applyAttackerLosses,
   applyBattleToDefender,
@@ -133,6 +140,46 @@ export class GameService {
     private readonly log: GameLogger = { error: () => {} },
   ) {}
 
+  // ---- caretaker bot (docs/GAME_DESIGN.md section 17) ----------------------------------------------
+
+  /**
+   * One pass of the caretaker: for villages of idle (and not banned) owners that are due, settle to `now` and queue
+   * up to BOT_MAX_STEPS_PER_RUN random affordable builds through the normal build rules. It never trains, researches
+   * or sends anything. Each village runs in its own transaction; at most BOT_BATCH_VILLAGES per pass. Returns the
+   * number of builds queued.
+   */
+  runCaretaker(now: number): number {
+    const s = this.settings;
+    const due = this.store.botDueVillages(now, now - botIdleMs(s), BOT_BATCH_VILLAGES);
+    let queued = 0;
+    for (const v of due) {
+      try {
+        queued += this.store.tx(() => this.caretakeVillage(v.id, now));
+      } catch (err) {
+        this.log.error({ err, villageId: v.id }, 'caretaker failed');
+      }
+    }
+    return queued;
+  }
+
+  private caretakeVillage(villageId: number, now: number): number {
+    const s = this.settings;
+    const v = this.store.getVillage(villageId);
+    if (!v || v.ownerId === null) return 0;
+    const stepMs = botStepMs(s);
+    let state = settleVillage(v.state, now, s);
+    let queued = 0;
+    for (let i = 0; i < BOT_MAX_STEPS_PER_RUN; i++) {
+      const choice = botBuildChoice(state, now, s, mulberry32(hashSeed(v.id, Math.floor(now / stepMs), i)), MAX_BUILD_QUEUE);
+      if (!choice) break;
+      state = applyBuild(state, choice, now, s, MAX_BUILD_QUEUE);
+      queued++;
+    }
+    if (queued > 0) this.store.saveVillage(v.id, state, villagePoints(state));
+    this.store.setBotNextAt(v.id, now + stepMs);
+    return queued;
+  }
+
   // ---- time-ordered movement processing ---------------------------------------------------------
 
   /**
@@ -223,6 +270,8 @@ export class GameService {
     const supportLosses = contingents.map((_, i) => normalizeUnits(result.supportLosses[i]));
     this.applyContingentLosses(contingents, supportLosses, at);
 
+    this.countBattleStats(origin, target, contingents, result, supportLosses);
+
     const survived = totalUnits(result.attackerSurvivors) > 0;
     const full: BattleReportData = {
       outcome: 'battle',
@@ -296,6 +345,51 @@ export class GameService {
     }
     this.store.deleteMovement(m.id);
     return spawned;
+  }
+
+  /**
+   * Lifetime statistics of one resolved battle (docs/GAME_DESIGN.md section 16), counted in the battle's own transaction.
+   * Kills are the opponent's losses; a support owner gets a head-count share of the attacker's losses. Abandoned villages
+   * (no owner) are never credited.
+   */
+  private countBattleStats(
+    origin: VillageRecord,
+    target: VillageRecord,
+    contingents: readonly StationedRow[],
+    result: ReturnType<typeof resolveBattle>,
+    supportLosses: readonly Units[],
+  ): void {
+    const attackerLost = totalUnits(result.attackerLosses);
+    const defenderLost = totalUnits(result.defenderLosses);
+    const supportLostTotal = supportLosses.reduce((n, l) => n + totalUnits(l), 0);
+    this.store.addStats(origin.ownerId, {
+      lootWood: Math.floor(result.loot.wood),
+      lootFood: Math.floor(result.loot.food),
+      lootIron: Math.floor(result.loot.iron),
+      lootGold: Math.floor(result.loot.gold),
+      troopsKilled: defenderLost + supportLostTotal,
+      troopsLost: attackerLost,
+      attacksWon: result.attackerWon ? 1 : 0,
+      attacksLost: result.attackerWon ? 0 : 1,
+      abandonedRaided: result.attackerWon && target.ownerId === null ? 1 : 0,
+    });
+    this.store.addStats(target.ownerId, {
+      troopsKilled: attackerLost,
+      troopsLost: defenderLost,
+      defencesWon: result.attackerWon ? 0 : 1,
+      defencesLost: result.attackerWon ? 1 : 0,
+    });
+    const defenders = totalUnits(result.defenderUnits) + contingents.reduce((n, c) => n + totalUnits(c.units), 0);
+    const byOwner = new Map<number, { lost: number; present: number }>();
+    contingents.forEach((c, i) => {
+      const e = byOwner.get(c.ownerPlayerId) ?? { lost: 0, present: 0 };
+      e.lost += totalUnits(supportLosses[i] ?? emptyUnits());
+      e.present += totalUnits(c.units);
+      byOwner.set(c.ownerPlayerId, e);
+    });
+    for (const [ownerId, e] of byOwner) {
+      this.store.addStats(ownerId, { troopsLost: e.lost, troopsKilled: defenders > 0 ? Math.round((attackerLost * e.present) / defenders) : 0 });
+    }
   }
 
   /**
@@ -379,8 +473,10 @@ export class GameService {
     const survivors = subtractUnits(m.units, lost);
 
     // Defenders lose their own Pathfinders first; the rest is split between contingents by size.
+    let ownScoutsLost = 0;
     if (result.defenderScoutLosses > 0) {
       const split = splitScoutLosses(ownScouts, supportScouts, result.defenderScoutLosses);
+      ownScoutsLost = split.own;
       if (split.own > 0) {
         const hurt = { ...targetState, troops: { ...targetState.troops, pathfinder: ownScouts - split.own } };
         this.store.saveVillage(target.id, hurt, villagePoints(hurt));
@@ -391,6 +487,14 @@ export class GameService {
         at,
       );
     }
+
+    this.store.addStats(origin.ownerId, {
+      scoutsSent: 1,
+      scoutsSucceeded: result.success ? 1 : 0,
+      troopsLost: result.scoutLosses,
+      troopsKilled: result.defenderScoutLosses,
+    });
+    this.store.addStats(target.ownerId, { troopsKilled: result.scoutLosses, troopsLost: ownScoutsLost });
 
     const data: ScoutReportData = {
       scout: refOf(origin),
@@ -478,6 +582,7 @@ export class GameService {
       return this.turnBack(m, origin, host);
     }
     this.store.addStationed(origin.ownerId, origin.id, host.id, m.units, at, m.ranks ?? null);
+    this.store.addStats(origin.ownerId, { supportSent: 1 });
     this.store.deleteMovement(m.id);
     return null;
   }
@@ -665,6 +770,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const next = applyBuild(v.state, building, t, this.settings, buildQueueLimit(player.premium));
       this.store.saveVillage(v.id, next, villagePoints(next));
+      this.store.addStats(player.id, { buildingLevelsBuilt: 1 });
       return ownDto(v, next);
     });
   }
@@ -674,6 +780,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const next = applyTrain(v.state, unit, count, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
+      this.store.addStats(player.id, { troopsTrained: count });
       return ownDto(v, next);
     });
   }
@@ -790,6 +897,10 @@ export class GameService {
         arriveAt: t + travel,
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
+      this.store.addStats(player.id, {
+        shipmentsSent: 1,
+        resourcesShipped: RESOURCE_IDS.reduce((n, r) => n + Math.floor(check.resources[r]), 0),
+      });
       const view = this.store.getMovementView(movementId);
       if (!view) throw new Error('movement vanished after insert');
       return { village: ownDto(v, next), movement: movementDto(view, player.id, t) };

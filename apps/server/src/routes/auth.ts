@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
+import { ACTIVITY_WRITE_INTERVAL_MS, GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
@@ -9,6 +9,8 @@ export function requireAuth(ctx: AppContext) {
   return async (req: FastifyRequest): Promise<void> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     if (!player) throw new GameError('unauthorized', 'Please sign in.');
+    // Activity stamp for the caretaker bot: the row we already loaded tells us when a write is due (at most every few minutes).
+    if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) ctx.store.touchActive(player.id, req.nowMs, 0);
     req.player = player;
   };
 }

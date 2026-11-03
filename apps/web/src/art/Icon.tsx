@@ -785,6 +785,18 @@ const ICONS = {
       </>
     ),
   },
+  // Population: two heads and shoulders.
+  pop: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <circle cx="21" cy="11" r="4.2" fill="#C6AF88" stroke="#2B211C" strokeWidth="1.6" />
+        <path d="M13 27V23A8 8 0 0 1 29 23V27Z" fill="#C6AF88" stroke="#2B211C" strokeWidth="1.6" strokeLinejoin="round" />
+        <circle cx="11" cy="12" r="4.6" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.6" />
+        <path d="M2.5 28V24A8.5 8.5 0 0 1 19.5 24V28Z" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.6" strokeLinejoin="round" />
+      </>
+    ),
+  },
 } satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;
