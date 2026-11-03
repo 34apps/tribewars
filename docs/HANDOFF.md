@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`e1da4ba`): fixed the village desktop layout broken by `898fb42` (board stretched to panel height, scene oversized). Board is now one screen tall and sticky; page scrolls for the side panel (`village.css`, `.main-village` is `container-type:size`).
-Left: still not seen in a browser (no browser tool in agent run); 1024-1100 px and short windows unchecked.
-Very next step: owner opens village at 1440/1280/360 px to confirm proportions; then the Drillyard queue check.
-Checks passed (type-check, tests 200, build).
+2026-11-03 (`818796e`): balance review written to `docs/BALANCE.md`, no code or numbers changed. Findings: "400/h" is dev:fast (speed 10); speed-1 curve is fine; food upkeep caps armies; proposal for conquest (Banner Hall, Standard-bearer, Loyalty, weighted points).
+Left: owner approval of the proposal; nothing implemented (agent run could not run simulation scripts).
+Very next step: owner approves/edits BALANCE.md §3.1 + §4; implementer lowers troop upkeep first.
+Checks passed (type-check, tests 200). Earlier: village desktop layout fix `e1da4ba` still unseen in a browser.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 

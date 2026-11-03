@@ -13,6 +13,8 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   to the open questions there decide the rest. Also decide: merged support keeps per-arrival ranks
   or the newest stamp.
 
+- **Balance + conquest (asked 2026-11-03).** Read `docs/BALANCE.md`: approve or edit the proposal (troop upkeep ×0.25, Banner Hall, Standard-bearer, Loyalty, weighted points), then an implementer applies it step by step (upkeep first).
+
 ## Next big pieces
 - **Village desktop scroll** (built 2026-11-03): open the village at 1280/1440 px (page scrolls, board stretches, scene still fits) and at 360 px (phone sheet unchanged).
 - **Test-mode follow-ups** (built 2026-11-03): look at the "On the road" summary (360/1440 px) and the desktop side-panel Close; if the phone sheet still can't be dismissed after opening the Town Hall, find where (not reproduced in code). Possible: warp build/training queues too. Cancel (80% back, built 2026-11-03): look at the Cancel buttons and dialog at 360/1440 px; maybe let any build job be cancelled (now newest only); cancelling research is not covered. If conquest is ever built, the village must keep its queues.
