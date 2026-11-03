@@ -2,9 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`3210b57`): agent runner is now fresh-per-run with last reply as context (`.agent/last-reply.md`), `--continue`, `--budget` default 10; docs updated. Checks passed.
-WARNING, uncommitted and unfinished: an interrupted forum + per-member tribe rights run left partial work in the tree (new forum-service/store, routes/forum.ts, tribes-forum.test.ts, tribe/Forum.tsx; edits in tribe-service/store, config, types, api, db, TribeView, GAME_DESIGN, SECURITY_ROADMAP). `npm run check` passes with it but it was never reviewed or completed. Not committed on purpose.
-Very next step: re-run the forum/rights task (agent should first read `git status`/diff and finish what exists), then build + commit.
+2026-11-03 (`2c4b462`): committed the tribe forum + per-member tribe rights (server forum-service/store/routes, web tribe/Forum.tsx, tests). No type errors were left; I did not do a line-by-line code review.
+Left: look at the forum in a browser; tribe mass message (NEXT_STEPS).
+Very next step: run `npm run dev:fast`, open a tribe and try the Forum tab and rights.
+Checks passed (type-check, 194 + 181 tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 

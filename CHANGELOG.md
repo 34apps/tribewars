@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-03 (`2c4b462`) — Tribe forum + per-member tribe rights: threads and posts (server service/store/routes, web Forum tab), tests, GAME_DESIGN and SECURITY_ROADMAP updated. Check and build pass; not yet seen in a browser.
 - 2026-11-03 — Agent runner: allow chained check commands and read-only helpers (head, tail, cat, grep…) so runs stop failing with "Bash denied"; agent told to retry with simpler commands.
 
 ## 2026-11-03
