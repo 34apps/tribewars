@@ -29,7 +29,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px, and check the new village layout (bigger ring wall, buildings spread out, Drillyard in the middle: tune `PLACEMENT` in `apps/web/src/art/buildings.ts`); show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
 - Map panel for abandoned villages: show a rough strength hint (e.g. "weak / strong") so players
   don't send 3 Pikemen into a big one. Their map size (points) is also only refreshed when raided.
-- Test mode follow-ups: warp for build/training queues; optional world setting so abandoned villages never refill garrisons in test mode.
+- Test mode follow-ups: warp for build/training queues; look at the new "Way out / Way home" inputs in the send form at 360/1440 px. Owner to confirm: abandoned villages never recruit for ALL players now (raided ones stay empty for good), not only in test mode.
 - Market follow-ups: draw real Market sprites (placeholder = Storehouse; swap `FILE.market` in `apps/web/src/art/buildings.ts`, check scene spot); NPC villages have no Market; set `SANDBOX_USERS` on the live server if the owner's username differs.
 - Shipments follow-ups: tune capacity/speed after playtests. Cancel follow-ups: show Cancel also on the map/tile panel; optional "cancelled" note in reports; tune the 2-minute window.
 - Cancel a build/training job (refund rule to decide).

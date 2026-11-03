@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`50436c3`): test mode button "Empty abandoned villages" (`POST /api/sandbox/clear-abandoned`) zeroes all abandoned-village troops. Earlier same day (`99162a0`): test-mode warp (Now/10 s/60 s), "On the road" summary, desktop panel Close.
-Left: nothing seen in a browser. Garrisons refill slowly via growth steps (press again); a permanent "no garrisons in test mode" would need a world setting. Server test doesn't prove a stocked garrison gets emptied.
-Very next step: `npm run dev:fast`, press the button, raid an abandoned village; also try warp.
+2026-11-03 (`710ec52`): test-mode send form has "Way out (s)" / "Way home (s)" inputs (server: `travelSeconds`/`returnSeconds`, `movements.return_secs`). Abandoned villages never recruit now (for everyone; keeps what they have). Earlier: `50436c3` empty-abandoned button, `99162a0` warp.
+Left: nothing seen in a browser. Owner to confirm the no-recruit rule applies to all players, not just test mode (one-line revert point: `applyNpcStep` in engine `village.ts`).
+Very next step: `npm run dev:fast`, send an attack with own seconds, check the return; press "Empty abandoned villages" once.
 Checks passed (type-check, tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
