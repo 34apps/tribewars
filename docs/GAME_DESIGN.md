@@ -423,7 +423,8 @@ nobody) may call `POST /api/sandbox/max` and `POST /api/sandbox/reset`; everyone
 player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every unit at home (troops already away
 stay), build/train queues cleared. **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
-changed. Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
+changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
+the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
 
 ### Mail (player-to-player messages)

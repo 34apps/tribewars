@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`ce8ed59`): leader checkbox in Members > Manage grants/revokes `view_activity` for a plain member (other grants kept; refetches the tribe view). Map label on returning armies now shows troop count + total loot (returns were already drawn on the map and listed in Army with loot icons).
-Left: nothing seen in a browser (toggle, return label, abandonment banner, Members online line, Pop chip). Unclear if the owner wanted the return to appear at attack launch; it is created when the battle resolves.
-Very next step: `npm run dev:fast`, send a raid, check the Returning label and the toggle at 360 px.
+2026-11-03 (`99162a0`): test mode time warp (`POST /api/sandbox/warp`, Settings > Test mode: Now/10 s/60 s); village view "On the road" summary (MovementsSummary.tsx); desktop building side panel got Close + Escape (default still Town Hall).
+Left: nothing seen in a browser. Phone sheet dismiss with the Town Hall was not reproduced in code (it has a Close button); the stuck panel was most likely the desktop one. Return still appears when the battle resolves, not at launch.
+Very next step: `npm run dev:fast`, send a raid, use Test mode > warp, check the summary and Close at 360/1440 px.
 Checks passed (type-check, tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
