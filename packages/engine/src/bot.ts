@@ -11,6 +11,8 @@ import { MS_PER_HOUR } from './util.ts';
 export const botIdleMs = (s: WorldSettings): number => (BOT_IDLE_DAYS * 24 * MS_PER_HOUR) / s.speed;
 /** How long an owner may be away before the villages become abandoned (ms, scaled by world speed). */
 export const abandonIdleMs = (s: WorldSettings): number => (ABANDON_IDLE_DAYS * 24 * MS_PER_HOUR) / s.speed;
+/** The same away time in days at this world speed (30 at speed 1), rounded to one decimal for display. */
+export const abandonIdleDays = (s: WorldSettings): number => Math.round((ABANDON_IDLE_DAYS * 10) / s.speed) / 10;
 /** Minimum gap between two caretaker runs on the same village (ms, scaled by world speed). */
 export const botStepMs = (s: WorldSettings): number => (BOT_STEP_HOURS * MS_PER_HOUR) / s.speed;
 

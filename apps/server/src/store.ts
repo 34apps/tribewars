@@ -46,6 +46,8 @@ export interface PlayerRow {
   banReason: string | null;
   /** Last authenticated request (ms); written at most every ACTIVITY_WRITE_INTERVAL_MS. Drives the caretaker bot. */
   lastActive: number;
+  /** Villages abandoned for idleness that the player has not been told about yet (0 = none). */
+  abandonedNotice: number;
 }
 
 export interface SharedIpGroup {
@@ -288,6 +290,7 @@ function toPlayer(r: Raw): PlayerRow {
     bannedAt: (r.banned_at as number | null) ?? null,
     banReason: (r.ban_reason as string | null) ?? null,
     lastActive: (r.last_active as number | null) ?? (r.created_at as number),
+    abandonedNotice: (r.abandoned_notice as number | null) ?? 0,
   };
 }
 
@@ -524,6 +527,15 @@ export class Store extends SqlBase {
   /** Turn a village into an abandoned one: no owner, state (troops, queues) untouched. */
   releaseVillage(id: number, name: string): void {
     this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0 WHERE id = ?', name, id);
+  }
+
+  /** Remember that `n` more of the player's villages were abandoned, until they dismiss the notice. */
+  addAbandonedNotice(playerId: number, n: number): void {
+    this.run('UPDATE players SET abandoned_notice = abandoned_notice + ? WHERE id = ?', n, playerId);
+  }
+
+  clearAbandonedNotice(playerId: number): void {
+    this.run('UPDATE players SET abandoned_notice = 0 WHERE id = ?', playerId);
   }
 
   setBotNextAt(villageId: number, t: number): void {

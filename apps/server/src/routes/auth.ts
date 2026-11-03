@@ -126,6 +126,12 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     async (req): Promise<MeResponse> => ({ player: ctx.auth.toDto(ctx.auth.setHouseholdShared(playerOf(req), req.body.shared)) }),
   );
 
+  app.post(
+    '/api/me/abandoned-notice/dismiss',
+    { onRequest: requireAuth(ctx) },
+    async (req): Promise<MeResponse> => ({ player: ctx.auth.toDto(ctx.auth.dismissAbandonedNotice(playerOf(req))) }),
+  );
+
   app.get('/api/auth/me', async (req): Promise<MeResponse> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     return { player: player ? ctx.auth.toDto(player) : null };

@@ -10,10 +10,17 @@ import {
   mulberry32,
   protectionEndsAt,
   villagePoints,
+  abandonIdleDays,
+  type AbandonedNoticeDto,
   type PlayerDto,
   type WorldSettings,
 } from '@clanfire/engine';
 import type { PlayerRow, Store } from './store.ts';
+
+/** The "your villages were abandoned" news for the player DTO, or null when there is none. */
+export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings): AbandonedNoticeDto | null {
+  return p.abandonedNotice > 0 ? { villages: p.abandonedNotice, idleDays: abandonIdleDays(s) } : null;
+}
 
 export const SESSION_COOKIE = 'tw_session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -101,7 +108,13 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, sandbox: this.store.isSandboxUser(p.username) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username) };
+  }
+
+  /** The player has read the "villages abandoned" news: clear it and return the updated row. */
+  dismissAbandonedNotice(player: PlayerRow): PlayerRow {
+    this.store.clearAbandonedNotice(player.id);
+    return this.store.getPlayer(player.id) ?? { ...player, abandonedNotice: 0 };
   }
 
   /** Settings: report (or withdraw the report) that others play from the same household. */

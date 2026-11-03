@@ -70,7 +70,9 @@ CREATE TABLE IF NOT EXISTS players (
   banned_at       INTEGER,
   ban_reason      TEXT,
   -- Last authenticated API request (written at most every few minutes). Drives the caretaker bot.
-  last_active     INTEGER
+  last_active     INTEGER,
+  -- Villages lost to abandonment (idle too long) that the player has not yet been told about; 0 = nothing to show.
+  abandoned_notice INTEGER NOT NULL DEFAULT 0
 );
 
 -- Every IP an account registered or signed in from (multi-account detection). Raw IPs: needed to review and ban;
@@ -337,6 +339,7 @@ function addMissingColumns(db: DatabaseSync): void {
     db.exec('ALTER TABLE players ADD COLUMN last_active INTEGER');
     db.prepare('UPDATE players SET last_active = ?').run(Date.now());
   }
+  if (!cols.some((c) => c.name === 'abandoned_notice')) db.exec('ALTER TABLE players ADD COLUMN abandoned_notice INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
   const villageCols = db.prepare('PRAGMA table_info(villages)').all() as Array<{ name: string }>;
   if (!villageCols.some((c) => c.name === 'bot_next_at')) db.exec('ALTER TABLE villages ADD COLUMN bot_next_at INTEGER NOT NULL DEFAULT 0');

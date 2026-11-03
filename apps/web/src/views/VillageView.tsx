@@ -152,7 +152,41 @@ function PhoneVillage() {
   );
 }
 
+/** Shown once to a player whose villages were abandoned while they were away (until they dismiss it). */
+function AbandonedNotice() {
+  const { player, refresh, toast } = useGame();
+  const [busy, setBusy] = useState(false);
+  const n = player.abandonedNotice;
+  if (!n) return null;
+  const days = `${n.idleDays} ${n.idleDays === 1 ? 'day' : 'days'}`;
+  const dismiss = () => {
+    setBusy(true);
+    api
+      .dismissAbandonedNotice()
+      .then(() => refresh())
+      .catch((e) => toast(errorMessage(e), { kind: 'error' }))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="notice notice-block" role="status" style={{ margin: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div>
+        You were away for {days}, so {n.villages === 1 ? 'your village was' : `your ${n.villages} villages were`} abandoned and now{' '}
+        {n.villages === 1 ? 'belongs' : 'belong'} to the map. Troops you stationed elsewhere stay there. You start over with a new village under
+        beginner protection.
+      </div>
+      <button className="btn btn-primary" style={{ minHeight: 40, alignSelf: 'flex-start' }} onClick={dismiss} disabled={busy}>
+        Got it
+      </button>
+    </div>
+  );
+}
+
 export function VillageView() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  return desktop ? <DesktopVillage /> : <PhoneVillage />;
+  return (
+    <>
+      <AbandonedNotice />
+      {desktop ? <DesktopVillage /> : <PhoneVillage />}
+    </>
+  );
 }

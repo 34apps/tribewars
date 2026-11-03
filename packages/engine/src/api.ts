@@ -44,6 +44,15 @@ export interface ChieftainRequest {
   chieftain: string;
 }
 
+export interface AbandonedNoticeDto {
+  /** How many of the player's villages were abandoned while they were away. */
+  villages: number;
+  /** How many days away that takes at this world speed (30 at speed 1). */
+  idleDays: number;
+}
+
+// POST /api/me/abandoned-notice/dismiss (no body) -> 200 MeResponse. Clears PlayerDto.abandonedNotice (own account only).
+
 export interface PlayerDto {
   id: number;
   username: string;
@@ -57,6 +66,8 @@ export interface PlayerDto {
   premium: boolean;
   /** The player reported (Settings) that someone else plays from the same household/connection. */
   householdShared: boolean;
+  /** Set until the player dismisses the news that villages of theirs were abandoned after a long absence; else null. */
+  abandonedNotice: AbandonedNoticeDto | null;
   /** This account may use the test-mode endpoints (server env SANDBOX_USERS). Shows the Test mode card in Settings. */
   sandbox: boolean;
 }

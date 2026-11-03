@@ -479,8 +479,14 @@ stored and sent as plain text and the client renders it as text (line breaks kep
   request without any village they get a fresh village and new beginner protection. Nothing else changes (owner,
   2026-11-03): a tribe member or leader who lost all villages stays in the tribe with the same role and rights and starts
   again like a new player; no automatic leave or leadership handover.
-- Security gate: no new input or endpoint; it only reads and writes the owner's own village through the build planner,
-  so it cannot send resources or troops to anyone.
+  Support the player had stationed in other villages simply stays there (owner, 2026-11-03): the host can send it
+  home (it lands in the now-abandoned village); nothing is deleted. Notice: each abandoned village adds 1 to
+  `players.abandoned_notice`; `PlayerDto.abandonedNotice` (`{ villages, idleDays }`, days = `ABANDON_IDLE_DAYS / speed`)
+  shows a banner on the village view ("You were away for N days, so your villages were abandoned ... you start over
+  with a new village") until the player dismisses it (`POST /api/me/abandoned-notice/dismiss`).
+- Security gate: the abandonment job has no input. The dismiss endpoint is own-account only, takes no body, writes one
+  column and is covered by the global rate limit. The caretaker bot only reads and writes the owner's own village through
+  the build planner, so it cannot send resources or troops to anyone.
 
 ## 14. Roadmap (not yet built)
 

@@ -74,6 +74,7 @@ import {
   type WorldSettings,
   seesLeadershipBoards,
 } from '@clanfire/engine';
+import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, StationedRow, StationedView, VillageRecord, VillageStub } from './store.ts';
@@ -172,7 +173,10 @@ export class GameService {
   private abandonIdleVillages(now: number): void {
     for (const v of this.store.abandonDueVillages(now - abandonIdleMs(this.settings), BOT_BATCH_VILLAGES)) {
       try {
-        this.store.tx(() => this.store.releaseVillage(v.id, NPC_VILLAGE_NAME));
+        this.store.tx(() => {
+          this.store.releaseVillage(v.id, NPC_VILLAGE_NAME);
+          if (v.ownerId !== null) this.store.addAbandonedNotice(v.ownerId, 1); // shown once on their return
+        });
       } catch (err) {
         this.log.error({ err, villageId: v.id }, 'abandon failed');
       }
@@ -1068,7 +1072,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, sandbox: this.store.isSandboxUser(p.username) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username) };
   }
 
   /**

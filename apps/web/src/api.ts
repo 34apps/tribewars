@@ -111,6 +111,7 @@ export const api = {
   sandboxReset: () => request<GameStateResponse>('POST', '/api/sandbox/reset', {}),
   logout: () => request<void>('POST', '/api/auth/logout', {}),
   setChieftain: (chieftain: string) => request<MeResponse>('POST', '/api/me/chieftain', { chieftain } satisfies ChieftainRequest),
+  dismissAbandonedNotice: () => request<MeResponse>('POST', '/api/me/abandoned-notice/dismiss', {}),
   setHousehold: (shared: boolean) => request<MeResponse>('POST', '/api/me/household', { shared } satisfies HouseholdRequest),
   state: () => request<GameStateResponse>('GET', '/api/state'),
   build: (villageId: number, building: string) =>
