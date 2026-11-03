@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`5b39ac6`): web UI for staff tooling: Contact support, Report buttons (mail/chat/forum), staff tools (tickets, reports, players, audit).
-Left: layouts unseen at 360/1440 px; no unread-ticket badge; no assign-to-others; no template editor UI; roadmap ticks/docs for roles; balance proposal `docs/BALANCE.md` awaits owner.
-Very next step: open the new screens in a browser at both widths.
-Checks passed (tests 219 + 208), build ok.
+2026-11-03 (`11942ab`): expanding world layout. `npm run dev` = fresh 500x500 world (new DB `clanfire-world.sqlite`, old DB untouched), start rings of abandoned villages at centre, each newcomer lands in a growing disc + brings 3(+extras) abandoned villages; terrain has far fewer mountains/lakes/forest.
+Left: not looked at in a browser (map at 360/1440 px); numbers `EXPAND_*`/`NPC_RING_*` untuned; preview app stays 'scattered'; staff UI still unseen.
+Very next step: `npm run dev`, register 3-4 accounts, look at the map.
+Checks passed (engine 222 + server 210), build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
