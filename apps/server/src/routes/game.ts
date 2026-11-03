@@ -144,6 +144,12 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     },
   );
 
+  app.post('/api/sandbox/clear-abandoned', auth, async (req): Promise<GameStateResponse> => {
+    const res = ctx.game.sandboxClearAbandoned(playerOf(req), req.nowMs);
+    req.log.warn({ playerId: playerOf(req).id, action: 'clear-abandoned' }, 'sandbox action');
+    return res;
+  });
+
   app.get('/api/state', auth, async (req): Promise<GameStateResponse> => ctx.game.getState(playerOf(req), req.nowMs));
 
   app.post<{ Params: { id: string }; Body: BuildRequest }>(

@@ -46,6 +46,21 @@ test('warp: pulls my movements forward, refuses others and bad input', async () 
   assert.ok(after.departAt < after.arriveAt, 'span stays positive');
 });
 
+test('clear-abandoned: refuses others; afterwards every abandoned village has no troops', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  errorOf(await bob.c.post('/api/sandbox/clear-abandoned', {}), 403, 'forbidden');
+  const count = (): number => (app.ctx.store.db.prepare('SELECT COUNT(*) AS n FROM villages WHERE owner_id IS NULL').get() as { n: number }).n;
+  const n = count();
+  assert.ok(n > 0, 'world has abandoned villages');
+  ok(await alice.c.post('/api/sandbox/clear-abandoned', {}));
+  assert.equal(count(), n);
+  for (const id of app.ctx.store.abandonedVillageIds()) {
+    const troops = Object.values(app.ctx.store.getVillage(id)!.state.troops);
+    assert.ok(troops.every((x) => !x), `village ${id} is empty`);
+  }
+});
+
 test('max: every building at max, stores full, an army of every unit, queues cleared; reset: fresh village', async () => {
   const { app, alice, bob } = await world();
   app.ctx.store.sandboxUsers = new Set(['alice']);

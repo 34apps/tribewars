@@ -424,7 +424,9 @@ player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every uni
 stay), build/train queues cleared. **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
 changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
-the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
+the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). **Empty abandoned villages** (`POST /api/sandbox/clear-abandoned`, no body): every
+abandoned village is settled to now and its troops set to zero; the garrison refills slowly through the normal growth
+steps, so the button can be pressed again. Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
 
 ### Mail (player-to-player messages)

@@ -1104,6 +1104,20 @@ export class GameService {
     return this.getState(player, t);
   }
 
+  /** Sandbox: remove all troops from every abandoned village (their garrison slowly refills through growth steps). */
+  sandboxClearAbandoned(player: PlayerRow, t: number): GameStateResponse {
+    if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
+    this.store.tx(() => {
+      for (const id of this.store.abandonedVillageIds()) {
+        const v = this.store.getVillage(id);
+        if (!v) continue;
+        const next = { ...settleVillage(v.state, t, this.settings), troops: emptyUnits() };
+        this.store.saveVillage(id, next, villagePoints(next));
+      }
+    });
+    return this.getState(player, t);
+  }
+
   /** Accounts that share a connection may not attack, scout or support each other's villages (abandoned ones stay fair game). */
   private refuseHousehold(senderId: number, ownerId: number, what = 'troops'): void {
     if (this.store.shareAnIp(senderId, ownerId)) {

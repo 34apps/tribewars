@@ -686,6 +686,11 @@ export class Store extends SqlBase {
     this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(state), points, id);
   }
 
+  /** Ids of all abandoned (npc) villages. */
+  abandonedVillageIds(): number[] {
+    return this.all('SELECT id FROM villages WHERE owner_id IS NULL ORDER BY id').map((r) => r.id as number);
+  }
+
   /** Refresh the cached points column (building levels change lazily, when a queued job completes). */
   setPoints(id: number, points: number): void {
     this.run('UPDATE villages SET points = ? WHERE id = ?', points, id);
