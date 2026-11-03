@@ -3,6 +3,8 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-03 — Agent runner: allow chained check commands and read-only helpers (head, tail, cat, grep…) so runs stop failing with "Bash denied"; agent told to retry with simpler commands.
+
 ## 2026-11-03
 - Agent runner memory v2 (`3210b57`; `npm run check` green; not run against the live API): every `npm run agent` run starts a fresh conversation; the previous final answer (`.agent/last-reply.md`, capped at 60 lines) is prepended as context; `--continue` resumes the full conversation; `--budget <usd>` (default 10, `--max-usd` still works); `--new` is a no-op. README, `docs/AI-WORKFLOW.md`, `AGENTS.md` updated.
 - Mail (`2b1b69d`; `npm run check` green incl. 8 new mail tests, build green by the implementing agent; not viewed in a browser): player-to-player text+emoji mail. New Mail tab with an unread badge, inbox/sent, read, reply, delete (per side), compose with emoji row; server `mail` table + `/api/mail` routes, `unreadMail` in `/api/state`; limits in `config.ts` (`MAIL_*`: 2000 chars, 200 kept, rate caps); "Send mail" on the Ranks player sheet. Rules in `GAME_DESIGN.md`, security item in `SECURITY_ROADMAP.md`.

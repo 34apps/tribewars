@@ -70,13 +70,20 @@ B) Run that changed files. Finish with this protocol, in order:
  3. If it FAILS: do NOT commit and do NOT push. Leave the changes in the working tree and write the failure (which check, first real error, what you tried) into the "## Last run" section of docs/HANDOFF.md (max 10 lines, say "checks FAILED, nothing committed"). That file edit stays uncommitted too.
  Allowed git: status, diff, log, add, commit, and "git push origin main" only. No force push, other branches, other remotes, reset, checkout, rebase or clean. If a push is rejected, do not work around it: report it in your final answer.
 
+If a Bash command is denied, it is usually because one part of a chained command is not on the allow list: retry with simpler single commands (no pipes, no ";") before giving up.
+
 Final answer: say what changed, whether it was committed/pushed (hashes), what is left, and the next step.`;
 
 const bash = (p: string) => `Bash(${p})`;
 const allowedTools = [
   "Read", "Glob", "Grep", "Edit", "Write",
   ...[
-    "npm run check", "npm run build", "npm run build:preview", "npm test", "npm test *",
+    // Chained commands (a && b | c) are checked part by part, so every part must be listed here.
+    "npm run check", "npm run check *", "npm run build", "npm run build *", "npm run build:preview",
+    "npm run build:preview *", "npm test", "npm test *",
+    // Read-only helpers the agent uses to look at output and files.
+    "head *", "tail *", "cat *", "ls", "ls *", "wc *", "grep *", "echo *", "sed -n *", "sort *", "uniq *",
+    "git show *", "git rev-parse *",
     "git status", "git status *", "git diff", "git diff *", "git log", "git log *",
     "git add -A", "git add .", "git add *", "git commit *", "git push origin main",
   ].map(bash),
