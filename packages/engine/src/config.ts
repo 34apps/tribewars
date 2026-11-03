@@ -598,6 +598,8 @@ export const ACHIEVEMENT_TIERS = {
 
 /** An owner who has not made an authenticated request for this many days (divided by world speed) is idle. */
 export const BOT_IDLE_DAYS = 3;
+/** An owner away this many days (divided by world speed) loses the villages to the map: they become abandoned villages, troops and queues kept. */
+export const ABANDON_IDLE_DAYS = 30;
 /** The caretaker acts on an idle village at most once per this many hours (divided by world speed). */
 export const BOT_STEP_HOURS = 2;
 /** Most builds the caretaker queues for one village in one run. */

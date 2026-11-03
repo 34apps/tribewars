@@ -472,6 +472,11 @@ stored and sent as plain text and the client renders it as text (line breaks kep
 - The bot never trains troops, researches, ranks up, or sends movements, shipments or support; troop buildings and
   the Drillyard have weight 0. Nothing to undo: the owner's next request moves `last_active` forward and the
   village is theirs again at once. Abandoned villages already grow by section 8 and are left alone.
+- **Abandonment** (owner, 2026-11-03): the same job first releases villages whose owner has been away for
+  `ABANDON_IDLE_DAYS` (30, divided by world speed): `owner_id` becomes NULL and the name "Abandoned village". The stored
+  state is untouched, so troops stay and queued builds/training carry on, and the village can be raided like any
+  abandoned one. Movements already under way finish normally. The player keeps the account; on their next login or
+  request without any village they get a fresh village and new beginner protection.
 - Security gate: no new input or endpoint; it only reads and writes the owner's own village through the build planner,
   so it cannot send resources or troops to anyone.
 

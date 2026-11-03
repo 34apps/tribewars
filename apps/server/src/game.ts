@@ -8,6 +8,7 @@ import {
   MAP_MAX_SPAN,
   MAX_BUILD_QUEUE,
   botBuildChoice,
+  abandonIdleMs,
   botIdleMs,
   botStepMs,
   mulberry32,
@@ -73,6 +74,7 @@ import {
   type WorldSettings,
   seesLeadershipBoards,
 } from '@clanfire/engine';
+import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, StationedRow, StationedView, VillageRecord, VillageStub } from './store.ts';
 import { addUnits, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
@@ -150,6 +152,7 @@ export class GameService {
    */
   runCaretaker(now: number): number {
     const s = this.settings;
+    this.abandonIdleVillages(now);
     const due = this.store.botDueVillages(now, now - botIdleMs(s), BOT_BATCH_VILLAGES);
     let queued = 0;
     for (const v of due) {
@@ -160,6 +163,20 @@ export class GameService {
       }
     }
     return queued;
+  }
+
+  /**
+   * Villages of owners away for ABANDON_IDLE_DAYS become abandoned villages. The stored state is untouched, so troops
+   * stay and queued builds and training carry on (abandoned villages are settled lazily like any village).
+   */
+  private abandonIdleVillages(now: number): void {
+    for (const v of this.store.abandonDueVillages(now - abandonIdleMs(this.settings), BOT_BATCH_VILLAGES)) {
+      try {
+        this.store.tx(() => this.store.releaseVillage(v.id, NPC_VILLAGE_NAME));
+      } catch (err) {
+        this.log.error({ err, villageId: v.id }, 'abandon failed');
+      }
+    }
   }
 
   private caretakeVillage(villageId: number, now: number): number {

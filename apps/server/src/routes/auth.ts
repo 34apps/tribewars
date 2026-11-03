@@ -10,7 +10,10 @@ export function requireAuth(ctx: AppContext) {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     if (!player) throw new GameError('unauthorized', 'Please sign in.');
     // Activity stamp for the caretaker bot: the row we already loaded tells us when a write is due (at most every few minutes).
-    if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) ctx.store.touchActive(player.id, req.nowMs, 0);
+    if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) {
+      ctx.store.touchActive(player.id, req.nowMs, 0);
+      ctx.auth.ensureVillage(player); // abandoned after a long absence: start again with a new village
+    }
     req.player = player;
   };
 }

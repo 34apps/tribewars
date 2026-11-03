@@ -155,7 +155,20 @@ export class AuthService {
       const t = this.now();
       if (ip) this.store.recordIp(player.id, ip, t);
       this.store.touchActive(player.id, t, 0);
+      this.ensureVillage(player);
       return this.openSession(player, t);
+    });
+  }
+
+  /** A returning player whose villages were abandoned after a long absence starts over with a fresh village (new beginner protection). */
+  ensureVillage(player: PlayerRow): void {
+    if (this.store.villagesOfPlayer(player.id).length > 0) return;
+    this.store.tx(() => {
+      const t = this.now();
+      const spot = findSpawnLocation((x, y) => this.store.villageExistsAt(x, y), mulberry32(randomInt(0, 0xffffffff)), this.settings);
+      const state = createPlayerVillage(t);
+      this.store.insertVillage(player.id, `${player.username}'s village`, spot.x, spot.y, villagePoints(state), state);
+      this.store.setProtectedUntil(player.id, protectionEndsAt(t, this.settings));
     });
   }
 

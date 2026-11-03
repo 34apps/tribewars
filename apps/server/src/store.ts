@@ -512,6 +512,20 @@ export class Store extends SqlBase {
     ).map(toVillage);
   }
 
+  /** Villages whose owner has not been active since `idleBefore`. */
+  abandonDueVillages(idleBefore: number, limit: number): VillageRecord[] {
+    return this.all(
+      `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND COALESCE(p.last_active, p.created_at) <= ? ORDER BY v.id LIMIT ?`,
+      idleBefore,
+      limit,
+    ).map(toVillage);
+  }
+
+  /** Turn a village into an abandoned one: no owner, state (troops, queues) untouched. */
+  releaseVillage(id: number, name: string): void {
+    this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0 WHERE id = ?', name, id);
+  }
+
   setBotNextAt(villageId: number, t: number): void {
     this.run('UPDATE villages SET bot_next_at = ? WHERE id = ?', t, villageId);
   }
