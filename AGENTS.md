@@ -45,6 +45,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - **Web app first** (desktop browsers AND phone browsers, same responsive app); a native mobile app
   comes later (owner, 2026-11-02). Every screen works at 360 px wide with touch and uses the space
   well at 1280–1440 px desktop widths.
+- **Owner standing preferences (2026-11-03):** no scrollbar inside desktop side panels (the page scrolls instead); always check phone (360 px) and desktop (1280–1440 px) layouts; add server tests for every new endpoint.
 - Before handing off a change: review against `docs/STANDARDS.md`; `npm run check`; `npm run build`
   if `apps/` or dependencies changed; add a dated line to `CHANGELOG.md` (newest first, commit hash);
   update `NEXT_STEPS.md` (remove done items, add new follow-ups). Rewrite `docs/HANDOFF.md` when

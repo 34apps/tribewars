@@ -120,10 +120,19 @@ th[scope='row'] {
   flex-direction: column;
   gap: 14px;
   min-height: 0;
+  padding-bottom: 6px;
+}
+
+/* Desktop: no scrollbar inside the side panel. The whole village page scrolls instead
+   (.main-village below), and the board stretches to the panel's height. */
+.main-village:has(.vv-desktop) {
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
-  padding-bottom: 6px;
+}
+
+.vv-desktop {
+  flex: none;
+  min-height: 100%;
 }
 
 .vv-side > * {
