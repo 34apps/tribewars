@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`012066d`): map polish after owner playtest of the expanding world. Abandoned villages now drawn at 70% size (`RUIN_DRAW_SCALE` in `map/render.ts`); mouse hover card (`.wm-tip`, `MapView.tsx` showTip) shows name, coords, points, owner.
-Left: not viewed in a browser (360/1440 px); 0.7 scale is a guess; `EXPAND_*`/`NPC_RING_*` untuned; preview app stays 'scattered'.
-Very next step: `npm run dev`, hover villages, check ruin size.
-Checks passed (engine 222 + server 210), build ok.
+2026-11-03 (`c7bc950`): expanding world — abandoned villages now start like a player village and each grows in its own random order (`createNpcVillage(tier, t, growthSeed)`, `npc.growthSeed`, shuffle in `village.ts`). Also earlier: 70% ruin size + hover card (`012066d`).
+Left: villages already in an existing DB keep old bigger levels (delete `clanfire-world.sqlite` for a fresh world); no server test for the seeded spawn; not viewed in a browser; `EXPAND_*`/`NPC_RING_*` untuned.
+Very next step: delete the dev world DB, `npm run dev`, sign up, check the neighbours look small.
+Checks passed (engine 223 + server 210), build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
