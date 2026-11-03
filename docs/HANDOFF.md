@@ -2,8 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`513ad1f`): Town Hall list (`HallBuildings` in Panels.tsx) now shows build time per building too (earlier `6dc963b`: list + "Not yet available" requirements + locked plots faded).
-Left: population (pop per building/troop, Farm cap) NOT built: it is a rule change needing owner answers, see NEXT_STEPS. Nothing viewed in a browser yet.
+2026-11-03 (`4bdf97d`): Population built as a second limit (owner's call): building levels + troops vs Farm-based cap, refused with `population_full` in `planBuild`/`planTrain`; Farm takes 0 pop; NPC exempt. Config `POP_*`, `economy.ts`, UI in Town Hall list + Army view, `GAME_DESIGN.md`, `population.test.ts`.
+Left: numbers are untuned guesses; not in the top bar; nothing viewed in a browser yet.
+Very next step: `npm run dev:fast`, open Town Hall + Army, check pop numbers feel right, tune `config.ts`.
 Very next step: `npm run dev:fast`, click the Town Hall, check the list at both widths, tidy styling.
 Checks passed (`npm run check`, `npm run build`).
 

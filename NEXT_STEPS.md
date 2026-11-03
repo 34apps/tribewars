@@ -14,7 +14,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   or the newest stamp.
 
 ## Next big pieces
-- **Population (asked 2026-11-03, NOT built — needs owner decision).** Tribal-Wars-style: each building level and each troop uses population, the Farm sets the cap, shown in the Town Hall list and the top bar. Clanfire today has no population: troops eat food per hour (`not_enough_food` check in `packages/engine/src/village.ts`). Questions: replace food upkeep or add a second limit? Pop per building/unit, Farm capacity curve (all in `config.ts`), what happens to existing villages. It is a rule change: engine + server check + `GAME_DESIGN.md` + tests + security gate.
+- **Population follow-ups** (built 2026-11-03): playtest and tune `POP_*` numbers in `config.ts` (a full-level village vs the cap); show population in the top bar next to resources; population in the battle/support views if troops stationed elsewhere should count; older villages already over the cap just can't build/train more until the Farm grows.
 - **Redesign (Toy Diorama)** — built in: village view, map stages, chieftains. Waiting for owner
   approval on canvas rows H (units), I (tutorial + practice-ruin decision), J (building panels +
   reports), K (terrain + armies); then build each in. Reports need the opponent's chieftain in
