@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-03 (`898fb42`): desktop village side panel lost its inner scrollbar (page scrolls, board stretches; `village.css`). Added server tests for `cancel-research`. Owner's standing preferences (no inner scrollbars, check phone+desktop, always add backend tests) are in AGENTS.md and memory.
-Left: layout not seen in a browser (no browser tool in the agent run). "Don't resize the window" read as: don't shrink the desktop layout; phone sheet unchanged.
-Very next step: open village at 1440/1280/360 px; then the Drillyard queue check (queue two, cancel first).
+2026-11-03 (`e1da4ba`): fixed the village desktop layout broken by `898fb42` (board stretched to panel height, scene oversized). Board is now one screen tall and sticky; page scrolls for the side panel (`village.css`, `.main-village` is `container-type:size`).
+Left: still not seen in a browser (no browser tool in agent run); 1024-1100 px and short windows unchecked.
+Very next step: owner opens village at 1440/1280/360 px to confirm proportions; then the Drillyard queue check.
 Checks passed (type-check, tests 200, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
