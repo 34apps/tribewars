@@ -2,10 +2,10 @@
 
 ## Last run
 
-2026-11-03 (`9c08b93`): owner decision recorded — a returning (abandoned) player gets NO access to old stationed troops/villages (already how it works); messages and tribe membership stay. New tribe right `view_activity` (leader/officer, grantable): own tribe view adds `online`/`lastActive` per member; Members list shows "Online" / "Offline · last seen …".
-Left: abandonment banner, Members online line and Pop chip not seen in a browser; no UI yet to grant `view_activity` (API only).
-Very next step: `npm run dev:fast`, check banner, Members line and Pop chip at 360 px.
-Checks passed (type-check, server + engine tests, build).
+2026-11-03 (`ce8ed59`): leader checkbox in Members > Manage grants/revokes `view_activity` for a plain member (other grants kept; refetches the tribe view). Map label on returning armies now shows troop count + total loot (returns were already drawn on the map and listed in Army with loot icons).
+Left: nothing seen in a browser (toggle, return label, abandonment banner, Members online line, Pop chip). Unclear if the owner wanted the return to appear at attack launch; it is created when the battle resolves.
+Very next step: `npm run dev:fast`, send a raid, check the Returning label and the toggle at 360 px.
+Checks passed (type-check, tests, build).
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
