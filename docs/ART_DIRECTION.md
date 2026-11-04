@@ -61,3 +61,5 @@ Source files: `design/style-directions/` (artboards + renders).
 2. Village view (structure above), approved, then built into the game.
 3. Map village growth stages + terrain tiles, approved, then built in.
 4. Character set (units, chieftains, advisor) used across screens; building panels and reports.
+
+Owner decision 2026-11-04: the village surroundings are built from the world-map terrain tiles (`apps/web/src/art/landscapeTiles.tsx`, sprites copied to `apps/web/src/art/terrain-sprites/`), laid out by meaning (forest by the Lumber Camp, hills and rocks by the Iron Mine, wheat by the Farm, a river and a straight road from the gate), not scattered.

@@ -25,10 +25,11 @@ export function previewRange(building: PreviewBuilding): { min: number; max: num
   return building ? { min: 1, max: BUILDINGS[building].maxLevel } : { min: 0, max: PREVIEW_MAX_LEVEL };
 }
 
-/** Landscape outside the walls: the current one (default until the owner chooses) or one of three options A, B, C. */
+/** Landscape outside the walls: map tiles (default, chosen by the owner), the drawn one, or the options A, B, C. */
 export type { LandscapeChoice };
 export const LANDSCAPE_CHOICES: readonly { id: LandscapeChoice; label: string }[] = [
-  { id: 'current', label: 'Current (default)' },
+  { id: 'tiles', label: 'Map tiles (default)' },
+  { id: 'current', label: 'Drawn' },
   { id: 'A', label: 'A · River valley' },
   { id: 'B', label: 'B · Farmland' },
   { id: 'C', label: 'C · Forest and hills' },
@@ -38,7 +39,7 @@ let state: { on: boolean; level: number; building: PreviewBuilding; landscape: L
   on: readOn(),
   level: 1,
   building: null,
-  landscape: 'current',
+  landscape: 'tiles',
 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());

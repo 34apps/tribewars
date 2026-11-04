@@ -114,7 +114,7 @@ export const SceneArt = memo(function SceneArt({
   tier: number;
   /** Desktop (paints a wide margin round the scene) or phone (a small one). */
   wide: boolean;
-  /** Which landscape to draw (design preview picks; everyone else gets 'current'). */
+  /** Which landscape to draw (design preview picks; everyone else gets 'tiles'). */
   landscape: LandscapeChoice;
   selected: BuildingId | null;
   onBox: (id: BuildingId, box: Box) => void;
@@ -435,7 +435,7 @@ export function VillageScene({
       onPointerCancel={onPointerUp}
     >
       <div className="vv-stage" style={stageStyle}>
-        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'current'} selected={selected} onBox={onBox} onPick={pick} />
+        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} onBox={onBox} onPick={pick} />
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);

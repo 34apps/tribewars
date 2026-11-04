@@ -11,8 +11,8 @@ import type { ViteDevServer } from 'vite';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 
-type Choice = 'current' | 'A' | 'B' | 'C';
-const CHOICES: Choice[] = ['current', 'A', 'B', 'C'];
+type Choice = 'tiles' | 'current' | 'A' | 'B' | 'C';
+const CHOICES: Choice[] = ['tiles', 'current', 'A', 'B', 'C'];
 
 let server: ViteDevServer;
 let Layer: (p: { choice: Choice; tier: number; wide: boolean }) => unknown;

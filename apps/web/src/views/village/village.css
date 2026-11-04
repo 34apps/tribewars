@@ -65,6 +65,12 @@ th[scope='row'] {
   top: 18px;
   z-index: 3;
   max-width: calc(100% - 44px);
+  /* Same toy panel as the phone name pill, so the name stays readable over the busy map-tile landscape. */
+  padding: 10px 16px 9px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 16px;
+  background: var(--c-sun);
+  box-shadow: 0 3px 0 var(--c-ink);
   pointer-events: none;
 }
 
