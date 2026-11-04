@@ -1,1 +1,83 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse><g stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M-40 -8L-8 8L-8 34L-40 18Z" fill="#C79259"></path><path d="M-8 8L24 -8L24 18L-8 34Z" fill="#935F34"></path><path d="M-8 8L24 -8L8 -24Z" fill="#7A5530"></path><circle cx="8" cy="-6" r="4.4" fill="#F2B33D" stroke-width="1.6"></circle><path d="M-40 -1L-8 15M-40 6L-8 22M-40 13L-8 29M-8 15L24 -1M-8 22L24 6M-8 29L24 13" fill="none" stroke="#5E3F22" stroke-width="1"></path><path d="M-40 18L-8 34L-8 44L-40 28Z" fill="#B3ACA0" stroke-width="2"></path><path d="M-8 34L24 18L24 28L-8 44Z" fill="#7C756B" stroke-width="2"></path><path d="M-40 23L-8 39M-24 26L-24 36M-8 34L-8 44M-16 30L-16 40M8 31L8 41M16 22.5L16 32.5" fill="none" stroke="#5E5A52" stroke-width="1"></path><path d="M-28 24L-16 30L-16 10L-28 4Z" fill="#4A3020" stroke="#F2B33D" stroke-width="2.4"></path><path d="M-22 27L-22 7M-28 14L-16 20" fill="none" stroke="#F2B33D" stroke-width="1.4"></path><path d="M6 12L16 7L16 19L6 24Z" fill="#FFDC7A" stroke-width="1.6"></path><path d="M11 9.5L11 21.5" fill="none" stroke-width="1.2"></path><path d="M-45 -6L-7 13L10 -23L-28 -42Z" fill="#A8432B"></path><path d="M-39.4 -17.9L-1.4 1.1M-33.8 -29.8L4.2 -10.8" fill="none" stroke="#6E2A1A" stroke-width="1.4"></path><path d="M-28 -42L10 -23" fill="none" stroke="#F2B33D" stroke-width="2.6"></path><path d="M-45 -6L-7 13" fill="none" stroke="#F2B33D" stroke-width="1.6"></path><path d="M-17 -48L-17 -26L-8 -26L-8 -44Z" fill="#B3ACA0" stroke-width="1.6"></path><path d="M-12 -45L-8 -44L-8 -26L-12 -26Z" fill="#7C756B" stroke="none"></path><path d="M-18 -50L-7 -46L-7 -49L-18 -53Z" fill="#7C756B" stroke-width="1.4"></path><circle cx="-9" cy="-57" r="4" fill="#E3E0E8" stroke="none" opacity="0.85"></circle><circle cx="-4" cy="-64" r="3" fill="#E3E0E8" stroke="none" opacity="0.7"></circle><path d="M-28 -42L-28 -70" fill="none" stroke-width="2.4"></path><path d="M-27 -69L-9 -64L-11 -58L-9 -52L-27 -57Z" fill="#C4623A" stroke-width="1.6"></path><path d="M-27 -63L-10 -58" fill="none" stroke="#F2B33D" stroke-width="2.2"></path><circle cx="-28" cy="-72" r="2.4" fill="#F2B33D" stroke-width="1.5"></circle><path d="M-1 50L-1 30" fill="none" stroke-width="2.4"></path><path d="M-4 28L2 28L2 22L-4 22Z" fill="#FFDC7A" stroke-width="1.5"></path><path d="M-5 22L-1 18L3 22Z" fill="#7A5530" stroke-width="1.4"></path><g stroke-width="1.5"><circle cx="29" cy="30" r="4" fill="#D9B27A"></circle><circle cx="37" cy="30" r="4" fill="#C99B5E"></circle><circle cx="45" cy="30" r="4" fill="#D9B27A"></circle><circle cx="33" cy="23" r="4" fill="#C99B5E"></circle><circle cx="41" cy="23" r="4" fill="#D9B27A"></circle><circle cx="37" cy="16" r="4" fill="#D9B27A"></circle><circle cx="29" cy="30" r="1.3" fill="none" stroke="#B07A40" stroke-width="1"></circle><circle cx="45" cy="30" r="1.3" fill="none" stroke="#B07A40" stroke-width="1"></circle><circle cx="41" cy="23" r="1.3" fill="none" stroke="#B07A40" stroke-width="1"></circle><circle cx="37" cy="16" r="1.3" fill="none" stroke="#B07A40" stroke-width="1"></circle></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+<!-- two pines behind -->
+<g transform="translate(-2 6) scale(1.25)">
+<path d="M-3 0L-3 -12L3 -12L3 0Z" fill="#7A5530" stroke-width="1.3"/>
+<path d="M-16 -8L0 -36L16 -8Z" fill="#2F5E2A"/><path d="M-16 -8L0 -36L0 -8Z" fill="#3D7430" stroke="none"/><path d="M-16 -8L0 -36L16 -8Z" fill="none"/>
+<path d="M-12 -22L0 -46L12 -22Z" fill="#3F7A30"/><path d="M-12 -22L0 -46L0 -22Z" fill="#4E8A34" stroke="none"/><path d="M-12 -22L0 -46L12 -22Z" fill="none"/>
+<path d="M-8 -36L0 -56L8 -36Z" fill="#4E8A34"/><path d="M-8 -36L0 -56L0 -36Z" fill="#62A044" stroke="none"/><path d="M-8 -36L0 -56L8 -36Z" fill="none"/>
+</g>
+<g transform="translate(-36 8) scale(0.8)">
+<path d="M-3 0L-3 -12L3 -12L3 0Z" fill="#7A5530" stroke-width="1.3"/>
+<path d="M-16 -8L0 -36L16 -8Z" fill="#2F5E2A"/><path d="M-16 -8L0 -36L0 -8Z" fill="#3D7430" stroke="none"/><path d="M-16 -8L0 -36L16 -8Z" fill="none"/>
+<path d="M-12 -22L0 -46L12 -22Z" fill="#3F7A30"/><path d="M-12 -22L0 -46L0 -22Z" fill="#4E8A34" stroke="none"/><path d="M-12 -22L0 -46L12 -22Z" fill="none"/>
+</g>
+<!-- big tidy pyramid of logs -->
+<g transform="translate(-27 27) scale(0.92)">
+<path d="M-15.3 3.9L15.3 3.9L24.3 -0.6L9 -28.2L0 -23.7Z" fill="#7A5530"/>
+<path d="M-11.4 0L-2.4 -4.5M-3.8 0L5.2 -4.5M3.8 0L12.8 -4.5M11.4 0L20.4 -4.5M-7.6 -6.6L1.4 -11.1M0 -6.6L9 -11.1M7.6 -6.6L16.6 -11.1M-3.8 -13.2L5.2 -17.7M3.8 -13.2L12.8 -17.7M0 -19.8L9 -24.3" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<circle cx="-11.4" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.6"/><circle cx="-3.8" cy="0" r="3.9" fill="#E3C48C" stroke-width="1.6"/><circle cx="3.8" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.6"/><circle cx="11.4" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.6"/>
+<circle cx="-7.6" cy="-6.6" r="3.9" fill="#E3C48C" stroke-width="1.6"/><circle cx="0" cy="-6.6" r="3.9" fill="#D9B27A" stroke-width="1.6"/><circle cx="7.6" cy="-6.6" r="3.9" fill="#D9B27A" stroke-width="1.6"/>
+<circle cx="-3.8" cy="-13.2" r="3.9" fill="#D9B27A" stroke-width="1.6"/><circle cx="3.8" cy="-13.2" r="3.9" fill="#E3C48C" stroke-width="1.6"/>
+<circle cx="0" cy="-19.8" r="3.9" fill="#E3C48C" stroke-width="1.6"/>
+<circle cx="-11.4" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="-3.8" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="3.8" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="11.4" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="-7.6" cy="-6.6" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="0" cy="-6.6" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="7.6" cy="-6.6" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="-3.8" cy="-13.2" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="3.8" cy="-13.2" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="0" cy="-19.8" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+<path d="M-15 -3L20 -9" fill="none" stroke="#C99B5E" stroke-width="1.6"/>
+</g>
+<!-- large sawmill shed -->
+<g transform="translate(10 14) scale(1.2) translate(-10 -14)">
+<path d="M-8 14L10 5L28 14L28 -10L10 -19L-8 -10Z" fill="#4A3020"/>
+<path d="M1 9.5L1 -14.5M5 7.5L5 -16.5M15 7.5L15 -16.5M21 10.5L21 -13.5" fill="none" stroke="#2E2018" stroke-width="1"/>
+<path d="M10 5L28 14L10 23L-8 14Z" fill="#E3C48C"/>
+<path d="M10 5L10 -19M-8 14L-8 -10M10 23L10 -1" fill="none" stroke-width="5.2"/><path d="M10 5L10 -19M-8 14L-8 -10M10 23L10 -1" fill="none" stroke="#B9854F" stroke-width="3"/>
+<path d="M28 14L28 -10" fill="none" stroke-width="5.2"/><path d="M28 14L28 -10" fill="none" stroke="#8E6539" stroke-width="3"/>
+<path d="M-8 -9L10 0L28 -9M-8 14L10 23L28 14" fill="none" stroke-width="4.6"/><path d="M-8 -9L10 0L28 -9M-8 14L10 23L28 14" fill="none" stroke="#A9794A" stroke-width="2.6"/>
+<path d="M-8 2L2 8M10 14L22 8" fill="none" stroke-width="3.6"/><path d="M-8 2L2 8M10 14L22 8" fill="none" stroke="#A9794A" stroke-width="1.8"/>
+</g>
+<!-- pond, flume and big water wheel -->
+<ellipse cx="-3" cy="29" rx="15" ry="5.5" fill="#6FB4D9"/><path d="M-11 28.5Q-5 27 3 28" fill="none" stroke="#C9E6F4" stroke-width="1"/>
+<g transform="translate(-4 18) skewY(26.57) scale(1.25)">
+<circle r="8.6" fill="#A9794A"/><circle r="5.6" fill="#4A3020" stroke-width="1.2"/>
+<path d="M-8 0L8 0M0 -8L0 8M-5.7 -5.7L5.7 5.7M-5.7 5.7L5.7 -5.7" fill="none" stroke-width="3.4"/><path d="M-8 0L8 0M0 -8L0 8M-5.7 -5.7L5.7 5.7M-5.7 5.7L5.7 -5.7" fill="none" stroke="#D9B27A" stroke-width="1.6"/>
+<rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(90)"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(180)"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(270)"/>
+<circle r="2.2" fill="#7A5530" stroke-width="1.3"/>
+</g>
+<!-- roof with tall chimney -->
+<g transform="translate(10 14) scale(1.2) translate(-10 -14)">
+<path d="M-8 -10L10 -1L28 -10L19 -14.5Z" fill="#8E6539"/>
+<path d="M10 -1L28 -10M14 -3.5L23 -8" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<path d="M-8 -10L10 -1L19 -14.5L1 -23.5Z" fill="#A8532B"/>
+<path d="M-5 -14.5L13 -5.5M-2 -18.9L16 -9.9" fill="none" stroke="#843A23" stroke-width="1.2"/>
+<path d="M1 -23.5L19 -14.5" fill="none" stroke="#EF9C6E" stroke-width="1.5"/>
+<path d="M-8 -10L10 -1L10 2L-8 -7Z" fill="#843A23"/>
+<path d="M2 -19L2 -42L8 -39L8 -16Z" fill="#B5654A"/><path d="M8 -16L8 -39L14 -42L14 -19Z" fill="#8A4A38"/><path d="M1 -42L8 -45.5L15 -42L8 -38.5Z" fill="#D98C73"/><path d="M4.5 -42L8 -43.7L11.5 -42L8 -40.3Z" fill="#2B211C" stroke="none"/>
+<path d="M2 -27L8 -24M2 -33L8 -30M2 -38L8 -35" fill="none" stroke="#843A23" stroke-width="1"/>
+</g>
+<g class="anim-smoke"><circle cx="11" cy="-62" r="4.6" fill="#F2EEE6" opacity="0.92"/><circle cx="17" cy="-71" r="6" fill="#F2EEE6" opacity="0.92"/><circle cx="12" cy="-82" r="7.4" fill="#F2EEE6" opacity="0.92"/></g>
+<!-- tall stack of squared planks -->
+<path d="M22 12L36 19L27 23.5L13 16.5Z" fill="#E3C48C"/><path d="M17.5 14.3L31.5 21.3" fill="none" stroke="#B07A40" stroke-width="1"/>
+<path d="M13 16.5L27 23.5L27 39.5L13 32.5Z" fill="#C99B5E"/><path d="M13 20.5L27 27.5M13 24.5L27 31.5M13 28.5L27 35.5" fill="none" stroke="#7A5530" stroke-width="1"/>
+<path d="M27 23.5L36 19L36 35L27 39.5Z" fill="#A9794A"/><path d="M27 27.5L36 23M27 31.5L36 27M27 35.5L36 31" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<path d="M13 22L27 29M36 21.5L27 26M13 29L27 36M36 28.5L27 33" fill="none" stroke="#6B4A2A" stroke-width="2"/>
+<!-- stump with axe -->
+<path d="M36.5 30L36.5 34Q41 37 45.5 34L45.5 30Z" fill="#8E6539"/><ellipse cx="41" cy="30" rx="4.5" ry="2.2" fill="#D9B27A"/><ellipse cx="41" cy="30" rx="2" ry="1" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+<path d="M41 29.5L46 17" fill="none" stroke-width="4.6"/><path d="M41 29.5L46 17" fill="none" stroke="#A9794A" stroke-width="2.6"/>
+<path d="M43.5 18L49.5 14L50.5 20L45 21.5Z" fill="#C8C3B8" stroke-width="1.4"/><path d="M49.5 14L50.5 20" fill="none" stroke="#F0EEE8" stroke-width="1.2"/>
+<!-- small stack of boards in front -->
+<path d="M-36 38L-30 41L-34 43L-40 40Z" fill="#E3C48C" stroke-width="1.4"/><path d="M-40 40L-34 43L-34 46L-40 43Z" fill="#C99B5E" stroke-width="1.4"/><path d="M-34 43L-30 41L-30 44L-34 46Z" fill="#A9794A" stroke-width="1.4"/>
+<!-- saw bench -->
+<path d="M-14 30L10 42L2 46L-22 34Z" fill="#D9B27A"/>
+<path d="M-18 32L6 44" fill="none" stroke-width="1.6"/>
+<path d="M-22 34L2 46L2 53L-22 41Z" fill="#B9854F"/><path d="M-22 37.5L2 49.5" fill="none" stroke="#7A5530" stroke-width="1"/>
+<path d="M2 46L10 42L10 49L2 53Z" fill="#8E6539"/>
+<path d="M7 43L12 40.5L12 42.5L7 45Z" fill="#E3C48C" stroke-width="1.2"/><path d="M5 41.5L10 39L10 41L5 43.5Z" fill="#E3C48C" stroke-width="1.2"/>
+<!-- log on the bench -->
+<path d="M-14 30L2 38" fill="none" stroke-width="9.4"/><path d="M-14 30L2 38" fill="none" stroke="#8E6539" stroke-width="6.4" stroke-linecap="butt"/><path d="M-14 28.2L2 36.2" fill="none" stroke="#B9854F" stroke-width="2" stroke-linecap="butt"/>
+<ellipse cx="2" cy="38" rx="3" ry="4.2" fill="#D9B27A" stroke-width="1.5"/><ellipse cx="2" cy="38" rx="1.2" ry="1.9" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+<!-- round saw blade -->
+<g transform="translate(-5 31) skewY(-26.57) scale(1.1)">
+<path d="M10 0L7.5 2L8.7 5L5.5 5.5L5 8.7L2 7.5L0 10L-2 7.5L-5 8.7L-5.5 5.5L-8.7 5L-7.5 2L-10 0L-7.5 -2L-8.7 -5L-5.5 -5.5L-5 -8.7L-2 -7.5L0 -10L2 -7.5L5 -8.7L5.5 -5.5L8.7 -5L7.5 -2Z" fill="#C8C3B8" stroke-width="1.5"/>
+<circle r="4.4" fill="#9199A8" stroke-width="1.2"/><circle r="1.5" fill="#2B211C" stroke="none"/>
+<path d="M-6 -5L-2 -8" fill="none" stroke="#F0EEE8" stroke-width="1.2"/>
+</g>
+</g>
+</svg>

@@ -436,11 +436,12 @@ const RADIUS: Record<Kind, number> = { pineA: 8, pineB: 9, oak: 9, bush: 6, rock
 
 /** [kinds, centre u, centre v, spread u, spread v, count, min scale, max scale] — scattered, then filtered by clear(). */
 const ZONES: [Kind[], number, number, number, number, number, number, number][] = [
-  // Forest around the Lumber Camp in the left corner, with stumps and logs where it was cut.
+  // Forest around the Lumber Camp in the left corner (owner 2026-11-04: no scattered stumps or log piles; the
+  // camp's own sprite carries the neat plank and log stacks).
   [['pineA', 'pineB', 'pineA', 'oak'], -196, 96, 26, 44, 9, 1.35, 1.7],
   [['pineA', 'pineB', 'oak'], -118, 200, 18, 22, 5, 1.35, 1.7],
   [['pineA', 'pineB'], -206, 210, 12, 12, 2, 1.3, 1.5],
-  [['stump', 'stump', 'logs'], -130, 130, 22, 22, 3, 1.3, 1.5],
+  [['bush', 'bush', 'oak'], -130, 130, 22, 22, 3, 1.2, 1.5],
   // Rocks around the Gold Mine (back corner) and the Iron Mine (right corner), with a few pines.
   [['rockA', 'rockC', 'rockB', 'pineB'], -130, -205, 26, 14, 5, 1.2, 1.7],
   [['rockA', 'rockC', 'rockB', 'pineB'], -205, -120, 14, 30, 5, 1.2, 1.7],

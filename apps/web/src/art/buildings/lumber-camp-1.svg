@@ -1,1 +1,64 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="46.8" ry="23.4" fill="#2B211C" opacity="0.14"></ellipse><g stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><g transform="translate(38 16) scale(0.8)"><path d="M-2.5 0L-2.5 -10L2.5 -10L2.5 0Z" fill="#7A5530" stroke-width="1.3"></path><path d="M-13 -8L0 -34L13 -8Z" fill="#2F5E2A" stroke-width="1.5"></path><path d="M-10 -20L0 -42L10 -20Z" fill="#4E8A34" stroke-width="1.5"></path></g><path d="M-26 -6L-6 4L-6 26L-26 16Z" fill="#B9854F"></path><path d="M-6 4L14 -6L14 16L-6 26Z" fill="#8E6539"></path><path d="M-6 4L14 -6L4 -15Z" fill="#7A5530"></path><path d="M-26 1L-6 11M-26 6L-6 16M-26 11L-6 21M-6 9L14 -1M-6 14L14 4M-6 19L14 9" fill="none" stroke="#5E3F22" stroke-width="1"></path><path d="M-21 18.5L-13 22.5L-13 8.5L-21 4.5Z" fill="#4A3020" stroke-width="1.5"></path><path d="M-29 -5L-6 6.5L6 -17L-17 -28.5Z" fill="#A8532B"></path><path d="M-17 -28.5L6 -17" fill="none" stroke="#EF9C6E" stroke-width="1.4"></path><path d="M-23 -17L1 -5" fill="none" stroke="#843A23" stroke-width="1.2"></path><path d="M-16 40L-16 38" fill="none" stroke-width="0.1"></path><g transform="translate(18 41)"><path d="M-6 0L-6 -7Q0 -4 6 -7L6 0Q0 4 -6 0Z" fill="#A9794A" stroke-width="1.5"></path><ellipse cx="0" cy="-7" rx="6" ry="2.8" fill="#D9B27A" stroke-width="1.5"></ellipse><path d="M-2 -7Q0 -6 2 -7" fill="none" stroke="#B07A40" stroke-width="1"></path><path d="M0 -8L7 -22" fill="none" stroke-width="4.6"></path><path d="M0 -8L7 -22" fill="none" stroke="#8E6539" stroke-width="2.4"></path><path d="M5 -20L12 -24L13 -17L7 -16Z" fill="#C8C3B8" stroke-width="1.4"></path></g><g stroke-width="1.5"><rect x="-28" y="36" width="18" height="6" rx="3" fill="#A9794A"></rect><circle cx="-25" cy="39" r="2.6" fill="#D9B27A"></circle><rect x="-26" y="30.5" width="18" height="6" rx="3" fill="#C99B5E"></rect><circle cx="-23" cy="33.5" r="2.6" fill="#D9B27A"></circle><rect x="-24" y="25" width="18" height="6" rx="3" fill="#A9794A"></rect><circle cx="-21" cy="28" r="2.6" fill="#D9B27A"></circle></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="46.8" ry="23.4" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+<!-- tall pine behind the shed -->
+<g transform="translate(-2 6) scale(1.05)">
+<path d="M-3 0L-3 -12L3 -12L3 0Z" fill="#7A5530" stroke-width="1.3"/>
+<path d="M-16 -8L0 -36L16 -8Z" fill="#2F5E2A"/><path d="M-16 -8L0 -36L0 -8Z" fill="#3D7430" stroke="none"/><path d="M-16 -8L0 -36L16 -8Z" fill="none"/>
+<path d="M-12 -22L0 -46L12 -22Z" fill="#3F7A30"/><path d="M-12 -22L0 -46L0 -22Z" fill="#4E8A34" stroke="none"/><path d="M-12 -22L0 -46L12 -22Z" fill="none"/>
+<path d="M-8 -36L0 -56L8 -36Z" fill="#4E8A34"/><path d="M-8 -36L0 -56L0 -36Z" fill="#62A044" stroke="none"/><path d="M-8 -36L0 -56L8 -36Z" fill="none"/>
+</g>
+<!-- tidy pyramid of logs, ends facing us -->
+<g transform="translate(-27 23)">
+<path d="M-11.5 3.9L11.5 3.9L20.5 -0.6L9 -21.5L0 -17Z" fill="#7A5530"/>
+<path d="M-7.6 0L1.4 -4.5M0 0L9 -4.5M7.6 0L16.6 -4.5M-3.8 -6.6L5.2 -11.1M3.8 -6.6L12.8 -11.1M0 -13.2L9 -17.7" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<circle cx="-7.6" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.5"/><circle cx="0" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.5"/><circle cx="7.6" cy="0" r="3.9" fill="#D9B27A" stroke-width="1.5"/>
+<circle cx="-3.8" cy="-6.6" r="3.9" fill="#E3C48C" stroke-width="1.5"/><circle cx="3.8" cy="-6.6" r="3.9" fill="#D9B27A" stroke-width="1.5"/>
+<circle cx="0" cy="-13.2" r="3.9" fill="#E3C48C" stroke-width="1.5"/>
+<circle cx="-7.6" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="0" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="7.6" cy="0" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="-3.8" cy="-6.6" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="3.8" cy="-6.6" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/><circle cx="0" cy="-13.2" r="1.6" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+</g>
+<!-- open timber shed -->
+<path d="M-8 14L10 5L28 14L28 -10L10 -19L-8 -10Z" fill="#4A3020"/>
+<path d="M1 9.5L1 -14.5M5 7.5L5 -16.5M15 7.5L15 -16.5M21 10.5L21 -13.5" fill="none" stroke="#2E2018" stroke-width="1"/>
+<path d="M10 5L28 14L10 23L-8 14Z" fill="#E3C48C"/>
+<path d="M10 5L10 -19M-8 14L-8 -10M10 23L10 -1" fill="none" stroke-width="5.2"/><path d="M10 5L10 -19M-8 14L-8 -10M10 23L10 -1" fill="none" stroke="#B9854F" stroke-width="3"/>
+<path d="M28 14L28 -10" fill="none" stroke-width="5.2"/><path d="M28 14L28 -10" fill="none" stroke="#8E6539" stroke-width="3"/>
+<path d="M-8 -9L10 0L28 -9M-8 14L10 23L28 14" fill="none" stroke-width="4.6"/><path d="M-8 -9L10 0L28 -9M-8 14L10 23L28 14" fill="none" stroke="#A9794A" stroke-width="2.6"/>
+<!-- pond and water wheel -->
+<ellipse cx="-2" cy="27" rx="11" ry="4.5" fill="#6FB4D9"/><path d="M-8 26.5Q-4 25 0 26" fill="none" stroke="#C9E6F4" stroke-width="1"/>
+<g transform="translate(-2 17.5) skewY(26.57)">
+<circle r="8.6" fill="#A9794A"/><circle r="5.6" fill="#4A3020" stroke-width="1.2"/>
+<path d="M-8 0L8 0M0 -8L0 8M-5.7 -5.7L5.7 5.7M-5.7 5.7L5.7 -5.7" fill="none" stroke-width="3.4"/><path d="M-8 0L8 0M0 -8L0 8M-5.7 -5.7L5.7 5.7M-5.7 5.7L5.7 -5.7" fill="none" stroke="#D9B27A" stroke-width="1.6"/>
+<rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(90)"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(180)"/><rect x="6.8" y="-1.8" width="3.4" height="3.6" fill="#7A5530" stroke-width="1.2" transform="rotate(270)"/>
+<circle r="2.2" fill="#7A5530" stroke-width="1.3"/>
+</g>
+<!-- roof -->
+<path d="M-8 -10L10 -1L28 -10L19 -14.5Z" fill="#8E6539"/>
+<path d="M10 -1L28 -10M14 -3.5L23 -8" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<path d="M-8 -10L10 -1L19 -14.5L1 -23.5Z" fill="#A8532B"/>
+<path d="M-5 -14.5L13 -5.5M-2 -18.9L16 -9.9" fill="none" stroke="#843A23" stroke-width="1.2"/>
+<path d="M1 -23.5L19 -14.5" fill="none" stroke="#EF9C6E" stroke-width="1.5"/>
+<path d="M-8 -10L10 -1L10 2L-8 -7Z" fill="#843A23"/>
+<!-- stack of squared planks -->
+<path d="M22 20L36 27L27 31.5L13 24.5Z" fill="#E3C48C"/><path d="M17.5 22.3L31.5 29.3" fill="none" stroke="#B07A40" stroke-width="1"/>
+<path d="M13 24.5L27 31.5L27 41.5L13 34.5Z" fill="#C99B5E"/><path d="M13 27.8L27 34.8M13 31.2L27 38.2" fill="none" stroke="#7A5530" stroke-width="1"/>
+<path d="M27 31.5L36 27L36 37L27 41.5Z" fill="#A9794A"/><path d="M27 34.8L36 30.3M27 38.2L36 33.7" fill="none" stroke="#5E3F22" stroke-width="1"/>
+<!-- stump with axe -->
+<path d="M36.5 27L36.5 31Q41 34 45.5 31L45.5 27Z" fill="#8E6539"/><ellipse cx="41" cy="27" rx="4.5" ry="2.2" fill="#D9B27A"/><ellipse cx="41" cy="27" rx="2" ry="1" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+<path d="M41 26.5L46 14" fill="none" stroke-width="4.6"/><path d="M41 26.5L46 14" fill="none" stroke="#A9794A" stroke-width="2.6"/>
+<path d="M43.5 15L49.5 11L50.5 17L45 18.5Z" fill="#C8C3B8" stroke-width="1.4"/><path d="M49.5 11L50.5 17" fill="none" stroke="#F0EEE8" stroke-width="1.2"/>
+<!-- saw bench -->
+<path d="M-14 30L10 42L2 46L-22 34Z" fill="#D9B27A"/>
+<path d="M-18 32L6 44" fill="none" stroke-width="1.6"/>
+<path d="M-22 34L2 46L2 53L-22 41Z" fill="#B9854F"/><path d="M-22 37.5L2 49.5" fill="none" stroke="#7A5530" stroke-width="1"/>
+<path d="M2 46L10 42L10 49L2 53Z" fill="#8E6539"/>
+<!-- log on the bench -->
+<path d="M-14 30L2 38" fill="none" stroke-width="9.4"/><path d="M-14 30L2 38" fill="none" stroke="#8E6539" stroke-width="6.4" stroke-linecap="butt"/><path d="M-14 28.2L2 36.2" fill="none" stroke="#B9854F" stroke-width="2" stroke-linecap="butt"/>
+<ellipse cx="2" cy="38" rx="3" ry="4.2" fill="#D9B27A" stroke-width="1.5"/><ellipse cx="2" cy="38" rx="1.2" ry="1.9" fill="none" stroke="#B07A40" stroke-width="0.9"/>
+<!-- round saw blade -->
+<g transform="translate(-5 31) skewY(-26.57) scale(0.95)">
+<path d="M10 0L7.5 2L8.7 5L5.5 5.5L5 8.7L2 7.5L0 10L-2 7.5L-5 8.7L-5.5 5.5L-8.7 5L-7.5 2L-10 0L-7.5 -2L-8.7 -5L-5.5 -5.5L-5 -8.7L-2 -7.5L0 -10L2 -7.5L5 -8.7L5.5 -5.5L8.7 -5L7.5 -2Z" fill="#C8C3B8" stroke-width="1.5"/>
+<circle r="4.4" fill="#9199A8" stroke-width="1.2"/><circle r="1.5" fill="#2B211C" stroke="none"/>
+<path d="M-6 -5L-2 -8" fill="none" stroke="#F0EEE8" stroke-width="1.2"/>
+</g>
+</g>
+</svg>
