@@ -4,4 +4,9 @@ export function mkdirSync(): void {}
 export function existsSync(): boolean {
   return false;
 }
-export default { mkdirSync, existsSync };
+
+export function readdirSync(): string[] {
+  return [];
+}
+export function rmSync(): void {}
+export default { mkdirSync, existsSync, readdirSync, rmSync };

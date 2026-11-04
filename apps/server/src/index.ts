@@ -20,6 +20,14 @@ const app = await buildApp({
 });
 if (!env.anthropicApiKey) app.log.info('Advisor (Ask Mags) is off (needs ADVISOR_ENABLED=true and ANTHROPIC_API_KEY)');
 
+// Catch up on everything that came due while the server was down (oldest first) before taking requests.
+try {
+  const resolved = app.ctx.game.processDue(Date.now());
+  app.log.info(`startup catch-up: ${resolved} movement(s) resolved`);
+} catch (err) {
+  app.log.error({ err }, 'startup catch-up failed; the tick will retry');
+}
+
 // Arrivals are also processed at the start of every API request; the tick covers idle periods.
 const tick = setInterval(() => {
   try {

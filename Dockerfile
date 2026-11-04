@@ -19,6 +19,9 @@ COPY docs/GAME_DESIGN.md docs/GAME_DESIGN.md
 RUN npm run build -w @clanfire/server
 
 FROM node:${NODE_VERSION}-slim
+LABEL org.opencontainers.image.title="clanfire-game" \
+      org.opencontainers.image.description="Clanfire game server (one container per world)" \
+      org.opencontainers.image.source="https://github.com/34apps/tribewars"
 WORKDIR /app
 ENV NODE_ENV=production \
     DATABASE_PATH=/data/clanfire.sqlite \
@@ -30,6 +33,7 @@ RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data
 EXPOSE 3000
+STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "--enable-source-maps", "index.js"]

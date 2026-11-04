@@ -17,3 +17,4 @@ docs/*
 .agent
 .claude
 *.textClipping
+**/game.env

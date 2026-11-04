@@ -1,13 +1,21 @@
 # One host, one game process per world (SQLite is single-writer; rate limiters and the tick live in memory).
-# Run from this folder: cp .env.example .env, edit it, then `docker compose up -d --build`.
+# Run from this folder: cp .env.example .env; cp game.env.example game.env; edit both; then `docker compose up -d --build`.
+# Updates: ./update.sh (never plain `down -v`; all state lives in /srv/clanfire/data).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   game:
+    image: clanfire-game:latest   # update.sh keeps the prior build as clanfire-game:previous for rollback
     build:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
     init: true
-    env_file: .env
+    env_file: game.env            # game settings only; the origin secret in .env never reaches this container
     volumes:
       # Create once on the host, owned by the container's `node` user (uid 1000):
       #   sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data
@@ -15,11 +23,18 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 200
     mem_limit: 1500m
+    stop_grace_period: 30s        # server stops its tick and closes the DB on SIGTERM
+    logging: *logging
     # No published ports: only caddy reaches it, over the compose network.
 
   caddy:
-    image: caddy:2
+    image: caddy:2.10-alpine
     restart: unless-stopped
     ports:
       - "80:80"
@@ -31,6 +46,16 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging: *logging
     depends_on:
       - game
 

@@ -158,6 +158,9 @@ export class GameService {
    */
   runCaretaker(now: number): number {
     const s = this.settings;
+    // Every movement due by `now` must be resolved before any village is settled to `now`: settling past an
+    // arrival would make the later battle see the village in the wrong (future) state.
+    this.processDue(now);
     this.abandonIdleVillages(now);
     const due = this.store.botDueVillages(now, now - botIdleMs(s), BOT_BATCH_VILLAGES);
     let queued = 0;

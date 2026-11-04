@@ -1,6 +1,6 @@
 // SQLite (node:sqlite) connection and schema.
 
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_CHIEFTAIN, STAT_KEYS, type StatKey } from '@clanfire/engine';
@@ -408,6 +408,48 @@ export function applySchema(db: DatabaseSync): void {
   seedTemplates(db);
 }
 
+/**
+ * Schema version, stored in `PRAGMA user_version`. BUMP IT whenever the schema changes in any way (new table, column,
+ * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
+ * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
+ */
+export const SCHEMA_VERSION = 1;
+/** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
+export const SCHEMA_FINGERPRINT = 'e0c763d696d6ad1b';
+
+/** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
+export function schemaFingerprintInput(): string {
+  const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), seedTemplates.toString()].join('\n----\n');
+}
+
+const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
+const MIGRATION_BACKUPS_KEPT = 5;
+
+function utcStamp(d: Date): string {
+  const p = (n: number, w = 2): string => String(n).padStart(w, '0');
+  return `${p(d.getUTCFullYear(), 4)}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}-${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
+}
+
+const userVersion = (db: DatabaseSync): number => Number((db.prepare('PRAGMA user_version').get() as { user_version: number } | undefined)?.user_version ?? 0);
+
+/** Consistent copy of the open database (VACUUM INTO) next to it in backups/, before a migration touches anything. */
+function backupBeforeMigration(db: DatabaseSync, dbPath: string, from: number): string {
+  const dir = resolve(dirname(dbPath), 'backups');
+  mkdirSync(dir, { recursive: true });
+  const target = resolve(dir, `pre-migrate-v${from}-v${SCHEMA_VERSION}-${utcStamp(new Date())}.sqlite`);
+  if (existsSync(target)) rmSync(target, { force: true });
+  try {
+    db.prepare('VACUUM INTO ?').run(target);
+  } catch (err) {
+    rmSync(target, { force: true });
+    throw new Error(`pre-migration backup failed, refusing to migrate: ${String(err)}`);
+  }
+  const old = readdirSync(dir).filter((f) => MIGRATION_BACKUP.test(f)).sort();
+  for (const f of old.slice(0, Math.max(0, old.length - MIGRATION_BACKUPS_KEPT))) rmSync(resolve(dir, f), { force: true });
+  return target;
+}
+
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */
 function seedTemplates(db: DatabaseSync): void {
   const done = db.prepare("SELECT 1 AS x FROM meta WHERE key = 'templates_seeded'").get();
@@ -420,6 +462,21 @@ function seedTemplates(db: DatabaseSync): void {
 
 /** Columns added after release: SQLite has no ADD COLUMN IF NOT EXISTS, so check the table first. */
 function addMissingColumns(db: DatabaseSync): void {
+  db.exec('BEGIN IMMEDIATE'); // all or nothing: a half-applied migration must not be possible
+  try {
+    addMissingColumnsInner(db);
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
+function addMissingColumnsInner(db: DatabaseSync): void {
   const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
   if (!cols.some((c) => c.name === 'chieftain')) {
     db.exec(`ALTER TABLE players ADD COLUMN chieftain TEXT NOT NULL DEFAULT '${DEFAULT_CHIEFTAIN}'`);
@@ -495,11 +552,25 @@ export function openDatabase(path: string): DatabaseSync {
     path = resolve(path);
     mkdirSync(dirname(path), { recursive: true });
   }
+  const inMemory = path === ':memory:';
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
+  const found = userVersion(db);
+  if (found > SCHEMA_VERSION) {
+    console.warn(`[db] database schema v${found} is newer than this code (v${SCHEMA_VERSION}): older code on a newer database; continuing (schema changes are additive).`);
+  }
+  if (found < SCHEMA_VERSION) {
+    const hasTables = db.prepare("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' LIMIT 1").get() !== undefined;
+    // Never in memory (tests, browser preview): there is nothing durable to protect and no file system to write to.
+    if (hasTables && !inMemory) {
+      const file = backupBeforeMigration(db, path, found);
+      console.info(`[db] schema v${found} -> v${SCHEMA_VERSION}: backup written to ${file}`);
+    }
+  }
   applySchema(db);
+  if (found < SCHEMA_VERSION) db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
 }
