@@ -19,10 +19,8 @@ export interface DepthItem {
 const INK = '#3B2619';
 const { cx: CX, cy: CY, plate: RP, gateHalf: GATE, gateU: GATE_U } = WALL_RING;
 
-/** Half-side of the paved square under the Town Hall, and the half widths of the main road and the side roads. */
+/** Half-side of the paved square under the Town Hall. */
 const SQUARE = 58;
-const MAIN_ROAD = 12;
-const SIDE_ROAD = 7;
 /** Props stay this far inside the plate edge (the wall stands there). */
 const INNER = RP - 14;
 
@@ -75,36 +73,87 @@ const PLOTS: Plot[] = (Object.keys(PLACEMENT) as BuildingId[])
 
 const HALL = PLOTS[(Object.keys(PLACEMENT) as BuildingId[]).filter((id) => id !== 'wall').indexOf('hall')]!;
 
-interface Road {
-  a: readonly [number, number];
-  b: readonly [number, number];
+// ---- Paths ---------------------------------------------------------------------------------------------------
+// Packed-earth paths that meander a little: the main road from the gate up to the hall square, and a branch to the front
+// of each plot (never across one). Each is a smooth curve through hand-placed points (grid units) with a soft, wobbly
+// width; paths that start at the hall square turn into flagstones there. A path shows only once its building exists.
+
+interface PathDef {
+  key: string;
+  pts: readonly (readonly [number, number])[];
+  /** Half width. */
   w: number;
+  /** The building it leads to (null: always shown). */
+  to: BuildingId | null;
+  /** Starts at the hall square (gets flagstones there). */
+  paved?: boolean;
 }
 
-/** The main road from the hall square out through the gate, and a side road from the square to every other plot. */
-const ROADS: Road[] = [
-  { a: [GATE_U, HALL.v + SQUARE - 2], b: [GATE_U, RP + 1], w: MAIN_ROAD },
-  ...PLOTS.filter((p) => p !== HALL).map((p) => {
-    const du = p.u - HALL.u;
-    const dv = p.v - HALL.v;
-    const m = Math.max(Math.abs(du), Math.abs(dv));
-    const pad = (28 * p.half) / 31;
-    return {
-      a: [HALL.u + (du * (SQUARE - 2)) / m, HALL.v + (dv * (SQUARE - 2)) / m] as const,
-      b: [p.u - (du * (pad - 6)) / m, p.v - (dv * (pad - 6)) / m] as const,
-      w: SIDE_ROAD,
-    };
-  }),
+const PATHS: PathDef[] = [
+  { key: 'main', to: null, paved: true, w: 12, pts: [[14, 74], [10, 110], [4, 150], [10, 195], [8, RP + 2]] },
+  { key: 'market', to: 'market', w: 7.2, pts: [[7, 150], [22, 159], [42, 166]] },
+  { key: 'drill', to: 'drillyard', w: 7.2, pts: [[5, 138], [-12, 146], [-34, 152]] },
+  { key: 'farm', to: 'farm', paved: true, w: 7.8, pts: [[74, 74], [97, 94], [112, 116], [128, 128]] },
+  { key: 'east', to: 'storehouse', paved: true, w: 8.4, pts: [[78, 26], [98, 19], [124, 10]] },
+  { key: 'mine', to: 'mine', w: 7.2, pts: [[100, 18], [106, -18], [136, -56], [152, -100], [154, -150]] },
+  { key: 'north', to: 'stables', paved: true, w: 8.4, pts: [[34, -34], [40, -70], [52, -100], [62, -126]] },
+  { key: 'vault', to: 'vault', w: 6.6, pts: [[40, -72], [10, -96], [-20, -112], [-37, -132]] },
+  { key: 'gold', to: 'goldmine', paved: true, w: 7.8, pts: [[-32, -32], [-64, -76], [-104, -108], [-130, -136], [-150, -150]] },
+  { key: 'west', to: 'barracks', paved: true, w: 8.4, pts: [[-34, 16], [-62, 8], [-90, 2], [-116, 0]] },
+  { key: 'lumber', to: 'lumber', w: 7.2, pts: [[-86, 4], [-100, 44], [-122, 92], [-147, 146]] },
 ];
 
-function segDist(u: number, v: number, r: Road): number {
-  const [au, av] = r.a;
-  const du = r.b[0] - au;
-  const dv = r.b[1] - av;
-  const t = Math.max(0, Math.min(1, ((u - au) * du + (v - av) * dv) / (du * du + dv * dv || 1)));
-  return Math.hypot(u - (au + t * du), v - (av + t * dv));
+/** Paths that also show when a branch off them does (a branch needs its trunk). */
+const TRUNK: Record<string, string> = { mine: 'east', vault: 'north', lumber: 'west', market: 'main', drill: 'main' };
+
+interface Sample {
+  u: number;
+  v: number;
+  /** Unit normal in grid units. */
+  nu: number;
+  nv: number;
+  /** Distance along the path. */
+  s: number;
 }
-const onRoad = (u: number, v: number, pad: number) => ROADS.some((r) => segDist(u, v, r) < r.w + pad);
+
+/** Catmull-Rom curve through the points, sampled about every 2.5 grid units. */
+function samplePath(pts: PathDef['pts']): Sample[] {
+  const raw: [number, number][] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2] ?? p2;
+    const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 2.5));
+    for (let k = 0; k < n; k++) {
+      const t = k / n;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const c = (a: number, b: number, cc: number, d: number) =>
+        0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t2 + (-a + 3 * b - 3 * cc + d) * t3);
+      raw.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1])]);
+    }
+  }
+  raw.push([pts[pts.length - 1]![0], pts[pts.length - 1]![1]]);
+  let s = 0;
+  return raw.map(([u, v], i) => {
+    const a = raw[Math.max(0, i - 1)]!;
+    const b = raw[Math.min(raw.length - 1, i + 1)]!;
+    const du = b[0] - a[0];
+    const dv = b[1] - a[1];
+    const len = Math.hypot(du, dv) || 1;
+    if (i > 0) s += Math.hypot(u - raw[i - 1]![0], v - raw[i - 1]![1]);
+    return { u, v, nu: -dv / len, nv: du / len, s };
+  });
+}
+
+const SAMPLES = PATHS.map((p) => samplePath(p.pts));
+
+/** Smooth wobble in [-1, 1] along a path. */
+const wobble = (s: number, k: number) => Math.sin(s * 0.13 + k * 1.7) * 0.55 + Math.sin(s * 0.37 + k * 4.1) * 0.3 + Math.sin(s * 0.91 + k * 2.3) * 0.15;
+
+const onRoad = (u: number, v: number, pad: number) =>
+  PATHS.some((p, i) => SAMPLES[i]!.some((q) => Math.abs(q.u - u) < p.w + pad + 2 && Math.hypot(q.u - u, q.v - v) < p.w * 1.2 + pad));
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
@@ -298,19 +347,8 @@ export function SceneryDefs() {
 
 const GRASS = '#A6C964';
 
-/** Dirt road on the ground: dark edge, body, worn lighter middle. `d` is a closed ground shape. */
-function dirt(key: string, d: string, mid?: string): ReactNode {
-  return (
-    <g key={key}>
-      <path d={d} fill="#9C7748" stroke="#8A6A40" strokeWidth={1.6} strokeLinejoin="round" />
-      <path d={d} fill="#BE9862" />
-      {mid && <path d={mid} fill="#CDAA72" opacity={0.6} />}
-    </g>
-  );
-}
-
-/** The ground plate: earth sides, grass top, roads, fields, the paved square and the grass detail. */
-export const Ground = memo(function Ground() {
+/** The ground plate: earth sides, grass top and the fields. */
+const GroundBase = memo(function GroundBase() {
   const D = 22;
   const lip = 4;
   const L: P3 = [-RP, RP, 0];
@@ -341,21 +379,6 @@ export const Ground = memo(function Ground() {
     );
   }
 
-  // Roads as ground strips (grid units), with a worn lighter middle.
-  const strip = (rd: Road, w: number) => {
-    const du = rd.b[0] - rd.a[0];
-    const dv = rd.b[1] - rd.a[1];
-    const len = Math.hypot(du, dv) || 1;
-    const nu = (-dv / len) * w;
-    const nv = (du / len) * w;
-    return poly([
-      [rd.a[0] + nu, rd.a[1] + nv, 0],
-      [rd.b[0] + nu, rd.b[1] + nv, 0],
-      [rd.b[0] - nu, rd.b[1] - nv, 0],
-      [rd.a[0] - nu, rd.a[1] - nv, 0],
-    ]);
-  };
-
   // Fields: tilled soil with crop rows along u.
   const fields = FIELDS.map(([cu, cv, hu, hv, crop], i) => {
     let rows = '';
@@ -382,25 +405,6 @@ export const Ground = memo(function Ground() {
       <ellipse key={i} cx={f(x)} cy={f(y)} rx={f(rx)} ry={f(rx * 0.45)} fill={i % 3 === 0 ? '#93B656' : '#B4D172'} opacity={0.55} />,
     );
   }
-  const tuft = ['', '', ''];
-  const flowers = ['', '', ''];
-  const pebbles: ReactNode[] = [];
-  for (let i = 0; i < 260; i++) {
-    const u = (r() * 2 - 1) * (RP - 4);
-    const v = (r() * 2 - 1) * (RP - 4);
-    const free =
-      !inSquare(u, v, 1) && !onRoad(u, v, 1) && !onField(u, v, 1) && !PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half);
-    if (!free) continue;
-    const [x, y] = iso(u, v);
-    const s = 1.1 + r() * 0.5;
-    tuft[0] += `M${f(x - 1.3 * s)} ${f(y)}l${f(-0.4 * s)} ${f(-2.6 * s)}`;
-    tuft[1] += `M${f(x)} ${f(y)}l${f(0)} ${f(-3.6 * s)}`;
-    tuft[2] += `M${f(x + 1.2 * s)} ${f(y)}l${f(0.5 * s)} ${f(-2.8 * s)}`;
-    if (i % 5 === 0) flowers[i % 3] += `M${f(x + 4)} ${f(y + 2)}h0`;
-    if (i % 11 === 0)
-      pebbles.push(<ellipse key={i} cx={f(x - 5)} cy={f(y + 1)} rx={1.6} ry={0.9} fill="#A89C86" stroke={INK} strokeWidth={0.4} />);
-  }
-
   return (
     <g className="vv-ground">
       {/* earth sides: grass lip, then soil with stones */}
@@ -417,15 +421,34 @@ export const Ground = memo(function Ground() {
       {patches}
       <path d={`M${pt(...L)}L${pt(...B)}L${pt(...Rt)}`} fill="none" stroke="#C8DE8A" strokeWidth={1.4} opacity={0.8} />
       <path d={poly([B, Rt, F, L])} fill="none" stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
-      {/* dirt roads radiating from the hall square, the main road out through the gate, and the fields */}
-      {ROADS.map((rd, i) => dirt(`r${i}`, strip(rd, rd.w), strip(rd, rd.w * 0.35)))}
       {fields}
-      {/* paved square under the Town Hall, with a stone kerb */}
-      <path d={groundSquare(HALL.u, HALL.v, SQUARE + 3)} fill="#887761" stroke={INK} strokeWidth={0.8} strokeLinejoin="round" />
-      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="#B3A285" />
-      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="url(#vg-pave)" />
-      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="none" stroke={INK} strokeWidth={0.6} />
-      {/* grass detail */}
+    </g>
+  );
+});
+
+/** Grass tufts, flowers and pebbles, drawn over the paths' edges. */
+const GrassDetail = memo(function GrassDetail() {
+  const r = rng(9);
+  const tuft = ['', '', ''];
+  const flowers = ['', '', ''];
+  const pebbles: ReactNode[] = [];
+  for (let i = 0; i < 300; i++) {
+    const u = (r() * 2 - 1) * (RP - 4);
+    const v = (r() * 2 - 1) * (RP - 4);
+    const free =
+      !inSquare(u, v, 1) && !onRoad(u, v, 0) && !onField(u, v, 1) && !PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half);
+    if (!free) continue;
+    const [x, y] = iso(u, v);
+    const s = 1.1 + r() * 0.5;
+    tuft[0] += `M${f(x - 1.3 * s)} ${f(y)}l${f(-0.4 * s)} ${f(-2.6 * s)}`;
+    tuft[1] += `M${f(x)} ${f(y)}l${f(0)} ${f(-3.6 * s)}`;
+    tuft[2] += `M${f(x + 1.2 * s)} ${f(y)}l${f(0.5 * s)} ${f(-2.8 * s)}`;
+    if (i % 5 === 0) flowers[i % 3] += `M${f(x + 4)} ${f(y + 2)}h0`;
+    if (i % 11 === 0)
+      pebbles.push(<ellipse key={i} cx={f(x - 5)} cy={f(y + 1)} rx={1.6} ry={0.9} fill="#A89C86" stroke={INK} strokeWidth={0.4} />);
+  }
+  return (
+    <g>
       <g fill="none" strokeWidth={0.8} strokeLinecap="round">
         <path d={tuft[0]} stroke="#5E7F33" />
         <path d={tuft[1]} stroke="#6F9640" />
@@ -438,6 +461,147 @@ export const Ground = memo(function Ground() {
       </g>
       {pebbles}
     </g>
+  );
+});
+
+/** Screen outline of a path between distances s0 and s1, with each side's half width given by `side`. */
+function ribbon(sm: Sample[], s0: number, s1: number, side: (q: Sample, sign: 1 | -1) => number): string {
+  const pts = sm.filter((q) => q.s >= s0 && q.s <= s1);
+  if (pts.length < 2) return '';
+  const edge = (q: Sample, sign: 1 | -1) => {
+    const o = side(q, sign) * sign;
+    return pt(q.u + q.nu * o, q.v + q.nv * o);
+  };
+  return `M${pts.map((q) => edge(q, 1)).join('L')}L${pts
+    .slice()
+    .reverse()
+    .map((q) => edge(q, -1))
+    .join('L')}Z`;
+}
+
+/** A line along a path at offset `o` (grid units), as an open path. */
+function lane(sm: Sample[], o: (q: Sample) => number, s0 = 0, s1 = Infinity): string {
+  const pts = sm.filter((q) => q.s >= s0 && q.s <= s1);
+  return pts.length < 2 ? '' : `M${pts.map((q) => pt(q.u + q.nu * o(q), q.v + q.nv * o(q))).join('L')}`;
+}
+
+/** The shown paths (earth, ruts, pebbles, edge grass), the hall square with its flagstones spilling into the paths. */
+const Paths = memo(function Paths({ built }: { built: string }) {
+  const have = new Set(built.split(','));
+  // How far along each path to draw: all of it when its building stands; a trunk whose own building is missing only
+  // up to where a shown branch leaves it.
+  const reach = new Map<string, number>();
+  PATHS.forEach((p) => {
+    if (p.to && !have.has(p.to)) return;
+    reach.set(p.key, Infinity);
+    const t = TRUNK[p.key];
+    const ti = PATHS.findIndex((q) => q.key === t);
+    if (t && ti >= 0 && reach.get(t) !== Infinity) {
+      const [bu, bv] = p.pts[0]!;
+      const at = SAMPLES[ti]!.reduce((best, q) => (Math.hypot(q.u - bu, q.v - bv) < Math.hypot(best.u - bu, best.v - bv) ? q : best));
+      reach.set(t, Math.max(reach.get(t) ?? 0, at.s + PATHS[ti]!.w * 1.4));
+    }
+  });
+  const list = PATHS.map((p, i) => ({ p, sm: SAMPLES[i]!.filter((q) => q.s <= (reach.get(p.key) ?? -1)), k: i * 3 + 1 })).filter(
+    ({ sm }) => sm.length > 1,
+  );
+  const r = rng(13);
+  const width = (p: PathDef, k: number, amt: number) => (q: Sample, sign: 1 | -1) => p.w * (1 + amt * wobble(q.s, k + (sign > 0 ? 0 : 7)));
+  const rim: string[] = [];
+  const body: string[] = [];
+  const mid: string[] = [];
+  const worn: string[] = [];
+  const ruts: string[] = [];
+  const pave: { d: string; o: number }[] = [];
+  const stones: ReactNode[] = [];
+  const bites: ReactNode[] = [];
+  const tufts = ['', ''];
+  for (const { p, sm, k } of list) {
+    const end = sm[sm.length - 1]!.s;
+    rim.push(ribbon(sm, 0, end, (q, g) => width(p, k, 0.2)(q, g) + 1.8));
+    body.push(ribbon(sm, 0, end, width(p, k, 0.2)));
+    mid.push(ribbon(sm, 0, end, (q, g) => width(p, k + 2, 0.25)(q, g) * 0.72));
+    worn.push(ribbon(sm, 0, end, (q, g) => p.w * 0.26 * (1 + 0.5 * wobble(q.s, k + (g > 0 ? 3 : 9)))));
+    for (const side of [1, -1]) ruts.push(lane(sm, (q) => side * p.w * (0.46 + 0.06 * wobble(q.s, k + 5))));
+    if (p.paved) {
+      pave.push({ d: ribbon(sm, 0, 18, width(p, k, 0.2)), o: 1 });
+      pave.push({ d: ribbon(sm, 18, 30, (q, g) => width(p, k, 0.2)(q, g) * 0.85), o: 0.6 });
+      pave.push({ d: ribbon(sm, 30, 42, (q, g) => width(p, k, 0.2)(q, g) * 0.6), o: 0.3 });
+    }
+    for (const q of sm) {
+      // Loose cobbles where the paving gives out.
+      if (p.paved && q.s > 26 && q.s < 54 && r() < 0.55) {
+        const o = (r() * 2 - 1) * p.w * 0.8;
+        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
+        stones.push(
+          <ellipse key={`c${stones.length}`} cx={f(x)} cy={f(y)} rx={f(1.4 + r())} ry={f(0.8 + r() * 0.4)} fill={r() < 0.5 ? '#BDB096' : '#A89B82'} stroke="#7C6C56" strokeWidth={0.4} />,
+        );
+      }
+      // Pebbles on the earth.
+      if (q.s > 20 && r() < 0.16) {
+        const o = (r() * 2 - 1) * p.w * 0.85;
+        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
+        stones.push(<ellipse key={`p${stones.length}`} cx={f(x)} cy={f(y)} rx={f(0.7 + r() * 0.8)} ry={f(0.45 + r() * 0.3)} fill="#C4B497" stroke="#7C6C56" strokeWidth={0.35} />);
+      }
+      // Grass nibbling at the edges, tufts just outside them.
+      if (q.s > 10 && r() < 0.24) {
+        const g = r() < 0.5 ? 1 : -1;
+        const o = g * width(p, k, 0.2)(q, g) * (0.92 + r() * 0.16);
+        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
+        const rx = 1.6 + r() * 2;
+        bites.push(<ellipse key={`b${bites.length}`} cx={f(x)} cy={f(y)} rx={f(rx)} ry={f(rx * 0.5)} fill={r() < 0.5 ? '#A6C964' : '#9DBF5A'} />);
+      }
+      if (q.s > 8 && r() < 0.3) {
+        const g = r() < 0.5 ? 1 : -1;
+        const o = g * (width(p, k, 0.2)(q, g) + 1.5 + r() * 2);
+        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
+        const sc = 1 + r() * 0.5;
+        tufts[r() < 0.5 ? 0 : 1] += `M${f(x - 1.2 * sc)} ${f(y)}l${f(-0.4 * sc)} ${f(-2.4 * sc)}M${f(x)} ${f(y)}l0 ${f(-3.4 * sc)}M${f(x + 1.1 * sc)} ${f(y)}l${f(0.5 * sc)} ${f(-2.6 * sc)}`;
+      }
+    }
+  }
+  const sq = (h: number) => groundSquare(HALL.u, HALL.v, h);
+  return (
+    <g className="vv-paths">
+      {/* packed earth: soft darker rim, body, lighter middle, worn centre line */}
+      <path d={rim.join('')} fill="#8A6A42" opacity={0.55} />
+      <path d={rim.join('')} fill="none" stroke="#6E5034" strokeWidth={0.5} opacity={0.35} />
+      <path d={body.join('')} fill="#A9834F" />
+      <path d={mid.join('')} fill="#B99360" />
+      <path d={worn.join('')} fill="#CCA86F" opacity={0.7} />
+      <path d={ruts.join('')} fill="none" stroke="#7E5F3A" strokeWidth={0.9} strokeLinecap="round" strokeDasharray="13 4 8 3 16 5" opacity={0.45} />
+      {bites}
+      {/* the hall square, its flagstones spilling a little way into the paths and fading out */}
+      {pave.map(({ d, o }, i) => (
+        <g key={`pv${i}`} opacity={o}>
+          <path d={d} fill="#B3A285" />
+          <path d={d} fill="url(#vg-pave)" />
+        </g>
+      ))}
+      <path d={sq(SQUARE + 3)} fill="#887761" stroke={INK} strokeWidth={0.8} strokeLinejoin="round" />
+      <path d={sq(SQUARE)} fill="#B3A285" />
+      <path d={sq(SQUARE)} fill="url(#vg-pave)" />
+      <path d={sq(SQUARE)} fill="none" stroke={INK} strokeWidth={0.6} />
+      {stones}
+      <g fill="none" strokeWidth={0.8} strokeLinecap="round">
+        <path d={tufts[0]} stroke="#5E7F33" />
+        <path d={tufts[1]} stroke="#6F9640" />
+      </g>
+    </g>
+  );
+});
+
+/**
+ * The ground plate with its paths, fields and the hall square. `built`: comma-separated ids of the buildings that
+ * stand (or are being built); paths to the others are not drawn, so a new village has no roads to nowhere.
+ */
+export const Ground = memo(function Ground({ built }: { built: string }) {
+  return (
+    <>
+      <GroundBase />
+      <Paths built={built} />
+      <GrassDetail />
+    </>
   );
 });
 
@@ -482,6 +646,20 @@ const PROPS: [Kind, number, number, number][] = (() => {
       i++;
     }
   }
+  // Little bushes and stones along the paths' edges.
+  PATHS.forEach((p, pi) => {
+    SAMPLES[pi]!.forEach((q, i) => {
+      if (q.s < 30 || i % 13 !== 0 || r() < 0.35) return;
+      const g = r() < 0.5 ? 1 : -1;
+      const kind: Kind = r() < 0.8 ? 'bush' : 'rockB';
+      const sc = 0.9 + r() * 0.35;
+      const o = g * (p.w * 1.2 + RADIUS[kind] * sc + 2);
+      const u = q.u + q.nu * o;
+      const v = q.v + q.nv * o;
+      const rad = RADIUS[kind] * sc;
+      if (clear(u, v, rad, false) && !taken(u, v, rad)) out.push([kind, f(u), f(v), f(sc)]);
+    });
+  });
   return out;
 })();
 

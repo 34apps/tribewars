@@ -143,7 +143,7 @@ export const SceneArt = memo(function SceneArt({
       <defs>
         <SceneryDefs />
       </defs>
-      <Ground />
+      <Ground built={BUILDING_IDS.filter((id) => arts[id].stage > 0 || arts[id].queued).join(',')} />
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
