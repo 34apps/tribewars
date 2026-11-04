@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-04 (`e471d92`): world map — villages 1.8x (`VILLAGE_SCALE`), dirt clearing, trees cleared around villages, smaller hover/zoom-only labels (own always), bigger banners, varied hills (`tile-hills-1/2.svg`), all in `map/render.ts`, `sprites.ts`, `blocks.ts`.
-Left: not viewed in a browser (overlap at 1.8x, 360 and 1440 px; far-zoom blocks don't clear trees); village-view town square (`282cfe1`) also unseen; unused `scene/market.svg` to delete.
-Very next step: look at the map and village view, tune scales.
+2026-11-04 (`bc0ce1f`): reverted the world map change `e471d92` (owner preferred the old look); `map/render.ts`, `sprites.ts`, `blocks.ts` are back to the earlier versions.
+Left: unused `art/map/tile-hills-1.svg`, `tile-hills-2.svg` and `art/scene/market.svg` to delete (shell rm not allowed in agent runs); village-view town square (`282cfe1`) still unseen in a browser.
+Very next step: look at the village view; ask the owner what map changes (if any) they do want.
 Checks passed, build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
