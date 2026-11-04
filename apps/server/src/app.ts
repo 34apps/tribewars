@@ -26,6 +26,7 @@ import { supportRoutes } from './routes/support.ts';
 import { tribeRoutes } from './routes/tribes.ts';
 import { ReportService } from './report-service.ts';
 import { StaffService } from './staff-service.ts';
+import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, routeBucket, type RouteBucket } from './security.ts';
 import { Store } from './store.ts';
 import { SupportService } from './support-service.ts';
 import { TribeService } from './tribe-service.ts';
@@ -50,6 +51,8 @@ export interface BuildAppOptions {
   logger?: boolean;
   /** `Secure` session cookie. Default: NODE_ENV === 'production'. */
   secureCookies?: boolean;
+  /** Send Strict-Transport-Security. Default: NODE_ENV === 'production'. */
+  hsts?: boolean;
   /** Trust X-Forwarded-For (behind a reverse proxy only). */
   trustProxy?: boolean | number | string;
   /** Extra normalized origins (scheme://host[:port], lowercase) accepted on writes when the Origin host differs from Host (CDN/load balancer). */
@@ -127,6 +130,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     }
   });
 
+  const hsts = opts.hsts ?? process.env.NODE_ENV === 'production';
   const allowedOrigins = new Set((opts.allowedOrigins ?? []).map((o) => o.toLowerCase()));
   app.addHook('onRequest', async (req) => {
     req.nowMs = now();
@@ -164,6 +168,9 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     void reply.header('X-Content-Type-Options', 'nosniff');
     void reply.header('X-Frame-Options', 'DENY');
     void reply.header('Referrer-Policy', 'same-origin');
+    void reply.header('Content-Security-Policy', CSP);
+    void reply.header('Permissions-Policy', PERMISSIONS_POLICY);
+    if (hsts) void reply.header('Strict-Transport-Security', HSTS);
     if (isApiPath(req.url)) void reply.header('Cache-Control', 'no-store');
   });
 
@@ -202,6 +209,22 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       if (token) ok = writeSessionLimiter.allow(sha256Hex(token), t) && ok;
     }
     if (!ok) {
+      void reply.header('Retry-After', '60');
+      throw new GameError('rate_limited', 'Too many requests. Please slow down and try again in a minute.');
+    }
+  });
+
+  // Stricter per-account limits per route group (security.ts). preValidation runs after the route's
+  // own auth hook, so the player is known; calls without a player fall under the global limits only.
+  const routeLimiters = new Map<RouteBucket, RateLimiter>();
+  for (const [bucket, limit] of Object.entries(ROUTE_LIMITS) as [RouteBucket, number][]) {
+    routeLimiters.set(bucket, new RateLimiter(limit, ROUTE_LIMIT_WINDOW_MS));
+  }
+  app.addHook('preValidation', async (req, reply) => {
+    if (!req.player) return;
+    const bucket = routeBucket(req.method, req.routeOptions.url ?? '');
+    if (!bucket) return;
+    if (!routeLimiters.get(bucket)?.allow(String(req.player.id), req.nowMs)) {
       void reply.header('Retry-After', '60');
       throw new GameError('rate_limited', 'Too many requests. Please slow down and try again in a minute.');
     }

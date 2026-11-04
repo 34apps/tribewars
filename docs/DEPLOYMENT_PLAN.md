@@ -47,6 +47,16 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
 - **CloudFront behaviours:** `/api/*` → policy CachingDisabled + AllViewerExceptHostHeader, all
   methods. `/assets/*` → cached 1 year (file names carry hashes). Default (`index.html`, sprites) →
   short cache; 403/404 → `/index.html` (SPA) on the S3 behaviour only.
+- **CloudFront response-headers policy `clanfire-security-headers`** (attach to the S3/default behaviour;
+  the game server sends the same headers itself on `/api/*`, set `Override origin: Yes` so they match).
+  Source of truth: `apps/server/src/security.ts`. Console/CDK values:
+  - Security headers → **Content-Security-Policy** (override): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
+  - **Strict-Transport-Security** (override): max-age 31536000, includeSubDomains on, preload off.
+  - **X-Content-Type-Options**: nosniff on. **X-Frame-Options**: DENY. **Referrer-Policy**: same-origin.
+  - Custom header **Permissions-Policy** (override): `accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), xr-spatial-tracking=()`
+  - The two Google hosts exist only because `apps/web/index.html` loads fonts from Google Fonts; once
+    the fonts are self-hosted, drop them here and in `security.ts`. `connect-src 'self'` works because
+    the API is the same origin (`/api/*` behaviour on the same CloudFront domain).
 - **Exactly one game container per world.** Never run two against one database (tick, rate limits
   and troop order assume one process). Never put SQLite on EFS.
 - Secrets: only `ANTHROPIC_API_KEY` if the advisor is ever on, plus the origin secret; keep them in
@@ -63,7 +73,7 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
 | 4 | **Backups**: `npm run backup` (`VACUUM INTO` in a separate process + check) and `deploy/backup.sh` → S3 daily ✅; still: S3 lifecycle 30 days, **test a restore** | S | 🟡 `352b072` |
 | 5 | AWS setup (owner + a session): account, domain, ACM cert, S3, CloudFront, EC2, SSM, alarms — ideally as code (CDK/Terraform) | M | ☐ |
 | 6 | **CI** (GitHub Actions): `npm run check`, `npm run build`, `npm audit`, secret scan; deploy: web → S3 + CloudFront invalidation, server → `git pull && docker compose up -d --build` on the instance via SSM | M | ☐ |
-| 7 | Security Phase 1 (`SECURITY_ROADMAP.md`): CSP + HSTS, session expiry/rotation, password policy | M | ☐ |
+| 7 | Security Phase 1 (`SECURITY_ROADMAP.md`): ✅ CSP + HSTS + Permissions-Policy, per-account route limits; open: session expiry/rotation, password policy | M | 🟡 |
 | 8 | Safe migrations: schema version (`PRAGMA user_version`), automatic backup before any migration (start aborts if it fails), all-or-nothing column changes, guard test | S | ✅ `d37e4a3` |
 
 Not needed: Postgres/RDS, Redis, load balancer, auto-scaling. WebSockets later on the same process.

@@ -48,10 +48,9 @@ Status: ✅ done · ◐ partly · ☐ open.
 - ✅ `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `no-store` on API.
 
 ### Phase 1 — before any public server (do next)
-- ☐ **Content-Security-Policy** (`default-src 'self'`; fonts/sprites self-hosted; no inline script) + `Permissions-Policy`, HSTS behind TLS.
-- 🟡 **Global rate limits** (done in `app.ts` with the in-house `RateLimiter`, no new package): 600 API calls/min per IP,
-  180 writes/min per IP, 120 writes/min per session; `429` + `Retry-After`. Still open: stricter per-route caps on
-  send-troops, build, tribe actions, search/rankings; true per-account (not per-session) key.
+- ✅ **Content-Security-Policy** + `Permissions-Policy` on every server response, HSTS in production only (`apps/server/src/security.ts`, tests `security-headers.test.ts`); CloudFront policy in `DEPLOYMENT_PLAN.md` §2. No inline script in the built client. Allowed beyond `'self'`: Google Fonts (style + font host) until fonts are self-hosted (NEXT_STEPS).
+- ✅ **Rate limits** (in-house `RateLimiter`, no new package): global 600 API calls/min per IP, 180 writes/min per IP,
+  120 writes/min per session; plus per-account route caps (`ROUTE_LIMITS`: send, build, train, research, market, tribe, mail, search, rankings; 30–60/min, keyed by account id); `429` + `Retry-After`.
 - ☐ **Session hygiene:** idle + absolute expiry, rotate token on login, "log out everywhere", cap sessions per account; `Secure` cookie enforced in production (fail to start without it).
 - ☐ **Password policy & lockout:** min length 10, check against a common-password list, progressive delay per account on failures (not only per IP).
 - ☐ **Email verification + password reset** (single-use hashed tokens, short expiry) when accounts matter; no account enumeration in messages.
