@@ -5,13 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`0a043e2`): Multiple worlds part 2 = the lobby. New `apps/lobby` (accounts, `tw_lobby` cookie, IP guard, world list, admin CLI,
-`lobby:import`), Ed25519 entry pass (`LOBBY_SIGNING_KEY`), worlds with `LOBBY_PUBLIC_KEY` take `POST /api/auth/enter` (one-time nonces,
-`players.account_id`, schema v2) and switch their own register/login off; web lobby sign-in + world picker + "Worlds" link; deploy `lobby` service,
-Caddy `/lobby/*`, scripts take `lobby`/`all`. Old worlds unchanged without the key. Checks passed (engine 223, lobby 62, server 283, web 19; build + preview).
-Left: Docker, compose, shell scripts, `Dockerfile.lobby` never run; lobby/picker never viewed in a browser (360/1440 px); no password change at the lobby.
-Next: owner runs the rollout in `deploy/README.md` "Lobby" (key, import, switch) or I do Security Phase 1B / self-host fonts. See NEXT_STEPS "Multiple worlds, follow-ups".
-Stray `Pasted ... textClipping`, `.claude/launch.json`, `design/proposals/landscape/toy-*` are uncommitted on purpose.
+2026-11-04 (`cc57571`): Security Phase 1B finished (earlier run left it uncommitted). Lobby: password policy (≥10, common list, no username), per-name
+lockout, sessions idle 14 d / absolute 60 d / max 10 / new token per sign-in / logout-all / Secure in prod, password change; worlds: idle+absolute expiry
+(lobby-linked 12 h). Fixed 3 tests that assumed old rules or hit the exact 60-day edge. Checks passed (engine 223, lobby 82, server 288, web 19; build + preview).
+Left: standalone worlds' own sign-in keeps 8 chars, no lockout; screens not viewed in a browser (360/1440 px); Docker items from the lobby run.
+Next: self-host fonts, or a lobby ban that also ends world sessions; owner views the sign-in screens.
+Stray `Pasted ... textClipping`, `.claude/launch.json` are uncommitted on purpose.
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
