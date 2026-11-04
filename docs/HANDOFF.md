@@ -5,11 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`d37e4a3`): owner: updates must never lose the world. All state is in the DB file; server now catches up
-overdue movements at startup before listening; caretaker order bug fixed; schema version + automatic pre-migration
-backup; restart tests. `deploy/update.sh` (backup first, health wait, auto rollback), `rollback.sh`, `restore.sh`.
-Earlier today (`94f77e4`, `352b072`): AWS plan, compiled server, Dockerfile. Docker never built here. Not pushed.
-Next: owner creates the AWS account + domain; then follow `docs/DEPLOYMENT_PLAN.md` §5. Bump `SCHEMA_VERSION` (db.ts) with every schema change.
+2026-11-04 (`bed1ea1`): Security Phase 1A. CSP + Permissions-Policy on every server response, HSTS only in production
+(`apps/server/src/security.ts`); per-account route limits (`ROUTE_LIMITS`) via a preValidation hook; tests in
+`security-headers.test.ts`; CloudFront headers policy written in DEPLOYMENT_PLAN §2; roadmap ticked.
+CSP is looser than asked in two places: Google Fonts hosts (style-src, font-src) because index.html loads fonts there.
+Built client has no inline scripts. Left: self-host fonts, then tighten CSP. Phase 1 open: session expiry, password policy.
+Next: Security Phase 1B (sessions, password policy/lockout). Checks passed (check, build, build:preview).
 
 Before that (`b8b8b61`): owner said the scenery around the village looked weird. Current landscape: loaf-shaped hills and triangle crags
 replaced by rolling hills and rocky outcrops. Option C: broken mountain cut edges and white-slab cliffs fixed. A and B looked fine in renders.
