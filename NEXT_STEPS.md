@@ -15,6 +15,8 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 
 - **Balance + conquest (asked 2026-11-03).** Read `docs/BALANCE.md`: approve or edit the proposal (troop upkeep ×0.25, Banner Hall, Standard-bearer, Loyalty, weighted points), then an implementer applies it step by step (upkeep first).
 
+- **Village size check** (`fe4d4bc`, never rendered): owner opens Design preview, compares wall 0, 5, 13, 18 at 360 and 1440 px: the village should be the same size; on desktop the tall towers/flags rise into the top margin (check they are not clipped by the page top or hidden behind the village name pill; if so, add top margin for the taller looks).
+
 ## Next big pieces
 - **Grand wall (levels 18–20) review** (`ea92c87`, never rendered): in Design preview drag to 18, 19, 20 at 360 and 1440 px; check buttress/cap overlap with merlons, gate crest vs banners vs arch, tower banner on the footing, top corner tower and flag inside the viewbox (`sceneViewBox` 376), and that the road now ends cleanly behind the gate doors at levels 1–20. Top tower: draw-order fix `a4eb098` (never rendered) — confirm the back walls now meet its base cleanly at 13–20; if not, try a taller back footing.
 - **Wall towers review** (`6056bbb`, `4488363` raised the L3 corner footing to 42 over the back walls; never rendered): check no gap at the four plate corners or where walls meet towers (levels 1–3), stage 3 footing/round tower/gallery proportions, stage 2 turret, tallest towers fit in the viewbox (`sceneViewBox`), and that the bigger corner towers don't crowd the corner buildings.

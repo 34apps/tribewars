@@ -5,8 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`dba0012`): wall level 5 watchtower flag was clipped by the scene's top edge; `sceneViewBox` stage 1 raised 296→312
-(`apps/web/src/art/buildings.ts`). Not rendered here; owner should check level 5 at 360 and 1440 px. Checks passed.
+2026-11-04 (`fe4d4bc`): village shrank at higher wall looks because the scene got taller while its screen box stayed the same.
+Fixed (`VillageScene.tsx`, `village.css`): scale/fit box use the base height `sceneViewBox(0)`; taller looks add headroom above
+(`.vv-world` hangs above the stage in fit view; phone stage is taller so panning reaches it). No browser here, so NOT viewed at 360/1440 px.
+Very next step: owner compares wall 0/5/13/18 in Design preview (same size? tower tops/flags not clipped by page top or name pill on
+desktop; if clipped, add top margin for taller looks). Checks passed.
+Before that (`dba0012`): level 5 flag clipped; `sceneViewBox` stage 1 raised 296→312.
 Before that (`a4eb098`): owner screenshots (wall 13 and 18) showed the top corner tower badly joined to its walls.
 Cause: draw order. Back tower was sorted by its front corner, so its base was painted over the first back-wall pieces
 (tie at 13–17, overlap at 18+). Now sorted by centre in `wallItems`; back walls start at its face. Other corners unchanged.
