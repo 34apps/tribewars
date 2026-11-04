@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`12392ef`): **step 2, several villages** (engine `hearth.ts`/`found.ts`, Chieftain + Banner Hall training with reserved Renown, Strike and Hold on abandoned villages, founding, restart rule for a lost last village, inactive villages keep buildings, `GET /api/villages`, rename, web switcher/Chieftain panel/Strike-Found-Occupy/hold card, multi-village sim). Owner rules in `GAME_DESIGN.md` §18.2 + §18.8 #9. Checks passed (check, build, build:preview). Sim (`BALANCE.md` 7.5): balanced day 20.7, builder 15.2, defender 26.8, pure raider none in 30 days; idle stretch after day 20 under 3 h.
-Left: nothing viewed in a browser (360/1440 px); pace of defender/raider is the owner's call (levers in `NEXT_STEPS.md`); player villages cannot be taken yet (`HEARTH_PLAYERS_ENABLED=false`, step 4); shipment to a taken village lands in the conqueror's stock.
-Very next step: owner looks at the new screens and judges the pace; then step 3 (rest hours) and step 4 (taking player villages).
-Notes: Bash is an allow list (no python, no `rm`, no `node` directly); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch file `packages/engine/test/probe.test.ts` (runner cannot).
-Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping` (stage with explicit paths, not `git add -A`).
+2026-11-05 (`99c3ba8`): **siege units** (Log Ram lowers the Wall, Boulder Sling lowers a picked building; Barracks 5/8 + Drillyard research; only after a won battle, from survivors; floors 0 / Town Hall 1; `GAME_DESIGN.md` §18.9, engine `siege.ts`, `movements.siege_target` schema v6, `SendRequest.targetBuilding` checked for form only, siege in battle reports, web picker (names only), `npm run sim -- --siege`, `BALANCE.md` §8). Checks passed (check, build, build:preview).
+Left: nothing viewed in a browser (picker, report lines, icons, 360/1440 px); owner to judge siege balance (weak spot: Boulder Slings on Banner Hall/Drillyard; Log Ram maybe too costly; levers in `NEXT_STEPS.md`); step 2 items (pace, screens) still open.
+Very next step: owner looks at the new screens; then step 3 (rest hours) and step 4 (taking player villages).
+Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
+Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, and the empty `scripts/sim/_debug.ts` (stage with explicit paths, not `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
