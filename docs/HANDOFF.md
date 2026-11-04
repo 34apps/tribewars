@@ -5,10 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`c603eb7`): step 0 part 2 + **Renown** built: engine `renown.ts`, Banner Hall + Feast, schema v4, `POST /villages/:id/feast`, `GET /rankings/renown`, anti-abuse, web card/panel/tab; premium queue removed; sim bug fixed (0 raids) and tuned, result `docs/sim/2026-11-04-after-step0.txt`, table in `BALANCE.md` §7.3. Checks passed (check, build, build:preview).
-Left: nothing viewed in a browser (360/1440 px); builder idle ~70 h from day 16, pure-defender Renown pace only estimated; step 2 (found/take villages, spend Renown) not started. Details: `NEXT_STEPS.md` first item.
-Very next step: owner looks at the Renown UI and the sim table; then §18.7 step 1 (terrain travel, re-run `npm run sim`), then step 2.
-Notes: sub-agents on Sonnet could not run commands in some runs (Bash denied); the lead ran all checks. Open: cap on movements in flight, limit bucket for rank/respec.
+2026-11-04 (`115a93a`): **defender Renown trickle** (`min(22, 0.006 x defence at home)`/village/day, none in protection, lazy `defenceMark`, paid in `Store.saveVillage`, reads only show it) and **step 1 terrain travel** (`packages/engine/src/travel.ts`, `TERRAIN_SPEED`, cap 2.2x, ~12% slower on average, same both ways; send/shipment forms + coloured map route). Sim: pure defender 2nd village day 25.4, raider 20.4, builder 14.5 (faster than the raider: owner to judge), terrain moved nothing in the sim; idle stretch left for after step 2 (owner). Checks passed (check, build, build:preview); `BALANCE.md` §7.4, `docs/sim/2026-11-04-after-*.txt`.
+Left: nothing viewed in a browser (360/1440 px); step 2 (found/take villages, spend Renown, several villages in the sim) not started. Details: `NEXT_STEPS.md` first item.
+Very next step: owner looks at the map route + send preview and decides about the builder pace; then §18.7 step 2.
+Notes: Bash is an allow list (no python, no `rm`, no `node` directly); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch file `packages/engine/test/probe.test.ts` (runner cannot).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping` (stage with explicit paths, not `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
@@ -42,7 +42,7 @@ Stray `Pasted ... textClipping` file in the repo root is the owner's; don't comm
 - Style **D · Toy Diorama** everywhere (village tried style B on 2026-11-04, owner went back to toy): village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
-- Tests: engine 223, server 223, web 2, all green. Not deployed; no CI.
+- Tests: engine 297, lobby 82, server 350, web 31, all green. Not deployed; no CI.
 
 ## Owner decisions (don't re-ask)
 
