@@ -193,12 +193,6 @@ th[scope='row'] {
   will-change: transform;
 }
 
-/* Holds the scene and the hit areas; in the fit view it is taller than the stage and hangs up above it. */
-.vv-world {
-  position: absolute;
-  inset: 0;
-}
-
 .vv-svg {
   position: absolute;
   inset: 0;

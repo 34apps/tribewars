@@ -111,17 +111,17 @@ export const WALL_RING = { cx: C.x, cy: C.y, r: 229, plate: 234, gateHalf: 16, g
 /** Where the phone view first looks: the Town Hall. */
 export const SCENE_FOCUS = { x: C.x, y: C.y - 30 } as const;
 
-/** Scene coordinate space: the ground plate plus its edge; the top grows with the Town Hall and the wall towers. */
-export const SCENE_VIEWBOX = { x: C.x - 474, y: C.y - 250, w: 948, h: 250 + 262 } as const;
+/**
+ * Scene coordinate space: the ground plate plus its edge, with the same empty headroom above it at EVERY wall level.
+ * The tallest thing is the grand (wall level 18+) back corner tower: plate corner 216 above the centre (234 - 18) +
+ * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 353 units, plus pen width. 376 leaves ~20 units spare.
+ * One fixed box (not one per wall look) means the village never changes size or position when the wall is upgraded,
+ * and nothing is clipped at any level. The Town Hall stands in the middle, so its label stays well below the top.
+ */
+export const SCENE_VIEWBOX = { x: C.x - 474, y: C.y - 376, w: 948, h: 376 + 262 } as const;
 
-/** The scene grows upwards when the wall's towers get taller (the back corner tower and its flag must stay inside). */
-export function sceneViewBox(wallStage: WallLook = 0): { x: number; y: number; w: number; h: number } {
-  // The Town Hall stands in the middle, so even at its last stage its label stays well below the plate's top corner.
-  const wall = wallStage === 4 ? 376 : wallStage === 3 ? 342 :wallStage === 2 ? 304 : wallStage === 1 ? 312 : 250;
-  const top = C.y - wall;
-  const bottom = SCENE_VIEWBOX.y + SCENE_VIEWBOX.h;
-  return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: bottom - top };
-}
+/** Height of the scene without the extra headroom (the old box: 250 above the centre, 262 below); phone zoom is based on it. */
+export const SCENE_BASE_H = 250 + 262;
 
 export interface Box {
   x: number;

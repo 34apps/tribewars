@@ -17,7 +17,8 @@ import {
   loadSprite,
   placementDepth,
   readySprite,
-  sceneViewBox,
+  SCENE_BASE_H,
+  SCENE_VIEWBOX,
   scopeIds,
   spriteUrl,
   wallLook,
@@ -30,7 +31,7 @@ import { formatDuration } from '../../format.ts';
 import { unmetRequirements } from '../../rules.ts';
 import { useGame } from '../../game.ts';
 
-type ViewBox = ReturnType<typeof sceneViewBox>;
+type ViewBox = { x: number; y: number; w: number; h: number };
 const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vault: 'Vault' };
 
 /** What the scene draws for one building. */
@@ -289,10 +290,10 @@ export function VillageScene({
     return out;
   }, [artKey]);
 
-  const wallStage = arts.wall.stage;
-  const vb = useMemo(() => sceneViewBox(wallStage), [wallStage]);
+  // One fixed scene box for every wall level: it always holds the headroom for the grandest towers and flags, so the
+  // village never changes size or position when the wall is upgraded and nothing is clipped at the top.
+  const vb = SCENE_VIEWBOX;
   const VB = vb;
-  const BASE_VB = useMemo(() => sceneViewBox(0), []);
 
   // Hit buttons in painter's order, so the building in front wins where boxes overlap.
   const order = useMemo(() => [...BUILDING_IDS].sort((a, b) => placementDepth(a) - placementDepth(b)), []);
@@ -315,9 +316,9 @@ export function VillageScene({
   }, [mode]);
 
   // Scene size on phones: big enough to read labels, bounded so panning stays short.
-  // The scale always comes from the base height (wall look 0), so the village keeps its size at every wall level;
-  // taller wall looks only add headroom above it.
-  const scale = mode === 'pan' && view.h > 0 ? Math.min(1.85, Math.max(1.35, (view.h * 0.9) / BASE_VB.h)) : 1;
+  // The scale comes from the height without the headroom above the plate (SCENE_BASE_H), so the village keeps the size
+  // it had before the headroom existed; the stage is taller by the headroom and panning reaches it.
+  const scale = mode === 'pan' && view.h > 0 ? Math.min(1.85, Math.max(1.35, (view.h * 0.9) / SCENE_BASE_H)) : 1;
   const stageW = VB.w * scale;
   const stageH = VB.h * scale;
 
@@ -401,24 +402,18 @@ export function VillageScene({
           transform: pan ? `translate3d(${pan.x}px, ${pan.y}px, 0)` : undefined,
           visibility: pan ? undefined : 'hidden',
         }
-      : ({ '--vb-ratio': BASE_VB.w / BASE_VB.h } as CSSProperties);
-  // Fit view: the stage keeps the base size; the taller scene hangs up above it (so the village does not shrink).
-  const worldStyle: CSSProperties | undefined =
-    mode === 'fit'
-      ? { top: `${(-(BASE_VB.y - VB.y) / BASE_VB.h) * 100}%`, height: `${(VB.h / BASE_VB.h) * 100}%`, bottom: 'auto' }
-      : undefined;
+      : ({ '--vb-ratio': VB.w / VB.h } as CSSProperties);
 
   return (
     <div
       ref={viewRef}
-      className={`vv-view vv-${mode}${mode === 'fit' && view.w > 0 && Math.min(view.w, (view.h * BASE_VB.w) / BASE_VB.h) < 820 ? ' is-compact' : ''}`}
+      className={`vv-view vv-${mode}${mode === 'fit' && view.w > 0 && Math.min(view.w, (view.h * VB.w) / VB.h) < 820 ? ' is-compact' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
       <div className="vv-stage" style={stageStyle}>
-        <div className="vv-world" style={worldStyle}>
         <SceneArt arts={arts} vb={vb} selected={selected} onBox={onBox} onPick={pick} />
         <div className="vv-hits">
           {order.map((id) => {
@@ -441,7 +436,6 @@ export function VillageScene({
               />
             );
           })}
-        </div>
         </div>
       </div>
     </div>
