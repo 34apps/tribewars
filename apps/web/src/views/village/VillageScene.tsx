@@ -22,7 +22,7 @@ import {
   spriteUrl,
 } from '../../art/buildings.ts';
 import type { Box, Stage } from '../../art/buildings.ts';
-import { Campfire, Ground, SQUARE_DEPTH, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
+import { Ground, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
@@ -107,7 +107,6 @@ export const SceneArt = memo(function SceneArt({
   onPick: (id: BuildingId) => void;
 }) {
   const items: DepthItem[] = [...sceneryItems()];
-  items.push({ key: 'campfire', depth: SQUARE_DEPTH, node: <Campfire /> });
   const wall = arts.wall;
   if (wall.stage > 0) {
     for (const it of wallItems(wall.stage as Exclude<Stage, 0>)) {
@@ -148,14 +147,6 @@ export const SceneArt = memo(function SceneArt({
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
-      <g className="vv-life" aria-hidden="true">
-        {/* Smoke rising from the campfire. */}
-        <g transform={`translate(${SCENE_FOCUS.x + 4} ${SCENE_FOCUS.y + 8})`}>
-          {[0, 1, 2].map((i) => (
-            <circle key={i} className="vv-puff" r={3.4} fill="#F3EEE4" style={{ animationDelay: `${i * 1.2}s` }} />
-          ))}
-        </g>
-      </g>
       {selected && (
         <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path d={footprintFront(selected)} stroke="#2B211C" strokeWidth={7} />
@@ -292,9 +283,8 @@ export function VillageScene({
     return out;
   }, [artKey]);
 
-  const hallStage = arts.hall.stage;
   const wallStage = arts.wall.stage;
-  const vb = useMemo(() => sceneViewBox(hallStage, wallStage), [hallStage, wallStage]);
+  const vb = useMemo(() => sceneViewBox(wallStage), [wallStage]);
   const VB = vb;
 
   // Hit buttons in painter's order, so the building in front wins where boxes overlap.

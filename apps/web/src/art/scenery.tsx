@@ -1,5 +1,6 @@
 // Village scene scenery in style B (Painted Miniature, like the building sprites): the ground plate with its roads,
-// paths and paved town square, the campfire, trees and rocks, and the ring wall drawn by its stage. Everything is laid
+// fields and the paved square under the Town Hall, trees and rocks, and the ring wall on the plate's edge drawn by its
+// stage. Everything is laid
 // out on the isometric grid from ./buildings.ts (iso(u, v, z)); buildings themselves are sprites from there.
 // Thin dark-brown outlines, 4–5 painted tones per material, lit from the top left (left faces light, right faces dark).
 
@@ -16,15 +17,14 @@ export interface DepthItem {
 }
 
 const INK = '#3B2619';
-const { cx: CX, cy: CY, r: R, plate: RP, gateHalf: GATE } = WALL_RING;
-/** Depth of the campfire in the town square for the painter's sort. */
-export const SQUARE_DEPTH = CY;
+const { cx: CX, cy: CY, plate: RP, gateHalf: GATE, gateU: GATE_U } = WALL_RING;
 
-/** Half-side of the paved square, the ring path around it, and the half width of the four roads (grid units). */
-const SQUARE = 62;
-const RING_IN = 80;
-const RING_OUT = 92;
-const ROAD = 12;
+/** Half-side of the paved square under the Town Hall, and the half widths of the main road and the side roads. */
+const SQUARE = 58;
+const MAIN_ROAD = 12;
+const SIDE_ROAD = 7;
+/** Props stay this far inside the plate edge (the wall stands there). */
+const INNER = RP - 14;
 
 type P3 = readonly [number, number, number];
 const f = (n: number) => Math.round(n * 10) / 10;
@@ -73,13 +73,53 @@ const PLOTS: Plot[] = (Object.keys(PLACEMENT) as BuildingId[])
     return { u: (dx + s) / 2, v: (s - dx) / 2, half: 31 * p.scale, x: p.x, y: ty, hw: 56 * p.scale };
   });
 
-const onRoad = (u: number, v: number, pad: number) =>
-  (Math.abs(u) < ROAD + pad && Math.abs(v) > SQUARE - pad) || (Math.abs(v) < ROAD + pad && Math.abs(u) > SQUARE - pad);
+const HALL = PLOTS[(Object.keys(PLACEMENT) as BuildingId[]).filter((id) => id !== 'wall').indexOf('hall')]!;
 
-/** Free ground for a prop of radius `rad` at (u, v): off the plots, roads, paths and square, and not hiding a plot. */
+interface Road {
+  a: readonly [number, number];
+  b: readonly [number, number];
+  w: number;
+}
+
+/** The main road from the hall square out through the gate, and a side road from the square to every other plot. */
+const ROADS: Road[] = [
+  { a: [GATE_U, HALL.v + SQUARE - 2], b: [GATE_U, RP + 1], w: MAIN_ROAD },
+  ...PLOTS.filter((p) => p !== HALL).map((p) => {
+    const du = p.u - HALL.u;
+    const dv = p.v - HALL.v;
+    const m = Math.max(Math.abs(du), Math.abs(dv));
+    const pad = (28 * p.half) / 31;
+    return {
+      a: [HALL.u + (du * (SQUARE - 2)) / m, HALL.v + (dv * (SQUARE - 2)) / m] as const,
+      b: [p.u - (du * (pad - 6)) / m, p.v - (dv * (pad - 6)) / m] as const,
+      w: SIDE_ROAD,
+    };
+  }),
+];
+
+function segDist(u: number, v: number, r: Road): number {
+  const [au, av] = r.a;
+  const du = r.b[0] - au;
+  const dv = r.b[1] - av;
+  const t = Math.max(0, Math.min(1, ((u - au) * du + (v - av) * dv) / (du * du + dv * dv || 1)));
+  return Math.hypot(u - (au + t * du), v - (av + t * dv));
+}
+const onRoad = (u: number, v: number, pad: number) => ROADS.some((r) => segDist(u, v, r) < r.w + pad);
+
+/** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
+const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
+  [190, 92, 20, 22, 'wheat'],
+  [118, -92, 16, 18, 'greens'],
+];
+const onField = (u: number, v: number, pad: number) =>
+  FIELDS.some(([cu, cv, hu, hv]) => Math.abs(u - cu) < hu + pad && Math.abs(v - cv) < hv + pad);
+
+const inSquare = (u: number, v: number, pad: number) => Math.max(Math.abs(u - HALL.u), Math.abs(v - HALL.v)) < SQUARE + 3 + pad;
+
+/** Free ground for a prop of radius `rad` at (u, v): off the plots, roads, fields and square, and not hiding a plot. */
 function clear(u: number, v: number, rad: number, tall: boolean): boolean {
-  if (Math.max(Math.abs(u), Math.abs(v)) < RING_OUT + rad) return false;
-  if (onRoad(u, v, rad)) return false;
+  if (Math.max(Math.abs(u), Math.abs(v)) > INNER - rad) return false;
+  if (inSquare(u, v, rad) || onRoad(u, v, rad + 2) || onField(u, v, rad)) return false;
   const [x, y] = iso(u, v);
   for (const p of PLOTS) {
     if (Math.abs(u - p.u) < p.half + rad && Math.abs(v - p.v) < p.half + rad) return false;
@@ -269,7 +309,7 @@ function dirt(key: string, d: string, mid?: string): ReactNode {
   );
 }
 
-/** The ground plate: earth sides, grass top, roads, the ring path, the paved square and the grass detail. */
+/** The ground plate: earth sides, grass top, roads, fields, the paved square and the grass detail. */
 export const Ground = memo(function Ground() {
   const D = 22;
   const lip = 4;
@@ -301,20 +341,35 @@ export const Ground = memo(function Ground() {
     );
   }
 
-  // Roads: from the ring path out through the four gates to the plate edge.
-  const roads = [
-    groundSquare(0, -(RING_OUT + RP) / 2, ROAD, (RP - RING_OUT) / 2 + 2),
-    groundSquare(0, (RING_OUT + RP) / 2, ROAD, (RP - RING_OUT) / 2 + 2),
-    groundSquare(-(RING_OUT + RP) / 2, 0, (RP - RING_OUT) / 2 + 2, ROAD),
-    groundSquare((RING_OUT + RP) / 2, 0, (RP - RING_OUT) / 2 + 2, ROAD),
-  ];
-  const roadMids = [
-    groundSquare(0, -(RING_OUT + RP) / 2, 4, (RP - RING_OUT) / 2 - 4),
-    groundSquare(0, (RING_OUT + RP) / 2, 4, (RP - RING_OUT) / 2 - 4),
-    groundSquare(-(RING_OUT + RP) / 2, 0, (RP - RING_OUT) / 2 - 4, 4),
-    groundSquare((RING_OUT + RP) / 2, 0, (RP - RING_OUT) / 2 - 4, 4),
-  ];
-  const ring = `${groundSquare(0, 0, RING_OUT)}${groundSquare(0, 0, RING_IN)}`;
+  // Roads as ground strips (grid units), with a worn lighter middle.
+  const strip = (rd: Road, w: number) => {
+    const du = rd.b[0] - rd.a[0];
+    const dv = rd.b[1] - rd.a[1];
+    const len = Math.hypot(du, dv) || 1;
+    const nu = (-dv / len) * w;
+    const nv = (du / len) * w;
+    return poly([
+      [rd.a[0] + nu, rd.a[1] + nv, 0],
+      [rd.b[0] + nu, rd.b[1] + nv, 0],
+      [rd.b[0] - nu, rd.b[1] - nv, 0],
+      [rd.a[0] - nu, rd.a[1] - nv, 0],
+    ]);
+  };
+
+  // Fields: tilled soil with crop rows along u.
+  const fields = FIELDS.map(([cu, cv, hu, hv, crop], i) => {
+    let rows = '';
+    for (let v = cv - hv + 3; v <= cv + hv - 2; v += 4.5) rows += `M${pt(cu - hu + 2.5, v)}L${pt(cu + hu - 2.5, v)}`;
+    const c = crop === 'wheat' ? ['#C9A24A', '#E8C66A'] : ['#4A7838', '#7FAE55'];
+    return (
+      <g key={`f${i}`}>
+        <path d={groundSquare(cu, cv, hu + 1.5, hv + 1.5)} fill="#7A5232" stroke={INK} strokeWidth={0.7} strokeLinejoin="round" />
+        <path d={groundSquare(cu, cv, hu, hv)} fill="#8B684B" />
+        <path d={rows} stroke={c[0]} strokeWidth={2.6} strokeLinecap="round" fill="none" />
+        <path d={rows} stroke={c[1]} strokeWidth={0.9} strokeLinecap="round" fill="none" transform="translate(-0.6 -0.9)" />
+      </g>
+    );
+  });
 
   // Painted grass: soft lighter and darker patches, tufts, a few flowers and pebbles.
   const patches: ReactNode[] = [];
@@ -333,9 +388,9 @@ export const Ground = memo(function Ground() {
   for (let i = 0; i < 260; i++) {
     const u = (r() * 2 - 1) * (RP - 4);
     const v = (r() * 2 - 1) * (RP - 4);
-    const free = Math.max(Math.abs(u), Math.abs(v)) > RING_OUT + 2 && !onRoad(u, v, 2) && !PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half);
-    const inSquareGrass = Math.max(Math.abs(u), Math.abs(v)) > SQUARE + 4 && Math.max(Math.abs(u), Math.abs(v)) < RING_IN - 2;
-    if (!free && !inSquareGrass) continue;
+    const free =
+      !inSquare(u, v, 1) && !onRoad(u, v, 1) && !onField(u, v, 1) && !PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half);
+    if (!free) continue;
     const [x, y] = iso(u, v);
     const s = 1.1 + r() * 0.5;
     tuft[0] += `M${f(x - 1.3 * s)} ${f(y)}l${f(-0.4 * s)} ${f(-2.6 * s)}`;
@@ -362,14 +417,14 @@ export const Ground = memo(function Ground() {
       {patches}
       <path d={`M${pt(...L)}L${pt(...B)}L${pt(...Rt)}`} fill="none" stroke="#C8DE8A" strokeWidth={1.4} opacity={0.8} />
       <path d={poly([B, Rt, F, L])} fill="none" stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
-      {/* roads and the ring path */}
-      {dirt('ring', ring)}
-      {roads.map((d, i) => dirt(`r${i}`, d, roadMids[i]))}
-      {/* paved town square with a stone kerb */}
-      <path d={groundSquare(0, 0, SQUARE + 3)} fill="#887761" stroke={INK} strokeWidth={0.8} strokeLinejoin="round" />
-      <path d={groundSquare(0, 0, SQUARE)} fill="#B3A285" />
-      <path d={groundSquare(0, 0, SQUARE)} fill="url(#vg-pave)" />
-      <path d={groundSquare(0, 0, SQUARE)} fill="none" stroke={INK} strokeWidth={0.6} />
+      {/* dirt roads radiating from the hall square, the main road out through the gate, and the fields */}
+      {ROADS.map((rd, i) => dirt(`r${i}`, strip(rd, rd.w), strip(rd, rd.w * 0.35)))}
+      {fields}
+      {/* paved square under the Town Hall, with a stone kerb */}
+      <path d={groundSquare(HALL.u, HALL.v, SQUARE + 3)} fill="#887761" stroke={INK} strokeWidth={0.8} strokeLinejoin="round" />
+      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="#B3A285" />
+      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="url(#vg-pave)" />
+      <path d={groundSquare(HALL.u, HALL.v, SQUARE)} fill="none" stroke={INK} strokeWidth={0.6} />
       {/* grass detail */}
       <g fill="none" strokeWidth={0.8} strokeLinecap="round">
         <path d={tuft[0]} stroke="#5E7F33" />
@@ -386,62 +441,6 @@ export const Ground = memo(function Ground() {
   );
 });
 
-// ---- Town square: the clan campfire with log seats ----------------------------------------------------------------
-
-/** A log seat lying on the paving (local units around the fire). */
-const seat = (dx: number, dy: number, key: string) => (
-  <g key={key} transform={`translate(${dx} ${dy})`} stroke={INK} strokeWidth={0.6} strokeLinejoin="round">
-    <ellipse cx={1.5} cy={3.4} rx={14} ry={2.6} fill="#1E110A" opacity={0.18} stroke="none" />
-    <path d="M-12 -3.4H12V3H-12Z" fill="#7A5232" />
-    <path d="M-12 .4H12V3H-12Z" fill="#583720" stroke="none" />
-    <path d="M-9 -1.6H6" stroke="#957253" strokeWidth={0.6} />
-    <ellipse cx={12} cy={-0.2} rx={2.4} ry={3.2} fill="#D9B47E" />
-    <ellipse cx={12} cy={-0.2} rx={1} ry={1.4} fill="none" stroke="#A07146" strokeWidth={0.4} />
-  </g>
-);
-
-/** The big campfire: ring of stones, crossed logs, three layers of flame, sparks, log seats around it. */
-export function Campfire() {
-  const stones = Array.from({ length: 12 }, (_, i) => {
-    const a = (i / 12) * Math.PI * 2 + 0.2;
-    const x = f(Math.cos(a) * 18);
-    const y = f(3 + Math.sin(a) * 8.5);
-    return (
-      <g key={i}>
-        <ellipse cx={x} cy={y} rx={4.4} ry={3.2} fill={i % 3 ? '#A89B82' : '#BDAE8C'} stroke={INK} strokeWidth={0.6} />
-        <ellipse cx={x - 0.9} cy={y - 1.1} rx={2.2} ry={1.1} fill="#D5C5A9" />
-      </g>
-    );
-  });
-  return (
-    <g transform={`translate(${CX} ${CY}) scale(1.6)`}>
-      {seat(-46, 6, 's1')}
-      {seat(46, 6, 's2')}
-      {seat(-24, 28, 's3')}
-      {seat(24, 28, 's4')}
-      <ellipse cx={0} cy={4} rx={30} ry={14} fill="#E8B04A" opacity={0.22} />
-      {stones.slice(5, 12)}
-      <ellipse cx={0} cy={3} rx={14} ry={6} fill="#2B1C14" stroke={INK} strokeWidth={0.6} />
-      <g stroke={INK} strokeWidth={0.6} strokeLinejoin="round">
-        <path d="M-15 6L11 -2L14 2L-12 10Z" fill="#7A5232" />
-        <path d="M-12 10L14 2L14 3.4L-12 11.4Z" fill="#583720" />
-        <ellipse cx={-13.6} cy={8} rx={1.6} ry={2.2} fill="#D9B47E" />
-        <path d="M15 6L-11 -2L-14 2L12 10Z" fill="#957253" />
-        <ellipse cx={13.6} cy={8} rx={1.6} ry={2.2} fill="#D9B47E" />
-        <path d="M-11 2Q-15 -13 -4.5 -22Q-4.5 -12 0 -9Q3 -27 4.5 -34Q13.5 -19 12 2Q0 7 -11 2Z" fill="#D4602E" strokeWidth={0.8} />
-        <path d="M-7 2Q-9 -7 -1.5 -15Q0 -7 2.2 -6Q4.5 -16 6.7 -19Q9.7 -9 7.5 2Q0 4.6 -7 2Z" fill="#E8B04A" strokeWidth={0.6} />
-        <path d="M-3 2Q-3.8 -3.8 0 -8.2Q3.8 -3.8 3 2Q0 3 -3 2Z" fill="#FBE3A0" strokeWidth={0.4} />
-      </g>
-      {stones.slice(0, 5)}
-      <g fill="#FBE3A0" stroke="#E8B04A" strokeWidth={0.4}>
-        <circle cx={-10} cy={-27} r={1.2} />
-        <circle cx={12} cy={-33} r={1} />
-        <circle cx={2} cy={-43} r={0.9} />
-      </g>
-    </g>
-  );
-}
-
 // ---- Trees, bushes and rocks ---------------------------------------------------------------------------------
 
 type Kind = 'pineA' | 'pineB' | 'oak' | 'bush' | 'rockA' | 'rockB' | 'rockC' | 'stump' | 'logs';
@@ -450,31 +449,22 @@ const RADIUS: Record<Kind, number> = { pineA: 8, pineB: 9, oak: 9, bush: 6, rock
 
 /** [kinds, centre u, centre v, spread u, spread v, count, min scale, max scale] — scattered, then filtered by clear(). */
 const ZONES: [Kind[], number, number, number, number, number, number, number][] = [
-  // The grove in front of the Lumber Camp, and a few stumps and logs where it was cut.
-  [['pineA', 'pineB', 'pineA', 'oak'], -60, 160, 40, 40, 11, 1.35, 1.7],
-  [['stump', 'stump', 'logs'], -100, 120, 30, 50, 4, 1.3, 1.5],
-  // Rocks around the Iron Mine corner and the Gold Mine.
-  [['rockA', 'rockC', 'rockB'], 150, -150, 60, 60, 7, 1.2, 1.8],
-  [['rockB', 'rockA'], 140, 140, 60, 60, 4, 1.1, 1.5],
-  // Lone trees and bushes in the quarters.
-  [['oak', 'bush', 'pineB', 'bush'], 0, 0, 200, 200, 14, 1.2, 1.55],
+  // Forest around the Lumber Camp in the left corner, with stumps and logs where it was cut.
+  [['pineA', 'pineB', 'pineA', 'oak'], -196, 96, 26, 44, 9, 1.35, 1.7],
+  [['pineA', 'pineB', 'oak'], -118, 200, 18, 22, 5, 1.35, 1.7],
+  [['pineA', 'pineB'], -206, 210, 12, 12, 2, 1.3, 1.5],
+  [['stump', 'stump', 'logs'], -130, 130, 22, 22, 3, 1.3, 1.5],
+  // Rocks around the Gold Mine (back corner) and the Iron Mine (right corner), with a few pines.
+  [['rockA', 'rockC', 'rockB', 'pineB'], -130, -205, 26, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineB'], -205, -120, 14, 30, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineA'], 130, -205, 26, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB'], 205, -125, 14, 28, 4, 1.2, 1.7],
+  // Hedges and haystack-like bushes around the fields in front.
+  [['bush', 'bush', 'oak'], 208, 150, 10, 30, 4, 1.2, 1.5],
+  [['bush', 'oak'], 120, 205, 20, 16, 3, 1.2, 1.5],
+  // Lone trees and bushes filling the gaps between the ring and the corners.
+  [['oak', 'bush', 'pineB', 'bush', 'oak'], 0, 0, INNER, INNER, 26, 1.2, 1.55],
 ];
-
-/** Props on the rim outside the wall: pines behind the back walls, only bushes and rocks in front. */
-function rimProps(r: () => number): [Kind, number, number, number][] {
-  const out: [Kind, number, number, number][] = [];
-  for (let i = 0; i < 70 && out.length < 34; i++) {
-    const edge = Math.floor(r() * 4);
-    const t = (r() * 2 - 1) * (RP - 10);
-    const d = R + 11 + r() * (RP - R - 16);
-    const [u, v] = edge === 0 ? [t, -d] : edge === 1 ? [-d, t] : edge === 2 ? [t, d] : [d, t];
-    if (onRoad(u, v, 8)) continue;
-    const back = edge < 2;
-    const kind: Kind = back ? (r() < 0.75 ? (r() < 0.5 ? 'pineA' : 'pineB') : 'oak') : r() < 0.7 ? 'bush' : 'rockB';
-    out.push([kind, u, v, back ? 1.3 + r() * 0.35 : 1.1 + r() * 0.3]);
-  }
-  return out;
-}
 
 const PROPS: [Kind, number, number, number][] = (() => {
   const r = rng(17);
@@ -487,12 +477,12 @@ const PROPS: [Kind, number, number, number][] = (() => {
       const u = cu + (r() * 2 - 1) * su;
       const v = cv + (r() * 2 - 1) * sv;
       const rad = RADIUS[kind] * s;
-      if (Math.max(Math.abs(u), Math.abs(v)) > R - 8 - rad || !clear(u, v, rad, TALL.has(kind)) || taken(u, v, rad)) continue;
+      if (!clear(u, v, rad, TALL.has(kind)) || taken(u, v, rad)) continue;
       out.push([kind, f(u), f(v), f(s)]);
       i++;
     }
   }
-  return out.concat(rimProps(r));
+  return out;
 })();
 
 let propItems: DepthItem[] | null = null;
@@ -782,12 +772,16 @@ interface Edge {
   c: number;
 }
 
-const EDGES: Edge[] = [
-  { name: 'back-right', along: 'u', c: -R },
-  { name: 'back-left', along: 'v', c: -R },
-  { name: 'front-left', along: 'u', c: R },
-  { name: 'front-right', along: 'v', c: R },
-];
+/** The four walls, each on the plate's edge with its outer face flush with the border (`c` is the wall's middle line). */
+function edges(t: number): Edge[] {
+  const c = RP - t / 2 - 0.3;
+  return [
+    { name: 'back-right', along: 'u', c: -c },
+    { name: 'back-left', along: 'v', c: -c },
+    { name: 'front-left', along: 'u', c },
+    { name: 'front-right', along: 'v', c },
+  ];
+}
 
 /** Screen depth of the front-most ground point of a run piece. */
 function runDepth(e: Edge, s1: number, t: number): number {
@@ -796,23 +790,28 @@ function runDepth(e: Edge, s1: number, t: number): number {
 
 const wallCache = new Map<number, DepthItem[]>();
 
-/** Painter-sorted pieces of the ring wall for a stage (1–3). */
+/** Painter-sorted pieces of the ring wall for a stage (1–3): corner towers, four walls, one gate on the main road. */
 export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
   const hit = wallCache.get(stage);
   if (hit) return hit;
   const items: DepthItem[] = [];
-  const corner = stage === 1 ? 9 : stage === 2 ? 12 : 15;
+  // Half-size of the corner towers' footprint (towers stand inside the corner, flush with both edges).
+  const corner = stage === 1 ? 10 : stage === 2 ? 12 : 15;
   const post = stage === 1 ? 3 : stage === 2 ? 8 : 10;
   const t = stage === 1 ? 2 : stage === 2 ? 7 : 9;
   const h = stage === 2 ? 16 : 24;
   const chunk = 24;
+  const end = RP - 2 * corner + 1;
 
-  for (const e of EDGES) {
+  for (const e of edges(t)) {
     const outer: 1 | -1 = e.c > 0 ? 1 : -1;
-    const runs: [number, number][] = [
-      [-R + corner, -GATE - post],
-      [GATE + post, R - corner],
-    ];
+    const gate = e.name === 'front-left';
+    const runs: [number, number][] = gate
+      ? [
+          [-end, GATE_U - GATE - post],
+          [GATE_U + GATE + post, end],
+        ]
+      : [[-end, end]];
     for (const [a0, b0] of runs) {
       for (let a = a0; a < b0 - 0.5; a += chunk) {
         const b = Math.min(b0, a + chunk);
@@ -820,25 +819,28 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
         items.push({ key: `w-${e.name}-${f(a)}`, depth: runDepth(e, b, t), node });
       }
     }
-    // Gate towers / posts on both sides of the gap.
+    if (!gate) continue;
+    // Gate towers (or posts) on both sides of the main road.
     for (const side of [-1, 1] as const) {
-      const s = side * (GATE + post);
-      const [u, v] = e.along === 'u' ? [s, e.c] : [e.c, s];
+      const u = GATE_U + side * (GATE + post);
+      const v = RP - Math.max(post, t / 2 + 0.3);
       const node =
         stage === 1
           ? gatePost('g', u, v)
-          : stoneTower('g', u, v, post, stage === 2 ? 24 : 34, {
+          : stoneTower('g', u, v, post, stage === 2 ? 26 : 36, {
               roof: stage === 3 ? 16 : undefined,
-              banner: stage === 3 && side === -1 ? (e.along === 'u' ? 'l' : 'r') : undefined,
+              banner: stage >= 2 ? 'l' : undefined,
+              flag: stage === 2,
             });
-      items.push({ key: `g-${e.name}-${side}`, depth: iso(u + post, v + post)[1], node });
+      items.push({ key: `g-${side}`, depth: iso(u + post, v + post)[1], node });
     }
   }
+  const k = RP - corner;
   const corners: [number, number][] = [
-    [-R, -R],
-    [R, -R],
-    [-R, R],
-    [R, R],
+    [-k, -k],
+    [k, -k],
+    [-k, k],
+    [k, k],
   ];
   corners.forEach(([u, v], i) => {
     const node =
