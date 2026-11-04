@@ -644,7 +644,7 @@ function flag(key: string, x: number, y: number, h = 13): ReactNode {
 }
 
 /** Round stone tower with a terracotta cone roof (screen space, base centre (cx, cy)). */
-function roundTower(cx: number, cy: number, r: number, h: number, rise: number, withFlag: boolean): ReactNode {
+function roundTower(cx: number, cy: number, r: number, h: number, rise: number, withFlag: boolean, gallery = false): ReactNode {
   const ry = r / 2;
   const top = cy - h;
   const roofR = r + 2.5;
@@ -664,6 +664,14 @@ function roundTower(cx: number, cy: number, r: number, h: number, rise: number, 
       {/* Arrow slits on the lit side and a lookout window higher up */}
       <path d={`M${f(cx - r * 0.55)} ${f(top + h * 0.5)}v6M${f(cx - r * 0.1)} ${f(top + h * 0.34)}v7`} strokeWidth={2.4} strokeLinecap="round" />
       <path d={`M${f(cx + r * 0.42)} ${f(top + h * 0.5)}v6`} strokeWidth={2.4} strokeLinecap="round" />
+      {/* Corbelled gallery ring under the roof */}
+      {gallery && (
+        <>
+          <path d={`M${f(cx - r - 3.5)} ${f(top)}V${f(top + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}Z`} fill={STONE.left} strokeWidth={1.6} />
+          <path d={`M${f(cx + 2)} ${f(top + (r + 3.5) / 2 + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}H${f(cx + 2)}Z`} fill={STONE.right} strokeWidth={0} />
+          <path d={`M${f(cx - r - 3.5)} ${f(top)}V${f(top + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}`} fill="none" strokeWidth={1.6} />
+        </>
+      )}
       <path
         d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
         fill={ROOF.mid}
@@ -682,10 +690,17 @@ function roundTower(cx: number, cy: number, r: number, h: number, rise: number, 
 }
 
 /** Stone tower: square with merlons (stage 2), or round with a terracotta roof (stage 3, when `roof` is set). */
-function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o: { roof?: number; flag?: boolean; banner?: 'l' | 'r' }) {
+function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o: { roof?: number; flag?: boolean; banner?: 'l' | 'r'; plinth?: number; turret?: boolean }) {
   if (o.roof) {
-    const [x, y] = iso(cu, cv);
-    return <g key={key}>{roundTower(x, y + a * 0.5, a * 1.25, h, o.roof * 0.8, !!o.flag)}</g>;
+    // A square footing fills the whole footprint (flush with the plate edge and the walls), the round tower stands on it.
+    const pl = o.plinth ?? 0;
+    const [x, y] = iso(cu, cv, pl);
+    return (
+      <g key={key}>
+        {pl > 0 && box('pl', cu - a, cu + a, cv - a, cv + a, 0, pl, STONE, { sw: 1.6, courses: Math.max(3, Math.round(pl / 5)), band: { z0: pl - 3.4, z1: pl, left: ROOF.mid, right: ROOF.dark } })}
+        {roundTower(x, y, a * 1.3, h, o.roof * 0.8, !!o.flag, true)}
+      </g>
+    );
   }
   // Tower shaft with stone courses, a slightly wider crown (corbelled top), two arrow slits per visible face.
   const crown = 4;
@@ -711,19 +726,37 @@ function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o
     const v = cv + dv * (a1 - m);
     parts.push(box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 5, STONE, { sw: 1.2 }));
   }
+  let top = h + 5;
+  if (o.turret) {
+    const at = parts.findIndex((n) => (n as { key?: string }).key === 'cr') + 1;
+    const mark = parts.length;
+    // A smaller turret with its own battlements crowns the keep.
+    const ta = a * 0.5;
+    const th = 12;
+    parts.push(box('tu', cu - ta, cu + ta, cv - ta, cv + ta, h, h + th, STONE, { sw: 1.5, courses: 2 }));
+    const tm = 1.8;
+    for (const [du, dv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      const u = cu + du * (ta - tm);
+      const v = cv + dv * (ta - tm);
+      parts.push(box(`tm${du}${dv}`, u - tm, u + tm, v - tm, v + tm, h + th, h + th + 3.5, STONE, { sw: 1.1 }));
+    }
+    top = h + th + 3.5;
+    // The turret goes right after the crown, before the front merlons (painter's order).
+    parts.splice(at, 0, ...parts.splice(mark));
+  }
   if (o.flag) {
-    const [x, y] = iso(cu, cv, h + 5);
-    parts.push(flag('fl', x, y));
+    const [x, y] = iso(cu, cv, top);
+    parts.push(flag('fl', x, y, o.turret ? 16 : 13));
   }
   return <g key={key}>{parts}</g>;
 }
 
 /** Timber watchtower with a pyramid roof (palisade stage), standing on (cu, cv). */
-function watchtower(key: string, cu: number, cv: number) {
-  const [cx, cy0] = iso(cu, cv);
-  const cy = cy0 + 5;
-  const a = 10.4;
-  const h = 34;
+function watchtower(key: string, cu: number, cv: number, half: number) {
+  const [cx, cy] = iso(cu, cv);
+  // The base fills the whole corner footprint (`half` grid units each way), flush with both plate edges.
+  const a = half * 2;
+  const h = 36;
   const L: Pt = [cx - a, cy];
   const F: Pt = [cx, cy + a / 2];
   const R: Pt = [cx + a, cy];
@@ -740,20 +773,22 @@ function watchtower(key: string, cu: number, cv: number) {
       <path d={planks} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.4} />
       <path d={braces} fill="none" stroke={WOOD.pRight} strokeWidth={1.7} strokeLinecap="round" />
       <path d={look(L, F) + look(F, R)} fill="#3B2A1E" stroke={INK} strokeWidth={1.2} strokeLinejoin="round" />
-      {isoBox('p', cx, cy - 34, 14, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
-      {pyramid('r', cx, cy - 39, 18.2, 16)}
-      <path d={`M${f(cx - 8)} ${f(cy - 39 + 2.5)}L${f(cx)} ${f(cy - 55)}`} stroke={WOOD.pRight} strokeWidth={1} opacity={0.6} fill="none" />
+      {isoBox('p', cx, cy - h, a + 4, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
+      {pyramid('r', cx, cy - h - 5, a + 8, 18)}
+      <path d={`M${f(cx - 8)} ${f(cy - h - 5 + 2.5)}L${f(cx)} ${f(cy - h - 23)}`} stroke={WOOD.pRight} strokeWidth={1} opacity={0.6} fill="none" />
+      {flag('fl', cx, cy - h - 23, 14)}
     </g>
   );
 }
 
 /** Timber gate post with a small pyramid cap (palisade stage). */
-function gatePost(key: string, cu: number, cv: number) {
+function gatePost(key: string, cu: number, cv: number, half: number) {
   const [cx, cy] = iso(cu, cv);
+  const a = half * 2;
   return (
     <g key={key}>
-      {isoBox('b', cx, cy + 2, 5.2, 30, WOOD, 1.4)}
-      {pyramid('r', cx, cy + 2 - 30, 10.9, 9)}
+      {isoBox('b', cx, cy, a, 32, WOOD, 1.4)}
+      {pyramid('r', cx, cy - 32, a + 3, 11)}
     </g>
   );
 }
@@ -960,7 +995,7 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
   if (hit) return hit;
   const items: DepthItem[] = [];
   // Half-size of the corner towers' footprint (towers stand inside the corner, flush with both edges).
-  const corner = stage === 1 ? 10 : stage === 2 ? 12 : 15;
+  const corner = stage === 1 ? 9 : stage === 2 ? 13 : 16;
   const post = stage === 1 ? 3 : stage === 2 ? 8 : 10;
   const t = stage === 1 ? 2 : stage === 2 ? 7 : 9;
   // The two walls facing the camera stay low so the village inside shows over them; the two far walls stand tall.
@@ -996,9 +1031,10 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
       const v = RP - Math.max(gpost, t / 2 + 0.3);
       const node =
         stage === 1
-          ? gatePost('g', u, v)
-          : stoneTower('g', u, v, gpost, stage === 2 ? 32 : 44, {
+          ? gatePost('g', u, v, gpost)
+          : stoneTower('g', u, v, gpost, stage === 2 ? 34 : 22, {
               roof: stage === 3 ? 20 : undefined,
+              plinth: stage === 3 ? 30 : undefined,
               banner: stage >= 2 ? 'l' : undefined,
               flag: stage === 2,
             });
@@ -1015,8 +1051,13 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
   corners.forEach(([u, v], i) => {
     const node =
       stage === 1
-        ? watchtower(`c${i}`, u, v)
-        : stoneTower(`c${i}`, u, v, corner, stage === 2 ? 30 : 46, { roof: stage === 3 ? 26 : undefined, flag: true });
+        ? watchtower(`c${i}`, u, v, corner)
+        : stoneTower(`c${i}`, u, v, corner, stage === 2 ? 38 : 32, {
+            roof: stage === 3 ? 30 : undefined,
+            plinth: stage === 3 ? 30 : undefined,
+            turret: stage === 2,
+            flag: true,
+          });
     items.push({ key: `c${i}`, depth: iso(u + corner, v + corner)[1], node });
   });
   wallCache.set(stage, items);

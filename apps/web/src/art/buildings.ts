@@ -106,7 +106,7 @@ export const SCENE_VIEWBOX = { x: C.x - 474, y: C.y - 250, w: 948, h: 250 + 262 
 /** The scene grows upwards when the wall's towers get taller (the back corner tower and its flag must stay inside). */
 export function sceneViewBox(wallStage: Stage = 0): { x: number; y: number; w: number; h: number } {
   // The Town Hall stands in the middle, so even at its last stage its label stays well below the plate's top corner.
-  const wall = wallStage >= 3 ? 318 : wallStage === 2 ? 282 : wallStage === 1 ? 280 : 250;
+  const wall = wallStage >= 3 ? 342 : wallStage === 2 ? 304 : wallStage === 1 ? 296 : 250;
   const top = C.y - wall;
   const bottom = SCENE_VIEWBOX.y + SCENE_VIEWBOX.h;
   return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: bottom - top };
