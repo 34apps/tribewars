@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-04 (`282cfe1`): village centre is now an open paved town square with a big campfire (`TownSquarePaving`, `Campfire` in `art/scenery.tsx`). The stalls seen earlier were the static `scene/market.svg` (now unused, delete it), NOT the Drillyard. Drillyard moved to its own plot north-west (`PLACEMENT.drillyard` 140,150 scale 1.05).
-Left: not viewed in a browser (check 360 and 1440 px: overlaps with Storehouse/Lumber, labels, click areas); Drillyard sprite art unchanged; owner's building-design answers still pending.
-Very next step: look at the village view, adjust positions if needed.
+2026-11-04 (`e471d92`): world map — villages 1.8x (`VILLAGE_SCALE`), dirt clearing, trees cleared around villages, smaller hover/zoom-only labels (own always), bigger banners, varied hills (`tile-hills-1/2.svg`), all in `map/render.ts`, `sprites.ts`, `blocks.ts`.
+Left: not viewed in a browser (overlap at 1.8x, 360 and 1440 px; far-zoom blocks don't clear trees); village-view town square (`282cfe1`) also unseen; unused `scene/market.svg` to delete.
+Very next step: look at the map and village view, tune scales.
 Checks passed, build ok.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).

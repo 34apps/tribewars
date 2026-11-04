@@ -27,6 +27,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   approval on canvas rows H (units), I (tutorial + practice-ruin decision), J (building panels +
   reports), K (terrain + armies); then build each in. Reports need the opponent's chieftain in
   `VillageRefDto` (server) to show both faces. Rivers need engine support before river tiles can be used.
+- World map look (`e471d92`) unseen in a browser: check 360 and 1440 px for village overlap at 1.8x, banner size, dirt clearing look, hover labels, hill variety; tune `VILLAGE_SCALE`/`BANNER_SCALE`. Far-zoom blocks (`blocks.ts`) don't clear trees around villages.
 - Clean-up: old `.map-*` / `.map-legend` rules in `apps/web/src/styles.css` are unused; `RELATION_STYLE`
   / `LEGEND_ORDER` in `relations.ts` unused by the map.
 - Tribe mass message (forum threads and player mail are done). Look at the forum + per-member tribe rights in a browser.
