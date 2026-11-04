@@ -5,11 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`179c35f`): owner decisions for §18 recorded (§18.8). Step 0 part 1 built + tested: secret battle seed, abandoned garrison refill, repeat-raid loot limit (table `npc_raids`, schema v3), upkeep 0.25 per pop point; `npm run sim` now allowed in `scripts/agent/run.ts`. Checks passed (check + build).
-Left: **step 0 part 2, the pacing numbers, NOT done and no "after" sim** (this run's command list was fixed at start, so it could not run `npm run sim`). Baseline: `docs/sim/2026-11-04-baseline.txt`; summary and levers in `docs/BALANCE.md` §7.
-Very next step: run `npm run sim`; first find why the baseline shows 0 raids for every style (`tryRaid`), then tune `config.ts` per `BALANCE.md` §7.3 (targets listed there); save `docs/sim/<date>-after-step0.txt`.
-Then §18.7 step 1 (terrain travel). Premium queue removal (owner: dropped) is still to code. Open: cap on movements in flight, limit bucket for rank/respec.
-Note: an unattended run can only use commands in its allow list at start (now incl. `npm run sim`); no single-file tests, no heredocs.
+2026-11-04 (`c603eb7`): step 0 part 2 + **Renown** built: engine `renown.ts`, Banner Hall + Feast, schema v4, `POST /villages/:id/feast`, `GET /rankings/renown`, anti-abuse, web card/panel/tab; premium queue removed; sim bug fixed (0 raids) and tuned, result `docs/sim/2026-11-04-after-step0.txt`, table in `BALANCE.md` §7.3. Checks passed (check, build, build:preview).
+Left: nothing viewed in a browser (360/1440 px); builder idle ~70 h from day 16, pure-defender Renown pace only estimated; step 2 (found/take villages, spend Renown) not started. Details: `NEXT_STEPS.md` first item.
+Very next step: owner looks at the Renown UI and the sim table; then §18.7 step 1 (terrain travel, re-run `npm run sim`), then step 2.
+Notes: sub-agents on Sonnet could not run commands in some runs (Bash denied); the lead ran all checks. Open: cap on movements in flight, limit bucket for rank/respec.
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping` (stage with explicit paths, not `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
