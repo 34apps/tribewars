@@ -5,12 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`443a2e3`): village view re-laid out after the owner's "maxed village looks cramped/mismatched": bigger
-ring + ground, 11 spaced plots around the town square, larger buildings, all scenery redrawn in style B. New
-test-mode **Design preview** (Settings → Design preview; slider 0–20 / Play) shows every building at a level in the
-real scene, client-only. Earlier today: buildings redrawn in style B; 6 abandoned map stages; villages fit one map tile.
-Checks passed, build + preview build ok; viewed in the preview at 1440 and 390 px.
-Very next step: owner checks the village (fresh + max + design preview) on their Mac; follow-ups in NEXT_STEPS.
+2026-11-04 (`fceb1e6`): village view re-laid out again after owner feedback: no campfire, Town Hall in the centre,
+buildings spread over the whole plate (core ring + resource corners), wall flush with the plate edge. Earlier today:
+style B buildings + scenery, test-mode Design preview (Settings → Design preview), 6 abandoned map stages.
+Checks passed, build ok; viewed fresh/max/design preview at 1440 and 390 px in the preview build.
+Very next step: owner checks the village on their Mac; follow-ups in NEXT_STEPS ("Village layout follow-ups").
 
 ## How the owner works (important)
 
