@@ -104,7 +104,7 @@ export interface Placement {
 
 /** Where each building stands. Wall: the anchor of its plot/scaffold on the front-right wall edge. */
 export const PLACEMENT: Record<BuildingId, Placement> = {
-  // All twelve stand inside the (larger) ring wall with open ground between them; the Drillyard is in the middle.
+  // All twelve stand inside the (larger) ring wall with open ground between them; the middle is an open town square with the campfire; the Drillyard has its own plot in the north-west.
   // Every footprint is checked to lie on the ground plate (|dx|/270 + |dy|/135 < 0.9 around the ring centre).
   hall: { x: 300, y: 95, scale: 1.1 },
   barracks: { x: 425, y: 145, scale: 0.9 },
@@ -118,7 +118,7 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   farm: { x: 395, y: 240, scale: 0.9 },
   wall: { x: 470, y: 271.7, scale: 0.55 },
   market: { x: 225, y: 262, scale: 0.75 },
-  drillyard: { x: 300, y: 195, scale: 0.75 },
+  drillyard: { x: 140, y: 150, scale: 1.05 },
 };
 
 /** Painter's order: things further down the screen are drawn later. */

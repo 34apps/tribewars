@@ -7,10 +7,8 @@ import { WALL_RING } from './buildings.ts';
 import type { Stage } from './buildings.ts';
 
 export { default as GROUND_URL } from './scene/ground.svg?no-inline';
-export { default as MARKET_URL } from './scene/market.svg?no-inline';
-
-/** Depth of the market square (well and stalls) for the painter's sort. */
-export const MARKET_DEPTH = 205;
+/** Depth of the campfire in the town square for the painter's sort. */
+export const SQUARE_DEPTH = 205;
 
 export interface DepthItem {
   key: string;
@@ -125,7 +123,6 @@ const PROPS: [Prop, number, number, number][] = [
   ['pine', 72, 203, 1],
   ['pine', 88, 218, 1],
   ['pine', 100, 228, 0.95],
-  ['pine', 150, 168, 0.95],
   ['round', 80, 190, 0.9],
   ['pine', 132, 236, 0.9],
   ['stump', 160, 214, 1],
@@ -157,6 +154,74 @@ export function sceneryItems(): DepthItem[] {
     depth: y,
     node: <use href={`#vt-${kind}`} transform={`translate(${x} ${y}) scale(${s})`} />,
   }));
+}
+
+// ---- Town square: open paved ground with the clan campfire as its centrepiece ------------------------------------
+
+const SQ = { x: 300, y: 205.6 };
+const diamond = (hw: number, hh: number) =>
+  `M${SQ.x - hw} ${SQ.y}L${SQ.x} ${SQ.y - hh}L${SQ.x + hw} ${SQ.y}L${SQ.x} ${SQ.y + hh}Z`;
+const sq = (dx: number, dy: number) => `${SQ.x + dx} ${SQ.y + dy}`;
+
+/** Flat paving under everything (drawn right after the ground). */
+export function TownSquarePaving() {
+  return (
+    <g stroke="#2B211C" strokeLinejoin="round">
+      <path d={diamond(104, 52)} fill="#CFC6B2" strokeWidth={1.6} />
+      <path d={diamond(92, 46)} fill="#E3DED3" strokeWidth={1} />
+      <path d={diamond(54, 27)} fill="#CFC6B2" strokeWidth={1} />
+    </g>
+  );
+}
+
+/** A log seat lying on the paving. */
+const seat = (dx: number, dy: number, key: string) => (
+  <g key={key} transform={`translate(${SQ.x + dx} ${SQ.y + dy})`} stroke="#2B211C" strokeWidth={1.3} strokeLinejoin="round">
+    <path d="M-13 -4H13V3H-13Z" fill="#B07D46" />
+    <ellipse cx={13} cy={-0.5} rx={2.6} ry={3.6} fill="#E4B67C" />
+    <ellipse cx={-13} cy={-0.5} rx={2.6} ry={3.6} fill="#8E6539" />
+  </g>
+);
+
+/** The big campfire: stone ring, crossed logs, three layers of flame, a few sparks, log seats around it. */
+export function Campfire() {
+  const stones = Array.from({ length: 10 }, (_, i) => {
+    const a = (i / 10) * Math.PI * 2;
+    return (
+      <ellipse key={i} cx={SQ.x + Math.cos(a) * 24} cy={SQ.y + 3 + Math.sin(a) * 11} rx={6} ry={4} fill={i % 2 ? '#B3ACA0' : '#E3DED3'} />
+    );
+  });
+  return (
+    <g>
+      {seat(-62, 6, 's1')}
+      {seat(62, 6, 's2')}
+      {seat(-30, 34, 's3')}
+      {seat(30, 34, 's4')}
+      <ellipse cx={SQ.x} cy={SQ.y + 4} rx={34} ry={16} fill="#F2B33D" opacity={0.28} />
+      <g stroke="#2B211C" strokeWidth={1.3} strokeLinejoin="round">
+        {stones}
+        <ellipse cx={SQ.x} cy={SQ.y + 3} rx={19} ry={8} fill="#3A2A20" />
+        <path d={`M${sq(-20, 6)}L${sq(14, -2)}L${sq(18, 3)}L${sq(-16, 11)}Z`} fill="#8E6539" />
+        <path d={`M${sq(20, 6)}L${sq(-14, -2)}L${sq(-18, 3)}L${sq(16, 11)}Z`} fill="#B07D46" />
+        <path
+          d={`M${sq(-15, 2)}Q${sq(-20, -18)} ${sq(-6, -30)}Q${sq(-6, -16)} ${sq(0, -12)}Q${sq(4, -36)} ${sq(6, -46)}Q${sq(18, -26)} ${sq(16, 2)}Q${sq(0, 9)} ${sq(-15, 2)}Z`}
+          fill="#E8672B"
+          strokeWidth={1.6}
+        />
+        <path
+          d={`M${sq(-9, 2)}Q${sq(-12, -10)} ${sq(-2, -20)}Q${sq(0, -10)} ${sq(3, -8)}Q${sq(6, -22)} ${sq(9, -26)}Q${sq(13, -12)} ${sq(10, 2)}Q${sq(0, 6)} ${sq(-9, 2)}Z`}
+          fill="#F2B33D"
+          strokeWidth={1.2}
+        />
+        <path d={`M${sq(-4, 2)}Q${sq(-5, -5)} ${sq(0, -11)}Q${sq(5, -5)} ${sq(4, 2)}Q${sq(0, 4)} ${sq(-4, 2)}Z`} fill="#FFF3C4" strokeWidth={0.8} />
+      </g>
+      <g fill="#F2B33D" stroke="#2B211C" strokeWidth={0.6}>
+        <circle cx={SQ.x - 14} cy={SQ.y - 36} r={1.8} />
+        <circle cx={SQ.x + 16} cy={SQ.y - 44} r={1.5} />
+        <circle cx={SQ.x + 2} cy={SQ.y - 58} r={1.3} />
+      </g>
+    </g>
+  );
 }
 
 // ---- Ring wall --------------------------------------------------------------------------------------------------

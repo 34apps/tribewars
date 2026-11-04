@@ -21,7 +21,7 @@ import {
   spriteUrl,
 } from '../../art/buildings.ts';
 import type { Box, Stage } from '../../art/buildings.ts';
-import { GROUND_URL, MARKET_DEPTH, MARKET_URL, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
+import { GROUND_URL, Campfire, SQUARE_DEPTH, SceneryDefs, TownSquarePaving, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
@@ -106,7 +106,7 @@ export const SceneArt = memo(function SceneArt({
   onPick: (id: BuildingId) => void;
 }) {
   const items: DepthItem[] = [...sceneryItems()];
-  items.push({ key: 'market', depth: MARKET_DEPTH, node: <image href={MARKET_URL} x={10} y={-4} width={580} height={376} /> });
+  items.push({ key: 'campfire', depth: SQUARE_DEPTH, node: <Campfire /> });
   const wall = arts.wall;
   if (wall.stage > 0) {
     for (const it of wallItems(wall.stage as Exclude<Stage, 0>)) {
@@ -144,6 +144,7 @@ export const SceneArt = memo(function SceneArt({
         <SceneryDefs />
       </defs>
       <image href={GROUND_URL} x={10} y={-4} width={580} height={376} />
+      <TownSquarePaving />
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
