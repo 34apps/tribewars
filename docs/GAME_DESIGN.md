@@ -115,16 +115,19 @@ reduce an amount that is already above the cap (only stop it growing).
 ## 6. Map, distance, travel
 
 - World tiles `x, y` in `[-radius, radius]`. Distance is Euclidean: `sqrt(dx² + dy²)`.
-- An army moves at the speed of its slowest unit. Travel ms =
-  `ceil(distance / (slowestSpeed * speed) * 3_600_000)`.
+- An army moves at the speed of its slowest unit. **Travel time is the sum of the time on each tile along the straight
+  line, so terrain counts (section 18.4a, built 2026-11-04)**; over grass only it is
+  `ceil(distance / (slowestSpeed * speed) * 3_600_000)` ms (`flatTravelTimeMs`). The server computes it from the world
+  seed; the client only previews it.
 - Sending: target must be a village tile other than your own village; at least one unit; you must
   have the units at home. Units move from `troops` to `away` when sent.
 - Arrival → battle (section 7) → survivors travel home along the same route at their own slowest
   speed, carrying loot. On return: `away` −= survivors, `troops` += survivors, resources += loot (clamped).
   Units lost in battle are removed from `away` at battle time.
-- **Terrain** is decoration in v1 (`terrainAt(x, y, seed)`: grass, forest, hills, mountain, lake),
-  deterministic from the seed so the client draws it without asking the server. Villages are never
-  placed on mountain or lake tiles. Use smooth value noise so terrain forms patches, not static.
+- **Terrain** (`terrainAt(x, y, seed)`: grass, forest, hills, mountain, lake), deterministic from the seed so the client
+  draws it without asking the server. Villages are never placed on mountain or lake tiles. Use smooth value noise so
+  terrain forms patches, not static. Since 2026-11-04 terrain also changes travel speed (18.4a); there are no rivers in
+  `terrainAt`, "water" on the road is the lake terrain.
 
 ## 7. Battle — `resolveBattle({ attackerUnits, defender, seed })`
 
@@ -232,7 +235,11 @@ trainTimeMs(u: UnitId, state: VillageState, s: WorldSettings): number
 checkTrain(state, u, count, t, s): CheckResult<{ cost: Resources; perUnitMs: number }>
 applyTrain(state, u, count, t, s): VillageState
 armySpeed(units: Units): number                    // slowest unit's tiles/hour, 0 if none
-travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number
+travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number   // with terrain (s.seed); same both ways
+flatTravelTimeMs(from, to, units, s): number                                    // ignores terrain (send preview "without terrain")
+travelPreview(from, to, units, s): { flatMs, ms, route }                         // route = travelRoute(from, to, s.seed)
+travelRoute(from, to, seed): Route                                              // straight line sampled every tile: terrain per sample
+shipmentTravelMs(from, to, s) / flatShipmentTravelMs(from, to, s)               // carriers, same terrain rule
 checkSend(state, units: Partial<Units>): CheckResult<{ units: Units }>   // normalises to full Units
 applySend(state, units, t, s): VillageState        // troops -> away
 resolveBattle(input: BattleInput): BattleResult          // input.support: stationed contingents
@@ -810,6 +817,19 @@ A builder or a defender who is never attacked still reaches the second village; 
    per 24 h (÷ world speed). It is the sink for a builder's full storehouses, deliberately worse per resource than fighting
    well and better than idling.
 
+4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
+   so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
+   each unit counted at the average of its infantry and cavalry defence (support troops belong to their owners and stay in the
+   stationed table; troops away, in training, the Wall and ranks do not count). Renown per 24 h (÷ world speed) =
+   `min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE)` for each village, **nothing during beginner
+   protection** (it counts from the natural end of protection even if the player ended it early by attacking a player),
+   never for abandoned villages or sandbox accounts. **Settled lazily like resources:** the village remembers when it was
+   last paid and how strong its defence was then (`defenceMark`); whenever the village is saved (any action: send, train,
+   battle, build...) the span since the mark is paid at the **smaller** of the strength at the mark and now, so troops that were
+   away or have left never count for that time and the result does not depend on how often the owner looks. A read of the game
+   state never writes: it shows the earned-but-unsaved amount, and the next save pays exactly that. (A batch of troops
+   that finishes training mid-span only counts from the next span: a small under-payment, never an over-payment.)
+
 *Anti-abuse (combat Renown only).* A battle earns **nothing** when:
 - attacker and target are on the same IP group (`householdShared` guard), in the same tribe, or in allied tribes;
 - its value is under `RENOWN_MIN_BATTLE_VALUE` (token pokes pay nothing);
@@ -828,13 +848,17 @@ Building and Feast Renown are never reduced by these rules (the Feast has its ow
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 16 value, troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 500 (then 800, 1,280, 2,048 ...); Feast 600/600/600 for 10 Renown, 3 per
-Banner Hall level per day; Chieftain refund 50%. **Abandoned villages are exempt from the size factor** (they are always
+Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+22 per village per day** (a defence of about 3,700 points reaches the cap). **Abandoned villages are exempt from the size factor** (they are always
 small by design; the repeat-raid loot limit and the pair cap already limit farming them). Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
 
-*Pace targets (checked with `npm run sim`).* An active raider can afford the 2nd village around **day 14-20**; a pure
-builder, or a defender who is never attacked, about **5-7 days later**; nobody is blocked for good.
+*Pace targets (checked with `npm run sim`, 2026-11-04 after the defender trickle, `docs/sim/2026-11-04-after-terrain.txt`).* An active
+raider can afford the 2nd village (Renown 500 and Banner Hall level 1) around **day 19-20** (sim: 20.4; its Renown alone is there on
+day 14.5, the Banner Hall is what it waits for); a **pure defender who is never attacked** about **day 24-26** (sim: 25.4); nobody is
+blocked for good. A builder who also keeps an army at home gets the trickle too: in the sim it reaches the price on day 14.5, earlier
+than the raider, because it builds the Banner Hall by day 7 (owner to judge, `BALANCE.md` 7.4).
 
 **Other notes on several villages**
 - A new village is named "<name>'s village 2" until renamed. Everything that is "per village" (queues, ranks, population,
@@ -864,6 +888,7 @@ builder, or a defender who is never attacked, about **5-7 days later**; nobody i
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
 | `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
 | `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
+| `DEFENDER_RENOWN_PER_DEFENCE` / `DEFENDER_RENOWN_DAILY_CAP` | 0.006 / 22 | Defender trickle: Renown per day per defence point at home, and the cap per village per day |
 | `RENOWN_VILLAGE_BASE` | see `config.ts` | Renown price of the 2nd village; each further one x1.6 (replaces `VILLAGE_LIMIT_BASE`, owner 2026-11-04) |
 | `PAIR_CONQUEST_CAP` | 2 per season | Per attacker–defender pair |
 
@@ -944,6 +969,21 @@ builder, or a defender who is never attacked, about **5-7 days later**; nobody i
 ### 18.4 Terrain changes travel speed; neutral sites tribes can hold
 
 #### Terrain and travel
+
+**Built 2026-11-04 (step 1).** Numbers in `config.ts` exactly as in the table below; code in `packages/engine/src/travel.ts` (route,
+sampling), `army.ts` (`travelTimeMs`, `flatTravelTimeMs`, `travelPreview`) and `shipment.ts` (`shipmentTravelMs`). Decisions made
+while building it: (1) the world seed comes from `WorldSettings.seed`, so `travelTimeMs`/`shipmentTravelMs` kept their signatures and
+every caller (send, return, recall, scout, shipment, cancel, bots, sim) changed at once; (2) each sample is the tile under the middle of
+its 1-tile stretch (`Math.round`), the endpoints are taken in a fixed order (lower x, then lower y) so a route back is exactly the same
+stretches reversed and the trip home takes the same time; (3) each unit walks the route by its own family and the army arrives with its
+slowest unit (a mixed army of foot and horse loses the foot's pace); (4) the cap is `TERRAIN_MAX_SLOWDOWN` x the flat time **per unit
+family**; (5) no rivers exist in `terrainAt`, "water" means the lake terrain; (6) in-flight movements keep their stored `arrive_at`, but a
+return trip is timed when the battle is resolved, so it uses the new rule. Measured on the default world (villages 5-35 tiles apart):
+foot units 9% slower on average, mounted 20%, pathfinders 3.5%, a mixed army (70% foot, 25% mounted, 5% scouts) about 12%, as
+proposed; a trip over grass only is exactly as before. The send dialog and the shipment form show "Travel time" (with terrain),
+"Without terrain" with the percentage and which ground slows it, and the map draws the route to the selected tile with yellow dots on
+forest and hills and orange dots on mountain and water (key in the map legend). Tests: `packages/engine/test/travel.test.ts`,
+`apps/server/test/terrain-travel.test.ts`, `apps/web/test/travel.test.tsx`.
 
 **How it works**
 - Terrain stops being decoration (§6). The engine's `terrainAt(x, y, seed)` already gives grass, forest, hills,
@@ -1180,4 +1220,4 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 6. **Rest hours: 8 hours a day, +25% defence, and no economy pause** (production, building and training run as usual while a village rests; the hold-clock pause of §18.3 stays as written).
 7. **The name Chieftain is final.**
 
-Still open from the list: terrain slowing an average trip by about 12% was not answered. It stays as proposed (§18.4a) and is re-checked with `npm run sim` when step 1 is built.
+Terrain slowing an average trip by about 12% was not answered; it stays as proposed (§18.4a) and was built and re-checked with `npm run sim` on 2026-11-04 (step 1 done; the sim's pace did not move, `BALANCE.md` 7.4).

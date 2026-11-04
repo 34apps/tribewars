@@ -105,6 +105,7 @@ export function normalizeVillage(v: VillageState): VillageState {
   }
   out.renownPaid = paid;
   if (v.feast) out.feast = { windowStart: v.feast.windowStart, count: v.feast.count };
+  if (v.defenceMark && !out.npc) out.defenceMark = { at: v.defenceMark.at, strength: v.defenceMark.strength };
   if (v.ranks) {
     const ranks: VillageRanks = {};
     for (const id of UNIT_IDS) {

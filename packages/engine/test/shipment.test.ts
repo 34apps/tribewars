@@ -7,6 +7,7 @@ import {
   applyShipmentArrival,
   applyShipmentSend,
   checkShipment,
+  flatShipmentTravelMs,
   shipmentCapacity,
   shipmentTravelMs,
   storageCap,
@@ -26,10 +27,21 @@ describe('shipments', () => {
     assert.ok(checkShipment(village({ buildings: { market: 1 }, resources: { wood: 100 } }), { wood: 10 }).ok);
   });
 
-  it('travel time uses the distance and scales with world speed', () => {
-    const t1 = shipmentTravelMs({ x: 0, y: 0 }, { x: SHIPMENT_SPEED, y: 0 }, S1);
+  it('flat travel time uses the distance and scales with world speed', () => {
+    const t1 = flatShipmentTravelMs({ x: 0, y: 0 }, { x: SHIPMENT_SPEED, y: 0 }, S1);
     assert.equal(t1, HOUR);
-    assert.equal(shipmentTravelMs({ x: 0, y: 0 }, { x: SHIPMENT_SPEED, y: 0 }, S10), HOUR / 10);
+    assert.equal(flatShipmentTravelMs({ x: 0, y: 0 }, { x: SHIPMENT_SPEED, y: 0 }, S10), HOUR / 10);
+  });
+
+  it('travel time with terrain is never faster than flat and carriers slow down on rough ground', () => {
+    const from = { x: 0, y: 0 };
+    const to = { x: SHIPMENT_SPEED, y: 0 };
+    const t = shipmentTravelMs(from, to, S1);
+    assert.ok(t >= flatShipmentTravelMs(from, to, S1));
+    // The terrain on the way is the world's: another seed, another time.
+    const rough = [0, 1, 2, 3, 4, 5].map((i) => shipmentTravelMs({ x: i * 9, y: 0 }, { x: i * 9 + 14, y: 14 }, S1));
+    assert.ok(rough.some((ms) => ms > flatShipmentTravelMs({ x: 0, y: 0 }, { x: 14, y: 14 }, S1)));
+    assert.equal(shipmentTravelMs(to, from, S1), t);
   });
 
   it('validates cargo', () => {

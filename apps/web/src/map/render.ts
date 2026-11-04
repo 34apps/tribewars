@@ -2,8 +2,8 @@
 // decides when to redraw. Near zoom blits cached terrain/sprite bitmaps tile by tile in painter's order;
 // far zoom blits pre-composited multi-tile blocks (blocks.ts) so thousands of tiles stay cheap.
 
-import type { Coords, MapVillageDto, MovementDto } from '@clanfire/engine';
-import { mapStage, ruinStage } from '@clanfire/engine';
+import type { Coords, MapVillageDto, MovementDto, Route, Terrain } from '@clanfire/engine';
+import { mapStage, ruinStage, travelRoute } from '@clanfire/engine';
 import { ALLEGIANCE_STYLE, allegianceOf, villageSprite } from './allegiance.ts';
 import { CHUNK } from './chunks.ts';
 import type { MapChunks } from './chunks.ts';
@@ -23,6 +23,8 @@ export interface Scene {
   dpr: number;
   view: View;
   radius: number;
+  /** World seed: the route preview colours slow ground (travelRoute) from it. */
+  seed: number;
   terrain: TerrainCache;
   /** Far-zoom terrain block cache (one per map). */
   blocks: TerrainBlocks;
@@ -642,38 +644,68 @@ function drawRuler(sc: Scene, sxy: (u: number, v: number) => { x: number; y: num
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-/** Dotted line from your village to the selected tile (where troops would march). */
+/** Dot colour on the route preview by the ground under it: grass as always, slow ground (GAME_DESIGN 18.4a) in warmer colours. */
+export const ROUTE_DOT_COLOR: Record<Terrain, string> = { grass: BONE, forest: SUN, hills: SUN, mountain: '#E0703F', lake: '#E0703F' };
+
+let routeMemo: { key: string; route: Route } | null = null;
+/** The route is a pure function of its ends and the world seed: keep the last one so redraws don't recompute it. */
+function routeFor(a: Coords, b: Coords, seed: number): Route {
+  const key = `${a.x}|${a.y}|${b.x}|${b.y}|${seed}`;
+  if (routeMemo?.key !== key) routeMemo = { key, route: travelRoute(a, b, seed) };
+  return routeMemo.route;
+}
+
+/** Dotted line from your village to the selected tile (where troops would march); dots are coloured where the ground is slow. */
 function drawRoutePreview(sc: Scene): void {
   const { ctx, own, selected, view, width: W, height: H } = sc;
   if (!own || !selected || (own.x === selected.x && own.y === selected.y)) return;
   const a = toScreen(view, { w: W, h: H }, own.x, own.y);
   const b = toScreen(view, { w: W, h: H }, selected.x, selected.y);
+  const { samples } = routeFor(own, selected, sc.seed);
   ctx.save();
-  ctx.globalAlpha = 0.7;
-  dots(ctx, a.x, a.y, b.x, b.y, view.tile, BONE);
+  ctx.globalAlpha = 0.85;
+  dots(ctx, a.x, a.y, b.x, b.y, view.tile, BONE, (f) => {
+    const s = samples[Math.min(samples.length - 1, Math.floor(f * samples.length))];
+    return s ? ROUTE_DOT_COLOR[s.terrain] : BONE;
+  });
   ctx.restore();
 }
 
-function dots(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number, tile: number, fill: string): void {
+function dots(
+  ctx: CanvasRenderingContext2D,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  tile: number,
+  fill: string,
+  /** Colour of the dot at fraction f (0 = start, 1 = end) of the way; default `fill`. */
+  colorAt?: (f: number) => string,
+): void {
   const len = Math.hypot(bx - ax, by - ay);
   if (len < 1) return;
   const k = Math.max(0.55, Math.min(1.3, tile / 96));
   const gap = 14 * k;
   const r = 3 * k;
-  const path = new Path2D();
+  const paths = new Map<string, Path2D>();
   // Anchor the dots to the far end so they don't crawl while the marker moves.
   for (let d = len - gap * 0.5; d > gap * 0.5; d -= gap) {
     const f = d / len;
     const x = ax + (bx - ax) * f;
     const y = ay + (by - ay) * f;
+    const color = colorAt ? colorAt(f) : fill;
+    let path = paths.get(color);
+    if (!path) paths.set(color, (path = new Path2D()));
     path.moveTo(x + r, y);
     path.arc(x, y, r, 0, Math.PI * 2);
   }
-  ctx.fillStyle = fill;
-  ctx.fill(path);
   ctx.lineWidth = 1.4 * k;
   ctx.strokeStyle = 'rgba(43, 33, 28, 0.85)';
-  ctx.stroke(path);
+  for (const [color, path] of paths) {
+    ctx.fillStyle = color;
+    ctx.fill(path);
+    ctx.stroke(path);
+  }
 }
 
 /** " · 12 troops · loot 340" for a returning army (troop count, total loot); empty parts are left out. */

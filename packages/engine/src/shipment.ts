@@ -4,6 +4,7 @@ import { SHIPMENT_BASE_CAPACITY, SHIPMENT_CAPACITY_PER_MARKET_LEVEL, SHIPMENT_MI
 import { addClamped, storageCap } from './economy.ts';
 import { RESOURCE_IDS } from './types.ts';
 import type { CheckResult, Coords, Resources, VillageState, WorldSettings } from './types.ts';
+import { routeTimeMs, travelRoute } from './travel.ts';
 import { MS_PER_HOUR, cloneVillage, distance, emptyResources, fail } from './util.ts';
 import { settleVillage } from './village.ts';
 
@@ -12,9 +13,14 @@ export function shipmentCapacity(marketLevel: number): number {
   return SHIPMENT_BASE_CAPACITY + SHIPMENT_CAPACITY_PER_MARKET_LEVEL * Math.max(0, Math.floor(marketLevel));
 }
 
-/** Travel time in ms: ceil(distance / (carrier speed * world speed) hours). */
-export function shipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
+/** Travel time in ms on flat ground: ceil(distance / (carrier speed * world speed) hours). */
+export function flatShipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
   return Math.ceil((distance(from, to) * MS_PER_HOUR) / (SHIPMENT_SPEED * s.speed));
+}
+
+/** Travel time in ms with terrain (carrier row of TERRAIN_SPEED, docs/GAME_DESIGN.md 18.4a); equals the flat time over grass. */
+export function shipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
+  return routeTimeMs(travelRoute(from, to, s.seed), 'carrier', SHIPMENT_SPEED, s.speed);
 }
 
 /** Strict parse: an object with only known resource ids, each a non-negative whole number. */

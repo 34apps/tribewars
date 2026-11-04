@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MAP_STAGE_NAMES, SCOUT_UNIT, UNITS, UNIT_IDS, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelTimeMs } from '@clanfire/engine';
+import { MAP_STAGE_NAMES, SCOUT_UNIT, UNITS, UNIT_IDS, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
@@ -12,6 +12,7 @@ import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './alle
 import { ShipmentForm } from './ShipmentForm.tsx';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
+import { slowdownText, slowGroundText } from './travel.ts';
 import type { TerrainCache } from './terrain.ts';
 
 interface Props {
@@ -66,7 +67,10 @@ function SendForm({
   for (const u of UNIT_IDS) if (chosen[u] > 0) partial[u] = chosen[u];
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
-  const travel = total > 0 ? travelTimeMs(village, tile, chosen, settings) : 0;
+  // The server computes the real time from the same rule and its own seed; this only shows it in advance.
+  const preview = total > 0 ? travelPreview(village, tile, chosen, settings) : null;
+  const travel = preview ? preview.ms : 0;
+  const slowdown = preview ? slowdownText(preview.flatMs, preview.ms) : null;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
   const targetProtected = fights && target.protected && target.kind === 'player';
   const breaksProtection = fights && target.kind === 'player' && player.protectedUntil > now;
@@ -179,6 +183,15 @@ function SendForm({
             <dt>Travel time</dt>
             <dd>{formatDuration(travel)}</dd>
           </div>
+          {preview && slowdown && (
+            <div className="wm-terrain-time">
+              <dt>Without terrain</dt>
+              <dd>
+                {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span>
+                <small className="wm-muted"> {slowGroundText(preview.route)}</small>
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Arrives</dt>
             <dd>{formatClock(now + travel, now)}</dd>

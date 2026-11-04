@@ -76,7 +76,7 @@ export function RenownCard() {
         <span className="renown-togo">{toGo > 0 ? `${formatInt(toGo)} to go` : 'Enough saved'}</span>
       </div>
       <ProgressBar value={renownProgress(renown)} label="Renown saved towards the next village" tone={toGo > 0 ? 'brand' : 'ok'} />
-      <p className="renown-note">Earned by building, fighting and Feasts. Never lost.</p>
+      <p className="renown-note">Earned by building, fighting, keeping troops at home (a little each day once beginner protection ends) and Feasts. Never lost.</p>
       <p className="renown-note renown-soon">Founding and taking villages: coming soon.</p>
     </section>
   );

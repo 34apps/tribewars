@@ -704,6 +704,33 @@
   grid-template-columns: 1fr;
 }
 
+/* "Without terrain" row of the send preview: the flat time, the slowdown and which ground causes it (can wrap on a phone). */
+.wm-terrain-time dd {
+  min-width: 0;
+  font-weight: 500;
+}
+
+.wm-terrain-time small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+
+.wm-slow {
+  color: #9a4a1c;
+  font-weight: 700;
+}
+
+/* Map key: dot colours of the route preview (slow ground). */
+.wm-route-dot {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(43, 33, 28, 0.85);
+  border-radius: 50%;
+}
+
 .wm-why {
   color: var(--wm-soft);
   font-size: 0.85rem;

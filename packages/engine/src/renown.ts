@@ -4,6 +4,8 @@
 
 import {
   CHIEFTAIN_RENOWN_REFUND_SHARE,
+  DEFENDER_RENOWN_DAILY_CAP,
+  DEFENDER_RENOWN_PER_DEFENCE,
   FEAST_COST,
   FEAST_DAILY_PER_LEVEL,
   FEAST_RENOWN,
@@ -29,6 +31,7 @@ import { BUILDING_IDS, GameError, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type { BattleResult, BuildingId, CheckResult, Resources, Units, VillageRanks, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR, cloneVillage, emptyResources, fail, ipow, normalizeUnits } from './util.ts';
 import { settleVillage } from './village.ts';
+import { protectionEndsAt } from './world.ts';
 
 // ---- Value ----------------------------------------------------------------------------------------
 
@@ -194,6 +197,68 @@ export function applyFeast(
   const open = allowanceOf(v, now, s).windowEnd !== null;
   v.feast = open && v.feast ? { windowStart: v.feast.windowStart, count: v.feast.count + plan.count } : { windowStart: now, count: plan.count };
   return { state: v, renown: plan.renown, cost: plan.cost };
+}
+
+// ---- Defender Renown (docs/GAME_DESIGN.md 18.2, source 4) ---------------------------------------
+
+const DAY_MS = 24 * MS_PER_HOUR;
+
+/**
+ * Defence strength of a village's own troops at home: sum of count x average of the infantry and cavalry defence of each
+ * unit. Support troops (they belong to their owners) and troops away are not part of `troops`, so they never count; the Wall
+ * and ranks are left out on purpose (the trickle rewards real troops, not buildings or points).
+ */
+export function stationedDefence(troops: Partial<Units>): number {
+  let sum = 0;
+  for (const u of UNIT_IDS) sum += (troops[u] || 0) * ((UNITS[u].defenseInfantry + UNITS[u].defenseCavalry) / 2);
+  return sum;
+}
+
+/** Renown per 24 h at a defence strength, before world speed: min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE). */
+export function defenderRenownPerDay(strength: number): number {
+  if (!(strength > 0)) return 0;
+  return Math.min(DEFENDER_RENOWN_DAILY_CAP, strength * DEFENDER_RENOWN_PER_DEFENCE);
+}
+
+/**
+ * Pay the defender Renown earned since the village's mark (`defenceMark`) up to its settled time `state.lastUpdate`, then move
+ * the mark there. Settle the village first. Lazy, like resources: the span is counted when something saves the village.
+ * - The rate uses the SMALLER of the stationed defence at the mark and now, so troops that left (or were sent away) never
+ *   count for the time they were gone, and a batch that only just finished does not count before it existed.
+ * - `eligibleFrom` is the time beginner protection ends (the server knows the player): nothing is paid before it.
+ * - The rate per 24 h is divided by world speed like every duration. Abandoned (npc) villages pay nothing.
+ * Returns a new state and the Renown earned (fractional; 0 when the village had no mark yet - the first call only sets it).
+ */
+export function collectDefenderRenown(state: VillageState, eligibleFrom: number, s: WorldSettings): { state: VillageState; renown: number } {
+  const v = cloneVillage(state);
+  if (v.npc) return { state: v, renown: 0 };
+  const now = v.lastUpdate;
+  const strength = stationedDefence(v.troops);
+  const mark = v.defenceMark;
+  let renown = 0;
+  if (mark && now > mark.at) {
+    const from = Math.max(mark.at, Number.isFinite(eligibleFrom) ? eligibleFrom : now);
+    if (now > from) renown = defenderRenownPerDay(Math.min(mark.strength, strength)) * s.speed * ((now - from) / DAY_MS);
+  }
+  // A mark in the future (clock moved back) is replaced, never paid.
+  if (!mark || now >= mark.at) v.defenceMark = { at: now, strength };
+  return { state: v, renown };
+}
+
+/** Move the mark to now without paying (sandbox accounts, a village that changes owner). */
+export function markDefenceCollected(state: VillageState): VillageState {
+  const v = cloneVillage(state);
+  if (!v.npc) v.defenceMark = { at: v.lastUpdate, strength: stationedDefence(v.troops) };
+  return v;
+}
+
+/**
+ * The time from which a player's defence earns Renown: when beginner protection ends. The natural end (account creation +
+ * protection hours) counts even when the player ended protection early by attacking someone (`protectedUntil` 0), so the
+ * protected time is never paid retroactively.
+ */
+export function defenderEligibleFrom(protectedUntil: number, createdAt: number, s: WorldSettings): number {
+  return Math.max(protectedUntil, protectionEndsAt(createdAt, s));
 }
 
 // ---- Renown from fighting -------------------------------------------------------------------------

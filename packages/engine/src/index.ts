@@ -7,6 +7,7 @@ export * from './util.ts';
 export * from './random.ts';
 export * from './economy.ts';
 export * from './village.ts';
+export * from './travel.ts';
 export * from './army.ts';
 export * from './drillyard.ts';
 export * from './renown.ts';

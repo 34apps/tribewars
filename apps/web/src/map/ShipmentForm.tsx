@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { RESOURCE_IDS, checkShipment, shipmentCapacity, shipmentTravelMs } from '@clanfire/engine';
+import { RESOURCE_IDS, checkShipment, flatShipmentTravelMs, shipmentCapacity, shipmentTravelMs, travelRoute } from '@clanfire/engine';
 import type { Coords, MapVillageDto, ResourceId, Resources } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+import { slowdownText, slowGroundText } from './travel.ts';
 
 /** "Send resources" for a tribe-mate's or ally's village. The server re-checks everything. */
 export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillageDto }) {
@@ -27,6 +28,9 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   }
   const check = checkShipment(live, cargo);
   const travel = shipmentTravelMs(village, tile, settings);
+  const flat = flatShipmentTravelMs(village, tile, settings);
+  const slowdown = slowdownText(flat, travel);
+  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed)) : '';
   const reason = total < 1 ? 'Choose what to send' : !check.ok ? check.message : null;
 
   function set(r: ResourceId, value: string) {
@@ -118,6 +122,15 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
           <dt>Travel time</dt>
           <dd>{formatDuration(travel)}</dd>
         </div>
+        {slowdown && (
+          <div className="wm-terrain-time">
+            <dt>Without terrain</dt>
+            <dd>
+              {formatDuration(flat)} <span className="wm-slow">{slowdown}</span>
+              <small className="wm-muted"> {slowGround}</small>
+            </dd>
+          </div>
+        )}
         <div>
           <dt>Arrives</dt>
           <dd>{formatClock(now + travel, now)}</dd>

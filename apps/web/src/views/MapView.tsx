@@ -124,6 +124,7 @@ export function MapView({ active }: { active: boolean }) {
       dpr,
       view,
       radius,
+      seed: settings.seed,
       terrain,
       blocks,
       chunks,
@@ -163,7 +164,7 @@ export function MapView({ active }: { active: boolean }) {
         el.textContent = text;
       }
     }
-  }, [blocks, chunks, ensureChunks, radius, terrain]);
+  }, [blocks, chunks, ensureChunks, radius, settings.seed, terrain]);
 
   const schedule = useCallback(() => {
     if (dirtyRef.current) return;

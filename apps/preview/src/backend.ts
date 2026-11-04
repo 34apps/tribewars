@@ -105,6 +105,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   // A new world gets the preview settings and a random map; a restored one keeps the settings it was created with.
   const overrides: Partial<WorldSettings> = store.getSettings() ? {} : { ...PREVIEW_WORLD, seed: 1 + Math.floor(Math.random() * 0x7fffffff) };
   const settings = initWorld(store, overrides, now(), (msg) => console.warn(msg));
+  store.world = settings;
 
   // Staff services are wired so the context is complete; the preview mounts no staff or support routes.
   const forum = new ForumService(store);

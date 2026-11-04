@@ -22,6 +22,8 @@ import {
   type CancelResponse,
   MAX_RESEARCH_QUEUE,
   applyFeast,
+  collectDefenderRenown,
+  defenderEligibleFrom,
   feastAllowance,
   makeRenownInfo,
   applyReturn,
@@ -720,13 +722,22 @@ export class GameService {
   // ---- reads -------------------------------------------------------------------------------------
 
   getState(player: PlayerRow, t: number): GameStateResponse {
+    // Defender Renown (source 4) that is earned but not saved yet: a read never writes it (the next save pays exactly this),
+    // it only shows it, so the number on screen is current.
+    let pending = 0;
+    const fresh0 = this.store.getPlayer(player.id) ?? player;
+    const eligibleFrom = defenderEligibleFrom(fresh0.protectedUntil, fresh0.createdAt, this.settings);
+    const earns = !this.store.isSandboxUser(player.username);
     const villages = this.store.villagesOfPlayer(player.id).map((v) => {
       const settled = settleVillage(v.state, t, this.settings);
       // Builds finish lazily; keep the map's cached points current once the owner looks.
       const points = villagePoints(settled);
       // Levels that finished since the last save pay their Renown now (saveVillage), so the number shown is current.
       if (hasUnpaidBuildRenown(settled)) this.store.saveVillage(v.id, settled, points);
-      else if (points !== v.points) this.store.setPoints(v.id, points);
+      else {
+        if (points !== v.points) this.store.setPoints(v.id, points);
+        if (earns) pending += collectDefenderRenown(settled, eligibleFrom, this.settings).renown;
+      }
       return ownDto(v, settled, t, this.settings);
     });
     const fresh = this.store.getPlayer(player.id) ?? player;
@@ -736,7 +747,7 @@ export class GameService {
       settings: this.settings,
       player: dto,
       villages,
-      renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, villages.length),
+      renown: makeRenownInfo(fresh.renownTotal + pending, fresh.renownSpent, villages.length),
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
       unreadReports: this.store.unreadReportCount(player.id),
       unreadMail: this.store.mail.unreadCount(player.id),

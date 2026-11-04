@@ -1,7 +1,7 @@
 // Game balance data. Formulas that use these numbers are described in docs/GAME_DESIGN.md.
 // Change numbers here (not in logic files) when tuning the game.
 
-import type { BuildingDef, BuildingId, ResourceId, Resources, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
+import type { BuildingDef, BuildingId, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
 
 const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
 
@@ -420,6 +420,13 @@ export const FEAST_RENOWN = 10;
 export const FEAST_DAILY_PER_LEVEL = 3;
 /** Feast window in hours (divided by world speed); it starts at the first Feast. */
 export const FEAST_WINDOW_HOURS = 24;
+/**
+ * Defender Renown (GAME_DESIGN 18.2 source 4): a small daily trickle for keeping a real defence at home. Strength is the
+ * defence of the village's own troops at home (support and troops away do not count). Renown per 24 h (divided by world
+ * speed) = min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE), nothing during beginner protection.
+ */
+export const DEFENDER_RENOWN_PER_DEFENCE = 0.006;
+export const DEFENDER_RENOWN_DAILY_CAP = 22;
 
 // ---- Drillyard: research and ranks (docs/GAME_DESIGN.md sections 4 and 15) -----------------------------
 
@@ -511,6 +518,32 @@ export const TERRAIN = {
   lake: 0.78,
   forest: 0.64,
 };
+
+/**
+ * Terrain and travel (docs/GAME_DESIGN.md 18.4a). A trip is the sum of the time spent on each tile along the straight
+ * line (sampled every TERRAIN_SAMPLE_STEP tiles); on a tile a walker moves at speed x the factor below. Grass is 1, so a
+ * trip over grass takes exactly what it always took. Our own numbers, tuned so an average trip is about 12% slower.
+ */
+export type TerrainFamily = 'foot' | 'mounted' | 'pathfinder' | 'carrier';
+export const TERRAIN_SPEED: Record<TerrainFamily, Record<Terrain, number>> = {
+  foot: { grass: 1, forest: 0.85, hills: 0.8, mountain: 0.55, lake: 0.45 },
+  mounted: { grass: 1, forest: 0.7, hills: 0.6, mountain: 0.4, lake: 0.35 },
+  pathfinder: { grass: 1, forest: 0.95, hills: 0.9, mountain: 0.75, lake: 0.7 },
+  carrier: { grass: 1, forest: 0.8, hills: 0.65, mountain: 0.4, lake: 0.3 },
+};
+/** Which row of TERRAIN_SPEED each unit walks by. Ranks never change it (owner rule). */
+export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
+  pikeman: 'foot',
+  guard: 'foot',
+  raider: 'foot',
+  outrider: 'mounted',
+  knight: 'mounted',
+  pathfinder: 'pathfinder',
+};
+/** Length of one sample along the route, in tiles. */
+export const TERRAIN_SAMPLE_STEP = 1;
+/** A trip never takes longer than this many times its flat-ground time, so one lake cannot cut two villages off. */
+export const TERRAIN_MAX_SLOWDOWN = 2.2;
 
 // ---- Resource shipments (GAME_DESIGN section 13) ----
 

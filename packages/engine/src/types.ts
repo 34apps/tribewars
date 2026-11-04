@@ -177,6 +177,11 @@ export interface VillageState {
   renownPaid?: BuildingLevels;
   /** Feast limit window: starts at the first Feast, resets after FEAST_WINDOW_HOURS / speed. See renown.ts. */
   feast?: { windowStart: number; count: number };
+  /**
+   * Defender Renown (renown.ts `collectDefenderRenown`): time it was last paid up to and the stationed defence at that time.
+   * Absent on old saved states and abandoned villages; the first collection only sets it.
+   */
+  defenceMark?: { at: number; strength: number };
 }
 
 export interface Coords {
@@ -185,6 +190,7 @@ export interface Coords {
 }
 
 export type Terrain = 'grass' | 'forest' | 'hills' | 'mountain' | 'lake';
+export const TERRAINS: readonly Terrain[] = ['grass', 'forest', 'hills', 'mountain', 'lake'];
 
 // ---- Tribes (docs/GAME_DESIGN.md section 11) ----
 

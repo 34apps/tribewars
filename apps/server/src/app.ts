@@ -114,6 +114,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const store = new Store(db);
   store.sandboxUsers = new Set((opts.sandboxUsers ?? []).map((u) => u.toLowerCase()));
   const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg));
+  store.world = settings; // lets every village save settle the defender Renown trickle
   const forum = new ForumService(store);
   const support = new SupportService(store);
   // Live updates: the store hands over events after each commit; the hub pushes them to the right sockets.

@@ -6,7 +6,10 @@ import {
   DEFAULT_CHIEFTAIN,
   STAT_KEYS,
   collectBuildRenown,
+  collectDefenderRenown,
+  defenderEligibleFrom,
   emptyStats,
+  markDefenceCollected,
   markRenownPaid,
   normalizeUnits,
   normalizeVillage,
@@ -421,6 +424,8 @@ export class Store extends SqlBase {
 
   /** Lowercase usernames allowed to use sandbox (test) mode: SANDBOX_USERS. Set once at start-up. */
   sandboxUsers: ReadonlySet<string> = new Set();
+  /** World settings, set once at start-up: needed to settle the defender Renown trickle (rate and protection) on every save. */
+  world: WorldSettings | null = null;
 
   constructor(db: DatabaseSync) {
     super(db);
@@ -858,24 +863,37 @@ export class Store extends SqlBase {
    * Save a village. Building Renown (section 18.2) is paid right here, so every path that persists a village pays it
    * exactly once: for a village with an owner, each finished building level not yet in `renownPaid` is added to the
    * owner's total and remembered in the saved state. Sandbox accounts earn nothing (their levels are marked paid);
-   * villages without an owner are left alone.
+   * villages without an owner are left alone. The defender trickle (source 4) is settled here too, from the village's mark to
+   * its settled time; reads (GET /api/state) never write it, they only show it (GameService.getState).
    */
   saveVillage(id: number, state: VillageState, points: number): void {
-    if (!hasUnpaidBuildRenown(state)) {
+    // Villages without an owner never earn; with the world settings set, an owned village also settles its defender trickle.
+    if (state.npc || (!hasUnpaidBuildRenown(state) && !this.world)) {
       this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(state), points, id);
       return;
     }
     this.tx(() => {
       let out = state;
-      const o = this.get('SELECT v.owner_id, p.username FROM villages v LEFT JOIN players p ON p.id = v.owner_id WHERE v.id = ?', id);
+      const o = this.get(
+        'SELECT v.owner_id, p.username, p.created_at, COALESCE(p.protected_until, 0) AS protected_until FROM villages v LEFT JOIN players p ON p.id = v.owner_id WHERE v.id = ?',
+        id,
+      );
       const ownerId = (o?.owner_id as number | null | undefined) ?? null;
       if (ownerId !== null) {
         if (this.isSandboxUser(o?.username as string)) {
-          out = markRenownPaid(state);
+          out = markDefenceCollected(markRenownPaid(state));
         } else {
           const paid = collectBuildRenown(state);
           out = paid.state;
-          if (paid.renown > 0) this.addRenown(ownerId, paid.renown);
+          let earned = paid.renown;
+          if (this.world) {
+            // Nothing is paid while beginner protection lasts: its natural end counts even when the player ended it early by attacking.
+            const eligibleFrom = defenderEligibleFrom(o?.protected_until as number, o?.created_at as number, this.world);
+            const defence = collectDefenderRenown(out, eligibleFrom, this.world);
+            out = defence.state;
+            earned += defence.renown;
+          }
+          if (earned > 0) this.addRenown(ownerId, earned);
         }
       }
       this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(out), points, id);

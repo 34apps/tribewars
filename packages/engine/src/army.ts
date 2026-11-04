@@ -34,6 +34,8 @@ import type {
   WorldSettings,
 } from './types.ts';
 import { MS_PER_HOUR, cloneVillage, distance, emptyResources, emptyUnits, fail, isUnitId, normalizeUnits, totalUnits } from './util.ts';
+import { armyRouteTimeMs, travelRoute } from './travel.ts';
+import type { TravelPreview } from './travel.ts';
 import { settleVillage } from './village.ts';
 
 // ---- Travel -------------------------------------------------------------------------------------
@@ -46,14 +48,31 @@ export function armySpeed(units: Units): number {
 }
 
 /**
- * Travel time in ms: ceil(distance / (slowest speed * world speed) hours). `Infinity` for an empty army
- * (callers must reject those with checkSend first).
+ * Travel time on flat ground in ms: ceil(distance / (slowest speed * world speed) hours). `Infinity` for an empty army.
+ * Terrain is ignored: this is the "without terrain" time of the send preview.
  */
-export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
+export function flatTravelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
   const speed = armySpeed(units);
   if (speed <= 0) return Infinity;
   // Multiply before dividing so exact results (e.g. 5 tiles at 6 tiles/h) don't pick up float noise.
   return Math.ceil((distance(from, to) * MS_PER_HOUR) / (speed * s.speed));
+}
+
+/**
+ * Travel time in ms, terrain included (docs/GAME_DESIGN.md 18.4a): the straight line is sampled tile by tile
+ * (`travelRoute`, from the world seed) and each unit walks it at its own pace over each ground; the army arrives with
+ * its slowest unit. Over grass it equals `flatTravelTimeMs`; never more than TERRAIN_MAX_SLOWDOWN times that. The same
+ * stretch back takes the same time. `Infinity` for an empty army (callers must reject those with checkSend first).
+ * Every rule that needs a travel time goes through this function, on the server, from the server's own settings.
+ */
+export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
+  return armyRouteTimeMs(travelRoute(from, to, s.seed), units, s.speed);
+}
+
+/** The send preview: time on flat ground, time with terrain, and the route (for the map). */
+export function travelPreview(from: Coords, to: Coords, units: Units, s: WorldSettings): TravelPreview {
+  const route = travelRoute(from, to, s.seed);
+  return { flatMs: flatTravelTimeMs(from, to, units, s), ms: armyRouteTimeMs(route, units, s.speed), route };
 }
 
 // ---- Sending ------------------------------------------------------------------------------------

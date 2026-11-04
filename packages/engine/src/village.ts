@@ -71,6 +71,7 @@ export function createPlayerVillage(t: number): VillageState {
   v.resources = { ...START_RESOURCES };
   for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
   v.renownPaid = { ...v.buildings }; // start levels pay no Renown
+  v.defenceMark = { at: t, strength: 0 };
   return v;
 }
 

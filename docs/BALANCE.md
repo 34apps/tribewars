@@ -141,3 +141,49 @@ appear in the first week, builders get Renown from the first level on. *Slower*:
 over and over (step 0 part 1). *New*: Renown pace is about 3 weeks to a second village. **Open:** a pure defender is slowest
 (about 5-10 days after the raider, close to the target but not proven by the sim), the builder's late-game idle stretch needs
 more sinks (higher max levels), and food piles up for the weaker styles (Farm/storage balance).
+
+### 7.4 Defender Renown trickle and terrain travel (steps 0 part 3 and 1, 2026-11-04)
+
+Files: `docs/sim/2026-11-04-after-step0.txt` (before, the run of 7.3), `docs/sim/2026-11-04-after-trickle.txt` (trickle on, terrain
+switched off by setting `TERRAIN_MAX_SLOWDOWN` to 1 for that run), `docs/sim/2026-11-04-after-terrain.txt` (both on, the final
+numbers), `docs/sim/2026-11-04-after-terrain-home-m10.txt` (same, village on another start tile). The sim now places the eight
+abandoned villages in eight directions around the village at (-30, -10), a start tile where foot units lose about 9% on the raid
+routes (the world average for foot units); before, the targets all lay along the +x axis from (0, 0). That layout change moved the
+balanced style from 18.6 to 19.1 days; everything else in the first column below is the 7.3 run.
+
+**Defender trickle** (owner approved; `DEFENDER_RENOWN_PER_DEFENCE` 0.006, `DEFENDER_RENOWN_DAILY_CAP` 22, rule in GAME_DESIGN 18.2
+source 4). First try 0.005 / 20 gave the pure defender day 27.0; the final numbers give day 25.4.
+
+| 2nd village (Renown 500 and Banner Hall 1), days | before (7.3) | after trickle | after trickle + terrain |
+|---|---|---|---|
+| raider (target 19-20) | 20.4 | 20.4 | **20.4** |
+| turtle = pure defender, never attacked (target 24-26) | not within 30 days | 25.4 | **25.4** |
+| balanced | 18.6 | 19.1 | 19.1 |
+| builder (keeps an army at home) | 21.5 | 14.5 | 14.5 |
+| score (points + 2 x Renown + army + net raid) builder / raider / turtle / balanced | 7,700 / 3,266 / 3,641 / 6,696 | 8,444 / 3,668 / 4,465 / 7,772 | same |
+
+Where the Renown came from by day 30 (final run): turtle 633 = buildings 211 + trickle 412 + Feast 10; builder 1,098 = buildings 378 +
+kills 238 + trickle 371 + Feast 110; raider 969 = buildings 120 + raids 538 + kills 203 + trickle 107; balanced 1,602.
+**Finding for the owner:** the builder style (a large home army of Pikemen from day 4) now reaches the price on day 14.5 and waits for
+nothing (its Banner Hall is built on day 7.3), so it is the *fastest* to the 2nd village, faster than the raider (day 20.4, waiting for
+its Banner Hall). That is a consequence of rewarding any defence at home: a builder is a defender. If fighting should always be faster,
+the cheapest levers are the daily cap (22) or a higher Banner Hall requirement; not changed, because the target for the pure defender
+leaves no room to lower the trickle. The raider's pace is set by the Banner Hall (day 19.8-20.4), not by Renown (day 14.5).
+
+**Terrain travel** (`TERRAIN_SPEED` as designed, 18.4a). World average on the default seed, villages 5-35 tiles apart: foot units 9%
+slower, mounted 20%, pathfinders 3.5%, a mixed army about 12% (test `travel.test.ts`). **The sim's pace targets did not move at all:**
+the raiders only ever hit the two nearest tier-1 villages (3 and 5 tiles, grass on both routes from this start tile), and the sim
+decides in 10-minute steps, so even the 4% slowdown on another start tile (`--home -10,-10`) lands on the same step. Longer routes
+(tiers 3-5, 8-14 tiles) lose 16-21% (table "Raid routes" in the report) but are not chosen: their raids cost more than the nearest
+villages bring. So terrain makes the map matter for *where* a player settles and whom they can reach in time, not for the pace
+targets (the raider style made 40 raids in 30 days, all on the two nearest villages). Check again when step 2 puts the first
+second villages on the map.
+
+**Dead stretches (unchanged, deliberately).** Builder 70.2 h from day 16, turtle 13.2 h. The owner's decision (2026-11-04): no
+late-game sinks now; the idle stretch comes from the simulator having a single village, and new villages are the late-game sink.
+**The idle stretch is re-measured after step 2, when the simulator models several villages.** Until then the DEAD PERIOD flags for
+builder and turtle in the report are expected.
+
+**What feels different for players:** *slower* travel by about 12% for an average mixed army (grass roads exactly as before; rough
+ground up to 2.2 times the flat time); *faster* to the 2nd village for anyone who keeps troops at home (pure defender about day 25
+instead of never within 30 days, builder about a week earlier). Nothing becomes unreachable.

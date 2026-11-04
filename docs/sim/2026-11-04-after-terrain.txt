@@ -1,0 +1,158 @@
+# Balance simulation — 30 days, speed 1, seed 20261104
+
+## builder
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 81 | 815 | 711 | 100 | 21 (hall 3 farm 4 barr 0) | 251 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 20 / 20 |
+| 2 | 75 | 1488 | 1181 | 100 | 31 (hall 3 farm 8 barr 0) | 470 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 44 / 44 |
+| 3 | 16 | 2578 | 1583 | 197 | 42 (hall 5 farm 8 barr 1) | 619 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 60 / 60 |
+| 5 | 23 | 4230 | 3454 | 869 | 57 (hall 5 farm 12 barr 1) | 1249 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 128 / 128 |
+| 7 | 345 | 6753 | 4606 | 1362 | 74 (hall 10 farm 12 barr 3) | 1607 | 6 | 65 | 185 | 0 | 0 | 0 (0) | 160 / 160 |
+| 10 | 196 | 7782 | 5696 | 3217 | 91 (hall 10 farm 16 barr 3) | 2711 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 303 / 303 |
+| 14 | 1014 | 20319 | 10662 | 5519 | 130 (hall 12 farm 16 barr 8) | 4004 | 122 | 1600 | 3830 | 0 | 0 | 0 (0) | 453 / 453 |
+| 21 | 4384 | 16510 | 24 | 8716 | 138 (hall 12 farm 16 barr 8) | 4288 | 899 | 12665 | 28405 | 0 | 0 | 0 (0) | 670 / 670 |
+| 30 | 20319 | 527 | 20319 | 14506 | 138 (hall 12 farm 16 barr 8) | 4288 | 1422 | 20085 | 44885 | 0 | 0 | 0 (0) | 1098 / 1098 |
+
+Trained: pikeman 1394, guard 152, knight 56. Longest stretch with nothing worthwhile to do: 70.2 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders broke through, lost 390; d14: 56 raiders held; d21: 84 raiders held; d28: 112 raiders held.
+Renown 1098 (buildings 378, raids 0, defence kills 238, defender trickle 371, Feast 110 from 11 Feasts).
+
+## raider
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 116 | 938 | 664 | 100 | 16 (hall 3 farm 3 barr 2) | 158 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 11 / 11 |
+| 2 | 120 | 1488 | 1285 | 100 | 23 (hall 3 farm 5 barr 3) | 260 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 20 / 20 |
+| 3 | 352 | 1538 | 1313 | 100 | 23 (hall 3 farm 5 barr 3) | 260 | 19 | 700 | 188 | 0 | 0 | 0 (0) | 20 / 20 |
+| 5 | 293 | 2324 | 2270 | 275 | 35 (hall 5 farm 8 barr 4) | 491 | 21 | 710 | 219 | 2280 | 960 | 3 (3) | 104 / 104 |
+| 7 | 163 | 2088 | 2027 | 660 | 40 (hall 6 farm 9 barr 4) | 584 | 35 | 1040 | 425 | 7552 | 6240 | 8 (7) | 237 / 237 |
+| 10 | 2030 | 2932 | 2469 | 617 | 44 (hall 7 farm 9 barr 4) | 655 | 42 | 1490 | 422 | 9789 | 7520 | 13 (13) | 276 / 276 |
+| 14 | 2902 | 2932 | 2029 | 2591 | 44 (hall 7 farm 9 barr 4) | 655 | 107 | 3140 | 1442 | 35477 | 21600 | 26 (26) | 478 / 478 |
+| 21 | 286 | 2213 | 406 | 2932 | 48 (hall 7 farm 9 barr 6) | 733 | 120 | 3960 | 1314 | 50421 | 29760 | 31 (31) | 640 / 640 |
+| 30 | 583 | 4497 | 467 | 3763 | 63 (hall 8 farm 11 barr 8) | 1243 | 81 | 2850 | 792 | 82323 | 45920 | 40 (40) | 969 / 969 |
+
+Raids by target tier — T1: 40 raids, 40 won, loot 82323, losses 45920
+
+Trained: pikeman 97, raider 654, pathfinder 27. Longest stretch with nothing worthwhile to do: 1.3 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders broke through, lost 2340; d14: 56 raiders broke through, lost 3120; d21: 84 raiders broke through, lost 7959; d28: 112 raiders broke through, lost 9555.
+Renown 969 (buildings 120, raids 538, defence kills 203, defender trickle 107, Feast 0 from 0 Feasts).
+
+## turtle
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 74 | 1050 | 581 | 100 | 21 (hall 2 farm 4 barr 1) | 198 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 16 / 16 |
+| 2 | 186 | 1538 | 1017 | 100 | 25 (hall 3 farm 4 barr 3) | 250 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 20 / 20 |
+| 3 | 123 | 1538 | 1408 | 100 | 32 (hall 3 farm 6 barr 3) | 363 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 31 / 31 |
+| 5 | 85 | 2176 | 1736 | 433 | 45 (hall 7 farm 6 barr 3) | 572 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 50 / 50 |
+| 7 | 2261 | 2932 | 2932 | 1086 | 47 (hall 7 farm 6 barr 3) | 601 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 53 / 53 |
+| 10 | 97 | 2932 | 552 | 1994 | 56 (hall 7 farm 9 barr 3) | 797 | 44 | 495 | 1320 | 0 | 0 | 0 (0) | 86 / 86 |
+| 14 | 543 | 5359 | 687 | 3313 | 78 (hall 8 farm 12 barr 3) | 1506 | 132 | 1500 | 3992 | 0 | 0 | 0 (0) | 211 / 211 |
+| 21 | 6035 | 8563 | 1126 | 5665 | 86 (hall 10 farm 12 barr 3) | 1893 | 489 | 5575 | 14837 | 0 | 0 | 0 (0) | 403 / 403 |
+| 30 | 8594 | 48 | 7085 | 8594 | 91 (hall 10 farm 12 barr 3) | 2136 | 885 | 10130 | 26942 | 0 | 0 | 0 (0) | 633 / 633 |
+
+Trained: pikeman 485, guard 352, pathfinder 48. Longest stretch with nothing worthwhile to do: 13.2 h.
+Enemy raids (assumed, day x4 raiders): none.
+Renown 633 (buildings 211, raids 0, defence kills 0, defender trickle 412, Feast 10 from 1 Feasts).
+
+## balanced
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | 971 | 677 | 100 | 18 (hall 2 farm 4 barr 2) | 184 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 13 / 13 |
+| 2 | 258 | 1498 | 1229 | 100 | 26 (hall 3 farm 6 barr 2) | 301 | 2 | 80 | 15 | 0 | 0 | 0 (0) | 25 / 25 |
+| 3 | 257 | 1508 | 843 | 100 | 26 (hall 3 farm 6 barr 2) | 301 | 34 | 850 | 638 | 0 | 0 | 0 (0) | 25 / 25 |
+| 5 | 184 | 2364 | 1483 | 242 | 40 (hall 5 farm 8 barr 3) | 541 | 42 | 960 | 855 | 2110 | 1120 | 3 (3) | 118 / 118 |
+| 7 | 367 | 2324 | 1155 | 902 | 47 (hall 5 farm 9 barr 3) | 656 | 75 | 1495 | 1735 | 5492 | 3840 | 6 (6) | 202 / 202 |
+| 10 | 142 | 3175 | 601 | 2174 | 59 (hall 6 farm 10 barr 3) | 938 | 106 | 1900 | 2655 | 10807 | 8160 | 13 (13) | 390 / 390 |
+| 14 | 17 | 4089 | 139 | 3205 | 72 (hall 8 farm 12 barr 5) | 1345 | 201 | 4350 | 4593 | 10807 | 8160 | 13 (13) | 511 / 511 |
+| 21 | 785 | 8203 | 267 | 7933 | 96 (hall 12 farm 13 barr 5) | 2359 | 242 | 4440 | 6335 | 43462 | 26960 | 23 (23) | 943 / 943 |
+| 30 | 7449 | 20279 | 1450 | 16641 | 111 (hall 14 farm 15 barr 5) | 3647 | 459 | 8000 | 12318 | 103338 | 71040 | 43 (43) | 1602 / 1602 |
+
+Raids by target tier — T1: 43 raids, 43 won, loot 103338, losses 71040
+
+Trained: pikeman 458, guard 107, raider 455, outrider 85. Longest stretch with nothing worthwhile to do: 4.7 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders held; d14: 56 raiders held; d21: 84 raiders held; d28: 112 raiders held.
+Renown 1602 (buildings 330, raids 538, defence kills 239, defender trickle 494, Feast 0 from 0 Feasts).
+
+## Renown pace: when can the 2nd village be paid? (nothing is spent; days since start)
+
+| | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| Renown reaches 500 (2nd village price) | 14.5 | 14.5 | 25.4 | 13.6 |
+| Banner Hall level 1 finished (Chieftain needs it) | 7.3 | 20.4 | 7.8 | 19.1 |
+| **real pace: the later of both** | 14.5 | 20.4 | 25.4 | 19.1 |
+
+Score (points + 2 x Renown + troops/100 + net raid/100): builder 8444, raider 3668, turtle 4465, balanced 7772.
+
+## Raid routes from the village at -30|-10 (10 Raiders; terrain from the world seed, GAME_DESIGN 18.4a)
+
+| target | tier | tiles | on flat ground | with terrain | slower by |
+|---|---|---|---|---|---|
+| -27\|-9 | 1 | 3.2 | 32 min | 32 min | 0% |
+| -28\|-5 | 1 | 5.4 | 54 min | 54 min | 0% |
+| -32\|-5 | 2 | 5.4 | 54 min | 54 min | 0% |
+| -36\|-7 | 2 | 6.7 | 67 min | 67 min | 0% |
+| -37\|-13 | 3 | 7.6 | 76 min | 88 min | 16% |
+| -34\|-19 | 3 | 9.8 | 98 min | 119 min | 21% |
+| -25\|-21 | 4 | 12.1 | 121 min | 121 min | 0% |
+| -17\|-15 | 5 | 13.9 | 139 min | 167 min | 20% |
+
+## First affordable (hours / days since start, own economy)
+
+| item | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| building hall (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building lumber (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building farm (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building mine (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building goldmine (next level) | 19.8 h | 1.2 h | 29.3 h | 44.2 h |
+| building storehouse (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building barracks (next level) | 25.5 h | 2.7 h | 3.5 h | 8.0 h |
+| building stables (next level) | day 5.7 | day 4.7 | day 4.3 | day 4.9 |
+| building wall (next level) | day 2.4 | 5.5 h | 6.0 h | 10.5 h |
+| building vault (next level) | 12.3 h | 0.8 h | 1.2 h | 4.2 h |
+| building market (next level) | 16.7 h | 1.2 h | 28.0 h | 43.3 h |
+| building drillyard (next level) | day 5.7 | day 4.5 | day 3.7 | day 4.8 |
+| building bannerhall (next level) | day 6.8 | day 19.8 | day 7.2 | day 18.6 |
+| unit pikeman | day 2.4 | 3.7 h | 4.3 h | 8.8 h |
+| unit guard | day 5.6 | 46.0 h | 40.2 h | day 3.2 |
+| unit raider | day 5.5 | 11.2 h | 33.0 h | 15.3 h |
+| unit outrider | day 7.3 | day 5.8 | never | day 4.9 |
+| unit knight | day 11.7 | never | never | never |
+| unit pathfinder | day 5.5 | 10.3 h | 32.2 h | 14.7 h |
+
+## Unit value (static)
+
+| unit | attack/cost | defense/cost (avg) | carry/cost | upkeep | pop |
+|---|---|---|---|---|---|
+| pikeman | 0.095 | 0.286 | 0.143 | 0.25 | barracks |
+| guard | 0.103 | 0.241 | 0.069 | 0.25 | barracks |
+| raider | 0.250 | 0.047 | 0.188 | 0.25 | barracks |
+| outrider | 0.167 | 0.049 | 0.194 | 0.5 | stables |
+| knight | 0.122 | 0.067 | 0.044 | 1 | stables |
+| pathfinder | 0.000 | 0.017 | 0.000 | 0.25 | barracks |
+
+## Flags
+
+- DEAD PERIOD: builder had nothing worthwhile to do for 70.2 h (from hour 390).
+- PILE-UP: raider sat at >= 90% storage in food for 609 h of 720 h.
+- DEAD PERIOD: turtle had nothing worthwhile to do for 13.2 h (from hour 707).
+- PILE-UP: turtle sat at >= 90% storage in food for 400 h of 720 h.
+- PILE-UP: balanced sat at >= 90% storage in food for 406 h of 720 h.
+
+## Model
+
+- One village per style, 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.
+- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons refill 20% of full per 6 h step and repeat raids by the same player within 24 h carry 50% less each (engine rules since step 0).
+- Loot and losses valued wood+food+iron+10xgold. Troop upkeep, travel idle time and Drillyard ranks are not valued.
+- Enemy raiders hit each village on days 7, 14, 21, 28 (4 x day raiders) to give defence something to do; the turtle is never attacked (pure defender).
+- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).
+- Renown (engine renown.ts): building levels pay once after each settle (collectBuildRenown); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.
+- Nothing is spent: "balance" equals "total". The 2nd village is "affordable" when total Renown reaches villageRenownCost(1) AND Banner Hall level 1 is finished (step 2 needs it to train a Chieftain); the later of both is the real pace.
+- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection (the sim player never attacks a player). Pure defender pace is the turtle.
+- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed (terrain slows foot units about 9% on average over the whole map, mounted about 20%). The raiders mostly hit the nearest villages, so the route table above shows how much terrain they met; try `--home` for other starts.
+- Only ONE village is simulated, so late-game sinks (the idle stretch of the builder) are NOT judged here: re-measure after step 2 (several villages).
+- "Dead period" also counts an affordable Feast as something to do.
+- "Dead period" = no building, 10-unit batch or research possible; "pile-up" = resource at >= 90% storage.

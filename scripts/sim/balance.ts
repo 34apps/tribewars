@@ -7,6 +7,7 @@
 //
 // Assumptions are listed at the end of the report ("Model") and in docs/BALANCE.md.
 
+import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import {
   BUILDINGS,
@@ -30,6 +31,8 @@ import {
   checkBuild,
   checkFeast,
   collectBuildRenown,
+  collectDefenderRenown,
+  protectionEndsAt,
   checkResearch,
   checkTrain,
   createNpcVillage,
@@ -45,6 +48,7 @@ import {
   settleVillage,
   storageCap,
   totalUnits,
+  travelPreview,
   travelTimeMs,
   villagePoints,
   villageRenownCost,
@@ -180,7 +184,10 @@ export interface DayRow {
 export interface RenownSources {
   buildings: number;
   raids: number;
+  /** Renown for troops killed while defending (the assumed enemy raids). */
   defence: number;
+  /** Daily trickle for keeping a defence at home (GAME_DESIGN 18.2 source 4). */
+  trickle: number;
   feast: number;
 }
 
@@ -220,6 +227,8 @@ export interface SimOptions {
   days: number;
   speed: number;
   seed: number;
+  /** Map position of the simulated village (`--home x,y`); the terrain around it sets the raid travel times. */
+  home: { x: number; y: number };
 }
 
 // ---- Simulation of one style --------------------------------------------------------------------
@@ -228,6 +237,8 @@ interface Target {
   state: VillageState;
   tier: number;
   distance: number;
+  /** Map position (the player's village is at HOME): terrain on the way decides the travel time. */
+  pos: { x: number; y: number };
   /** Arrival times of won raids (the repeat-raid rule looks at the last day). */
   hits: number[];
 }
@@ -237,6 +248,16 @@ type Event =
   | { at: number; kind: 'return'; survivors: Units; loot: Resources };
 
 const TARGET_LAYOUT: Array<[number, number]> = [[1, 3], [1, 5], [2, 5], [2, 7], [3, 8], [3, 10], [4, 12], [5, 14]]; // [tier, tiles]
+/**
+ * The simulated village stands on a buildable tile of the default world whose surroundings are typical: the eight raid routes
+ * below slow a foot army down by about 9% (the world-wide average for foot units is 9%, GAME_DESIGN 18.4a).
+ */
+export const DEFAULT_HOME = { x: -30, y: -10 };
+/** Target i lies at its layout distance in its own direction (eight directions around home), so the terrain on the way varies. */
+function targetPos(home: { x: number; y: number }, i: number, distance: number): { x: number; y: number } {
+  const angle = 0.4 + (i * 2 * Math.PI) / TARGET_LAYOUT.length;
+  return { x: home.x + Math.round(distance * Math.cos(angle)), y: home.y + Math.round(distance * Math.sin(angle)) };
+}
 
 function armyAttack(u: Units): number {
   return UNIT_IDS.reduce((a, id) => a + u[id] * UNITS[id].attack, 0);
@@ -260,7 +281,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   let v = createPlayerVillage(0);
-  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance]) => ({ state: createNpcVillage(tier, 0), tier, distance, hits: [] }));
+  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance], i) => ({ state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), hits: [] }));
   const events: Event[] = [];
   const errors: string[] = [];
   const firstBuilding: StyleResult['firstBuilding'] = {};
@@ -282,7 +303,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   let trainCursor = 0;
   // Renown (step 1 of GAME_DESIGN 18.2): total earned, nothing is spent in the sim (only "when is the 2nd village affordable").
   let renownTotal = 0;
-  const renownSources: RenownSources = { buildings: 0, raids: 0, defence: 0, feast: 0 };
+  const renownSources: RenownSources = { buildings: 0, raids: 0, defence: 0, trickle: 0, feast: 0 };
   let feasts = 0;
   let renownAffordableHour: number | undefined;
   let bannerHallHour: number | undefined;
@@ -456,7 +477,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     for (let i = 0; i < targets.length; i++) {
       const tg = targets[i] as Target;
       const st = targetAt(i, t);
-      const travel = travelTimeMs({ x: 0, y: 0 }, { x: tg.distance, y: 0 }, send, s);
+      const travel = travelTimeMs(opt.home, tg.pos, send, s);
       // Preview with a different seed: a player judges by scouting, not by knowing the luck.
       const arrival = settleVillage(st, t + travel, s);
       const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 999, raidSeq), lootFactor: lootFactorAt(i, t + travel) });
@@ -474,7 +495,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
     if (best < 0) return;
     const tg = targets[best] as Target;
-    const travel = travelTimeMs({ x: 0, y: 0 }, { x: tg.distance, y: 0 }, send, s);
+    const travel = travelTimeMs(opt.home, tg.pos, send, s);
     v = applySend(v, send, t, s);
     raids += 1;
     (raidByTier[tg.tier - 1] as RaidStat).sent += 1;
@@ -552,6 +573,11 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       v = br.state;
       renownTotal += br.renown;
       renownSources.buildings += br.renown;
+      // Defender trickle: troops at home, nothing during beginner protection (the sim player never attacks a player).
+      const dr = collectDefenderRenown(v, protectionEndsAt(0, s), s);
+      v = dr.state;
+      renownTotal += dr.renown;
+      renownSources.trickle += dr.renown;
       if (bannerHallHour === undefined && v.buildings.bannerhall >= 1) bannerHallHour = t / HOUR;
       if (renownAffordableHour === undefined && renownTotal >= villageRenownCost(1)) renownAffordableHour = t / HOUR;
       // Affordability: first time requirements are met and one level / one unit can be paid.
@@ -646,6 +672,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       buildings: Math.floor(renownSources.buildings),
       raids: Math.floor(renownSources.raids),
       defence: Math.floor(renownSources.defence),
+      trickle: Math.floor(renownSources.trickle),
       feast: Math.floor(renownSources.feast),
     },
     feasts,
@@ -664,7 +691,7 @@ export interface SimReport {
 }
 
 export function runSimulation(options: Partial<SimOptions> = {}): SimReport {
-  const opt: SimOptions = { days: 30, speed: 1, seed: 20261104, ...options };
+  const opt: SimOptions = { days: 30, speed: 1, seed: 20261104, home: DEFAULT_HOME, ...options };
   const results = STYLES.map((st) => simulateStyle(st, opt));
   return { options: opt, results, flags: findProblems(results, opt) };
 }
@@ -755,7 +782,7 @@ export function formatReport(rep: SimReport, full = false): string {
     out.push(`Trained: ${UNIT_IDS.filter((u) => r.trained[u] > 0).map((u) => `${u} ${r.trained[u]}`).join(', ') || 'nothing'}. Longest stretch with nothing worthwhile to do: ${r.longestIdleHours.toFixed(1)} h.`);
     out.push(`Enemy raids (assumed, day x4 raiders): ${r.threats.map((t) => `d${t.day}: ${t.raiders} raiders ${t.defended ? 'held' : 'broke through, lost ' + t.lootLost}`).join('; ') || 'none'}.`);
     const src = r.renownSources;
-    out.push(`Renown ${r.renownTotal} (buildings ${src.buildings}, raids ${src.raids}, defence ${src.defence}, Feast ${src.feast} from ${r.feasts} Feasts).`, '');
+    out.push(`Renown ${r.renownTotal} (buildings ${src.buildings}, raids ${src.raids}, defence kills ${src.defence}, defender trickle ${src.trickle}, Feast ${src.feast} from ${r.feasts} Feasts).`, '');
   }
   out.push('## Renown pace: when can the 2nd village be paid? (nothing is spent; days since start)', '');
   out.push(`| | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
@@ -763,6 +790,16 @@ export function formatReport(rep: SimReport, full = false): string {
   out.push(`| Banner Hall level 1 finished (Chieftain needs it) | ${rep.results.map((r) => fmtDay(r.bannerHallHour)).join(' | ')} |`);
   out.push(`| **real pace: the later of both** | ${rep.results.map((r) => fmtDay(r.secondVillageHour)).join(' | ')} |`, '');
   out.push(`Score (points + 2 x Renown + troops/100 + net raid/100): ${rep.results.map((r) => `${r.style} ${num(score(r))}`).join(', ')}.`, '');
+  out.push(`## Raid routes from the village at ${rep.options.home.x}|${rep.options.home.y} (10 Raiders; terrain from the world seed, GAME_DESIGN 18.4a)`, '');
+  out.push('| target | tier | tiles | on flat ground | with terrain | slower by |', '|---|---|---|---|---|---|');
+  const probe = { ...emptyUnits(), raider: 10 };
+  const routeWorld: WorldSettings = { ...DEFAULT_WORLD, speed: rep.options.speed };
+  TARGET_LAYOUT.forEach(([tier, tiles], i) => {
+    const to = targetPos(rep.options.home, i, tiles);
+    const p = travelPreview(rep.options.home, to, probe, routeWorld);
+    out.push(`| ${to.x}\\|${to.y} | ${tier} | ${p.route.length.toFixed(1)} | ${(p.flatMs / 60_000).toFixed(0)} min | ${(p.ms / 60_000).toFixed(0)} min | ${((p.ms / p.flatMs - 1) * 100).toFixed(0)}% |`);
+  });
+  out.push('');
   out.push('## First affordable (hours / days since start, own economy)', '');
   out.push(`| item | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
   for (const b of BUILDING_IDS) out.push(`| building ${b} (next level) | ${rep.results.map((r) => fmtHour(r.firstBuilding[b])).join(' | ')} |`);
@@ -787,6 +824,9 @@ export function formatReport(rep: SimReport, full = false): string {
     '- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).',
     '- Renown (engine renown.ts): building levels pay once after each settle (collectBuildRenown); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.',
     '- Nothing is spent: "balance" equals "total". The 2nd village is "affordable" when total Renown reaches villageRenownCost(1) AND Banner Hall level 1 is finished (step 2 needs it to train a Chieftain); the later of both is the real pace.',
+    '- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection (the sim player never attacks a player). Pure defender pace is the turtle.',
+    '- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed (terrain slows foot units about 9% on average over the whole map, mounted about 20%). The raiders mostly hit the nearest villages, so the route table above shows how much terrain they met; try `--home` for other starts.',
+    '- Only ONE village is simulated, so late-game sinks (the idle stretch of the builder) are NOT judged here: re-measure after step 2 (several villages).',
     '- "Dead period" also counts an affordable Feast as something to do.',
     '- "Dead period" = no building, 10-unit batch or research possible; "pile-up" = resource at >= 90% storage.',
   );
@@ -800,8 +840,16 @@ function main(): void {
     const n = i >= 0 ? Number(args[i + 1]) : NaN;
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
-  const rep = runSimulation({ days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104) });
-  console.log(args.includes('--json') ? JSON.stringify(rep, null, 1) : formatReport(rep, args.includes('--full')));
+  const homeAt = args.indexOf('--home');
+  const homeParts = homeAt >= 0 ? String(args[homeAt + 1]).split(',').map(Number) : [];
+  const home = homeParts.length === 2 && homeParts.every((n) => Number.isInteger(n)) ? { x: homeParts[0] as number, y: homeParts[1] as number } : DEFAULT_HOME;
+  const rep = runSimulation({ days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home });
+  const text = args.includes('--json') ? JSON.stringify(rep, null, 1) : formatReport(rep, args.includes('--full'));
+  const outAt = args.indexOf('--out');
+  if (outAt >= 0 && args[outAt + 1]) {
+    writeFileSync(args[outAt + 1] as string, `${text}\n`);
+    console.log(`Report written to ${args[outAt + 1]}`);
+  } else console.log(text);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
