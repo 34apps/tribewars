@@ -19,6 +19,8 @@ export interface FakeRequest {
   cookies: Record<string, string | undefined>;
   nowMs: number;
   player: unknown;
+  /** Fastify-style logger; the preview just drops messages. */
+  log: { info: (...a: unknown[]) => void; warn: (...a: unknown[]) => void; error: (...a: unknown[]) => void };
 }
 
 export interface CookieChange {
@@ -260,6 +262,7 @@ export class FakeApp {
       cookies: r.cookies,
       nowMs: r.nowMs,
       player: null,
+      log: { info: () => {}, warn: () => {}, error: () => {} },
     };
     // JSON bodies only; an empty body counts as "no body".
     if (r.bodyText !== undefined && r.bodyText.length > BODY_LIMIT) {

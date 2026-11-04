@@ -9,6 +9,7 @@ import type { BuildingId } from '@clanfire/engine';
 import {
   PLACEMENT,
   SCAFFOLD_URL,
+  SCENE_FOCUS,
   UNDER_CONSTRUCTION_URL,
   WALL_HIT,
   buildingStage,
@@ -21,7 +22,7 @@ import {
   spriteUrl,
 } from '../../art/buildings.ts';
 import type { Box, Stage } from '../../art/buildings.ts';
-import { GROUND_URL, Campfire, SQUARE_DEPTH, SceneryDefs, TownSquarePaving, sceneryItems, wallItems } from '../../art/scenery.tsx';
+import { Campfire, Ground, SQUARE_DEPTH, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
@@ -143,23 +144,17 @@ export const SceneArt = memo(function SceneArt({
       <defs>
         <SceneryDefs />
       </defs>
-      <image href={GROUND_URL} x={10} y={-4} width={580} height={376} />
-      <TownSquarePaving />
+      <Ground />
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
       <g className="vv-life" aria-hidden="true">
-        {[
-          [320, 53, 0],
-          [450, 83, 1.1],
-          [188, 85, 0.6],
-        ].map(([x, y, d]) => (
-          <g key={`sm-${x}`} transform={`translate(${x} ${y})`}>
-            {[0, 1, 2].map((i) => (
-              <circle key={i} className="vv-puff" r={3.2} fill="#F3EEE4" style={{ animationDelay: `${(d ?? 0) + i * 1.2}s` }} />
-            ))}
-          </g>
-        ))}
+        {/* Smoke rising from the campfire. */}
+        <g transform={`translate(${SCENE_FOCUS.x + 4} ${SCENE_FOCUS.y + 8})`}>
+          {[0, 1, 2].map((i) => (
+            <circle key={i} className="vv-puff" r={3.4} fill="#F3EEE4" style={{ animationDelay: `${i * 1.2}s` }} />
+          ))}
+        </g>
       </g>
       {selected && (
         <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -298,7 +293,8 @@ export function VillageScene({
   }, [artKey]);
 
   const hallStage = arts.hall.stage;
-  const vb = useMemo(() => sceneViewBox(hallStage), [hallStage]);
+  const wallStage = arts.wall.stage;
+  const vb = useMemo(() => sceneViewBox(hallStage, wallStage), [hallStage, wallStage]);
   const VB = vb;
 
   // Hit buttons in painter's order, so the building in front wins where boxes overlap.
@@ -344,14 +340,15 @@ export function VillageScene({
 
   // First layout: look at the market square.
   useEffect(() => {
-    if (mode === 'pan' && view.w > 0 && pan === null) setPan(centreOn(300, 140));
+    if (mode === 'pan' && view.w > 0 && pan === null) setPan(centreOn(SCENE_FOCUS.x, SCENE_FOCUS.y));
   }, [mode, view.w, pan, centreOn]);
 
   // Keep the selected building in view above the bottom sheet.
   useEffect(() => {
     if (mode !== 'pan' || !selected || view.w === 0) return;
     const b = boxes[selected] ?? defaultBox(selected);
-    setPan(centreOn(b.x + b.w / 2, b.y + b.h / 2));
+    // A little above the middle of the drawing, so its label stays clear of the village name at the top.
+    setPan(centreOn(b.x + b.w / 2, b.y + b.h * 0.42));
     // Only when the selection, the sheet or the viewport changes, not on every measurement.
   }, [mode, selected, bottomInset, view.w, view.h]);
 

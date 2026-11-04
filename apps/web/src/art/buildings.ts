@@ -77,15 +77,36 @@ export const UNDER_CONSTRUCTION_URL = fileUrl('under-construction');
 export const SCAFFOLD_URL = fileUrl('scaffold');
 
 // ---- Scene layout -------------------------------------------------------------------------------------------
+// The village is laid out on an isometric grid: ground point (u, v) sits at screen (C.x + u - v, C.y + (u + v) / 2),
+// the same 2:1 projection the sprites use. The ring wall is the square |u|, |v| <= WALL_RING.r; the town square with
+// the campfire is in the middle; the buildings stand on a 4 x 4 grid around it (the four middle cells are the square)
+// with open ground and paths between every two plots, so nothing touches even at the last stage.
 
-/** Scene coordinate space (approved artboard VillageViewDesktop: x 10–590, ground ends at y 372). */
-export const SCENE_VIEWBOX = { x: 10, y: -4, w: 580, h: 376 } as const;
+/** Ring centre in scene units. */
+const C = { x: 474, y: 330 } as const;
 
-/** The scene grows upwards when the Town Hall gets taller (its label must stay inside). */
-export function sceneViewBox(hallStage: Stage): { x: number; y: number; w: number; h: number } {
-  // Extra 30 units of headroom keep the bobbing selection arrow above the Town Hall label from being clipped.
-  const top = (hallStage >= 3 ? -50 : hallStage === 2 ? -34 : -10) - 30;
-  return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: SCENE_VIEWBOX.y + SCENE_VIEWBOX.h - top };
+/** Screen point of the ground point (u, v), lifted by z. */
+export function iso(u: number, v: number, z = 0): [number, number] {
+  return [C.x + u - v, C.y + (u + v) / 2 - z];
+}
+
+/** The ring wall (half-side r in grid units), the ground plate around it and the gaps for the four gates. */
+export const WALL_RING = { cx: C.x, cy: C.y, r: 212, plate: 234, gateHalf: 16 } as const;
+
+/** Where the phone view first looks (a little above the campfire, so the Town Hall is in view). */
+export const SCENE_FOCUS = { x: C.x, y: C.y - 70 } as const;
+
+/** Scene coordinate space: the ground plate plus its edge; the top grows with the Town Hall and the wall towers. */
+export const SCENE_VIEWBOX = { x: C.x - 474, y: C.y - 250, w: 948, h: 250 + 262 } as const;
+
+/** The scene grows upwards when the Town Hall or the wall gets taller (labels and towers must stay inside). */
+export function sceneViewBox(hallStage: Stage, wallStage: Stage = 0): { x: number; y: number; w: number; h: number } {
+  // Extra headroom keeps the bobbing selection arrow above the Town Hall label from being clipped.
+  const hall = hallStage >= 3 ? 371 : hallStage === 2 ? 312 : 296;
+  const wall = wallStage >= 3 ? 318 : wallStage === 2 ? 270 : wallStage === 1 ? 265 : 250;
+  const top = C.y - Math.max(hall, wall);
+  const bottom = SCENE_VIEWBOX.y + SCENE_VIEWBOX.h;
+  return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: bottom - top };
 }
 
 export interface Box {
@@ -102,23 +123,31 @@ export interface Placement {
   scale: number;
 }
 
-/** Where each building stands. Wall: the anchor of its plot/scaffold on the front-right wall edge. */
+/** A plot whose ground-tile centre is the grid point (u, v). A sprite's pad covers about 28 * scale grid units each way. */
+function plot(u: number, v: number, scale: number): Placement {
+  const [x, y] = iso(u, v);
+  return { x, y: y - 26 * scale, scale };
+}
+
+/** Where each building stands (grid cells at +-60 / +-156; the corner plots sit a little inwards from the towers). */
 export const PLACEMENT: Record<BuildingId, Placement> = {
-  // All twelve stand inside the (larger) ring wall with open ground between them; the middle is an open town square with the campfire; the Drillyard has its own plot in the north-west.
-  // Every footprint is checked to lie on the ground plate (|dx|/270 + |dy|/135 < 0.9 around the ring centre).
-  hall: { x: 300, y: 95, scale: 1.1 },
-  barracks: { x: 425, y: 145, scale: 0.9 },
-  storehouse: { x: 200, y: 125, scale: 0.9 },
-  // Resource sites sit in their own corners of the plot, each with its forest or rocks around it (see scenery.tsx).
-  lumber: { x: 125, y: 195, scale: 0.95 },
-  mine: { x: 475, y: 195, scale: 0.9 },
-  vault: { x: 360, y: 160, scale: 0.55 },
-  goldmine: { x: 300, y: 285, scale: 0.8 },
-  stables: { x: 190, y: 225, scale: 0.85 },
-  farm: { x: 395, y: 240, scale: 0.9 },
-  wall: { x: 470, y: 271.7, scale: 0.55 },
-  market: { x: 225, y: 262, scale: 0.75 },
-  drillyard: { x: 140, y: 150, scale: 1.05 },
+  // Back row: the Town Hall in the far corner, the Storehouse and Barracks beside it.
+  hall: plot(-154, -154, 1.45),
+  storehouse: plot(-156, -60, 1.3),
+  barracks: plot(-60, -156, 1.3),
+  // Left: the Drill Yard and, in the left corner, the Lumber Camp at the edge of its grove (the cell in front is forest).
+  drillyard: plot(-156, 60, 1.25),
+  lumber: plot(-150, 154, 1.3),
+  // Right: Stables, the Iron Mine in its rocky corner, the Hidden Vault tucked away beside it.
+  stables: plot(60, -156, 1.3),
+  mine: plot(154, -150, 1.3),
+  vault: plot(156, -60, 1.05),
+  // Front: Farm, Gold Mine in the near corner, Market by the front-left road.
+  farm: plot(156, 60, 1.3),
+  goldmine: plot(148, 148, 1.25),
+  market: plot(60, 156, 1.2),
+  // The wall's own plot (building work only) sits on the front-right wall between the Farm and the Gold Mine.
+  wall: plot(212, 108, 0.6),
 };
 
 /** Painter's order: things further down the screen are drawn later. */
@@ -130,8 +159,12 @@ export function placementDepth(id: BuildingId): number {
 /** Highlight under the selected building: the two front edges of its ground tile. */
 export function footprintFront(id: BuildingId): string {
   if (id === 'wall') {
-    const { cx, cy, hw, hh } = WALL_RING;
-    return `M${cx - hw} ${cy + 5}L${cx} ${cy + hh + 5}L${cx + hw} ${cy + 5}`;
+    // Along the outer foot of the two front walls.
+    const r = WALL_RING.r + 9;
+    const [lx, ly] = iso(-r, r);
+    const [fx, fy] = iso(r, r);
+    const [rx, ry] = iso(r, -r);
+    return `M${lx} ${ly}L${fx} ${fy}L${rx} ${ry}`;
   }
   const { x, y, scale } = PLACEMENT[id];
   const cy = y + 26 * scale;
@@ -140,11 +173,11 @@ export function footprintFront(id: BuildingId): string {
   return `M${x - hw} ${cy}L${x} ${cy + hh}L${x + hw} ${cy}`;
 }
 
-/** The ring wall around the market square: an isometric diamond. Gates sit where the roads cross each edge. */
-export const WALL_RING = { cx: 300, cy: 205.6, hw: 270, hh: 135, gateHalf: 11 } as const;
-
-/** Label area for the wall: on the front-right edge, between the vault and the gold mine. */
-export const WALL_HIT: Box = { x: 450, y: 271, w: 40, h: 30 };
+/** Label area for the wall: on the front-right wall, between the Farm and the Gold Mine. */
+export const WALL_HIT: Box = (() => {
+  const [x, y] = iso(WALL_RING.r, 108);
+  return { x: x - 20, y: y - 44, w: 40, h: 40 };
+})();
 
 // ---- Sprite loading ----------------------------------------------------------------------------------------
 
