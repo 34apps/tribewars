@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`a39bbca`): landscape options committed. Village page was failing because `landscapeA.tsx`/`landscapeB.tsx` were missing; written now
-(A river valley, B farmland; shared helpers `art/landscapeKit.tsx`; C unchanged). Design preview has a Landscape dropdown: Current / A / B / C.
-New `apps/web/test/landscapes.test.tsx` renders all four at every tier (Vite SSR); `npm test` runs it. Never SEEN in a browser (none here), so A and B
-placement is blind. Very next step: owner looks at each option (360/1440 px), picks one or asks for tweaks (NEXT_STEPS "Landscape choice"). Checks passed.
-Trap: stray `apps/web/tmp-landscape-smoke.tsx` (empty scratch file the sandbox could not delete, NOT committed) and a `Pasted ... textClipping` file: delete both by hand, don't `git add -A` them.
+2026-11-04 (`b8b8b61`): owner said the scenery around the village looked weird. Current landscape: loaf-shaped hills and triangle crags
+replaced by rolling hills and rocky outcrops. Option C: broken mountain cut edges and white-slab cliffs fixed. A and B looked fine in renders.
+Viewed live (Current, 1440 + 360 px) and as SVG renders of all four. Next: owner looks again and picks a landscape (NEXT_STEPS "Landscape choice").
+Tip: landscapes can be rendered to PNG without a browser via Vite SSR + `qlmanage -t` (see the landscapes test for the SSR setup).
+Stray `Pasted ... textClipping` file in the repo root is the owner's; don't commit it.
 
 ## How the owner works (important)
 
