@@ -5,10 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`6be9b60`): all building sprites (except wall) redrawn with far more detail in the toy style, so each looks
-like its job; stumps and log piles removed from the scenery. Drawn blind by coordinates (no renderer in the agent run):
-NOT viewed, XML not parsed. Very next step: open the village at 360 and 1440 px (Settings → Design preview shows all
-levels), fix broken or overlapping sprites. Checks passed (check + build).
+2026-11-04 (`b3a01ba`): barracks, stables, hidden vault, gold mine, iron mine (levels 1–3, files in
+`apps/web/src/art/buildings/`) redrawn on the town hall's isometric angle: two visible walls (shear matrices
+`1 .5 0 -1` left / `1 -.5 0 -1` right), door on the lit wall, mine entrances/rails/carts along the diagonal, all on the
+plinth diamond. Drawn blind (no renderer, XML not parsed, `design/sprites` copy not synced). Very next step: open the
+village / Settings → Design preview at 360 and 1440 px and fix any broken sprite. Checks passed (check + build).
 
 ## How the owner works (important)
 
