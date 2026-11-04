@@ -135,7 +135,7 @@ function plot(u: number, v: number, scale: number): Placement {
 /** Where each building stands. */
 export const PLACEMENT: Record<BuildingId, Placement> = {
   // The heart of the village: the Town Hall in the middle (a little forward, so its tower clears the Gold Mine behind).
-  hall: plot(22, 22, 1.55),
+  hall: plot(22, 22, 1.15),
   // Core buildings in a ring around it.
   storehouse: plot(156, 8, 1.3),
   barracks: plot(-150, 0, 1.3),

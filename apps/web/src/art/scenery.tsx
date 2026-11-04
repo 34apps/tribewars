@@ -1,11 +1,11 @@
-// Village scene scenery in style B (Painted Miniature, like the building sprites): the ground plate with its roads,
-// fields and the paved square under the Town Hall, trees and rocks, and the ring wall on the plate's edge drawn by its
-// stage. Everything is laid
-// out on the isometric grid from ./buildings.ts (iso(u, v, z)); buildings themselves are sprites from there.
-// Thin dark-brown outlines, 4–5 painted tones per material, lit from the top left (left faces light, right faces dark).
+// Village scene scenery in style D (Toy Diorama, like the approved village artboard): a chunky ground plate with thick
+// warm-ink outlines, bold tan paths to the buildings that stand, a paved square under the Town Hall, toy trees and rocks,
+// and the ring wall on the plate's edge drawn by its stage (palisade, stone, towers with terracotta roofs and flags).
+// Flat 3-tone block shading lit from the top left. Laid out on the isometric grid from ./buildings.ts (iso(u, v, z)).
 
 import { memo } from 'react';
 import type { ReactNode } from 'react';
+import { T } from './Icon.tsx';
 import type { BuildingId } from '@clanfire/engine';
 import { PLACEMENT, WALL_RING, iso } from './buildings.ts';
 import type { Stage } from './buildings.ts';
@@ -16,7 +16,7 @@ export interface DepthItem {
   node: ReactNode;
 }
 
-const INK = '#3B2619';
+const INK = '#2B211C';
 const { cx: CX, cy: CY, plate: RP, gateHalf: GATE, gateU: GATE_U } = WALL_RING;
 /** Half width of the closed main gate (a third wider than the road's gap, so the doors read clearly). */
 const GATE_W = GATE * 1.3;
@@ -180,167 +180,119 @@ function clear(u: number, v: number, rad: number, tall: boolean): boolean {
   return true;
 }
 
-// ---- Prop symbols (pines, oak, bush, boulders, stump, logs) ---------------------------------------------------
+// ---- Prop symbols (toy pines, round trees, bushes, rocks, stump, logs) ----------------------------------------
 
-function tier(w: number, yb: number, ya: number, c: { mid: string; dark: string; light: string; hi: string }) {
-  const J = 8;
-  const jag: [number, number][] = [];
-  for (let k = 0; k <= J; k++) jag.push([w - (k * 2 * w) / J, yb + (k % 2 ? -1.4 : k === 0 || k === J ? 0 : 0.9)]);
-  const d = (pts: [number, number][]) => `M${pts.map(([x, y]) => `${f(x)} ${f(y)}`).join('L')}Z`;
-  const all: [number, number][] = [[0, ya], ...jag];
-  const half = jag.filter((p) => p[0] >= -0.3);
-  const left = jag.filter((p) => p[0] <= -0.4 * w);
-  return (
-    <g key={ya}>
-      <path d={d(all)} fill={c.mid} />
-      <path d={d([[0.3, ya + 1], ...half, [0.6, (ya + yb) / 2]])} fill={c.dark} />
-      <path d={d([[0, ya], ...left, [-0.25 * w, ya + (yb - ya) * 0.55]])} fill={c.light} />
-      <path
-        d={`M${f(-0.1 * w)} ${f(ya + 2)}L${f(-0.55 * w)} ${f(yb - 1.6)}M${f(-0.05 * w)} ${f(ya + (yb - ya) * 0.5)}L${f(-0.3 * w)} ${f(yb - 0.8)}`}
-        stroke={c.hi}
-        strokeWidth={0.7}
-        fill="none"
-      />
-      <path d={d(all)} fill="none" stroke={INK} strokeWidth={0.8} />
-    </g>
-  );
-}
+/** A cut tree: round top with growth rings, in warm wood tones. */
+const stump = (
+  <g stroke="#2B211C" strokeWidth="1.4" strokeLinejoin="round">
+    <ellipse cx="3" cy="2" rx="10" ry="4.5" fill="#2B211C" opacity="0.22" stroke="none" />
+    <path d="M-7 -8V0A7 3.2 0 0 0 7 0V-8Z" fill="#B07D46" />
+    <ellipse cx="0" cy="-8" rx="7" ry="3.2" fill="#E4B67C" />
+    <ellipse cx="0" cy="-8" rx="3.2" ry="1.4" fill="none" stroke="#B07D46" strokeWidth="1" />
+  </g>
+);
 
-function pine(tiers: [number, number, number][], c: { mid: string; dark: string; light: string; hi: string }) {
-  return (
-    <>
-      <ellipse cx={4} cy={0.6} rx={9} ry={3.4} fill="#1E110A" opacity={0.22} />
-      <path d="M-1.4 .6L1.4 .6L1.1 -9L-1.1 -9Z" fill="#6E4628" stroke={INK} strokeWidth={0.7} />
-      <path d="M.2 .5L1.3 .5L1 -8.6L.2 -8.6Z" fill="#4A2E1B" />
-      {tiers.map(([w, yb, ya]) => tier(w, yb, ya, c))}
-    </>
-  );
-}
+/** A stack of cut logs: two on the ground, one on top. */
+const logs = (
+  <g stroke="#2B211C" strokeWidth="1.4" strokeLinejoin="round">
+    <ellipse cx="3" cy="3" rx="22" ry="6" fill="#2B211C" opacity="0.22" stroke="none" />
+    <path d="M-18 -2H4V6H-18Z" fill="#B07D46" />
+    <ellipse cx="4" cy="2" rx="3" ry="4" fill="#E4B67C" />
+    <path d="M-4 -2H18V6H-4Z" fill="#B07D46" />
+    <ellipse cx="18" cy="2" rx="3" ry="4" fill="#E4B67C" />
+    <path d="M-12 -10H10V-2H-12Z" fill="#8E6539" />
+    <ellipse cx="10" cy="-6" rx="3" ry="4" fill="#E4B67C" />
+  </g>
+);
 
-const OAK_BLOBS: [number, number, number, string][] = [
-  [4.5, -15, 6, '#3F6A31'],
-  [-4.5, -15.5, 5.8, '#4A7838'],
-  [0, -21, 7, '#4A7838'],
-  [5, -22, 5, '#3F6A31'],
-  [-5, -22, 4.6, '#5A8A41'],
-  [-1.5, -26.5, 4.6, '#6A9A49'],
-  [-3.6, -18, 3.4, '#7FAE55'],
-  [-1.5, -24, 2.6, '#8DBA5E'],
-];
-const BUSH_BLOBS: [number, number, number, string][] = [
-  [3.2, -3, 3.6, '#3F6A31'],
-  [-3, -3.2, 3.5, '#4A7838'],
-  [0, -5.6, 3.8, '#5A8A41'],
-  [-1.4, -6.6, 1.8, '#7FAE55'],
-];
+const pine = (u: string) => (
+  <>
+    <ellipse cx="5" cy="2" rx="12" ry="5.5" fill="#2B211C" opacity="0.25" />
+    <T
+      u={u + '0'}
+      d="M-3.5 -8Q-3.5 -10 -1.5 -10L1.5 -10Q3.5 -10 3.5 -8L3.5 -1Q3.5 1 1.5 1L-1.5 1Q-3.5 1 -3.5 -1Z"
+      l="#E4B67C"
+      k="#714B29"
+      m="#B07D46"
+      s={1}
+      x={-1.6}
+      y={-2}
+      w={1.8}
+    />
+    <T
+      u={u + '1'}
+      d="M-2.3 -36.8Q0 -40 2.3 -36.8L10.7 -25.2Q13 -22 13.6 -18L14.4 -12Q15 -8 11 -8L-11 -8Q-15 -8 -14.4 -12L-13.6 -18Q-13 -22 -10.7 -25.2Z"
+      l="#7FB04E"
+      k="#2C4E1F"
+      m="#467A32"
+      s={2.5}
+      x={-4}
+      y={-5}
+      w={2}
+    />
+    <T
+      u={u + '2'}
+      d="M-2.1 -48.6Q0 -52 2.1 -48.6L7.9 -39.4Q10 -36 10.4 -32L10.6 -30Q11 -26 7 -26L-7 -26Q-11 -26 -10.6 -30L-10.4 -32Q-10 -36 -7.9 -39.4Z"
+      l="#7FB04E"
+      k="#2C4E1F"
+      m="#467A32"
+      s={2}
+      x={-3.2}
+      y={-4}
+      w={2}
+    />
+  </>
+);
+const round = (u: string) => (
+  <>
+    <ellipse cx="5" cy="2" rx="13" ry="6" fill="#2B211C" opacity="0.25" />
+    <T u={u + '0'} d="M4 0L4 -16A4 4 0 0 0 -4 -16L-4 0A4 4 0 0 0 4 0Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1} x={-1.6} y={-2} w={1.8} />
+    <T u={u + '1'} d="M-15 -28A15 15 0 1 0 15 -28A15 15 0 1 0 -15 -28Z" l="#A6C964" k="#3A5E27" m="#5E8C3A" s={2.5} x={-4} y={-5} w={2} />
+    <ellipse cx="-6" cy="-36" rx="4" ry="2.4" transform="rotate(-30 -6 -36)" fill="#FFFFFF" opacity="0.7" />
+  </>
+);
+const rock = (u: string) => (
+  <>
+    <T
+      u={u + '0'}
+      d="M-12 0C-13.5 -2.3 -11.2 -7.3 -9 -10C-6.8 -12.7 -2.3 -16.2 1 -16C4.3 -15.8 9 -11.7 11 -9C13 -6.3 14.8 -2.2 13 0C11.2 2.2 4.2 4 0 4C-4.2 4 -10.5 2.3 -12 0Z"
+      l="#E3DED3"
+      k="#7C756B"
+      m="#B3ACA0"
+      s={2}
+      x={-3.2}
+      y={-4}
+      w={1.8}
+    />
+  </>
+);
 
-// Boulders rendered from the same generator as the building sprites (faceted, lit top-left, mossy).
-// Constant markup from this file only (never player input).
-const ROCKS: Record<'rockA' | 'rockB' | 'rockC', string> = {
-  rockA:
-    '<g transform="translate(0 -26)"><ellipse cx="3" cy="27.5" rx="10.5" ry="4.5" fill="#1E110A" opacity=".2"/><path d="M9.3 18.3L8.9 26.4L8.9 23.5Z" fill="#554A43" stroke="#554A43" stroke-width="0.3"/><path d="M9.3 18.3L8.9 23.5L6.5 18.1Z" fill="#665D57" stroke="#665D57" stroke-width="0.3"/><path d="M2.9 15.5L9.3 18.3L6.5 18.1Z" fill="#6F6760" stroke="#6F6760" stroke-width="0.3"/><path d="M8.9 26.4L8.4 30L8.9 23.5Z" fill="#574C45" stroke="#574C45" stroke-width="0.3"/><path d="M8.9 23.5L8.4 30L3.5 25.3Z" fill="#7C756F" stroke="#7C756F" stroke-width="0.3"/><path d="M8.9 23.5L3.5 25.3L4.7 21.1Z" fill="#756E67" stroke="#756E67" stroke-width="0.3"/><path d="M6.5 18.1L8.9 23.5L4.7 21.1Z" fill="#716A63" stroke="#716A63" stroke-width="0.3"/><path d="M8.4 30L-1.1 31.5L3.5 25.3Z" fill="#817B74" stroke="#817B74" stroke-width="0.3"/><path d="M3.5 25.3L-1.1 31.5L-4 26Z" fill="#958F88" stroke="#958F88" stroke-width="0.3"/><path d="M3.5 25.3L-4 26L-0.7 21.4Z" fill="#98938A" stroke="#98938A" stroke-width="0.3"/><path d="M4.7 21.1L3.5 25.3L-0.7 21.4Z" fill="#979189" stroke="#979189" stroke-width="0.3"/><path d="M-1.1 31.5L-8.4 29.1L-4 26Z" fill="#88827C" stroke="#88827C" stroke-width="0.3"/><path d="M-4 26L-8.4 29.1L-10.2 22.9Z" fill="#8B8680" stroke="#8B8680" stroke-width="0.3"/><path d="M-4 26L-10.2 22.9L-4.4 20.2Z" fill="#ABA498" stroke="#ABA498" stroke-width="0.3"/><path d="M-0.7 21.4L-4 26L-4.4 20.2Z" fill="#A9A297" stroke="#A9A297" stroke-width="0.3"/><path d="M-8.4 29.1L-10.1 25.6L-10.2 22.9Z" fill="#6E665F" stroke="#6E665F" stroke-width="0.3"/><path d="M-4.4 20.2L-10.2 22.9L-5.8 17.4Z" fill="#A49D93" stroke="#A49D93" stroke-width="0.3"/><path d="M-5.8 17.4L-1.8 15.7L2.9 15.5L6.5 18.1L4.7 21.1L-0.7 21.4L-4.4 20.2Z" fill="#9F998F" stroke="#9F998F" stroke-width="0.3"/><path d="M-5.8 17.4L-1.8 15.7L2.9 15.5L6.5 18.1L4.7 21.1L-0.7 21.4L-4.4 20.2Z" fill="none" stroke="#B2AB9D" stroke-width="0.6"/><path d="M6 29.2L3 29.5L6 29.9" fill="none" stroke="#574D45" stroke-width="0.5" stroke-linecap="round"/><path d="M-7.1 24.6L-6.8 27.6L-6.8 26.4" fill="none" stroke="#5D534C" stroke-width="0.5" stroke-linecap="round"/><path d="M7.6 25L8.8 25.2L8.1 25" fill="none" stroke="#544942" stroke-width="0.5" stroke-linecap="round"/><path d="M4.8 16.3L5.1 17.1" fill="none" stroke="#898075" stroke-width="0.5" stroke-linecap="round"/><path d="M4.4 22.4L1.5 21.3" fill="none" stroke="#AAA297" stroke-width="0.5" stroke-linecap="round"/><ellipse cx="0.3" cy="19.8" rx="1.8" ry="0.6" fill="#6F8240" opacity="0.8"/><ellipse cx="1.9" cy="18.9" rx="2" ry="0.6" fill="#6F8240" opacity="0.8"/><path d="M-10.2 22.9L-5.8 17.4L-1.8 15.7L2.9 15.5L9.3 18.3L8.9 26.4L8.4 30L-1.1 31.5L-8.4 29.1L-10.1 25.6Z" fill="none" stroke="#3B2619" stroke-width="0.9"/></g>',
-  rockB:
-    '<g transform="translate(0 -26)"><ellipse cx="3" cy="27.5" rx="7.5" ry="3.2" fill="#1E110A" opacity=".2"/><path d="M7 23.6L6.6 28.2L3.9 26.7Z" fill="#70665E" stroke="#70665E" stroke-width="0.3"/><path d="M7 23.6L3.9 26.7L3.2 22.8Z" fill="#89827A" stroke="#89827A" stroke-width="0.3"/><path d="M4.1 20.7L7 23.6L3.2 22.8Z" fill="#918B83" stroke="#918B83" stroke-width="0.3"/><path d="M6.6 28.2L0.3 30.3L3.9 26.7Z" fill="#635951" stroke="#635951" stroke-width="0.3"/><path d="M3.9 26.7L0.3 30.3L-3.1 25.7Z" fill="#A9A195" stroke="#A9A195" stroke-width="0.3"/><path d="M3.9 26.7L-3.1 25.7L0 23Z" fill="#B2AA9C" stroke="#B2AA9C" stroke-width="0.3"/><path d="M3.2 22.8L3.9 26.7L0 23Z" fill="#99938A" stroke="#99938A" stroke-width="0.3"/><path d="M0.3 30.3L-6.9 28L-3.1 25.7Z" fill="#908A82" stroke="#908A82" stroke-width="0.3"/><path d="M-3.1 25.7L-6.9 28L-7.8 22.9Z" fill="#9D968D" stroke="#9D968D" stroke-width="0.3"/><path d="M-3.1 25.7L-7.8 22.9L-3.6 22.6Z" fill="#9F998F" stroke="#9F998F" stroke-width="0.3"/><path d="M0 23L-3.1 25.7L-3.6 22.6Z" fill="#BAB2A3" stroke="#BAB2A3" stroke-width="0.3"/><path d="M-3.6 22.6L-7.8 22.9L-4.6 20.5Z" fill="#A39C91" stroke="#A39C91" stroke-width="0.3"/><path d="M-4.6 20.5L-0.3 19.1L4.1 20.7L3.2 22.8L0 23L-3.6 22.6Z" fill="#A8A195" stroke="#A8A195" stroke-width="0.3"/><path d="M-4.6 20.5L-0.3 19.1L4.1 20.7L3.2 22.8L0 23L-3.6 22.6Z" fill="none" stroke="#B9B1A2" stroke-width="0.6"/><path d="M5.6 28.1L2.5 29.1" fill="none" stroke="#473A32" stroke-width="0.5" stroke-linecap="round"/><path d="M6.5 26.4L6.8 24.9" fill="none" stroke="#4E4139" stroke-width="0.5" stroke-linecap="round"/><path d="M5.4 24.8L4.4 25.6L5.1 24.9" fill="none" stroke="#5C5149" stroke-width="0.5" stroke-linecap="round"/><path d="M3.4 24L1.3 22.9" fill="none" stroke="#ABA498" stroke-width="0.5" stroke-linecap="round"/><ellipse cx="0.1" cy="22.6" rx="1.1" ry="0.9" fill="#6F8240" opacity="0.8"/><path d="M-7.8 22.9L-4.6 20.5L-0.3 19.1L4.1 20.7L7 23.6L6.6 28.2L0.3 30.3L-6.9 28Z" fill="none" stroke="#3B2619" stroke-width="0.9"/></g>',
-  rockC:
-    '<g transform="translate(0 -26)"><ellipse cx="3" cy="27.5" rx="9.8" ry="4.2" fill="#1E110A" opacity=".2"/><path d="M5.6 22.6L3.9 25.9L4.8 20.6Z" fill="#5E534B" stroke="#5E534B" stroke-width="0.3"/><path d="M4.8 20.6L3.9 25.9L1.9 22.1Z" fill="#695F56" stroke="#695F56" stroke-width="0.3"/><path d="M4.8 20.6L1.9 22.1L2 17.6Z" fill="#7D746C" stroke="#7D746C" stroke-width="0.3"/><path d="M4.5 16.5L4.8 20.6L2 17.6Z" fill="#7D756C" stroke="#7D756C" stroke-width="0.3"/><path d="M3.9 25.9L-1.1 26.6L1.9 22.1Z" fill="#766D65" stroke="#766D65" stroke-width="0.3"/><path d="M1.9 22.1L-1.1 26.6L-4.9 20.9Z" fill="#A19B90" stroke="#A19B90" stroke-width="0.3"/><path d="M1.9 22.1L-4.9 20.9L-1.4 18.2Z" fill="#ADA699" stroke="#ADA699" stroke-width="0.3"/><path d="M2 17.6L1.9 22.1L-1.4 18.2Z" fill="#ACA598" stroke="#ACA598" stroke-width="0.3"/><path d="M-1.1 26.6L-6.9 24.7L-4.9 20.9Z" fill="#8F887F" stroke="#8F887F" stroke-width="0.3"/><path d="M-4.9 20.9L-6.9 24.7L-6.4 19.2Z" fill="#999289" stroke="#999289" stroke-width="0.3"/><path d="M-4.9 20.9L-6.4 19.2L-4.5 17Z" fill="#9B958C" stroke="#9B958C" stroke-width="0.3"/><path d="M-1.4 18.2L-4.9 20.9L-4.5 17Z" fill="#AFA89B" stroke="#AFA89B" stroke-width="0.3"/><path d="M-4.5 17L-6.4 19.2L-2.8 14.8Z" fill="#847D74" stroke="#847D74" stroke-width="0.3"/><path d="M0.9 14.5L4.5 16.5L2 17.6L-1.4 18.2L-4.5 17L-2.8 14.8Z" fill="#AAA397" stroke="#AAA397" stroke-width="0.3"/><path d="M0.9 14.5L4.5 16.5L2 17.6L-1.4 18.2L-4.5 17L-2.8 14.8Z" fill="none" stroke="#BBB3A4" stroke-width="0.6"/><path d="M5.4 22.4L5 22.8" fill="none" stroke="#44372F" stroke-width="0.5" stroke-linecap="round"/><path d="M1.6 19.6L0.9 19.7" fill="none" stroke="#6F6459" stroke-width="0.5" stroke-linecap="round"/><path d="M-4.8 18.7L-4.8 19.5L-5.6 20.1" fill="none" stroke="#655B52" stroke-width="0.5" stroke-linecap="round"/><path d="M-2.5 19L-3.3 17.5" fill="none" stroke="#BDB5A6" stroke-width="0.5" stroke-linecap="round"/><ellipse cx="1.1" cy="16.9" rx="1.3" ry="0.6" fill="#6F8240" opacity="0.8"/><ellipse cx="0.8" cy="16.9" rx="2.1" ry="0.5" fill="#6F8240" opacity="0.8"/><path d="M-6.9 24.7L-6.4 19.2L-2.8 14.8L0.9 14.5L4.5 16.5L5.6 22.6L3.9 25.9L-1.1 26.6Z" fill="none" stroke="#3B2619" stroke-width="0.9"/><path d="M9.7 29.2L5.8 31.7L7.1 26Z" fill="#6F6760" stroke="#6F6760" stroke-width="0.3"/><path d="M7.1 26L5.8 31.7L1.3 28.6Z" fill="#88827C" stroke="#88827C" stroke-width="0.3"/><path d="M7.1 26L1.3 28.6L2.8 24.3Z" fill="#8F8A83" stroke="#8F8A83" stroke-width="0.3"/><path d="M4.6 22.7L7.1 26L2.8 24.3Z" fill="#8E8983" stroke="#8E8983" stroke-width="0.3"/><path d="M5.8 31.7L-4.1 32.3L1.3 28.6Z" fill="#87817B" stroke="#87817B" stroke-width="0.3"/><path d="M1.3 28.6L-4.1 32.3L-7.6 28.2Z" fill="#A49D93" stroke="#A49D93" stroke-width="0.3"/><path d="M1.3 28.6L-7.6 28.2L-1.1 25Z" fill="#A39D92" stroke="#A39D92" stroke-width="0.3"/><path d="M2.8 24.3L1.3 28.6L-1.1 25Z" fill="#ABA498" stroke="#ABA498" stroke-width="0.3"/><path d="M-4.1 32.3L-8.2 29.1L-7.6 28.2Z" fill="#685F58" stroke="#685F58" stroke-width="0.3"/><path d="M-7.6 28.2L-8.2 29.1L-9.2 23.1Z" fill="#706862" stroke="#706862" stroke-width="0.3"/><path d="M-7.6 28.2L-9.2 23.1L-5.8 23Z" fill="#9B958C" stroke="#9B958C" stroke-width="0.3"/><path d="M-1.1 25L-7.6 28.2L-5.8 23Z" fill="#B4AC9E" stroke="#B4AC9E" stroke-width="0.3"/><path d="M-5.8 23L-9.2 23.1L-4.3 20.4Z" fill="#948E87" stroke="#948E87" stroke-width="0.3"/><path d="M9.8 23.1L9.7 29.2L7.1 26Z" fill="#685F59" stroke="#685F59" stroke-width="0.3"/><path d="M9.8 23.1L7.1 26L4.6 22.7Z" fill="#87817B" stroke="#87817B" stroke-width="0.3"/><path d="M4.3 19.8L9.8 23.1L4.6 22.7Z" fill="#847E78" stroke="#847E78" stroke-width="0.3"/><path d="M4.6 22.7L2.8 24.3L-1.1 25L-5.8 23L-4.3 20.4L-0.3 18.7L4.3 19.8Z" fill="#9B958C" stroke="#9B958C" stroke-width="0.3"/><path d="M4.6 22.7L2.8 24.3L-1.1 25L-5.8 23L-4.3 20.4L-0.3 18.7L4.3 19.8Z" fill="none" stroke="#AFA89B" stroke-width="0.6"/><path d="M-6.8 30L-6.4 30L-5.7 30.5" fill="none" stroke="#493D36" stroke-width="0.5" stroke-linecap="round"/><path d="M2.8 30.1L1.6 30.8" fill="none" stroke="#5A5049" stroke-width="0.5" stroke-linecap="round"/><path d="M6.5 27.5L3.2 28.5L5.5 28.4" fill="none" stroke="#5B514A" stroke-width="0.5" stroke-linecap="round"/><path d="M-3.1 26L-3.9 23.8" fill="none" stroke="#C2B9A8" stroke-width="0.5" stroke-linecap="round"/><path d="M-6.8 23L-4.9 21.4" fill="none" stroke="#A7A095" stroke-width="0.5" stroke-linecap="round"/><path d="M9 24L6.7 22.9" fill="none" stroke="#9D958B" stroke-width="0.5" stroke-linecap="round"/><path d="M6 20.8L4.5 21.5" fill="none" stroke="#9A9389" stroke-width="0.5" stroke-linecap="round"/><path d="M-9.2 23.1L-4.3 20.4L-0.3 18.7L4.3 19.8L9.8 23.1L9.7 29.2L5.8 31.7L-4.1 32.3L-8.2 29.1Z" fill="none" stroke="#3B2619" stroke-width="0.9"/></g>',
-};
+const bush = (
+  <g stroke={INK} strokeWidth={1.6} strokeLinejoin="round">
+    <ellipse cx={3} cy={1.5} rx={11} ry={4.5} fill={INK} opacity={0.22} stroke="none" />
+    <circle cx={-4.5} cy={-4.5} r={5.5} fill="#5E8C3A" />
+    <circle cx={4.5} cy={-4} r={5.2} fill="#3A5E27" />
+    <circle cx={0} cy={-8} r={6} fill="#5E8C3A" />
+    <ellipse cx={-2.4} cy={-10.4} rx={2.6} ry={1.5} transform="rotate(-30 -2.4 -10.4)" fill="#A6C964" stroke="none" />
+  </g>
+);
 
-/** Symbols referenced by <use href="#vt-…">, plus the scene's patterns; render once inside the scene's <defs>. */
+/** Symbols referenced by <use href="#vt-…">; render once inside the scene's <defs>. Sizes are tuned to the sprites. */
 export function SceneryDefs() {
-  const pave = ['#C4B497', '#B3A285', '#BDB096', '#A89B82'];
   return (
     <>
-      <g id="vt-pineA">
-        {pine(
-          [
-            [9, -5, -18],
-            [7.4, -11, -24],
-            [5.6, -17, -29.5],
-            [3.6, -23, -34.5],
-          ],
-          { mid: '#4B7A38', dark: '#2F5527', light: '#6E9A47', hi: '#A2C466' },
-        )}
+      <g id="vt-pineA" transform="scale(0.78)">{pine('vtp')}</g>
+      <g id="vt-pineB" transform="scale(0.64)">{pine('vtq')}</g>
+      <g id="vt-oak" transform="scale(0.74)">{round('vtr')}</g>
+      <g id="vt-bush" transform="scale(0.62)">{bush}</g>
+      <g id="vt-rockA" transform="scale(0.72)">{rock('vtk')}</g>
+      <g id="vt-rockB" transform="scale(0.52)">{rock('vtl')}</g>
+      <g id="vt-rockC" transform="scale(0.62)">
+        <g transform="translate(-6 -2)">{rock('vtm')}</g>
+        <g transform="translate(8 3) scale(0.7)">{rock('vtn')}</g>
       </g>
-      <g id="vt-pineB">
-        {pine(
-          [
-            [10, -4.5, -15.5],
-            [8, -10, -21],
-            [5.6, -15.5, -26.5],
-          ],
-          { mid: '#557F39', dark: '#36592A', light: '#7AA34C', hi: '#B0CF70' },
-        )}
-      </g>
-      <g id="vt-oak">
-        <ellipse cx={4} cy={0.6} rx={10} ry={3.8} fill="#1E110A" opacity={0.22} />
-        <path d="M-1.8 .6L1.8 .6L1.3 -10L3.4 -14L1.4 -13L.2 -16L-.9 -13.5L-3.2 -14.6L-1.2 -10Z" fill="#7A5232" stroke={INK} strokeWidth={0.7} />
-        <path d="M.3 .5L1.8 .5L1.3 -10L.4 -12Z" fill="#553722" />
-        {OAK_BLOBS.map(([x, y, r, c]) => (
-          <circle key={`${x},${y}`} cx={x} cy={y} r={r} fill={c} stroke={INK} strokeWidth={0.75} />
-        ))}
-        <path d="M-5 -19.5c1-2 3-2.5 4-2M-3.5 -26c.8-1.4 2-1.8 3-1.6" stroke="#B5D67A" strokeWidth={0.7} fill="none" />
-      </g>
-      <g id="vt-bush">
-        <ellipse cx={2} cy={0.4} rx={7} ry={2.6} fill="#1E110A" opacity={0.2} />
-        {BUSH_BLOBS.map(([x, y, r, c]) => (
-          <circle key={`${x},${y}`} cx={x} cy={y} r={r} fill={c} stroke={INK} strokeWidth={0.7} />
-        ))}
-        <path d="M-3.6 -6.4c.7-1.2 1.8-1.5 2.6-1.3" stroke="#B5D67A" strokeWidth={0.6} fill="none" />
-        <circle cx={2.4} cy={-4.4} r={0.7} fill="#C2553A" />
-        <circle cx={-2.2} cy={-2.6} r={0.6} fill="#F3E9C8" />
-      </g>
-      {(Object.keys(ROCKS) as (keyof typeof ROCKS)[]).map((k) => (
-        <g key={k} id={`vt-${k}`} dangerouslySetInnerHTML={{ __html: ROCKS[k] }} />
-      ))}
-      <g id="vt-stump">
-        <ellipse cx={2.5} cy={1} rx={6} ry={2.4} fill="#1E110A" opacity={0.2} />
-        <path d="M-3.6 -4V0A3.6 1.7 0 0 0 3.6 0V-4Z" fill="#7A5232" stroke={INK} strokeWidth={0.6} />
-        <path d="M.8 -4V1.6A3.6 1.7 0 0 0 3.6 0V-4Z" fill="#583720" />
-        <ellipse cx={0} cy={-4} rx={3.6} ry={1.7} fill="#D9B47E" stroke={INK} strokeWidth={0.6} />
-        <ellipse cx={0} cy={-4} rx={1.6} ry={0.7} fill="none" stroke="#A07146" strokeWidth={0.4} />
-      </g>
-      <g id="vt-logs">
-        <ellipse cx={1} cy={2.6} rx={13} ry={3.6} fill="#1E110A" opacity={0.2} />
-        {[
-          [-6, 0],
-          [2, 0],
-          [-2, -3.6],
-        ].map(([x, y]) => (
-          <g key={`${x},${y}`} transform={`translate(${x} ${y})`} stroke={INK} strokeWidth={0.6}>
-            <path d="M-6 -1.8H5V1.8H-6Z" fill="#7A5232" />
-            <path d="M-6 .4H5V1.8H-6Z" fill="#583720" stroke="none" />
-            <ellipse cx={5} cy={0} rx={1.3} ry={1.8} fill="#D9B47E" />
-          </g>
-        ))}
-      </g>
-      {/* Stone courses on wall faces: left faces run down-right (+26.6°), right faces up-right. */}
-      {(
-        [
-          ['vs-l', 26.565, ['#C4B497', '#A89B82', '#BDAE8C', '#9E9480'], '#6A5C4A'],
-          ['vs-r', -26.565, ['#94846D', '#7C6C56', '#8F8066', '#796E5D'], '#554637'],
-        ] as const
-      ).map(([id, skew, tints, mortar]) => (
-        <pattern key={id} id={id} patternUnits="userSpaceOnUse" width={14} height={8} patternTransform={`skewY(${skew})`}>
-          <rect x={0.4} y={0.4} width={6.2} height={3.2} fill={tints[0]} opacity={0.55} />
-          <rect x={7.4} y={0.4} width={6.2} height={3.2} fill={tints[1]} opacity={0.5} />
-          <rect x={3.9} y={4.4} width={6.2} height={3.2} fill={tints[2]} opacity={0.5} />
-          <rect x={10.9} y={4.4} width={3.1} height={3.2} fill={tints[3]} opacity={0.5} />
-          <rect x={0} y={4.4} width={3.1} height={3.2} fill={tints[3]} opacity={0.5} />
-          <path d="M0 0H14M0 4H14M0 0V4M7 0V4M3.5 4V8M10.5 4V8" stroke={mortar} strokeWidth={0.4} fill="none" />
-        </pattern>
-      ))}
-      {/* Flagstones of the town square, laid on the ground grid. */}
-      <pattern id="vg-pave" patternUnits="userSpaceOnUse" width={14} height={14} patternTransform={`matrix(1 .5 -1 .5 ${CX} ${CY})`}>
-        {[
-          [0, 0],
-          [7, 0],
-          [0, 7],
-          [7, 7],
-        ].map(([x, y], i) => (
-          <rect key={i} x={x! + 0.3} y={y! + 0.3} width={6.4} height={6.4} fill={pave[i]} stroke="#7C6C56" strokeWidth={0.5} />
-        ))}
-        <path d="M1.5 2.5l2 .8M8.6 9.4l1.8 1.1" stroke="#D5C5A9" strokeWidth={0.5} />
-      </pattern>
+      <g id="vt-stump" transform="scale(0.6)">{stump}</g>
+      <g id="vt-logs" transform="scale(0.55)">{logs}</g>
     </>
   );
 }
@@ -348,150 +300,81 @@ export function SceneryDefs() {
 // ---- Ground plate --------------------------------------------------------------------------------------------
 
 const GRASS = '#A6C964';
+const PATH_FILL = '#D9B98A';
 
-/** The ground plate: earth sides, grass top and the fields. */
+/** The ground plate: chunky earth sides, grass top with light patches and speckles, and the fields. */
 const GroundBase = memo(function GroundBase() {
-  const D = 22;
-  const lip = 4;
+  const D = 24;
   const L: P3 = [-RP, RP, 0];
   const F: P3 = [RP, RP, 0];
   const Rt: P3 = [RP, -RP, 0];
   const B: P3 = [-RP, -RP, 0];
   const down = (p: P3, z: number): P3 => [p[0], p[1], -z];
   const r = rng(5);
-
-  // Stones in the earth sides.
-  const sideStones: ReactNode[] = [];
-  for (let i = 0; i < 46; i++) {
-    const left = i % 2 === 0;
-    const t = r() * 2 - 1;
-    const z = lip + 3 + r() * (D - lip - 6);
-    const [x, y] = left ? iso(t * RP, RP, -z) : iso(RP, t * RP, -z);
-    sideStones.push(
-      <ellipse
-        key={i}
-        cx={f(x)}
-        cy={f(y)}
-        rx={f(1.2 + r() * 1.6)}
-        ry={f(0.8 + r() * 0.8)}
-        fill={left ? '#A89B82' : '#7C6C56'}
-        stroke={INK}
-        strokeWidth={0.4}
-      />,
-    );
+  const patches: ReactNode[] = [];
+  for (let i = 0; i < 18; i++) {
+    const u = (r() * 2 - 1) * (RP - 40);
+    const v = (r() * 2 - 1) * (RP - 40);
+    const [x, y] = iso(u, v);
+    const rx = 26 + r() * 40;
+    patches.push(<ellipse key={i} cx={f(x)} cy={f(y)} rx={f(rx)} ry={f(rx * 0.42)} fill="#BCD283" opacity={0.6} />);
   }
-
-  // Fields: tilled soil with crop rows along u.
+  const specks = ['', '', ''];
+  for (let i = 0; i < 420; i++) {
+    const [x, y] = iso((r() * 2 - 1) * (RP - 6), (r() * 2 - 1) * (RP - 6));
+    specks[i % 3] += `M${f(x)} ${f(y)}h0`;
+  }
   const fields = FIELDS.map(([cu, cv, hu, hv, crop], i) => {
+    const a = crop === 'wheat' ? ['#E8C468', '#C98E1F'] : ['#A6C964', '#5E8C3A'];
     let rows = '';
-    for (let v = cv - hv + 3; v <= cv + hv - 2; v += 4.5) rows += `M${pt(cu - hu + 2.5, v)}L${pt(cu + hu - 2.5, v)}`;
-    const c = crop === 'wheat' ? ['#C9A24A', '#E8C66A'] : ['#4A7838', '#7FAE55'];
+    for (let v = cv - hv + 4; v <= cv + hv - 3; v += 5) rows += `M${pt(cu - hu + 3, v)}L${pt(cu + hu - 3, v)}`;
     return (
       <g key={`f${i}`}>
-        <path d={groundSquare(cu, cv, hu + 1.5, hv + 1.5)} fill="#7A5232" stroke={INK} strokeWidth={0.7} strokeLinejoin="round" />
-        <path d={groundSquare(cu, cv, hu, hv)} fill="#8B684B" />
-        <path d={rows} stroke={c[0]} strokeWidth={2.6} strokeLinecap="round" fill="none" />
-        <path d={rows} stroke={c[1]} strokeWidth={0.9} strokeLinecap="round" fill="none" transform="translate(-0.6 -0.9)" />
+        <path d={groundSquare(cu, cv, hu, hv)} fill={a[0]} stroke={INK} strokeWidth={2} strokeLinejoin="round" />
+        <path d={rows} fill="none" stroke={a[1]} strokeWidth={1.8} strokeLinecap="round" opacity={0.7} />
       </g>
     );
   });
-
-  // Painted grass: soft lighter and darker patches, tufts, a few flowers and pebbles.
-  const patches: ReactNode[] = [];
-  for (let i = 0; i < 26; i++) {
-    const u = (r() * 2 - 1) * (RP - 30);
-    const v = (r() * 2 - 1) * (RP - 30);
-    const [x, y] = iso(u, v);
-    const rx = 18 + r() * 34;
-    patches.push(
-      <ellipse key={i} cx={f(x)} cy={f(y)} rx={f(rx)} ry={f(rx * 0.45)} fill={i % 3 === 0 ? '#93B656' : '#B4D172'} opacity={0.55} />,
-    );
-  }
   return (
-    <g className="vv-ground">
-      {/* earth sides: grass lip, then soil with stones */}
-      <path d={poly([L, F, down(F, lip), down(L, lip)])} fill="#6F9640" />
-      <path d={poly([F, Rt, down(Rt, lip), down(F, lip)])} fill="#4E6E2B" />
-      <path d={poly([down(L, lip), down(F, lip), down(F, D), down(L, D)])} fill="#8B684B" />
-      <path d={poly([down(F, lip), down(Rt, lip), down(Rt, D), down(F, D)])} fill="#603F27" />
-      <path d={`M${pt(L[0], L[1], -(lip + 9))}L${pt(F[0], F[1], -(lip + 9))}L${pt(Rt[0], Rt[1], -(lip + 9))}`} stroke="#4A2E1B" strokeWidth={0.6} fill="none" opacity={0.5} />
-      {sideStones}
-      <path d={poly([L, F, Rt, down(Rt, D), down(F, D), down(L, D)])} fill="none" stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
-      <path d={`M${pt(...F)}V${f(iso(...F)[1] + D)}`} stroke={INK} strokeWidth={1} />
-      {/* grass top */}
-      <path d={poly([B, Rt, F, L])} fill={GRASS} />
+    <g className="vv-ground" strokeLinejoin="round">
+      <path d={poly([L, F, down(F, D), down(L, D)])} fill="#B07D46" stroke={INK} strokeWidth={2.4} />
+      <path d={poly([F, Rt, down(Rt, D), down(F, D)])} fill="#714B29" stroke={INK} strokeWidth={2.4} />
+      <path d={poly([B, Rt, F, L])} fill={GRASS} stroke={INK} strokeWidth={2.4} />
       {patches}
-      <path d={`M${pt(...L)}L${pt(...B)}L${pt(...Rt)}`} fill="none" stroke="#C8DE8A" strokeWidth={1.4} opacity={0.8} />
-      <path d={poly([B, Rt, F, L])} fill="none" stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
+      <g fill="none" stroke="#5E8C3A" strokeLinecap="round" opacity={0.5}>
+        <path d={specks[0]} strokeWidth={1.8} />
+        <path d={specks[1]} strokeWidth={2.6} />
+        <path d={specks[2]} strokeWidth={3.4} />
+      </g>
       {fields}
     </g>
   );
 });
 
-/** Grass tufts, flowers and pebbles, drawn over the paths' edges. */
+/** A few grass ticks and white flowers on the open grass (Toy Diorama meadow texture). */
 const GrassDetail = memo(function GrassDetail() {
   const r = rng(9);
-  const tuft = ['', '', ''];
-  const flowers = ['', '', ''];
-  const pebbles: ReactNode[] = [];
-  for (let i = 0; i < 300; i++) {
-    const u = (r() * 2 - 1) * (RP - 4);
-    const v = (r() * 2 - 1) * (RP - 4);
-    const free =
-      !inSquare(u, v, 1) && !onRoad(u, v, 0) && !onField(u, v, 1) && !PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half);
-    if (!free) continue;
+  let ticks = '';
+  let blooms = '';
+  for (let i = 0; i < 160; i++) {
+    const u = (r() * 2 - 1) * (RP - 8);
+    const v = (r() * 2 - 1) * (RP - 8);
+    if (inSquare(u, v, 2) || onRoad(u, v, 1) || onField(u, v, 2) || PLOTS.some((p) => Math.abs(u - p.u) < p.half && Math.abs(v - p.v) < p.half)) continue;
     const [x, y] = iso(u, v);
-    const s = 1.1 + r() * 0.5;
-    tuft[0] += `M${f(x - 1.3 * s)} ${f(y)}l${f(-0.4 * s)} ${f(-2.6 * s)}`;
-    tuft[1] += `M${f(x)} ${f(y)}l${f(0)} ${f(-3.6 * s)}`;
-    tuft[2] += `M${f(x + 1.2 * s)} ${f(y)}l${f(0.5 * s)} ${f(-2.8 * s)}`;
-    if (i % 5 === 0) flowers[i % 3] += `M${f(x + 4)} ${f(y + 2)}h0`;
-    if (i % 11 === 0)
-      pebbles.push(<ellipse key={i} cx={f(x - 5)} cy={f(y + 1)} rx={1.6} ry={0.9} fill="#A89C86" stroke={INK} strokeWidth={0.4} />);
+    ticks += `M${f(x)} ${f(y)}l-2 -4M${f(x)} ${f(y)}l0 -5M${f(x)} ${f(y)}l2 -4`;
+    if (i % 4 === 0) blooms += `M${f(x + 7)} ${f(y + 4)}h0`;
   }
   return (
-    <g>
-      <g fill="none" strokeWidth={0.8} strokeLinecap="round">
-        <path d={tuft[0]} stroke="#5E7F33" />
-        <path d={tuft[1]} stroke="#6F9640" />
-        <path d={tuft[2]} stroke="#4E6E2B" />
-      </g>
-      <g fill="none" strokeWidth={2.2} strokeLinecap="round">
-        <path d={flowers[0]} stroke="#F3E9C8" />
-        <path d={flowers[1]} stroke="#E8B04A" />
-        <path d={flowers[2]} stroke="#C2553A" />
-      </g>
-      {pebbles}
+    <g fill="none" strokeLinecap="round">
+      <path d={ticks} stroke="#5E8C3A" strokeWidth={1.5} opacity={0.75} />
+      <path d={blooms} stroke="#F7F1E3" strokeWidth={3.4} />
     </g>
   );
 });
 
-/** Screen outline of a path between distances s0 and s1, with each side's half width given by `side`. */
-function ribbon(sm: Sample[], s0: number, s1: number, side: (q: Sample, sign: 1 | -1) => number): string {
-  const pts = sm.filter((q) => q.s >= s0 && q.s <= s1);
-  if (pts.length < 2) return '';
-  const edge = (q: Sample, sign: 1 | -1) => {
-    const o = side(q, sign) * sign;
-    return pt(q.u + q.nu * o, q.v + q.nv * o);
-  };
-  return `M${pts.map((q) => edge(q, 1)).join('L')}L${pts
-    .slice()
-    .reverse()
-    .map((q) => edge(q, -1))
-    .join('L')}Z`;
-}
-
-/** A line along a path at offset `o` (grid units), as an open path. */
-function lane(sm: Sample[], o: (q: Sample) => number, s0 = 0, s1 = Infinity): string {
-  const pts = sm.filter((q) => q.s >= s0 && q.s <= s1);
-  return pts.length < 2 ? '' : `M${pts.map((q) => pt(q.u + q.nu * o(q), q.v + q.nv * o(q))).join('L')}`;
-}
-
-/** The shown paths (earth, ruts, pebbles, edge grass), the hall square with its flagstones spilling into the paths. */
+/** Bold tan paths (ink edge, flat fill, a lighter dashed middle) to the buildings that stand, and the hall square. */
 const Paths = memo(function Paths({ built }: { built: string }) {
   const have = new Set(built.split(','));
-  // How far along each path to draw: all of it when its building stands; a trunk whose own building is missing only
-  // up to where a shown branch leaves it.
   const reach = new Map<string, number>();
   PATHS.forEach((p) => {
     if (p.to && !have.has(p.to)) return;
@@ -501,94 +384,32 @@ const Paths = memo(function Paths({ built }: { built: string }) {
     if (t && ti >= 0 && reach.get(t) !== Infinity) {
       const [bu, bv] = p.pts[0]!;
       const at = SAMPLES[ti]!.reduce((best, q) => (Math.hypot(q.u - bu, q.v - bv) < Math.hypot(best.u - bu, best.v - bv) ? q : best));
-      reach.set(t, Math.max(reach.get(t) ?? 0, at.s + PATHS[ti]!.w * 1.4));
+      reach.set(t, Math.max(reach.get(t) ?? 0, at.s + PATHS[ti]!.w));
     }
   });
-  const list = PATHS.map((p, i) => ({ p, sm: SAMPLES[i]!.filter((q) => q.s <= (reach.get(p.key) ?? -1)), k: i * 3 + 1 })).filter(
-    ({ sm }) => sm.length > 1,
-  );
-  const r = rng(13);
-  const width = (p: PathDef, k: number, amt: number) => (q: Sample, sign: 1 | -1) => p.w * (1 + amt * wobble(q.s, k + (sign > 0 ? 0 : 7)));
-  const rim: string[] = [];
-  const body: string[] = [];
-  const mid: string[] = [];
-  const worn: string[] = [];
-  const ruts: string[] = [];
-  const pave: { d: string; o: number }[] = [];
-  const stones: ReactNode[] = [];
-  const bites: ReactNode[] = [];
-  const tufts = ['', ''];
-  for (const { p, sm, k } of list) {
-    const end = sm[sm.length - 1]!.s;
-    rim.push(ribbon(sm, 0, end, (q, g) => width(p, k, 0.2)(q, g) + 1.8));
-    body.push(ribbon(sm, 0, end, width(p, k, 0.2)));
-    mid.push(ribbon(sm, 0, end, (q, g) => width(p, k + 2, 0.25)(q, g) * 0.72));
-    worn.push(ribbon(sm, 0, end, (q, g) => p.w * 0.26 * (1 + 0.5 * wobble(q.s, k + (g > 0 ? 3 : 9)))));
-    for (const side of [1, -1]) ruts.push(lane(sm, (q) => side * p.w * (0.46 + 0.06 * wobble(q.s, k + 5))));
-    if (p.paved) {
-      pave.push({ d: ribbon(sm, 0, 18, width(p, k, 0.2)), o: 1 });
-      pave.push({ d: ribbon(sm, 18, 30, (q, g) => width(p, k, 0.2)(q, g) * 0.85), o: 0.6 });
-      pave.push({ d: ribbon(sm, 30, 42, (q, g) => width(p, k, 0.2)(q, g) * 0.6), o: 0.3 });
-    }
-    for (const q of sm) {
-      // Loose cobbles where the paving gives out.
-      if (p.paved && q.s > 26 && q.s < 54 && r() < 0.55) {
-        const o = (r() * 2 - 1) * p.w * 0.8;
-        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
-        stones.push(
-          <ellipse key={`c${stones.length}`} cx={f(x)} cy={f(y)} rx={f(1.4 + r())} ry={f(0.8 + r() * 0.4)} fill={r() < 0.5 ? '#BDB096' : '#A89B82'} stroke="#7C6C56" strokeWidth={0.4} />,
-        );
-      }
-      // Pebbles on the earth.
-      if (q.s > 20 && r() < 0.16) {
-        const o = (r() * 2 - 1) * p.w * 0.85;
-        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
-        stones.push(<ellipse key={`p${stones.length}`} cx={f(x)} cy={f(y)} rx={f(0.7 + r() * 0.8)} ry={f(0.45 + r() * 0.3)} fill="#C4B497" stroke="#7C6C56" strokeWidth={0.35} />);
-      }
-      // Grass nibbling at the edges, tufts just outside them.
-      if (q.s > 10 && r() < 0.24) {
-        const g = r() < 0.5 ? 1 : -1;
-        const o = g * width(p, k, 0.2)(q, g) * (0.92 + r() * 0.16);
-        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
-        const rx = 1.6 + r() * 2;
-        bites.push(<ellipse key={`b${bites.length}`} cx={f(x)} cy={f(y)} rx={f(rx)} ry={f(rx * 0.5)} fill={r() < 0.5 ? '#A6C964' : '#9DBF5A'} />);
-      }
-      if (q.s > 8 && r() < 0.3) {
-        const g = r() < 0.5 ? 1 : -1;
-        const o = g * (width(p, k, 0.2)(q, g) + 1.5 + r() * 2);
-        const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
-        const sc = 1 + r() * 0.5;
-        tufts[r() < 0.5 ? 0 : 1] += `M${f(x - 1.2 * sc)} ${f(y)}l${f(-0.4 * sc)} ${f(-2.4 * sc)}M${f(x)} ${f(y)}l0 ${f(-3.4 * sc)}M${f(x + 1.1 * sc)} ${f(y)}l${f(0.5 * sc)} ${f(-2.6 * sc)}`;
-      }
-    }
-  }
+  const shown = PATHS.map((p, i) => ({ p, sm: SAMPLES[i]!.filter((q) => q.s <= (reach.get(p.key) ?? -1)) })).filter(({ sm }) => sm.length > 1);
+  // Paths stop just inside the plate's edge (the main road runs under the gate, not over the earth side).
+  const line = (sm: Sample[]) =>
+    `M${sm
+      .filter((q) => Math.max(Math.abs(q.u), Math.abs(q.v)) < RP - 9)
+      .filter((_, i, all) => i % 2 === 0 || i === all.length - 1)
+      .map((q) => pt(q.u, q.v))
+      .join('L')}`;
   const sq = (h: number) => groundSquare(HALL.u, HALL.v, h);
   return (
-    <g className="vv-paths">
-      {/* packed earth: soft darker rim, body, lighter middle, worn centre line */}
-      <path d={rim.join('')} fill="#8A6A42" opacity={0.55} />
-      <path d={rim.join('')} fill="none" stroke="#6E5034" strokeWidth={0.5} opacity={0.35} />
-      <path d={body.join('')} fill="#A9834F" />
-      <path d={mid.join('')} fill="#B99360" />
-      <path d={worn.join('')} fill="#CCA86F" opacity={0.7} />
-      <path d={ruts.join('')} fill="none" stroke="#7E5F3A" strokeWidth={0.9} strokeLinecap="round" strokeDasharray="13 4 8 3 16 5" opacity={0.45} />
-      {bites}
-      {/* the hall square, its flagstones spilling a little way into the paths and fading out */}
-      {pave.map(({ d, o }, i) => (
-        <g key={`pv${i}`} opacity={o}>
-          <path d={d} fill="#B3A285" />
-          <path d={d} fill="url(#vg-pave)" />
-        </g>
+    <g className="vv-paths" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {shown.map(({ p, sm }) => (
+        <path key={`e${p.key}`} d={line(sm)} stroke={INK} strokeWidth={p.w * 2.1 + 3.2} />
       ))}
-      <path d={sq(SQUARE + 3)} fill="#887761" stroke={INK} strokeWidth={0.8} strokeLinejoin="round" />
-      <path d={sq(SQUARE)} fill="#B3A285" />
-      <path d={sq(SQUARE)} fill="url(#vg-pave)" />
-      <path d={sq(SQUARE)} fill="none" stroke={INK} strokeWidth={0.6} />
-      {stones}
-      <g fill="none" strokeWidth={0.8} strokeLinecap="round">
-        <path d={tufts[0]} stroke="#5E7F33" />
-        <path d={tufts[1]} stroke="#6F9640" />
-      </g>
+      {shown.map(({ p, sm }) => (
+        <path key={`f${p.key}`} d={line(sm)} stroke={PATH_FILL} strokeWidth={p.w * 2.1} />
+      ))}
+      {shown.map(({ p, sm }) => (
+        <path key={`m${p.key}`} d={line(sm)} stroke="#E8D3A4" strokeWidth={p.w * 0.5} strokeDasharray="10 12" opacity={0.8} />
+      ))}
+      {/* the square under the Town Hall: kerb, light paving, inner ring */}
+      <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={1.8} />
+      <path d={sq(SQUARE - 7)} fill="#E3DED3" stroke={INK} strokeWidth={1} />
     </g>
   );
 });
@@ -677,14 +498,14 @@ export function sceneryItems(): DepthItem[] {
 
 // ---- Ring wall ------------------------------------------------------------------------------------------------
 // Drawn in code (not a sprite) because it wraps the whole village, split into pieces for the painter's sort.
-// Stage 1: wooden palisade with thatched watchtowers; stage 2: crenellated stone wall with square towers and flags;
-// stage 3: tall stone wall, towers with slate roofs, flags and hanging banners (as the B wall-1..3 sprites).
+// Stage 1: wooden palisade with timber watchtowers; stage 2: low stone wall with square towers; stage 3: tall stone
+// wall with round towers, terracotta roofs and sunflower flags (as the approved building-stages artboard).
 
-const STONE = { top: '#BDB096', left: '#B3A285', right: '#887761' };
-const WOOD = { top: '#B98754', left: '#957253', right: '#603F27' };
-const SLATE = { left: '#80888E', right: '#626B74', line: '#4B5258', hi: '#A3ABB0' };
-const THATCH = { left: '#C39A52', right: '#96743E', line: '#E0C08A', dark: '#7A5A2E' };
-const BANNER = { cloth: '#A63E28', dark: '#7A2A1A', light: '#C2553A', flame: '#E8B04A', core: '#FBE3A0' };
+type Pt = readonly [number, number];
+const WOOD = { top: '#E4B67C', left: '#B07D46', right: '#714B29', pTop: '#B98F5E', pLeft: '#8E6539', pRight: '#5E3F22' };
+const STONE = { top: '#E3DED3', left: '#B3ACA0', right: '#7C756B' };
+const ROOF = { light: '#EF9C6E', mid: '#C4623A', dark: '#843A23' };
+const SUN = '#F2B33D';
 
 interface Colors {
   top: string;
@@ -722,185 +543,181 @@ function box(
     [u1, v1, z1],
     [u0, v1, z1],
   ]);
-  const sw = o.sw ?? 0.7;
+  const zm = (z0 + z1) / 2;
+  return (
+    <g key={key} stroke={INK} strokeWidth={o.sw ?? 1.5} strokeLinejoin="round">
+      <path d={left} fill={c.left} />
+      <path d={right} fill={c.right} />
+      <path d={top} fill={c.top} />
+      {o.stones && (
+        <path
+          d={`M${pt(u0, v1, zm)}L${pt(u1, v1, zm)}L${pt(u1, v0, zm)}`}
+          fill="none"
+          strokeWidth={0.8}
+          opacity={0.45}
+        />
+      )}
+    </g>
+  );
+}
+
+const sp = (list: Pt[]) => list.map(([x, y]) => `${f(x)} ${f(y)}`).join('L');
+
+/** Screen-space iso box (half-width a, height h) on (cx, cy), for the timber towers. */
+function isoBox(key: string, cx: number, cy: number, a: number, h: number, c: Colors, sw = 1.5): ReactNode {
+  const L: Pt = [cx - a, cy];
+  const F: Pt = [cx, cy + a / 2];
+  const R: Pt = [cx + a, cy];
+  const B: Pt = [cx, cy - a / 2];
+  const up = (p: Pt): Pt => [p[0], p[1] - h];
   return (
     <g key={key} stroke={INK} strokeWidth={sw} strokeLinejoin="round">
-      <path d={left} fill={c.left} />
-      {o.stones && <path d={left} fill="url(#vs-l)" stroke="none" />}
-      <path d={right} fill={c.right} />
-      {o.stones && <path d={right} fill="url(#vs-r)" stroke="none" />}
-      <path d={top} fill={c.top} />
+      <path d={`M${sp([L, F, up(F), up(L)])}Z`} fill={c.left} />
+      <path d={`M${sp([F, R, up(R), up(F)])}Z`} fill={c.right} />
+      <path d={`M${sp([up(L), up(F), up(R), up(B)])}Z`} fill={c.top} />
     </g>
   );
 }
 
-/** Square pyramid roof on (cu, cv) with half-side a at height z: the two front faces, with shingle courses. */
-function roof(key: string, cu: number, cv: number, a: number, z: number, rise: number, c: { left: string; right: string; line: string; hi?: string }) {
-  const apex: P3 = [cu, cv, z + rise];
-  const E: P3 = [cu - a, cv + a, z];
-  const D: P3 = [cu + a, cv + a, z];
-  const Bk: P3 = [cu + a, cv - a, z];
-  const lerp = (p: P3, q: P3, t: number): P3 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
-  let courses = '';
-  for (const t of [0.22, 0.42, 0.6, 0.76]) {
-    courses += `M${pt(...lerp(E, apex, t))}L${pt(...lerp(D, apex, t))}L${pt(...lerp(Bk, apex, t))}`;
-  }
+function pyramid(key: string, cx: number, cy: number, a: number, rise: number, c = { top: WOOD.top, left: WOOD.left, right: WOOD.right }): ReactNode {
+  const L: Pt = [cx - a, cy];
+  const F: Pt = [cx, cy + a / 2];
+  const R: Pt = [cx + a, cy];
+  const A: Pt = [cx, cy - rise];
   return (
-    <g key={key} strokeLinejoin="round">
-      <path d={poly([E, D, apex])} fill={c.left} />
-      <path d={poly([D, Bk, apex])} fill={c.right} />
-      <path d={courses} fill="none" stroke={c.line} strokeWidth={0.45} />
-      {c.hi && <path d={`M${pt(...lerp(E, apex, 0.08))}L${pt(...lerp(apex, E, 0.04))}`} stroke={c.hi} strokeWidth={0.6} fill="none" />}
-      <path d={`M${pt(...E)}L${pt(...apex)}L${pt(...Bk)}L${pt(...D)}Z M${pt(...D)}L${pt(...apex)}`} fill="none" stroke={INK} strokeWidth={0.7} />
+    <g key={key} stroke={INK} strokeWidth={2} strokeLinejoin="round">
+      <path d={`M${sp([L, A, F])}Z`} fill={c.left} />
+      <path d={`M${sp([R, A, F])}Z`} fill={c.right} />
+      <path d={`M${sp([[cx, cy - rise + 7], A, L])}Z`} fill={c.top} />
     </g>
   );
 }
 
-/** A flag on a pole standing at screen point (x, y). */
-function flag(key: string, x: number, y: number): ReactNode {
-  const top = y - 15;
-  return (
-    <g key={key} strokeLinejoin="round">
-      <path d={`M${f(x)} ${f(y)}V${f(top)}`} stroke="#4A2E1B" strokeWidth={1.1} strokeLinecap="round" />
-      <circle cx={f(x)} cy={f(top - 0.6)} r={0.9} fill={BANNER.flame} stroke={INK} strokeWidth={0.4} />
-      <path
-        d={`M${f(x + 0.5)} ${f(top)}q5 -1.4 10 .4l-2.4 3.2l2.6 3.4q-5 -1.6 -10.2 -.2Z`}
-        fill={BANNER.cloth}
-        stroke={INK}
-        strokeWidth={0.6}
-      />
-      <path d={`M${f(x + 0.5)} ${f(top + 5)}q5 -1 10.2 .6l.2 .4q-5 -1.6 -10.2 -.2Z`} fill={BANNER.dark} />
-      <path
-        d={`M${f(x + 5)} ${f(top + 5.2)}q-1.6 -1.2 -.2 -3.4q.4 1.2 1 1.2q.2 -1 .8 -1.6q1 2.2 -.2 3.8Z`}
-        fill={BANNER.flame}
-        stroke={BANNER.core}
-        strokeWidth={0.3}
-      />
-    </g>
-  );
-}
-
-/** A banner hanging on a wall face: `face` 'l' lies on the plane v = const (runs along u), 'r' on u = const. */
-function hangingBanner(key: string, face: 'l' | 'r', cu: number, cv: number, ztop: number): ReactNode {
-  const w = 2.6;
-  const h = 11;
-  const p = (s: number, z: number): P3 => (face === 'l' ? [cu + s, cv, z] : [cu, cv - s, z]);
-  const d = poly([p(-w, ztop), p(w, ztop), p(w, ztop - h), p(0, ztop - h + 2.4), p(-w, ztop - h)]);
-  const [fx, fy] = iso(...p(0, ztop - h / 2 + 0.6));
+/** A sunflower pennant on a pole standing at screen point (x, y). */
+function flag(key: string, x: number, y: number, h = 13): ReactNode {
   return (
     <g key={key}>
-      <path d={d} fill={face === 'l' ? BANNER.cloth : BANNER.dark} stroke={INK} strokeWidth={0.5} strokeLinejoin="round" />
-      <path d={`M${pt(...p(-w - 0.6, ztop))}L${pt(...p(w + 0.6, ztop))}`} stroke="#4A2E1B" strokeWidth={0.9} strokeLinecap="round" />
-      <path d={`M${f(fx)} ${f(fy + 2)}q-1.5 -1.2 0 -3.6q1.5 2.4 0 3.6Z`} fill={BANNER.flame} />
+      <path d={`M${f(x)} ${f(y)}V${f(y - h)}`} stroke={INK} strokeWidth={1.8} strokeLinecap="round" />
+      <path d={`M${f(x + 1)} ${f(y - h)}h11l-3 3.5l3 3.5h-11z`} fill={SUN} stroke={INK} strokeWidth={1.5} strokeLinejoin="round" />
     </g>
   );
 }
 
-/** Stone tower: body with courses, crenellated top, optional slate roof and flag. */
+/** Round stone tower with a terracotta cone roof (screen space, base centre (cx, cy)). */
+function roundTower(cx: number, cy: number, r: number, h: number, rise: number, withFlag: boolean): ReactNode {
+  const ry = r / 2;
+  const top = cy - h;
+  const roofR = r + 2.5;
+  return (
+    <g stroke={INK} strokeLinejoin="round">
+      <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.left} strokeWidth={1.6} />
+      <path d={`M${f(cx + 2)} ${f(top + ry)}V${f(cy + ry)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.right} strokeWidth={0} />
+      <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}`} fill="none" strokeWidth={1.8} />
+      <path d={`M${f(cx - r * 0.35)} ${f(top + h * 0.45)}v6`} strokeWidth={2.4} strokeLinecap="round" />
+      <path
+        d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
+        fill={ROOF.mid}
+        strokeWidth={1.8}
+      />
+      <path d={`M${f(cx + 1)} ${f(top - rise + 2)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx + 1)} ${f(top + roofR / 2)}Z`} fill={ROOF.dark} strokeWidth={0} />
+      <path d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx - 3)} ${f(top - rise + 6)}Z`} fill={ROOF.light} strokeWidth={0} />
+      <path
+        d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
+        fill="none"
+        strokeWidth={2}
+      />
+      {withFlag && flag('fl', cx, top - rise, 13)}
+    </g>
+  );
+}
+
+/** Stone tower: square with merlons (stage 2), or round with a terracotta roof (stage 3, when `roof` is set). */
 function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o: { roof?: number; flag?: boolean; banner?: 'l' | 'r' }) {
-  const parts: ReactNode[] = [box('b', cu - a, cu + a, cv - a, cv + a, 0, h, STONE, { stones: true })];
-  // Arrow slits on both visible faces.
+  if (o.roof) {
+    const [x, y] = iso(cu, cv);
+    return <g key={key}>{roundTower(x, y + a * 0.5, a * 1.25, h, o.roof * 0.8, !!o.flag)}</g>;
+  }
+  const parts: ReactNode[] = [box('b', cu - a, cu + a, cv - a, cv + a, 0, h, STONE, { sw: 1.6 })];
   parts.push(
     <path
       key="sl"
       d={`M${pt(cu, cv + a, h * 0.45)}L${pt(cu, cv + a, h * 0.45 + 6)}M${pt(cu + a, cv, h * 0.5)}L${pt(cu + a, cv, h * 0.5 + 6)}`}
-      stroke="#2B1C14"
-      strokeWidth={1.5}
+      stroke={INK}
+      strokeWidth={2.4}
       strokeLinecap="round"
     />,
   );
-  if (o.banner) parts.push(hangingBanner('hb', o.banner, o.banner === 'l' ? cu : cu + a, o.banner === 'l' ? cv + a : cv, h - 3));
-  // Merlons: corners and edge middles; the back ones first, the roof, then the front ones.
-  const m = Math.max(1.8, a * 0.24);
+  const m = Math.max(2, a * 0.26);
   const spots: [number, number][] = [];
   for (const du of [-1, 0, 1]) for (const dv of [-1, 0, 1]) if (du || dv) spots.push([du, dv]);
   spots.sort((p, q) => p[0] + p[1] - q[0] - q[1]);
-  const merlon = ([du, dv]: [number, number]) => {
+  for (const [du, dv] of spots) {
     const u = cu + du * (a - m);
     const v = cv + dv * (a - m);
-    return box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 4, STONE, { sw: 0.5 });
-  };
-  const back = spots.filter(([du, dv]) => du + dv <= 0);
-  const front = spots.filter((s) => !back.includes(s));
-  parts.push(...back.map(merlon));
-  if (o.roof) parts.push(roof('rf', cu, cv, a - m * 0.6, h + 2, o.roof, SLATE));
-  parts.push(...front.map(merlon));
+    parts.push(box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 4.5, STONE, { sw: 1.2 }));
+  }
   if (o.flag) {
-    const [x, y] = o.roof ? iso(cu, cv, h + 2 + o.roof) : iso(cu, cv, h);
+    const [x, y] = iso(cu, cv, h + 4.5);
     parts.push(flag('fl', x, y));
   }
   return <g key={key}>{parts}</g>;
 }
 
-/** Thatched timber watchtower (palisade stage). */
+/** Timber watchtower with a pyramid roof (palisade stage), standing on (cu, cv). */
 function watchtower(key: string, cu: number, cv: number) {
-  const a = 8;
-  const leg = (du: number, dv: number, z0: number, z1: number) =>
-    box(`l${du}${dv}${z0}`, cu + du * a - 1.3, cu + du * a + 1.3, cv + dv * a - 1.3, cv + dv * a + 1.3, z0, z1, WOOD, { sw: 0.5 });
-  const legs = [
-    [-1, -1],
-    [1, -1],
-    [-1, 1],
-    [1, 1],
-  ] as const;
+  const [cx, cy] = iso(cu, cv);
   return (
     <g key={key}>
-      {legs.map(([du, dv]) => leg(du, dv, 0, 24))}
-      <path
-        d={`M${pt(cu - a, cv + a, 3)}L${pt(cu + a, cv + a, 22)}M${pt(cu + a, cv + a, 3)}L${pt(cu - a, cv + a, 22)}M${pt(cu + a, cv - a, 3)}L${pt(cu + a, cv + a, 22)}M${pt(cu + a, cv + a, 3)}L${pt(cu + a, cv - a, 22)}`}
-        stroke="#583720"
-        strokeWidth={0.9}
-      />
-      {box('p', cu - a - 2, cu + a + 2, cv - a - 2, cv + a + 2, 24, 27, { top: '#A07146', left: WOOD.left, right: WOOD.right })}
-      {legs.map(([du, dv]) => leg(du, dv, 27, 34))}
-      {box('r1', cu - a - 2, cu + a + 2, cv + a + 1.4, cv + a + 2, 27, 30.5, { top: WOOD.top, left: '#7A5232', right: '#583720' }, { sw: 0.5 })}
-      {box('r2', cu + a + 1.4, cu + a + 2, cv - a - 2, cv + a + 2, 27, 30.5, { top: WOOD.top, left: '#7A5232', right: '#583720' }, { sw: 0.5 })}
-      {roof('rf', cu, cv, a + 4, 34, 13, THATCH)}
+      {isoBox('b', cx, cy + 5, 10.4, 34, WOOD, 1.6)}
+      {isoBox('p', cx, cy + 5 - 34, 14, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
+      {pyramid('r', cx, cy + 5 - 39, 18.2, 16)}
     </g>
   );
 }
 
-/** Thick gate post with a pointed cap (palisade stage). */
+/** Timber gate post with a small pyramid cap (palisade stage). */
 function gatePost(key: string, cu: number, cv: number) {
+  const [cx, cy] = iso(cu, cv);
   return (
     <g key={key}>
-      {box('b', cu - 3, cu + 3, cv - 3, cv + 3, 0, 24, { top: WOOD.top, left: '#7A5232', right: '#4A2E1B' })}
-      {roof('c', cu, cv, 3.6, 24, 5, { left: '#957253', right: '#583720', line: '#583720' })}
-      <path d={`M${pt(cu - 3, cv + 3, 16)}L${pt(cu + 3, cv + 3, 16)}L${pt(cu + 3, cv - 3, 16)}`} stroke="#3B2619" strokeWidth={0.9} fill="none" />
+      {isoBox('b', cx, cy + 2, 5.2, 30, WOOD, 1.4)}
+      {pyramid('r', cx, cy + 2 - 30, 10.9, 9)}
     </g>
   );
 }
 
-/** One run of palisade along an edge: `along` 'u' runs at v = c, 'v' runs at u = c, from a to b. */
+/** One run of palisade along an edge: chunky pointed stakes with a rail. */
 function palisade(key: string, along: 'u' | 'v', c: number, a: number, b: number): ReactNode {
-  const h = 17;
-  const tip = 4;
-  const w = 3.2;
-  const P = (s: number, z: number): P3 => (along === 'u' ? [s, c, z] : [c, s, z]);
-  const n = Math.max(1, Math.round((b - a) / w));
-  const step = (b - a) / n;
-  let top = '';
-  let dark = '';
-  let lines = '';
-  for (let i = 0; i < n; i++) {
-    const s0 = a + i * step;
-    const s1 = s0 + step;
-    const mid = (s0 + s1) / 2;
-    const hh = h + ((i * 7) % 3) * 0.8;
-    top += `L${pt(...P(s0, hh))}L${pt(...P(mid, hh + tip))}L${pt(...P(s1, hh))}`;
-    dark += `M${pt(...P(mid + step * 0.1, 0))}L${pt(...P(s1, 0))}L${pt(...P(s1, hh))}L${pt(...P(mid + step * 0.1, hh + tip * 0.8))}Z`;
-    if (i > 0) lines += `M${pt(...P(s0, 0))}L${pt(...P(s0, hh))}`;
+  const P = (s: number): Pt => {
+    const [x, y] = along === 'u' ? iso(s, c) : iso(c, s);
+    return [x, y + 1];
+  };
+  const stakes: ReactNode[] = [];
+  const step = 3.6;
+  const xs: number[] = [];
+  for (let s = a + 1.5; s <= b - 1.5; s += step) xs.push(s);
+  for (const s of xs) {
+    const [x, y] = P(s);
+    const x0 = x - 3.4;
+    stakes.push(
+      <g key={f(s)}>
+        <path
+          d={`M${f(x0)} ${f(y)}V${f(y - 21)}L${f(x)} ${f(y - 27.1)}L${f(x0 + 6.8)} ${f(y - 21)}V${f(y)}Z`}
+          fill={WOOD.left}
+          stroke={INK}
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
+        <path d={`M${f(x + 0.8)} ${f(y - 1)}V${f(y - 21)}H${f(x + 2.6)}V${f(y - 1)}Z`} fill={WOOD.right} />
+      </g>,
+    );
   }
-  const body = `M${pt(...P(a, 0))}${top}L${pt(...P(b, 0))}Z`;
-  const lit = along === 'u';
+  const first = P(xs[0] ?? a);
+  const last = P(xs[xs.length - 1] ?? b);
   return (
-    <g key={key} strokeLinejoin="round">
-      <path d={body} fill={lit ? '#8B684B' : '#7A5232'} />
-      <path d={dark} fill={lit ? '#6E4628' : '#583720'} />
-      <path d={lines} stroke="#4A2E1B" strokeWidth={0.4} fill="none" />
-      <path d={`M${pt(...P(a, 6))}L${pt(...P(b, 6))}M${pt(...P(a, 12.5))}L${pt(...P(b, 12.5))}`} stroke="#4A2E1B" strokeWidth={1.4} fill="none" />
-      <path d={`M${pt(...P(a, 6.6))}L${pt(...P(b, 6.6))}M${pt(...P(a, 13.1))}L${pt(...P(b, 13.1))}`} stroke="#A07146" strokeWidth={0.5} fill="none" />
-      <path d={body} fill="none" stroke={INK} strokeWidth={0.7} />
+    <g key={key}>
+      {stakes}
+      <path d={`M${f(first[0])} ${f(first[1] - 15)}L${f(last[0])} ${f(last[1] - 15)}`} fill="none" stroke={WOOD.pRight} strokeWidth={2.2} strokeLinecap="round" />
     </g>
   );
 }
@@ -911,43 +728,39 @@ function stoneRun(key: string, along: 'u' | 'v', c: number, a: number, b: number
   const hi = c + t / 2;
   const body = along === 'u' ? box('w', a, b, lo, hi, 0, h, STONE, { stones: true }) : box('w', lo, hi, a, b, 0, h, STONE, { stones: true });
   const ml = 3.6;
-  const mt = t * 0.36;
+  const mt = t * 0.4;
   const m0 = outer > 0 ? hi - mt : lo;
   const merlons: ReactNode[] = [];
   for (let s = a + 1.2; s + ml <= b - 0.6; s += ml * 2) {
     merlons.push(
       along === 'u'
-        ? box(`m${f(s)}`, s, s + ml, m0, m0 + mt, h, h + 4.5, STONE, { sw: 0.5 })
-        : box(`m${f(s)}`, m0, m0 + mt, s, s + ml, h, h + 4.5, STONE, { sw: 0.5 }),
+        ? box(`m${f(s)}`, s, s + ml, m0, m0 + mt, h, h + 4.5, STONE, { sw: 1.2 })
+        : box(`m${f(s)}`, m0, m0 + mt, s, s + ml, h, h + 4.5, STONE, { sw: 1.2 }),
     );
   }
-  // Soft shadow at the foot of the visible face.
-  const foot =
-    along === 'u'
-      ? poly([
-          [a, hi, 0],
-          [b, hi, 0],
-          [b, hi, 3],
-          [a, hi, 3],
-        ])
-      : poly([
-          [hi, a, 0],
-          [hi, b, 0],
-          [hi, b, 3],
-          [hi, a, 3],
-        ]);
   return (
     <g key={key}>
       {body}
-      <path d={foot} fill="#1E110A" opacity={0.16} />
       {merlons}
     </g>
   );
 }
 
-/** Colours and line weights of the gate doors (style B). */
-const G = { sw: 0.7, merlonSw: 0.5, wood: '#7A5232', plank: '#583720', lit: '#957253', iron: '#3E3A37', band: 1.5, stud: 0.55, studFill: '#A39E94', bar: '#6E4628', lock: '#8F8A86', arch: '#887761' };
-const gateBanner = (key: string, u: number, v: number, z: number) => hangingBanner(key, 'l', u, v, z);
+/** Colours and line weights of the gate doors (Toy Diorama). */
+const G = { sw: 1.5, merlonSw: 1.2, wood: '#B07D46', plank: '#714B29', lit: '#E4B67C', iron: '#4A4440', band: 2, stud: 0.75, studFill: '#E3DED3', bar: '#8E6539', lock: '#F2B33D', arch: '#7C756B' };
+/** A terracotta banner with a sunflower flame hanging on the gatehouse face (plane v = cv). */
+function gateBanner(key: string, cu: number, cv: number, ztop: number): ReactNode {
+  const w = 3.2;
+  const hh = 10;
+  const d = poly([[cu - w, cv, ztop], [cu + w, cv, ztop], [cu + w, cv, ztop - hh], [cu, cv, ztop - hh + 3], [cu - w, cv, ztop - hh]]);
+  const [x, y] = iso(cu, cv, ztop - hh / 2 + 1);
+  return (
+    <g key={key}>
+      <path d={d} fill="#C4623A" stroke={INK} strokeWidth={1.4} strokeLinejoin="round" />
+      <path d={`M${f(x)} ${f(y + 2)}q-1.8 -1.4 0 -4.2q1.8 2.8 0 4.2Z`} fill={SUN} stroke={INK} strokeWidth={0.6} />
+    </g>
+  );
+}
 /** The closed main gate between the gate towers: wooden double doors with iron bands, studs, a crossbar and a lock. */
 function closedGate(key: string, stage: Exclude<Stage, 0>, c: number, t: number, h: number): ReactNode {
   const u0 = GATE_U - GATE_W;
