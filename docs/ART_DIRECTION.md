@@ -62,4 +62,4 @@ Source files: `design/style-directions/` (artboards + renders).
 3. Map village growth stages + terrain tiles, approved, then built in.
 4. Character set (units, chieftains, advisor) used across screens; building panels and reports.
 
-Owner decision 2026-11-04: the village surroundings are built from the world-map terrain tiles (`apps/web/src/art/landscapeTiles.tsx`, sprites copied to `apps/web/src/art/terrain-sprites/`), laid out by meaning (forest by the Lumber Camp, hills and rocks by the Iron Mine, wheat by the Farm, a river and a straight road from the gate), not scattered.
+Owner decision 2026-11-04: the village surroundings use the world map's toy style and terrain art, made for the village (`apps/web/src/art/landscapeTiles.tsx`, sprites in `apps/web/src/art/terrain-sprites/`): continuous ground without tile grid lines, laid out by meaning (groves by the Lumber Camp, hills and rocks by the Iron Mine, small crop fields by the Farm, a river and a straight road from the gate), props sized against the village's own trees and houses.
