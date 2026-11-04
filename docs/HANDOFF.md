@@ -5,10 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`5c44bbd`): owner could not see the preview bar and the top-bar username was cut at ~1730 px. Bar is now portaled into body
-(`.main-village` container-type:size traps fixed children); compact top bar widened to 1919 px. Not viewed. "City cut off at top" = village page
-scrolled slightly (sticky board by design); not changed. Next: owner turns on Design preview, checks bar + top bar at 360/1440/1730 px. Checks passed.
-Earlier (`53da13a`): bar fixed bottom-right on desktop, bottom on phone.
+2026-11-04 (`ea92c87`): owner screenshot showed the road poking out below the gate doors (round path cap) → paths now clipped at the plate edge.
+Asked for a much grander max-level wall → new 4th look at wall levels 18–20 (`wallLook` in `art/buildings.ts`, `wallItems(4)` in `art/scenery.tsx`).
+"Look to the top tower" was unclear: back corner tower only got the grand look at 18+, nothing else changed. Never rendered.
+Very next step: owner opens Design preview, drags to 13, 17, 18, 20 at 360 and 1440 px, screenshots, says what to tune. Checks passed.
+Earlier (`5c44bbd`): preview bar portaled into body, compact top bar up to 1919 px (owner view of it still unconfirmed).
 Earlier (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
 now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
 (`html:has(.app)` overflow hidden, `.app` clipped, compact top bar up to 1599 px). Not viewed (no renderer).
