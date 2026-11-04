@@ -698,7 +698,7 @@ function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o
     return (
       <g key={key}>
         {pl > 0 && box('pl', cu - a, cu + a, cv - a, cv + a, 0, pl, STONE, { sw: 1.6, courses: Math.max(3, Math.round(pl / 5)), band: { z0: pl - 3.4, z1: pl, left: ROOF.mid, right: ROOF.dark } })}
-        {roundTower(x, y, a * 1.3, h, o.roof * 0.8, !!o.flag, true)}
+        {roundTower(x, y, a * 1.4, h, o.roof * 0.8, !!o.flag, true)}
       </g>
     );
   }
@@ -1052,9 +1052,10 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
     const node =
       stage === 1
         ? watchtower(`c${i}`, u, v, corner)
-        : stoneTower(`c${i}`, u, v, corner, stage === 2 ? 38 : 32, {
+        : stoneTower(`c${i}`, u, v, corner, stage === 2 ? 38 : 24, {
             roof: stage === 3 ? 30 : undefined,
-            plinth: stage === 3 ? 30 : undefined,
+            // The footing rises clearly above the tall back walls (30 + 5 merlons), so the walls butt into its side.
+            plinth: stage === 3 ? 42 : undefined,
             turret: stage === 2,
             flag: true,
           });
