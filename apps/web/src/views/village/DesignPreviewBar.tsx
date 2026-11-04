@@ -44,7 +44,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
 
   return (
     <div
-      style={floating ? { ...bar, position: 'fixed', bottom: 70, left: 8, right: 8, zIndex: 30 } : { ...bar, margin: '0 0 8px' }}
+      style={floating ? { ...bar, position: 'fixed', bottom: 70, left: 8, right: 8, zIndex: 30 } : { ...bar, position: 'fixed', bottom: 8, right: 8, width: 420, maxWidth: 'calc(100vw - 16px)', zIndex: 30 }}
       role="group"
       aria-label="Design preview"
     >
@@ -76,7 +76,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
         {playing ? 'Pause' : 'Play'}
       </button>
       <button type="button" className="btn btn-small" style={btn} onClick={() => setDesignPreview(false)}>Exit preview</button>
-      <div style={{ flexBasis: '100%', fontSize: 12, opacity: 0.8 }}>
+      <div style={{ flexBasis: '100%', fontSize: 12, opacity: 0.8 }} hidden={floating}>
         {level === 0
           ? 'Level 0: no wall.'
           : changed.length
