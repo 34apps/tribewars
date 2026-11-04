@@ -63,7 +63,7 @@ export const BANNER_BASE: ReadonlyArray<readonly [number, number]> = [
 
 /** Top of each stage's art (banner included) above the tile centre, SVG px: where the selection pointer sits. */
 export const STAGE_TOP = [-52, -60, -86, -86, -100, -98] as const;
-export const RUIN_TOP = [-38, -46, -74, -58, -76, -96] as const;
+export const RUIN_TOP = [-38, -47, -74, -61, -76, -100] as const;
 
 export type Allegiance = 'own' | 'tribe' | 'ally' | 'nap' | 'enemy' | 'neutral';
 export const ALLEGIANCES: readonly Allegiance[] = ['own', 'tribe', 'ally', 'nap', 'enemy', 'neutral'];
