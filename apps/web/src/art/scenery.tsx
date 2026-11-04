@@ -1083,7 +1083,7 @@ export function wallItems(stage: Exclude<WallLook, 0>): DepthItem[] {
           [-end, GATE_U - GATE_W - gpost],
           [GATE_U + GATE_W + gpost, end],
         ]
-      : [[-end, end]];
+      : [[near ? -end : -end + 1, end]]; // back walls start exactly at the back tower's face (it is drawn first)
     for (const [a0, b0] of runs) {
       for (let a = a0; a < b0 - 0.5; a += chunk) {
         const b = Math.min(b0, a + chunk);
@@ -1129,7 +1129,10 @@ export function wallItems(stage: Exclude<WallLook, 0>): DepthItem[] {
             turret: stage === 2,
             flag: true,
           });
-    items.push({ key: `c${i}`, depth: iso(u + corner, v + corner)[1], node });
+    // The back tower stands BEHIND the first wall pieces on both sides (they run out in front of its inner faces), so it
+    // is sorted by its centre; by its front corner it tied with them (level 13-17) or was drawn over them (level 18+),
+    // which made the walls look like they slid behind the tower's base.
+    items.push({ key: `c${i}`, depth: i === 0 ? iso(u, v)[1] : iso(u + corner, v + corner)[1], node });
   });
   wallCache.set(stage, items);
   return items;
