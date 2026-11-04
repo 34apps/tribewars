@@ -5,10 +5,13 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`4d6882e`): Outrider buffed in `config.ts`: population 3 → 2, train time 720 → 600 s (attack stays 60,
-food upkeep stays 3); `GAME_DESIGN.md` and the population test updated. No simulation run. Checks passed.
-Very next step: owner plays; if Outriders still feel weak, raise attack to ~80.
-Earlier: `dd8c40a` population retune (cap growth 1.2, building growth 1.1).
+2026-11-04 (`efafde8`): village points now weighted by level (base × 1.2^(L-1) per level, `BUILDING_POINTS_BASE` in
+`config.ts`; new village = 40, maxed ≈ 10k). Map stage thresholds rescaled (0/100/300/800/1800/3500). Building panel
++ construction queue show "+N pts". GAME_DESIGN and tests updated. Checks passed, build ok.
+Left: stored points in old databases refresh only when a village is next saved; web UI not viewed at 360/1440 px;
+rankings sample data (`rankingsSample.ts`) still uses old small numbers.
+Very next step: owner checks the building panel look; tune bases/growth in `config.ts` if wanted.
+Earlier: `4d6882e` Outrider buff, `dd8c40a` population retune.
 (Older notes below.)
 
 2026-11-04 (`149035b`, `676d342`): abandoned villages now have 6 pictures, one ruined version per growth

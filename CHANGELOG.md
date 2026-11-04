@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-04 (`efafde8`) — Village points now grow with building level (level L adds base × 1.2^(L-1); `BUILDING_POINTS_BASE`, `levelPoints`/`buildingPoints` in engine). Map stage thresholds rescaled to 0/100/300/800/1800/3500. Building panel and construction queue show "+N pts" the next level adds. Existing villages' stored points refresh when next saved. Check + build pass.
 - 2026-11-04 (`4d6882e`) — Outrider buffed: population 3 → 2 (food upkeep stays 3), training time 720 → 600 s. Attack kept at 60. Check passes.
 - 2026-11-04 (`dd8c40a`) — Population retuned for a Tribal-Wars-like feel: cap growth 1.17 → 1.2 per Farm level (Farm 20 ≈ 4,800), building population growth 1.12 → 1.1. A fully built village used ~2,000 of ~2,960 cap (only ~900 left for troops); now ~1,650 of ~4,800 (~3,100 for troops). Early game unchanged. Check passes.
 - 2026-11-04 (`be53d22`) — World map: villages and abandoned villages back to the art's own size (`VILLAGE_DRAW_SCALE` 1.3 → 1), because at 1.3x the wider stages covered more than one tile (owner). Every stage now fits its tile; ruins still use the same scale as villages. Check + builds pass; viewed in the preview.
