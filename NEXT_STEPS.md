@@ -3,6 +3,7 @@
 Current open work and decisions only (history goes in `CHANGELOG.md`). Newest priorities first.
 
 ## Decisions for the owner
+- **Genre review (2026-11-04, `docs/GENRE_REVIEW.md`).** Pick from its Part C top 10. Suggested first batch: #3 limit abandoned-village farming, #4 upkeep 0.25 (`BALANCE.md`), #6 secret battle seed; then #1 several villages/conquest, #5 siege, #2 world end. Also tidy `GAME_DESIGN.md` (§14/§15 statuses) and `BALANCE.md` numbers.
 - **Name: Clanfire** (owner, 2026-11-02). Before launch: trademark + domain check. The GitHub repo
   is still called `tribewars`; the owner can rename it in GitHub → Settings → General (old links redirect).
 - **Hosting: AWS, decided** (owner 2026-11-04: "best for performance and cost"): SQLite on one Graviton

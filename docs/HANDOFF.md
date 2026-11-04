@@ -5,11 +5,9 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`cc57571`): Security Phase 1B finished (earlier run left it uncommitted). Lobby: password policy (≥10, common list, no username), per-name
-lockout, sessions idle 14 d / absolute 60 d / max 10 / new token per sign-in / logout-all / Secure in prod, password change; worlds: idle+absolute expiry
-(lobby-linked 12 h). Fixed 3 tests that assumed old rules or hit the exact 60-day edge. Checks passed (engine 223, lobby 82, server 288, web 19; build + preview).
-Left: standalone worlds' own sign-in keeps 8 chars, no lockout; screens not viewed in a browser (360/1440 px); Docker items from the lobby run.
-Next: self-host fonts, or a lobby ban that also ends world sessions; owner views the sign-in screens.
+2026-11-04 (`beb5c59`): read-only review written to `docs/GENRE_REVIEW.md` (genre table, engine health, top 10 fixes). No code changed. Checks passed.
+Findings: no multiple villages/conquest, siege or world end; abandoned-village farming is risk-free; battle luck predictable; docs stale (GAME_DESIGN §14/§15, BALANCE numbers).
+Next: owner picks from Part C; suggested first batch = #3 farming limit, #4 upkeep 0.25, #6 secret battle seed. Earlier open items (Security 1B screens, fonts, lobby ban) still stand.
 Stray `Pasted ... textClipping`, `.claude/launch.json` are uncommitted on purpose.
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
