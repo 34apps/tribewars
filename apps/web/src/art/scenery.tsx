@@ -121,54 +121,38 @@ export function SceneryDefs() {
 }
 
 const PROPS: [Prop, number, number, number][] = [
-  // Lumber grove (west): a dense stand of pines behind the camp, thinning out toward the square.
-  ['pine', 36, 150, 0.9],
-  ['pine', 62, 132, 0.85],
-  ['pine', 40, 186, 0.95],
-  ['pine', 70, 160, 0.85],
-  ['round', 34, 222, 0.85],
-  ['pine', 62, 236, 0.9],
-  ['pine', 96, 246, 0.8],
-  ['round', 128, 262, 0.75],
-  ['pine', 112, 128, 0.8],
-  // What the loggers leave behind: stumps and a log stack beside the camp.
-  ['stump', 62, 205, 1],
-  ['stump', 78, 222, 0.9],
-  ['stump', 140, 190, 0.9],
-  ['logs', 150, 212, 1],
-  // Iron outcrop (east): big boulders behind the mine, rubble around it.
-  ['rock', 548, 132, 1.3],
-  ['rock', 570, 160, 1.1],
-  ['rock', 555, 196, 1.4],
-  ['rock', 530, 226, 0.9],
-  ['rock', 470, 150, 0.8],
-  ['rock', 548, 250, 0.8],
-  ['rock', 566, 226, 0.7],
-  // Gold seam (south): a few boulders around the shaft.
-  ['rock', 352, 318, 0.9],
-  ['rock', 250, 322, 0.8],
-  ['rock', 366, 300, 0.6],
+  // Lumber grove (west edge of the plot): pines around the camp, stumps and a log stack beside it.
+  ['pine', 72, 203, 1],
+  ['pine', 88, 218, 1],
+  ['pine', 100, 228, 0.95],
+  ['pine', 150, 168, 0.95],
+  ['round', 80, 190, 0.9],
+  ['pine', 132, 236, 0.9],
+  ['stump', 160, 214, 1],
+  ['stump', 150, 232, 0.9],
+  ['logs', 168, 200, 1],
+  // Iron outcrop (east edge): boulders around the mine.
+  ['rock', 505, 205, 1.2],
+  ['rock', 500, 185, 1],
+  ['rock', 480, 230, 1],
+  ['rock', 462, 225, 0.7],
+  // Gold seam (south): boulders around the shaft.
+  ['rock', 250, 300, 0.9],
+  ['rock', 346, 298, 0.8],
   // A few lone trees in the quarters, never touching a building.
-  ['round', 215, 88, 0.8],
-  ['pine', 392, 92, 0.85],
-  ['round', 345, 62, 0.75],
-  ['pine', 340, 232, 0.7],
-  ['round', 258, 160, 0.65],
-  // Outside the wall: sparse woods in the four ground corners.
-  ['pine', 40, 56, 0.85],
-  ['pine', 78, 82, 0.85],
-  ['round', 52, 100, 0.8],
-  ['pine', 548, 66, 0.85],
-  ['round', 520, 90, 0.8],
-  ['pine', 570, 98, 0.85],
-  ['pine', 38, 318, 0.85],
-  ['round', 74, 334, 0.8],
-  ['pine', 560, 318, 0.85],
-  ['round', 518, 338, 0.8],
+  ['round', 345, 130, 0.8],
+  ['pine', 255, 150, 0.8],
+  ['round', 340, 235, 0.75],
+  ['pine', 370, 280, 0.8],
+  ['pine', 440, 255, 0.8],
+  ['round', 250, 240, 0.7],
 ];
 
+/** Props must stand on the ground plate (the ring-wall diamond), never on the brown land around it. */
+const onPlate = (x: number, y: number) => Math.abs(x - 300) / 270 + Math.abs(y - 205.6) / 135 <= 0.92;
+
 export function sceneryItems(): DepthItem[] {
-  return PROPS.map(([kind, x, y, s], i) => ({
+  return PROPS.filter(([, x, y]) => onPlate(x, y)).map(([kind, x, y, s], i) => ({
     key: `t${i}`,
     depth: y,
     node: <use href={`#vt-${kind}`} transform={`translate(${x} ${y}) scale(${s})`} />,

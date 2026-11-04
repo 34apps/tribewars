@@ -105,19 +105,20 @@ export interface Placement {
 /** Where each building stands. Wall: the anchor of its plot/scaffold on the front-right wall edge. */
 export const PLACEMENT: Record<BuildingId, Placement> = {
   // All twelve stand inside the (larger) ring wall with open ground between them; the Drillyard is in the middle.
-  hall: { x: 300, y: 92, scale: 1 },
-  barracks: { x: 430, y: 129, scale: 0.8 },
-  storehouse: { x: 170, y: 129, scale: 0.8 },
-  // Resource sites sit in their own corners of the wall, each with its forest or rocks around it (see scenery.tsx).
-  lumber: { x: 100, y: 172, scale: 0.9 },
-  mine: { x: 505, y: 168, scale: 0.85 },
-  vault: { x: 490, y: 205, scale: 0.5 },
-  goldmine: { x: 300, y: 286, scale: 0.72 },
-  stables: { x: 150, y: 215, scale: 0.75 },
-  farm: { x: 385, y: 241, scale: 0.8 },
+  // Every footprint is checked to lie on the ground plate (|dx|/270 + |dy|/135 < 0.9 around the ring centre).
+  hall: { x: 300, y: 95, scale: 1.1 },
+  barracks: { x: 425, y: 145, scale: 0.9 },
+  storehouse: { x: 200, y: 125, scale: 0.9 },
+  // Resource sites sit in their own corners of the plot, each with its forest or rocks around it (see scenery.tsx).
+  lumber: { x: 125, y: 195, scale: 0.95 },
+  mine: { x: 475, y: 195, scale: 0.9 },
+  vault: { x: 360, y: 160, scale: 0.55 },
+  goldmine: { x: 300, y: 285, scale: 0.8 },
+  stables: { x: 190, y: 225, scale: 0.85 },
+  farm: { x: 395, y: 240, scale: 0.9 },
   wall: { x: 470, y: 271.7, scale: 0.55 },
-  market: { x: 225, y: 260, scale: 0.75 },
-  drillyard: { x: 300, y: 195, scale: 0.72 },
+  market: { x: 225, y: 262, scale: 0.75 },
+  drillyard: { x: 300, y: 195, scale: 0.75 },
 };
 
 /** Painter's order: things further down the screen are drawn later. */
