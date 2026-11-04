@@ -5,9 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`94f77e4`): AWS + mobile readiness review → `docs/DEPLOYMENT_PLAN.md` (ranked, sized). Small server fixes:
-`ALLOWED_ORIGINS`, `TRUST_PROXY` hops/CIDRs, DB health check, no sandbox default in production. Not pushed.
-Next: owner answers the 3 decisions in the plan's §5; then compiled server + Dockerfile + backups (plan §3 #5–7).
+2026-11-04 (`94f77e4`, `352b072`): AWS chosen and planned (`docs/DEPLOYMENT_PLAN.md`): SQLite on one Graviton EC2
+(Docker: Caddy + game) behind CloudFront, web on S3, ≈ $20/month. This repo = desktop + phone browsers + backend.
+Server is now compiled (`apps/server/dist`), `npm run backup`, `Dockerfile` + `deploy/` (never built: no Docker here).
+Not pushed. Next: owner creates the AWS account + domain; then a session follows the plan's §5 checklist.
 
 Before that (`b8b8b61`): owner said the scenery around the village looked weird. Current landscape: loaf-shaped hills and triangle crags
 replaced by rolling hills and rocky outcrops. Option C: broken mountain cut edges and white-slab cliffs fixed. A and B looked fine in renders.
@@ -38,7 +39,7 @@ Stray `Pasted ... textClipping` file in the repo root is the owner's; don't comm
 - Style **D · Toy Diorama** everywhere (village tried style B on 2026-11-04, owner went back to toy): village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
-- Tests: engine 223, server 216, web 2, all green. Not deployed; no CI.
+- Tests: engine 223, server 217, web 2, all green. Not deployed; no CI.
 
 ## Owner decisions (don't re-ask)
 
@@ -51,7 +52,7 @@ Stray `Pasted ... textClipping` file in the repo root is the owner's; don't comm
 
 - Owner: Tripo3D test (3D models rendered to flat sprites) — suggested first: Town Hall, Lumber Camp,
   Iron Mine in Toy Diorama style; map village stages later if it works. Check Tripo's commercial licence.
-- Owner: approve design rows H–L; practice-ruin decision; AWS plan decisions (`DEPLOYMENT_PLAN.md` §5); `GAME_DESIGN.md` §15 questions.
+- Owner: approve design rows H–L; practice-ruin decision; AWS account + domain for the deploy (`DEPLOYMENT_PLAN.md` §5); `GAME_DESIGN.md` §15 questions.
 - Dev: many screens built but never viewed in a browser (see CHANGELOG "not viewed"): Drillyard, Market,
   Mail, staff screens, town square. View them at 360 and 1440 px.
 
