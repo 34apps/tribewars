@@ -20,6 +20,8 @@ export function tileArt(code: number, x: number, y: number): string {
   if (list.length === 1) return list[0]!;
   const r = rand(x, y, 3);
   if (code === GRASS) return list[r < 0.6 ? 0 : r < 0.84 ? 1 : r < 0.92 ? 2 : 3]!;
+  // Hills: mostly plain, a few varied bumps (list: plain, big bump, small bump, side bump).
+  if (code === 2) return list[r < 0.5 ? 0 : r < 0.7 ? 1 : r < 0.85 ? 2 : 3]!;
   return list[Math.floor(r * list.length)] ?? list[0]!;
 }
 
