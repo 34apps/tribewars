@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { ACTIVITY_WRITE_INTERVAL_MS, GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type EnterPassRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
 import { ENTRY_PASS_MAX_CHARS } from '../entry-pass.ts';
-import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
+import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
 import { sessionCookiePath } from '../world-path.ts';
@@ -87,7 +87,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       sameSite: 'lax',
       path: cookiePath(req),
       secure: ctx.secureCookies,
-      maxAge: SESSION_TTL_MS / 1000,
+      maxAge: grant.cookieMaxAgeMs / 1000,
     });
   };
 

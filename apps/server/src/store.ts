@@ -759,6 +759,20 @@ export class Store extends SqlBase {
     return r ? toPlayer(r) : null;
   }
 
+  /** Like getSessionPlayer, with the session's own times (for the idle/absolute expiry rules). */
+  getSessionWithTimes(tokenHash: string, now: number): { player: PlayerRow; createdAt: number; expiresAt: number } | null {
+    const r = this.get(
+      'SELECT p.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ? AND s.expires_at > ? AND p.banned_at IS NULL',
+      tokenHash,
+      now,
+    );
+    return r ? { player: toPlayer(r), createdAt: r.s_created as number, expiresAt: r.s_expires as number } : null;
+  }
+
+  setSessionExpiry(tokenHash: string, expiresAt: number): void {
+    this.run('UPDATE sessions SET expires_at = ? WHERE token_hash = ?', expiresAt, tokenHash);
+  }
+
   deleteSession(tokenHash: string): void {
     this.run('DELETE FROM sessions WHERE token_hash = ?', tokenHash);
     this.emit({ kind: 'session-ended', tokenHash });

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AuthScreen } from './AuthScreen.tsx';
 import { LoadingSplash } from './Splash.tsx';
+import { silentReenter } from '../lobby.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 
 /**
@@ -12,8 +13,18 @@ export function WorldGate({ onAuthed }: { onAuthed: () => void }) {
   const info = useWorldInfo();
   const toLobby = isLobbyWorld(info);
   useEffect(() => {
-    if (toLobby) window.location.replace(LOBBY_URL);
-  }, [toLobby]);
+    if (!toLobby) return;
+    let cancelled = false;
+    // The world session of a lobby world is short: while the lobby session lives, renew it silently.
+    void silentReenter(window.location.pathname).then((again) => {
+      if (cancelled) return;
+      if (again) onAuthed();
+      else window.location.replace(LOBBY_URL);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [toLobby, onAuthed]);
   if (info === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
   if (toLobby) {
     return (

@@ -173,11 +173,13 @@ function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
 /** Chieftain avatar + name [TAG]; opens a small menu with the village, Change chieftain and Sign out. */
 function Who({
   onSignOut,
+  onSignOutEverywhere,
   onChangeChieftain,
   onSettings,
   compact,
 }: {
   onSignOut: () => void;
+  onSignOutEverywhere: () => void;
   onChangeChieftain: () => void;
   onSettings: () => void;
   compact?: boolean;
@@ -293,13 +295,19 @@ function Who({
           <button className="btn btn-block" onClick={onSignOut}>
             Sign out
           </button>
+          {isLobbyWorld(worldInfo) && (
+            <button className="btn btn-block" onClick={onSignOutEverywhere}>
+              Sign out everywhere
+            </button>
+          )}
+          {isLobbyWorld(worldInfo) && <small className="muted">Everywhere ends all your Clanfire sessions on every device.</small>}
         </div>
       )}
     </div>
   );
 }
 
-export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
+export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: ReactNode; onSignOut: () => void; onSignOutEverywhere: () => void }) {
   const { tab } = useGame();
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -316,10 +324,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           ))}
         </nav>
         <Resources />
-        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} />
+        <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} />
       </header>
       <div className="resstrip">
-        <Who onSignOut={onSignOut} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} compact />
+        <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} compact />
         <Resources compact />
       </div>
       <Strip />

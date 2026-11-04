@@ -30,7 +30,19 @@ export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings): AbandonedNoti
 }
 
 export const SESSION_COOKIE = 'tw_session';
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** A world session ends after this long without use (every use moves the end forward)... */
+export const SESSION_IDLE_MS = 14 * DAY_MS;
+/** ...and never lives longer than this from sign-in. The cookie lives as long; the server enforces both. */
+export const SESSION_ABSOLUTE_MS = 60 * DAY_MS;
+/** The idle end is only rewritten when it moves by at least this much (at most one write per hour of use). */
+export const SESSION_SLIDE_STEP_MS = 60 * 60 * 1000;
+/**
+ * A world session opened with a lobby entry pass lasts only this long, with no sliding: then the browser goes through
+ * the lobby again (silently while the lobby session lives). That is how "Sign out everywhere" and a lobby ban reach the
+ * worlds without the worlds having to call the lobby: at most this long after it, the world session is gone.
+ */
+export const LOBBY_WORLD_SESSION_MS = 12 * 60 * 60 * 1000;
 export const USERNAME_PATTERN = '^[A-Za-z0-9_]{3,20}$';
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
@@ -105,6 +117,8 @@ export interface SessionGrant {
   player: PlayerRow;
   token: string;
   expiresAt: number;
+  /** How long the browser keeps the cookie (the server enforces the real end). */
+  cookieMaxAgeMs: number;
 }
 
 export class AuthService {
@@ -241,7 +255,7 @@ export class AuthService {
         this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'role_sync', targetPlayer: player.id, detail: `${player.staffRole ?? 'none'} -> ${claims.role ?? 'none'}` });
         player = this.store.getPlayer(player.id) ?? player;
       }
-      return { grant: this.openSession(player, t), created };
+      return { grant: this.openSession(player, t, true), created };
     });
     if (outcome instanceof GameError) throw outcome;
     return outcome;
@@ -290,14 +304,24 @@ export class AuthService {
   /** The player a session cookie value belongs to, or null (unknown, malformed or expired). */
   authenticate(token: string | undefined): PlayerRow | null {
     if (!token || !TOKEN_RE.test(token)) return null;
-    return this.store.getSessionPlayer(sha256Hex(token), this.now());
+    const hash = sha256Hex(token);
+    const t = this.now();
+    const row = this.store.getSessionWithTimes(hash, t);
+    if (!row) return null;
+    // Idle expiry slides with use but never past the absolute end. Lobby-linked sessions (short, fixed) do not slide.
+    if (row.expiresAt - row.createdAt > LOBBY_WORLD_SESSION_MS) {
+      const end = Math.min(row.createdAt + SESSION_ABSOLUTE_MS, t + SESSION_IDLE_MS);
+      if (end - row.expiresAt >= SESSION_SLIDE_STEP_MS) this.store.setSessionExpiry(hash, end);
+    }
+    return row.player;
   }
 
-  private openSession(player: PlayerRow, t: number): SessionGrant {
+  /** `viaLobby`: the session comes from a lobby entry pass and is short and fixed (see LOBBY_WORLD_SESSION_MS). */
+  private openSession(player: PlayerRow, t: number, viaLobby = false): SessionGrant {
     this.store.deleteExpiredSessions(t);
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = t + SESSION_TTL_MS;
+    const expiresAt = t + (viaLobby ? LOBBY_WORLD_SESSION_MS : SESSION_IDLE_MS);
     this.store.insertSession(sha256Hex(token), player.id, t, expiresAt);
-    return { player, token, expiresAt };
+    return { player, token, expiresAt, cookieMaxAgeMs: viaLobby ? LOBBY_WORLD_SESSION_MS : SESSION_ABSOLUTE_MS };
   }
 }

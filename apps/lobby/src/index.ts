@@ -13,6 +13,7 @@ const app = await buildApp({
   trustProxy: env.trustProxy,
   allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
+  requirePasswordUpgrade: env.requirePasswordUpgrade,
   logger: true,
 });
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CHIEFTAINS, DEFAULT_CHIEFTAIN, LOBBY_SESSION_COOKIE, type LobbyMeResponse } from '@clanfire/engine';
-import { SESSION_TTL_MS, sha256Hex } from '../src/auth.ts';
+import { LOGIN_FAILED_MESSAGE, SESSION_ABSOLUTE_MS, SESSION_IDLE_MS, sha256Hex } from '../src/auth.ts';
 import { Client, PASSWORD, errorOf, makeApp, ok, register } from './helpers.ts';
 
 const REGISTER = '/lobby/api/auth/register';
@@ -21,7 +21,7 @@ test('register: 201, account dto, session cookie with the right attributes', asy
   assert.equal(cookie.httpOnly, true);
   assert.equal(cookie.sameSite, 'Lax');
   assert.equal(cookie.secure, true);
-  assert.equal(cookie.maxAge, SESSION_TTL_MS / 1000);
+  assert.equal(cookie.maxAge, SESSION_ABSOLUTE_MS / 1000);
   assert.match(cookie.value, /^[A-Za-z0-9_-]{43}$/);
   // The header itself, as a browser sees it.
   const header = String(res.headers['set-cookie']);
@@ -88,7 +88,7 @@ test('register: bad username, bad password, unknown fields and bad bodies are 40
   const form = await app.inject({ method: 'POST', url: REGISTER, headers: { host: 'lobby.test', origin: 'http://lobby.test', 'content-type': 'application/x-www-form-urlencoded' }, payload: 'username=abc&password=12345678' });
   assert.equal(form.statusCode, 415);
   // boundary values are fine
-  ok(await new Client(app).post(REGISTER, { username: 'abc', password: 'x'.repeat(8) }), 201);
+  ok(await new Client(app).post(REGISTER, { username: 'abc', password: 'q7!zk2#mw9' }), 201);
   ok(await new Client(app).post(REGISTER, { username: 'a'.repeat(20), password: 'x'.repeat(128) }), 201);
 });
 
@@ -119,7 +119,7 @@ test('login: wrong password and unknown user give the same 401', async () => {
   const unknown = await new Client(app).post(LOGIN, { username: 'Nobody', password: 'not the password' });
   errorOf(wrong, 401, 'unauthorized');
   errorOf(unknown, 401, 'unauthorized');
-  assert.equal(wrong.json<{ message: string }>().message, 'Wrong username or password.');
+  assert.equal(wrong.json<{ message: string }>().message, LOGIN_FAILED_MESSAGE);
   assert.deepEqual(wrong.json(), unknown.json());
   assert.equal(wrong.cookies.length, 0);
 });
@@ -186,7 +186,7 @@ test('me: the account when signed in, null otherwise (also with a forged or expi
 
   const c = await register(app, 'Alice');
   assert.equal((await c.get(ME)).json<LobbyMeResponse>().account?.username, 'Alice');
-  clock.advance(SESSION_TTL_MS + 1000);
+  clock.advance(SESSION_IDLE_MS + 1000);
   assert.deepEqual((await c.get(ME)).json(), { account: null });
 });
 

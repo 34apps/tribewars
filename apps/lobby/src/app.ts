@@ -44,6 +44,8 @@ export interface BuildAppOptions {
   allowedOrigins?: readonly string[];
   /** Multi-account guard: most active accounts that may register from one IP. 0/absent = off. */
   maxAccountsPerIp?: number;
+  /** A correct but weak password must be replaced at the next sign-in (PASSWORD_UPGRADE_ON_LOGIN). Default off. */
+  requirePasswordUpgrade?: boolean;
 }
 
 function isApiPath(url: string): boolean {
@@ -78,12 +80,16 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   if (store.countWorlds() === 0) {
     app.log.warn('No worlds are configured: players see an empty list. Add one with: npm run lobby:admin -- world-add <id> <name>');
   }
+  // The session cookie is always Secure in production: refuse to start otherwise.
+  const production = process.env.NODE_ENV === 'production';
+  const secureCookies = opts.secureCookies ?? production;
+  if (production && !secureCookies) throw new Error('Refusing to start: the session cookie must be Secure when NODE_ENV=production.');
   const ctx: AppContext = {
     store,
     now,
-    auth: new AuthService(store, now, opts.maxAccountsPerIp ?? 0),
+    auth: new AuthService(store, now, opts.maxAccountsPerIp ?? 0, opts.requirePasswordUpgrade ?? false),
     signingKey: opts.signingKey,
-    secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
+    secureCookies,
     limiter: new RateLimiter(RATE_AUTH_PER_IP, 60_000),
     enterAccountLimiter: new RateLimiter(RATE_ENTER_PER_ACCOUNT, 60_000),
     enterIpLimiter: new RateLimiter(RATE_ENTER_PER_IP, 60_000),

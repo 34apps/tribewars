@@ -1149,7 +1149,9 @@ export interface WorldInfoResponse {
 //   POST /lobby/api/auth/register  body LobbyAuthRequest -> 201 LobbyMeResponse (sets cookie)
 //   POST /lobby/api/auth/login     body LobbyAuthRequest -> 200 LobbyMeResponse (sets cookie)
 //   POST /lobby/api/auth/logout    -> 204 (clears cookie)
-//   GET  /lobby/api/auth/me        -> 200 LobbyMeResponse (account null when signed out)
+//   POST /lobby/api/auth/logout-all (signed in) -> 204 (ends every lobby session of the account; worlds follow within LOBBY_WORLD_SESSION_MS)
+//   POST /lobby/api/auth/change-password body LobbyChangePasswordRequest -> 200 LobbyMeResponse (new session; all other sessions end)
+//   GET  /lobby/api/auth/me       -> 200 LobbyMeResponse (account null when signed out)
 //   GET  /lobby/api/worlds         -> 200 LobbyWorldsResponse (signed in)
 //   POST /lobby/api/worlds/:id/enter (empty body {}, signed in) -> 200 EnterWorldResponse; 403 forbidden when banned or the world is closed
 //   GET  /lobby/api/health         -> 200 { ok: true }
@@ -1172,10 +1174,17 @@ export function isWorldStatus(v: unknown): v is WorldStatus {
   return v === 'open' || v === 'full' || v === 'closed';
 }
 
+/** Change the password (also the way out of `password_change_required`). The current password is checked like at sign-in. */
+export interface LobbyChangePasswordRequest {
+  username: string;
+  password: string;
+  newPassword: string;
+}
+
 export interface LobbyAuthRequest {
   /** 3-20 chars: letters, digits, underscore. Case-insensitive unique. Same rules as the old world accounts. */
   username: string;
-  /** 8-128 chars. */
+  /** New passwords: 10-128 chars, not among the most common passwords, not containing the username. Sign-in accepts older ones. */
   password: string;
   /** Register only: chieftain portrait id; the world uses it when it first creates this account's player. */
   chieftain?: string;

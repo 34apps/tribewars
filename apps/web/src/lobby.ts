@@ -9,6 +9,51 @@ export const WORLD_STATUS_LABEL: Record<WorldStatus, string> = {
   closed: 'Closed',
 };
 
+const MANUAL_SIGN_OUT_KEY = 'clanfire.manualSignOut';
+const LAST_REENTRY_KEY = 'clanfire.lastReentry';
+/** At most one silent re-entry per minute: a world that refuses the pass again must not cause a loop. */
+export const REENTRY_MIN_GAP_MS = 60_000;
+
+function store(): Storage | null {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The visitor chose "Sign out" in a world: do not sign them straight back in through the lobby. */
+export function markManualSignOut(): void {
+  store()?.setItem(MANUAL_SIGN_OUT_KEY, '1');
+}
+
+/**
+ * A lobby world's session is short on purpose (so "Sign out everywhere" and bans reach the worlds). When it ends and the
+ * lobby session is still alive, go through the lobby again without asking: true when a new world session was opened.
+ * Never after a deliberate sign-out, and at most once a minute. Any failure just means "show the lobby".
+ */
+export async function silentReenter(pathname: string, now: number = Date.now()): Promise<boolean> {
+  const s = store();
+  if (s?.getItem(MANUAL_SIGN_OUT_KEY)) {
+    s.removeItem(MANUAL_SIGN_OUT_KEY);
+    return false;
+  }
+  const last = Number(s?.getItem(LAST_REENTRY_KEY) ?? 0);
+  if (Number.isFinite(last) && now - last < REENTRY_MIN_GAP_MS) return false;
+  const here = /^\/w\/[A-Za-z0-9._~-]+\//.exec(pathname)?.[0];
+  if (!here) return false;
+  s?.setItem(LAST_REENTRY_KEY, String(now));
+  try {
+    const { worlds } = await api.lobbyWorlds();
+    const world = worlds.find((w) => w.path === here);
+    if (!world || world.status === 'closed') return false;
+    await enterWorld(world, () => undefined);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Enter a world: ask the lobby for a short-lived pass, hand it to the world (same origin, request body only), then
  * go to the world's page. The address is checked before anything is sent and again for the lobby's answer; the pass

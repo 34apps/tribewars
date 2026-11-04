@@ -236,6 +236,8 @@ export type GameErrorCode =
   | 'not_in_tribe'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */
   | 'advisor_unavailable'
+  /** Lobby sign-in: the password was right but no longer meets the password rules; choose a new one (HTTP 403). */
+  | 'password_change_required'
   | 'internal_error';
 
 export class GameError extends Error {

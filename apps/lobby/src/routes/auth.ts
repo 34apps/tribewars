@@ -1,6 +1,14 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, LOBBY_PREFIX, LOBBY_SESSION_COOKIE, isChieftainId, type LobbyAuthRequest, type LobbyMeResponse } from '@clanfire/engine';
-import { PASSWORD_MAX, PASSWORD_MIN, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
+import {
+  GameError,
+  LOBBY_PREFIX,
+  LOBBY_SESSION_COOKIE,
+  isChieftainId,
+  type LobbyAuthRequest,
+  type LobbyChangePasswordRequest,
+  type LobbyMeResponse,
+} from '@clanfire/engine';
+import { PASSWORD_MAX, SESSION_ABSOLUTE_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { AccountRow } from '../store.ts';
 
@@ -43,7 +51,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       additionalProperties: false,
       properties: {
         username: { type: 'string', pattern: USERNAME_PATTERN },
-        password: { type: 'string', minLength: PASSWORD_MIN, maxLength: PASSWORD_MAX },
+        // The length and strength rules are checked in AuthService.register, which answers in plain words.
+        password: { type: 'string', maxLength: PASSWORD_MAX },
         chieftain: { type: 'string', maxLength: 64 },
       },
     },
@@ -61,9 +70,25 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     },
   };
 
+  const changePasswordSchema = {
+    body: {
+      type: 'object',
+      required: ['username', 'password', 'newPassword'],
+      additionalProperties: false,
+      properties: {
+        username: { type: 'string', minLength: 1, maxLength: 64 },
+        password: { type: 'string', minLength: 1, maxLength: PASSWORD_MAX },
+        newPassword: { type: 'string', maxLength: PASSWORD_MAX },
+      },
+    },
+  };
+
   const cookieAttrs = { path: COOKIE_PATH, httpOnly: true, sameSite: 'lax', secure: ctx.secureCookies } as const;
-  const setSession = (reply: FastifyReply, grant: SessionGrant): void => {
-    void reply.setCookie(LOBBY_SESSION_COOKIE, grant.token, { ...cookieAttrs, maxAge: SESSION_TTL_MS / 1000 });
+  // A new token on every sign-in: the session cookie the browser still held (if any) ends here. The cookie lives as long
+  // as the longest possible session; the server enforces the idle and absolute ends.
+  const setSession = (req: FastifyRequest, reply: FastifyReply, grant: SessionGrant): void => {
+    ctx.auth.logout(req.cookies[LOBBY_SESSION_COOKIE]);
+    void reply.setCookie(LOBBY_SESSION_COOKIE, grant.token, { ...cookieAttrs, maxAge: SESSION_ABSOLUTE_MS / 1000 });
   };
 
   app.post<{ Body: LobbyAuthRequest }>(
@@ -72,7 +97,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     async (req, reply): Promise<LobbyMeResponse> => {
       if (req.body.chieftain !== undefined && !isChieftainId(req.body.chieftain)) throw new GameError('invalid_input', 'Unknown chieftain.');
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
-      setSession(reply, grant);
+      setSession(req, reply, grant);
       void reply.code(201);
       return { account: ctx.auth.toDto(grant.account) };
     },
@@ -83,10 +108,27 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     { schema: loginSchema, onRequest: rateLimit(ctx, 'login') },
     async (req, reply): Promise<LobbyMeResponse> => {
       const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
-      setSession(reply, grant);
+      setSession(req, reply, grant);
       return { account: ctx.auth.toDto(grant.account) };
     },
   );
+
+  app.post<{ Body: LobbyChangePasswordRequest }>(
+    '/api/auth/change-password',
+    { schema: changePasswordSchema, onRequest: rateLimit(ctx, 'login') },
+    async (req, reply): Promise<LobbyMeResponse> => {
+      const grant = await ctx.auth.changePassword(req.body.username, req.body.password, req.body.newPassword, req.ip);
+      setSession(req, reply, grant);
+      return { account: ctx.auth.toDto(grant.account) };
+    },
+  );
+
+  // Ends every lobby session of the account, this one included. Worlds notice within LOBBY_WORLD_SESSION_MS (docs/MULTI_WORLD.md).
+  app.post('/api/auth/logout-all', { onRequest: requireAccount(ctx) }, async (req, reply) => {
+    ctx.auth.signOutEverywhere(accountOf(req), req.ip);
+    void reply.clearCookie(LOBBY_SESSION_COOKIE, cookieAttrs);
+    return reply.code(204).send();
+  });
 
   app.post('/api/auth/logout', async (req, reply) => {
     ctx.auth.logout(req.cookies[LOBBY_SESSION_COOKIE]);

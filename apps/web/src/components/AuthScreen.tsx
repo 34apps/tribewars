@@ -1,8 +1,8 @@
 import { Suspense, lazy, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CHIEFTAINS, DEFAULT_CHIEFTAIN } from '@clanfire/engine';
-import type { AuthRequest } from '@clanfire/engine';
-import { api, errorMessage } from '../api.ts';
+import type { AuthRequest, LobbyChangePasswordRequest } from '@clanfire/engine';
+import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 
 const ChieftainPicker = lazy(() => import('./ChieftainPicker.tsx'));
@@ -13,9 +13,20 @@ type Mode = 'login' | 'register';
 export interface AuthCalls {
   login: (body: AuthRequest) => Promise<unknown>;
   register: (body: AuthRequest) => Promise<unknown>;
+  /** The lobby only: replace the password when sign-in answers `password_change_required`. */
+  changePassword?: (body: LobbyChangePasswordRequest) => Promise<unknown>;
+  /** Shortest new password (the server decides; this only gives a quicker message). Default 8. */
+  passwordMin?: number;
 }
 
 const WORLD_CALLS: AuthCalls = { login: api.login, register: api.register };
+
+/** The first problem with a new password that can be seen without the server (the common-password list stays on the server). */
+export function newPasswordProblem(password: string, username: string, min: number): string | null {
+  if (password.length < min) return `Password must be at least ${min} characters.`;
+  if (username !== '' && password.toLowerCase().includes(username.toLowerCase())) return 'Your password must not contain your username.';
+  return null;
+}
 
 export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => void; calls?: AuthCalls }) {
   const [mode, setMode] = useState<Mode>('login');
@@ -27,12 +38,35 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
   const [step, setStep] = useState<'account' | 'chieftain'>('account');
   const [chieftain, setChieftain] = useState<string>(DEFAULT_CHIEFTAIN);
 
+  /** Set when sign-in said the password must be replaced: the form then asks for a new one. */
+  const [changing, setChanging] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+
   const register = mode === 'register';
+  const passwordMin = calls.passwordMin ?? 8;
 
   function validate(): string | null {
     if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) return 'Username: 3-20 letters, digits or underscores.';
-    if (password.length < 8) return 'Password must be at least 8 characters.';
-    return null;
+    return newPasswordProblem(password, username, passwordMin);
+  }
+
+  async function submitChange(e: FormEvent) {
+    e.preventDefault();
+    if (busy || !calls.changePassword) return;
+    const problem = newPasswordProblem(newPassword, username.trim(), passwordMin);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await calls.changePassword({ username: username.trim(), password, newPassword });
+      onAuthed();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
   }
 
   async function submit(e: FormEvent) {
@@ -53,6 +87,10 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
       await calls.login({ username: username.trim(), password });
       onAuthed();
     } catch (err) {
+      if (err instanceof ApiRequestError && err.code === 'password_change_required' && calls.changePassword) {
+        setChanging(true);
+        setNewPassword('');
+      }
       setError(errorMessage(err));
       setBusy(false);
     }
@@ -71,6 +109,56 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
       setStep('account');
       setBusy(false);
     }
+  }
+
+  if (changing) {
+    return (
+      <div className="auth">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <h1>Choose a new password</h1>
+            <p className="auth-tagline">Your account is fine. Your old password just no longer meets our rules.</p>
+          </div>
+          <form onSubmit={submitChange} className="auth-form" noValidate>
+            <label className="field">
+              <span>New password</span>
+              <input
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                maxLength={128}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                aria-describedby="new-password-hint"
+                autoFocus
+                required
+              />
+              <small id="new-password-hint" className="hint">
+                At least {passwordMin} characters. Not a common password, and not containing your username.
+              </small>
+            </label>
+            <div className="form-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+            <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+              {busy ? 'Please wait…' : 'Save and sign in'}
+            </button>
+            <button
+              className="btn btn-block"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setChanging(false);
+                setPassword('');
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   if (register && step === 'chieftain') {
@@ -180,7 +268,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             />
             {register && (
               <small id="password-hint" className="hint">
-                At least 8 characters.
+                {passwordMin > 8 ? `At least ${passwordMin} characters. Not a common password, and not containing your username.` : 'At least 8 characters.'}
               </small>
             )}
           </label>

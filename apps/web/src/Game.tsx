@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { settleVillage } from '@clanfire/engine';
 import type { Mission } from '@clanfire/engine';
 import { api } from './api.ts';
+import { markManualSignOut } from './lobby.ts';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
@@ -125,6 +126,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   }, [refresh]);
 
   const signOut = useCallback(async () => {
+    markManualSignOut(); // the lobby gate must not sign this visitor straight back in
     try {
       await api.logout();
     } catch {
@@ -132,6 +134,15 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     }
     onSignedOut();
   }, [onSignedOut]);
+  /** Lobby worlds only: end the lobby sessions too; other worlds' sessions run out within hours. */
+  const signOutEverywhere = useCallback(async () => {
+    try {
+      await api.lobbyLogoutAll();
+    } catch {
+      // Already signed out of the lobby: this world session still ends below.
+    }
+    await signOut();
+  }, [signOut]);
 
   const ctx = useMemo<GameApi | null>(() => {
     if (!data || !village || !settings || !live) return null;
@@ -186,7 +197,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <GameContext.Provider value={ctx}>
-      <Shell onSignOut={signOut}>
+      <Shell onSignOut={signOut} onSignOutEverywhere={signOutEverywhere}>
         {tab === 'village' && <VillageView />}
         {tab === 'army' && <ArmyView />}
         {tab === 'reports' && <ReportsView />}

@@ -18,6 +18,8 @@ export interface LobbyEnv {
   allowedOrigins: string[];
   /** Most active accounts per IP at registration (MAX_ACCOUNTS_PER_IP). Default 3 in production, 0 (off) otherwise. */
   maxAccountsPerIp: number;
+  /** Ask for a new password at the next sign-in when the current one breaks the password rules (PASSWORD_UPGRADE_ON_LOGIN=1). Default off. */
+  requirePasswordUpgrade: boolean;
   /** Ed25519 private key that signs entry passes (LOBBY_SIGNING_KEY). Secret: never log it. */
   signingKey: KeyObject;
 }
@@ -98,6 +100,15 @@ export function loadEnv(env: Env = process.env): LobbyEnv {
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     maxAccountsPerIp: num(env, 'MAX_ACCOUNTS_PER_IP', (n) => Number.isInteger(n) && n >= 0 && n <= 1000, 'an integer from 0 to 1000') ?? (nodeEnv === 'production' ? 3 : 0),
+    requirePasswordUpgrade: parseFlag(env.PASSWORD_UPGRADE_ON_LOGIN, 'PASSWORD_UPGRADE_ON_LOGIN'),
     signingKey: parseSigningKey(rawKey),
   };
+}
+
+/** 1/true/yes = on, 0/false/no/empty = off; anything else fails fast. */
+export function parseFlag(raw: string | undefined, name: string): boolean {
+  const v = (raw ?? '').trim();
+  if (v === '' || /^(0|false|no)$/i.test(v)) return false;
+  if (/^(1|true|yes)$/i.test(v)) return true;
+  throw new Error(`Invalid ${name}="${raw}": expected 1 or 0.`);
 }

@@ -93,6 +93,7 @@ import type {
   EnterPassRequest,
   EnterWorldResponse,
   LobbyAuthRequest,
+  LobbyChangePasswordRequest,
   LobbyMeResponse,
   LobbyWorldsResponse,
   WorldInfoResponse,
@@ -195,6 +196,9 @@ export const api = {
   lobbyLogin: (body: LobbyAuthRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/login`, body),
   lobbyRegister: (body: LobbyAuthRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/register`, body),
   lobbyLogout: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout`, {}),
+  /** End every lobby session of the account; worlds follow within hours (their lobby-linked sessions are short). */
+  lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
+  lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   lobbyEnter: (id: string) => lobbyRequest<EnterWorldResponse>('POST', `${lobbyApiBase}/worlds/${encodeURIComponent(id)}/enter`, {}),
   /** Hand the entry pass to the world (same origin: sets its session cookie). The pass travels in the body only. */

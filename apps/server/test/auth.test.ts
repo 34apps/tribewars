@@ -22,7 +22,7 @@ test('register, me, logout, login flow', async () => {
   assert.match(setCookie, /HttpOnly/i);
   assert.match(setCookie, /SameSite=Lax/i);
   assert.match(setCookie, /Path=\//);
-  assert.match(setCookie, /Max-Age=2592000/);
+  assert.match(setCookie, /Max-Age=5184000/); // 60 days: the absolute session limit
   assert.doesNotMatch(setCookie, /Secure/i);
   const created = reg.json<MeResponse>().player;
   assert.ok(created);
@@ -141,12 +141,12 @@ test('two accounts with the same password get different salts', async () => {
   await app.close();
 });
 
-test('sessions expire after 30 days', async () => {
+test('sessions expire after 14 idle days', async () => {
   const { app, clock } = await makeApp();
   const c = await register(app, 'ivy');
-  clock.advance(29 * DAY);
+  clock.advance(13 * DAY);
   ok(await c.get('/api/state'));
-  clock.advance(2 * DAY);
+  clock.advance(15 * DAY);
   errorOf(await c.get('/api/state'), 401, 'unauthorized');
   assert.deepEqual((await c.get('/api/auth/me')).json<MeResponse>(), { player: null });
   await app.close();

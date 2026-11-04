@@ -67,11 +67,12 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
     [onSignedOut],
   );
 
-  async function signOut() {
+  async function signOut(everywhere = false) {
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await api.lobbyLogout();
+      // "Everywhere" ends every lobby session of the account; world sessions follow within 12 hours (the button's tooltip says so).
+      await (everywhere ? api.lobbyLogoutAll() : api.lobbyLogout());
     } catch {
       // The cookie may already be gone; show the sign-in screen either way.
     }
@@ -90,6 +91,15 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
         </p>
         <button type="button" className="btn btn-small" disabled={signingOut || busyId !== null} onClick={() => void signOut()}>
           Sign out
+        </button>
+        <button
+          type="button"
+          className="btn btn-small"
+          disabled={signingOut || busyId !== null}
+          title="Ends all your Clanfire sessions on every device. Worlds you have open close within 12 hours."
+          onClick={() => void signOut(true)}
+        >
+          Sign out everywhere
         </button>
       </header>
 

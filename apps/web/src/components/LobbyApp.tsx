@@ -6,7 +6,7 @@ import type { AuthCalls } from './AuthScreen.tsx';
 import { ErrorSplash, LoadingSplash } from './Splash.tsx';
 import { WorldPicker } from './WorldPicker.tsx';
 
-const LOBBY_CALLS: AuthCalls = { login: api.lobbyLogin, register: api.lobbyRegister };
+const LOBBY_CALLS: AuthCalls = { login: api.lobbyLogin, register: api.lobbyRegister, changePassword: api.lobbyChangePassword, passwordMin: 10 };
 
 /** Root of the lobby page (/lobby/): sign in or create the one account, then pick a world. */
 export function LobbyApp() {

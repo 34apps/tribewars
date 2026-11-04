@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- Failed sign-ins per submitted username (lower case), whether or not such an account exists, so the answer never
+-- reveals which names exist. Additive table (v2); no personal data beyond the name an attacker typed.
+CREATE TABLE IF NOT EXISTS login_failures (
+  name         TEXT    PRIMARY KEY,
+  fails        INTEGER NOT NULL,
+  last_fail    INTEGER NOT NULL,
+  locked_until INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_login_failures_last ON login_failures(last_fail);
 
 -- Every IP an account registered or signed in from (multi-account guard). Raw IPs: needed to review and ban;
 -- rows go with the account (cascade).

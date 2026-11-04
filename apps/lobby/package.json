@@ -12,7 +12,8 @@
     "type-check": "tsc -p tsconfig.json",
     "test": "node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",
     "build": "node scripts/build.mjs",
-    "backup": "tsx src/backup.ts"
+    "backup": "tsx src/backup.ts",
+    "gen:passwords": "tsx scripts/gen-common-passwords.ts"
   },
   "dependencies": {
     "@clanfire/engine": "*",

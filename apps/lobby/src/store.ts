@@ -176,10 +176,58 @@ export class Store {
     this.run('INSERT INTO sessions (token_hash, account_id, created_at, expires_at) VALUES (?, ?, ?, ?)', tokenHash, accountId, createdAt, expiresAt);
   }
 
-  /** The account a live session belongs to. A banned account is returned too: the caller decides what to answer. */
-  getSessionAccount(tokenHash: string, now: number): AccountRow | null {
-    const r = this.get('SELECT a.* FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?', tokenHash, now);
-    return r ? toAccount(r) : null;
+  /** The account a live session belongs to, with the session's own times. A banned account is returned too: the caller decides what to answer. */
+  getSessionAccount(tokenHash: string, now: number): { account: AccountRow; createdAt: number; expiresAt: number } | null {
+    const r = this.get(
+      'SELECT a.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?',
+      tokenHash,
+      now,
+    );
+    return r ? { account: toAccount(r), createdAt: r.s_created as number, expiresAt: r.s_expires as number } : null;
+  }
+
+  setSessionExpiry(tokenHash: string, expiresAt: number): void {
+    this.run('UPDATE sessions SET expires_at = ? WHERE token_hash = ?', expiresAt, tokenHash);
+  }
+
+  /** Keep only the newest `keep` sessions of an account (by creation time); the rest end. */
+  trimSessions(accountId: number, keep: number): void {
+    this.run(
+      'DELETE FROM sessions WHERE account_id = ? AND token_hash NOT IN (SELECT token_hash FROM sessions WHERE account_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)',
+      accountId,
+      accountId,
+      keep,
+    );
+  }
+
+  // ---- sign-in failures (progressive lockout) -----------------------------------------------------
+
+  getLoginFailure(name: string): { fails: number; lastFail: number; lockedUntil: number } | null {
+    const r = this.get('SELECT fails, last_fail, locked_until FROM login_failures WHERE name = ?', name);
+    return r ? { fails: r.fails as number, lastFail: r.last_fail as number, lockedUntil: r.locked_until as number } : null;
+  }
+
+  setLoginFailure(name: string, fails: number, lastFail: number, lockedUntil: number): void {
+    this.run(
+      'INSERT INTO login_failures (name, fails, last_fail, locked_until) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET fails = excluded.fails, last_fail = excluded.last_fail, locked_until = excluded.locked_until',
+      name,
+      fails,
+      lastFail,
+      lockedUntil,
+    );
+  }
+
+  clearLoginFailure(name: string): void {
+    this.run('DELETE FROM login_failures WHERE name = ?', name);
+  }
+
+  /** Forget failure records that no longer count (last failure older than `before`). */
+  pruneLoginFailures(before: number): void {
+    this.run('DELETE FROM login_failures WHERE last_fail < ? AND locked_until < ?', before, before);
+  }
+
+  setPasswordHash(id: number, hash: string): void {
+    this.run('UPDATE accounts SET password_hash = ? WHERE id = ?', hash, id);
   }
 
   deleteSession(tokenHash: string): void {

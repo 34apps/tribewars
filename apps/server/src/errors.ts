@@ -13,6 +13,7 @@ export function statusFor(code: GameErrorCode): number {
     case 'unauthorized':
       return 401;
     case 'forbidden':
+    case 'password_change_required':
       return 403;
     case 'not_found':
       return 404;
