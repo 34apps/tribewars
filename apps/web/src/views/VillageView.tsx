@@ -9,6 +9,8 @@ import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
 import { MovementsSummary } from './village/MovementsSummary.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
+import { DesignPreviewBar } from './village/DesignPreviewBar.tsx';
+import { useDesignPreview } from './village/designPreviewState.ts';
 import './village/village.css';
 
 function useBuild() {
@@ -31,6 +33,8 @@ function useBuild() {
 
 function DesktopVillage() {
   const { village, player } = useGame();
+  const dp = useDesignPreview();
+  const preview = player.sandbox && dp.on;
   const [selected, setSelected] = useState<BuildingId | null>('hall');
   const { busy, build } = useBuild();
   useEffect(() => {
@@ -52,8 +56,9 @@ function DesktopVillage() {
             {formatCoords(village.x, village.y)}
             {player.tribe ? ` · ${player.tribe.name} [${player.tribe.tag}]` : ''} · click any building
           </div>
+          {preview && <DesignPreviewBar />}
         </div>
-        <VillageScene mode="fit" selected={selected} onSelect={setSelected} />
+        <VillageScene mode="fit" selected={selected} onSelect={setSelected} levelOverride={preview ? dp.level : null} />
         <Production />
       </section>
       <aside className="vv-side" aria-label="Village details">
@@ -78,6 +83,8 @@ function DesktopVillage() {
 function PhoneVillage() {
   const { village, live, now, player } = useGame();
   const maxQueue = buildQueueLimit(player.premium);
+  const dp = useDesignPreview();
+  const preview = player.sandbox && dp.on;
   const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | null>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);
@@ -115,8 +122,10 @@ function PhoneVillage() {
 
   return (
     <div className="vv vv-phone">
+      {preview && <DesignPreviewBar floating />}
       <VillageScene
         mode="pan"
+        levelOverride={preview ? dp.level : null}
         selected={selected}
         onSelect={(id) => setSheet({ kind: 'building', id })}
         bottomInset={sheetH}

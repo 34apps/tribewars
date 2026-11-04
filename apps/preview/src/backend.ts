@@ -100,6 +100,8 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   const now = (): number => Date.now();
   const db = openDatabase(':memory:');
   const store = new Store(db);
+  // Preview has no allow-list: every player may use the client-only design preview (server test-mode actions are not mounted).
+  store.isSandboxUser = () => true;
   // A new world gets the preview settings and a random map; a restored one keeps the settings it was created with.
   const overrides: Partial<WorldSettings> = store.getSettings() ? {} : { ...PREVIEW_WORLD, seed: 1 + Math.floor(Math.random() * 0x7fffffff) };
   const settings = initWorld(store, overrides, now(), (msg) => console.warn(msg));

@@ -4,12 +4,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api.ts';
 import { useGame } from '../game.ts';
+import { setDesignPreview, useDesignPreview } from '../views/village/designPreviewState.ts';
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { player, refresh, toast } = useGame();
   const [busy, setBusy] = useState<'max' | 'reset' | 'warp' | 'clear' | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dp = useDesignPreview();
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -74,6 +76,10 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           <p className="muted">
             For testing only; only your account sees this. World speed is unchanged, so a reset goes back to the real game pace.
           </p>
+          <label className="check" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44 }}>
+            <input type="checkbox" role="switch" checked={dp.on} onChange={(e) => setDesignPreview(e.target.checked)} />
+            <span>Design preview (village shows every building at levels 0–20; nothing is saved)</span>
+          </label>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('max')}>
             {busy === 'max' ? 'Working…' : 'Max out my village'}
           </button>

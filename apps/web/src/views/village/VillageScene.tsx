@@ -251,6 +251,7 @@ export function VillageScene({
   onSelect,
   bottomInset = 0,
   onPanned,
+  levelOverride,
 }: {
   mode: 'fit' | 'pan';
   selected: BuildingId | null;
@@ -258,8 +259,11 @@ export function VillageScene({
   /** Phone: pixels covered by the bottom sheet, so the selected building can be panned above it. */
   bottomInset?: number;
   onPanned?: () => void;
+  /** Design preview: show every building at min(this, its max level) instead of the real level. */
+  levelOverride?: number | null;
 }) {
   const { live, now } = useGame();
+  const levels = levelOverride == null ? live.buildings : (Object.fromEntries(BUILDING_IDS.map((id) => [id, Math.min(levelOverride, BUILDINGS[id].maxLevel)])) as typeof live.buildings);
   const [boxes, setBoxes] = useState<Partial<Record<BuildingId, Box>>>({});
   const onBox = useCallback((id: BuildingId, box: Box) => {
     setBoxes((prev) => {
@@ -279,8 +283,8 @@ export function VillageScene({
   const queue = live.buildQueue;
   const artKey = BUILDING_IDS.map(
     (id) =>
-      `${buildingStage(id, live.buildings[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
-        live.buildings[id] === 0 && unmetRequirements(live.buildings, BUILDINGS[id].requires).length > 0 ? 'l' : ''
+      `${buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
+        levels[id] === 0 && unmetRequirements(levels, BUILDINGS[id].requires).length > 0 ? 'l' : ''
       }`,
   ).join(',');
   const arts = useMemo(() => {
@@ -417,7 +421,7 @@ export function VillageScene({
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);
-            if (live.buildings[id] === 0 && jobs.length === 0) return null;
+            if (levels[id] === 0 && jobs.length === 0) return null;
             const active = jobs.find((j) => now >= j.startAt);
             return (
               <BuildingHit
@@ -425,7 +429,7 @@ export function VillageScene({
                 id={id}
                 vb={vb}
                 box={boxes[id] ?? defaultBox(id)}
-                level={live.buildings[id]}
+                level={levels[id]}
                 locked={arts[id].locked}
                 selected={selected === id}
                 finishIn={active ? active.finishAt - now : null}
