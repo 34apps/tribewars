@@ -9,6 +9,8 @@ loadDotEnv();
 const env = loadEnv();
 const app = await buildApp({
   dbPath: env.databasePath,
+  worldId: env.worldId,
+  worldName: env.worldName,
   settings: env.worldOverrides,
   secureCookies: env.isProduction,
   trustProxy: env.trustProxy,

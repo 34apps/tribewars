@@ -1112,3 +1112,30 @@ export type LiveMessage = { type: 'hello' } | { type: 'hint'; topics: LiveTopic[
 export const LIVE_CLOSE_SESSION_ENDED = 4401; // logout, ban or expiry: do not reconnect until signed in again
 export const LIVE_CLOSE_TOO_MANY = 4429; // too many sockets for this session/IP: back off
 export const LIVE_CLOSE_BAD_MESSAGE = 4400; // the client sent something other than ping, too big, or too fast
+
+// ---- worlds (docs/MULTI_WORLD.md) ---------------------------------------------------------------------------------
+// Each world is its own server process. Every route answers under /w/<worldId>/api/... as well as /api/...
+// (the old path stays for the current world, dev and tests). One web build serves all worlds: it reads /w/<id>/ from the page URL.
+
+export const DEFAULT_WORLD_ID = 'w1';
+/** World ids: letters, digits and dash only, 1-32 characters. They appear in URLs and cookie paths. */
+export const WORLD_ID_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
+
+/**
+ * The `/w/<id>` prefix of a page path, or '' when the path has none (dev, preview, the old single-world URLs).
+ * The web client puts this in front of `/api` ("/w/w1/api"); the server strips it again.
+ */
+export function worldPrefixOf(pathname: string): string {
+  const m = /^\/w\/([A-Za-z0-9-]{1,32})(?:[/?#]|$)/.exec(pathname);
+  return m ? `/w/${m[1]}` : '';
+}
+
+// GET /w/<id>/api/world/info (and /api/world/info) -> 200 WorldInfoResponse. Public; nothing private.
+export interface WorldInfoResponse {
+  id: string;
+  name: string;
+  /** World speed (1 = normal pace). */
+  speed: number;
+  /** When this world's database was created, ISO 8601 UTC. */
+  startedAt: string;
+}

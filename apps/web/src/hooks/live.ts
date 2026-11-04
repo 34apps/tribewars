@@ -2,6 +2,7 @@
 
 import { LIVE_TOPICS } from '@clanfire/engine';
 import type { LiveMessage, LiveTopic } from '@clanfire/engine';
+import { apiBase } from '../api.ts';
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 30_000;
@@ -39,9 +40,9 @@ export function parseLiveMessage(raw: unknown): LiveMessage | null {
   return null;
 }
 
-/** Same-origin socket URL. */
-export function liveUrl(loc: Pick<Location, 'protocol' | 'host'>): string {
-  return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/live`;
+/** Same-origin socket URL; under /w/<id>/ (several worlds, one domain) it goes to that world's API. */
+export function liveUrl(loc: Pick<Location, 'protocol' | 'host'> & { pathname?: string }): string {
+  return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}${apiBase(loc.pathname ?? '')}/live`;
 }
 
 /** The single-file preview has no network: apps/preview sets this flag before the app mounts. */

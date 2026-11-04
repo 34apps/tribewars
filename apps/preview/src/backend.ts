@@ -114,6 +114,8 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     settings,
     now,
     secureCookies: false,
+    worldId: 'w1',
+    worldName: 'Preview',
     limiter: new RateLimiter(30, 60_000),
     auth: new AuthService(store, settings, now),
     game: new GameService(store, settings, { error: (obj, msg) => console.error(msg ?? 'game error', obj) }),

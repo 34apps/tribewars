@@ -10,11 +10,28 @@
 
 {$ORIGIN_DOMAIN} {
 	# CloudFront adds this header; anything else is someone bypassing CloudFront.
+	# Inside `handle` (not a bare `respond`) so it cannot be skipped by Caddy's directive ordering:
+	# `handle` blocks are tried in file order and the first match wins.
 	@direct not header X-Origin-Verify {$ORIGIN_VERIFY_SECRET}
-	respond @direct 403
+	handle @direct {
+		respond 403
+	}
 
 	# CloudFront does not compress uncached /api responses.
 	encode zstd gzip
 
-	reverse_proxy game:3000
+	# One game process per world. `handle` keeps the FULL original path (/w/w1/api/...): the game strips the
+	# /w/<id> prefix itself. WebSocket upgrades (/w/<id>/api/live) pass through reverse_proxy by default.
+	# World on another machine: reverse_proxy <that-host>:3000 instead (or point CloudFront at that origin directly).
+	# handle /w/w2/* {
+	# 	reverse_proxy game-w2:3000
+	# }
+	handle /w/w1/* {
+		reverse_proxy game-w1:3000
+	}
+
+	# Old URLs (/api/...) and anything else stay on the current world, w1.
+	handle {
+		reverse_proxy game-w1:3000
+	}
 }

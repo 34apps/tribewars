@@ -2,15 +2,22 @@
 
 import type { Backend } from './backend.ts';
 
+/** "/w/<id>/api/x" is the same in-browser backend as "/api/x" (the preview ignores the world prefix). */
+function stripWorld(pathname: string): string {
+  return pathname.replace(/^\/w\/[A-Za-z0-9-]{1,32}(?=\/api(?:[/?]|$))/, '');
+}
+
 function apiPath(input: RequestInfo | URL): string | null {
   if (typeof input === 'string') {
-    if (input === '/api' || input.startsWith('/api/') || input.startsWith('/api?')) return input;
+    const s = stripWorld(input);
+    if (s === '/api' || s.startsWith('/api/') || s.startsWith('/api?')) return s;
   }
   try {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const u = new URL(raw, window.location.href);
-    if (u.protocol === window.location.protocol && u.host === window.location.host && (u.pathname === '/api' || u.pathname.startsWith('/api/'))) {
-      return u.pathname + u.search;
+    const p = stripWorld(u.pathname);
+    if (u.protocol === window.location.protocol && u.host === window.location.host && (p === '/api' || p.startsWith('/api/'))) {
+      return p + u.search;
     }
   } catch {
     // not a URL we understand: fall through to the real fetch

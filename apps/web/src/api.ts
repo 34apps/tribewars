@@ -89,6 +89,8 @@ import type {
   TribeMemberDto,
 } from '@clanfire/engine';
 
+import { worldPrefixOf } from '@clanfire/engine';
+
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
 
 /** Thrown for every failed request; carries the API's error code and message. */
@@ -107,10 +109,25 @@ export function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong.';
 }
 
+/**
+ * API base for a page path: "/w/<id>/api" when the page is served under a world path (play.example.com/w/w1/),
+ * "/api" otherwise (dev, preview, single-world installs). The same build serves every world.
+ */
+export function apiBase(pathname: string): string {
+  return `${worldPrefixOf(pathname)}/api`;
+}
+
+/** "/api/x" -> "/w/<id>/api/x" under a world path; unchanged otherwise. Read per call, so it follows the page URL. */
+export function withApiBase(path: string): string {
+  if (typeof window === 'undefined') return path;
+  const prefix = worldPrefixOf(window.location.pathname);
+  return prefix !== '' && path.startsWith('/api') ? prefix + path : path;
+}
+
 async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(withApiBase(path), {
       method,
       credentials: 'same-origin',
       cache: method === 'GET' ? 'no-store' : 'default',

@@ -1,37 +1,61 @@
-# One host, one game process per world (SQLite is single-writer; rate limiters and the tick live in memory).
+# One game process per world (SQLite is single-writer; rate limiters and the tick live in memory), one image for all worlds.
 # Run from this folder: cp .env.example .env; cp game.env.example game.env; edit both; then `docker compose up -d --build`.
-# Updates: ./update.sh (never plain `down -v`; all state lives in /srv/clanfire/data).
+# Updates: ./update.sh [world] (never plain `down -v`; all state lives in /srv/clanfire/<world>, e.g. /srv/clanfire/w1).
+#
+# Existing install (service `game`, data in /srv/clanfire/data)? Nothing moves by itself. Pick ONE:
+#   a) keep the data where it is: add `DATA_W1=/srv/clanfire/data` to deploy/.env (git-ignored; compose and the scripts read it), or
+#   b) move it once, with the game stopped (`docker compose stop game`): `sudo mv /srv/clanfire/data /srv/clanfire/w1`.
+# Then stop and remove the old container once (`docker stop <id>; docker rm <id>`, it is named *-game-1); the scripts refuse to
+# start `game-w1` while it still runs, because two containers on one database corrupt the world.
 x-logging: &logging
   driver: json-file
   options:
     max-size: "10m"
     max-file: "5"
 
+# Settings shared by every world's service (hardening, limits). `<<: *game` merges them in; each world adds
+# its own env file, WORLD_ID and data folder. update.sh keeps the prior build as clanfire-game:previous for rollback.
+x-game: &game
+  image: clanfire-game:latest
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 200
+  mem_limit: 1500m
+  stop_grace_period: 30s          # server stops its tick and closes the DB on SIGTERM
+  logging: *logging
+  # No published ports: only caddy reaches it, over the compose network.
+
 services:
-  game:
-    image: clanfire-game:latest   # update.sh keeps the prior build as clanfire-game:previous for rollback
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    init: true
+  game-w1:
+    <<: *game
     env_file: game.env            # game settings only; the origin secret in .env never reaches this container
+    environment:
+      WORLD_ID: w1                # letters, digits, dash; served under /w/w1/api/... (and the old /api/...)
     volumes:
       # Create once on the host, owned by the container's `node` user (uid 1000):
-      #   sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data
-      - /srv/clanfire/data:/data
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    pids_limit: 200
-    mem_limit: 1500m
-    stop_grace_period: 30s        # server stops its tick and closes the DB on SIGTERM
-    logging: *logging
-    # No published ports: only caddy reaches it, over the compose network.
+      #   sudo mkdir -p /srv/clanfire/w1 && sudo chown 1000:1000 /srv/clanfire/w1
+      - ${DATA_W1:-/srv/clanfire/w1}:/data
+
+  # Second world: see deploy/README.md "Several worlds". Uncomment, create the folder and game-w2.env, add the
+  # Caddy route, then `docker compose up -d game-w2`. A world may also run on another machine (same file there).
+  # game-w2:
+  #   <<: *game
+  #   env_file: game-w2.env       # own WORLD_NAME / WORLD_SPEED / ALLOWED_ORIGINS ...
+  #   environment:
+  #     WORLD_ID: w2
+  #   volumes:
+  #     # sudo mkdir -p /srv/clanfire/w2 && sudo chown 1000:1000 /srv/clanfire/w2
+  #     - ${DATA_W2:-/srv/clanfire/w2}:/data
 
   caddy:
     image: caddy:2.10-alpine
@@ -57,7 +81,7 @@ services:
       - NET_BIND_SERVICE
     logging: *logging
     depends_on:
-      - game
+      - game-w1
 
 volumes:
   caddy_data:

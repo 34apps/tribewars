@@ -3,6 +3,7 @@ import { ACTIVITY_WRITE_INTERVAL_MS, GameError, isChieftainId, type AuthRequest,
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
+import { sessionCookiePath } from '../world-path.ts';
 
 /** Route-level hook: attach the signed-in player or answer 401. Runs before body validation. */
 export function requireAuth(ctx: AppContext) {
@@ -70,11 +71,20 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     },
   };
 
-  const setSession = (reply: FastifyReply, grant: SessionGrant): void => {
+  // Served under /w/<id>/ the cookie is scoped to that path, so two worlds on one domain never share a session.
+  // The old /api path keeps Path=/ (dev, tests, the current single-world install).
+  const cookiePath = (req: FastifyRequest): string => sessionCookiePath(String(req.originalUrl ?? req.url ?? ''), ctx.worldId);
+  // A Path=/ cookie from before world paths existed would be sent along (after the new one) and could outlive a logout.
+  const clearLegacy = (req: FastifyRequest, reply: FastifyReply): void => {
+    if (cookiePath(req) !== '/') void reply.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', secure: ctx.secureCookies });
+  };
+
+  const setSession = (req: FastifyRequest, reply: FastifyReply, grant: SessionGrant): void => {
+    clearLegacy(req, reply);
     void reply.setCookie(SESSION_COOKIE, grant.token, {
       httpOnly: true,
       sameSite: 'lax',
-      path: '/',
+      path: cookiePath(req),
       secure: ctx.secureCookies,
       maxAge: SESSION_TTL_MS / 1000,
     });
@@ -86,7 +96,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     async (req, reply): Promise<MeResponse> => {
       if (req.body.chieftain !== undefined) checkChieftain(req.body.chieftain);
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
-      setSession(reply, grant);
+      setSession(req, reply, grant);
       void reply.code(201);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -97,14 +107,15 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     { schema: loginSchema, onRequest: rateLimit(ctx, 'login') },
     async (req, reply): Promise<MeResponse> => {
       const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
-      setSession(reply, grant);
+      setSession(req, reply, grant);
       return { player: ctx.auth.toDto(grant.player) };
     },
   );
 
   app.post('/api/auth/logout', async (req, reply) => {
     ctx.auth.logout(req.cookies[SESSION_COOKIE]);
-    void reply.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', secure: ctx.secureCookies });
+    void reply.clearCookie(SESSION_COOKIE, { path: cookiePath(req), httpOnly: true, sameSite: 'lax', secure: ctx.secureCookies });
+    clearLegacy(req, reply);
     return reply.code(204).send();
   });
 

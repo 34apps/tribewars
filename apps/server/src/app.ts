@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import { GameError, type ApiError, type GameErrorCode, type WorldSettings } from '@clanfire/engine';
+import { DEFAULT_WORLD_ID, GameError, type ApiError, type GameErrorCode, type WorldInfoResponse, type WorldSettings } from '@clanfire/engine';
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
@@ -31,6 +31,7 @@ import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, ori
 import { Store } from './store.ts';
 import { SupportService } from './support-service.ts';
 import { TribeService } from './tribe-service.ts';
+import { checkWorldId, checkWorldName, makeWorldRewrite } from './world-path.ts';
 import { initWorld } from './world.ts';
 
 export const BODY_LIMIT = 16 * 1024;
@@ -66,6 +67,10 @@ export interface BuildAppOptions {
   liveHeartbeatMs?: number;
   /** Usernames allowed to use sandbox/test mode (compared lowercase). Absent = nobody. */
   sandboxUsers?: readonly string[];
+  /** This world's id (default w1; letters, digits, dashes). Every route also answers under /w/<worldId>/. */
+  worldId?: string;
+  /** Display name for GET /api/world/info (default "World <worldId>"). */
+  worldName?: string;
 }
 
 const DEFAULT_WEB_DIST = resolve(import.meta.dirname, '../../web/dist');
@@ -81,8 +86,13 @@ function errorBody(error: GameErrorCode, message: string): ApiError {
 
 export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> {
   const now = opts.now ?? Date.now;
+  const worldId = checkWorldId(opts.worldId ?? DEFAULT_WORLD_ID, 'worldId');
+  const worldName = checkWorldName(opts.worldName ?? `World ${worldId}`, 'worldName');
+  const rewriteWorldPath = makeWorldRewrite(worldId);
   const app = Fastify({
     logger: opts.logger ?? false,
+    // "/w/<id>/api/x" is routed as "/api/x": one set of routes, hooks and limits for both paths.
+    rewriteUrl: (req) => rewriteWorldPath(req.url ?? '/'),
     bodyLimit: BODY_LIMIT,
     requestTimeout: 30_000,
     // A hop count becomes a function: this Fastify version treats a bare number as "trust nothing".
@@ -113,6 +123,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     settings,
     now,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
+    worldId,
+    worldName,
     limiter: new RateLimiter(10, 60_000),
     live,
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
@@ -237,6 +249,11 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       return reply.code(503).send({ ok: false });
     }
   });
+  // Public and private-data-free: id, name, speed, start date. Nothing about players, villages or the database.
+  app.get('/api/world/info', async (): Promise<WorldInfoResponse> => {
+    const created = Number(store.getMeta('world_created_at'));
+    return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString() };
+  });
   authRoutes(app, ctx);
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);
@@ -266,7 +283,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   app.setNotFoundHandler(async (req, reply) => {
     const path = req.url.split('?', 1)[0] ?? '';
     const lastSegment = path.slice(path.lastIndexOf('/') + 1);
-    const isRoute = (req.method === 'GET' || req.method === 'HEAD') && !isApiPath(req.url) && !lastSegment.includes('.');
+    // A "/w/..." path that is still prefixed after the rewrite belongs to another world: never answer it with this world's client.
+    const isRoute = (req.method === 'GET' || req.method === 'HEAD') && !isApiPath(req.url) && !lastSegment.includes('.') && !path.startsWith('/w/');
     if (serveWeb && isRoute) {
       void reply.header('Cache-Control', 'no-cache');
       return reply.sendFile('index.html');

@@ -23,6 +23,9 @@ export interface AppContext {
   msgReports: ReportService;
   settings: WorldSettings;
   limiter: RateLimiter;
+  /** This process's world id and display name (docs/MULTI_WORLD.md). The id also scopes the session cookie path. */
+  worldId: string;
+  worldName: string;
   /** WebSocket hub for live-update hints (live.ts). Absent in the in-browser preview, which has no network. */
   live?: LiveHub;
   now: () => number;

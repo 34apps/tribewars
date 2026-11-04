@@ -33,6 +33,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--budget`, `--model`, `--effort`, `--max-turns`, `--continue`); see `docs/AI-WORKFLOW.md`.
 - `npm start` — compiled production server (serves `apps/web/dist` only if it exists; on AWS the web is on S3).
 - `npm run backup` — consistent copy of the database to `data/backups`. AWS setup: `docs/DEPLOYMENT_PLAN.md`, `deploy/`.
+- Several worlds (one process + SQLite file + container each; `WORLD_ID`, routes under `/w/<id>/api`): `docs/MULTI_WORLD.md`.
 
 ## Rules
 

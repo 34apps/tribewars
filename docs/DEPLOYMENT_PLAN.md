@@ -24,11 +24,12 @@ and never deployed.
 
 ```
 player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
-             ├─ /*      → S3 bucket: apps/web/dist (private, Origin Access Control)
-             └─ /api/*  → origin.<domain> → EC2 t4g.small (arm64), Docker Compose:
-                             caddy  (Let's Encrypt TLS, gzip/zstd, checks X-Origin-Verify)
-                             game   (apps/server, compiled JS, port 3000 internal only)
-                             SQLite on EBS gp3 → daily backup to S3
+             ├─ /*                → S3 bucket: apps/web/dist (private, Origin Access Control), shared by all worlds
+             └─ /w/<id>/api/*     → origin.<domain> → EC2 t4g.small (arm64), Docker Compose:
+                (and old /api/*)      caddy    (Let's Encrypt TLS, gzip/zstd, checks X-Origin-Verify)
+                                      game-w1  (apps/server, compiled JS, port 3000 internal only)
+                                      SQLite on EBS gp3 → daily backup to S3
+                                      (game-w2 ... : one container, one SQLite file per world)
 ```
 
 - **Region:** eu-central-1 (Frankfurt) by default — low latency for Turkey and Europe. Change it if
@@ -44,9 +45,17 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
   secret `X-Origin-Verify` header that Caddy checks. SSH via SSM Session Manager (no port 22).
 - `TRUST_PROXY=2` (Caddy, then the CloudFront edge; the next address is the player). A player cannot
   fake it: extra `X-Forwarded-For` entries they send sit further left and are ignored.
-- **CloudFront behaviours:** `/api/*` → policy CachingDisabled + AllViewerExceptHostHeader, all
-  methods. `/assets/*` → cached 1 year (file names carry hashes). Default (`index.html`, sprites) →
-  short cache; 403/404 → `/index.html` (SPA) on the S3 behaviour only.
+- **CloudFront behaviours:** one per world, `/w/w1/api/*` (and the old `/api/*`, kept for w1) → that world's
+  origin, policy CachingDisabled + AllViewerExceptHostHeader, all methods. **WebSocket** works on
+  `/w/<id>/api/live` (and `/api/live`) through the same behaviour: CloudFront passes the upgrade when the
+  behaviour allows all methods and forwards the viewer headers; keep the origin response timeout above the
+  server's heartbeat interval so idle sockets are not cut. `/assets/*` → cached 1 year (file names carry hashes). Default (`index.html`,
+  sprites) → short cache; 403/404 → `/index.html` (SPA) on the S3 behaviour only.
+- **World pages (`/w/<id>/`):** the client is one build and reads `/w/<id>/` from the URL, so every
+  `/w/*` path that is not `/w/<id>/api/*` must return `index.html`. On the default S3 behaviour attach a
+  CloudFront Function (viewer request) that rewrites URIs under `/w/` without a file extension to `/index.html`;
+  hashed `/assets/*` and sprites stay at the bucket root (the built client must reference them by absolute
+  path, `/assets/...`, not relative to the page URL).
 - **CloudFront response-headers policy `clanfire-security-headers`** (attach to the S3/default behaviour;
   the game server sends the same headers itself on `/api/*`, set `Override origin: Yes` so they match).
   Source of truth: `apps/server/src/security.ts`. Console/CDK values:
@@ -105,7 +114,7 @@ When the native app project starts (all additive; the web keeps its cookie login
    on the backup bucket. Install Docker + compose plugin and git; `git clone` the repo to `/opt/clanfire`.
 3. DNS: `origin.<domain>` → Elastic IP. Security group: 80 from anywhere (Let's Encrypt), 443 from the
    CloudFront origin-facing prefix list only, no 22.
-4. `sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data`; in `deploy/`:
+4. `sudo mkdir -p /srv/clanfire/w1 && sudo chown 1000:1000 /srv/clanfire/w1`; in `deploy/`:
    `cp .env.example .env` (Caddy: origin domain + secret) and `cp game.env.example game.env` (game
    settings), fill both in; `docker compose up -d --build`.
 5. S3 bucket for the web (private) + one for backups (lifecycle 30 days). `npm run build`, upload
@@ -114,12 +123,12 @@ When the native app project starts (all additive; the web keeps its cookie login
    only, custom header `X-Origin-Verify`); behaviours as in §2; HTTP/3 on; `play.<domain>` → CloudFront.
 7. Cron on the host: `deploy/backup.sh` daily (`BACKUP_BUCKET=…`). Restore test: download a backup,
    start a local server on it with `DATABASE_PATH`, sign in.
-8. Update: `deploy/update.sh` (details in `deploy/README.md`); rollback `deploy/rollback.sh`;
-   restore a backup `deploy/restore.sh <file>`.
+8. Update: `deploy/update.sh [world]` (details in `deploy/README.md`); rollback `deploy/rollback.sh [world]`;
+   restore a backup `deploy/restore.sh [world] <file>`. World defaults to `w1`.
 
 ## 6. Updates never lose the world
 
-- **All world state is in the database file** on the host (`/srv/clanfire/data`): villages with their
+- **All world state is in the database file** on the host (`/srv/clanfire/<world>`, e.g. `w1`): villages with their
   build, recruit and research queues and resources (`villages.state_json`, settled lazily from
   `lastUpdate`), troop movements (`movements`), stationed support, players, tribes, reports, mail.
   Containers hold nothing; rebuilding or replacing one changes no game data. Nothing on startup
@@ -147,9 +156,16 @@ When the native app project starts (all additive; the web keeps its cookie login
 
 1. **Bigger machine** (t4g.medium → large → xlarge): one click, same setup; one world handles
    thousands of players.
-2. **More worlds**: one more `game-wN` service with its own data folder and Caddy route
-   (`deploy/README.md` shows it). Never two containers on one world.
-3. **Many worlds / several machines**: the same image on ECS (EC2) with one task per world and a
+2. **More worlds**: one more `game-wN` service per world (own process, SQLite file, data folder, env
+   file) and a Caddy route (`deploy/README.md`, "Several worlds"). Never two containers on one world,
+   and a world is never split across processes. Several worlds can share a machine.
+   Several worlds: see `docs/MULTI_WORLD.md`.
+3. **Worlds on other machines**: one CloudFront behaviour per world (`/w/w1/api/*`, `/w/w2/api/*`, ...),
+   caching disabled, WebSocket on `/w/<id>/api/live`, each pointing at the origin of the machine that
+   hosts that world, so moving a world is a behaviour change. The static client from S3 is shared by all worlds
+   (the `/w/*` page rewrite in section 2); CSP and the other headers do not change, since every
+   world stays on the same CloudFront domain.
+4. **Many machines**: the same image on ECS (EC2) with one task per world and a
    persistent EBS volume, an ALB once there is more than one machine, and a small Postgres (RDS)
    account service so one login works across worlds.
 

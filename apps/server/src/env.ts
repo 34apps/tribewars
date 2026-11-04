@@ -2,12 +2,17 @@
 
 import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
-import type { WorldSettings } from '@clanfire/engine';
+import { DEFAULT_WORLD_ID, type WorldSettings } from '@clanfire/engine';
+import { checkWorldId, checkWorldName } from './world-path.ts';
 
 export interface ServerEnv {
   port: number;
   host: string;
   databasePath: string;
+  /** This process's world (WORLD_ID, default w1): answers under /w/<id>/api as well as /api. Letters, digits, dashes; the server refuses to start otherwise. */
+  worldId: string;
+  /** Display name shown in world info (WORLD_NAME, default "World <id>"). */
+  worldName: string;
   nodeEnv: string;
   isProduction: boolean;
   /** Trust X-Forwarded-* headers: false, true, a hop count (>= 2) or an IP/CIDR list (only enable behind a reverse proxy you control). */
@@ -96,10 +101,15 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     worldOverrides.layout = layout;
   }
 
+  const worldId = checkWorldId(env.WORLD_ID?.trim() || DEFAULT_WORLD_ID);
+  const worldName = checkWorldName(env.WORLD_NAME?.trim() || `World ${worldId}`);
+
   return {
     port: num(env, 'PORT', (n) => Number.isInteger(n) && n >= 0 && n <= 65535, 'a port number') ?? 3000,
     host: env.HOST?.trim() || '0.0.0.0',
     databasePath: env.DATABASE_PATH?.trim() || './data/clanfire.sqlite',
+    worldId,
+    worldName,
     nodeEnv,
     isProduction: nodeEnv === 'production',
     trustProxy: parseTrustProxy(env.TRUST_PROXY),

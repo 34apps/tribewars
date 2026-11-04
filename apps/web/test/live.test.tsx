@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { apiBase, withApiBase } from '../src/api.ts';
 import { LIVE_POLL_MS, RECONNECT_MAX_MS, backoffMs, liveUrl, parseLiveMessage, pollMs } from '../src/hooks/live.ts';
 
 test('parseLiveMessage accepts the three server frames and drops unknown topics', () => {
@@ -34,4 +35,29 @@ test('pollMs slows polls to 60 s only while connected', () => {
 test('liveUrl is same-origin and follows https', () => {
   assert.equal(liveUrl({ protocol: 'http:', host: 'localhost:5173' }), 'ws://localhost:5173/api/live');
   assert.equal(liveUrl({ protocol: 'https:', host: 'game.example' }), 'wss://game.example/api/live');
+});
+
+test('API base follows the /w/<id>/ prefix of the page URL (default /api)', () => {
+  assert.equal(apiBase('/'), '/api');
+  assert.equal(apiBase('/index.html'), '/api');
+  assert.equal(apiBase('/w/w1/'), '/w/w1/api');
+  assert.equal(apiBase('/w/w2'), '/w/w2/api');
+  assert.equal(apiBase('/w/bad_id/'), '/api');
+  assert.equal(liveUrl({ protocol: 'https:', host: 'play.example.com', pathname: '/w/w2/' }), 'wss://play.example.com/w/w2/api/live');
+  assert.equal(liveUrl({ protocol: 'https:', host: 'play.example.com', pathname: '/' }), 'wss://play.example.com/api/live');
+});
+
+test('withApiBase prefixes API paths under a world page and leaves others alone', () => {
+  const g = globalThis as { window?: unknown };
+  const saved = g.window;
+  try {
+    g.window = { location: { pathname: '/w/w1/' } };
+    assert.equal(withApiBase('/api/state'), '/w/w1/api/state');
+    assert.equal(withApiBase('/api/map?x=1&y=2'), '/w/w1/api/map?x=1&y=2');
+    assert.equal(withApiBase('/other'), '/other');
+    g.window = { location: { pathname: '/' } };
+    assert.equal(withApiBase('/api/state'), '/api/state');
+  } finally {
+    g.window = saved;
+  }
 });
