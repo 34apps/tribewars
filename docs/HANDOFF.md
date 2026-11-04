@@ -5,10 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`87d3695`): village view switched back to **Toy Diorama** (owner choice after trying style B): original toy
-building sprites + toy scenery + new toy Market, in the new layout (Town Hall centre, spread plots, wall on the plate
-edge, closed gate). The owner will request design tweaks inside the toy style next. Test-mode Design preview
-(Settings → Design preview) shows all levels. Checks passed, build + preview build ok; viewed in the preview.
+2026-11-04 (`6be9b60`): all building sprites (except wall) redrawn with far more detail in the toy style, so each looks
+like its job; stumps and log piles removed from the scenery. Drawn blind by coordinates (no renderer in the agent run):
+NOT viewed, XML not parsed. Very next step: open the village at 360 and 1440 px (Settings → Design preview shows all
+levels), fix broken or overlapping sprites. Checks passed (check + build).
 
 ## How the owner works (important)
 
