@@ -5,11 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`b4f74cf`): ring wall + towers redrawn per level in `art/scenery.tsx` (`wallItems` and helpers): L1 double
-palisade + braced watchtowers, L2 coursed stone + slits + corbelled square towers, L3 tall tile-capped wall + banded round
-towers. Wall flush with the plate edge; the two camera-facing walls are low (`hFront`) so the inside shows, far walls tall
-(`hBack`). Not viewed (no renderer, Bash denied tsx/qlmanage): tune heights/colours after looking. Very next step: open the
-village at wall levels 1–3, 360 and 1440 px. Layout (`da2867c`) and isometric sprites (`b3a01ba`) are also unviewed. Checks passed.
+2026-11-04 (`6056bbb`): fixed the gaps at the wall corners in `art/scenery.tsx` (`wallItems`, `stoneTower`, `watchtower`,
+`gatePost`). Cause: round L3 towers were a circle smaller than the square corner footprint. Now a square footing fills the
+footprint (flush with plate edge + wall ends), round tower on top with a gallery ring; L1 towers/posts widened to the full
+footprint; towers grow per level (L2 turret, L3 taller). Corner sizes 9/13/16; `sceneViewBox` taller. Not viewed (no
+renderer, python/Bash scripts denied). Very next step: open the village at wall levels 1–3 (360 and 1440 px) and tune.
+Earlier wall (`b4f74cf`), layout (`da2867c`), sprites (`b3a01ba`) also unviewed. Checks passed.
 
 ## How the owner works (important)
 
