@@ -5,10 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`ea92c87`): owner screenshot showed the road poking out below the gate doors (round path cap) → paths now clipped at the plate edge.
-Asked for a much grander max-level wall → new 4th look at wall levels 18–20 (`wallLook` in `art/buildings.ts`, `wallItems(4)` in `art/scenery.tsx`).
-"Look to the top tower" was unclear: back corner tower only got the grand look at 18+, nothing else changed. Never rendered.
-Very next step: owner opens Design preview, drags to 13, 17, 18, 20 at 360 and 1440 px, screenshots, says what to tune. Checks passed.
+2026-11-04 (`a4eb098`): owner screenshots (wall 13 and 18) showed the top corner tower badly joined to its walls.
+Cause: draw order. Back tower was sorted by its front corner, so its base was painted over the first back-wall pieces
+(tie at 13–17, overlap at 18+). Now sorted by centre in `wallItems`; back walls start at its face. Other corners unchanged.
+Not rendered here. Very next step: owner re-checks Design preview at 13, 17, 18, 20 (360 and 1440 px); if the top tower
+still looks off, try a taller back footing or a ledge. Checks passed.
+Before that (`ea92c87`): road clipped at the plate edge; new grand 4th wall look at levels 18–20.
 Earlier (`5c44bbd`): preview bar portaled into body, compact top bar up to 1919 px (owner view of it still unconfirmed).
 Earlier (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
 now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
