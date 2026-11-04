@@ -53,7 +53,7 @@ export function villageSprite(v: MapVillageDto): string {
   return STAGE_FILES[mapStage(v.points) - 1] ?? STAGE_FILES[0];
 }
 
-/** "Stockade town" / "Ruined fort". */
+/** "Stockade town" / "Abandoned castle". */
 export function stageName(v: MapVillageDto): string {
   if (v.kind === 'abandoned') return RUIN_NAMES[ruinStage(v.points) - 1] ?? RUIN_NAMES[0];
   return MAP_STAGE_NAMES[mapStage(v.points) - 1] ?? MAP_STAGE_NAMES[0];

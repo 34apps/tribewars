@@ -34,8 +34,22 @@ export const STAGE_FILES = [
   'stage-5-fortified-town',
   'stage-6-castle-with-moat',
 ] as const;
-export const RUIN_FILES = ['ruined-hamlet', 'ruined-town', 'ruined-fort'] as const;
-export const RUIN_NAMES = ['Ruined hamlet', 'Ruined town', 'Ruined fort'] as const;
+export const RUIN_FILES = [
+  'abandoned-stage-1-hamlet',
+  'abandoned-stage-2-palisade-village',
+  'abandoned-stage-3-stockade-town',
+  'abandoned-stage-4-stone-walled-town',
+  'abandoned-stage-5-fortified-town',
+  'abandoned-stage-6-castle',
+] as const;
+export const RUIN_NAMES = [
+  'Abandoned hamlet',
+  'Abandoned palisade village',
+  'Abandoned stockade town',
+  'Abandoned stone-walled town',
+  'Abandoned fortified town',
+  'Abandoned castle',
+] as const;
 
 /** Banner pole foot per stage in tile-centre units (anchors.json bannerPoleBase minus the anchor). */
 export const BANNER_BASE: ReadonlyArray<readonly [number, number]> = [
@@ -49,7 +63,7 @@ export const BANNER_BASE: ReadonlyArray<readonly [number, number]> = [
 
 /** Top of each stage's art (banner included) above the tile centre, SVG px: where the selection pointer sits. */
 export const STAGE_TOP = [-52, -60, -86, -86, -100, -98] as const;
-export const RUIN_TOP = [-34, -56, -72] as const;
+export const RUIN_TOP = [-38, -46, -74, -58, -76, -96] as const;
 
 export type Allegiance = 'own' | 'tribe' | 'ally' | 'nap' | 'enemy' | 'neutral';
 export const ALLEGIANCES: readonly Allegiance[] = ['own', 'tribe', 'ally', 'nap', 'enemy', 'neutral'];

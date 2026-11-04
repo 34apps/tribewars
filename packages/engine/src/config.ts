@@ -610,7 +610,7 @@ export const SCOUT_APPROX_STEP = 10;
 export const MAP_STAGE_MIN_POINTS = [0, 15, 35, 65, 100, 150] as const;
 export const MAP_STAGE_NAMES = ['Hamlet', 'Palisade village', 'Stockade town', 'Stone-walled town', 'Fortified town', 'Castle'] as const;
 /** Abandoned villages show a ruin: hamlet below the first, town below the second, fort above. */
-export const RUIN_STAGE_MIN_POINTS = [0, 35, 100] as const;
+export const RUIN_STAGE_MIN_POINTS = MAP_STAGE_MIN_POINTS; // 6 abandoned pictures, same steps as player villages (owner, 2026-11-04)
 
 /** Selectable chieftain portraits (art in design/sprites/chieftains/<id>.svg). */
 export const CHIEFTAINS = [

@@ -33,7 +33,7 @@ export function Legend() {
           ))}
           <li>
             <span className="wm-thumb" aria-hidden="true">
-              <img src={artUrl('ruined-town')} alt="" width={52} height={64} decoding="async" />
+              <img src={artUrl('abandoned-stage-3-stockade-town')} alt="" width={52} height={64} decoding="async" />
             </span>
             <span>
               <b>Ruins</b>

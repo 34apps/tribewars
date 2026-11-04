@@ -294,7 +294,7 @@ export function mapStage(points: number): number {
   return stage;
 }
 
-/** Ruin picture 1..3 (hamlet, town, fort) for an abandoned village's points. */
+/** Abandoned-village picture 1..6 for its points (same steps as `mapStage`). */
 export function ruinStage(points: number): number {
   let stage = 1;
   for (let i = 0; i < RUIN_STAGE_MIN_POINTS.length; i++) if (points >= RUIN_STAGE_MIN_POINTS[i]!) stage = i + 1;
