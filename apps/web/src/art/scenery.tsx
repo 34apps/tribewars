@@ -93,16 +93,16 @@ interface PathDef {
 
 const PATHS: PathDef[] = [
   { key: 'main', to: null, paved: true, w: 12, pts: [[14, 74], [10, 110], [4, 150], [10, 195], [8, RP + 2]] },
-  { key: 'market', to: 'market', w: 7.2, pts: [[7, 150], [22, 159], [42, 166]] },
-  { key: 'drill', to: 'drillyard', w: 7.2, pts: [[5, 138], [-12, 146], [-34, 152]] },
-  { key: 'farm', to: 'farm', paved: true, w: 7.8, pts: [[74, 74], [97, 94], [112, 116], [128, 128]] },
-  { key: 'east', to: 'storehouse', paved: true, w: 8.4, pts: [[78, 26], [98, 19], [124, 10]] },
-  { key: 'mine', to: 'mine', w: 7.2, pts: [[100, 18], [106, -18], [136, -56], [152, -100], [154, -150]] },
-  { key: 'north', to: 'stables', paved: true, w: 8.4, pts: [[34, -34], [40, -70], [52, -100], [62, -126]] },
-  { key: 'vault', to: 'vault', w: 6.6, pts: [[40, -72], [10, -96], [-20, -112], [-37, -132]] },
-  { key: 'gold', to: 'goldmine', paved: true, w: 7.8, pts: [[-32, -32], [-64, -76], [-104, -108], [-130, -136], [-150, -150]] },
-  { key: 'west', to: 'barracks', paved: true, w: 8.4, pts: [[-34, 16], [-62, 8], [-90, 2], [-116, 0]] },
-  { key: 'lumber', to: 'lumber', w: 7.2, pts: [[-86, 4], [-100, 44], [-122, 92], [-147, 146]] },
+  { key: 'market', to: 'market', w: 7.2, pts: [[7, 146], [16, 150], [26, 152]] },
+  { key: 'drill', to: 'drillyard', w: 7.2, pts: [[5, 134], [-12, 140], [-30, 146]] },
+  { key: 'farm', to: 'farm', paved: true, w: 7.8, pts: [[74, 74], [92, 90], [102, 104], [108, 108]] },
+  { key: 'east', to: 'storehouse', paved: true, w: 8.4, pts: [[78, 26], [92, 20], [104, 12]] },
+  { key: 'mine', to: 'mine', w: 7.2, pts: [[90, 20], [104, -18], [122, -60], [130, -96], [130, -118]] },
+  { key: 'north', to: 'stables', paved: true, w: 8.4, pts: [[34, -34], [40, -62], [52, -86], [62, -106]] },
+  { key: 'vault', to: 'vault', w: 6.6, pts: [[40, -62], [10, -88], [-18, -102], [-34, -116]] },
+  { key: 'gold', to: 'goldmine', paved: true, w: 7.8, pts: [[-32, -32], [-60, -70], [-92, -96], [-110, -110], [-122, -122]] },
+  { key: 'west', to: 'barracks', paved: true, w: 8.4, pts: [[-34, 16], [-58, 8], [-80, 2], [-100, 0]] },
+  { key: 'lumber', to: 'lumber', w: 7.2, pts: [[-76, 4], [-92, 44], [-106, 84], [-120, 120]] },
 ];
 
 /** Paths that also show when a branch off them does (a branch needs its trunk). */
@@ -159,8 +159,8 @@ const onRoad = (u: number, v: number, pad: number) =>
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
-  [190, 92, 20, 22, 'wheat'],
-  [118, -92, 16, 18, 'greens'],
+  [172, 84, 20, 22, 'wheat'],
+  [170, -60, 16, 18, 'greens'],
 ];
 const onField = (u: number, v: number, pad: number) =>
   FIELDS.some(([cu, cv, hu, hv]) => Math.abs(u - cu) < hu + pad && Math.abs(v - cv) < hv + pad);

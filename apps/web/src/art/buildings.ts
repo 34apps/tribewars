@@ -137,18 +137,19 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   // The heart of the village: the Town Hall in the middle (a little forward, so its tower clears the Gold Mine behind).
   hall: plot(22, 22, 1.15),
   // Core buildings in a ring around it.
-  storehouse: plot(156, 8, 1.3),
-  barracks: plot(-150, 0, 1.3),
-  stables: plot(64, -160, 1.3),
-  vault: plot(-64, -160, 1.1),
+  storehouse: plot(136, 8, 1.3),
+  barracks: plot(-138, 0, 1.3),
+  stables: plot(64, -146, 1.3),
+  vault: plot(-64, -148, 1.1),
   // Market and Drill Yard on either side of the main road to the gate.
-  market: plot(70, 168, 1.2),
-  drillyard: plot(-64, 160, 1.25),
+  market: plot(62, 152, 1.2),
+  drillyard: plot(-64, 148, 1.25),
   // Resource sites out in the four corners: gold in the back rocks, iron on the right, timber on the left, fields in front.
-  goldmine: plot(-188, -188, 1.2),
-  mine: plot(184, -184, 1.3),
-  lumber: plot(-184, 184, 1.3),
-  farm: plot(160, 160, 1.3),
+  // Every pad stays about 25 grid units clear of the ring wall so the wall never crowds a building.
+  goldmine: plot(-160, -160, 1.2),
+  mine: plot(158, -158, 1.3),
+  lumber: plot(-158, 158, 1.3),
+  farm: plot(142, 142, 1.3),
   // The wall's own plot (building work only) sits on the front-right wall between the Storehouse and the Iron Mine.
   wall: plot(229, -90, 0.6),
 };
