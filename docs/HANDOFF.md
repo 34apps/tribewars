@@ -1,16 +1,16 @@
 # Handoff — Clanfire
 
-Written 2026-11-04 (HEAD `4c548c5`+). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-04 (HEAD `7bdc1e7`+). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
 ## Last run
 
-2026-11-04 (`4c548c5`): world map villages drawn 1.3x and ruins at full size (were 0.7x), because they
-looked tiny next to the trees. Terrain, trees and labels unchanged (the owner rejected the bigger
-`e471d92` change, which was reverted in `bc0ce1f`). Deleted unused `tile-hills-1/2.svg` and `scene/market.svg`.
+2026-11-04 (`4c548c5`, `7bdc1e7`): world map villages drawn 1.3x and ruins at the same scale (were 0.7x, so
+big ruins looked smaller than a new player's hamlet); beginner-protection dome kept inside its tile.
+Terrain, trees and labels unchanged (the owner rejected the bigger `e471d92` change, reverted in `bc0ce1f`).
 Checks passed, build + preview build ok; map viewed in the preview at 1440 px.
-Very next step: owner looks at the map on their Mac; if villages still look small, tune `VILLAGE_DRAW_SCALE`
-in `apps/web/src/map/render.ts` (one number) rather than redesigning.
+Very next step: owner looks at the map on their Mac; tune `VILLAGE_DRAW_SCALE` / `DOME_SCALE` in
+`apps/web/src/map/render.ts` if needed rather than redesigning.
 
 ## How the owner works (important)
 
