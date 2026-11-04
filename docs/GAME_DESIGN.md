@@ -536,6 +536,7 @@ stored and sent as plain text and the client renders it as text (line breaks kep
    villages, world end and winners.
 5. New visual identity (style directions in progress), characters, isometric map; 3D models later.
 6. Troop ranks, Armory, scout intel tiers — see §15 (proposal).
+7. Seasons with Fire Shrines, taking villages, rest hours, terrain, tribe projects, cosmetics shop — see §18 (proposal, needs owner approval).
 
 ## 15. DECIDED, NOT BUILT YET (see owner answers below) — troop ranks, Armory, scout intel tiers
 
@@ -604,3 +605,506 @@ tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored on
 **Build order if approved:** config + types → engine (rank multipliers in `resolveBattle`, tier filter on intel,
 tests) → server (table, research queue, security gate per SECURITY_ROADMAP §4) → web (Armory panel with a points
 bar, tiered scout report) → preview + CHANGELOG.
+
+## 18. PROPOSAL (needs owner approval): what makes Clanfire different
+
+Written 2026-11-04. **Nothing here is built and nothing here is a rule yet.** Each part says how it would work,
+why it is fair, first numbers for `config.ts`, what it needs, a size, and what the owner has to decide. When a
+part is approved and built, move its rules into the normal sections above in the same commit.
+
+Project rule: every name, number, formula and screen below is our own. The genre gave us the *kind* of game
+(villages, raids, tribes), nothing else. Where an idea is common in the genre (taking villages, a world that
+ends), the way it works here is different on purpose. This proposal replaces the conquest sketch in
+`BALANCE.md` §4 (a loyalty meter that drops with each hit) with the owner's "put out the fire, then hold it"
+idea; it keeps that sketch's Banner Hall and gold-limited unit, renamed **Chieftain**.
+
+Sizes: **S** = a day or less, **M** = a few days, **L** = about a week or more (same scale as `GENRE_REVIEW.md`).
+
+### 18.0 The big picture
+
+Clanfire's promise in one sentence: **a season is a story with an ending, and the land, the clock and the tribe
+all matter.**
+
+| Pillar | What the player feels | Part |
+|---|---|---|
+| A season with a finish line | "We are playing for something, and in nine weeks everyone starts fresh." | 18.1 |
+| Villages are won by holding, not by one click | "They put our fire out, we have twelve hours to answer." | 18.2 |
+| The game respects sleep | "I can sleep without waking up poorer." | 18.3 |
+| The land matters | "The mountain is between us, so the real road goes round." | 18.4 |
+| A tribe builds together | "Our shipments built the watchtower." | 18.5 |
+| Money buys looks, never strength | "I support the game and nobody is stronger for it." | 18.6 |
+
+How they connect: seasons give the goal (Fire Shrines); shrines are sites on the map (18.4); taking and holding
+sites reuses the troop-stationing rules; tribe projects make a tribe tougher at holding them; rest hours make
+conquest fair across time zones; badges and cosmetics are what players keep when the season ends.
+
+Prerequisites from `GENRE_REVIEW.md` Part C that should land **before** conquest, because conquest raises the
+stakes: secret battle seed (#6), tame abandoned-village farming and upkeep rebalance (#3, #4), cap on stationed
+support (part of #9; 18.4 adds the cap for sites).
+
+---
+
+### 18.1 Seasons (about nine weeks), won by tribes holding Fire Shrines; badges kept
+
+**How it works**
+- One season = one world (the multi-world setup already gives each world its own server and database; the
+  lobby lists "Season 3 · week 4 of 9"). At the end the world turns **read-only** (a Hall of Fame page: final
+  tribe ranking, player ranking, shrine history) and a new world opens with a fresh map. **Nothing that gives
+  power carries over.** Only badges (and cosmetics, 18.6) do.
+- Season length is **real time**, 63 days (9 weeks), for the normal speed-1 world. A faster world has the same
+  phases scaled by its speed, like every other duration. The owner can pick 56 or 70 days in config.
+- **Phases** (days counted from world start):
+
+| Days | Phase | What is different |
+|---|---|---|
+| 0–13 | **Kindling** | Normal game. No shrines. Tribes form. Beginner protection as today. |
+| 14–20 | **Embers** | The Fire Shrines wake on the map with a stone-and-militia garrison. Tribes may take them, but they score nothing yet. This week is for fighting over positions. |
+| 21–41 | **Blaze I** | Held shrines score. Each shrine-hour counts ×1. |
+| 42–55 | **Blaze II** | Each shrine-hour counts ×2. Comebacks are still possible. |
+| 56–62 | **Last Light** | Each shrine-hour counts ×3. At the end of day 62 the season is over. |
+
+- **Fire Shrines** are map sites (18.4) with fixed spots, laid out from the world seed: one **Great Fire** at the
+  empty centre and **eight shrines** on two rings (4 inner, 4 outer). The Great Fire is worth 3 points per hour
+  held, each other shrine 1. The rings sit inside the area that newcomers settle (the expanding layout's disc
+  has radius about `8 + sqrt(players × 150 / π)`, so ring radii 35 and 85 are inside the settled area once
+  about 120 players have joined). No shrine is on a mountain or lake, and no village is placed within 4 tiles.
+- **Holding**: a tribe holds a shrine while it has troops stationed there and no other tribe has beaten them
+  out (rules in 18.4). A tribe's score only grows by hours held; there is no "capture the flag at the last
+  second" jump, so sniping at the last minute is worth almost nothing.
+- **Score**: every hour, each held shrine adds `points × phase multiplier` to its tribe. To keep one
+  super-tribe from running away, the tribe's hourly gain is multiplied by `1 − 0.07 × (shrines held − 1)`
+  (never below 0.6). Holding 5 shrines pays about 3.6 times one shrine, not 5 times.
+- **Winner**: highest score at the end of day 62. Ties go to the tribe with more shrine-hours in Last Light. The
+  top 3 tribes are named. Alliances do not share a win: only the tribe wins (the allies can still be named in
+  the Hall of Fame).
+- **Joining late**: new accounts can enter until day 45 (`SEASON_JOIN_CLOSES_DAY`); after that the world is
+  closed to newcomers and the lobby points them to the next season's sign-up (opens 7 days before the end).
+- **Badges** live on the **account** (lobby database `account_badges`), not in the world, so they follow the
+  player into every later season. They give no power, only a mark on the profile and in tribe member lists:
+
+| Badge | Earned by |
+|---|---|
+| Season Winner / Runner-up / Third | Member of a top-3 tribe at the end, in that tribe for at least 14 days, and active (signed in 3+ days in the last 14) |
+| Shrine Keeper | Had troops stationed at a shrine for 24+ hours in total |
+| Great Fire Keeper | The same at the Great Fire |
+| First Strike | Own tribe took a shrine first in the season |
+| Pathfinder's Mark, Wall of the Season, Raid Leader | Top 3 players of the season by scouting / defences won / loot (from the existing statistics, §16) |
+| Veteran I–V | Seasons finished with the account (a season counts after day 21 with a village) |
+| Pioneer | Played in season 1 (can never be earned again, so it stays rare) |
+
+**Why it is fair**
+- Everyone starts level on the same day in a fresh world; badges cannot be bought and give no stats.
+- The "14 days in the tribe" and "active" rules stop people joining the winner on day 60 for a badge.
+- The soft cap on hourly gain and the late multipliers keep the race open into the last week.
+- Players who join late (day 40) still get a world that lasts 3 more weeks and a normal beginner start.
+
+**Rough numbers for `config.ts`**
+`SEASON_DAYS` 63, `SEASON_KINDLING_DAYS` 14, `SEASON_SCORING_START_DAY` 21, `SEASON_MULTIPLIERS` `[{day 21, ×1}, {day 42, ×2}, {day 56, ×3}]`,
+`SEASON_JOIN_CLOSES_DAY` 45, `SHRINE_RING_RADII` `[35, 85]`, `SHRINE_COUNT_PER_RING` 4, `SHRINE_POINTS_PER_HOUR` 1,
+`GREAT_FIRE_POINTS_PER_HOUR` 3, `SHRINE_SPREAD_PENALTY` 0.07, `SHRINE_SPREAD_FLOOR` 0.6,
+`BADGE_MIN_TRIBE_DAYS` 14, `BADGE_MIN_ACTIVE_DAYS` 3.
+
+**What it needs**
+- Engine: `season.ts` (phase for a given day, score per hour, multiplier, ranking and tie-break), shrine placement from the seed; all pure and tested.
+- Server: a `season` row on the world (start time, phase), an hourly score tick that catches up lazily like `settleVillage` (so downtime loses nothing), `tribe_season_score` table, a read-only mode flag that makes every write route answer 403 after the end, a `final results` snapshot, and a signed call to the lobby that writes badges (lobby verifies the world's key; an operator CLI command can also grant or revoke a badge).
+- Lobby: `account_badges` table, badge list on `/lobby/api/me`, world list shows season phase and week.
+- Web: season banner (phase, week, countdown), shrine markers and a score board on the map and in the Tribe tab, Hall of Fame page, badge row on the profile.
+- Security: the score tick has no user input; badge writes need the world key; the read-only flag is checked in one place.
+
+**Size: L** (M for engine + server score and phases, plus M for lobby badges + Hall of Fame + web).
+
+**Open questions for the owner**
+1. 63 days, or 56 / 70? 9 weeks was your wording ("8–10").
+2. Should a tribe be able to win early (e.g. hold 6 of 9 shrines for 7 days in a row)? I suggest **no**: a fixed finish keeps everyone playing and keeps the world schedule predictable.
+3. Should allies be allowed to win together (a shared top place)? I suggest no.
+4. Should the season world stay open to look at forever, or be deleted after 30 days to save server cost?
+5. Do you want a small head-start for veterans (for example a different village name colour)? I suggest only looks, never stats.
+
+---
+
+### 18.2 Taking villages: put out the fire, then hold it
+
+**How it works**
+Every village has a **Hearth**, drawn as the campfire in the middle of the town square. A hearth is **lit** or **out**.
+A village changes owner in two steps:
+
+1. **Strike.** An attack that contains **Chieftains** and wins the battle (every defender dead) puts the hearth
+   out, if at least `need` Chieftains survive. `need` is 1 for a village under 4,000 points, 2 from 4,000, 3
+   from 8,000 (a fully built village is about 10,000). The surviving Chieftains do not go home: they stay
+   at the cold hearth as the first occupiers. Losses from the battle follow the normal rules (§7). The Chieftain
+   is a weak fighter (attack 0, defence 10), so he needs an escort.
+2. **Hold.** From the moment the hearth is out, the attacker must keep **occupiers** (their own troops stationed
+   at the village, same rule as support, arriving as a new mission `occupy`) of at least `HOLD_MIN_POPULATION`
+   (150 population) in the village. The **hold clock** starts at 12 hours (6 for abandoned villages) and runs
+   only while enough occupiers are there. When it reaches zero the village changes owner.
+
+While the hearth is out, the owner can still fight and can still send support. What changes in the cold village:
+**nothing is produced, nothing new can be trained, and the village is not shown as safe on the map** (a cold
+village has a grey ring and a thin line of smoke). Orders already in the queues carry on.
+
+**How the owner (and friends) fight back**
+- Any battle at the cold village is a normal battle between the occupiers and the attackers on the owner's side
+  (the owner's other villages and tribe-mates' support). **If the occupiers fall under 150 population, the clock
+  stops; if they are all dead, the hearth relights at once** and the claim ends. If they stay under 150 for 2 hours
+  in a row the claim also fails and the remaining occupiers are sent home.
+- Every member of the owner's tribe sees an alert "Hearth out at <village>" at the moment of the strike, plus the
+  hold clock on the Tribe alerts list (the clock is also visible to the attacker, so both sides see the same time).
+- A third player can also attack the occupiers; if they destroy them and bring a Chieftain they start their own
+  claim. Otherwise the village is simply relit.
+
+**When the clock ends**
+- The village changes owner. Buildings and stock stay, except the **Wall and Banner Hall go back to level 0**
+  and the village starts with a fresh protection: **no new Strike for 24 hours** (`STRIKE_LOCK_HOURS`). Normal
+  attacks (raids) are still possible.
+- Build, train and research queues carry on for the new owner (this is the existing rule in §3).
+- The occupiers **move in**: they become the village's own troops, up to its population cap (extra ones go
+  home on a return movement). Their food is paid by the new village, not by the old home.
+- The old owner's troops and the support of others that were still inside are sent home.
+- Points move to the new owner at once (the ranking already adds up all of a player's villages).
+
+**Abandoned villages**: the same two steps but the hold is only 6 hours and needs 1 Chieftain at any tier. This
+is the safest way to get a second village and gives the abandoned villages a new purpose. (They start at the
+state a new player village has; their growth is kept.)
+
+**Owning several villages**
+- A player can own up to `VILLAGE_LIMIT_BASE (1) + highest Banner Hall level` villages. The Banner Hall (max level 4 in this
+  proposal, one level more than in `BALANCE.md`) is built once; the limit therefore tops out at **5 villages**.
+- A new village is named "<name>'s village 2" until renamed. Everything that is "per village" (queues, ranks, population,
+  Market) already exists per village. The web top bar already has a "current village" switch for this.
+
+**Why it is fair**
+- It costs a lot (gold-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
+  event, not a click. The hold gives the defender **a fixed window to answer** that both sides can see.
+- Big villages need more Chieftains, so a player cannot snowball by taking everything at the top of the ranking.
+- **A player's last village cannot be struck** (`LAST_VILLAGE_SAFE`). Nobody is wiped out and nobody has to quit. They can
+  still be raided. (Open question 3.)
+- The attacker's hold force is far from home and exposed, which is what lets a smaller tribe win a defence.
+- New owners get a 24-hour lock, so a village cannot be flipped back and forth in a night.
+- Beginner protection still blocks Strikes. Accounts that share a connection cannot attack each other (existing
+  guard), and tribe-mates cannot strike each other (existing `isAttackForbidden`), so villages cannot be "given" by
+  fake conquests inside a tribe or household. Add: the same attacker cannot take more than 2 villages from the same
+  defender per season (`PAIR_CONQUEST_CAP`).
+
+**Rough numbers for `config.ts`**
+
+| Name | Value | Meaning |
+|---|---|---|
+| `BANNER_HALL` | max level 4; requires Town Hall 10, Drillyard 3, Market 3, Storehouse 8 (lower than `BALANCE.md`, see questions); cost level 1 about 8,000 of each of wood/food/iron + 300 gold, ×1.35 per level; build time about 20 h | The building that allows more villages and trains Chieftains |
+| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; upkeep 2; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
+| `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
+| `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
+| `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
+| `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
+| `VILLAGE_LIMIT_BASE` | 1 | Plus Banner Hall level |
+| `PAIR_CONQUEST_CAP` | 2 per season | Per attacker–defender pair |
+
+**What it needs**
+- Engine: `hearth.ts` (`checkStrike`, `applyStrike`, `holdClock`, `checkOccupy`, `applyOwnerChange` including move-in and wall/hall reset), `Chieftain` unit, `Banner Hall` building, `VillageState.hearth` (`lit | out`, `claimBy`, `outAt`, `holdEndsAt`, `underSince`), changes in `resolveBattle` (count Chieftains among survivors) and in `checkSend` (new mission `occupy`, villages limit). All pure, with tests for every transition, ties and exact-time ends.
+- Server: new `claims` table (village, claimant, `ends_at`, `under_since`); the movement processor already works in time order, so claim ends become due events in the same pass (settled lazily, not on a timer); owner change in one transaction (village row, movements and stationed troops cleaned up, tribe alerts, reports for both sides: "Hearth out", "Village taken", "Village lost", "Claim failed"); live update events. Every endpoint with a test (strike, occupy, recall during hold, battle at a cold village, owner change, limit reached, last village, lock, pair cap, banned and shared-connection accounts).
+- Web: cold-village look (grey, smoke) on the map and in the village view, "Occupy" in the send dialog, hold clock on both sides, a village list or switcher for up to 5, reports.
+- Security: gate in `SECURITY_ROADMAP.md` §4 per route; follow §2 movement timing (no cancelling an occupy after the Strike landed except the normal 2-minute cancel before arrival); occupiers' food and population checked on move-in.
+
+**Size: L.** Cheapest path: first only abandoned villages (engine + server + web, M), then players (second M: alerts, last-village rule, pair cap, lock).
+
+**Open questions for the owner**
+1. Is the **Chieftain** name final? (It is generic English; the toy chieftain figures already exist on the map.)
+2. `BALANCE.md` wanted Town Hall 15 / Drillyard 6 / Market 5 / Storehouse 14 for the Banner Hall; that is probably day 25+ for a good player, which is late for a nine-week season with shrines waking on day 14. I propose the lower numbers above; they need a `npm run sim` run to check the pace (first second village around day 14–20 for a focused player).
+3. Should the **last village** be safe (my suggestion), or should a player be able to lose everything and start over with a new village (as abandoned-village rules already allow)?
+4. Should the 12-hour hold be shorter on faster worlds only by speed (my suggestion), or fixed in real time?
+5. Move-in of occupiers: good as proposed, or should they always go home and the new owner re-supply?
+
+---
+
+### 18.3 Daily rest hours
+
+**How it works**
+- Each player picks **one daily rest window** of fixed length `REST_HOURS` (8) by choosing the start hour in
+  their own time zone (the client sends the zone name; the server stores the start hour in UTC and recomputes
+  with the zone's rules, so daylight-saving changes do not shift sleep by an hour twice).
+- While the window is open, for **all villages of that player**:
+  1. **Defence +25%** in battles (`REST_DEFENCE_BONUS`), on top of wall and ranks.
+  2. **The hold clock stops** on their villages if the Hearth is out (18.2). A strike at 23:00 lands, but the
+     owner has the full 12 awake hours before the village can change hands.
+  3. A small moon icon shows on their villages on the map ("Resting"); the exact hours are private.
+- Real-time hours, not scaled by world speed (people sleep in real time). This is the same rule as the 2-minute cancel window.
+
+**Abuse limits (so it is a blanket, not a shield)**
+- **Change at most once every 7 days**; the new window starts 24 hours after the change (`REST_CHANGE_DELAY_HOURS`). First pick is free.
+- **Fixed length.** No longer window, no second window.
+- **Sending a hostile order ends your rest for that window.** If a resting player sends an attack, scout or
+  Strike at another *player* (raids on abandoned villages and support do not count), the rest effect is off for
+  the rest of that window **and for the next 4 hours** (`REST_AGGRESSOR_LOCK_HOURS`). So nobody can strike at
+  22:55 and sit behind the bonus at 23:00.
+- Only the **owner's side** benefits: **troops that occupy another player's village never get the rest bonus**,
+  and a resting owner's support troops in somebody else's village don't carry it either.
+- The defence bonus is a bonus, not immunity. A very strong attack still wins. Stacking is not possible
+  (one `REST_DEFENCE_BONUS` per battle however many villages or support).
+- **A hold cannot be stretched for ever by resting.** Rest pauses the clock for at most `REST_HOLD_PAUSE_MAX_HOURS`
+  (36) in total per claim; after that the clock runs through the owner's rest too. Abandonment rules (30 days
+  idle, §17) are unchanged.
+- Staff can see the hours; they appear in the audit log when changed. Tribe leaders cannot see them (privacy).
+
+**Why it is fair**
+- Everyone gets the same 8 hours, same bonus, same limits, whatever the time zone. The bonus is moderate, so a
+  tribe in a time zone that is awake while their enemy sleeps gets an edge, but not a free win.
+- The aggressor lock removes the one trick that would turn the bonus into a weapon.
+- Not everyone is protected at once (the window is per player), so a tribe cannot declare "the night is safe".
+  The only way to make a whole tribe safe at the same time is for all of them to be asleep at the same time, which
+  also makes the tribe unable to react. That is a real, honest trade-off.
+
+**Rough numbers for `config.ts`**
+`REST_HOURS` 8, `REST_DEFENCE_BONUS` 0.25, `REST_CHANGE_COOLDOWN_DAYS` 7, `REST_CHANGE_DELAY_HOURS` 24,
+`REST_AGGRESSOR_LOCK_HOURS` 4, `REST_HOLD_PAUSE_MAX_HOURS` 36.
+
+**What it needs**
+- Engine: `rest.ts` (`isResting(rest, t)`, `restBonus`), an optional `defenceMultiplier` input in `resolveBattle`, hold-clock pause support (18.2).
+- Server: columns on the player (`rest_start_min_utc`, `rest_zone`, `rest_changed_at`, `rest_pending_json`, `last_hostile_at`), `GET/PUT /api/me/rest` (own account only, validated zone name from a fixed list, once per 7 days), the hostile order stamps `last_hostile_at`, battle uses the bonus at arrival time (judged at the arrival time like other timing rules, §11). Tests: every limit above, daylight-saving edges, owner change during a window.
+- Web: a Settings section "Rest hours" (a clock picker with the next window shown in local time), the "Resting" moon icon on the map and village view, defence bonus listed in the battle report.
+- Security: own account only; no way to read another player's hours; rate limit on the endpoint; the time zone list is a closed list, never free text.
+
+**Size: M.**
+
+**Open questions for the owner**
+1. 8 hours and +25%? A shorter window (6 h) with +35% is possible. I suggest 8 / 25% as the first try.
+2. Should the rest also pause **building** or **production**? I suggest no: nothing about rest should change the economy.
+3. Should the moon icon be public? I suggest yes (the enemy only learns "now", not the hours).
+4. Should the first window be forced at sign-up (a nice onboarding step) or skippable?
+
+---
+
+### 18.4 Terrain changes travel speed; neutral sites tribes can hold
+
+#### Terrain and travel
+
+**How it works**
+- Terrain stops being decoration (§6). The engine's `terrainAt(x, y, seed)` already gives grass, forest, hills,
+  mountain and lake, and the client already draws it. Travel time is now the **sum of the time spent on each
+  tile along the straight line** between the two villages (sampled every 1 tile):
+  `travelMs = Σ over samples of ( 1 tile / (unitSpeed × terrainFactor) )`, using the slowest unit's total time.
+  No path-finding: it is cheap, repeatable and the client can preview it exactly.
+- Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
+
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (outrider, knight) | Pathfinder | Carriers (shipments) |
+|---|---|---|---|---|
+| Grass | 1.00 | 1.00 | 1.00 | 1.00 |
+| Forest | 0.85 | 0.70 | 0.95 | 0.80 |
+| Hills | 0.80 | 0.60 | 0.90 | 0.65 |
+| Mountain | 0.55 | 0.40 | 0.75 | 0.40 |
+| Lake | 0.45 | 0.35 | 0.70 | 0.30 |
+
+- A trip is never longer than `TERRAIN_MAX_SLOWDOWN` (2.2×) its flat-ground time, so one lake cannot make two
+  neighbours unreachable. Villages are never placed on mountain or lake (§6), but armies cross them slowly.
+- **Ranks never change speed** (owner rule, §15). Tribe roads (18.5) and Waymarks (below) are the only
+  things that reduce the penalty.
+- The send dialog shows both times (flat and with terrain) and the map draws the straight line with a
+  coloured stretch where the terrain is slow, so players see why a trip is longer.
+- Every rule that uses travel time (cancel returns, called-off checks, scout arrival, shipments, tribe alerts, the
+  sandbox) goes through one function `travelTimeMs`, so the change is in one place. The return trip is
+  the same stretch back (same total).
+
+**Why it is fair**
+- The map is the same for everyone and is visible in advance; nobody has hidden terrain.
+- It rewards scouting the map and picking where to settle, but it cannot stop anyone from reaching anyone.
+- It is a small average change: grass is exactly as before.
+
+**Numbers for `config.ts`:** `TERRAIN_SPEED` (the table), `TERRAIN_SAMPLE_STEP` 1, `TERRAIN_MAX_SLOWDOWN` 2.2.
+
+**What it needs:** Engine: `travelTimeMs` takes the seed and families (and keeps a fast path for a straight
+all-grass line); tests for sums, caps and reversal. Server: pass the world seed (already stored); movements keep their
+stored `arrive_at`, so nothing in flight changes when the rule ships. Web: preview in the send and shipment forms; legend on the map.
+**Size: M.** Run `npm run sim` afterwards (travel time changes every raid cycle).
+
+#### Neutral sites tribes can hold
+
+**How it works**
+- **Sites** are fixed tiles on the map, placed from the world seed, belonging to nobody at the start. Each has
+  a small **militia** (like an abandoned village, but only defence) so the first capture is a fight.
+- A site is **held by a tribe** while at least one of that tribe's members has troops stationed there.
+  To take a site, **attack it** (the normal attack mission): the garrison fights the attackers by the usual
+  battle rules (§7). If the attackers win, every defender dies, and the attackers' survivors stay as the
+  new garrison (same "stationed" rule as support in §12; the troops still cost their home village food).
+  If they lose, they die as usual. After a capture the site cannot be attacked for `SITE_CALM_HOURS` (2),
+  so the new holders can bring help.
+- **Support to a site** is allowed only from the holding tribe's members and its allies, like support to a
+  village. A **cap** keeps it from becoming an unbeatable pile: a site takes at most `SITE_MAX_POPULATION`
+  population stationed (Great Fire 5,000, others 3,000); further troops are refused. (The same cap idea should
+  later apply to villages, see `GENRE_REVIEW.md` B-7.)
+- Players can recall their troops at any time. If the last troop leaves, the site becomes neutral again.
+- Households that share a connection cannot attack, support or be stationed against each other (existing guard).
+- Sites are not villages: they have no resources, no loot, no points, and they cannot be struck with Chieftains.
+- **Site types** (all with a toy-style stone-and-fire sprite, drawn in the existing diorama style):
+
+| Site | Count | Effect for the holding tribe |
+|---|---|---|
+| **Fire Shrine** | 8 (+ the Great Fire) in a season | Season score (18.1). No other effect. |
+| **Waymark** | 6 | Terrain penalty is **halved** within 12 tiles of the Waymark for the holding tribe's own troops and shipments (their trips through that area are faster). Never for enemies. |
+| **Lookout** | 6 | The holders see every enemy **army march that passes within 20 tiles** of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. |
+
+  Waymarks and Lookouts are placed outside the shrine rings, between tribes' likely homes, with spacing of at
+  least 15 tiles. They persist all season.
+- The holder's side can use a Waymark's help only inside its radius, and only on movements that **start after**
+  the capture (movements in flight keep the times they were sent with, like everything else).
+
+**Why it is fair**
+- A site is won only by beating the troops on it. Nothing is given for free: the holders pay food for
+  their stationed troops and carry the risk of the next attack.
+- The cap and the 2-hour calm keep a site from being impossible to take or to hold.
+- Waymark and Lookout give **information and logistics, not damage**, so holding them is useful but never
+  decides a battle. No site gives resources, so sites cannot be "farmed" for an economy.
+
+**Rough numbers for `config.ts`**
+`SITE_MILITIA` (garrison per type, in population: Fire Shrine 600, Great Fire 1,500, Waymark 300, Lookout 300, mixed pikemen / shieldbearers),
+`SITE_MAX_POPULATION` (3,000 / Great Fire 5,000), `SITE_CALM_HOURS` 2, `WAYMARK_RADIUS` 12, `WAYMARK_PENALTY_FACTOR` 0.5,
+`LOOKOUT_RADIUS` 20, `SITE_MIN_SPACING` 15, `SITE_NO_VILLAGE_RADIUS` 4.
+
+**What it needs**
+- Engine: `sites.ts` (placement from the seed, `SiteState` with garrison contingents, holder = tribe of the contingents), reuse of `resolveBattle` with a site as defender (walls 0, flat militia), line-vs-circle test for Lookout and Waymark.
+- Server: `sites` table, `site_garrison` (reusing the stationed table with a site id), `POST` is the existing send route with a site as target (new target kind, validated); reports for attack on a site; a site list route; hourly score tick (18.1).
+- Web: site markers on the map with holder tag, site panel (garrison, Send attack/support), Lookout sightings in the Tribe tab.
+- Security: target is checked as a site id on the server; support only for tribe/ally; every amount validated; stationed cap enforced inside the send transaction.
+
+**Size: L for sites, M for terrain** (terrain first, sites with seasons).
+
+**Open questions for the owner**
+1. Are the three site types enough, or do you want one more kind (for example a **Ford** that removes lake slowdown for its tribe)?
+2. Should sites be reachable by **tribes of any size**? Suggest yes, with the tribe cap of 30 as the natural limit.
+3. Terrain: OK to make the average trip about 12% slower? If not, we raise all unit speeds by 12% in the same commit.
+
+---
+
+### 18.5 Tribe projects funded by shipments
+
+**How it works**
+- A tribe has a **Tribe Store** (4 resources, cap 1,500,000 each) at a place called the **Seat**: one village chosen by
+  the leader (changeable once every 7 days; it must be a member's village and the owner agrees by choosing it).
+- Members fund the store by **shipping** to the Seat: the shipment form gets "Tribe Store" as a destination.
+  It uses the normal shipment rules (Market gate, carrier capacity, travel time, 5 on the road, cancel
+  window, household guard), so the Seat's location matters and a far-away member's help takes longer. On
+  arrival the cargo goes **into the store, not into the Seat village** (no storage cap overflow, the Seat owner
+  never sees or touches it).
+- Leaders, and members with a new grantable right `projects`, **start a project**. Its cost is paid from the store
+  at once and it completes after a build time (hours, not scaled by anything but world speed). Only one
+  project at a time per tribe; levels one after another like buildings. Cancelling a running project returns 80% to the store (same as village cancel).
+- Visible **ledger**: who sent how much and when (so leaders can see who carries the tribe and who does not).
+- **Projects** (levels 1–3 unless noted; effects are for **all members' villages**):
+
+| Project | Effect | Why this one |
+|---|---|---|
+| **Roads** | Support and shipments **between tribe members' villages** travel 10 / 20 / 30% faster (applied on top of terrain). Not for attacks. | Makes defence and logistics better; does not boost offence. |
+| **Watchtowers** | Tribe alerts show more about incoming attacks: level 1 the army size in rough bands; level 2 the slowest unit's type; level 3 whether a Chieftain is among them. | Information to answer a Strike (18.2). Defenders still cannot see exact armies. |
+| **Ember Wards** | +4 / +8 / +12% defence at **sites the tribe holds** (not villages). | Helps keep shrines without making villages untouchable. |
+| **Tribe Banner** (one level) | Map colours, shapes and a banner flag for the tribe (looks only). | A cheap identity goal for new tribes. |
+
+**Why it is fair**
+- Every effect is **logistics, information or defence at sites**. None raises attack or production, so a rich tribe cannot buy a stronger army.
+- The cost is paid in real resources, shipped by real members with real travel time and exposed to the Market gate.
+- **Per-member cap**: a member can fund at most `PROJECT_DAILY_CAP_PER_MEMBER` (60,000 total) per day, and an account needs `PROJECT_MIN_ACCOUNT_DAYS` (3) of age. So one rich account or a stack of fresh alts cannot buy a project alone, and the ledger shows it.
+- Tribes cannot hoard forever: the store has a cap. Resources in the store cannot be taken out except by starting projects; a disbanded tribe loses the store (nobody can steal it).
+- Members who leave keep their ledger line but not the store (the contribution is a gift to the tribe).
+
+**Rough numbers for `config.ts`**
+`TRIBE_STORE_CAP` 1,500,000; project cost level L total goods `300,000 × 1.8^(L−1)` split evenly over 4 resources (level 1 = 75,000 each, so a 20-member tribe giving about 4% of one day's output each pays it in a day or two); build time `24 h × L` (÷ speed); `PROJECT_DAILY_CAP_PER_MEMBER` 60,000; `PROJECT_MIN_ACCOUNT_DAYS` 3; `SEAT_CHANGE_COOLDOWN_DAYS` 7; effects: `ROADS_SPEED_BONUS [0.10, 0.20, 0.30]`, `EMBER_WARD_DEFENCE [0.04, 0.08, 0.12]`, `WATCHTOWER_LEVELS`.
+(All to be checked with `npm run sim` against real production at day 20–40.)
+
+**What it needs**
+- Engine: `tribe-projects.ts` (cost, time, effect lookups), a `tribeStore` shape, shipment target kind `tribe_store`.
+- Server: tables `tribe_store`, `tribe_project` (running/finished), `tribe_ledger`; Seat set route; shipment resolve branch that credits the store; project start/cancel/finish (lazy, due events); alerts add detail by Watchtower level; roads applied inside the one `travelTimeMs` path.
+- Web: Tribe tab "Projects" page (store bars, current project, ledger, start button), Seat selector, "Tribe Store" in the shipment form, project icons.
+- Security: only leader/`projects` right starts projects; per-member daily cap and account age checked inside the shipment transaction; the store never goes below zero; event log entries; tests for double-spend (two projects started at once).
+
+**Size: M.**
+
+**Open questions for the owner**
+1. Is a **Seat village** the right model, or should shipments go to a "tribe stockpile" with no place on the map (simpler, but then no logistics)? I suggest the Seat.
+2. Do you want projects to give **permanent** effects (my proposal), or effects that need a small upkeep per week?
+3. Which projects do you want first? I suggest Roads and Watchtowers; Ember Wards only when sites exist.
+
+---
+
+### 18.6 Cosmetics-only shop
+
+**How it works**
+- The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or
+  ranking. This is a hard rule: a cosmetic is an **id** (for example `roof.red`) that the client draws; the
+  engine, the battle code and the server's game routes never read it.
+- What can be sold, always inside the Toy Diorama style (owner: no restyle, art stays swappable):
+  1. **Village skins** (roof colours, banner, garden props around the town square; the Town Hall keeps its shape so
+     everybody can still read the game).
+  2. **Map markers** for your villages (flag shapes and colour rings, within the map's colour rules: relation colours stay).
+  3. **Chieftain figures and profile frames** (portrait on the profile and in tribe lists).
+  4. **Tribe look** (extra banner shapes for the tribe, bought by the leader; every member sees it).
+  5. **Report and mail themes** (colours only).
+- **Not for sale, ever:** anything that speeds, strengthens, protects or scores; extra queue slots; resources, gold or
+  troops; village limit; rest-hour changes; protection time. Some looks can only be **earned** (season winner flame
+  frame, Pioneer marker) so they remain a sign of play. Badges (18.1) are never sold.
+- Items belong to the **account** (lobby database `account_items`) so they work in every season. The server of
+  a world only asks the lobby "which cosmetic ids does this account own" (included in the signed entry pass)
+  and the client draws them. Equipped ids are checked against ownership every time.
+- Payment: the lobby creates a checkout with a hosted payment provider (we never see card data); the provider's signed
+  webhook, verified by the lobby, grants the item; the purchase is stored once (idempotent on the provider's id); a refund or
+  chargeback removes the item.
+- **Premium queues today**: the current premium subscription sells a longer build and research queue (5 vs 2). That is a
+  paid speed advantage and does not fit "cosmetics only". My suggestion is to **give 3 slots to everyone, drop the premium queue**
+  and let the shop be pure looks. (Open question 1.)
+
+**Why it is fair**
+- Free and paying players are equal in every number; the only difference is how the game looks. A player cannot buy a win.
+- Earned-only items and badges keep prestige away from the shop.
+- Visual items must stay readable: relation colours on the map (self gold, tribe green, ally blue, NAP purple, enemy red) can never be replaced by a purchase.
+
+**Rough numbers**
+Prices are the owner's call (suggest 1–5 EUR per village skin, 1–3 for markers and frames, bundles for tribes). In
+`config.ts`: only the catalogue ids and `COSMETIC_SLOTS` (one skin, one marker, one frame equipped at a time).
+
+**What it needs**
+- Lobby: `account_items`, `catalogue` file, checkout route, webhook route (signature verified, idempotent, rate limited), `/lobby/api/me` lists items, operator CLI to grant or revoke (support cases).
+- World server: reads owned ids from the entry pass; stores equipped ids per player (`equipped_json`, validated against the pass), exposes them on the public player and village DTOs (ids only).
+- Engine: nothing (must stay untouched; a test that the engine has no import of the catalogue).
+- Web: Shop screen (preview on a real village, 360 px and desktop), equip picker, sprite registry entries (skins are alternative registry entries, the registries already exist), "owned" badge.
+- Legal and money work that is **not** code: payment provider account, VAT, terms, refund policy, age rules; Apple and Google fees if a native app sells these later.
+- Security: webhook signature, replay protection, no client-set prices, no trust in "owned" from the client, items are ids from a closed catalogue.
+
+**Size: M** (L if the art for the first catalogue counts).
+
+**Open questions for the owner**
+1. Drop the premium queue and make queues equal for everyone (my suggestion), or keep it? This is the main decision.
+2. One-off item purchases (simple, my suggestion) or a currency like "sparks" in packs (more flexible, more legal work)?
+3. First catalogue: how many items and who draws them? Each must be in the Toy Diorama style. A first set of about 6 skins, 6 markers and 4 frames is enough.
+4. Sell before the first season ends, or only after the first season is live? I suggest after: cosmetics need players to see them.
+
+---
+
+### 18.7 Suggested build order
+
+Order chosen so each step is useful alone, the risky rules arrive when the safety rules are already there, and
+every step can be undone alone.
+
+| Step | What | Size | Why here |
+|---|---|---|---|
+| 0 | Prerequisites from `GENRE_REVIEW.md`: secret battle seed (#6), tame abandoned farming + upkeep (#3, #4), run `npm run sim` | S | Conquest raises the stakes; fix the economy and the predictable-luck hole first. |
+| 1 | **Terrain travel** (18.4a) | M | Small, self-contained, visible on the map, and changes every travel time, so do it before any other number depends on it. Re-run `npm run sim`. |
+| 2 | **Several villages: Banner Hall, Chieftain, Strike and Hold on abandoned villages only** (18.2, first half) | M | The genre's biggest hole, with only computer-run targets, so no one can be hurt while we learn it. A second village changes the whole game. |
+| 3 | **Rest hours** (18.3) | M | Must exist before players can take villages from each other. |
+| 4 | **Taking player villages** (18.2, second half: alerts, last-village rule, pair cap, lock, move-in) | M | The payoff for tribes and the reason to defend. |
+| 5 | **Sites and Fire Shrines, season clock and score** (18.4b + 18.1 engine/server) | L | The goal of the game. Uses the stationed-troops and battle rules from step 4. |
+| 6 | **Badges + Hall of Fame + lobby season list** (18.1 rest) | M | Needed before the first real season ends, not before it starts. |
+| 7 | **Tribe projects** (18.5) | M | Needs shipments, terrain (roads), sites (wards): last of the rules. |
+| 8 | **Cosmetics shop** (18.6) | M | Independent of the rules; do it when the first season is live and has players to look at it. |
+
+Quick check of the order against the two risks:
+- *"Conquest ships without sleep protection."* No: step 3 is before step 4.
+- *"Seasons without anyone able to fight for shrines."* No: sites reuse step 4's rules and need step 2's village growth.
+
+Every step follows the usual protocol: config numbers first, engine with tests, server routes with tests, security
+gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move up from §18 into the normal sections).
+
+### 18.8 Decisions the owner needs to make first (shortest list)
+
+1. Approve the six parts, or tell me which to drop or change.
+2. Season: 63 days with a fixed end (my suggestion), no early win, no shared win for allies?
+3. Is a player's **last village** safe from Strikes (my suggestion)?
+4. Banner Hall requirements: use the lower ones above (needs a `npm run sim` check)?
+5. Rest: 8 hours and +25%?
+6. Premium queue: drop it and keep the shop cosmetics-only?
+7. Terrain: accept an average trip about 12% slower?
