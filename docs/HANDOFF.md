@@ -5,12 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`6056bbb`): fixed the gaps at the wall corners in `art/scenery.tsx` (`wallItems`, `stoneTower`, `watchtower`,
-`gatePost`). Cause: round L3 towers were a circle smaller than the square corner footprint. Now a square footing fills the
-footprint (flush with plate edge + wall ends), round tower on top with a gallery ring; L1 towers/posts widened to the full
-footprint; towers grow per level (L2 turret, L3 taller). Corner sizes 9/13/16; `sceneViewBox` taller. Not viewed (no
-renderer, python/Bash scripts denied). Very next step: open the village at wall levels 1–3 (360 and 1440 px) and tune.
-Earlier wall (`b4f74cf`), layout (`da2867c`), sprites (`b3a01ba`) also unviewed. Checks passed.
+2026-11-04 (`4488363`): owner screenshot (L3, back corner by gold mine) showed the tower not attaching to the walls: the
+footing (30) was level with the tall back walls, so it read as a flat deck. In `art/scenery.tsx` `wallItems`: corner footing
+now 42 (above wall tops 35), shaft 24, round radius 1.4× half-footprint. Gate towers get the same radius. Not viewed (no
+renderer). Very next step: owner views L3 at 360 and 1440 px; tune footing/shaft or add a parapet on the footing top.
+Earlier wall (`6056bbb`, `b4f74cf`), layout (`da2867c`), sprites (`b3a01ba`) also unviewed. Checks passed.
 
 ## How the owner works (important)
 
