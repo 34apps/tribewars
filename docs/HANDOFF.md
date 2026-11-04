@@ -5,8 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`53da13a`): preview bar moved out of the way: fixed bottom-right on desktop, bottom on phone (hint hidden). Not viewed.
-Next: owner checks whole wall is visible at 360 and 1440 px; move bar elsewhere if still in the way. Checks passed.
+2026-11-04 (`5c44bbd`): owner could not see the preview bar and the top-bar username was cut at ~1730 px. Bar is now portaled into body
+(`.main-village` container-type:size traps fixed children); compact top bar widened to 1919 px. Not viewed. "City cut off at top" = village page
+scrolled slightly (sticky board by design); not changed. Next: owner turns on Design preview, checks bar + top bar at 360/1440/1730 px. Checks passed.
+Earlier (`53da13a`): bar fixed bottom-right on desktop, bottom on phone.
 Earlier (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
 now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
 (`html:has(.app)` overflow hidden, `.app` clipped, compact top bar up to 1599 px). Not viewed (no renderer).
