@@ -4,6 +4,7 @@
 import { useSyncExternalStore } from 'react';
 import { BUILDINGS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
+import type { LandscapeChoice } from '../../art/landscapes.tsx';
 
 const KEY = 'clanfire.designPreview';
 export const PREVIEW_MAX_LEVEL = 20;
@@ -24,7 +25,21 @@ export function previewRange(building: PreviewBuilding): { min: number; max: num
   return building ? { min: 1, max: BUILDINGS[building].maxLevel } : { min: 0, max: PREVIEW_MAX_LEVEL };
 }
 
-let state: { on: boolean; level: number; building: PreviewBuilding } = { on: readOn(), level: 1, building: null };
+/** Landscape outside the walls: the current one (default until the owner chooses) or one of three options A, B, C. */
+export type { LandscapeChoice };
+export const LANDSCAPE_CHOICES: readonly { id: LandscapeChoice; label: string }[] = [
+  { id: 'current', label: 'Current (default)' },
+  { id: 'A', label: 'A · River valley' },
+  { id: 'B', label: 'B · Farmland' },
+  { id: 'C', label: 'C · Forest and hills' },
+];
+
+let state: { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice } = {
+  on: readOn(),
+  level: 1,
+  building: null,
+  landscape: 'current',
+};
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
@@ -55,7 +70,13 @@ export function setPreviewBuilding(building: PreviewBuilding): void {
   emit();
 }
 
-export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding } {
+export function setPreviewLandscape(landscape: LandscapeChoice): void {
+  if (landscape === state.landscape) return;
+  state = { ...state, landscape };
+  emit();
+}
+
+export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice } {
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);

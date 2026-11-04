@@ -24,6 +24,8 @@ import {
   wallLook,
 } from '../../art/buildings.ts';
 import type { Box, Stage, WallLook } from '../../art/buildings.ts';
+import { villageTier } from '../../art/landscape.tsx';
+import { LandscapeLayer, type LandscapeChoice } from '../../art/landscapes.tsx';
 import { Ground, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
@@ -33,6 +35,7 @@ import { useGame } from '../../game.ts';
 
 type ViewBox = { x: number; y: number; w: number; h: number };
 const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vault: 'Vault' };
+const MAX_LEVELS = Object.fromEntries(BUILDING_IDS.map((id) => [id, BUILDINGS[id].maxLevel])) as Record<BuildingId, number>;
 
 /** What the scene draws for one building. */
 interface ArtState {
@@ -98,12 +101,21 @@ function SceneSprite({
 export const SceneArt = memo(function SceneArt({
   arts,
   vb,
+  tier,
+  wide,
+  landscape,
   selected,
   onBox,
   onPick,
 }: {
   arts: Arts;
   vb: ViewBox;
+  /** Village size 0..3: how much landscape grows outside the walls. */
+  tier: number;
+  /** Desktop (paints a wide margin round the scene) or phone (a small one). */
+  wide: boolean;
+  /** Which landscape to draw (design preview picks; everyone else gets 'current'). */
+  landscape: LandscapeChoice;
   selected: BuildingId | null;
   onBox: (id: BuildingId, box: Box) => void;
   /** Click on a building's drawing (pixel-accurate; the overlay labels are the keyboard targets). */
@@ -146,6 +158,7 @@ export const SceneArt = memo(function SceneArt({
       <defs>
         <SceneryDefs />
       </defs>
+      <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
       <Ground built={BUILDING_IDS.filter((id) => arts[id].stage > 0 || arts[id].queued).join(',')} />
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
@@ -252,7 +265,7 @@ export function VillageScene({
    * Design preview. building = null ("All buildings"): the wall alone (every other building unbuilt, no queue work) at the
    * chosen level. building = an id: that building alone at min(level, its max); the others keep their real levels and work.
    */
-  levelOverride?: { building: BuildingId | null; level: number } | null;
+  levelOverride?: { building: BuildingId | null; level: number; landscape: LandscapeChoice } | null;
 }) {
   const { live, now } = useGame();
   const ov = levelOverride ?? null;
@@ -294,6 +307,9 @@ export function VillageScene({
     });
     return out;
   }, [artKey]);
+
+  // Landscape outside the walls grows with the village (whole-village progress or the wall's, whichever is further).
+  const tier = villageTier(levels, MAX_LEVELS);
 
   // One fixed scene box for every wall level: it always holds the headroom for the grandest towers and flags, so the
   // village never changes size or position when the wall is upgraded and nothing is clipped at the top.
@@ -419,7 +435,7 @@ export function VillageScene({
       onPointerCancel={onPointerUp}
     >
       <div className="vv-stage" style={stageStyle}>
-        <SceneArt arts={arts} vb={vb} selected={selected} onBox={onBox} onPick={pick} />
+        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'current'} selected={selected} onBox={onBox} onPick={pick} />
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);

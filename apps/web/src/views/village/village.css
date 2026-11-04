@@ -155,6 +155,11 @@ th[scope='row'] {
   overflow: hidden;
 }
 
+/* Desktop: the landscape round the village paints past the scene's box, over the board (the board clips it). */
+.vv-fit.vv-view {
+  overflow: visible;
+}
+
 .vv-fit {
   flex: 1;
   min-height: 0;
@@ -199,6 +204,8 @@ th[scope='row'] {
   width: 100%;
   height: 100%;
   display: block;
+  /* The landscape layer paints outside the scene's box; the view or the board clips it. */
+  overflow: visible;
 }
 
 .vv-hits {

@@ -7,11 +7,14 @@ import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { buildingStage, wallLook } from '../../art/buildings.ts';
 import {
+  LANDSCAPE_CHOICES,
   previewRange,
   setDesignPreview,
   setPreviewBuilding,
+  setPreviewLandscape,
   setPreviewLevel,
   useDesignPreview,
+  type LandscapeChoice,
   type PreviewBuilding,
 } from './designPreviewState.ts';
 
@@ -60,7 +63,7 @@ function changeLevels(id: BuildingId): number[] {
 }
 
 export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
-  const { level, building } = useDesignPreview();
+  const { level, building, landscape } = useDesignPreview();
   const [playing, setPlaying] = useState(false);
   const { max } = previewRange(building);
   const subject: BuildingId = building ?? 'wall';
@@ -106,6 +109,21 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
           ))}
         </select>
         <button type="button" className="btn btn-small" style={btn} onClick={() => setDesignPreview(false)}>Exit preview</button>
+      </div>
+      <div style={row}>
+        <label htmlFor="dp-landscape" style={{ flex: '0 0 auto' }}>Landscape</label>
+        <select
+          id="dp-landscape"
+          style={select}
+          value={landscape}
+          onChange={(e) => setPreviewLandscape(e.target.value as LandscapeChoice)}
+        >
+          {LANDSCAPE_CHOICES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={row}>
         <button type="button" className="btn btn-small" style={btn} aria-label="Previous level" onClick={() => { setPlaying(false); setPreviewLevel(level - 1); }}>−</button>

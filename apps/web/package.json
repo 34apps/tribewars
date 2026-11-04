@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
-    "type-check": "tsc -p tsconfig.json"
+    "type-check": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test \"test/**/*.test.tsx\""
   },
   "dependencies": {
     "@clanfire/engine": "*",
