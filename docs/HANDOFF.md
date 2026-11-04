@@ -5,10 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`beb5c59`): read-only review written to `docs/GENRE_REVIEW.md` (genre table, engine health, top 10 fixes). No code changed. Checks passed.
-Findings: no multiple villages/conquest, siege or world end; abandoned-village farming is risk-free; battle luck predictable; docs stale (GAME_DESIGN §14/§15, BALANCE numbers).
-Next: owner picks from Part C; suggested first batch = #3 farming limit, #4 upkeep 0.25, #6 secret battle seed. Earlier open items (Security 1B screens, fonts, lobby ban) still stand.
-Stray `Pasted ... textClipping`, `.claude/launch.json` are uncommitted on purpose.
+2026-11-04 (`df0f9b3`): balance simulator `scripts/sim/balance.ts` (`npm run sim`, 4 styles, 30 days, real engine, fixed seeds) + 1-day test `packages/engine/test/sim.test.ts` + `docs/BALANCE.md` §6. No game numbers changed. Checks passed.
+Left: the 30-day run itself was never executed (runner denied `npm run sim`/tsx), so §6 has no results or number suggestions yet. Policies are untuned guesses.
+Very next step: run `npm run sim`, paste flags + day 7/14/30 rows into BALANCE.md §6, add suggested config.ts changes (not applied).
+Uncommitted owner WIP left alone: `apps/web/src/art/*`, `VillageScene.tsx`, `.claude/launch.json`, `Pasted ... textClipping`.
+Earlier (`beb5c59`): genre review `docs/GENRE_REVIEW.md`; owner picks from Part C (first batch #3, #4, #6).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
