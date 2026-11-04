@@ -16,7 +16,7 @@ const replyFile = join(stateDir, "last-reply.md");
 const USAGE = `Usage: npm run agent -- [--budget <usd>] [--model <id>] [--effort low|medium|high|xhigh|max] [--max-turns <n>] [--continue] "task text"
 Every run starts a fresh conversation and gets the previous final answer (.agent/last-reply.md) as context.
 --continue resumes the full previous conversation instead (rare; costs more tokens).
-Defaults: --model claude-sonnet-5-5  --budget 10  --max-turns 40
+Defaults: --model claude-sonnet-5-5  --effort medium  --budget 10  --max-turns 40
 Needs ANTHROPIC_API_KEY in the environment (billed to that key, never to a subscription).`;
 
 function fail(msg: string): never {
@@ -29,7 +29,7 @@ let maxUsd = 10;
 let maxTurns = 40;
 let resume = false;
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
-let effort: (typeof EFFORTS)[number] | undefined; // unset = the model's default
+let effort: (typeof EFFORTS)[number] = "medium"; // owner default; pass --effort to change
 const words: string[] = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
@@ -111,7 +111,7 @@ if (resume && existsSync(sessionFile)) {
 }
 if (resume && !resumeId) console.log("No previous conversation to continue; starting a fresh one.");
 console.log(resumeId ? `Continuing previous conversation (${resumeId}).` : "Starting a fresh conversation.");
-console.log(`Model ${model}, effort ${effort ?? "default"}, budget $${maxUsd}.`);
+console.log(`Model ${model}, effort ${effort}, budget $${maxUsd}.`);
 
 // Cheap memory: the previous final answer, capped, goes in front of the task.
 const REPLY_MAX_LINES = 60;
@@ -140,7 +140,7 @@ try {
       model,
       maxTurns,
       maxBudgetUsd: maxUsd,
-      ...(effort ? { effort } : {}),
+      effort,
       settingSources: ["project"], // loads CLAUDE.md / AGENTS.md; not user or local settings
       systemPrompt: { type: "preset", preset: "claude_code", append: APPEND },
       permissionMode: "dontAsk", // anything not allowed is denied, never prompts

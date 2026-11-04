@@ -86,7 +86,7 @@ Long write-ups go under `docs/` and get grepped.
 repo root, loads `CLAUDE.md`/`AGENTS.md` (project settings only), streams text and tool names, then
 prints status, turns, duration and cost per model. It **bills the `ANTHROPIC_API_KEY`** in the
 environment (required; no subscription fallback). Flags: `--model` (default `claude-sonnet-5-5`),
-`--budget <usd>` (default 10, hard stop; `--max-usd` still works), `--max-turns` (default 40), `--effort low|medium|high|xhigh|max` (default: the model's own; medium is cheaper, high/xhigh for hard tasks). Safety: no prompts (`dontAsk`); allowed
+`--budget <usd>` (default 10, hard stop; `--max-usd` still works), `--max-turns` (default 40), `--effort low|medium|high|xhigh|max` (default medium; high/xhigh for hard tasks). Safety: no prompts (`dontAsk`); allowed
 are Read/Glob/Grep/Edit/Write and Bash only for `npm run check|build|build:preview`, `npm test*`,
 `git status|diff|log`, plus `git add`, `git commit` and `git push origin main` (this repo only; force
 push, other branches/remotes, reset, checkout, rebase, clean, rm, installs, curl and web tools are

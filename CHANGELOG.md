@@ -3,6 +3,7 @@
 Rolling, human-readable history of notable changes, newest first. Lets any AI session (or person)
 pick up context without the old conversation. Full detail is in `git log`. See `AGENTS.md` for the rule.
 
+- 2026-11-04 — Agent runner: `--effort` now defaults to medium (owner).
 - 2026-11-04 — Agent runner: new `--effort low|medium|high|xhigh|max` flag (passed to the Agent SDK; unset = model default); the run header prints model, effort and budget.
 - 2026-11-04 (`87d3695`) — Village view switched back to **Toy Diorama** (owner): original approved toy building sprites, toy scenery (plate, trees, rocks, bold paths, palisade → stone → tower wall, closed gate), new toy Market stalls; layout unchanged (Town Hall centre at scale 1.15). Style B art kept in `design/style-directions/village-v2/B-painted-miniature/`. Check + builds pass; viewed in the preview.
 - 2026-11-04 (`1b56264`) — Village wall gate closed and locked (wooden double doors, iron bands, crossbar, padlock), ~30% bigger, at every wall stage (owner). Toy Diorama village proposal (same layout, original toy sprites, toy scenery, new toy Market) saved in `design/style-directions/village-v2/D-toy-proposal/` for owner approval; to apply it copy its `art/buildings.ts`, `art/scenery.tsx`, `art/buildings/*.svg` over `apps/web/src/art/`.
