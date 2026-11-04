@@ -20,7 +20,30 @@ export interface DepthItem {
 
 // ---- Trees and rocks (shapes from the artboard) -----------------------------------------------------------------
 
-type Prop = 'pine' | 'round' | 'rock';
+type Prop = 'pine' | 'round' | 'rock' | 'stump' | 'logs';
+
+/** A cut tree: round top with growth rings, in warm wood tones. */
+const stump = (
+  <g stroke="#2B211C" strokeWidth="1.4" strokeLinejoin="round">
+    <ellipse cx="3" cy="2" rx="10" ry="4.5" fill="#2B211C" opacity="0.22" stroke="none" />
+    <path d="M-7 -8V0A7 3.2 0 0 0 7 0V-8Z" fill="#B07D46" />
+    <ellipse cx="0" cy="-8" rx="7" ry="3.2" fill="#E4B67C" />
+    <ellipse cx="0" cy="-8" rx="3.2" ry="1.4" fill="none" stroke="#B07D46" strokeWidth="1" />
+  </g>
+);
+
+/** A stack of cut logs: two on the ground, one on top. */
+const logs = (
+  <g stroke="#2B211C" strokeWidth="1.4" strokeLinejoin="round">
+    <ellipse cx="3" cy="3" rx="22" ry="6" fill="#2B211C" opacity="0.22" stroke="none" />
+    <path d="M-18 -2H4V6H-18Z" fill="#B07D46" />
+    <ellipse cx="4" cy="2" rx="3" ry="4" fill="#E4B67C" />
+    <path d="M-4 -2H18V6H-4Z" fill="#B07D46" />
+    <ellipse cx="18" cy="2" rx="3" ry="4" fill="#E4B67C" />
+    <path d="M-12 -10H10V-2H-12Z" fill="#8E6539" />
+    <ellipse cx="10" cy="-6" rx="3" ry="4" fill="#E4B67C" />
+  </g>
+);
 
 const pine = (u: string) => (
   <>
@@ -91,51 +114,61 @@ export function SceneryDefs() {
       <g id="vt-pine">{pine('vtp')}</g>
       <g id="vt-round">{round('vtr')}</g>
       <g id="vt-rock">{rock('vtk')}</g>
+      <g id="vt-stump">{stump}</g>
+      <g id="vt-logs">{logs}</g>
     </>
   );
 }
 
 const PROPS: [Prop, number, number, number][] = [
-  ['pine', 302.6, 74.3, 0.85],
-  ['round', 271.4, 87.3, 0.8],
-  ['pine', 326.0, 88.6, 0.85],
-  ['pine', 235.0, 102.9, 0.85],
-  ['pine', 336.4, 109.4, 0.85],
-  ['pine', 266.2, 110.7, 0.85],
-  ['round', 378.0, 114.6, 0.8],
-  ['round', 229.8, 118.5, 0.8],
-  ['pine', 198.6, 123.7, 0.85],
-  ['pine', 388.4, 132.8, 0.85],
-  ['pine', 216.8, 138.0, 0.85],
-  ['round', 146.6, 147.1, 0.8],
-  ['pine', 164.8, 161.4, 0.85],
-  ['round', 482.0, 161.4, 0.8],
-  ['pine', 131.0, 162.7, 0.85],
-  ['pine', 97.2, 169.2, 0.85],
-  ['round', 144.0, 177.0, 0.8],
-  ['pine', 121.9, 179.0, 0.85],
-  ['rock', 445.6, 184.8, 0.7],
-  ['rock', 463.8, 193.9, 0.9],
-  ['round', 29.6, 200.4, 0.8],
-  ['rock', 567.8, 201.7, 0.8],
-  ['pine', 146.6, 227.7, 0.75],
-  ['rock', 518.4, 229.0, 1.1],
-  ['pine', 92.0, 231.6, 0.85],
-  ['rock', 404.0, 231.6, 0.7],
-  ['pine', 118.0, 234.2, 0.85],
-  ['pine', 138.8, 247.2, 0.75],
-  ['round', 125.8, 248.5, 0.8],
-  ['rock', 466.4, 257.6, 0.9],
-  ['round', 404.0, 283.6, 0.75],
-  ['round', 216.8, 288.8, 0.75],
-  ['pine', 235.0, 303.1, 0.75],
+  // Lumber grove (west): a dense stand of pines behind the camp, thinning out toward the square.
+  ['pine', 36, 150, 0.9],
+  ['pine', 62, 132, 0.85],
+  ['pine', 40, 186, 0.95],
+  ['pine', 70, 160, 0.85],
+  ['round', 34, 222, 0.85],
+  ['pine', 62, 236, 0.9],
+  ['pine', 96, 246, 0.8],
+  ['round', 128, 262, 0.75],
+  ['pine', 112, 128, 0.8],
+  // What the loggers leave behind: stumps and a log stack beside the camp.
+  ['stump', 62, 205, 1],
+  ['stump', 78, 222, 0.9],
+  ['stump', 140, 190, 0.9],
+  ['logs', 150, 212, 1],
+  // Iron outcrop (east): big boulders behind the mine, rubble around it.
+  ['rock', 548, 132, 1.3],
+  ['rock', 570, 160, 1.1],
+  ['rock', 555, 196, 1.4],
+  ['rock', 530, 226, 0.9],
+  ['rock', 470, 150, 0.8],
+  ['rock', 548, 250, 0.8],
+  ['rock', 566, 226, 0.7],
+  // Gold seam (south): a few boulders around the shaft.
+  ['rock', 352, 318, 0.9],
+  ['rock', 250, 322, 0.8],
+  ['rock', 366, 300, 0.6],
+  // A few lone trees in the quarters, never touching a building.
+  ['round', 215, 88, 0.8],
+  ['pine', 392, 92, 0.85],
+  ['round', 345, 62, 0.75],
+  ['pine', 340, 232, 0.7],
+  ['round', 258, 160, 0.65],
+  // Outside the wall: sparse woods in the four ground corners.
+  ['pine', 40, 56, 0.85],
+  ['pine', 78, 82, 0.85],
+  ['round', 52, 100, 0.8],
+  ['pine', 548, 66, 0.85],
+  ['round', 520, 90, 0.8],
+  ['pine', 570, 98, 0.85],
+  ['pine', 38, 318, 0.85],
+  ['round', 74, 334, 0.8],
+  ['pine', 560, 318, 0.85],
+  ['round', 518, 338, 0.8],
 ];
 
 export function sceneryItems(): DepthItem[] {
-  // Trees and rocks stay outside the ring wall (it is bigger than the area they were placed around).
-  const outside = ([, x, y]: (typeof PROPS)[number]) =>
-    Math.abs(x - WALL_RING.cx) / WALL_RING.hw + Math.abs(y - WALL_RING.cy) / WALL_RING.hh > 1.1;
-  return PROPS.filter(outside).map(([kind, x, y, s], i) => ({
+  return PROPS.map(([kind, x, y, s], i) => ({
     key: `t${i}`,
     depth: y,
     node: <use href={`#vt-${kind}`} transform={`translate(${x} ${y}) scale(${s})`} />,

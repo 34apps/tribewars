@@ -149,9 +149,9 @@ export const SceneArt = memo(function SceneArt({
       ))}
       <g className="vv-life" aria-hidden="true">
         {[
-          [323, 52, 0],
-          [440, 78, 1.1],
-          [208, 80, 0.6],
+          [320, 53, 0],
+          [450, 83, 1.1],
+          [188, 85, 0.6],
         ].map(([x, y, d]) => (
           <g key={`sm-${x}`} transform={`translate(${x} ${y})`}>
             {[0, 1, 2].map((i) => (
