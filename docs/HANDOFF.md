@@ -1,16 +1,16 @@
 # Handoff — Clanfire
 
-Written 2026-11-04 (HEAD `7bdc1e7`+). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-04 (HEAD `676d342`+). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
 ## Last run
 
-2026-11-04 (`4c548c5`, `7bdc1e7`): world map villages drawn 1.3x and ruins at the same scale (were 0.7x, so
-big ruins looked smaller than a new player's hamlet); beginner-protection dome kept inside its tile.
-Terrain, trees and labels unchanged (the owner rejected the bigger `e471d92` change, reverted in `bc0ce1f`).
+2026-11-04 (`149035b`, `676d342`): abandoned villages now have 6 pictures, one ruined version per growth
+stage (`abandoned-stage-1..6.svg`, same point steps as player villages), replacing the 3 old ruins. Earlier today:
+villages drawn 1.3x, ruins same scale, protection dome fits its tile (`4c548c5`, `7bdc1e7`).
 Checks passed, build + preview build ok; map viewed in the preview at 1440 px.
-Very next step: owner looks at the map on their Mac; tune `VILLAGE_DRAW_SCALE` / `DOME_SCALE` in
-`apps/web/src/map/render.ts` if needed rather than redesigning.
+Very next step: owner looks at the map on their Mac. Design generator scripts for the abandoned sprites lived only
+in a cloud scratchpad; edit the SVGs in `design/sprites/map/` directly and copy them to `apps/web/src/art/map/`.
 
 ## How the owner works (important)
 
