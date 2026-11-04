@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`4488363`): owner screenshot (L3, back corner by gold mine) showed the tower not attaching to the walls: the
-footing (30) was level with the tall back walls, so it read as a flat deck. In `art/scenery.tsx` `wallItems`: corner footing
-now 42 (above wall tops 35), shaft 24, round radius 1.4× half-footprint. Gate towers get the same radius. Not viewed (no
-renderer). Very next step: owner views L3 at 360 and 1440 px; tune footing/shaft or add a parapet on the footing top.
-Earlier wall (`6056bbb`, `b4f74cf`), layout (`da2867c`), sprites (`b3a01ba`) also unviewed. Checks passed.
+2026-11-04 (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
+now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
+(`html:has(.app)` overflow hidden, `.app` clipped, compact top bar up to 1599 px). Not viewed (no renderer).
+Very next step: owner opens Settings → Design preview, drags the slider to 20, screenshots the corner tower at 360 and 1440 px,
+and confirms no sideways scroll. Desktop village page scroll with sticky board is by design. Checks passed.
 
 ## How the owner works (important)
 
