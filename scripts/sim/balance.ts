@@ -32,6 +32,8 @@ import {
   emptyResources,
   emptyUnits,
   hashSeed,
+  repeatRaidLootFactor,
+  repeatRaidWindowMs,
   resolveBattle,
   settleVillage,
   storageCap,
@@ -191,6 +193,8 @@ interface Target {
   state: VillageState;
   tier: number;
   distance: number;
+  /** Arrival times of won raids (the repeat-raid rule looks at the last day). */
+  hits: number[];
 }
 
 type Event =
@@ -221,7 +225,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   let v = createPlayerVillage(0);
-  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance]) => ({ state: createNpcVillage(tier, 0), tier, distance }));
+  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance]) => ({ state: createNpcVillage(tier, 0), tier, distance, hits: [] }));
   const events: Event[] = [];
   const errors: string[] = [];
   const firstBuilding: StyleResult['firstBuilding'] = {};
@@ -253,6 +257,12 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     return tg.state;
   };
 
+  /** Loot share a raid arriving at `at` gets from target i (same rule as the server). */
+  const lootFactorAt = (i: number, at: number): number => {
+    const w = repeatRaidWindowMs(s);
+    return repeatRaidLootFactor((targets[i] as Target).hits.filter((h) => h > at - w && h <= at).length);
+  };
+
   const resolveEvent = (e: Event): void => {
     if (e.kind === 'return') {
       v = applyReturn(v, e.survivors, e.loot, e.at, s);
@@ -260,7 +270,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
     const tg = targets[e.target] as Target;
     const def0 = targetAt(e.target, e.at);
-    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed });
+    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: lootFactorAt(e.target, e.at) });
+    if (r.attackerWon) tg.hits.push(e.at);
     tg.state = applyBattleToDefender(def0, r);
     v = applyAttackerLosses(settleVillage(v, e.at, s), r.attackerLosses);
     const stat = raidByTier[tg.tier - 1] as RaidStat;
@@ -372,7 +383,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       const travel = travelTimeMs({ x: 0, y: 0 }, { x: tg.distance, y: 0 }, send, s);
       // Preview with a different seed: a player judges by scouting, not by knowing the luck.
       const arrival = settleVillage(st, t + travel, s);
-      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 999, raidSeq) });
+      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 999, raidSeq), lootFactor: lootFactorAt(i, t + travel) });
       if (!(pre.attackPower > pre.defensePower * 1.15)) continue;
       let cap = 0;
       for (const u of UNIT_IDS) cap += (send[u] - pre.attackerLosses[u]) * UNITS[u].carry;
@@ -615,7 +626,7 @@ export function formatReport(rep: SimReport, full = false): string {
     '## Model',
     '',
     '- One village per style, 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.',
-    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons never refill (engine rule), so repeated raids get easier.',
+    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons refill 20% of full per 6 h step and repeat raids by the same player within 24 h carry 50% less each (engine rules since step 0).',
     '- Loot and losses valued wood+food+iron+10xgold. Troop upkeep, travel idle time and Drillyard ranks are not valued.',
     '- Enemy raiders hit each village on days 7, 14, 21, 28 (4 x day raiders) to give defence something to do.',
     '- "Dead period" = no building, 10-unit batch or research possible; "pile-up" = resource at >= 90% storage.',

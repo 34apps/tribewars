@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hashSeed, resolveBattle, settleVillage, travelTimeMs, totalUnits, type MovementDto } from '@clanfire/engine';
+import { battleSeed, resolveBattle, settleVillage, travelTimeMs, totalUnits, type MovementDto } from '@clanfire/engine';
 import { battleOf, errorOf, ok } from './helpers.ts';
 import { addMember, formPact, myTribe } from './tribe-helpers.ts';
 import {
@@ -28,7 +28,7 @@ function replay(app: App, hostVillageId: number, movement: MovementDto, attacker
     attackerUnits,
     defender: settleVillage(host.state, movement.arriveAt, app.ctx.settings),
     support: app.ctx.store.stationedAt(hostVillageId).map((c) => c.units),
-    seed: hashSeed(movement.id, movement.arriveAt),
+    seed: battleSeed(app.ctx.store.battleSalt(), movement.id, movement.arriveAt),
   });
 }
 

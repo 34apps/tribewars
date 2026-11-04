@@ -7,6 +7,7 @@ import {
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
   NPC_GARRISON_PER_HALL,
+  NPC_GARRISON_REFILL_SHARE,
   NPC_GROWTH_ORDER,
   NPC_MAX_LEVEL,
   NPC_MAX_STEPS_PER_SETTLE,
@@ -139,7 +140,16 @@ function applyNpcStep(v: VillageState, n: number): boolean {
       break;
     }
   }
-  // Abandoned villages never recruit: the garrison they have stays as it is (owner, 2026-11-03).
+  // Abandoned villages recruit slowly (owner, 2026-11-04; before that the garrison never refilled): each step brings back a
+  // share of the full garrison for the current Town Hall level, at least one unit of each missing type.
+  const full = fullGarrison(v.buildings.hall);
+  for (const u of UNIT_IDS) {
+    const missing = full[u] - v.troops[u];
+    if (missing > 0) {
+      v.troops[u] += Math.min(missing, Math.max(1, Math.ceil(full[u] * NPC_GARRISON_REFILL_SHARE)));
+      changed = true;
+    }
+  }
   return changed;
 }
 

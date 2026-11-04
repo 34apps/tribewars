@@ -12,6 +12,17 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
+/**
+ * Seed of one battle's luck: the movement, its arrival time and a secret `salt` that only the server knows
+ * (several 32-bit words, stored in the world database, never sent to a client). Without the salt nobody can compute
+ * luck in advance, not even with the engine code, the movement id and the arrival time. A report shows a battle's
+ * luck, but with a 128-bit salt that cannot be searched back to the secret.
+ */
+export function battleSeed(salt: readonly number[], movementId: number, arriveAt: number): number {
+  // arriveAt is a ms timestamp above 2^32; hashSeed keeps the low 32 bits only, so mix both halves in.
+  return hashSeed(...salt, movementId, arriveAt, Math.floor(arriveAt / 4294967296));
+}
+
 /** Stable 32-bit mix (murmur3-style) of integer parts, order sensitive. Returns an unsigned 32-bit int. */
 export function hashSeed(...parts: number[]): number {
   let h = 0x9e3779b9;

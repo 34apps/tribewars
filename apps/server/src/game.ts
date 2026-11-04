@@ -48,6 +48,9 @@ import {
   emptyResources,
   emptyUnits,
   hashSeed,
+  battleSeed,
+  repeatRaidLootFactor,
+  repeatRaidWindowMs,
   isAttackForbidden,
   isSupportAllowed,
   normalizeUnits,
@@ -142,6 +145,9 @@ const floorResources = (r: Resources): Resources => {
 const coords = (v: { x: number; y: number }): string => `(${v.x}|${v.y})`;
 
 export class GameService {
+  /** Secret battle salt, read from the database on first battle. */
+  private salt: number[] | null = null;
+
   constructor(
     private readonly store: Store,
     readonly settings: WorldSettings,
@@ -281,6 +287,13 @@ export class GameService {
     // Support stationed at the target defends with the village's own troops.
     const contingents = this.store.stationedAt(target.id);
 
+    // Repeat raids on an abandoned village by the same player carry less each time (docs/GAME_DESIGN.md section 5).
+    const raidWindow = repeatRaidWindowMs(s);
+    const lootFactor =
+      target.ownerId === null && origin.ownerId !== null
+        ? repeatRaidLootFactor(this.store.countNpcRaids(origin.ownerId, target.id, at - raidWindow, at))
+        : 1;
+
     const result = resolveBattle({
       attackerUnits: m.units,
       defender: targetState,
@@ -289,8 +302,12 @@ export class GameService {
       attackerRanks: m.ranks ?? undefined,
       defenderRanks: targetState.ranks,
       supportRanks: contingents.map((c) => c.ranks ?? undefined),
-      seed: hashSeed(m.id, at),
+      seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
+      lootFactor,
     });
+    if (result.attackerWon && target.ownerId === null && origin.ownerId !== null) {
+      this.store.recordNpcRaid(origin.ownerId, target.id, at, at - raidWindow);
+    }
     const newTarget = applyBattleToDefender(targetState, result);
     const newOrigin = applyAttackerLosses(originState, result.attackerLosses);
     this.store.saveVillage(target.id, newTarget, villagePoints(newTarget));
@@ -318,6 +335,7 @@ export class GameService {
       supportLosses: contingents.length > 0 ? sumUnits(supportLosses) : null,
       wallLevel: targetState.buildings.wall,
       loot: result.loot,
+      ...(lootFactor < 1 ? { lootShare: Math.round(lootFactor * 100) } : {}),
     };
     if (origin.ownerId !== null) {
       // An army wiped out sees nothing of the defence.

@@ -148,17 +148,17 @@ describe('settleVillage', () => {
   it('keeps food upkeep constant while units train (queued units already eat)', () => {
     const v0 = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: 500, iron: 1000 } });
     const v = applyTrain(v0, 'pikeman', 10, 0, S1); // pays 300 food; 270 s per unit
-    // net food = 40 - 10 per hour from the moment of queuing, however many have finished
+    // net food = 40 - 2.5 per hour from the moment of queuing, however many have finished
     const mid = settleVillage(v, 1_350_000, S1);
     assert.equal(mid.troops.pikeman, 5);
-    assert.ok(near(mid.resources.food, 200 + (30 * 1350) / 3600));
+    assert.ok(near(mid.resources.food, 200 + (37.5 * 1350) / 3600));
     const end = settleVillage(v, 2 * HOUR, S1);
     assert.equal(end.troops.pikeman, 10);
-    assert.ok(near(end.resources.food, 200 + 30 * 2));
+    assert.ok(near(end.resources.food, 200 + 37.5 * 2));
   });
 
   it('clamps food at zero when upkeep exceeds production', () => {
-    const v = village({ troops: { pikeman: 100 }, resources: { food: 10 } });
+    const v = village({ troops: { pikeman: 200 }, resources: { food: 10 } }); // eats 50 an hour, farm makes 40
     const out = settleVillage(v, 5 * HOUR, S1);
     assert.equal(out.resources.food, 0);
   });
@@ -214,16 +214,32 @@ describe('abandoned village growth', () => {
     assert.equal(fast.npc?.growthSteps, 1);
   });
 
-  it('never recruits: the garrison stays as it is while buildings keep growing', () => {
-    const v = startOf();
+  it('recruits slowly: each step brings back a share of the full garrison, never above it', () => {
+    const v = startOf(); // Town Hall 1: full garrison 4 pikemen + 2 shieldbearers; a step adds ceil(20%) = 1 of each
     v.troops.pikeman = 1;
     v.troops.guard = 0;
-    const five = settleVillage(v, 30 * HOUR, S1);
-    assert.equal(five.buildings.hall, 2); // growth still happens
-    assert.equal(five.troops.pikeman, 1);
-    assert.equal(five.troops.guard, 0);
-    const full = settleVillage(startOf(), 30 * HOUR, S1);
-    assert.equal(full.troops.pikeman, 4); // what it had stays
+    const one = settleVillage(v, 6 * HOUR, S1);
+    assert.equal(one.troops.pikeman, 2);
+    assert.equal(one.troops.guard, 1);
+    const three = settleVillage(v, 18 * HOUR, S1);
+    assert.equal(three.troops.pikeman, 4);
+    assert.equal(three.troops.guard, 2);
+    assert.equal(settleVillage(startOf(), 18 * HOUR, S1).troops.pikeman, 4); // already full: nothing added
+    // The Town Hall step raises the full garrison (8 + 4 at hall 2) and refilling continues towards it.
+    const grown = settleVillage(startOf(), 30 * HOUR, S1);
+    assert.equal(grown.buildings.hall, 2);
+    assert.equal(grown.troops.pikeman, 6);
+    assert.equal(grown.troops.guard, 3);
+  });
+
+  it('keeps recruiting after a fully grown village lost its garrison', () => {
+    const grown = settleVillage(startOf(5), 1000 * HOUR, S1);
+    assert.equal(grown.troops.pikeman, 40); // Town Hall 10: 4 per level
+    grown.troops.pikeman = 0;
+    grown.troops.guard = 0;
+    const later = settleVillage(grown, 1012 * HOUR, S1); // two more steps: 20% of 40 = 8 and 20% of 20 = 4 each
+    assert.equal(later.troops.pikeman, 16);
+    assert.equal(later.troops.guard, 8);
   });
 
   it('stops at the max level and is cheap even when thousands of steps are overdue', () => {
@@ -234,7 +250,8 @@ describe('abandoned village growth', () => {
     for (const b of ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'] as const) {
       assert.equal(out.buildings[b], 10);
     }
-    assert.deepEqual(out.troops, v.troops); // no recruiting
+    assert.equal(out.troops.pikeman, 40); // refilled to the full garrison of Town Hall 10
+    assert.equal(out.troops.guard, 20);
     assert.equal(out.npc?.growthSteps, Math.floor((1e6 * HOUR) / (6 * HOUR)));
     // Nothing else grows once everything is maxed.
     assert.equal(out.buildings.barracks, 0);
@@ -404,10 +421,10 @@ describe('checkTrain / applyTrain', () => {
     expectGameError(() => applyTrain(level1, 'pathfinder', 1, 0, S1), 'requirements_not_met');
   });
 
-  it('Pathfinders eat 1 food per hour, counted while queued', () => {
-    const v = village({ buildings: { barracks: 2, storehouse: 10 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
-    assert.ok(checkTrain(v, 'pathfinder', 40, 0, S1).ok); // farm level 1 = 40 food per hour
-    assert.ok(!checkTrain(v, 'pathfinder', 41, 0, S1).ok);
+  it('Pathfinders eat 0.25 food per hour, counted while queued', () => {
+    const v = village({ buildings: { barracks: 2, storehouse: 10, farm: 0 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
+    assert.ok(checkTrain(v, 'pathfinder', 20, 0, S1).ok); // farm level 0 = 5 food per hour
+    assert.ok(!checkTrain(v, 'pathfinder', 21, 0, S1).ok);
   });
 
   it('refuses invalid ids and counts with invalid_input', () => {
@@ -432,24 +449,26 @@ describe('checkTrain / applyTrain', () => {
   });
 
   it('refuses with not_enough_food when upkeep would exceed farm production', () => {
-    const v = barracksVillage(); // farm level 1 = 40 food per hour, pikeman eats 1
-    assert.ok(checkTrain(v, 'pikeman', 40, 0, S1).ok);
-    const c = checkTrain(v, 'pikeman', 41, 0, S1);
+    // A pikeman eats 0.25 food per hour (0.25 per population point). From Farm level 1 up the population room binds
+    // before food does, so food is the limit only while the Farm is level 0 (5 food per hour = 20 pikemen).
+    const stock = { wood: 50_000, food: 5000, iron: 50_000 };
+    const v = village({ buildings: { barracks: 1, storehouse: 10, farm: 0 }, resources: stock });
+    assert.ok(checkTrain(v, 'pikeman', 20, 0, S1).ok);
+    const c = checkTrain(v, 'pikeman', 21, 0, S1);
     assert.ok(!c.ok && c.reason === 'not_enough_food');
     // Queued units already eat, so a second batch counts them.
-    const queued = applyTrain(v, 'pikeman', 40, 0, S1);
+    const queued = applyTrain(v, 'pikeman', 20, 0, S1);
     const more = checkTrain(queued, 'pikeman', 1, 0, S1);
     assert.ok(!more.ok && more.reason === 'not_enough_food');
     // Units at home and away count too.
-    const home = village({ buildings: { barracks: 1, storehouse: 10 }, troops: { pikeman: 30 }, away: { pikeman: 10 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
+    const home = village({ buildings: { barracks: 1, storehouse: 10, farm: 0 }, troops: { pikeman: 15 }, away: { pikeman: 5 }, resources: stock });
     assert.ok(!checkTrain(home, 'pikeman', 1, 0, S1).ok);
     // World speed scales both production and upkeep, so the limit is unchanged.
-    assert.ok(checkTrain(v, 'pikeman', 40, 0, S10).ok);
-    assert.ok(!checkTrain(v, 'pikeman', 41, 0, S10).ok);
-    // A better farm lifts the limit.
-    const farm = village({ buildings: { barracks: 1, storehouse: 10, farm: 5 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
-    assert.ok(checkTrain(farm, 'pikeman', 70, 0, S1).ok); // farm 5 = round(40*1.17^4) = 75
-    assert.ok(!checkTrain(farm, 'pikeman', 76, 0, S1).ok);
+    assert.ok(checkTrain(v, 'pikeman', 20, 0, S10).ok);
+    assert.ok(!checkTrain(v, 'pikeman', 21, 0, S10).ok);
+    // At Farm level 1 food would feed 160 pikemen, more than the population room: that limit shows first.
+    const farm = checkTrain(village({ buildings: { barracks: 1, storehouse: 10 }, resources: stock }), 'pikeman', 160, 0, S1);
+    assert.ok(!farm.ok && farm.reason === 'population_full');
   });
 
   it('refuses with queue_full beyond MAX_TRAIN_QUEUE batches per building', () => {

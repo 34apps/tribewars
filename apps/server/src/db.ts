@@ -135,6 +135,16 @@ ${reportsTable('reports')}
 CREATE INDEX IF NOT EXISTS idx_reports_player ON reports(player_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_unread ON reports(player_id) WHERE read = 0;
 
+-- ---- Won raids on abandoned villages: the loot of repeat raids by the same player shrinks (docs/GAME_DESIGN.md section 5).
+-- Old rows are pruned when new ones are written.
+CREATE TABLE IF NOT EXISTS npc_raids (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_npc_raids_pair ON npc_raids(player_id, village_id, at);
+
 -- ---- Support troops (docs/GAME_DESIGN.md section 12). One contingent per (home, host) pair; new arrivals merge.
 -- The units stay in the owner's home village "away" count while stationed.
 CREATE TABLE IF NOT EXISTS stationed (
@@ -423,9 +433,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '1f486ecf7694c069';
+export const SCHEMA_FINGERPRINT = '8662c665c3896365';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

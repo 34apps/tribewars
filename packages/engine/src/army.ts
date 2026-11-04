@@ -4,6 +4,9 @@ import {
   BATTLE_LOSS_EXPONENT,
   BATTLE_LUCK,
   MAX_UNIT_COUNT,
+  NPC_REPEAT_LOOT_FACTOR,
+  NPC_REPEAT_LOOT_FLOOR,
+  NPC_REPEAT_WINDOW_HOURS,
   SCOUT_DEFENSE_FACTOR,
   SCOUT_LOSS_EXPONENT,
   SCOUT_UNIT,
@@ -156,6 +159,20 @@ export function waterFillLoot(capacity: number, stock: Resources): Resources {
   return loot;
 }
 
+/** How far back (ms) earlier raids by the same player on one abandoned village still count; shorter on a fast world. */
+export function repeatRaidWindowMs(s: WorldSettings): number {
+  return (NPC_REPEAT_WINDOW_HOURS * MS_PER_HOUR) / s.speed;
+}
+
+/**
+ * Loot share for the next raid on an abandoned village after `earlierHits` won raids by the same player inside
+ * NPC_REPEAT_WINDOW_HOURS: NPC_REPEAT_LOOT_FACTOR ^ hits, never below NPC_REPEAT_LOOT_FLOOR.
+ */
+export function repeatRaidLootFactor(earlierHits: number): number {
+  const hits = Number.isFinite(earlierHits) && earlierHits > 0 ? Math.floor(earlierHits) : 0;
+  return Math.max(NPC_REPEAT_LOOT_FLOOR, Math.pow(NPC_REPEAT_LOOT_FACTOR, hits));
+}
+
 /** Deterministic battle for a seed. Does not change any village; see applyBattleToDefender. */
 export function resolveBattle(input: BattleInput): BattleResult {
   const { defender } = input;
@@ -210,6 +227,8 @@ export function resolveBattle(input: BattleInput): BattleResult {
     }
     let capacity = 0;
     for (const u of UNIT_IDS) capacity += attackerSurvivors[u] * UNITS[u].carry;
+    const lootFactor = input.lootFactor === undefined ? 1 : Math.min(1, Math.max(0, input.lootFactor));
+    capacity = Math.floor(capacity * lootFactor);
     const hidden = vaultProtection(defender);
     const lootable = emptyResources();
     for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden);

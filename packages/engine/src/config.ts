@@ -77,6 +77,8 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 export const POP_BUILDING_GROWTH = 1.1;
 /** Population per troop type (separate from food upkeep). */
 export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1 };
+/** Food a troop eats per hour for each population point it takes (owner decision 2026-11-04: 0.25; was 1 per unit). Unit upkeep = POP_PER_UNIT * this. */
+export const FOOD_UPKEEP_PER_POP = 0.25;
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 150;
@@ -104,6 +106,18 @@ export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
 export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'];
 /** Full garrison = per-unit count * Town Hall level. */
 export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
+/**
+ * Abandoned villages slowly recruit again: every growth step (npcGrowthHours) brings back this share of the full
+ * garrison (rounded up, at least one unit of each missing type) until it is full.
+ */
+export const NPC_GARRISON_REFILL_SHARE = 0.2;
+/**
+ * Repeat raids on one abandoned village by the same player: within NPC_REPEAT_WINDOW_HOURS (divided by world speed)
+ * each earlier won raid multiplies what the next army can carry off by NPC_REPEAT_LOOT_FACTOR, never below NPC_REPEAT_LOOT_FLOOR.
+ */
+export const NPC_REPEAT_WINDOW_HOURS = 24;
+export const NPC_REPEAT_LOOT_FACTOR = 0.5;
+export const NPC_REPEAT_LOOT_FLOOR = 0.1;
 /** Growth steps applied per settle call at most; older steps are skipped (village is maxed by then anyway). */
 export const NPC_MAX_STEPS_PER_SETTLE = 500;
 
@@ -269,7 +283,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 45,
     speed: 6,
     carry: 15,
-    upkeep: 1,
+    upkeep: POP_PER_UNIT.pikeman * FOOD_UPKEEP_PER_POP,
     cost: res(50, 30, 25),
     trainTimeSec: 270,
     building: 'barracks',
@@ -285,7 +299,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 25,
     speed: 5,
     carry: 10,
-    upkeep: 1,
+    upkeep: POP_PER_UNIT.guard * FOOD_UPKEEP_PER_POP,
     cost: res(40, 35, 70),
     trainTimeSec: 330,
     building: 'barracks',
@@ -302,7 +316,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 5,
     speed: 6,
     carry: 30,
-    upkeep: 1,
+    upkeep: POP_PER_UNIT.raider * FOOD_UPKEEP_PER_POP,
     cost: res(70, 40, 50),
     trainTimeSec: 300,
     building: 'barracks',
@@ -318,7 +332,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 15,
     speed: 14,
     carry: 70,
-    upkeep: 3,
+    upkeep: POP_PER_UNIT.outrider * FOOD_UPKEEP_PER_POP,
     cost: res(120, 90, 150),
     trainTimeSec: 600,
     building: 'stables',
@@ -335,7 +349,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 50,
     speed: 10,
     carry: 40,
-    upkeep: 4,
+    upkeep: POP_PER_UNIT.knight * FOOD_UPKEEP_PER_POP,
     cost: res(200, 150, 250, 30),
     trainTimeSec: 1320,
     building: 'stables',
@@ -352,7 +366,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 1,
     speed: 18,
     carry: 0,
-    upkeep: 1,
+    upkeep: POP_PER_UNIT.pathfinder * FOOD_UPKEEP_PER_POP,
     cost: res(35, 30, 25),
     trainTimeSec: 180,
     building: 'barracks',

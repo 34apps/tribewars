@@ -1,0 +1,135 @@
+
+> clanfire@0.1.0 sim
+> tsx scripts/sim/balance.ts
+
+# Balance simulation — 30 days, speed 1, seed 20261104
+
+## builder
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 81 | 815 | 711 | 100 | 21 (hall 3 farm 4 barr 0) | 251 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 2 | 75 | 1488 | 1181 | 100 | 31 (hall 3 farm 8 barr 0) | 470 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 3 | 16 | 2578 | 1583 | 197 | 42 (hall 5 farm 8 barr 1) | 619 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 5 | 23 | 4230 | 3454 | 869 | 57 (hall 5 farm 12 barr 1) | 1249 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 7 | 1244 | 8594 | 5007 | 1951 | 75 (hall 8 farm 12 barr 1) | 1858 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 10 | 10 | 13617 | 10711 | 3841 | 92 (hall 12 farm 16 barr 1) | 3217 | 86 | 860 | 2580 | 0 | 0 | 0 (0) |
+| 14 | 1039 | 2379 | 17126 | 7365 | 97 (hall 13 farm 16 barr 1) | 3583 | 422 | 4220 | 12660 | 0 | 0 | 0 (0) |
+| 21 | 20319 | 0 | 20319 | 18422 | 99 (hall 14 farm 16 barr 1) | 3797 | 422 | 4220 | 12660 | 0 | 0 | 0 (0) |
+| 30 | 20319 | 23 | 20319 | 20319 | 99 (hall 14 farm 16 barr 1) | 3797 | 360 | 3600 | 10800 | 0 | 0 | 0 (0) |
+
+Trained: pikeman 757. Longest stretch with nothing worthwhile to do: 372.2 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders broke through, lost 3240; d14: 56 raiders held; d21: 84 raiders held; d28: 112 raiders held.
+
+## raider
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 96 | 880 | 548 | 100 | 11 (hall 3 farm 3 barr 1) | 108 | 13 | 130 | 390 | 0 | 0 | 0 (0) |
+| 2 | 86 | 978 | 843 | 100 | 11 (hall 3 farm 3 barr 1) | 108 | 30 | 300 | 900 | 0 | 0 | 0 (0) |
+| 3 | 76 | 858 | 985 | 100 | 11 (hall 3 farm 3 barr 1) | 108 | 47 | 470 | 1410 | 0 | 0 | 0 (0) |
+| 5 | 259 | 28 | 1538 | 100 | 17 (hall 3 farm 4 barr 2) | 172 | 62 | 620 | 1860 | 0 | 0 | 0 (0) |
+| 7 | 1538 | 18 | 1538 | 100 | 17 (hall 3 farm 4 barr 2) | 172 | 64 | 640 | 1920 | 0 | 0 | 0 (0) |
+| 10 | 708 | 30 | 1538 | 26 | 17 (hall 3 farm 4 barr 2) | 172 | 55 | 700 | 1538 | 0 | 0 | 0 (0) |
+| 14 | 1538 | 18 | 1538 | 26 | 17 (hall 3 farm 4 barr 2) | 172 | 64 | 790 | 1808 | 0 | 0 | 0 (0) |
+| 21 | 1538 | 18 | 1538 | 0 | 17 (hall 3 farm 4 barr 2) | 172 | 64 | 790 | 1808 | 0 | 0 | 0 (0) |
+| 30 | 50 | 1244 | 801 | 0 | 19 (hall 3 farm 5 barr 2) | 201 | 30 | 300 | 900 | 0 | 0 | 0 (0) |
+
+Trained: pikeman 285, raider 12. Longest stretch with nothing worthwhile to do: 67.7 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders broke through, lost 906; d14: 56 raiders broke through, lost 1494; d21: 84 raiders broke through, lost 2160; d28: 112 raiders broke through, lost 2940.
+
+## turtle
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 74 | 1050 | 581 | 100 | 21 (hall 2 farm 4 barr 1) | 198 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 2 | 108 | 1538 | 1090 | 100 | 21 (hall 2 farm 4 barr 1) | 198 | 19 | 190 | 570 | 0 | 0 | 0 (0) |
+| 3 | 92 | 1516 | 1527 | 100 | 21 (hall 2 farm 4 barr 1) | 198 | 39 | 390 | 1170 | 0 | 0 | 0 (0) |
+| 5 | 97 | 599 | 1443 | 100 | 24 (hall 3 farm 4 barr 3) | 238 | 64 | 640 | 1920 | 0 | 0 | 0 (0) |
+| 7 | 758 | 53 | 1538 | 100 | 28 (hall 3 farm 5 barr 3) | 298 | 75 | 750 | 2250 | 0 | 0 | 0 (0) |
+| 10 | 1538 | 75 | 1538 | 100 | 28 (hall 3 farm 5 barr 3) | 298 | 68 | 680 | 2040 | 0 | 0 | 0 (0) |
+| 14 | 1538 | 46 | 1538 | 100 | 28 (hall 3 farm 5 barr 3) | 298 | 75 | 750 | 2250 | 0 | 0 | 0 (0) |
+| 21 | 1538 | 46 | 1538 | 100 | 28 (hall 3 farm 5 barr 3) | 298 | 75 | 750 | 2250 | 0 | 0 | 0 (0) |
+| 30 | 103 | 1376 | 777 | 100 | 30 (hall 3 farm 6 barr 3) | 332 | 37 | 370 | 1110 | 0 | 0 | 0 (0) |
+
+Trained: pikeman 324. Longest stretch with nothing worthwhile to do: 35.2 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders held; d14: 56 raiders broke through, lost 810; d21: 84 raiders broke through, lost 1710; d28: 112 raiders broke through, lost 2610.
+
+## balanced
+
+| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | 971 | 677 | 100 | 18 (hall 2 farm 4 barr 2) | 184 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| 2 | 208 | 1522 | 1294 | 100 | 26 (hall 3 farm 6 barr 2) | 301 | 3 | 30 | 90 | 0 | 0 | 0 (0) |
+| 3 | 202 | 1518 | 1522 | 100 | 26 (hall 3 farm 6 barr 2) | 301 | 30 | 300 | 900 | 0 | 0 | 0 (0) |
+| 5 | 240 | 1158 | 1538 | 100 | 26 (hall 3 farm 6 barr 2) | 301 | 83 | 830 | 2490 | 0 | 0 | 0 (0) |
+| 7 | 1042 | 90 | 2364 | 100 | 32 (hall 3 farm 7 barr 3) | 374 | 102 | 1020 | 3060 | 0 | 0 | 0 (0) |
+| 10 | 2364 | 104 | 2364 | 100 | 32 (hall 3 farm 7 barr 3) | 374 | 96 | 960 | 2880 | 0 | 0 | 0 (0) |
+| 14 | 2364 | 86 | 2364 | 100 | 32 (hall 3 farm 7 barr 3) | 374 | 103 | 1030 | 3090 | 0 | 0 | 0 (0) |
+| 21 | 2364 | 115 | 2364 | 100 | 32 (hall 3 farm 7 barr 3) | 374 | 102 | 1200 | 2925 | 0 | 0 | 0 (0) |
+| 30 | 216 | 883 | 1566 | 100 | 32 (hall 3 farm 7 barr 3) | 374 | 55 | 700 | 1538 | 0 | 0 | 0 (0) |
+
+Trained: pikeman 397, raider 18. Longest stretch with nothing worthwhile to do: 2.8 h.
+Enemy raids (assumed, day x4 raiders): d7: 28 raiders held; d14: 56 raiders broke through, lost 570; d21: 84 raiders broke through, lost 1710; d28: 112 raiders broke through, lost 2610.
+
+## First affordable (hours / days since start, own economy)
+
+| item | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| building hall (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building lumber (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building farm (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building mine (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building goldmine (next level) | 19.8 h | 1.2 h | day 4.5 | 45.2 h |
+| building storehouse (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building barracks (next level) | 25.5 h | 2.7 h | 3.5 h | 8.0 h |
+| building stables (next level) | never | never | never | never |
+| building wall (next level) | day 2.4 | 5.5 h | 6.0 h | 10.5 h |
+| building vault (next level) | 12.3 h | 0.8 h | 1.2 h | 4.2 h |
+| building market (next level) | 16.7 h | 1.2 h | day 4.4 | 44.2 h |
+| building drillyard (next level) | never | never | never | never |
+| unit pikeman | day 2.4 | 4.0 h | 4.8 h | 9.2 h |
+| unit guard | never | never | day 4.9 | day 5.3 |
+| unit raider | never | day 3.8 | day 4.6 | 15.8 h |
+| unit outrider | never | never | never | never |
+| unit knight | never | never | never | never |
+| unit pathfinder | never | day 3.7 | day 4.6 | 15.0 h |
+
+## Unit value (static)
+
+| unit | attack/cost | defense/cost (avg) | carry/cost | upkeep | pop |
+|---|---|---|---|---|---|
+| pikeman | 0.095 | 0.286 | 0.143 | 1 | barracks |
+| guard | 0.103 | 0.241 | 0.069 | 1 | barracks |
+| raider | 0.250 | 0.047 | 0.188 | 1 | barracks |
+| outrider | 0.167 | 0.049 | 0.194 | 3 | stables |
+| knight | 0.122 | 0.067 | 0.044 | 4 | stables |
+| pathfinder | 0.000 | 0.017 | 0.000 | 1 | barracks |
+
+## Flags
+
+- DOMINANT STYLE: builder scores 3977 vs runner-up balanced 402 (> 1.5x).
+- DEAD PERIOD: builder had nothing worthwhile to do for 372.2 h (from hour 348).
+- PILE-UP: builder sat at >= 90% storage in wood for 313 h of 720 h.
+- PILE-UP: builder sat at >= 90% storage in iron for 414 h of 720 h.
+- PILE-UP: builder sat at >= 90% storage in gold for 218 h of 720 h.
+- DEAD PERIOD: raider had nothing worthwhile to do for 67.7 h (from hour 618).
+- PILE-UP: raider sat at >= 90% storage in wood for 205 h of 720 h.
+- PILE-UP: raider sat at >= 90% storage in iron for 515 h of 720 h.
+- DEAD PERIOD: turtle had nothing worthwhile to do for 35.2 h (from hour 313).
+- PILE-UP: turtle sat at >= 90% storage in wood for 237 h of 720 h.
+- PILE-UP: turtle sat at >= 90% storage in iron for 536 h of 720 h.
+- PILE-UP: balanced sat at >= 90% storage in wood for 268 h of 720 h.
+- PILE-UP: balanced sat at >= 90% storage in iron for 526 h of 720 h.
+- UNUSED UNIT: Shieldbearer — nobody trained one (affordable from hour 119 but never trained).
+- UNUSED UNIT: Outrider — nobody trained one (never even affordable within 30 days).
+- UNUSED UNIT: Knight — nobody trained one (never even affordable within 30 days).
+- UNUSED UNIT: Pathfinder — nobody trained one (affordable from hour 15 but never trained).
+
+## Model
+
+- One village per style, 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.
+- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons never refill (engine rule), so repeated raids get easier.
+- Loot and losses valued wood+food+iron+10xgold. Troop upkeep, travel idle time and Drillyard ranks are not valued.
+- Enemy raiders hit each village on days 7, 14, 21, 28 (4 x day raiders) to give defence something to do.
+- "Dead period" = no building, 10-unit batch or research possible; "pile-up" = resource at >= 90% storage.

@@ -118,6 +118,8 @@ Every probe is a server test in `apps/server/test/security-audit.test.ts` and al
 | Test-mode extras (`travelSeconds`, `returnSeconds`, `/api/sandbox/*`) as a normal account | 403 |
 | Two accounts on one IP: ship to each other | Refused (already) |
 | **Two accounts on one IP: ship to an abandoned village, partner raids it** | **HOLE, fixed**: the cargo was credited to the abandoned village's stock. Accounts that share a connection with any other account now get `invalid_target`; a solo player may still feed abandoned villages (owner decision, 2026-11-03) |
+| **Predictable battle luck** (seed was `hashSeed(movement id, arrival time)`, computable by the sender, who could cancel and re-send until luck was good) | **HOLE, fixed 2026-11-04**: the seed now mixes in a 128-bit server-only salt (`meta.battle_salt`); tested that luck matches the salted seed, differs from the old recipe, and the salt is in no API body (`npc-raids.test.ts`) |
+| Farming one abandoned village over and over with a few raiders (no counter-play) | Fixed 2026-11-04: repeat raids by the same player within a day carry 50%, 25% ... of the load; garrisons refill (GAME_DESIGN §8) |
 
 Not changed, follow-ups: no per-player cap on movements in flight (bounded today by units owned and the 60 per minute send limit; rule 6 asks for a cap);
 `rank` / `respec` have no per-route limit bucket; two households on different IPs cannot be detected (accepted, handled by staff tooling).

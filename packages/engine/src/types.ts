@@ -261,8 +261,10 @@ export interface BattleInput {
   defenderRanks?: VillageRanks;
   /** Home-village ranks per support contingent, same order as `support` (Bulwark applies). */
   supportRanks?: Array<VillageRanks | undefined>;
-  /** Deterministic luck: same seed, same result. */
+  /** Deterministic luck: same seed, same result. The server mixes in a secret (see battleSeed), so nobody can predict it. */
   seed: number;
+  /** 0..1, default 1: share of the survivors' carrying capacity that can be taken (repeat raids on abandoned villages). */
+  lootFactor?: number;
 }
 
 export interface BattleResult {

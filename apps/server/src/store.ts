@@ -524,7 +524,31 @@ export class Store extends SqlBase {
     }
   }
 
+  // ---- raids on abandoned villages -------------------------------------------------------------
+
+  /** Won raids by `playerId` on abandoned village `villageId` that arrived in (since, until]. */
+  countNpcRaids(playerId: number, villageId: number, since: number, until: number): number {
+    const r = this.get('SELECT COUNT(*) AS n FROM npc_raids WHERE player_id = ? AND village_id = ? AND at > ? AND at <= ?', playerId, villageId, since, until);
+    return r ? Number(r.n) : 0;
+  }
+
+  /** Remember a won raid and drop this pair's rows older than `keepSince`. */
+  recordNpcRaid(playerId: number, villageId: number, at: number, keepSince: number): void {
+    this.run('DELETE FROM npc_raids WHERE player_id = ? AND village_id = ? AND at <= ?', playerId, villageId, keepSince);
+    this.run('INSERT INTO npc_raids (player_id, village_id, at) VALUES (?, ?, ?)', playerId, villageId, at);
+  }
+
   // ---- meta ------------------------------------------------------------------------------------
+
+  /** Secret (128 bits, four words) that makes battle luck unpredictable. Created on first use, kept in the world database, never sent to a client. */
+  battleSalt(): number[] {
+    const stored = this.getMeta('battle_salt');
+    if (stored !== null && /^[0-9a-f]{32}$/.test(stored)) return [0, 8, 16, 24].map((i) => parseInt(stored.slice(i, i + 8), 16));
+    const words = new Uint32Array(4);
+    globalThis.crypto.getRandomValues(words);
+    this.setMeta('battle_salt', Array.from(words, (w) => w.toString(16).padStart(8, '0')).join(''));
+    return Array.from(words);
+  }
 
   getMeta(key: string): string | null {
     const r = this.get('SELECT value FROM meta WHERE key = ?', key);

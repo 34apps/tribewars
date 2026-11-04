@@ -25,7 +25,10 @@ When a rule changes, change it here in the same commit.
   goldmine→gold: `L == 0 ? PRODUCTION_LEVEL0 (gold: 0) : round(PRODUCTION_BASE[b] * PRODUCTION_GROWTH^(L-1))`.
   Multiply by `speed`.
 - **Food upkeep.** Every unit eats `upkeep * speed` food per hour while queued for training, at home
-  or away. Net food per hour = farm production − upkeep. Training is refused if it would make net
+  or away. Since 2026-11-04 (owner decision, step 0 of §18.7) a unit's upkeep is **0.25 food per population point**
+  (`FOOD_UPKEEP_PER_POP`; pikeman, shieldbearer, raider, pathfinder 0.25, outrider 0.5, knight 1; it was 1 / 1 / 1 / 1 / 3 / 4).
+  Armies can be four times bigger for the same Farm, so the population cap, not food, is now the usual limit from Farm level 1 up.
+  Net food per hour = farm production − upkeep. Training is refused if it would make net
   food negative (`not_enough_food`). Net food can only go negative through rule changes; settlement
   then clamps food at 0 (no starvation in v1). Abandoned villages pay no upkeep.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
@@ -55,7 +58,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
   using the Town Hall level when the job is queued.
-- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2, food upkeep 3), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
+- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2, food upkeep 0.5), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
 - **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village for players without a premium subscription,
   `MAX_BUILD_QUEUE_PREMIUM` (5) for premium subscribers (`buildQueueLimit(premium)`; the server reads the
@@ -127,7 +130,10 @@ reduce an amount that is already above the cap (only stop it growing).
 
 ## 7. Battle — `resolveBattle({ attackerUnits, defender, seed })`
 
-Deterministic for a given seed (`mulberry32`).
+Deterministic for a given seed (`mulberry32`). **The server's seed is secret** (owner, 2026-11-04): `battleSeed(salt, movementId, arriveAt)` mixes in a
+128-bit salt that is created once per world, kept in the world database (`meta.battle_salt`) and never sent to a client.
+Before this, `hashSeed(movementId, arriveAt)` could be computed by the sender, who could then cancel and re-send until luck was good.
+Tests and the simulator pass their own seeds.
 
 1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`.
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
@@ -138,7 +144,8 @@ Deterministic for a given seed (`mulberry32`).
    unit; every defender unit dies.
    Else defender wins: defender loses `round(count × (A/D)^BATTLE_LOSS_EXPONENT)` of each unit;
    every attacker unit dies.
-6. Loot (attacker won only): capacity = Σ survivors × carry. Lootable per resource =
+6. Loot (attacker won only): capacity = `floor(Σ survivors × carry × lootFactor)` (`lootFactor` is 1 unless a repeat-raid
+   limit applies, see §8). Lootable per resource =
    `max(0, floor(amount) − vaultProtection)`. Fill evenly ("water-filling"): split remaining capacity
    equally over resources that still have lootable stock; repeat until capacity or stock runs out.
    Loot values are integers.
@@ -157,10 +164,17 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Full garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit.
 - **Growth:** every `npcGrowthHours / speed` hours since `createdAt` is one step. Step n raises
   `NPC_GROWTH_ORDER[n % length]` by one level (skip buildings at `NPC_MAX_LEVEL`; if all are maxed,
-  nothing grows). **Abandoned villages never recruit** (owner, 2026-11-03): the garrison they have
-  stays as it is, it is never refilled. Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses
-  the levels at that time (accuracy within one step is fine).
+  nothing grows). **Garrisons slowly refill** (owner, 2026-11-04; they never recruited before): every step also
+  brings back `NPC_GARRISON_REFILL_SHARE` (20%) of the full garrison for the current Town Hall level, rounded up, at least one
+  unit of each missing type, never above full. A village whose garrison was wiped out is full again after five steps (30 h at
+  speed 1) and keeps refilling after a raid even when all its buildings are maxed. Apply at most `NPC_MAX_STEPS_PER_SETTLE`
+  steps per settle; production between steps uses the levels at that time (accuracy within one step is fine).
 - They produce resources like player villages (no upkeep), which is what raiders take.
+- **Repeat raids carry less** (owner, 2026-11-04): each won raid by a player on an abandoned village is written down
+  (`npc_raids`, one row, old rows of that pair pruned). A later raid by the **same player on the same village** within
+  `NPC_REPEAT_WINDOW_HOURS / speed` (24 h at speed 1) can carry `NPC_REPEAT_LOOT_FACTOR ^ earlierHits` of the usual load
+  (50%, 25%, 12.5%, never below `NPC_REPEAT_LOOT_FLOOR` 10%). Other players are not affected, and after the window the full
+  load is back. The report shows "lootShare" (percent) whenever it is below 100. The fight itself is unchanged.
 
 ## 9. Players, spawn, protection
 
@@ -454,7 +468,7 @@ stay), build/train queues cleared. **Reset**: each village becomes a fresh start
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
 changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
 the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). **Empty abandoned villages** (`POST /api/sandbox/clear-abandoned`, no body): every
-abandoned village is settled to now and its troops set to zero (garrisons never refill). **Own timing**: `POST /api/villages/:id/send` also
+abandoned village is settled to now and its troops set to zero (garrisons then slowly refill, §8). **Own timing**: `POST /api/villages/:id/send` also
 takes `travelSeconds` and `returnSeconds` (integers 0–86400, test-mode accounts only, others get `forbidden`): the way out takes exactly that long, and
 the way home after the battle or scout (stored on the movement as `return_secs`). Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
@@ -640,7 +654,8 @@ conquest fair across time zones; badges and cosmetics are what players keep when
 
 Prerequisites from `GENRE_REVIEW.md` Part C that should land **before** conquest, because conquest raises the
 stakes: secret battle seed (#6), tame abandoned-village farming and upkeep rebalance (#3, #4), cap on stationed
-support (part of #9; 18.4 adds the cap for sites).
+support (part of #9; 18.4 adds the cap for sites). **Status 2026-11-04 (step 0, part 1):** seed, refill, repeat-raid limit and
+upkeep 0.25 are built (§2, §7, §8); the pacing numbers (item 4 of step 0) wait for a simulator run, see `BALANCE.md` §7.
 
 ---
 
@@ -1099,12 +1114,16 @@ Quick check of the order against the two risks:
 Every step follows the usual protocol: config numbers first, engine with tests, server routes with tests, security
 gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move up from §18 into the normal sections).
 
-### 18.8 Decisions the owner needs to make first (shortest list)
+### 18.8 Decisions
 
-1. Approve the six parts, or tell me which to drop or change.
-2. Season: 63 days with a fixed end (my suggestion), no early win, no shared win for allies?
-3. Is a player's **last village** safe from Strikes (my suggestion)?
-4. Banner Hall requirements: use the lower ones above (needs a `npm run sim` check)?
-5. Rest: 8 hours and +25%?
-6. Premium queue: drop it and keep the shop cosmetics-only?
-7. Terrain: accept an average trip about 12% slower?
+**Owner decisions, 2026-11-04** (these are now rules to build; §18.1–18.7 text still says "proposal" in places, read it with these in mind):
+
+1. **All six parts approved** (seasons + shrines, taking villages by hold, rest hours, terrain + sites, tribe projects, cosmetics shop).
+2. **Season: 63 days with a fixed end. No early win and no shared win for allies.**
+3. **A player's last village is safe from Strikes.**
+4. **Banner Hall: use the lower requirements** from §18.2. They still have to be checked with `npm run sim` (first second village around day 14–20 for a focused player) before step 2 is built.
+5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (`MAX_BUILD_QUEUE_PREMIUM` / `MAX_RESEARCH_QUEUE_PREMIUM` and the premium flag stay in the code until a build step removes them; do not sell or advertise anything that speeds up play.)
+6. **Rest hours: 8 hours a day, +25% defence, and no economy pause** (production, building and training run as usual while a village rests; the hold-clock pause of §18.3 stays as written).
+7. **The name Chieftain is final.**
+
+Still open from the list: terrain slowing an average trip by about 12% was not answered. It stays as proposed (§18.4a) and is re-checked with `npm run sim` when step 1 is built.

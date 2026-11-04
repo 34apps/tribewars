@@ -43,10 +43,10 @@ describe('production, upkeep, storage, vault', () => {
   it('upkeep counts troops, away units and queued units; abandoned villages pay none', () => {
     const v = village({ troops: { pikeman: 10, outrider: 2 }, away: { knight: 1 } });
     v.trainQueues.barracks.push({ unit: 'raider', count: 5, done: 2, perUnitMs: 1000, startAt: 0 });
-    // 10*1 + 2*3 + 1*4 + (5-2)*1
-    assert.equal(upkeepPerHour(v, S1), 23);
-    assert.equal(upkeepPerHour(v, S10), 230);
-    assert.equal(netProductionPerHour(v, S1).food, 40 - 23);
+    // 0.25 food per population point: 10*0.25 + 2*0.5 + 1*1 + (5-2)*0.25
+    assert.equal(upkeepPerHour(v, S1), 5.25);
+    assert.equal(upkeepPerHour(v, S10), 52.5);
+    assert.equal(netProductionPerHour(v, S1).food, 40 - 5.25);
     assert.equal(upkeepPerHour(createNpcVillage(2, 0), S1), 0);
   });
 

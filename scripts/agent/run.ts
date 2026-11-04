@@ -87,6 +87,8 @@ const allowedTools = [
     // Chained commands (a && b | c) are checked part by part, so every part must be listed here.
     "npm run check", "npm run check *", "npm run build", "npm run build *", "npm run build:preview",
     "npm run build:preview *", "npm test", "npm test *",
+    // Balance simulator (docs/BALANCE.md section 6): read-only on the repo apart from stdout.
+    "npm run sim", "npm run sim *",
     // Read-only helpers the agent uses to look at output and files.
     "head *", "tail *", "cat *", "ls", "ls *", "wc *", "grep *", "echo *", "sed -n *", "sort *", "uniq *",
     "git show *", "git rev-parse *",

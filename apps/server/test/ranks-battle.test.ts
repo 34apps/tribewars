@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hashSeed, resolveBattle, resolveScouting, keenMultiplier, settleVillage, type VillageRanks } from '@clanfire/engine';
+import { battleSeed, resolveBattle, resolveScouting, keenMultiplier, settleVillage, type VillageRanks } from '@clanfire/engine';
 import { giveKeen, giveTroops, latestReport, sendOk, stateOf, village, world, type App, type P } from './warfare-helpers.ts';
 
 const ranksOf = (might: number, bulwark: number, keen = 0): VillageRanks => ({
@@ -38,13 +38,13 @@ test('a battle uses the attacker ranks stamped at send time (a respec in flight 
     support: [],
     attackerRanks: ranksOf(5, 0),
     defenderRanks: ranksOf(0, 3),
-    seed: hashSeed(movement.id, movement.arriveAt),
+    seed: battleSeed(app.ctx.store.battleSalt(), movement.id, movement.arriveAt),
   });
   const plain = resolveBattle({
     attackerUnits: row!.units,
     defender: settleVillage(bobState, movement.arriveAt, app.ctx.settings),
     support: [],
-    seed: hashSeed(movement.id, movement.arriveAt),
+    seed: battleSeed(app.ctx.store.battleSalt(), movement.id, movement.arriveAt),
   });
   assert.notEqual(expected.attackPower, plain.attackPower, 'ranks make a difference in this setup');
 
@@ -85,7 +85,7 @@ test('support defends with the ranks stamped when it left home; a later arrival 
     defender: settleVillage(aliceState, atk.movement.arriveAt, app.ctx.settings),
     support: contingent.map((c) => c.units),
     supportRanks: contingent.map((c) => c.ranks ?? undefined),
-    seed: hashSeed(atk.movement.id, atk.movement.arriveAt),
+    seed: battleSeed(app.ctx.store.battleSalt(), atk.movement.id, atk.movement.arriveAt),
   });
   const b = (await latestReport(bob)).battle;
   assert.equal(b?.defensePower, expected.defensePower);

@@ -352,6 +352,8 @@ export interface BattleReportData {
   supportLosses: Units | null;
   wallLevel: number | null;
   loot: Resources;
+  /** Only set below 100: a repeat raid on an abandoned village could carry off just this percent of what the survivors can carry. */
+  lootShare?: number;
 }
 
 export interface ScoutReportData {

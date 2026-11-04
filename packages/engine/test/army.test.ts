@@ -3,6 +3,11 @@ import { describe, it } from 'node:test';
 import {
   BATTLE_LUCK,
   GameError,
+  NPC_REPEAT_LOOT_FACTOR,
+  NPC_REPEAT_LOOT_FLOOR,
+  NPC_REPEAT_WINDOW_HOURS,
+  repeatRaidLootFactor,
+  repeatRaidWindowMs,
   applyAttackerLosses,
   applyBattleToDefender,
   applyReturn,
@@ -224,6 +229,42 @@ describe('resolveBattle', () => {
     const defender = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
     const r = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4 });
     assert.deepEqual(r.loot, { wood: 150, food: 150, iron: 150, gold: 150 });
+  });
+
+  it('lootFactor scales what the survivors can carry (default 1), clamped to 0..1', () => {
+    const defender = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
+    const run = (lootFactor?: number): number => {
+      const r = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4, lootFactor });
+      return r.loot.wood + r.loot.food + r.loot.iron + r.loot.gold;
+    };
+    assert.equal(run(undefined), 600);
+    assert.equal(run(1), 600);
+    assert.equal(run(0.5), 300);
+    assert.equal(run(0.25), 150);
+    assert.equal(run(0), 0);
+    assert.equal(run(7), 600); // above 1 cannot raise the load
+    assert.equal(run(-1), 0);
+    // Only the carry changes, not the fight.
+    const a = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4, lootFactor: 0.1 });
+    const b = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4 });
+    assert.equal(a.attackerWon, b.attackerWon);
+    assert.deepEqual(a.attackerLosses, b.attackerLosses);
+  });
+});
+
+describe('repeat raids on abandoned villages', () => {
+  it('each earlier raid in the window halves the load, never below the floor', () => {
+    assert.equal(repeatRaidLootFactor(0), 1);
+    assert.equal(repeatRaidLootFactor(1), NPC_REPEAT_LOOT_FACTOR);
+    assert.equal(repeatRaidLootFactor(2), NPC_REPEAT_LOOT_FACTOR ** 2);
+    assert.equal(repeatRaidLootFactor(50), NPC_REPEAT_LOOT_FLOOR);
+    for (const bad of [-3, Number.NaN, Infinity * -1]) assert.equal(repeatRaidLootFactor(bad), 1);
+    for (let n = 1; n < 12; n++) assert.ok(repeatRaidLootFactor(n) <= repeatRaidLootFactor(n - 1));
+  });
+
+  it('the window is a day at real pace and shrinks with world speed', () => {
+    assert.equal(repeatRaidWindowMs(S1), NPC_REPEAT_WINDOW_HOURS * HOUR);
+    assert.equal(repeatRaidWindowMs(S10), (NPC_REPEAT_WINDOW_HOURS * HOUR) / 10);
   });
 });
 
