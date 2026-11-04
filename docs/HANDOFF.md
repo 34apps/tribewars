@@ -5,24 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`fe4d4bc`): village shrank at higher wall looks because the scene got taller while its screen box stayed the same.
-Fixed (`VillageScene.tsx`, `village.css`): scale/fit box use the base height `sceneViewBox(0)`; taller looks add headroom above
-(`.vv-world` hangs above the stage in fit view; phone stage is taller so panning reaches it). No browser here, so NOT viewed at 360/1440 px.
-Very next step: owner compares wall 0/5/13/18 in Design preview (same size? tower tops/flags not clipped by page top or name pill on
-desktop; if clipped, add top margin for taller looks). Checks passed.
-Before that (`dba0012`): level 5 flag clipped; `sceneViewBox` stage 1 raised 296→312.
-Before that (`a4eb098`): owner screenshots (wall 13 and 18) showed the top corner tower badly joined to its walls.
-Cause: draw order. Back tower was sorted by its front corner, so its base was painted over the first back-wall pieces
-(tie at 13–17, overlap at 18+). Now sorted by centre in `wallItems`; back walls start at its face. Other corners unchanged.
-Not rendered here. Very next step: owner re-checks Design preview at 13, 17, 18, 20 (360 and 1440 px); if the top tower
-still looks off, try a taller back footing or a ledge. Checks passed.
-Before that (`ea92c87`): road clipped at the plate edge; new grand 4th wall look at levels 18–20.
-Earlier (`5c44bbd`): preview bar portaled into body, compact top bar up to 1919 px (owner view of it still unconfirmed).
-Earlier (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
-now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
-(`html:has(.app)` overflow hidden, `.app` clipped, compact top bar up to 1599 px). Not viewed (no renderer).
-Very next step: owner opens Settings → Design preview, drags the slider to 20, screenshots the corner tower at 360 and 1440 px,
-and confirms no sideways scroll. Desktop village page scroll with sticky board is by design. Checks passed.
+2026-11-04 (`90512c6`): wall level 20 back tower/flag were clipped at the top on desktop (headroom hung into the 64 px margin,
+cut by `.vv-view` overflow). Fix: one fixed scene box `SCENE_VIEWBOX` (376 above centre; grand flag tip ≈353) at every wall level;
+`sceneViewBox` and `.vv-world` removed; phone zoom uses `SCENE_BASE_H` (old height) so size is unchanged. By geometry nothing clips and
+the village is the same size at all levels. NO browser/screenshot here (Bash can't launch one), so levels 1/5/10/15/20 at 360/1440 px
+and the level-20 screenshot are NOT done. Very next step: owner checks Design preview (see NEXT_STEPS "Village size/headroom check").
+Earlier: back tower draw order (`a4eb098`), level-5 flag (`dba0012`), grand wall look 18–20 (`ea92c87`), preview bar fixes (`80e2127`). Checks passed.
 
 ## How the owner works (important)
 
