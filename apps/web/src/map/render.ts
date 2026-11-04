@@ -39,7 +39,9 @@ export interface Scene {
 
 /** A drawn village sprite, kept for picking (front-most last). */
 /** Abandoned villages are drawn at this share of the player-village size. */
-const RUIN_DRAW_SCALE = 0.7;
+// Villages are drawn larger than the tile frame so they read clearly next to the trees (owner, 2026-11-04).
+const VILLAGE_DRAW_SCALE = 1.3;
+const RUIN_DRAW_SCALE = 1.0;
 
 export interface DrawnVillage {
   village: MapVillageDto;
@@ -282,7 +284,7 @@ export function drawMap(sc: Scene): FrameResult {
         drawn.push(drawVillage(ctx, painter, vil, gx, gy, s));
         if (isSel) {
           const top = vil.kind === 'abandoned' ? RUIN_TOP[ruinStage(vil.points) - 1] : STAGE_TOP[mapStage(vil.points) - 1];
-          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : 1) - 16) * s };
+          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : VILLAGE_DRAW_SCALE) - 16) * s };
         }
       } else if (isSel) {
         pointerAt = { x: gx, y: gy - 34 * s };
@@ -378,7 +380,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     }
     if (dome) {
       ctx.setLineDash([]);
-      ctx.scale(1.2, 1.2);
+      ctx.scale(1.2 * VILLAGE_DRAW_SCALE, 1.2 * VILLAGE_DRAW_SCALE);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.28)';
       ctx.fill(DOME_BACK);
       ctx.lineWidth = 1.6;
@@ -388,7 +390,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
   });
 
   // Ruins are drawn smaller than player villages so they never dominate the map.
-  const k = abandoned ? RUIN_DRAW_SCALE : 1;
+  const k = abandoned ? RUIN_DRAW_SCALE : VILLAGE_DRAW_SCALE;
   if (!painter.draw(sprite, x, y, k)) {
     ctx.beginPath();
     ctx.arc(x, y - 10 * s, 14 * s, 0, Math.PI * 2);
@@ -409,12 +411,12 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
       ctx.stroke(RING_FRONT);
     });
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
-    painter.draw(`banner-${al}`, x + base[0] * s, y + base[1] * s, 1.15);
+    painter.draw(`banner-${al}`, x + base[0] * s * k, y + base[1] * s * k, 1.15 * k);
   }
 
   if (dome) {
     withTile(ctx, x, y, s, () => {
-      ctx.scale(1.2, 1.2);
+      ctx.scale(1.2 * VILLAGE_DRAW_SCALE, 1.2 * VILLAGE_DRAW_SCALE);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.26)';
       ctx.fill(DOME_FRONT);
       ctx.lineCap = 'round';
