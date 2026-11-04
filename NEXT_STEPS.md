@@ -64,7 +64,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   for that project.
 - Security: work through `docs/SECURITY_ROADMAP.md` Phase 1 (session expiry/rotation, password policy + lockout, CI audit; headers, CSP and rate limits are done) before any public server.
 - **Self-host the fonts** (Bagel Fat One, Rubik; `apps/web/index.html` loads Google Fonts today): then drop `fonts.googleapis.com`/`fonts.gstatic.com` from the CSP in `apps/server/src/security.ts` and the CloudFront policy in `docs/DEPLOYMENT_PLAN.md`. Needs the font files (no package could be installed).
-- WebSocket push (design in the roadmap, also replaces 10 s polling above) and a tick-lag metric for troop arrivals.
+- Live updates follow-ups: view the game in a real browser with the socket on (hello, hints, reconnect after a server restart); CloudFront must allow WebSocket upgrade on `/api/live` (add to `docs/DEPLOYMENT_PLAN.md`); a tick-lag metric for troop arrivals.
 - Map: if pan is still slow on a phone (`window.__mapFrames` in dev), blit-shift the previous frame while panning.
 - Test map drag/pinch and pan frame times on a real phone (only simulated so far).
 - Warfare: support owners get no report when their stationed Pathfinders die to enemy scouts;

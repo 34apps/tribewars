@@ -65,7 +65,7 @@ Status: ✅ done · ◐ partly · ☐ open.
 - ☐ **Audit log** table: logins, password changes, troop sends, tribe joins/leaves, admin actions (actor, ip, time). Append-only; never log secrets.
 - ☐ **Authorization tests:** every route has a test "player B cannot act on / read player A's village or report" (IDOR). Add as a standing test per new route.
 - ☐ **Information leaks:** public endpoints never return troop counts, resources, build queues of others; uniform errors for "not found" vs "not yours".
-- ☐ **WebSocket security:** authenticate on upgrade via the session cookie, check `Origin`, per-socket message-rate and size caps, subscribe only to the player's own channels.
+- ☑ **WebSocket security:** authenticate on upgrade via the session cookie, check `Origin`, per-socket message-rate and size caps, subscribe only to the player's own channels.
 - ☐ **Backups & recovery:** daily consistent SQLite backup (`VACUUM INTO`), tested restore, off-machine copy.
 - ☐ **Admin tooling** separated from the game API (own auth, 2FA, audit).
 

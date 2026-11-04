@@ -5,12 +5,13 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`bed1ea1`): Security Phase 1A. CSP + Permissions-Policy on every server response, HSTS only in production
-(`apps/server/src/security.ts`); per-account route limits (`ROUTE_LIMITS`) via a preValidation hook; tests in
-`security-headers.test.ts`; CloudFront headers policy written in DEPLOYMENT_PLAN §2; roadmap ticked.
-CSP is looser than asked in two places: Google Fonts hosts (style-src, font-src) because index.html loads fonts there.
-Built client has no inline scripts. Left: self-host fonts, then tighten CSP. Phase 1 open: session expiry, password policy.
-Next: Security Phase 1B (sessions, password policy/lockout). Checks passed (check, build, build:preview).
+2026-11-04 (`6da7f95`): WebSocket live updates finished. Hang fixed (tests terminate sockets + close apps in afterEach, hub
+stops its timer in onClose, `--test-timeout=60000` in the server test script). Server sends `hello` first; web client pings
+every 25 s and reconnects if silent for 10 s. Left: never viewed in a real browser; CloudFront needs WebSocket on `/api/live`.
+Next: owner checks the game in a browser; then Security Phase 1B (sessions, password policy/lockout), self-host fonts.
+Stray `Pasted ... textClipping`, `.claude/launch.json`, `design/proposals/landscape/toy-*` are uncommitted on purpose. Checks passed.
+
+Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
 Before that (`b8b8b61`): owner said the scenery around the village looked weird. Current landscape: loaf-shaped hills and triangle crags
 replaced by rolling hills and rocky outcrops. Option C: broken mountain cut edges and white-slab cliffs fixed. A and B looked fine in renders.
