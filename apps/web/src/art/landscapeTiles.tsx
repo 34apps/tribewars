@@ -47,15 +47,13 @@ const MASSIF_SCALE = 1.5;
 /** Forest tiles are drawn a little larger so their trees are as tall as the pines inside the walls. */
 const FOREST = 1.3;
 
-const RIVER_A = 12; // river column (u = 476)
+const RIVER_A = 14; // river column (u = 554)
 const RIVER_J = 16; // river row (v = 409.5)
-const SOURCE_J = -11;
 /** The massif far behind the Iron Mine: centre of its 2x2 base (grid units); drawn at 1.5 times the tile scale (far away, big). */
-const MASSIF_AT = [330, -640] as const;
+const MASSIF_AT = [250, -570] as const;
 
 // ---- Sprites -----------------------------------------------------------------------------------------------------------------
 
-const ROAD_NAME = 'road-ne-sw';
 const CROP = {
   wheat: { base: '#EBC862', row: '#B5781A', glint: '#FFE9A0' },
   green: { base: '#9CC858', row: '#3F8A30', glint: '#7BD05A' },
@@ -97,27 +95,92 @@ function cropMarkup(kind: Crop, ext: string): string {
 }
 
 const SCARECROW = `<ellipse cx="1" cy="1" rx="6" ry="2.2" fill="${INK}" opacity="0.2"></ellipse><path d="M0 0V-17M-8 -12H8" stroke="${INK}" stroke-width="4.4" fill="none" stroke-linecap="round"></path><path d="M0 0V-17M-8 -12H8" stroke="#B07D46" stroke-width="2.2" fill="none" stroke-linecap="round"></path><path d="M-5 -9L-9 -4M5 -9L9 -4" stroke="#E4B67C" stroke-width="2" fill="none" stroke-linecap="round"></path><circle cx="0" cy="-20" r="3.6" fill="#F1E1C2" stroke="${INK}" stroke-width="1.4"></circle><path d="M-6 -22.5H6L0 -31Z" fill="#C4623A" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"></path>`;
-const TILE_ART = /^(grass|meadow|forest|hills|mountain|massif-base|rocky|river|road|lane)/;
+
+// ---- Small toy buildings and animals, drawn in the village's style (foot at 0,0; ink outlines, flat fills) -------------------
+
+const lp = (du: number, dv: number, z = 0) => `${Math.round((du - dv) * 10) / 10} ${Math.round(((du + dv) / 2 - z) * 10) / 10}`;
+const face = (pts: readonly (readonly [number, number, number])[], fill: string, sw = 1.3) =>
+  `<path d="M${pts.map(([du, dv, z]) => lp(du, dv, z)).join('L')}Z" fill="${fill}" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"></path>`;
+const shadow = (rx: number) => `<ellipse cx="2" cy="1" rx="${rx}" ry="${rx / 2.4}" fill="${INK}" opacity="0.2"></ellipse>`;
+
+/** A tiny farmhouse (a small hut next to the village's own buildings): walls, gable roof, door and window. */
+function house(wall: string, wallR: string, roof: string): string {
+  const [hu, hv, hh, r] = [10, 8, 11, 8];
+  return (
+    shadow(18) +
+    face([[-hu, hv, 0], [hu, hv, 0], [hu, hv, hh], [-hu, hv, hh]], wall) +
+    face([[hu, -hv, 0], [hu, hv, 0], [hu, hv, hh], [hu, -hv, hh]], wallR) +
+    face([[hu, -hv, hh], [hu, hv, hh], [hu, 0, hh + r]], wallR) +
+    face([[-3, hv, 0], [3, hv, 0], [3, hv, 7], [-3, hv, 7]], '#714B29', 1) +
+    face([[hu, -3, 4], [hu, 3, 4], [hu, 3, 9], [hu, -3, 9]], '#9BD0D4', 1) +
+    face([[-hu - 2, hv + 2, hh - 1], [hu + 2, hv + 2, hh - 1], [hu + 2, 0, hh + r], [-hu - 2, 0, hh + r]], roof, 1.4)
+  );
+}
+
+const WELL =
+  shadow(11) +
+  face([[-6, 6, 0], [6, 6, 0], [6, 6, 5], [-6, 6, 5]], '#CFC6B2') +
+  face([[6, -6, 0], [6, 6, 0], [6, 6, 5], [6, -6, 5]], '#A99F8B') +
+  face([[-6, -6, 5], [6, -6, 5], [6, 6, 5], [-6, 6, 5]], '#2F9AA0', 1.2) +
+  `<path d="M${lp(-5, 5, 5)}L${lp(-5, 5, 17)}M${lp(5, 5, 5)}L${lp(5, 5, 17)}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"></path>` +
+  `<path d="M${lp(-5, 5, 5)}L${lp(-5, 5, 17)}M${lp(5, 5, 5)}L${lp(5, 5, 17)}" stroke="#B07D46" stroke-width="1.8" fill="none" stroke-linecap="round"></path>` +
+  face([[-7, 6, 17], [7, 6, 17], [0, 6, 24]], '#C4623A', 1.2);
+
+const MINE =
+  shadow(30) +
+  `<path d="M-26 2C-26 -20 -12 -32 0 -32C12 -32 26 -20 26 2Z" fill="#9A948A" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"></path>` +
+  `<path d="M-8 -26C-14 -22 -20 -14 -22 -4L-8 -4Z" fill="#B9B3A6"></path>` +
+  `<path d="M-9 2V-12Q0 -21 9 -12V2Z" fill="${INK}"></path>` +
+  `<path d="M-11 2V-13M11 2V-13M-12 -13H12" stroke="${INK}" stroke-width="4.6" fill="none" stroke-linecap="round"></path>` +
+  `<path d="M-11 2V-13M11 2V-13M-12 -13H12" stroke="#B07D46" stroke-width="2.4" fill="none" stroke-linecap="round"></path>` +
+  `<path d="M-5 4L-9 14M5 4L9 14" stroke="${INK}" stroke-width="1.6" fill="none" stroke-linecap="round"></path>`;
+
+const CART =
+  shadow(13) +
+  face([[-6, 5, 2], [6, 5, 2], [6, 5, 9], [-6, 5, 9]], '#B07D46') +
+  face([[6, -5, 2], [6, 5, 2], [6, 5, 9], [6, -5, 9]], '#714B29') +
+  face([[-6, -5, 9], [6, -5, 9], [6, 5, 9], [-6, 5, 9]], '#6F6B64', 1.2) +
+  `<circle cx="${(-3 - 5).toFixed(1)}" cy="${((-3 + 5) / 2 - 1).toFixed(1)}" r="3" fill="#E4B67C" stroke="${INK}" stroke-width="1.2"></circle>` +
+  `<circle cx="${(4 - 5).toFixed(1)}" cy="${((4 + 5) / 2 - 1).toFixed(1)}" r="3" fill="#E4B67C" stroke="${INK}" stroke-width="1.2"></circle>` +
+  `<path d="M${lp(-3, 0, 10)}l2 -3l3 2l2 -3" stroke="#F2B33D" stroke-width="1.6" fill="none" stroke-linecap="round"></path>`;
+
+const DUCK =
+  `<ellipse cx="0" cy="1" rx="6" ry="2" fill="#FFFFFF" opacity="0.5"></ellipse>` +
+  `<path d="M5 -3L8 -6L7 -2Z" fill="#FFF8E8" stroke="${INK}" stroke-width="1" stroke-linejoin="round"></path>` +
+  `<ellipse cx="0" cy="-3" rx="5.2" ry="3.2" fill="#FFF8E8" stroke="${INK}" stroke-width="1.2"></ellipse>` +
+  `<path d="M-1 -3.4Q2 -1 4 -3.6" stroke="#CDBF9F" stroke-width="1" fill="none"></path>` +
+  `<circle cx="-4.4" cy="-6.6" r="2.4" fill="#4E8A44" stroke="${INK}" stroke-width="1.1"></circle>` +
+  `<path d="M-6.4 -6.6L-9.4 -5.8L-6.4 -5Z" fill="#F2A33D" stroke="${INK}" stroke-width="0.8" stroke-linejoin="round"></path>`;
+
+const FRUIT_TREE =
+  shadow(12) +
+  `<path d="M-2.2 1V-9H2.2V1Z" fill="#8A5A2B" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"></path>` +
+  ['-7 -15 7.5', '7 -15 7.5', '0 -21 9.5'].map((c) => { const [x, y, r] = c.split(' '); return `<circle cx="${x}" cy="${y}" r="${r}" fill="#68A042" stroke="${INK}" stroke-width="1.4"></circle>`; }).join('') +
+  `<ellipse cx="-3" cy="-24" rx="4" ry="2.4" fill="#9CCB5C" transform="rotate(-25 -3 -24)"></ellipse>` +
+  [[-8, -14], [6, -17], [1, -11], [9, -12], [-2, -22]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.9" fill="#D9483B" stroke="${INK}" stroke-width="0.8"></circle>`).join('');
+
+const CUSTOM: Record<string, string> = {
+  scarecrow: SCARECROW,
+  'house-a': house('#F1E1C2', '#D5BC93', '#C4623A'),
+  'house-b': house('#F6E8C8', '#DCC59B', '#B7553A'),
+  hut: house('#B58A55', '#8E6539', '#7A5A34'),
+  well: WELL,
+  mine: MINE,
+  cart: CART,
+  duck: DUCK,
+  'fruit-tree': FRUIT_TREE,
+};
+
+const TILE_ART = /^(grass|meadow|forest|hills|mountain|massif-base|rocky)/;
 
 function spriteMarkup(name: string): string {
-  if (name === 'scarecrow') return SCARECROW;
   const crop = /^crop-(wheat|green|plough)-(n|pv|mv|b)$/.exec(name);
   if (crop) return cropMarkup(crop[1] as Crop, crop[2]!);
-  const road = /^(road|lane)-(.+)$/.exec(name);
-  const src = road ? `river-${road[2]}` : name;
-  const raw = SPRITE_FILES[`./terrain-sprites/${src}.svg`];
-  if (!raw) throw new Error(`Missing terrain sprite ${src}.svg`);
+  const custom = CUSTOM[name];
+  if (custom) return custom;
+  const raw = SPRITE_FILES[`./terrain-sprites/${name}.svg`];
+  if (!raw) throw new Error(`Missing terrain sprite ${name}.svg`);
   let inner = raw.replace(/^<svg[^>]*>/, '').replace(/<title>.*?<\/title>/, '').replace(/<\/svg>\s*$/, '');
-  if (road) {
-    // The river tile recoloured to packed earth; the glints go. The road is as wide as the village's own paths, the lane narrower.
-    const widen = road[1] === 'road' ? 1.6 : 1.15;
-    inner = inner
-      .replace(/#2F9AA0/g, '#D9B98A')
-      .replace(/#7AD3CD/g, '#EBD8AF')
-      .replace(/#B08B5A/g, '#C49A63')
-      .replace(/<path[^>]*stroke="#FFFFFF" stroke-width="0\.035"[^>]*><\/path>/g, '')
-      .replace(/stroke-width="(0\.45999999999999996|0\.36|0\.144)"/g, (_m, w: string) => `stroke-width="${(Number(w) * widen).toFixed(3)}"`);
-  }
   if (TILE_ART.test(name)) inner = soften(inner);
   // Ids inside a sprite (masks) must not clash between sprites.
   return inner
@@ -210,13 +273,67 @@ const FIELD_LIST: readonly (readonly [number, number, Crop, 'n' | 'pv' | 'mv', n
   [10, 2, 'wheat', 'pv', 3], [10, 3, 'wheat', 'mv', 3],
 ];
 const FIELDS = new Map(FIELD_LIST.map(([a, j, crop, ext, tier]) => [`${a},${j}`, { crop, ext, tier }]));
-const LANE_A = 9;
-const TRACK_J = 14;
+
+/** River: one continuous ribbon down the right side (rising in the hills far back) and along the front. */
+const RIVER_U = uOf(RIVER_A);
+const RIVER_V = vOf(RIVER_J);
+const RIVER_W = 17;
+const RIVER_PTS: readonly (readonly [number, number])[] = [[RIVER_U, -1100], [RIVER_U, RIVER_V], [-2200, RIVER_V]];
+/** Main road: straight out of the gate along its centre line, as wide as the village's own paths; the bridge carries it over the river. */
+const ROAD_W = 28;
+const ROAD_FROM = PLATE - 6;
+/** Side paths (narrower, no ink edge) from the main road to the places around the village. */
+const LANE_U = uOf(9);
+const TRACK_V = vOf(14);
+const SIDE_W = 11;
+const SIDE_PATHS: readonly (readonly (readonly [number, number])[])[] = [
+  // the farm lane: from the quarry, down between the fields, then along the front to the road
+  [[236, -338], [LANE_U, -338], [LANE_U, TRACK_V], [GATE_U, TRACK_V]],
+  // hamlet and orchard
+  [[LANE_U, 60], [473, 60]],
+  [[473, 60], [473, 150]],
+  // woodcutter's clearing on the Lumber Camp side
+  [[-420, 78], [-420, 345], [GATE_U, 345]],
+  // the pond beyond the river
+  [[GATE_U, 455], [36, 455]],
+];
+/** Places: centre, radius (grid units) kept clear of trees and rocks, and the ground look under them. */
+const PLACES: readonly { u: number; v: number; rx: number; ry: number; ground: string }[] = [
+  { u: 470, v: 62, rx: 74, ry: 50, ground: '#CDB98A' }, // hamlet yard
+  { u: -420, v: 60, rx: 52, ry: 38, ground: '#CDB98A' }, // woodcutter's clearing
+  { u: 236, v: -340, rx: 56, ry: 38, ground: '#B9B29B' }, // quarry
+  { u: 466, v: 190, rx: 52, ry: 40, ground: '#B9D67A' }, // orchard floor
+];
+const POND = { u: 62, v: 458, rx: 26, ry: 17 } as const;
+
+/** Distance from a point to a polyline. */
+function distToLine(u: number, v: number, pts: readonly (readonly [number, number])[]): number {
+  let best = Infinity;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [u0, v0] = pts[i]!;
+    const [u1, v1] = pts[i + 1]!;
+    const du = u1 - u0;
+    const dv = v1 - v0;
+    const t = clamp01(((u - u0) * du + (v - v0) * dv) / (du * du + dv * dv || 1));
+    best = Math.min(best, Math.hypot(u - (u0 + du * t), v - (v0 + dv * t)));
+  }
+  return best;
+}
+/** Is a ground point on a path, river, place or pond (so trees, rocks and props keep off)? */
+function occupied(u: number, v: number, pad: number): boolean {
+  if (Math.abs(u - GATE_U) < ROAD_W / 2 + pad && v > PLATE - 20) return true;
+  if (distToLine(u, v, RIVER_PTS) < RIVER_W / 2 + 6 + pad) return true;
+  if (SIDE_PATHS.some((p) => distToLine(u, v, p) < SIDE_W / 2 + pad)) return true;
+  if (PLACES.some((p) => ((u - p.u) / (p.rx + pad)) ** 2 + ((v - p.v) / (p.ry + pad)) ** 2 < 1)) return true;
+  if (((u - POND.u) / (POND.rx + 10 + pad)) ** 2 + ((v - POND.v) / (POND.ry + 10 + pad)) ** 2 < 1) return true;
+  return false;
+}
+
 /** The sheep meadow in front of the left wall, between the open land and the road (grid units), and its fence. */
 const PASTURE = { u0: -265, u1: -31, v0: PLATE, v1: PLATE + 78 } as const;
 const inPasture = (u: number, v: number) => u > PASTURE.u0 && u < PASTURE.u1 && v > PASTURE.v0 && v < PASTURE.v1;
 /** Haystacks (u, v, tier) on grass between the fields. */
-const HAY: readonly (readonly [number, number, number])[] = [[322, 117, 1], [398, 58, 2], [322, 292, 3]];
+const HAY: readonly (readonly [number, number, number])[] = [[322, 117, 1], [398, 22, 2], [322, 292, 3]];
 const SCARECROWS: readonly (readonly [number, number, number])[] = [[320, 40, 0], [398, 117, 2]];
 
 /** Plain ground by soft noise, so grass tones form patches. */
@@ -232,23 +349,13 @@ function terrain(a: number, j: number): { sprite: string; tier: number; tall: bo
   const grass = { sprite: grassName(u, v), tier: 0, tall: false, scale: K };
   const low = (sprite: string, tier = 0) => ({ sprite, tier, tall: false, scale: K });
 
-  // Road, river and bridge.
-  if (a === RIVER_A && j === SOURCE_J) return low('river-source-sw');
-  if (a === RIVER_A && j > SOURCE_J && j < RIVER_J) return low('river-ne-sw');
-  if (a === RIVER_A && j === RIVER_J) return low('river-ne-nw');
-  if (j === RIVER_J && a < RIVER_A) return low(a === 0 ? 'river-bridge-se-nw' : 'river-se-nw');
-  if (a === 0 && j >= 12) return low(ROAD_NAME);
-
-  // The Farm: lane and track (earth tiles), crop fields, and a meadow for the sheep.
-  if (a === LANE_A && j >= 2 && j < TRACK_J) return low('lane-ne-sw');
-  if (a === LANE_A && j === TRACK_J) return low('lane-ne-nw');
-  if (j === TRACK_J && a >= 1 && a < LANE_A) return low('lane-se-nw');
+  // The Farm: crop fields; and a meadow for the sheep.
   const fd = FIELDS.get(`${a},${j}`);
   if (fd) return low(cropName(fd.crop, fd.ext), fd.tier);
   if (inPasture(u, v)) return low('meadow');
 
-  // Ground near the massif is left to it.
-  if (Math.abs(u - MASSIF_AT[0]) < 90 && Math.abs(v - MASSIF_AT[1]) < 90) return grass;
+  // Paths, the river and the places keep plain ground.
+  if (occupied(u, v, 14)) return grass;
 
   const dpl = Math.max(Math.abs(u), Math.abs(v)) - PLATE; // grid units from the plate edge
   const xs = u - v; // across the screen: negative left (Lumber Camp), positive right (Iron Mine)
@@ -262,9 +369,9 @@ function terrain(a: number, j: number): { sprite: string; tier: number; tall: bo
   const n2 = vnoise(u, v, 90, 9) + (h(a, j, 31) - 0.5) * 0.16;
   let pick: string | null = null;
   const forestP = wForest * 0.55 * (1 - 0.7 * smooth(80, 420, v)) + backW * 0.16 + 0.04 * smooth(160, 460, dpl);
-  const hillP = rightW * 0.42 + backW * 0.24;
+  const hillP = rightW * 0.36 + backW * 0.2;
   if (n1 < forestP) pick = `forest-${n1 < forestP * 0.3 ? 'dense' : 'light'}-${1 + Math.floor(h(a, j, 3) * 2)}`;
-  else if (n2 < hillP) pick = n2 < hillP * 0.55 ? `hills-${1 + Math.floor(h(a, j, 5) * 2)}` : 'rocky';
+  else if (n2 < hillP) pick = n2 < hillP * 0.8 ? `hills-${1 + Math.floor(h(a, j, 5) * 2)}` : vnoise(u, v, 40, 11) < 0.34 ? 'rocky' : null;
   else if (dpl > 240 && wBack * smooth(60, 260, xs) > 0.4 && n2 < hillP + 0.1 && h(a, j, 32) < 0.35) pick = `mountain-${1 + Math.floor(h(a, j, 6) * 2)}`;
   else if (h(a, j, 33) < 0.05 * smooth(34, 160, dpl)) return low('meadow');
   if (pick === null) return grass;
@@ -312,10 +419,43 @@ const PASTURE_FLOWERS: readonly (readonly [number, number, string])[] = [
   [-52, 306, 'flowers'],
 ];
 
+/** A placed object: a drawing with a foot point, drawn with the raised tiles in depth order. */
+interface Obj {
+  u: number;
+  v: number;
+  sprite: string;
+  scale: number;
+  flip: boolean;
+  tier: number;
+}
+
 interface Layout {
   tiles: Tile[];
+  objs: Obj[];
   /** Sprite names that are used (defs are built for these only). */
   names: string[];
+}
+
+/** Hamlet, woodcutter, quarry, orchard, pond: purposeful places around the village (u, v, sprite, scale, tier). */
+function places(): Obj[] {
+  const o = (u: number, v: number, sprite: string, tier = 0, scale = 1, flip = false): Obj => ({ u, v, sprite, scale, flip, tier });
+  const out: Obj[] = [
+    // hamlet beside the fields
+    o(440, 20, 'house-a'), o(440, 104, 'house-b', 1), o(508, 64, 'house-a', 2, 1, true), o(473, 66, 'well'),
+    o(425, 62, 'vt-bush', 1, 0.9), o(500, 100, 'vt-bush', 2, 0.9), o(452, 84, 'vt-logs', 1, 0.8),
+    // woodcutter's clearing
+    o(-420, 40, 'hut'), o(-446, 72, 'vt-stump'), o(-398, 78, 'vt-stump', 0, 0.9), o(-444, 30, 'vt-stump', 1, 0.8),
+    o(-394, 44, 'vt-logs'), o(-446, 98, 'vt-logs', 1), o(-384, 100, 'vt-logs', 2, 0.9), o(-404, 22, 'vt-stump', 2),
+    // quarry in the rocks of the Iron Mine side
+    o(236, -348, 'mine'), o(264, -326, 'cart', 1), o(204, -322, 'vt-rockC', 0, 1.1), o(284, -352, 'vt-rockA', 0, 1), o(198, -356, 'vt-rockA', 1, 0.9),
+    o(288, -318, 'vt-rockB', 2), o(220, -300, 'vt-rockB', 3),
+    // pond with ducks and reeds
+    o(52, 452, 'duck', 0), o(70, 460, 'duck', 0, 1, true), o(60, 470, 'duck', 1, 0.9),
+    o(40, 442, 'reeds', 0, 0.9), o(86, 450, 'reeds', 0, 0.9), o(76, 472, 'reeds', 1, 0.9), o(34, 466, 'reeds', 2, 0.9),
+  ];
+  // orchard: rows of fruit trees, a row more as the village grows
+  for (let k = 0; k < 3; k++) for (let i = 0; i < 4; i++) out.push(o(436 + i * 24, 166 + k * 24, 'fruit-tree', k, 0.92));
+  return out;
 }
 
 function buildTiles(wide: boolean): Layout {
@@ -323,17 +463,17 @@ function buildTiles(wide: boolean): Layout {
   const tiles: Tile[] = [];
   const byKey = new Map<string, Tile>();
   const names = new Set<string>();
-  for (let a = -52; a <= 52; a++) {
-    for (let j = -52; j <= 52; j++) {
+  for (let a = -60; a <= 60; a++) {
+    for (let j = -60; j <= 60; j++) {
       const u = uOf(a);
       const v = vOf(j);
       // Tiles wholly under the plate are never seen.
       if (Math.abs(u) + TILE / 2 <= PLATE && Math.abs(v) + TILE / 2 <= PLATE) continue;
       const [x, y] = iso(u, v, TZ);
-      if (x < box.x0 - TILE * 2 || x > box.x1 + TILE * 2 || y < box.y0 - TILE || y - TILE / 2 > box.y1 + 4) continue;
-      // The massif stands over its own patch of ground.
-      if (Math.abs(u - MASSIF_AT[0]) < 90 && Math.abs(v - MASSIF_AT[1]) < 90) continue;
-      const t = terrain(a, j);
+      if (x < box.x0 - TILE * 3 || x > box.x1 + TILE * 3 || y < box.y0 - TILE * 2 || y - TILE / 2 > box.y1 + 4) continue;
+      let t = terrain(a, j);
+      // Big mountains never stand at the box edge (half a mountain would show); plain ground there.
+      if (t.scale > K * 1.5 && (x < box.x0 + 100 || x > box.x1 - 100)) t = { sprite: grassName(u, v), tier: 0, tall: false, scale: K };
       const tile: Tile = { a, j, sprite: t.sprite, tier: t.tier, scale: t.scale, props: t.tall ? [] : dress(a, j, t.sprite) };
       tiles.push(tile);
       byKey.set(`${a},${j}`, tile);
@@ -352,10 +492,15 @@ function buildTiles(wide: boolean): Layout {
   for (const [u, v, sp, flip, tier] of SHEEP) add(u, v, sp, flip, tier);
   for (const [u, v, sp] of PASTURE_FLOWERS) add(u, v, sp, false, 0);
   for (const t of tiles) for (const p of t.props) names.add(p.sprite);
+  const objs = places().filter((p) => {
+    const [x, y] = iso(p.u, p.v, TZ);
+    return x > box.x0 - 40 && x < box.x1 + 40 && y > box.y0 - 40 && y < box.y1 + 60;
+  });
+  for (const p of objs) names.add(p.sprite);
   names.add('massif-base');
   names.add('massif-peak');
   tiles.sort((p, q) => p.a + p.j - (q.a + q.j) || p.a - q.a);
-  return { tiles, names: [...names] };
+  return { tiles, objs, names: [...names] };
 }
 
 // ---- Fence round the meadow --------------------------------------------------------------------------------------------------
@@ -398,42 +543,145 @@ const place = (u: number, v: number, s: number, flip = false) => {
   return `translate(${r1(x)} ${r1(y)}) scale(${flip ? -s : s} ${s})`;
 };
 
+const RAISED = /^(forest|hills|mountain)/;
+const symbolRef = (sprite: string) => (sprite.startsWith('vt-') ? `#${sprite}` : `#tl-${sprite}`);
+/** Depth key of a ground point on the tile lattice (tile (a, j) has key a + j). */
+const depthOf = (u: number, v: number) => (u + v - GATE_U + PLATE - TILE / 2 + 0) / TILE;
+
+interface Drawn {
+  key: number;
+  node: ReactNode;
+}
+
+const grid = (pts: readonly (readonly [number, number])[]) => `M${pts.map(([u, v]) => `${r1(u)} ${r1(v)}`).join('L')}`;
+const ellipsePath = (u: number, v: number, rx: number, ry: number) =>
+  `M${r1(u - rx)} ${r1(v)}a${r1(rx)} ${r1(ry)} 0 1 0 ${r1(2 * rx)} 0a${r1(rx)} ${r1(ry)} 0 1 0 ${r1(-2 * rx)} 0Z`;
+const GT = `matrix(1 0.5 -1 0.5 ${WALL_RING.cx} ${WALL_RING.cy - TZ})`;
+
+/** The bridge where the road crosses the river: planks no wider than the road, a low rail each side. */
+function bridge(): ReactNode {
+  const hw = ROAD_W / 2 - 1;
+  const l = RIVER_W / 2 + 7;
+  const sc = (du: number, dv: number, z = 0) => iso(GATE_U + du, RIVER_V + dv, TZ + z);
+  const rail = (side: number) => {
+    const pts = [-l, 0, l].map((dv) => sc(side * hw, dv));
+    const top = pts.map(([x, y]) => `${r1(x)} ${r1(y - 8)}`).join('L');
+    const posts = pts.map(([x, y]) => `M${r1(x)} ${r1(y - 1)}V${r1(y - 8)}`).join('');
+    return (
+      <g key={side} fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path d={`${posts}M${top}`} stroke={INK} strokeWidth={4.4} />
+        <path d={posts} stroke="#B07D46" strokeWidth={2} />
+        <path d={`M${top}`} stroke="#F2B33D" strokeWidth={2.2} />
+      </g>
+    );
+  };
+  const deck = [[-hw, -l], [hw, -l], [hw, l], [-hw, l]].map(([du, dv]) => sc(du!, dv!, 2));
+  let planks = '';
+  for (let dv = -l + 5; dv < l - 2; dv += 6) {
+    const [ax, ay] = sc(-hw, dv, 2);
+    const [bx, by] = sc(hw, dv, 2);
+    planks += `M${r1(ax)} ${r1(ay)}L${r1(bx)} ${r1(by)}`;
+  }
+  return (
+    <g key="bridge">
+      {rail(-1)}
+      <path d={`M${deck.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`} fill="#E4B67C" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+      <path d={planks} stroke="#B07D46" strokeWidth={1.2} opacity={0.7} />
+      {rail(1)}
+    </g>
+  );
+}
+
 export const LandscapeTiles = memo(function LandscapeTiles({ tier, wide }: { tier: number; wide: boolean }) {
-  const { tiles, names } = layoutFor(wide);
+  const { tiles, objs, names } = layoutFor(wide);
   const box = landBox(wide);
-  const nodes: ReactNode[] = [];
+  const clip = `tl-clip-${wide ? 'w' : 'p'}`;
+  const flat: ReactNode[] = [];
+  const raised: Drawn[] = [];
   for (const t of tiles) {
+    const key = t.a + t.j + t.a * 0.0001;
     if (t.sprite === 'massif') {
       const sp = TILE * MASSIF_SCALE;
+      const parts: ReactNode[] = [];
       for (const [du, dv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-        nodes.push(<use key={`m${du}${dv}`} href="#tl-massif-base" transform={place(MASSIF_AT[0] + (du * sp) / 2, MASSIF_AT[1] + (dv * sp) / 2, t.scale)} />);
+        parts.push(<use key={`m${du}${dv}`} href="#tl-massif-base" transform={place(MASSIF_AT[0] + (du * sp) / 2, MASSIF_AT[1] + (dv * sp) / 2, t.scale)} />);
       }
-      nodes.push(<use key="peak" href="#tl-massif-peak" transform={place(MASSIF_AT[0] + sp / 2, MASSIF_AT[1] + sp / 2, t.scale)} />);
+      parts.push(<use key="peak" href="#tl-massif-peak" transform={place(MASSIF_AT[0] + sp / 2, MASSIF_AT[1] + sp / 2, t.scale)} />);
+      raised.push({ key, node: <g key="massif">{parts}</g> });
       continue;
     }
     const grass = grassName(uOf(t.a), vOf(t.j));
     const sprite = t.tier <= tier ? t.sprite : grass;
-    nodes.push(<use key={`t${t.a},${t.j}`} href={`#tl-${sprite}`} transform={place(uOf(t.a), vOf(t.j), sprite === t.sprite ? t.scale : K)} />);
+    const node = <use key={`t${t.a},${t.j}`} href={`#tl-${sprite}`} transform={place(uOf(t.a), vOf(t.j), sprite === t.sprite ? t.scale : K)} />;
+    if (RAISED.test(sprite)) raised.push({ key, node });
+    else flat.push(node);
     for (let i = 0; i < t.props.length; i++) {
       const p = t.props[i]!;
       if (p.tier > tier || t.tier > tier) continue;
-      nodes.push(<use key={`p${t.a},${t.j},${i}`} href={`#tl-${p.sprite}`} transform={place(p.u, p.v, p.scale, p.flip)} />);
+      raised.push({ key: key + 0.01 + i * 0.001, node: <use key={`p${t.a},${t.j},${i}`} href={symbolRef(p.sprite)} transform={place(p.u, p.v, p.scale, p.flip)} /> });
     }
     // The meadow fence encloses the pasture on all four sides; it goes up after the pasture's last tile.
     if (t.a === aOf(PASTURE.u1 - 10) && t.j === jOf(PASTURE.v1 - 10)) {
       const [u0, u1, v0, v1] = [PASTURE.u0 + 3, PASTURE.u1 - 4, PASTURE.v0 + 6, PASTURE.v1 - 5];
-      nodes.push(fence([[u0, v0], [u1, v0], [u1, v1], [u0, v1]], 'pen'));
+      raised.push({ key: key + 0.5, node: fence([[u0, v0], [u1, v0], [u1, v1], [u0, v1]], 'pen') });
     }
   }
+  objs.forEach((o, i) => {
+    if (o.tier <= tier) raised.push({ key: depthOf(o.u, o.v) + 0.3, node: <use key={`o${i}`} href={symbolRef(o.sprite)} transform={place(o.u, o.v, o.scale, o.flip)} /> });
+  });
+  raised.push({ key: depthOf(GATE_U, RIVER_V) + 0.3, node: bridge() });
+  raised.sort((p, q) => p.key - q.key);
+
+  const river = grid(RIVER_PTS);
+  const roadA = grid([[GATE_U, ROAD_FROM], [GATE_U, RIVER_V - RIVER_W / 2 - 4]]);
+  const roadB = grid([[GATE_U, RIVER_V + RIVER_W / 2 + 4], [GATE_U, 2400]]);
   return (
     <g className="vv-land" strokeLinejoin="round">
       <defs>
-        {names.map((n) => (
+        <clipPath id={clip}>
+          <rect x={box.x0} y={box.y0} width={box.x1 - box.x0} height={box.y1 - box.y0} />
+        </clipPath>
+        {names.filter((n) => !n.startsWith('vt-')).map((n) => (
           <g key={n} id={`tl-${n}`} dangerouslySetInnerHTML={{ __html: spriteMarkup(n) }} />
         ))}
       </defs>
-      <rect x={box.x0} y={box.y0} width={box.x1 - box.x0} height={box.y1 - box.y0} fill={BASE_FILL} />
-      {nodes}
+      <g clipPath={`url(#${clip})`}>
+        <rect x={box.x0} y={box.y0} width={box.x1 - box.x0} height={box.y1 - box.y0} fill={BASE_FILL} />
+        {flat}
+        {/* ground shapes drawn flat on the tiles: yards, the pond, the river, side paths and the main road (each one continuous band) */}
+        <g transform={GT} fill="none" strokeLinecap="butt" strokeLinejoin="round">
+          {PLACES.map((p, i) => (
+            <path key={i} d={ellipsePath(p.u, p.v, p.rx * 0.8, p.ry * 0.8)} fill={p.ground} opacity={0.6} stroke="none" />
+          ))}
+          <g>
+            <path d={ellipsePath(POND.u, POND.v, POND.rx + 3, POND.ry + 3)} fill={INK} stroke="none" />
+            <path d={ellipsePath(POND.u, POND.v, POND.rx + 1.5, POND.ry + 1.5)} fill="#B08B5A" stroke="none" />
+            <path d={ellipsePath(POND.u, POND.v, POND.rx, POND.ry)} fill="#2F9AA0" stroke="none" />
+            <path d={ellipsePath(POND.u - 3, POND.v - 2, POND.rx * 0.55, POND.ry * 0.5)} fill="#7AD3CD" opacity={0.5} stroke="none" />
+          </g>
+          <path d={river} stroke={INK} strokeWidth={RIVER_W + 6} strokeLinecap="round" />
+          <path d={river} stroke="#B08B5A" strokeWidth={RIVER_W + 2.6} strokeLinecap="round" />
+          <path d={river} stroke="#2F9AA0" strokeWidth={RIVER_W} strokeLinecap="round" />
+          <path d={river} stroke="#7AD3CD" strokeWidth={RIVER_W * 0.38} strokeLinecap="round" opacity={0.5} />
+          <path d={river} stroke="#FFFFFF" strokeWidth={1.1} strokeDasharray="7 17" strokeLinecap="round" opacity={0.85} transform="translate(0 3)" />
+          {SIDE_PATHS.map((p, i) => (
+            <g key={i}>
+              <path d={grid(p)} stroke="#C49A63" strokeWidth={SIDE_W + 2.6} />
+              <path d={grid(p)} stroke="#D9B98A" strokeWidth={SIDE_W} />
+            </g>
+          ))}
+          {[roadA, roadB].map((d, i) => (
+            <g key={i}>
+              <path d={d} stroke={INK} strokeWidth={ROAD_W + 3.4} />
+              <path d={d} stroke="#D9B98A" strokeWidth={ROAD_W} />
+              <path d={d} stroke="#E8D3A4" strokeWidth={ROAD_W * 0.5} strokeDasharray="10 12" opacity={0.8} />
+            </g>
+          ))}
+        </g>
+        {raised.map((r) => (
+          <g key={(r.node as { key?: string }).key}>{r.node}</g>
+        ))}
+      </g>
     </g>
   );
 });

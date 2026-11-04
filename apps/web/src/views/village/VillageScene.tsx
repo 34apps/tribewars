@@ -14,6 +14,7 @@ import {
   WALL_HIT,
   buildingStage,
   footprintFront,
+  labelAnchor,
   loadSprite,
   placementDepth,
   readySprite,
@@ -187,6 +188,7 @@ function BuildingHit({
   id,
   vb,
   box,
+  anchor,
   level,
   locked,
   selected,
@@ -198,6 +200,8 @@ function BuildingHit({
   id: BuildingId;
   vb: ViewBox;
   box: Box;
+  /** Where the label badge and pointer attach: the roof or tower top of a built building (null: use the drawing's box). */
+  anchor: { x: number; y: number } | null;
   level: number;
   locked: boolean;
   selected: boolean;
@@ -209,13 +213,14 @@ function BuildingHit({
   const name = BUILDINGS[id].name;
   const upgrading = finishIn !== null;
   const aria = `${name}, level ${level}${level === 0 ? (locked ? ', locked, requirements not met' : ', not built') : ''}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ', queued' : ''}`;
-  const cx = pct(box.x + box.w / 2 - vb.x, vb.w);
+  const cx = pct((anchor ? anchor.x : box.x + box.w / 2) - vb.x, vb.w);
+  const top = pct((anchor ? anchor.y : box.y) - vb.y, vb.h);
   return (
     <>
       <button
         type="button"
         className={`vv-hit${selected ? ' is-selected' : ''}${level === 0 ? ' is-empty' : ''}${locked ? ' is-locked' : ''}`}
-        style={{ left: cx, top: pct(box.y - vb.y, vb.h) }}
+        style={{ left: cx, top }}
         aria-label={aria}
         aria-pressed={selected}
         onClick={() => {
@@ -447,6 +452,7 @@ export function VillageScene({
                 id={id}
                 vb={vb}
                 box={boxes[id] ?? defaultBox(id)}
+                anchor={id !== 'wall' && arts[id].stage > 0 ? labelAnchor(id, arts[id].stage as Exclude<Stage, 0>) : null}
                 level={levels[id]}
                 locked={arts[id].locked}
                 selected={selected === id}

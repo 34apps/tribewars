@@ -76,37 +76,75 @@ const PLOTS: Plot[] = (Object.keys(PLACEMENT) as BuildingId[])
 const HALL = PLOTS[(Object.keys(PLACEMENT) as BuildingId[]).filter((id) => id !== 'wall').indexOf('hall')]!;
 
 // ---- Paths ---------------------------------------------------------------------------------------------------
-// Packed-earth paths that meander a little: the main road from the gate up to the hall square, and a branch to the front
-// of each plot (never across one). Each is a smooth curve through hand-placed points (grid units) with a soft, wobbly
-// width; paths that start at the hall square turn into flagstones there. A path shows only once its building exists.
+// One street network on the ground, all in grid directions (no wiggles): the main street runs from the gate straight along
+// u = GATE_U to the hall square, as wide as the road outside the walls (which leaves the gate along the same line), and a
+// branch runs from the square to the door of EVERY building: out along u past the building, then straight to the middle of its
+// front-left face (where the doors are). The three southern buildings and the Farm hang off one lane just inside the gate;
+// the back buildings run along v. A branch shows only once its building exists (built or queued), so no road leads nowhere.
 
-interface PathDef {
+export interface PathDef {
   key: string;
+  /** Corner points (u, v) in grid units; every leg runs along u or v. */
   pts: readonly (readonly [number, number])[];
-  /** Half width. */
+  /** Half width in grid units. */
   w: number;
   /** The building it leads to (null: always shown). */
   to: BuildingId | null;
-  /** Starts at the hall square (gets flagstones there). */
-  paved?: boolean;
 }
 
-const PATHS: PathDef[] = [
-  { key: 'main', to: null, paved: true, w: 12, pts: [[14, 74], [10, 110], [4, 150], [10, 195], [8, RP + 2]] },
-  { key: 'market', to: 'market', w: 7.2, pts: [[7, 146], [16, 150], [26, 152]] },
-  { key: 'drill', to: 'drillyard', w: 7.2, pts: [[5, 134], [-12, 140], [-30, 146]] },
-  { key: 'farm', to: 'farm', paved: true, w: 7.8, pts: [[74, 74], [92, 90], [102, 104], [108, 108]] },
-  { key: 'east', to: 'storehouse', paved: true, w: 8.4, pts: [[78, 26], [92, 20], [104, 12]] },
-  { key: 'mine', to: 'mine', w: 7.2, pts: [[90, 20], [104, -18], [122, -60], [130, -96], [130, -118]] },
-  { key: 'north', to: 'stables', paved: true, w: 8.4, pts: [[34, -34], [40, -62], [52, -86], [62, -106]] },
-  { key: 'vault', to: 'vault', w: 6.6, pts: [[40, -62], [10, -88], [-18, -102], [-34, -116]] },
-  { key: 'gold', to: 'goldmine', paved: true, w: 7.8, pts: [[-32, -32], [-60, -70], [-92, -96], [-110, -110], [-122, -122]] },
-  { key: 'west', to: 'barracks', paved: true, w: 8.4, pts: [[-34, 16], [-58, 8], [-80, 2], [-100, 0]] },
-  { key: 'lumber', to: 'lumber', w: 7.2, pts: [[-76, 4], [-92, 44], [-106, 84], [-120, 120]] },
-];
+/** Half width of the main street: the same as the packed-earth road tile outside the gate (fill 0.576 tile, 39 units a tile). */
+export const STREET_W = 12.1;
+/** Half width of a branch to a door. */
+const BRANCH_W = 8;
+/** The ink edge round a path (grid units). Matches the road tile's. */
+const EDGE = 3.2;
+/** Where the lane just inside the gate runs (v). */
+const LANE_V = 204;
+/** Ground depth of a building's pad (half side, grid units) and how far a path pushes in under the building. */
+const padOf = (id: BuildingId) => 28 * PLACEMENT[id].scale;
+const door = (id: BuildingId) => PLOTS_BY_ID[id].v + padOf(id) - 3;
 
-/** Paths that also show when a branch off them does (a branch needs its trunk). */
-const TRUNK: Record<string, string> = { mine: 'east', vault: 'north', lumber: 'west', market: 'main', drill: 'main' };
+const PLOTS_BY_ID = Object.fromEntries(
+  (Object.keys(PLACEMENT) as BuildingId[])
+    .filter((id) => id !== 'wall')
+    .map((id) => {
+      const p = PLACEMENT[id];
+      const ty = p.y + 26 * p.scale;
+      const dx = p.x - CX;
+      const s2 = 2 * (ty - CY);
+      return [id, { u: (dx + s2) / 2, v: (s2 - dx) / 2 }];
+    }),
+) as Record<BuildingId, { u: number; v: number }>;
+
+const branch = (to: BuildingId, ...via: [number, number][]): PathDef => ({
+  key: to,
+  to,
+  w: BRANCH_W,
+  pts: [...via, [PLOTS_BY_ID[to].u, via[via.length - 1]![1]], [PLOTS_BY_ID[to].u, door(to)]],
+});
+
+export const PATHS: PathDef[] = [
+  // The gate to the middle of the square, straight (the outside road continues it).
+  { key: 'main', to: null, w: STREET_W, pts: [[GATE_U, RP + 6], [GATE_U, 50]] },
+  // Along the lane just inside the gate.
+  branch('market', [GATE_U, LANE_V]),
+  branch('drillyard', [GATE_U, LANE_V]),
+  branch('lumber', [GATE_U, LANE_V]),
+  branch('farm', [GATE_U, LANE_V]),
+  // Out of the sides of the square.
+  branch('storehouse', [60, 56]),
+  branch('barracks', [-20, 56]),
+  // Out of the back of the square, then along v.
+  { key: 'stables', to: 'stables', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, door('stables')]] },
+  { key: 'vault', to: 'vault', w: BRANCH_W, pts: [[-20, -20], [PLOTS_BY_ID.vault.u, -20], [PLOTS_BY_ID.vault.u, door('vault')]] },
+  { key: 'mine', to: 'mine', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, -94], [PLOTS_BY_ID.mine.u, -94], [PLOTS_BY_ID.mine.u, door('mine')]] },
+  {
+    key: 'goldmine',
+    to: 'goldmine',
+    w: BRANCH_W,
+    pts: [[-20, -20], [PLOTS_BY_ID.vault.u, -20], [PLOTS_BY_ID.vault.u, -94], [PLOTS_BY_ID.goldmine.u, -94], [PLOTS_BY_ID.goldmine.u, door('goldmine')]],
+  },
+];
 
 interface Sample {
   u: number;
@@ -118,44 +156,31 @@ interface Sample {
   s: number;
 }
 
-/** Catmull-Rom curve through the points, sampled about every 2.5 grid units. */
+/** Points about every 2.5 grid units along the corner list, with the left-hand normal of each leg. */
 function samplePath(pts: PathDef['pts']): Sample[] {
-  const raw: [number, number][] = [];
+  const out: Sample[] = [];
+  let s = 0;
   for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i]!;
-    const p1 = pts[i]!;
-    const p2 = pts[i + 1]!;
-    const p3 = pts[i + 2] ?? p2;
-    const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 2.5));
+    const [u0, v0] = pts[i]!;
+    const [u1, v1] = pts[i + 1]!;
+    const len = Math.hypot(u1 - u0, v1 - v0);
+    const n = Math.max(1, Math.ceil(len / 2.5));
     for (let k = 0; k < n; k++) {
       const t = k / n;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const c = (a: number, b: number, cc: number, d: number) =>
-        0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t2 + (-a + 3 * b - 3 * cc + d) * t3);
-      raw.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1])]);
+      out.push({ u: u0 + (u1 - u0) * t, v: v0 + (v1 - v0) * t, nu: -(v1 - v0) / len, nv: (u1 - u0) / len, s: s + len * t });
     }
+    s += len;
   }
-  raw.push([pts[pts.length - 1]![0], pts[pts.length - 1]![1]]);
-  let s = 0;
-  return raw.map(([u, v], i) => {
-    const a = raw[Math.max(0, i - 1)]!;
-    const b = raw[Math.min(raw.length - 1, i + 1)]!;
-    const du = b[0] - a[0];
-    const dv = b[1] - a[1];
-    const len = Math.hypot(du, dv) || 1;
-    if (i > 0) s += Math.hypot(u - raw[i - 1]![0], v - raw[i - 1]![1]);
-    return { u, v, nu: -dv / len, nv: du / len, s };
-  });
+  const [lu, lv] = pts[pts.length - 1]!;
+  const last = out[out.length - 1]!;
+  out.push({ u: lu, v: lv, nu: last.nu, nv: last.nv, s });
+  return out;
 }
 
 const SAMPLES = PATHS.map((p) => samplePath(p.pts));
 
-/** Smooth wobble in [-1, 1] along a path. */
-const wobble = (s: number, k: number) => Math.sin(s * 0.13 + k * 1.7) * 0.55 + Math.sin(s * 0.37 + k * 4.1) * 0.3 + Math.sin(s * 0.91 + k * 2.3) * 0.15;
-
 const onRoad = (u: number, v: number, pad: number) =>
-  PATHS.some((p, i) => SAMPLES[i]!.some((q) => Math.abs(q.u - u) < p.w + pad + 2 && Math.hypot(q.u - u, q.v - v) < p.w * 1.2 + pad));
+  PATHS.some((p, i) => SAMPLES[i]!.some((q) => Math.hypot(q.u - u, q.v - v) < p.w + pad + 1.5));
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
@@ -375,27 +400,11 @@ const GrassDetail = memo(function GrassDetail() {
 /** Bold tan paths (ink edge, flat fill, a lighter dashed middle) to the buildings that stand, and the hall square. */
 const Paths = memo(function Paths({ built }: { built: string }) {
   const have = new Set(built.split(','));
-  const reach = new Map<string, number>();
-  PATHS.forEach((p) => {
-    if (p.to && !have.has(p.to)) return;
-    reach.set(p.key, Infinity);
-    const t = TRUNK[p.key];
-    const ti = PATHS.findIndex((q) => q.key === t);
-    if (t && ti >= 0 && reach.get(t) !== Infinity) {
-      const [bu, bv] = p.pts[0]!;
-      const at = SAMPLES[ti]!.reduce((best, q) => (Math.hypot(q.u - bu, q.v - bv) < Math.hypot(best.u - bu, best.v - bv) ? q : best));
-      reach.set(t, Math.max(reach.get(t) ?? 0, at.s + PATHS[ti]!.w));
-    }
-  });
-  const shown = PATHS.map((p, i) => ({ p, sm: SAMPLES[i]!.filter((q) => q.s <= (reach.get(p.key) ?? -1)) })).filter(({ sm }) => sm.length > 1);
-  // Paths are cut flat just inside the plate's edge by a clip (the main road ends under the gate; a round cap must not poke out below the doors).
-  const line = (sm: Sample[]) =>
-    `M${sm
-      .filter((q) => Math.max(Math.abs(q.u), Math.abs(q.v)) < RP + 4)
-      .filter((_, i, all) => i % 2 === 0 || i === all.length - 1)
-      .map((q) => pt(q.u, q.v))
-      .join('L')}`;
+  const shown = PATHS.filter((p) => !p.to || have.has(p.to));
   const sq = (h: number) => groundSquare(HALL.u, HALL.v, h);
+  // Drawn in grid units (u, v) through the same projection as iso(), so a path is exactly as wide in the ground as it says;
+  // a clip cuts it flat inside the plate's edge (the main street ends under the gate).
+  const line = (p: PathDef) => `M${p.pts.map(([u, v]) => `${u} ${v}`).join('L')}`;
   return (
     <g className="vv-paths" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <defs>
@@ -404,15 +413,17 @@ const Paths = memo(function Paths({ built }: { built: string }) {
         </clipPath>
       </defs>
       <g clipPath="url(#vv-ground-clip)">
-      {shown.map(({ p, sm }) => (
-        <path key={`e${p.key}`} d={line(sm)} stroke={INK} strokeWidth={p.w * 2.1 + 3.2} />
-      ))}
-      {shown.map(({ p, sm }) => (
-        <path key={`f${p.key}`} d={line(sm)} stroke={PATH_FILL} strokeWidth={p.w * 2.1} />
-      ))}
-      {shown.map(({ p, sm }) => (
-        <path key={`m${p.key}`} d={line(sm)} stroke="#E8D3A4" strokeWidth={p.w * 0.5} strokeDasharray="10 12" opacity={0.8} />
-      ))}
+        <g transform={`matrix(1 0.5 -1 0.5 ${CX} ${CY})`}>
+          {shown.map((p) => (
+            <path key={`e${p.key}`} d={line(p)} stroke={INK} strokeWidth={p.w * 2 + EDGE * 2} />
+          ))}
+          {shown.map((p) => (
+            <path key={`f${p.key}`} d={line(p)} stroke={PATH_FILL} strokeWidth={p.w * 2} />
+          ))}
+          {shown.map((p) => (
+            <path key={`m${p.key}`} d={line(p)} stroke="#E8D3A4" strokeWidth={p.w * 0.5} strokeDasharray="9 11" strokeLinecap="butt" opacity={0.8} />
+          ))}
+        </g>
       </g>
       {/* the square under the Town Hall: kerb, light paving, inner ring */}
       <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={1.8} />

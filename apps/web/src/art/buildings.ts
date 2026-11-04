@@ -165,6 +165,31 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   wall: plot(229, -90, 0.6),
 };
 
+/**
+ * Where each drawing's roof or tower ends, in sprite units (y, up is negative), per stage 1..3. Flag poles, flags, weather
+ * vanes and smoke are left out on purpose: the label and its pointer sit on the building itself, not on a thin pole far
+ * above it (the Town Hall's flag reaches 108 units up, its dome only 82). Measured from the art with a ruler.
+ */
+const ROOF_TOP: Record<Exclude<BuildingId, 'wall'>, readonly [number, number, number]> = {
+  hall: [-62, -80, -82],
+  lumber: [-50, -50, -62],
+  farm: [-20, -30, -38],
+  mine: [-38, -62, -58],
+  goldmine: [-40, -54, -68],
+  storehouse: [-14, -17, -20],
+  barracks: [-46, -54, -86],
+  stables: [-28, -45, -52],
+  vault: [-22, -25, -29],
+  market: [-22, -32, -36],
+  drillyard: [-20, -30, -40],
+};
+
+/** Scene point just on top of a built building (stage 1..3): where its label badge and pointer attach. */
+export function labelAnchor(id: Exclude<BuildingId, 'wall'>, stage: Exclude<Stage, 0>): { x: number; y: number } {
+  const { x, y, scale } = PLACEMENT[id];
+  return { x, y: y + ROOF_TOP[id][stage - 1]! * scale };
+}
+
 /** Painter's order: things further down the screen are drawn later. */
 export function placementDepth(id: BuildingId): number {
   const p = PLACEMENT[id];
