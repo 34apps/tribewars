@@ -15,6 +15,11 @@ Owner's direction (2026-11-02). Read before any visual work.
 - Approved designs fix the **general concept**; the owner may still touch up details at the end. Keep
   every piece of art swappable (sprite registries, separate SVG files), never baked into layout code.
 
+## Village buildings: B · Painted Miniature (owner, 2026-11-04)
+The owner picked direction B (hand-painted tabletop miniature: thin dark-brown outlines, 4–5-tone painted
+shading, real stones/shingles/thatch, earthy palette, rust-red flame banners) for all village buildings.
+Samples of A/B/C: `design/style-directions/village-v2/`. Map, UI and characters are still Toy Diorama for now.
+
 ## Chosen style: D · Toy Diorama (owner, 2026-11-02)
 Chunky tabletop toy pieces, 3-tone block shading lit from the top-left, vinyl-toy characters on round
 bases (3D-ready for Tripo3D later). Palette Moss #5E8C3A, Terracotta #C4623A, Sky teal #2F9AA0,

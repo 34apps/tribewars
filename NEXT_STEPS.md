@@ -56,3 +56,4 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Tribes: notify applicants when accepted/declined (now they see it on next poll); look-alike
   letters in tribe names (homoglyphs) aren't blocked; cache the tribe ranking if tribes grow to
   thousands; load the Tribe tab on demand (with an error boundary) to keep the first load small.
+- **Style B follow-ups** (buildings redrawn `ee21c6c`): redraw the village scenery (trees, rocks, campfire, paths, ground plate) in style B so it matches; buildings may need to be drawn a bit larger in `PLACEMENT`; owner noted the world map is still toy style (redo map stages/terrain in B later if wanted); building panels show the new sprites, check them at 360/1440 px; farm-2 and town-hall-2/3 sprites are heavier (130–350 KB raw, 16–42 KB gzipped).

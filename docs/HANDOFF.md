@@ -5,22 +5,13 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`efafde8`): village points now weighted by level (base × 1.2^(L-1) per level, `BUILDING_POINTS_BASE` in
-`config.ts`; new village = 40, maxed ≈ 10k). Map stage thresholds rescaled (0/100/300/800/1800/3500). Building panel
-+ construction queue show "+N pts". GAME_DESIGN and tests updated. Checks passed, build ok.
-Left: stored points in old databases refresh only when a village is next saved; web UI not viewed at 360/1440 px;
-rankings sample data (`rankingsSample.ts`) still uses old small numbers.
-Very next step: owner checks the building panel look; tune bases/growth in `config.ts` if wanted.
-Earlier: `4d6882e` Outrider buff, `dd8c40a` population retune.
-(Older notes below.)
-
-2026-11-04 (`149035b`, `676d342`): abandoned villages now have 6 pictures, one ruined version per growth
-stage (`abandoned-stage-1..6.svg`, same point steps as player villages), replacing the 3 old ruins. Earlier today:
-ruins same scale as villages, protection dome fits its tile (`7bdc1e7`); villages tried at 1.3x but that spilled over
-tiles, so `be53d22` set `VILLAGE_DRAW_SCALE` back to 1 (each sprite fills one tile). Don't scale above 1 again.
-Checks passed, build + preview build ok; map viewed in the preview at 1440 px.
-Very next step: owner looks at the map on their Mac. Design generator scripts for the abandoned sprites lived only
-in a cloud scratchpad; edit the SVGs in `design/sprites/map/` directly and copy them to `apps/web/src/art/map/`.
+2026-11-04 (`ee21c6c`): owner picked village-building style **B · Painted Miniature** from 3 drawn directions
+(`design/style-directions/village-v2/A|B|C`). All 12 buildings x 3 stages + empty plot / under construction /
+scaffold are now B (`apps/web/src/art/buildings/`); Market has its own art. Earlier today: 6 abandoned-village
+map stages; villages fit one tile (`VILLAGE_DRAW_SCALE` 1 — don't scale above 1).
+Checks passed, build + preview build ok; village viewed in the preview at 1440 and 390 px.
+Very next step: scenery (trees, rocks, campfire, ground) is still toy style next to B buildings — ask the owner
+whether to redraw it in B; maybe draw buildings larger in `PLACEMENT`.
 
 ## How the owner works (important)
 
@@ -42,7 +33,7 @@ in a cloud scratchpad; edit the SVGs in `design/sprites/map/` directly and copy 
   (tickets, reports, mute/ban), population cap, cancel within 2 min, rate limits, multi-account guard.
 - `npm run dev` = expanding 500x500 world at real pace (own DB `clanfire-world.sqlite`);
   `npm run dev:fast` = speed 10. Preview: `npm run build:preview` → `apps/preview/dist/index.html`.
-- Style **D · Toy Diorama** is in the game: village view (town square + campfire centre, Drillyard on its
+- Village buildings are style **B · Painted Miniature** (2026-11-04); the rest is **D · Toy Diorama**: village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
 - Tests: engine 223, server 210, all green. Not deployed; no CI.
