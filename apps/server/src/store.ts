@@ -717,6 +717,16 @@ export class Store extends SqlBase {
     return r !== undefined && r !== null;
   }
 
+  /** True when another account has been seen on any IP this account has used. */
+  sharesIpWithAnyone(playerId: number): boolean {
+    const r = this.get(
+      `SELECT 1 AS x FROM player_ips i1 JOIN player_ips i2 ON i1.ip = i2.ip
+        WHERE i1.player_id = ? AND i2.player_id <> i1.player_id LIMIT 1`,
+      playerId,
+    );
+    return r !== undefined && r !== null;
+  }
+
   /** IPs used by two or more accounts, with the accounts on each (for review and banning). */
   sharedIpGroups(): SharedIpGroup[] {
     const rows = this.all(

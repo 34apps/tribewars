@@ -941,6 +941,10 @@ export class GameService {
       if (target.id === v.id) throw new GameError('invalid_target', 'You cannot send resources to the same village.');
       // Abandoned villages (no owner) may receive too (owner, 2026-11-03); the household check only applies to players.
       if (target.ownerId !== null && target.ownerId !== player.id) this.refuseHousehold(player.id, target.ownerId, 'resources');
+      // Back door between accounts on one connection: feed an abandoned village, let the partner raid it.
+      if (target.ownerId === null && this.store.sharesIpWithAnyone(player.id)) {
+        throw new GameError('invalid_target', 'You share a connection with another player, so you cannot send resources to abandoned villages.');
+      }
       if (this.store.shipmentsInTransit(v.id) >= SHIPMENT_MAX_IN_TRANSIT) {
         throw new GameError('queue_full', `This village already has ${SHIPMENT_MAX_IN_TRANSIT} shipments on the road. Wait for one to arrive.`);
       }

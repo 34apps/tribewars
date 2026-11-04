@@ -94,3 +94,31 @@ skipped in `CHANGELOG.md`:
 Gate note, stats/achievements and caretaker bot (2026-11-03): no new input and no write endpoint (profile read only;
 counters written by the server inside the event's transaction). The bot only queues builds on the idle owner's own
 village via the normal build check; it cannot train, send troops, shipments or support. `last_active` writes are throttled.
+
+## 5. Game-rules audit, 2026-11-04
+
+Every probe is a server test in `apps/server/test/security-audit.test.ts` and also asserts that the village state did not change.
+(Earlier files cover ownership, protection, household, rate limits and the cancel window in more depth.)
+
+| Tried | Result |
+|---|---|
+| Village id `-1`, `1.5`, `abc`, `1e3`, 20 digits, `0x10` on build | 400, nothing changed |
+| Unknown building / unit / track, extra body fields, empty body | 400 |
+| Train count `0`, `-1`, `1.5`, `1e12`, over the batch cap, `"5"`, `null`, `MAX_SAFE_INTEGER` | 400 |
+| Cancel build / train / research with negative, fractional, huge, string, null index | 400 |
+| Send with huge, negative, fractional, `NaN`, string coordinates; negative, huge, fractional unit counts; unknown mission or field; `__proto__` key in the units | 400, no movement created |
+| Ship negative (would add stock to the sender), fractional, string, huge, unknown-resource, empty or `null` cargo; more than the village holds; to the same village; far-off coordinates | 400 / 409, stock unchanged |
+| 3 to 4 simultaneous builds, ships, sends, cancels, build-cancels for one affordable action | Accepted once (builds: up to the queue limit); stock never negative; troops and refunds never duplicated |
+| Cancel at 119 s, resend, cancel a return, cancel after 2 min, send the troops still walking home | Return takes exactly the elapsed time; return not cancellable; resend not faster; late cancel 409; no battle report |
+| Another player: cancel my movement, cancel-build/train/research, research, rank, respec, ship from my village, recall / send back unknown or foreign stationed troops | 404 / 403, my queue untouched |
+| Defender's view of an incoming attack | Times only, no army; `/api/state` lists only own villages |
+| Reports of another player (stranger and tribe-mate) | 404, stranger's list empty |
+| Map, player profile, both rankings, tribe pages as a stranger | No resources, troop counts or queues in any body |
+| Banned account on state, build, train, send, ship, cancel, recall, reports, tribe, leave; login | 401 on all; login refused |
+| Test-mode extras (`travelSeconds`, `returnSeconds`, `/api/sandbox/*`) as a normal account | 403 |
+| Two accounts on one IP: ship to each other | Refused (already) |
+| **Two accounts on one IP: ship to an abandoned village, partner raids it** | **HOLE, fixed**: the cargo was credited to the abandoned village's stock. Accounts that share a connection with any other account now get `invalid_target`; a solo player may still feed abandoned villages (owner decision, 2026-11-03) |
+
+Not changed, follow-ups: no per-player cap on movements in flight (bounded today by units owned and the 60 per minute send limit; rule 6 asks for a cap);
+`rank` / `respec` have no per-route limit bucket; two households on different IPs cannot be detected (accepted, handled by staff tooling).
+Concurrency note: handlers are synchronous inside one transaction, so two "simultaneous" requests are serialised; the tests prove the second sees the first's deduction.
