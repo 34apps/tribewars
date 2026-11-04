@@ -1,0 +1,39 @@
+# One host, one game process per world (SQLite is single-writer; rate limiters and the tick live in memory).
+# Run from this folder: cp .env.example .env, edit it, then `docker compose up -d --build`.
+services:
+  game:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    volumes:
+      # Create once on the host, owned by the container's `node` user (uid 1000):
+      #   sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data
+      - /srv/clanfire/data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 1500m
+    # No published ports: only caddy reaches it, over the compose network.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ORIGIN_DOMAIN: ${ORIGIN_DOMAIN}
+      ORIGIN_VERIFY_SECRET: ${ORIGIN_VERIFY_SECRET}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - game
+
+volumes:
+  caddy_data:
+  caddy_config:

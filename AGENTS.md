@@ -28,10 +28,11 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run dev` — server + web client with hot reload, world speed 1 (real pace).
 - `npm run dev:fast` — same at speed 10 with its own database (`apps/server/data/clanfire-fast.sqlite`).
 - `npm run check` — type-check + all tests. **Must pass before every commit.**
-- `npm run build` — production build of the web client.
+- `npm run build` — production build of the web client (`apps/web/dist`) and the bundled server (`apps/server/dist`).
 - `npm run build:preview` / `npm run dev:preview` — build / hot-reload the single-file preview (`apps/preview`).
 - `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--budget`, `--model`, `--effort`, `--max-turns`, `--continue`); see `docs/AI-WORKFLOW.md`.
-- `npm start` — production server (serves the built client).
+- `npm start` — compiled production server (serves `apps/web/dist` only if it exists; on AWS the web is on S3).
+- `npm run backup` — consistent copy of the database to `data/backups`. AWS setup: `docs/DEPLOYMENT_PLAN.md`, `deploy/`.
 
 ## Rules
 

@@ -15,13 +15,15 @@
     "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @clanfire/server\" \"npm run dev -w @clanfire/web\"",
     "dev:fast": "concurrently -k -n server,web -c blue,green \"npm run dev:fast -w @clanfire/server\" \"npm run dev -w @clanfire/web\"",
     "dev:preview": "npm run dev -w @clanfire/preview",
-    "build": "npm run build -w @clanfire/web",
+    "build": "npm run build -w @clanfire/web && npm run build -w @clanfire/server",
+    "build:server": "npm run build -w @clanfire/server",
     "build:preview": "npm run build -w @clanfire/preview",
     "start": "npm start -w @clanfire/server",
     "test": "npm run test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "check": "npm run type-check && npm test",
-    "agent": "tsx scripts/agent/run.ts"
+    "agent": "tsx scripts/agent/run.ts",
+    "backup": "npm run backup -w @clanfire/server"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.316",

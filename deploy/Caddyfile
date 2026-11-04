@@ -1,0 +1,20 @@
+# TLS certificate for the origin subdomain comes from Let's Encrypt automatically (HTTP-01 on port 80).
+{
+	servers {
+		# Keep CloudFront's X-Forwarded-For (player IP) instead of replacing it with the edge IP; Caddy drops it
+		# from untrusted peers by default. Safe because port 443 only admits CloudFront (security group) and
+		# requests without the secret header are refused below. The game then uses TRUST_PROXY=2.
+		trusted_proxies static 0.0.0.0/0 ::/0
+	}
+}
+
+{$ORIGIN_DOMAIN} {
+	# CloudFront adds this header; anything else is someone bypassing CloudFront.
+	@direct not header X-Origin-Verify {$ORIGIN_VERIFY_SECRET}
+	respond @direct 403
+
+	# CloudFront does not compress uncached /api responses.
+	encode zstd gzip
+
+	reverse_proxy game:3000
+}

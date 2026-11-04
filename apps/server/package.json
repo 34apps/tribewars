@@ -7,21 +7,24 @@
   "scripts": {
     "dev": "WORLD_SPEED=${WORLD_SPEED:-1} WORLD_RADIUS=${WORLD_RADIUS:-250} WORLD_LAYOUT=${WORLD_LAYOUT:-expanding} DATABASE_PATH=${DATABASE_PATH:-./data/clanfire-world.sqlite} NODE_ENV=development tsx watch src/index.ts",
     "dev:fast": "WORLD_SPEED=10 DATABASE_PATH=./data/clanfire-fast.sqlite NODE_ENV=development tsx watch src/index.ts",
-    "start": "NODE_ENV=production tsx src/index.ts",
+    "start": "NODE_ENV=production node --enable-source-maps dist/index.js",
     "admin": "tsx src/admin.ts",
     "type-check": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test \"test/**/*.test.ts\""
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "build": "node scripts/build.mjs",
+    "backup": "tsx src/backup.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
     "@clanfire/engine": "*",
     "@fastify/cookie": "^11.1.5",
     "@fastify/static": "^10.1.8",
-    "fastify": "^5.12.8",
-    "tsx": "^4.23.15"
+    "fastify": "^5.12.8"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }
 }
