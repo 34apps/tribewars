@@ -524,7 +524,7 @@ function box(
   z0: number,
   z1: number,
   c: Colors,
-  o: { stones?: boolean; sw?: number } = {},
+  o: { courses?: number; sw?: number; band?: { z0: number; z1: number; left: string; right: string } } = {},
 ): ReactNode {
   const left = poly([
     [u0, v1, z0],
@@ -544,22 +544,61 @@ function box(
     [u1, v1, z1],
     [u0, v1, z1],
   ]);
-  const zm = (z0 + z1) / 2;
   return (
     <g key={key} stroke={INK} strokeWidth={o.sw ?? 1.5} strokeLinejoin="round">
       <path d={left} fill={c.left} />
       <path d={right} fill={c.right} />
       <path d={top} fill={c.top} />
-      {o.stones && (
-        <path
-          d={`M${pt(u0, v1, zm)}L${pt(u1, v1, zm)}L${pt(u1, v0, zm)}`}
-          fill="none"
-          strokeWidth={0.8}
-          opacity={0.45}
-        />
+      {o.courses && <path d={masonry(u0, u1, v0, v1, z0, z1, o.courses)} fill="none" strokeWidth={0.7} opacity={0.4} />}
+      {o.band && (
+        <>
+          <path
+            d={poly([[u0, v1, o.band.z0], [u1, v1, o.band.z0], [u1, v1, o.band.z1], [u0, v1, o.band.z1]])}
+            fill={o.band.left}
+            strokeWidth={1.1}
+          />
+          <path
+            d={poly([[u1, v1, o.band.z0], [u1, v0, o.band.z0], [u1, v0, o.band.z1], [u1, v1, o.band.z1]])}
+            fill={o.band.right}
+            strokeWidth={1.1}
+          />
+        </>
       )}
     </g>
   );
+}
+
+/** Stone courses on both visible faces of a box: level joints plus staggered upright joints (one path). */
+function masonry(u0: number, u1: number, v0: number, v1: number, z0: number, z1: number, n: number): string {
+  const ch = (z1 - z0) / n;
+  const js = Math.max(5, ch * 2.4);
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const za = z0 + ch * i;
+    const zb = za + ch;
+    if (i > 0) d += `M${pt(u0, v1, za)}L${pt(u1, v1, za)}M${pt(u1, v1, za)}L${pt(u1, v0, za)}`;
+    const off = (i % 2) * (js / 2) + js / 2;
+    for (let u = u0 + off; u < u1 - 1; u += js) d += `M${pt(u, v1, za)}L${pt(u, v1, zb)}`;
+    for (let v = v1 - off; v > v0 + 1; v -= js) d += `M${pt(u1, v, za)}L${pt(u1, v, zb)}`;
+  }
+  return d;
+}
+
+/** Crenellations on both edges of a wall top (the walkway runs between them). `a..b` along the wall, `lo..hi` across. */
+function merlonRows(along: 'u' | 'v', a: number, b: number, lo: number, hi: number, z: number, mh: number): ReactNode[] {
+  const ml = 3.6;
+  const mt = (hi - lo) * 0.34;
+  const out: ReactNode[] = [];
+  for (let s = a + 1.2; s + ml <= b - 0.6; s += ml * 2) {
+    for (const m0 of [lo, hi - mt]) {
+      out.push(
+        along === 'u'
+          ? box(`m${f(s)}-${f(m0)}`, s, s + ml, m0, m0 + mt, z, z + mh, STONE, { sw: 1.2 })
+          : box(`m${f(s)}-${f(m0)}`, m0, m0 + mt, s, s + ml, z, z + mh, STONE, { sw: 1.2 }),
+      );
+    }
+  }
+  return out;
 }
 
 const sp = (list: Pt[]) => list.map(([x, y]) => `${f(x)} ${f(y)}`).join('L');
@@ -614,7 +653,17 @@ function roundTower(cx: number, cy: number, r: number, h: number, rise: number, 
       <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.left} strokeWidth={1.6} />
       <path d={`M${f(cx + 2)} ${f(top + ry)}V${f(cy + ry)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.right} strokeWidth={0} />
       <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}`} fill="none" strokeWidth={1.8} />
-      <path d={`M${f(cx - r * 0.35)} ${f(top + h * 0.45)}v6`} strokeWidth={2.4} strokeLinecap="round" />
+      {/* Stone courses round the shaft, and a darker footing ring */}
+      <path
+        d={[0.2, 0.4, 0.6, 0.8].map((p) => `M${f(cx - r)} ${f(cy - h * p)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy - h * p)}`).join('')}
+        fill="none"
+        strokeWidth={0.8}
+        opacity={0.4}
+      />
+      <path d={`M${f(cx - r)} ${f(cy - 4)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(cy - 4)}A${r} ${ry} 0 0 1 ${f(cx - r)} ${f(cy - 4)}Z`} fill={STONE.right} strokeWidth={1.2} opacity={0.55} />
+      {/* Arrow slits on the lit side and a lookout window higher up */}
+      <path d={`M${f(cx - r * 0.55)} ${f(top + h * 0.5)}v6M${f(cx - r * 0.1)} ${f(top + h * 0.34)}v7`} strokeWidth={2.4} strokeLinecap="round" />
+      <path d={`M${f(cx + r * 0.42)} ${f(top + h * 0.5)}v6`} strokeWidth={2.4} strokeLinecap="round" />
       <path
         d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
         fill={ROOF.mid}
@@ -638,27 +687,32 @@ function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o
     const [x, y] = iso(cu, cv);
     return <g key={key}>{roundTower(x, y + a * 0.5, a * 1.25, h, o.roof * 0.8, !!o.flag)}</g>;
   }
-  const parts: ReactNode[] = [box('b', cu - a, cu + a, cv - a, cv + a, 0, h, STONE, { sw: 1.6 })];
+  // Tower shaft with stone courses, a slightly wider crown (corbelled top), two arrow slits per visible face.
+  const crown = 4;
+  const parts: ReactNode[] = [box('b', cu - a, cu + a, cv - a, cv + a, 0, h - crown, STONE, { sw: 1.6, courses: Math.max(3, Math.round(h / 5)) })];
+  const sl = (u: number, v: number, z: number) => `M${pt(u, v, z)}L${pt(u, v, z + 6)}`;
   parts.push(
     <path
       key="sl"
-      d={`M${pt(cu, cv + a, h * 0.45)}L${pt(cu, cv + a, h * 0.45 + 6)}M${pt(cu + a, cv, h * 0.5)}L${pt(cu + a, cv, h * 0.5 + 6)}`}
+      d={[-0.5, 0.5].map((k) => sl(cu + k * a, cv + a, h * 0.4) + sl(cu + a, cv + k * a, h * 0.4)).join('') + sl(cu, cv + a, h * 0.68) + sl(cu + a, cv, h * 0.68)}
       stroke={INK}
       strokeWidth={2.4}
       strokeLinecap="round"
     />,
   );
-  const m = Math.max(2, a * 0.26);
+  const a1 = a + 1;
+  parts.push(box('cr', cu - a1, cu + a1, cv - a1, cv + a1, h - crown, h, STONE, { sw: 1.6 }));
+  const m = Math.max(2, a1 * 0.26);
   const spots: [number, number][] = [];
   for (const du of [-1, 0, 1]) for (const dv of [-1, 0, 1]) if (du || dv) spots.push([du, dv]);
   spots.sort((p, q) => p[0] + p[1] - q[0] - q[1]);
   for (const [du, dv] of spots) {
-    const u = cu + du * (a - m);
-    const v = cv + dv * (a - m);
-    parts.push(box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 4.5, STONE, { sw: 1.2 }));
+    const u = cu + du * (a1 - m);
+    const v = cv + dv * (a1 - m);
+    parts.push(box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 5, STONE, { sw: 1.2 }));
   }
   if (o.flag) {
-    const [x, y] = iso(cu, cv, h + 4.5);
+    const [x, y] = iso(cu, cv, h + 5);
     parts.push(flag('fl', x, y));
   }
   return <g key={key}>{parts}</g>;
@@ -666,12 +720,29 @@ function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o
 
 /** Timber watchtower with a pyramid roof (palisade stage), standing on (cu, cv). */
 function watchtower(key: string, cu: number, cv: number) {
-  const [cx, cy] = iso(cu, cv);
+  const [cx, cy0] = iso(cu, cv);
+  const cy = cy0 + 5;
+  const a = 10.4;
+  const h = 34;
+  const L: Pt = [cx - a, cy];
+  const F: Pt = [cx, cy + a / 2];
+  const R: Pt = [cx + a, cy];
+  const at = (p: Pt, z: number) => `${f(p[0])} ${f(p[1] - z)}`;
+  const mix = (p: Pt, q: Pt, k: number): Pt => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+  // Plank joints, an X of cross braces on the lower half, a dark lookout opening under the platform.
+  let planks = '';
+  for (const z of [10, 20]) planks += `M${at(L, z)}L${at(F, z)}L${at(R, z)}`;
+  let braces = `M${at(L, 1)}L${at(F, 19)}M${at(L, 19)}L${at(F, 1)}M${at(F, 1)}L${at(R, 19)}M${at(F, 19)}L${at(R, 1)}`;
+  const look = (p: Pt, q: Pt) => `M${at(mix(p, q, 0.28), 23)}L${at(mix(p, q, 0.72), 23)}L${at(mix(p, q, 0.72), 30)}L${at(mix(p, q, 0.28), 30)}Z`;
   return (
     <g key={key}>
-      {isoBox('b', cx, cy + 5, 10.4, 34, WOOD, 1.6)}
-      {isoBox('p', cx, cy + 5 - 34, 14, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
-      {pyramid('r', cx, cy + 5 - 39, 18.2, 16)}
+      {isoBox('b', cx, cy, a, h, WOOD, 1.6)}
+      <path d={planks} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.4} />
+      <path d={braces} fill="none" stroke={WOOD.pRight} strokeWidth={1.7} strokeLinecap="round" />
+      <path d={look(L, F) + look(F, R)} fill="#3B2A1E" stroke={INK} strokeWidth={1.2} strokeLinejoin="round" />
+      {isoBox('p', cx, cy - 34, 14, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
+      {pyramid('r', cx, cy - 39, 18.2, 16)}
+      <path d={`M${f(cx - 8)} ${f(cy - 39 + 2.5)}L${f(cx)} ${f(cy - 55)}`} stroke={WOOD.pRight} strokeWidth={1} opacity={0.6} fill="none" />
     </g>
   );
 }
@@ -688,61 +759,70 @@ function gatePost(key: string, cu: number, cv: number) {
 }
 
 /** One run of palisade along an edge: chunky pointed stakes with a rail. */
-function palisade(key: string, along: 'u' | 'v', c: number, a: number, b: number): ReactNode {
-  const P = (s: number): Pt => {
-    const [x, y] = along === 'u' ? iso(s, c) : iso(c, s);
+function palisade(key: string, along: 'u' | 'v', c: number, a: number, b: number, hs: number): ReactNode {
+  const P = (s: number, dc = 0): Pt => {
+    const [x, y] = along === 'u' ? iso(s, c + dc) : iso(c + dc, s);
     return [x, y + 1];
   };
-  const stakes: ReactNode[] = [];
   const step = 3.6;
   const xs: number[] = [];
   for (let s = a + 1.5; s <= b - 1.5; s += step) xs.push(s);
-  for (const s of xs) {
-    const [x, y] = P(s);
+  // Stakes of uneven height (a repeating pattern, so every chunk matches its neighbours), pointed tops.
+  const ups = [1, 0.9, 1.07, 0.96, 1.03];
+  const stake = (s: number, dc: number, back: boolean) => {
+    const [x, y] = P(s, dc);
+    const hh = (back ? 25 : 21) * hs * (ups[Math.abs(Math.round(s / step)) % ups.length] ?? 1);
+    const tip = hh + 6.1 * hs;
     const x0 = x - 3.4;
-    stakes.push(
-      <g key={f(s)}>
+    return (
+      <g key={`${back ? 'k' : 'q'}${f(s)}`}>
         <path
-          d={`M${f(x0)} ${f(y)}V${f(y - 21)}L${f(x)} ${f(y - 27.1)}L${f(x0 + 6.8)} ${f(y - 21)}V${f(y)}Z`}
-          fill={WOOD.left}
+          d={`M${f(x0)} ${f(y)}V${f(y - hh)}L${f(x)} ${f(y - tip)}L${f(x0 + 6.8)} ${f(y - hh)}V${f(y)}Z`}
+          fill={back ? WOOD.pLeft : WOOD.left}
           stroke={INK}
           strokeWidth={1.5}
           strokeLinejoin="round"
         />
-        <path d={`M${f(x + 0.8)} ${f(y - 1)}V${f(y - 21)}H${f(x + 2.6)}V${f(y - 1)}Z`} fill={WOOD.right} />
-      </g>,
+        <path d={`M${f(x + 0.8)} ${f(y - 1)}V${f(y - hh)}H${f(x + 2.6)}V${f(y - 1)}Z`} fill={back ? WOOD.pRight : WOOD.right} />
+      </g>
     );
-  }
+  };
+  // A second, taller row stands half a step behind, so there is no gap to see through.
+  const back = xs.map((s) => stake(s + step / 2, -1.6, true));
+  const front = xs.map((s) => stake(s, 0, false));
   const first = P(xs[0] ?? a);
   const last = P(xs[xs.length - 1] ?? b);
+  const rail = (z: number) => `M${f(first[0])} ${f(first[1] - z * hs)}L${f(last[0])} ${f(last[1] - z * hs)}`;
   return (
     <g key={key}>
-      {stakes}
-      <path d={`M${f(first[0])} ${f(first[1] - 15)}L${f(last[0])} ${f(last[1] - 15)}`} fill="none" stroke={WOOD.pRight} strokeWidth={2.2} strokeLinecap="round" />
+      {back}
+      {front}
+      <path d={rail(15) + rail(6)} fill="none" stroke={WOOD.pRight} strokeWidth={2.2} strokeLinecap="round" />
+      <path d={rail(15.9) + rail(6.9)} fill="none" stroke={WOOD.top} strokeWidth={0.8} strokeLinecap="round" opacity={0.8} />
     </g>
   );
 }
 
 /** One run of stone wall along an edge, with merlons on its outer side. `outer` is +1 when the outer side is +v/+u. */
-function stoneRun(key: string, along: 'u' | 'v', c: number, a: number, b: number, h: number, t: number, outer: 1 | -1): ReactNode {
+function stoneRun(key: string, along: 'u' | 'v', c: number, a: number, b: number, h: number, t: number, stage: 2 | 3): ReactNode {
   const lo = c - t / 2;
   const hi = c + t / 2;
-  const body = along === 'u' ? box('w', a, b, lo, hi, 0, h, STONE, { stones: true }) : box('w', lo, hi, a, b, 0, h, STONE, { stones: true });
-  const ml = 3.6;
-  const mt = t * 0.4;
-  const m0 = outer > 0 ? hi - mt : lo;
-  const merlons: ReactNode[] = [];
-  for (let s = a + 1.2; s + ml <= b - 0.6; s += ml * 2) {
-    merlons.push(
-      along === 'u'
-        ? box(`m${f(s)}`, s, s + ml, m0, m0 + mt, h, h + 4.5, STONE, { sw: 1.2 })
-        : box(`m${f(s)}`, m0, m0 + mt, s, s + ml, h, h + 4.5, STONE, { sw: 1.2 }),
-    );
+  // Stage 3 wears a terracotta tile cap under the battlements.
+  const opts = {
+    courses: Math.max(2, Math.round(h / 5)),
+    band: stage === 3 ? { z0: h - 3.4, z1: h, left: ROOF.mid, right: ROOF.dark } : undefined,
+  };
+  const body = along === 'u' ? box('w', a, b, lo, hi, 0, h, STONE, opts) : box('w', lo, hi, a, b, 0, h, STONE, opts);
+  // Arrow slits on the visible long face of walls tall enough to hold them.
+  let slits = '';
+  if (h >= 14) {
+    for (let s = a + 6; s < b - 2; s += 12) slits += along === 'u' ? `M${pt(s, hi, h * 0.4)}L${pt(s, hi, h * 0.4 + 5)}` : `M${pt(hi, s, h * 0.4)}L${pt(hi, s, h * 0.4 + 5)}`;
   }
   return (
     <g key={key}>
       {body}
-      {merlons}
+      {slits && <path d={slits} stroke={INK} strokeWidth={2.2} strokeLinecap="round" fill="none" />}
+      {merlonRows(along, a, b, lo, hi, h, stage === 3 ? 5 : 4.2)}
     </g>
   );
 }
@@ -763,22 +843,28 @@ function gateBanner(key: string, cu: number, cv: number, ztop: number): ReactNod
   );
 }
 /** The closed main gate between the gate towers: wooden double doors with iron bands, studs, a crossbar and a lock. */
-function closedGate(key: string, stage: Exclude<Stage, 0>, c: number, t: number, h: number): ReactNode {
+function closedGate(key: string, stage: Exclude<Stage, 0>, c: number, t: number): ReactNode {
   const u0 = GATE_U - GATE_W;
   const u1 = GATE_U + GATE_W;
   const stone = stage > 1;
   const V = stone ? c + t / 2 : c + 1;
   const Hd = stage === 1 ? 19 : stage === 2 ? 13 : 19;
   const rise = stone ? 4 : 0;
-  const top = stage === 1 ? 0 : stage === 2 ? h + 5 : h + 11;
+  // The gatehouse stands clearly taller than the (low) front wall beside it.
+  const top = stage === 1 ? 0 : stage === 2 ? 22 : 35;
   const a = u0 + (stone ? 2 : 0.5);
   const b = u1 - (stone ? 2 : 0.5);
   const q = (u: number, z: number) => pt(u, V, z);
   const parts: ReactNode[] = [];
   if (stone) {
     // Gatehouse block over the opening, with merlons on the outer side.
-    parts.push(box('gh', u0, u1, c - t / 2, c + t / 2, 0, top, STONE, { stones: true }));
-    for (let s = u0 + 1.2; s + 3.6 <= u1 - 0.6; s += 7.2) parts.push(box(`gm${f(s)}`, s, s + 3.6, c + t / 2 - t * 0.38, c + t / 2, top, top + 4.5, STONE, { sw: G.merlonSw }));
+    parts.push(
+      box('gh', u0, u1, c - t / 2, c + t / 2, 0, top, STONE, {
+        courses: Math.round(top / 5),
+        band: stage === 3 ? { z0: top - 3.4, z1: top, left: ROOF.mid, right: ROOF.dark } : undefined,
+      }),
+    );
+    parts.push(...merlonRows('u', u0, u1, c - t / 2, c + t / 2, top, stage === 3 ? 5 : 4.2));
   }
   // Door outline: straight sides, arched (stone) or stake-pointed (timber) top.
   const n = 12;
@@ -851,7 +937,8 @@ interface Edge {
 
 /** The four walls, each on the plate's edge with its outer face flush with the border (`c` is the wall's middle line). */
 function edges(t: number): Edge[] {
-  const c = RP - t / 2 - 0.3;
+  // Flush with the plate's edge: no ground left outside the wall, no gap under it.
+  const c = RP - t / 2;
   return [
     { name: 'back-right', along: 'u', c: -c },
     { name: 'back-left', along: 'v', c: -c },
@@ -876,14 +963,17 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
   const corner = stage === 1 ? 10 : stage === 2 ? 12 : 15;
   const post = stage === 1 ? 3 : stage === 2 ? 8 : 10;
   const t = stage === 1 ? 2 : stage === 2 ? 7 : 9;
-  const h = stage === 2 ? 16 : 24;
+  // The two walls facing the camera stay low so the village inside shows over them; the two far walls stand tall.
+  const hBack = stage === 2 ? 18 : 30;
+  const hFront = stage === 2 ? 9 : 16;
   const chunk = 24;
   // Gate towers a third bigger than before, so the gate reads as the village's front door.
   const gpost = Math.round(post * 1.3);
   const end = RP - 2 * corner + 1;
 
   for (const e of edges(t)) {
-    const outer: 1 | -1 = e.c > 0 ? 1 : -1;
+    const near = e.c > 0;
+    const h = near ? hFront : hBack;
     const gate = e.name === 'front-left';
     const runs: [number, number][] = gate
       ? [
@@ -894,13 +984,13 @@ export function wallItems(stage: Exclude<Stage, 0>): DepthItem[] {
     for (const [a0, b0] of runs) {
       for (let a = a0; a < b0 - 0.5; a += chunk) {
         const b = Math.min(b0, a + chunk);
-        const node = stage === 1 ? palisade('p', e.along, e.c, a, b) : stoneRun('s', e.along, e.c, a, b, h, t, outer);
+        const node = stage === 1 ? palisade('p', e.along, e.c, a, b, near ? 0.72 : 1) : stoneRun('s', e.along, e.c, a, b, h, t, stage);
         items.push({ key: `w-${e.name}-${f(a)}`, depth: runDepth(e, b, t), node });
       }
     }
     if (!gate) continue;
     // The closed gate, then the gate towers (or posts) on both sides of it.
-    items.push({ key: 'gate', depth: iso(GATE_U + GATE_W, e.c + t / 2)[1], node: closedGate('gate', stage, e.c, t, h) });
+    items.push({ key: 'gate', depth: iso(GATE_U + GATE_W, e.c + t / 2)[1], node: closedGate('gate', stage, e.c, t) });
     for (const side of [-1, 1] as const) {
       const u = GATE_U + side * (GATE_W + gpost);
       const v = RP - Math.max(gpost, t / 2 + 0.3);
