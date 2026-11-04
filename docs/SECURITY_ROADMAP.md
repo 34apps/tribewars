@@ -72,7 +72,7 @@ Status: ✅ done · ◐ partly · ☐ open.
 
 ### Phase 3 — production hardening
 - ☐ Compile server (`tsc`), run as non-root in Docker, read-only filesystem except `data/`, health check, resource limits.
-- ☐ TLS via reverse proxy, HTTP→HTTPS redirect, trusted-proxy config so rate limits see the real client IP.
+- 🟡 TLS via reverse proxy, HTTP→HTTPS redirect, trusted-proxy config so rate limits see the real client IP (✅ 2026-11-04: `TRUST_PROXY` takes a hop count or proxy IP/CIDR list, `ALLOWED_ORIGINS` for the Origin check behind a CDN, `/api/health` checks the DB; AWS shape in `docs/DEPLOYMENT_PLAN.md`).
 - ☐ Structured logs (no PII/tokens), alerting on error rate, tick lag (`now - oldest due arrive_at`), DB size.
 - ☐ Load test: N simulated players sending/arriving movements; measure tick lag and API p95.
 - ☐ External security review / pen test before launch; responsible-disclosure contact (`security.txt`).

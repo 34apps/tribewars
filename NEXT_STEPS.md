@@ -5,8 +5,9 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 ## Decisions for the owner
 - **Name: Clanfire** (owner, 2026-11-02). Before launch: trademark + domain check. The GitHub repo
   is still called `tribewars`; the owner can rename it in GitHub → Settings → General (old links redirect).
-- **Hosting.** Where the game server runs (one small always-on server is enough at first; the
-  database is a single SQLite file that needs backups).
+- **Hosting: AWS** (owner, 2026-11-04). Plan in `docs/DEPLOYMENT_PLAN.md`. Open owner decisions there (§5):
+  keep SQLite on one machine for launch (recommended) vs Postgres/RDS; token login for the mobile app;
+  one EC2 + CloudFront + S3 (recommended) vs a managed container service.
 - **World pace.** Done 2026-11-02: slower original pace, default speed 1; revisit after playtests.
 - **Troop ranks + Armory (asked 2026-11-03).** Proposal in `docs/GAME_DESIGN.md` §15 (Training
   Point budget per village, rank tiers). Engine/server/web Drillyard is built; the owner's answers
@@ -55,8 +56,9 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 ## Tech follow-ups
 - Ask Mags AI advisor is off (owner: credit spend). If revived: decide a budget first; server code is ready behind `ADVISOR_ENABLED`; add stationed support troops to her snapshot.
 - Mobile polish: installable web app (PWA), haptics-free touch tuning, landscape layout.
-- Deployment: Dockerfile, health checks, daily database backup; compile the server instead of
-  running through `tsx` in production.
+- Deployment (AWS) and mobile-app readiness: ranked open items in `docs/DEPLOYMENT_PLAN.md` §3–4
+  (compiled server, Dockerfile, S3 backups, CI + deploy, graceful shutdown, migrations; then token
+  login, `/api/v1` + min-client-version, publish the engine package).
 - Security: work through `docs/SECURITY_ROADMAP.md` Phase 1 (CSP, session expiry, password policy, CI audit; global rate limits are done) before any public server.
 - WebSocket push (design in the roadmap, also replaces 10 s polling above) and a tick-lag metric for troop arrivals.
 - Map: if pan is still slow on a phone (`window.__mapFrames` in dev), blit-shift the previous frame while panning.
