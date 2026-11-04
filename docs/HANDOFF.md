@@ -5,9 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`dd8c40a`): population retuned (`POP_CAP_GROWTH` 1.2, `POP_BUILDING_GROWTH` 1.1) so a maxed village has
-~3,100 pop left for troops. Numbers only in `config.ts`; `GAME_DESIGN.md` updated. Checks passed.
-Very next step: owner plays and says if the army size feels right; tune the two constants if not.
+2026-11-04 (`4d6882e`): Outrider buffed in `config.ts`: population 3 → 2, train time 720 → 600 s (attack stays 60,
+food upkeep stays 3); `GAME_DESIGN.md` and the population test updated. No simulation run. Checks passed.
+Very next step: owner plays; if Outriders still feel weak, raise attack to ~80.
+Earlier: `dd8c40a` population retune (cap growth 1.2, building growth 1.1).
 (Older notes below.)
 
 2026-11-04 (`149035b`, `676d342`): abandoned villages now have 6 pictures, one ruined version per growth
