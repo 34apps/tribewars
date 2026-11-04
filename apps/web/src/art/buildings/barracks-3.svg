@@ -1,48 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
 <g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
-<path d="M-6 -16V-92" fill="none" stroke="#714B29" stroke-width="2.4"/>
-<path d="M-6 -92L18 -85L-6 -76Z" fill="#B5533C" stroke-width="1.3"/>
-<circle cx="3" cy="-85" r="2" fill="#F2B33D" stroke="none"/>
-<path d="M-34 28V-14H34V28Z" fill="#CFC8BB"/>
-<path d="M-34 -14H34V-2H-34Z" fill="#B9B2A6" stroke="none"/>
-<path d="M-34 -14H34M-34 -2H34" fill="none" stroke-width="1.2"/>
-<path d="M-34 -14V-21H-27V-14M-20 -14V-21H-13V-14M-6 -14V-21H1V-14M8 -14V-21H15V-14M22 -14V-21H29V-14" fill="#CFC8BB" stroke-linecap="butt"/>
-<path d="M34 -14V28" fill="none" stroke="#8C857A" stroke-width="3" stroke-linecap="butt" opacity="0.5"/>
-<path d="M-34 10H34M-34 20H34M-28 -2V10M-14 -2V10M14 -2V10M28 -2V10M-21 10V20M21 10V20M-28 20V28M-14 20V28M14 20V28M28 20V28" fill="none" stroke="#9C958A" stroke-width="1"/>
-<path d="M-11 28V8A11 11 0 0 1 11 8V28Z" fill="#5E3F22"/>
-<path d="M-11 8A11 11 0 0 1 11 8" fill="none" stroke="#8C857A" stroke-width="3"/>
-<path d="M-6 -3V28M0 -3V28M6 -3V28M-11 12H11M-11 20H11" fill="none" stroke="#3E2A16" stroke-width="1.2"/>
-<path d="M-10 -12H10V-5Q10 -1 0 6Q-10 -1 -10 -5Z" fill="#3F6FB5" transform="translate(0 -3) scale(1 .9)"/>
-<path d="M0 -15V-2M-4 -10H4" fill="none" stroke="#F1E1C2" stroke-width="1.6"/>
-<circle cx="-23" cy="5" r="6" fill="#B5533C"/><circle cx="-23" cy="5" r="2.800" fill="#F2B33D"/>
-<circle cx="23" cy="5" r="6" fill="#B5533C"/><circle cx="23" cy="5" r="2.800" fill="#F2B33D"/>
-<path d="M-50 28V-44H-32V28Z" fill="#D8D1C4"/>
-<path d="M-38 -44V28" fill="none" stroke="#9C958A" stroke-width="1.2"/>
-<path d="M-32 -44V28" fill="none" stroke="#8C857A" stroke-width="3" stroke-linecap="butt" opacity="0.5"/>
-<path d="M-50 -44V-50H-45V-44M-41 -44V-50H-36V-44" fill="#D8D1C4" stroke-linecap="butt"/>
-<path d="M-50 -44H-32" fill="none"/>
-<path d="M50 28V-44H32V28Z" fill="#D8D1C4"/>
-<path d="M44 -44V28" fill="none" stroke="#9C958A" stroke-width="1.2"/>
-<path d="M50 -44V28" fill="none" stroke="#8C857A" stroke-width="3" stroke-linecap="butt" opacity="0.5"/>
-<path d="M50 -44V-50H45V-44M41 -44V-50H36V-44" fill="#D8D1C4" stroke-linecap="butt"/>
-<path d="M-50 -20H-32M-50 -4H-32M-50 12H-32M32 -20H50M32 -4H50M32 12H50" fill="none" stroke="#9C958A" stroke-width="1"/>
-<path d="M-43 -36V-28M-39 -36V-28M43 -36V-28M39 -36V-28" fill="none" stroke="#2B211C" stroke-width="2.4"/>
-<path d="M-43 -8V0M43 -8V0" fill="none" stroke="#2B211C" stroke-width="2.4"/>
-<path d="M-51 -50L-41 -74L-31 -50Z" fill="#D9704F"/>
-<path d="M-41 -74L-31 -50L-39 -50Z" fill="#8A3A2A" stroke="none"/>
-<path d="M-41 -74V-92" fill="none" stroke="#714B29" stroke-width="2"/>
-<path d="M-41 -92L-28 -88L-41 -83Z" fill="#B5533C" stroke-width="1.2"/>
-<path d="M51 -50L41 -74L31 -50Z" fill="#D9704F"/>
-<path d="M41 -74L51 -50L43 -50Z" fill="#8A3A2A" stroke="none"/>
-<path d="M41 -74V-92" fill="none" stroke="#714B29" stroke-width="2"/>
-<path d="M41 -92L28 -88L41 -83Z" fill="#B5533C" stroke-width="1.2"/>
-<path d="M-18 40V24M-30 40V24" fill="none" stroke="#714B29" stroke-width="2.4"/>
-<path d="M-32 36H-16" fill="none" stroke="#714B29" stroke-width="2.4"/>
-<path d="M-28 36L-30 14M-24 36V12M-20 36L-18 14" fill="none" stroke="#714B29" stroke-width="1.8"/>
-<path d="M-30 14L-31.500 9L-28 10ZM-24 12L-25.500 6L-22 6ZM-18 14L-19.500 9L-16 10Z" fill="#E0DCD3" stroke-width="1.1"/>
-<path d="M22 34V20M32 34V20" fill="none" stroke="#714B29" stroke-width="2.4"/>
-<path d="M20 31H34" fill="none" stroke="#714B29" stroke-width="2.4"/>
-<ellipse cx="27" cy="33" rx="5" ry="6" fill="#D9B96E"/>
-<circle cx="27" cy="23" r="3.600" fill="#E0C56A"/>
-<path d="M21 28H33" fill="none" stroke="#E0DCD3" stroke-width="2"/>
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- main block -->
+<g transform="matrix(1 .5 0 -1 0 41)"><rect x="-38" y="0" width="38" height="36" fill="#D8D1C4"/><path d="M-38 10H0M-38 20H0M-38 30H0M-30 0V10M-18 0V10M-8 0V10M-34 10V20M-22 10V20M-10 10V20M-28 20V30M-14 20V30" fill="none" stroke="#9C958A" stroke-width="1"/><path d="M-38 24H0" fill="none" stroke="#B5533C" stroke-width="3"/><path d="M-27 0V14Q-19 28 -11 14V0Z" fill="#5E3F22"/><path d="M-19 0V21M-23 0V17M-15 0V17M-27 8H-11" fill="none" stroke="#3E2A16" stroke-width="1"/><path d="M-28.500 0V14Q-19 30 -9.500 14V0" fill="none" stroke="#8C857A" stroke-width="2.800"/><path d="M-27 14V18M-11 14V18M-27 0V4M-11 0V4" fill="none" stroke="#F2B33D" stroke-width="1.200"/><circle cx="-22.500" cy="6" r=".9" fill="#F2B33D" stroke="none"/><path d="M-9 33H-2V27Q-2 23 -5.500 21Q-9 23 -9 27Z" fill="#3F6FB5" stroke-width="1.300"/><path d="M-5.500 32V24M-8 29H-3" fill="none" stroke="#F1E1C2" stroke-width="1.300"/><circle cx="-33" cy="12" r="4.500" fill="#B5533C" stroke-width="1.300"/><circle cx="-33" cy="12" r="2" fill="#F2B33D" stroke="none"/><path d="M-34 31H-30M-26 31H-22M-18 31H-14" fill="none" stroke="#2B211C" stroke-width="2"/></g>
+<g transform="matrix(1 -.5 0 -1 0 41)"><rect x="0" y="0" width="38" height="36" fill="#A8A195"/><path d="M0 10H38M0 20H38M0 30H38M8 0V10M20 0V10M32 0V10M4 10V20M14 10V20M26 10V20M10 20V30M24 20V30M36 20V30" fill="none" stroke="#7A7469" stroke-width="1"/><path d="M0 24H38" fill="none" stroke="#843A23" stroke-width="3"/><path d="M9 28V34M27 28V34M18 8V16" fill="none" stroke="#2B211C" stroke-width="2.600"/><path d="M12 0V14M17 0V16M22 0V14M27 0V12" fill="none" stroke="#714B29" stroke-width="1.600"/><path d="M10.800 14L12 18L13.200 14ZM15.800 16L17 20L18.200 16ZM20.800 14L22 18L23.200 14ZM25.800 12L27 16L28.200 12Z" fill="#E0DCD3" stroke-width="1"/><circle cx="32" cy="7" r="4.500" fill="#B5533C" stroke-width="1.300"/><circle cx="32" cy="7" r="2" fill="#F2B33D" stroke="none"/></g>
+<path d="M0 5L38 -14L0 -33L-38 -14Z" fill="#E3DED3"/>
+<g transform="matrix(1 .5 0 -1 0 41)" fill="#D8D1C4"><rect x="-38" y="36" width="5" height="5"/><rect x="-30" y="36" width="5" height="5"/><rect x="-22" y="36" width="5" height="5"/><rect x="-14" y="36" width="5" height="5"/><rect x="-6" y="36" width="5" height="5"/></g>
+<g transform="matrix(1 -.5 0 -1 0 41)" fill="#A8A195"><rect x="3" y="36" width="5" height="5"/><rect x="11" y="36" width="5" height="5"/><rect x="19" y="36" width="5" height="5"/><rect x="27" y="36" width="5" height="5"/></g>
+<!-- keep with red roof -->
+<path d="M-18 -14L0 -5V-37L-18 -46Z" fill="#E3DED3"/><path d="M0 -5L18 -14V-46L0 -37Z" fill="#AFA89C"/><path d="M-9 -20V-30M9 -20V-30" fill="none" stroke-width="2.400"/><path d="M-4 -34V-27Q-4 -25 -2 -25V-34Z" fill="none" stroke="none"/>
+<path d="M0 -37L-18 -46L0 -80Z" fill="#C4623A"/><path d="M0 -37L18 -46L0 -80Z" fill="#843A23"/><path d="M-9 -41.500L0 -37M9 -41.500L0 -37" fill="none" stroke="#843A23" stroke-width=".9" opacity=".7"/>
+<path d="M0 -80V-96" fill="none" stroke="#714B29" stroke-width="2"/><path d="M0 -96L15 -91L0 -85Z" fill="#B5533C" stroke-width="1.300"/><circle cx="0" cy="-97" r="1.800" fill="#F2B33D" stroke-width="1"/>
+<!-- corner towers with cone roofs -->
+<path d="M-46 -26V22A8 4 0 0 0 -30 22V-26Z" fill="#E3DED3"/><rect x="-35" y="-26" width="5" height="48" fill="#2B211C" opacity=".12" stroke="none"/><path d="M-38 -10V-2M-38 6V12" fill="none" stroke-width="2.200"/><path d="M-47 -26A9 4.500 0 0 0 -29 -26L-38 -56Z" fill="#C4623A"/><path d="M-38 -56L-29 -26A9 4.500 0 0 1 -38 -21.500Z" fill="#843A23"/><path d="M-38 -56V-66" fill="none" stroke="#714B29" stroke-width="1.600"/><path d="M-38 -66L-28 -63L-38 -59Z" fill="#3F6FB5" stroke-width="1.100"/>
+<path d="M30 -26V22A8 4 0 0 0 46 22V-26Z" fill="#AFA89C"/><rect x="41" y="-26" width="5" height="48" fill="#2B211C" opacity=".12" stroke="none"/><path d="M38 -10V-2M38 6V12" fill="none" stroke-width="2.200"/><path d="M29 -26A9 4.500 0 0 0 47 -26L38 -56Z" fill="#C4623A"/><path d="M38 -56L47 -26A9 4.500 0 0 1 38 -21.500Z" fill="#843A23"/><path d="M38 -56V-66" fill="none" stroke="#714B29" stroke-width="1.600"/><path d="M38 -66L48 -63L38 -59Z" fill="#B5533C" stroke-width="1.100"/>
 </g></svg>

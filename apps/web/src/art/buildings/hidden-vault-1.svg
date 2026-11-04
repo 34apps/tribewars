@@ -1,59 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="36.4" ry="18.2" fill="#2B211C" opacity="0.14"></ellipse>
-<defs>
-<path id="hidden-vault-1-hill" d="M-36 26C-36 -0.5 -18 -8 0 -8C18 -8 36 -0.5 36 26A36 14 0 0 1 -36 26Z"></path>
-<clipPath id="hidden-vault-1-clip"><use href="#hidden-vault-1-hill"></use></clipPath>
-<g id="hidden-vault-1-bush"><circle cx="-4.5" cy="-2" r="4.4" fill="#4A7A2E"></circle><circle cx="4.5" cy="-2" r="4.4" fill="#4A7A2E"></circle><circle cx="0" cy="-5" r="5" fill="#5E8C3A"></circle><circle cx="-1.8" cy="-6.5" r="2.3" fill="#8FBE4F" stroke="none"></circle><circle cx="3" cy="-3" r="0.8" fill="#C8442F" stroke="none"></circle><circle cx="-4" cy="-1" r="0.8" fill="#C8442F" stroke="none"></circle></g>
-</defs>
-<g stroke="#2B211C" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">
-<!-- mound -->
-<g clip-path="url(#hidden-vault-1-clip)">
-<use href="#hidden-vault-1-hill" fill="#3A5E27" stroke="none"></use>
-<use href="#hidden-vault-1-hill" fill="#5E8C3A" stroke="none" transform="translate(-4 -3)"></use>
-<use href="#hidden-vault-1-hill" fill="#8FBE4F" stroke="none" transform="translate(-9 -7)"></use>
-</g>
-<use href="#hidden-vault-1-hill" fill="none" stroke-width="1.8"></use>
-<ellipse cx="0" cy="38.5" rx="9" ry="3" fill="#C9A66B" stroke-width="1"></ellipse>
-<!-- camouflage bushes on the mound -->
-<use href="#hidden-vault-1-bush" x="-20" y="10"></use>
-<use href="#hidden-vault-1-bush" x="24" y="14"></use>
-<use href="#hidden-vault-1-bush" x="-28" y="22"></use>
-<use href="#hidden-vault-1-bush" x="32" y="26"></use>
-<!-- leaf-covered hatch -->
-<polygon points="0,-4 8,-7 16,-4 8,-1" fill="#9C7A4E"></polygon>
-<path d="M2.6 -3L10.6 -6M5.3 -2L13.3 -5" fill="none" stroke="#714B29" stroke-width="0.8"></path>
-<circle cx="8" cy="-4" r="1.5" fill="none" stroke="#555C66" stroke-width="1.1"></circle>
-<ellipse cx="3" cy="-2.2" rx="2.8" ry="1.4" transform="rotate(30 3 -2.2)" fill="#4A7A2E" stroke-width="1"></ellipse>
-<ellipse cx="13" cy="-5.6" rx="2.8" ry="1.4" transform="rotate(-20 13 -5.6)" fill="#5E8C3A" stroke-width="1"></ellipse>
-<ellipse cx="6" cy="-6.8" rx="2.6" ry="1.3" transform="rotate(10 6 -6.8)" fill="#5E8C3A" stroke-width="1"></ellipse>
-<path d="M8 -1l-1.4 -3M8 -1v-3.6M8 -1l1.4 -3" fill="none" stroke="#5E8C3A" stroke-width="1.2"></path>
-<!-- door surround -->
-<circle cx="0" cy="24" r="14.5" fill="#5A4126"></circle>
-<g fill="#B3ACA0" stroke-width="1.1"><ellipse cx="13.3" cy="24" rx="3.2" ry="2.4"></ellipse><ellipse cx="9.4" cy="14.6" rx="3.2" ry="2.4"></ellipse><ellipse cx="0" cy="10.7" rx="3.2" ry="2.4"></ellipse><ellipse cx="-9.4" cy="14.6" rx="3.2" ry="2.4"></ellipse><ellipse cx="-13.3" cy="24" rx="3.2" ry="2.4"></ellipse><ellipse cx="-9.4" cy="33.4" rx="3.2" ry="2.4"></ellipse><ellipse cx="0" cy="37.3" rx="3.2" ry="2.4"></ellipse><ellipse cx="9.4" cy="33.4" rx="3.2" ry="2.4"></ellipse></g>
-<!-- round vault door -->
-<circle cx="0" cy="24" r="12" fill="#555C66"></circle>
-<circle cx="0" cy="24" r="10.5" fill="#8A929C" stroke-width="1"></circle>
-<path d="M-6.9 20A8 8 0 0 1 -1.4 16.1" fill="none" stroke="#C5CBD2" stroke-width="1.6"></path>
-<g fill="#D5DADF" stroke-width="0.6"><circle cx="7.7" cy="20.8" r="0.9"></circle><circle cx="3.2" cy="16.3" r="0.9"></circle><circle cx="-3.2" cy="16.3" r="0.9"></circle><circle cx="-7.7" cy="20.8" r="0.9"></circle><circle cx="-7.7" cy="27.2" r="0.9"></circle><circle cx="7.7" cy="27.2" r="0.9"></circle></g>
-<circle cx="0" cy="21.5" r="4.4" fill="none" stroke-width="3.2"></circle>
-<path d="M0 21.5H4.4M0 21.5L2.2 17.7M0 21.5L-2.2 17.7M0 21.5H-4.4M0 21.5L-2.2 25.3M0 21.5L2.2 25.3" fill="none" stroke-width="2.2"></path>
-<circle cx="0" cy="21.5" r="4.4" fill="none" stroke="#B7BEC7" stroke-width="1.3"></circle>
-<path d="M0 21.5H4.4M0 21.5L2.2 17.7M0 21.5L-2.2 17.7M0 21.5H-4.4M0 21.5L-2.2 25.3M0 21.5L2.2 25.3" fill="none" stroke="#B7BEC7" stroke-width="0.9"></path>
-<circle cx="0" cy="21.5" r="1.6" fill="#6B737D" stroke-width="1"></circle>
-<path d="M-1.4 28.6V27.2A1.4 1.4 0 0 1 1.4 27.2V28.6" fill="none" stroke-width="1.6"></path>
-<rect x="-2.4" y="28.6" width="4.8" height="4" rx="0.8" fill="#D9A441" stroke-width="1.1"></rect>
-<circle cx="0" cy="30.6" r="0.6" fill="#2B211C" stroke="none"></circle>
-<!-- lantern on a post -->
-<circle cx="17.5" cy="21.5" r="7" fill="#FFE08A" opacity="0.3" stroke="none"></circle>
-<path d="M22 35V17H17.5" fill="none" stroke-width="3"></path>
-<path d="M22 35V17H17.5" fill="none" stroke="#B07D46" stroke-width="1.4"></path>
-<rect x="15.3" y="19" width="4.4" height="5" fill="#FFE08A" stroke-width="1.1"></rect>
-<polygon points="14.8,19 17.5,16.8 20.2,19" fill="#555C66" stroke-width="1"></polygon>
-<rect x="15.8" y="24" width="3.4" height="1" fill="#555C66" stroke-width="0.8"></rect>
-<!-- peeking coins -->
-<g fill="#FFD04A" stroke-width="1"><ellipse cx="-14" cy="38" rx="2.8" ry="1.5"></ellipse><ellipse cx="-9.5" cy="38.8" rx="2.8" ry="1.5"></ellipse><ellipse cx="-12" cy="36.2" rx="2.8" ry="1.5"></ellipse><ellipse cx="-6.5" cy="37.2" rx="2.8" ry="1.5"></ellipse><ellipse cx="4" cy="39.5" rx="2.8" ry="1.5"></ellipse></g>
-<g fill="#FFF4DE" stroke="none"><ellipse cx="-14.8" cy="37.6" rx="1" ry="0.5"></ellipse><ellipse cx="-12.8" cy="35.8" rx="1" ry="0.5"></ellipse><ellipse cx="-10.3" cy="38.4" rx="1" ry="0.5"></ellipse><ellipse cx="3.2" cy="39.1" rx="1" ry="0.5"></ellipse></g>
-<!-- front bushes and grass -->
-<use href="#hidden-vault-1-bush" x="-25" y="36"></use>
-<use href="#hidden-vault-1-bush" x="27" y="37"></use>
-<path d="M-18 41l-1 -3M-18 41v-3.6M-18 41l1 -3M16 42l-1 -3M16 42v-3.6M16 42l1 -3" fill="none" stroke="#3A5E27" stroke-width="1.1"></path>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- stone block: left wall with round steel vault door, right wall with ivy -->
+<g transform="matrix(1 .5 0 -1 0 38)"><rect x="-34" y="0" width="34" height="26" fill="#CFC8BB"/><path d="M-34 9H0M-34 18H0M-26 0V9M-10 0V9M-30 9V18M-14 9V18M-4 9V18M-22 18V26M-6 18V26" fill="none" stroke="#9C958A" stroke-width="1"/><circle cx="-17" cy="12" r="10.500" fill="#5F6A75" stroke-width="1.800"/><circle cx="-17" cy="12" r="8" fill="#8C98A3" stroke-width="1.200"/><path d="M-17 5V19M-23.900 8L-10.100 16M-23.900 16L-10.100 8" fill="none" stroke="#5F6A75" stroke-width="1.600"/><circle cx="-17" cy="12" r="2.600" fill="#C8C3B8" stroke-width="1.200"/><circle cx="-8.300" cy="12" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-10.850" cy="18.150" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-17" cy="20.700" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-23.150" cy="18.150" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-25.700" cy="12" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-23.150" cy="5.850" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-17" cy="3.300" r=".9" fill="#D8DCE0" stroke="none"/><circle cx="-10.850" cy="5.850" r=".9" fill="#D8DCE0" stroke="none"/></g>
+<g transform="matrix(1 -.5 0 -1 0 38)"><rect x="0" y="0" width="34" height="26" fill="#9F988C"/><path d="M0 9H34M0 18H34M8 0V9M24 0V9M4 9V18M20 9V18M30 9V18M12 18V26M28 18V26" fill="none" stroke="#7A7469" stroke-width="1"/><path d="M17 13V20" fill="none" stroke="#2B211C" stroke-width="2.400"/><path d="M4 0Q7 10 5 22M26 0Q24 12 28 24" fill="none" stroke="#3A5E27" stroke-width="1.400"/><circle cx="5" cy="5" r="4.500" fill="#5E8C3A" stroke-width="1.200"/><circle cx="11" cy="3" r="3.500" fill="#4F7F34" stroke-width="1.200"/><circle cx="4" cy="13" r="3.800" fill="#5E8C3A" stroke-width="1.200"/><circle cx="27" cy="5" r="4.500" fill="#5E8C3A" stroke-width="1.200"/><circle cx="31" cy="11" r="3.500" fill="#4F7F34" stroke-width="1.200"/><circle cx="25" cy="14" r="3.200" fill="#5E8C3A" stroke-width="1.200"/></g>
+<!-- grass-covered top -->
+<path d="M0 12L34 -5L0 -22L-34 -5Z" fill="#8DB85A"/>
+<path d="M-26 -5L-23 -8M-10 -2L-7 -5M12 -10L15 -13M22 -3L25 -6M-3 -16L0 -19" fill="none" stroke="#5E8C3A" stroke-width="1.300"/>
+<circle cx="-14" cy="-6" r="7" fill="#4F7F34" stroke-width="1.400"/><circle cx="-16" cy="-8" r="3.600" fill="#86B04F" stroke="none"/>
+<circle cx="13" cy="-10" r="6" fill="#5E8C3A" stroke-width="1.400"/><circle cx="11" cy="-12" r="3" fill="#97C25E" stroke="none"/>
+<circle cx="-2" cy="-14" r="4.500" fill="#4F7F34" stroke-width="1.300"/>
+<!-- corner bushes -->
+<circle cx="-33" cy="22" r="6" fill="#5E8C3A" stroke-width="1.400"/><circle cx="-35" cy="20" r="2.800" fill="#97C25E" stroke="none"/>
+<circle cx="33" cy="22" r="6" fill="#4F7F34" stroke-width="1.400"/><circle cx="31" cy="20" r="2.800" fill="#86B04F" stroke="none"/>
+<circle cx="0" cy="39" r="5" fill="#5E8C3A" stroke-width="1.400"/><circle cx="-1.500" cy="37.500" r="2.200" fill="#97C25E" stroke="none"/>
 </g></svg>

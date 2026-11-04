@@ -1,80 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="36.4" ry="18.2" fill="#2B211C" opacity="0.14"></ellipse>
-<defs>
-<path id="hidden-vault-3-hill" d="M-44 26C-44 -9.9 -22 -20 0 -20C22 -20 44 -9.9 44 26A44 16 0 0 1 -44 26Z"></path>
-<clipPath id="hidden-vault-3-clip"><use href="#hidden-vault-3-hill"></use></clipPath>
-<g id="hidden-vault-3-bush"><circle cx="-4.5" cy="-2" r="4.4" fill="#4A7A2E"></circle><circle cx="4.5" cy="-2" r="4.4" fill="#4A7A2E"></circle><circle cx="0" cy="-5" r="5" fill="#5E8C3A"></circle><circle cx="-1.8" cy="-6.5" r="2.3" fill="#8FBE4F" stroke="none"></circle><circle cx="3" cy="-3" r="0.8" fill="#C8442F" stroke="none"></circle><circle cx="-4" cy="-1" r="0.8" fill="#C8442F" stroke="none"></circle></g>
-</defs>
-<g stroke="#2B211C" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">
-<!-- mound -->
-<g clip-path="url(#hidden-vault-3-clip)">
-<use href="#hidden-vault-3-hill" fill="#3A5E27" stroke="none"></use>
-<use href="#hidden-vault-3-hill" fill="#5E8C3A" stroke="none" transform="translate(-4 -3)"></use>
-<use href="#hidden-vault-3-hill" fill="#8FBE4F" stroke="none" transform="translate(-9 -7)"></use>
-</g>
-<use href="#hidden-vault-3-hill" fill="none" stroke-width="1.8"></use>
-<!-- camouflage bushes -->
-<use href="#hidden-vault-3-bush" x="-11" y="-12"></use>
-<use href="#hidden-vault-3-bush" x="-31" y="5"></use>
-<use href="#hidden-vault-3-bush" x="32" y="6"></use>
-<use href="#hidden-vault-3-bush" x="-39" y="25"></use>
-<use href="#hidden-vault-3-bush" x="40" y="25"></use>
-<!-- leaf-covered hatch -->
-<polygon points="2,-14 10,-17 18,-14 10,-11" fill="#9C7A4E"></polygon>
-<path d="M4.6 -13L12.6 -16M7.3 -12L15.3 -15" fill="none" stroke="#714B29" stroke-width="0.8"></path>
-<circle cx="10" cy="-14" r="1.5" fill="none" stroke="#555C66" stroke-width="1.1"></circle>
-<ellipse cx="5" cy="-12.2" rx="2.8" ry="1.4" transform="rotate(30 5 -12.2)" fill="#4A7A2E" stroke-width="1"></ellipse>
-<ellipse cx="15" cy="-15.6" rx="2.8" ry="1.4" transform="rotate(-20 15 -15.6)" fill="#5E8C3A" stroke-width="1"></ellipse>
-<ellipse cx="8" cy="-16.8" rx="2.6" ry="1.3" transform="rotate(10 8 -16.8)" fill="#5E8C3A" stroke-width="1"></ellipse>
-<path d="M10 -11l-1.4 -3M10 -11v-3.6M10 -11l1.4 -3" fill="none" stroke="#5E8C3A" stroke-width="1.2"></path>
-<!-- gate recess and round vault door -->
-<rect x="-14" y="4.5" width="28" height="33.5" fill="#3A2A1E"></rect>
-<circle cx="0" cy="24" r="12.5" fill="#555C66"></circle>
-<circle cx="0" cy="24" r="11" fill="#8A929C" stroke-width="1"></circle>
-<path d="M-7.4 19.8A8.5 8.5 0 0 1 -1.5 15.6" fill="none" stroke="#C5CBD2" stroke-width="1.6"></path>
-<g fill="#FFD04A" stroke-width="0.6"><circle cx="8.1" cy="20.6" r="1"></circle><circle cx="3.4" cy="15.9" r="1"></circle><circle cx="-3.4" cy="15.9" r="1"></circle><circle cx="-8.1" cy="20.6" r="1"></circle><circle cx="-8.1" cy="27.4" r="1"></circle><circle cx="8.1" cy="27.4" r="1"></circle></g>
-<circle cx="0" cy="21.5" r="4.8" fill="none" stroke-width="3.4"></circle>
-<path d="M0 21.5H4.8M0 21.5L2.4 17.3M0 21.5L-2.4 17.3M0 21.5H-4.8M0 21.5L-2.4 25.7M0 21.5L2.4 25.7" fill="none" stroke-width="2.2"></path>
-<circle cx="0" cy="21.5" r="4.8" fill="none" stroke="#C5CBD2" stroke-width="1.4"></circle>
-<path d="M0 21.5H4.8M0 21.5L2.4 17.3M0 21.5L-2.4 17.3M0 21.5H-4.8M0 21.5L-2.4 25.7M0 21.5L2.4 25.7" fill="none" stroke="#C5CBD2" stroke-width="0.9"></path>
-<circle cx="0" cy="21.5" r="1.8" fill="#FFD04A" stroke-width="1"></circle>
-<path d="M-2 28.4V26.4A2 2 0 0 1 2 26.4V28.4" fill="none" stroke-width="2.1"></path>
-<path d="M-2 28.4V26.4A2 2 0 0 1 2 26.4V28.4" fill="none" stroke="#FFE08A" stroke-width="0.8"></path>
-<rect x="-3.6" y="28.4" width="7.2" height="5.8" rx="1" fill="#FFD04A" stroke-width="1.2"></rect>
-<circle cx="0" cy="30.6" r="0.9" fill="#2B211C" stroke="none"></circle>
-<path d="M0 31V32.6" fill="none" stroke-width="1"></path>
-<path d="M-3 29.4H-1.2" fill="none" stroke="#FFF4DE" stroke-width="0.8"></path>
-<!-- stone pillars, lintel, keystone -->
-<rect x="-21" y="4.5" width="7" height="33.5" fill="#E3DED3"></rect>
-<rect x="14" y="4.5" width="7" height="33.5" fill="#B3ACA0"></rect>
-<path d="M-21 10H-14M-21 16H-14M-21 22H-14M-21 28H-14M-21 34H-14M-17.5 10V16M-17.5 22V28M-17.5 34V38" fill="none" stroke="#9A948A" stroke-width="0.8"></path>
-<path d="M14 10H21M14 16H21M14 22H21M14 28H21M14 34H21M17.5 10V16M17.5 22V28M17.5 34V38" fill="none" stroke="#7C756B" stroke-width="0.8"></path>
-<rect x="-22.5" y="0" width="10" height="4.5" fill="#E3DED3"></rect>
-<rect x="12.5" y="0" width="10" height="4.5" fill="#B3ACA0"></rect>
-<rect x="-22.5" y="-6" width="45" height="6" fill="#E3DED3"></rect>
-<rect x="0" y="-6" width="22.5" height="6" fill="#C9C4BA" stroke="none"></rect>
-<rect x="-22.5" y="-6" width="45" height="6" fill="none"></rect>
-<path d="M-11 -6V0M11 -6V0" fill="none" stroke="#9A948A" stroke-width="0.8"></path>
-<rect x="-3" y="-7.5" width="6" height="8.5" fill="#FFD04A" stroke-width="1.2"></rect>
-<path d="M-1.6 -5.5V-1.5" fill="none" stroke="#FFF4DE" stroke-width="0.9"></path>
-<!-- stone steps with spilled coins -->
-<ellipse cx="0" cy="42" rx="21" ry="5" fill="#B3ACA0" stroke-width="1.2"></ellipse>
-<ellipse cx="0" cy="41" rx="17" ry="4" fill="#E3DED3" stroke-width="1.2"></ellipse>
-<g fill="#FFD04A" stroke-width="1"><ellipse cx="-14" cy="43" rx="2.8" ry="1.5"></ellipse><ellipse cx="-10" cy="44" rx="2.8" ry="1.5"></ellipse><ellipse cx="-6" cy="43.2" rx="2.8" ry="1.5"></ellipse><ellipse cx="-12" cy="41" rx="2.8" ry="1.5"></ellipse><ellipse cx="-8" cy="41.6" rx="2.8" ry="1.5"></ellipse><ellipse cx="9" cy="43.5" rx="2.8" ry="1.5"></ellipse><ellipse cx="13" cy="42.2" rx="2.8" ry="1.5"></ellipse><ellipse cx="11" cy="41" rx="2.8" ry="1.5"></ellipse></g>
-<g fill="#FFF4DE" stroke="none"><ellipse cx="-14.8" cy="42.6" rx="1" ry="0.5"></ellipse><ellipse cx="-10.8" cy="43.6" rx="1" ry="0.5"></ellipse><ellipse cx="-12.8" cy="40.6" rx="1" ry="0.5"></ellipse><ellipse cx="8.2" cy="43.1" rx="1" ry="0.5"></ellipse><ellipse cx="10.2" cy="40.6" rx="1" ry="0.5"></ellipse></g>
-<!-- guard torches -->
-<circle cx="-29" cy="9" r="9" fill="#FFB347" opacity="0.25" stroke="none"></circle>
-<path d="M-29 36V13" fill="none" stroke-width="3.2"></path>
-<path d="M-29 36V13" fill="none" stroke="#B07D46" stroke-width="1.6"></path>
-<path d="M-32 13H-26L-27.4 17H-30.6Z" fill="#555C66" stroke-width="1.1"></path>
-<path d="M-29 3Q-25 8 -26.6 12.6H-31.4Q-33.4 8 -29 3Z" fill="#F28C28" stroke-width="1"></path>
-<path d="M-29 7.4Q-27 9.6 -27.8 12.6H-30.2Q-31 9.6 -29 7.4Z" fill="#FFE08A" stroke="none"></path>
-<circle cx="29" cy="9" r="9" fill="#FFB347" opacity="0.25" stroke="none"></circle>
-<path d="M29 36V13" fill="none" stroke-width="3.2"></path>
-<path d="M29 36V13" fill="none" stroke="#B07D46" stroke-width="1.6"></path>
-<path d="M26 13H32L30.6 17H27.4Z" fill="#555C66" stroke-width="1.1"></path>
-<path d="M29 3Q33 8 31.4 12.6H26.6Q24.6 8 29 3Z" fill="#F28C28" stroke-width="1"></path>
-<path d="M29 7.4Q31 9.6 30.2 12.6H27.8Q27 9.6 29 7.4Z" fill="#FFE08A" stroke="none"></path>
-<!-- front bushes -->
-<use href="#hidden-vault-3-bush" x="-33" y="37"></use>
-<use href="#hidden-vault-3-bush" x="32" y="37"></use>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- tall stone block, gilded arch and keystone -->
+<g transform="matrix(1 .5 0 -1 0 38)"><rect x="-34" y="0" width="34" height="34" fill="#D8D1C4"/><path d="M-34 10H0M-34 20H0M-34 30H0M-26 0V10M-10 0V10M-30 10V20M-14 10V20M-4 10V20M-22 20V30M-6 20V30M-28 30V34M-12 30V34" fill="none" stroke="#9C958A" stroke-width="1"/><rect x="-34" y="0" width="34" height="4" fill="#B9B2A6"/><path d="M-31 4V14A14 14 0 0 0 -3 14V4" fill="none" stroke="#8C857A" stroke-width="3.800"/><path d="M-31 4V14A14 14 0 0 0 -3 14V4" fill="none" stroke="#F2B33D" stroke-width="1" /><rect x="-20" y="25" width="6" height="6" fill="#F2B33D" stroke-width="1.300"/><circle cx="-17" cy="13" r="10.500" fill="#5F6A75" stroke-width="1.800"/><circle cx="-17" cy="13" r="8" fill="#8C98A3" stroke-width="1.200"/><path d="M-17 5V21M-23.900 9L-10.100 17M-23.900 17L-10.100 9" fill="none" stroke="#5F6A75" stroke-width="1.600"/><circle cx="-17" cy="13" r="3" fill="#F2B33D" stroke-width="1.200"/><circle cx="-8.300" cy="13" r="1" fill="#F2B33D" stroke="none"/><circle cx="-10.850" cy="19.150" r="1" fill="#F2B33D" stroke="none"/><circle cx="-17" cy="21.700" r="1" fill="#F2B33D" stroke="none"/><circle cx="-23.150" cy="19.150" r="1" fill="#F2B33D" stroke="none"/><circle cx="-25.700" cy="13" r="1" fill="#F2B33D" stroke="none"/><circle cx="-23.150" cy="6.850" r="1" fill="#F2B33D" stroke="none"/><circle cx="-17" cy="4.300" r="1" fill="#F2B33D" stroke="none"/><circle cx="-10.850" cy="6.850" r="1" fill="#F2B33D" stroke="none"/></g>
+<g transform="matrix(1 -.5 0 -1 0 38)"><rect x="0" y="0" width="34" height="34" fill="#A8A195"/><path d="M0 10H34M0 20H34M0 30H34M8 0V10M24 0V10M4 10V20M20 10V20M30 10V20M12 20V30M28 20V30" fill="none" stroke="#7A7469" stroke-width="1"/><rect x="0" y="0" width="34" height="4" fill="#8C857A"/><path d="M17 16V24" fill="none" stroke="#2B211C" stroke-width="2.400"/><path d="M4 4Q7 14 5 30M26 4Q24 16 28 32" fill="none" stroke="#3A5E27" stroke-width="1.400"/><circle cx="5" cy="7" r="4.500" fill="#5E8C3A" stroke-width="1.200"/><circle cx="11" cy="5" r="3.500" fill="#4F7F34" stroke-width="1.200"/><circle cx="4" cy="16" r="3.800" fill="#5E8C3A" stroke-width="1.200"/><circle cx="6" cy="24" r="3.200" fill="#4F7F34" stroke-width="1.200"/><circle cx="27" cy="7" r="4.500" fill="#5E8C3A" stroke-width="1.200"/><circle cx="31" cy="14" r="3.500" fill="#4F7F34" stroke-width="1.200"/><circle cx="25" cy="17" r="3.200" fill="#5E8C3A" stroke-width="1.200"/></g>
+<!-- grass-covered top -->
+<path d="M0 4L34 -13L0 -30L-34 -13Z" fill="#8DB85A"/>
+<path d="M-26 -13L-23 -16M-10 -10L-7 -13M20 -11L23 -14M-3 -24L0 -27" fill="none" stroke="#5E8C3A" stroke-width="1.300"/>
+<circle cx="-15" cy="-14" r="7" fill="#4F7F34" stroke-width="1.400"/><circle cx="-17" cy="-16" r="3.600" fill="#86B04F" stroke="none"/>
+<circle cx="19" cy="-13" r="6" fill="#5E8C3A" stroke-width="1.400"/><circle cx="17" cy="-15" r="3" fill="#97C25E" stroke="none"/>
+<!-- stone vent -->
+<path d="M6 -18L10 -16V-24L6 -26Z" fill="#D8D1C4"/><path d="M10 -16L14 -18V-26L10 -24Z" fill="#A8A195"/><path d="M10 -24L14 -26L10 -28L6 -26Z" fill="#E8E2D6"/>
+<!-- corner bushes -->
+<circle cx="-33" cy="22" r="6.500" fill="#5E8C3A" stroke-width="1.400"/><circle cx="-35" cy="20" r="3" fill="#97C25E" stroke="none"/>
+<circle cx="33" cy="22" r="6.500" fill="#4F7F34" stroke-width="1.400"/><circle cx="31" cy="20" r="3" fill="#86B04F" stroke="none"/>
+<circle cx="0" cy="39" r="5.500" fill="#5E8C3A" stroke-width="1.400"/><circle cx="-1.500" cy="37.500" r="2.400" fill="#97C25E" stroke="none"/>
+<circle cx="-24" cy="30" r="3.800" fill="#4F7F34" stroke-width="1.300"/><circle cx="24" cy="30" r="3.800" fill="#5E8C3A" stroke-width="1.300"/>
+<!-- lantern posts -->
+<path d="M-37 22V-6M37 22V-6" fill="none" stroke="#714B29" stroke-width="2"/><path d="M-40 -6H-34V-13H-40ZM34 -6H40V-13H34Z" fill="#FFE27A" stroke-width="1.300"/><path d="M-41 -13L-37 -17L-33 -13ZM33 -13L37 -17L41 -13Z" fill="#B5533C" stroke-width="1.200"/>
 </g></svg>

@@ -1,69 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
-<g stroke="#2B211C" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-<!-- tall rocky mountain -->
-<path d="M-40 36L-48 10L-40 -18L-24 -34L-8 -52L12 -46L28 -28L40 -6L46 18L46 34Q2 52 -40 36Z" fill="#6C7482"/>
-<path d="M-48 10L-40 -18L-24 -34L-8 -52L-10 -10L-28 6L-34 30L-40 36Z" fill="#9199A8" stroke="none"/>
-<path d="M-8 -52L12 -46L28 -28L40 -6L46 18L46 34Q24 44 12 47L22 8L4 -16Z" fill="#464C5A" stroke="none"/>
-<path d="M-40 36L-48 10L-40 -18L-24 -34L-8 -52L12 -46L28 -28L40 -6L46 18L46 34Q2 52 -40 36Z" fill="none"/>
-<path d="M-24 -34L-10 -10M-40 -18L-28 6M28 -28L22 8M12 -46L4 -16M-8 -52L-10 -10" fill="none" stroke-width="1.2"/>
-<path d="M-8 -52L12 -46" fill="none" stroke="#C3CCD8" stroke-width="1.4"/>
-<!-- iron ore crystals and rust streaks -->
-<path d="M-34 14L-31 4L-27 14Z" fill="#8FC0E0" stroke-width="1.2"/><path d="M-31 4L-27 14L-30 14Z" fill="#C3D3E3" stroke="none"/>
-<path d="M-28 -10L-25 -17L-21 -10Z" fill="#8FC0E0" stroke-width="1.1"/>
-<path d="M-20 -30L-18 -37L-15 -30Z" fill="#C3D3E3" stroke-width="1"/>
-<path d="M2 -34L4 -41L7 -34Z" fill="#6FA0C8" stroke-width="1"/>
-<path d="M34 6L37 -2L41 6Z" fill="#6FA0C8" stroke-width="1.2"/><path d="M37 -2L41 6L38 6Z" fill="#4A6E92" stroke="none"/>
-<path d="M30 -14L33 -6" fill="none" stroke="#B5654A" stroke-width="2"/><path d="M14 -34L16 -22" fill="none" stroke="#B5654A" stroke-width="1.8"/>
-<!-- hoist platform and winch with drum -->
-<path d="M-38 -2L-26 4L-14 -2L-14 1L-26 7L-38 1Z" fill="#7A5530"/><path d="M-38 -2L-26 4L-14 -2L-26 -8Z" fill="#A9794A"/>
-<path d="M-34 -2L-26 -40L-18 -2" fill="none" stroke-width="6"/><path d="M-34 -2L-26 -40L-18 -2" fill="none" stroke="#B9854F" stroke-width="3.6"/>
-<path d="M-31.5 -15L-20.5 -15" fill="none" stroke-width="4.4"/><path d="M-31.5 -15L-20.5 -15" fill="none" stroke="#8E6539" stroke-width="2.4"/>
-<path d="M-30 -22L-22 -22" fill="none" stroke-width="7"/><path d="M-30 -22L-22 -22" fill="none" stroke="#C99B5E" stroke-width="4.6" stroke-linecap="butt"/><path d="M-28 -24.2L-28 -19.8M-26 -24.2L-26 -19.8M-24 -24.2L-24 -19.8" fill="none" stroke="#D9C7A0" stroke-width="1" stroke-linecap="butt"/>
-<path d="M-22 -22L-17 -22L-17 -17" fill="none" stroke-width="2.6"/>
-<circle cx="-26" cy="-38" r="3.6" fill="#C8C3B8" stroke-width="1.5"/>
-<path d="M-26 -35L-26 -5" fill="none" stroke="#D9C7A0" stroke-width="1.4"/>
-<path d="M-30 -6L-22 -6L-24 1L-28 1Z" fill="#6B6B6B" stroke-width="1.4"/><path d="M-29 -6L-23 -6L-26 -11Z" fill="#8FA3B8" stroke-width="1.2"/>
-<!-- mine entrance -->
-<path d="M-18 44L-18 12L-5 4L8 12L8 44Z" fill="#1E1816" stroke-width="1.5"/>
-<path d="M-13 41L-13 15L-5 10L3 15L3 41" fill="none" stroke="#6B4A2A" stroke-width="2.2"/><path d="M-9 38L-9 19L-5 16L-1 19L-1 38" fill="none" stroke="#4A3020" stroke-width="1.6"/>
-<circle cx="-9" cy="28" r="0.9" fill="#8FC0E0" stroke="none"/><circle cx="1" cy="22" r="0.9" fill="#8FC0E0" stroke="none"/>
-<path d="M-18 46L-18 11" fill="none" stroke-width="6.6"/><path d="M-18 46L-18 11" fill="none" stroke="#B9854F" stroke-width="4"/>
-<path d="M8 46L8 11" fill="none" stroke-width="6.6"/><path d="M8 46L8 11" fill="none" stroke="#8E6539" stroke-width="4"/>
-<path d="M-23 12L-5 2L13 12" fill="none" stroke-width="6.8"/><path d="M-23 12L-5 2L13 12" fill="none" stroke="#C99B5E" stroke-width="4.4"/>
-<path d="M-26 14L-5 -3L16 14" fill="none" stroke-width="5.4"/><path d="M-26 14L-5 -3L16 14" fill="none" stroke="#A8532B" stroke-width="3"/>
-<path d="M-18 20L-11 13M8 20L1 13M-18 36L-12 30M8 36L2 30" fill="none" stroke-width="3.8"/><path d="M-18 20L-11 13M8 20L1 13M-18 36L-12 30M8 36L2 30" fill="none" stroke="#A9794A" stroke-width="1.8"/>
-<!-- hanging lantern -->
-<path d="M-5 11L-5 16" fill="none" stroke-width="1.2"/><circle cx="-5" cy="21" r="7" fill="#FFDC7A" opacity="0.25" stroke="none"/>
-<path d="M-8 16.5L-5 14L-2 16.5Z" fill="#6B6B6B" stroke-width="1.2"/><path d="M-8 16.5L-2 16.5L-2 23L-8 23Z" fill="#FFDC7A" stroke-width="1.4"/><path d="M-5 17L-5 22" fill="none" stroke-width="0.9"/>
-<!-- sleepers and rails -->
-<path d="M-8.6 44L0 39.7M-3.2 46.7L5.4 42.4M2.2 49.4L10.8 45" fill="none" stroke="#7A5530" stroke-width="2.4"/>
-<path d="M-10 42L8 51M-4 39L14 48" fill="none" stroke-width="3.4"/><path d="M-10 42L8 51M-4 39L14 48" fill="none" stroke="#C8C3B8" stroke-width="1.6"/>
-<!-- smelter: stone furnace with chimney -->
-<path d="M26 16L40 23L28 29L14 22Z" fill="#C9C2B6"/>
-<path d="M14 22L28 29L28 39L14 32Z" fill="#A39A8F"/><path d="M14 27L28 34M21 25.5L21 35.5" fill="none" stroke="#6B625A" stroke-width="1"/>
-<path d="M28 29L40 23L40 33L28 39Z" fill="#7C736A"/><path d="M28 34L40 28M34 26L34 36" fill="none" stroke="#4E463F" stroke-width="1"/>
-<path d="M17 33.5L17 27.5L24 31L24 37Z" fill="#1E1816" stroke-width="1.4"/><path d="M18.5 33.8L18.5 29.8L22.5 31.8L22.5 35.8Z" fill="#FF9A3C" stroke="none"/>
-<path d="M23 23L23 -3L27 -1L27 25Z" fill="#B5654A"/><path d="M27 25L27 -1L31 -3L31 23Z" fill="#8A4A38"/><path d="M23 -3L27 -5L31 -3L27 -1Z" fill="#D98C73"/><path d="M25 -3L27 -4L29 -3L27 -2Z" fill="#2B211C" stroke="none"/>
-<path d="M23 5L27 7M23 12L27 14M23 19L27 21" fill="none" stroke="#843A23" stroke-width="1"/>
-<g class="anim-smoke"><circle cx="28" cy="-11" r="4" fill="#F2EEE6" opacity="0.92"/><circle cx="33" cy="-19" r="5.2" fill="#F2EEE6" opacity="0.92"/><circle cx="30" cy="-29" r="6.6" fill="#F2EEE6" opacity="0.92"/></g>
-<!-- stacked iron ingots -->
-<path d="M-44.4 33L-36.8 33L-37.6 28.6L-43.6 28.6Z" fill="#8FA3B8" stroke-width="1.3"/><path d="M-43.6 28.6L-37.6 28.6L-38.2 27.4L-43 27.4Z" fill="#D3E0EE" stroke-width="1.1"/>
-<path d="M-36.8 33L-29.2 33L-30 28.6L-36 28.6Z" fill="#8FA3B8" stroke-width="1.3"/><path d="M-36 28.6L-30 28.6L-30.6 27.4L-35.4 27.4Z" fill="#D3E0EE" stroke-width="1.1"/>
-<path d="M-29.2 33L-21.6 33L-22.4 28.6L-28.4 28.6Z" fill="#8FA3B8" stroke-width="1.3"/><path d="M-28.4 28.6L-22.4 28.6L-23 27.4L-27.8 27.4Z" fill="#D3E0EE" stroke-width="1.1"/>
-<path d="M-40.6 28.6L-33 28.6L-33.8 24.2L-39.8 24.2Z" fill="#9FB3C8" stroke-width="1.3"/><path d="M-39.8 24.2L-33.8 24.2L-34.4 23L-39.2 23Z" fill="#D3E0EE" stroke-width="1.1"/>
-<path d="M-33 28.6L-25.4 28.6L-26.2 24.2L-32.2 24.2Z" fill="#9FB3C8" stroke-width="1.3"/><path d="M-32.2 24.2L-26.2 24.2L-26.8 23L-31.6 23Z" fill="#D3E0EE" stroke-width="1.1"/>
-<path d="M-36.8 24.2L-29.2 24.2L-30 19.8L-36 19.8Z" fill="#8FA3B8" stroke-width="1.3"/><path d="M-36 19.8L-30 19.8L-30.6 18.6L-35.4 18.6Z" fill="#D3E0EE" stroke-width="1.1"/>
-<!-- pickaxes -->
-<g transform="translate(-20 42) rotate(-16)"><path d="M0 0L0 -20" fill="none" stroke-width="4.4"/><path d="M0 0L0 -20" fill="none" stroke="#B9854F" stroke-width="2.4"/><path d="M-8 -19Q0 -26 8 -19" fill="none" stroke-width="5"/><path d="M-8 -19Q0 -26 8 -19" fill="none" stroke="#C8C3B8" stroke-width="2.8"/></g>
-<g transform="translate(-20 42) rotate(18)"><path d="M0 0L0 -20" fill="none" stroke-width="4.4"/><path d="M0 0L0 -20" fill="none" stroke="#A9794A" stroke-width="2.4"/><path d="M-8 -19Q0 -26 8 -19" fill="none" stroke-width="5"/><path d="M-8 -19Q0 -26 8 -19" fill="none" stroke="#9FB3C8" stroke-width="2.8"/></g>
-<!-- ore cart -->
-<g class="anim-cart"><g transform="translate(5 41) scale(1.15)">
-<path d="M-9 -9L9 -9L7 3L-7 3Z" fill="#7A4A30" stroke-width="1.4"/>
-<path d="M-9 -5L9 -5M-9 -1L8 -1" fill="none" stroke="#4A3020" stroke-width="1.1"/>
-<path d="M-8 -9L-6 -15L-1 -17L3 -16L7 -12L8 -9Z" fill="#8FA3B8" stroke-width="1.3"/>
-<path d="M-6 -15L-1 -17L-1 -11Z" fill="#C3D3E3" stroke="none"/><path d="M3 -16L7 -12L8 -9L3 -10Z" fill="#5E6E82" stroke="none"/>
-<path d="M-3 -17L0 -21L4 -19L3 -16Z" fill="#A8B8CC" stroke-width="1.2"/>
-<circle cx="-5" cy="5.5" r="3.2" fill="#6B6B6B" stroke-width="1.3"/><circle cx="5" cy="5.5" r="3.2" fill="#6B6B6B" stroke-width="1.3"/><circle cx="-5" cy="5.5" r="1" fill="#C8C3B8" stroke="none"/><circle cx="5" cy="5.5" r="1" fill="#C8C3B8" stroke="none"/>
-</g></g>
-</g>
-</svg>
+<g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- rock mound -->
+<path d="M-34 13L0 30L-2 -14L-9 -20L-16 -17L-22 -24L-28 -22Z" fill="#A9B4BE"/>
+<path d="M0 30L34 13L30 -18L24 -22L18 -17L10 -23L4 -16L-2 -14Z" fill="#6C7782"/>
+<path d="M-28 -22L-22 -24L-16 -17L-9 -20L-2 -14L4 -16L10 -23L18 -17L24 -22L30 -18L22 -30L0 -40L-20 -32Z" fill="#C3CCD4"/>
+<path d="M-30 -4L-20 2L-22 12M-6 -2L-10 8L-4 16M26 -4L16 4L18 14M8 0L12 10L6 20M-14 -26L-4 -30L4 -24" fill="none" stroke-width="1.100" opacity=".55"/>
+<path d="M-31 8L-27 5L-23 8L-27 11Z" fill="#B5533C" stroke-width="1.100"/><path d="M-27 5L-23 8L-27 11Z" fill="#8A3A2A" stroke="none"/>
+<path d="M14 6L19 3L23 7L18 10Z" fill="#B5533C" stroke-width="1.100"/><path d="M19 3L23 7L18 10Z" fill="#8A3A2A" stroke="none"/>
+<path d="M24 -8L28 -11L31 -7L27 -5Z" fill="#B5533C" stroke-width="1.100"/>
+<!-- reinforced entrance -->
+<g transform="matrix(1 .5 0 -1 0 30)"><rect x="-27" y="0" width="16" height="22" fill="#1E1A18"/><path d="M-24 6L-24 4M-18 14L-18 12M-14 9L-14 7" fill="none" stroke="#B5533C" stroke-width="1.300"/><rect x="-29.500" y="0" width="3.500" height="25" fill="#A9B4BE"/><rect x="-12" y="0" width="3.500" height="25" fill="#7A8591"/><rect x="-31" y="22" width="24" height="4" fill="#8C98A3"/><path d="M-26 22L-22 22L-26 18M-12 22L-16 22L-12 18" fill="#7A8591" stroke-width="1.100"/><path d="M-29.500 6H-26M-12 6H-8.500M-29.500 14H-26M-12 14H-8.500" fill="none" stroke="#3A3F45" stroke-width="1.300"/><circle cx="-28" cy="18" r=".8" fill="#D8DCE0" stroke="none"/><circle cx="-10" cy="18" r=".8" fill="#D8DCE0" stroke="none"/><rect x="-27" y="29" width="16" height="10" fill="#8C98A3" stroke-width="1.400"/><path d="M-25 34H-15L-12.500 35.800H-15.500L-16.500 32.200H-22L-22.500 30.200H-18Z" fill="#3A3F45" stroke-width="1"/><path d="M-24 35.800H-15.500" fill="none" stroke="#C3CCD4" stroke-width=".8"/><circle cx="-30.500" cy="28" r="2.400" fill="#FFB03A" stroke-width="1"/><circle cx="-8" cy="28" r="2.400" fill="#FFB03A" stroke-width="1"/></g>
+<!-- track and cart -->
+<path d="M-27.950 17.980L-13.950 24.980M-31.200 19.600L-17.200 26.600M-34.450 21.200L-20.450 28.200M-37.700 22.900L-23.700 29.900" fill="none" stroke="#7A5530" stroke-width="2.400"/>
+<path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke-width="3.200"/><path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke="#C8C3B8" stroke-width="1.400"/>
+<path d="M-37.650 24.250L-30.650 27.750V21.750L-37.650 18.250Z" fill="#8C98A3"/><path d="M-30.650 27.750L-22.650 23.750V17.750L-30.650 21.750Z" fill="#5F6A75"/><path d="M-30.650 21.750L-22.650 17.750L-29.650 14.250L-37.650 18.250Z" fill="#1E1A18"/>
+<path d="M-35 17.400L-32.500 12.400L-28.500 14L-25.500 12L-23.500 16.900L-29 19.400Z" fill="#8A6A5E" stroke-width="1.300"/><path d="M-32.500 12.400L-28.500 14L-30 16.900Z" fill="#B5533C" stroke="none"/>
+<circle cx="-35.500" cy="26.400" r="1.800" fill="#3A3430" stroke-width="1"/><circle cx="-32" cy="28.300" r="1.800" fill="#3A3430" stroke-width="1"/>
+<!-- heaps and ingot stack -->
+<path d="M12 30L15 24L21 22L27 25L28 30L20 33Z" fill="#8C98A3" stroke-width="1.400"/><path d="M15 24L21 22L19 28Z" fill="#C3CCD4" stroke="none"/><path d="M28 30L27 25L23 28Z" fill="#5F6A75" stroke="none"/>
+<path d="M17 23L20 18L25 19L26 24L22 26Z" fill="#B5533C" stroke-width="1.300"/><path d="M20 18L25 19L22 22Z" fill="#D9704F" stroke="none"/>
+<path d="M-2 40L5 36L12 40L5 44Z" fill="#D8DCE0" stroke-width="1.200"/><path d="M-2 40L5 44V47L-2 43Z" fill="#8C98A3" stroke-width="1.200"/><path d="M5 44L12 40V43L5 47Z" fill="#5F6A75" stroke-width="1.200"/><path d="M1 36.500L5 34.500L9 36.500L5 38.500Z" fill="#E8EBEE" stroke-width="1.100"/>
+<!-- furnace hut with chimney -->
+<path d="M4 -27L12 -23V-33L4 -37Z" fill="#B5533C"/><path d="M12 -23L20 -27V-37L12 -33Z" fill="#8A3A2A"/><path d="M12 -33L20 -37L12 -41L4 -37Z" fill="#7A8591"/>
+<g transform="matrix(1 .5 0 -1 12 -23)"><path d="M-6.500 0V5Q-4 8 -1.500 5V0Z" fill="#FFB03A" stroke-width="1.100"/><path d="M-8 0H0M-8 9H0" fill="none" stroke="#5E3F22" stroke-width="1" opacity=".6"/></g>
+<path d="M13 -38V-62H18V-40Z" fill="#6C7782"/><path d="M12 -62H19V-65H12Z" fill="#5F6A75" stroke-width="1.300"/>
+<circle cx="16" cy="-69" r="3.500" fill="#E3E6E9" stroke-width="1" opacity=".9"/><circle cx="20" cy="-75" r="4.500" fill="#E3E6E9" stroke-width="1" opacity=".8"/><circle cx="17" cy="-82" r="5.500" fill="#E3E6E9" stroke-width="1" opacity=".7"/>
+<!-- iron headframe -->
+<path d="M-16 -22L-8 -54M2 -28L-8 -54" fill="none" stroke-width="5.200"/><path d="M-16 -22L-8 -54" fill="none" stroke="#A9B4BE" stroke-width="2.800"/><path d="M2 -28L-8 -54" fill="none" stroke="#7A8591" stroke-width="2.800"/>
+<path d="M-12 -38L-1.850 -38" fill="none" stroke-width="3.600"/><path d="M-12 -38L-1.850 -38" fill="none" stroke="#8C98A3" stroke-width="1.600"/>
+<circle cx="-8" cy="-54" r="5" fill="#C3CCD4" stroke-width="1.500"/><path d="M-13 -54H-3M-8 -59V-49" fill="none" stroke="#5F6A75" stroke-width="1"/><circle cx="-8" cy="-54" r="1.200" fill="#2B211C" stroke="none"/>
+<path d="M-3 -54V-41" fill="none" stroke="#D8DCE0" stroke-width="1.100"/><path d="M-6 -41H0L-1 -36H-5Z" fill="#5F6A75" stroke-width="1.300"/><circle cx="-3" cy="-42" r="2" fill="#B5533C" stroke-width="1"/>
+</g></svg>
