@@ -12,6 +12,7 @@ const app = await buildApp({
   settings: env.worldOverrides,
   secureCookies: env.isProduction,
   trustProxy: env.trustProxy,
+  allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
   sandboxUsers: env.sandboxUsers,
   logger: true,

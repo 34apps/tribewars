@@ -51,7 +51,9 @@ export interface BuildAppOptions {
   /** `Secure` session cookie. Default: NODE_ENV === 'production'. */
   secureCookies?: boolean;
   /** Trust X-Forwarded-For (behind a reverse proxy only). */
-  trustProxy?: boolean;
+  trustProxy?: boolean | number | string;
+  /** Extra normalized origins (scheme://host[:port], lowercase) accepted on writes when the Origin host differs from Host (CDN/load balancer). */
+  allowedOrigins?: readonly string[];
   /** Multi-account guard: most active accounts that may register from one IP. 0/absent = off. */
   maxAccountsPerIp?: number;
   /** Claude client for Mags's advisor. Null/absent = advisor answers `advisor_unavailable`. Tests inject a fake. */
@@ -77,7 +79,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     logger: opts.logger ?? false,
     bodyLimit: BODY_LIMIT,
     requestTimeout: 30_000,
-    trustProxy: opts.trustProxy ?? false,
+    // A hop count becomes a function: this Fastify version treats a bare number as "trust nothing".
+    trustProxy: typeof opts.trustProxy === 'number' ? (_addr: string, hop: number) => hop < (opts.trustProxy as number) : (opts.trustProxy ?? false),
     // Strict validation: unknown fields are errors (not silently stripped) and nothing is coerced.
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false, useDefaults: false, allErrors: false } },
   });
@@ -124,6 +127,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     }
   });
 
+  const allowedOrigins = new Set((opts.allowedOrigins ?? []).map((o) => o.toLowerCase()));
   app.addHook('onRequest', async (req) => {
     req.nowMs = now();
 
@@ -132,12 +136,15 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       const origin = req.headers.origin;
       if (origin !== undefined) {
         let originHost: string | null = null;
+        let originNorm: string | null = null;
         try {
-          originHost = new URL(origin).host.toLowerCase();
+          const u = new URL(origin);
+          originHost = u.host.toLowerCase();
+          originNorm = u.origin.toLowerCase();
         } catch {
           // "null" or garbage: refuse below.
         }
-        if (originHost === null || originHost !== (req.headers.host ?? '').toLowerCase()) {
+        if (originHost === null || (originHost !== (req.headers.host ?? '').toLowerCase() && !(originNorm !== null && allowedOrigins.has(originNorm)))) {
           throw new GameError('forbidden', 'Cross-site requests are not allowed.');
         }
       }
@@ -200,7 +207,14 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     }
   });
 
-  app.get('/api/health', async () => ({ ok: true }));
+  app.get('/api/health', async (_req, reply) => {
+    try {
+      store.getMeta('world_settings'); // trivial read: proves the database answers
+      return { ok: true };
+    } catch {
+      return reply.code(503).send({ ok: false });
+    }
+  });
   authRoutes(app, ctx);
   gameRoutes(app, ctx);
   reportRoutes(app, ctx);

@@ -1,6 +1,7 @@
 // Server configuration from environment variables. Fails fast on malformed values.
 
 import { existsSync } from 'node:fs';
+import { isIP } from 'node:net';
 import type { WorldSettings } from '@clanfire/engine';
 
 export interface ServerEnv {
@@ -9,15 +10,17 @@ export interface ServerEnv {
   databasePath: string;
   nodeEnv: string;
   isProduction: boolean;
-  /** Trust X-Forwarded-* headers (only enable behind a reverse proxy you control). */
-  trustProxy: boolean;
+  /** Trust X-Forwarded-* headers: false, true, a hop count (>= 2) or an IP/CIDR list (only enable behind a reverse proxy you control). */
+  trustProxy: boolean | number | string;
+  /** Extra full origins (scheme://host[:port]) accepted on writes besides the Host-matching one (ALLOWED_ORIGINS, comma list). */
+  allowedOrigins: string[];
   /** Most active accounts per IP at registration (MAX_ACCOUNTS_PER_IP). Default 3 in production (households may share; troops between them are blocked), 0 (off) in development. */
   maxAccountsPerIp: number;
   /** World settings given in the environment. Only used when a new world is created. */
   worldOverrides: Partial<WorldSettings>;
   /** Anthropic key for Mags's advisor; null = advisor off. Only set when ADVISOR_ENABLED=true (owner: no AI spend by default). Secret: never log it. */
   anthropicApiKey: string | null;
-  /** Lowercase usernames allowed to use sandbox/test mode (SANDBOX_USERS, comma list; default metinaltinbas; empty = nobody). */
+  /** Lowercase usernames allowed to use sandbox/test mode (SANDBOX_USERS, comma list; default metinaltinbas outside production, empty in production; empty = nobody). */
   sandboxUsers: string[];
 }
 
@@ -29,6 +32,46 @@ function num(env: Env, name: string, check: (n: number) => boolean, what: string
   const n = Number(raw);
   if (!Number.isFinite(n) || !check(n)) throw new Error(`Invalid ${name}="${raw}": expected ${what}.`);
   return n;
+}
+
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  const v = (raw ?? '').trim();
+  if (v === '' || /^(0|false|no)$/i.test(v)) return false;
+  if (/^(1|true|yes)$/i.test(v)) return true;
+  if (/^\d+$/.test(v)) {
+    const n = Number(v);
+    if (Number.isSafeInteger(n) && n >= 2 && n <= 100) return n;
+  } else if (/[.:]/.test(v)) {
+    const parts = v.split(',').map((x) => x.trim());
+    const isAddr = (x: string): boolean => {
+      const [ip, prefix, ...extra] = x.split('/');
+      if (extra.length > 0 || isIP(ip ?? '') === 0) return false;
+      return prefix === undefined || (/^\d{1,3}$/.test(prefix) && Number(prefix) <= (isIP(ip!) === 4 ? 32 : 128));
+    };
+    if (parts.every(isAddr)) return parts.join(',');
+  }
+  throw new Error(`Invalid TRUST_PROXY="${raw}": expected true/false, a hop count >= 2, or a comma list of IPs/CIDRs.`);
+}
+
+function parseAllowedOrigins(raw: string | undefined): string[] {
+  const out: string[] = [];
+  for (const part of (raw ?? '').split(',')) {
+    const item = part.trim();
+    if (item === '') continue;
+    let url: URL;
+    try {
+      url = new URL(item);
+    } catch {
+      throw new Error(`Invalid ALLOWED_ORIGINS entry "${item}": not a valid URL.`);
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`Invalid ALLOWED_ORIGINS entry "${item}": must be http or https.`);
+    if ((url.pathname !== '/' && url.pathname !== '') || url.search || url.hash || url.username || url.password) {
+      throw new Error(`Invalid ALLOWED_ORIGINS entry "${item}": give only scheme://host[:port], no path.`);
+    }
+    const origin = url.origin.toLowerCase();
+    if (!out.includes(origin)) out.push(origin);
+  }
+  return out;
 }
 
 /** Load apps/server/.env if it exists (path relative to this package, not the cwd). Real environment variables win. */
@@ -59,10 +102,11 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     databasePath: env.DATABASE_PATH?.trim() || './data/clanfire.sqlite',
     nodeEnv,
     isProduction: nodeEnv === 'production',
-    trustProxy: /^(1|true|yes)$/i.test(env.TRUST_PROXY ?? ''),
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
+    allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     maxAccountsPerIp: num(env, 'MAX_ACCOUNTS_PER_IP', (n) => Number.isInteger(n) && n >= 0 && n <= 1000, 'an integer from 0 to 1000') ?? (nodeEnv === 'production' ? 3 : 0),
     worldOverrides,
-    sandboxUsers: (env.SANDBOX_USERS ?? 'metinaltinbas')
+    sandboxUsers: (env.SANDBOX_USERS ?? (nodeEnv === 'production' ? '' : 'metinaltinbas'))
       .split(',')
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s !== ''),
