@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`df0f9b3`): balance simulator `scripts/sim/balance.ts` (`npm run sim`, 4 styles, 30 days, real engine, fixed seeds) + 1-day test `packages/engine/test/sim.test.ts` + `docs/BALANCE.md` §6. No game numbers changed. Checks passed.
-Left: the 30-day run itself was never executed (runner denied `npm run sim`/tsx), so §6 has no results or number suggestions yet. Policies are untuned guesses.
-Very next step: run `npm run sim`, paste flags + day 7/14/30 rows into BALANCE.md §6, add suggested config.ts changes (not applied).
-Uncommitted owner WIP left alone: `apps/web/src/art/*`, `VillageScene.tsx`, `.claude/launch.json`, `Pasted ... textClipping`.
-Earlier (`beb5c59`): genre review `docs/GENRE_REVIEW.md`; owner picks from Part C (first batch #3, #4, #6).
+2026-11-04 (`2d1c74d`): security/fairness audit of game routes: `apps/server/test/security-audit.test.ts` (10 probe tests) + table in `docs/SECURITY_ROADMAP.md` §5. One hole fixed: shared-connection accounts shipping into abandoned villages for a partner to raid. Checks + build passed.
+Left: cap on movements in flight, limit bucket for rank/respec (NEXT_STEPS). Note: in unattended runs only `npm run check` / `npm run build` are allowed (no single-file test runs, no pipes, no heredocs).
+Very next step: pick from NEXT_STEPS (or the simulator: `npm run sim`, fill BALANCE.md §6; never run yet).
+Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`.
+Earlier (`df0f9b3`): balance simulator `npm run sim`; results not yet produced. Earlier (`beb5c59`): genre review `docs/GENRE_REVIEW.md`.
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 

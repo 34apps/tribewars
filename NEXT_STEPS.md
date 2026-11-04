@@ -66,6 +66,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   installable web app, fewer polls). Native-app items (token login, `/api/v1`, engine package) wait
   for that project.
 - Security: `docs/SECURITY_ROADMAP.md` Phase 1 left: CI audit, e-mail verification/reset. Standalone worlds' own sign-in still has the 8-character rule and no lockout (lobby has both). Look at the sign-in, change-password screens at 360 and 1440 px in a browser (not viewed). A lobby ban still doesn't end live world sessions (they last ≤12 h).
+- Security (audit follow-ups, `docs/SECURITY_ROADMAP.md` §5): per-player cap on movements in flight (roadmap §2 rule 6; today only units owned and 60 sends/min bound it); add `rank`/`respec` to a route-limit bucket in `security.ts`; two households on different IPs are undetectable (staff tooling only).
 - **Self-host the fonts** (Bagel Fat One, Rubik; `apps/web/index.html` loads Google Fonts today): then drop `fonts.googleapis.com`/`fonts.gstatic.com` from the CSP in `apps/server/src/security.ts` and the CloudFront policy in `docs/DEPLOYMENT_PLAN.md`. Needs the font files (no package could be installed).
 - Live updates follow-ups: view the game in a real browser with the socket on (hello, hints, reconnect after a server restart); CloudFront must allow WebSocket upgrade on `/api/live` (add to `docs/DEPLOYMENT_PLAN.md`); a tick-lag metric for troop arrivals.
 - Map: if pan is still slow on a phone (`window.__mapFrames` in dev), blit-shift the previous frame while panning.
