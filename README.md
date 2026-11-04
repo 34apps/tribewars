@@ -38,7 +38,7 @@ The server listens on `PORT` (default 3000) and serves the built web client. Set
 
 ## Running AI tasks
 
-`npm run agent -- "task"` (needs `ANTHROPIC_API_KEY`; flags `--budget <usd>` default 10, `--model`,
+`npm run agent -- "task"` (needs `ANTHROPIC_API_KEY`; flags `--budget <usd>` default 10, `--model`, `--effort low|medium|high|xhigh|max`,
 `--max-turns`) runs one task. Every run starts a fresh conversation; its final answer is saved to
 `.agent/last-reply.md` (max 60 lines) and given to the next run as context, so follow-ups like
 "do step 2" work. `npm run agent -- --continue "task"` resumes the full previous conversation instead

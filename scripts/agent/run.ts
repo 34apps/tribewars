@@ -1,5 +1,5 @@
 // Runs one development task with the Claude Agent SDK, billed to ANTHROPIC_API_KEY.
-// Usage: npm run agent -- [--budget n] [--model id] [--max-turns n] [--continue] "task text"
+// Usage: npm run agent -- [--budget n] [--model id] [--effort level] [--max-turns n] [--continue] "task text"
 // Every run starts a FRESH conversation. Memory between runs is the previous final answer (.agent/last-reply.md,
 // max 60 lines), given to the new run as context. --continue resumes the full previous conversation instead
 // (rare; costs more tokens).
@@ -13,7 +13,7 @@ const stateDir = join(repoRoot, ".agent");
 const sessionFile = join(stateDir, "last-session");
 const replyFile = join(stateDir, "last-reply.md");
 
-const USAGE = `Usage: npm run agent -- [--budget <usd>] [--model <id>] [--max-turns <n>] [--continue] "task text"
+const USAGE = `Usage: npm run agent -- [--budget <usd>] [--model <id>] [--effort low|medium|high|xhigh|max] [--max-turns <n>] [--continue] "task text"
 Every run starts a fresh conversation and gets the previous final answer (.agent/last-reply.md) as context.
 --continue resumes the full previous conversation instead (rare; costs more tokens).
 Defaults: --model claude-sonnet-5-5  --budget 10  --max-turns 40
@@ -28,6 +28,8 @@ let model = "claude-sonnet-5-5";
 let maxUsd = 10;
 let maxTurns = 40;
 let resume = false;
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+let effort: (typeof EFFORTS)[number] | undefined; // unset = the model's default
 const words: string[] = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
@@ -35,7 +37,11 @@ for (let i = 0; i < argv.length; i++) {
   if (a === "--help" || a === "-h") fail(USAGE);
   else if (a === "--continue") resume = true;
   else if (a === "--new") resume = false; // old flag: a fresh conversation is the default now
-  else if (a === "--model" || a === "--budget" || a === "--max-usd" || a === "--max-turns") {
+  else if (a === "--effort") {
+    const v = argv[++i];
+    if (!v || !(EFFORTS as readonly string[]).includes(v)) fail(`--effort must be one of ${EFFORTS.join(", ")}.\n${USAGE}`);
+    effort = v as (typeof EFFORTS)[number];
+  } else if (a === "--model" || a === "--budget" || a === "--max-usd" || a === "--max-turns") {
     const v = argv[++i];
     if (v === undefined) fail(`${a} needs a value.\n${USAGE}`);
     if (a === "--model") model = v;
@@ -105,6 +111,7 @@ if (resume && existsSync(sessionFile)) {
 }
 if (resume && !resumeId) console.log("No previous conversation to continue; starting a fresh one.");
 console.log(resumeId ? `Continuing previous conversation (${resumeId}).` : "Starting a fresh conversation.");
+console.log(`Model ${model}, effort ${effort ?? "default"}, budget $${maxUsd}.`);
 
 // Cheap memory: the previous final answer, capped, goes in front of the task.
 const REPLY_MAX_LINES = 60;
@@ -133,6 +140,7 @@ try {
       model,
       maxTurns,
       maxBudgetUsd: maxUsd,
+      ...(effort ? { effort } : {}),
       settingSources: ["project"], // loads CLAUDE.md / AGENTS.md; not user or local settings
       systemPrompt: { type: "preset", preset: "claude_code", append: APPEND },
       permissionMode: "dontAsk", // anything not allowed is denied, never prompts
