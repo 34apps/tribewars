@@ -183,7 +183,10 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Beginner protection: nobody can attack the player's villages until
   `createdAt + protectionHours / speed`. It ends early when the player attacks another *player*
   (raiding abandoned villages keeps it).
-- Points = sum of building levels (shown on the map).
+- Points = sum over buildings of the points of each built level (shown on the map). Level L of a building adds
+  `round(BUILDING_POINTS_BASE[b] × 1.2^(L-1))` points, so high levels are worth far more (a new village starts at 40;
+  a maxed village is ~10,000). Map stages start at 0 / 100 / 300 / 800 / 1800 / 3500 points. The building panel and
+  the construction queue show the points the next level adds.
 
 ## 10. Engine public API (`packages/engine/src/index.ts`)
 

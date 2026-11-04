@@ -10,6 +10,8 @@ import {
   NPC_RING_MAX_RADIUS,
   NPC_RING_MIN_RADIUS,
   CHIEFTAINS,
+  BUILDING_POINTS_BASE,
+  POINTS_GROWTH,
   MAP_STAGE_MIN_POINTS,
   RUIN_STAGE_MIN_POINTS,
   type ChieftainId,
@@ -23,7 +25,7 @@ import {
 } from './config.ts';
 import { hashSeed, mulberry32 } from './random.ts';
 import { BUILDING_IDS, GameError } from './types.ts';
-import type { Coords, Terrain, VillageState, WorldSettings } from './types.ts';
+import type { BuildingId, Coords, Terrain, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR } from './util.ts';
 
 // ---- Terrain ------------------------------------------------------------------------------------
@@ -280,10 +282,23 @@ export function protectionEndsAt(createdAt: number, s: WorldSettings): number {
   return Math.round(createdAt + (s.protectionHours * MS_PER_HOUR) / s.speed);
 }
 
-/** Points = sum of building levels. */
+/** Points the single level `level` (1-based) of a building adds. */
+export function levelPoints(id: BuildingId, level: number): number {
+  if (level < 1) return 0;
+  return Math.round(BUILDING_POINTS_BASE[id] * POINTS_GROWTH ** (level - 1));
+}
+
+/** Points a building is worth at `level` (sum of its levels' points). */
+export function buildingPoints(id: BuildingId, level: number): number {
+  let total = 0;
+  for (let l = 1; l <= level; l++) total += levelPoints(id, l);
+  return total;
+}
+
+/** Points = sum over buildings of `buildingPoints` (higher levels are worth more). */
 export function villagePoints(state: VillageState): number {
   let total = 0;
-  for (const b of BUILDING_IDS) total += state.buildings[b];
+  for (const b of BUILDING_IDS) total += buildingPoints(b, state.buildings[b]);
   return total;
 }
 

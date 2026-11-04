@@ -15,7 +15,9 @@ import {
   generateExpandingStartNpcs,
   generateNpcPlacements,
   generateNpcsForSpawn,
+  buildingPoints,
   isBuildableTerrain,
+  levelPoints,
   mulberry32,
   protectionEndsAt,
   terrainAt,
@@ -218,11 +220,14 @@ describe('protection and points', () => {
     assert.equal(protectionEndsAt(0, { ...S1, protectionHours: 0 }), 0);
   });
 
-  it('points are the sum of building levels', () => {
+  it('points grow faster at higher levels', () => {
     const v = createPlayerVillage(0);
-    assert.equal(villagePoints(v), 5); // hall, lumber, farm, mine, storehouse
+    assert.equal(villagePoints(v), 10 + 8 + 8 + 8 + 6); // hall, lumber, farm, mine, storehouse at level 1
+    assert.equal(levelPoints('hall', 1), 10);
+    assert.equal(levelPoints('hall', 2), 12);
+    assert.ok(levelPoints('hall', 20) > 10 * levelPoints('hall', 2));
     v.buildings.wall = 3;
-    v.buildings.hall = 4;
-    assert.equal(villagePoints(v), 5 + 3 + 3);
+    assert.equal(villagePoints(v), 40 + buildingPoints('wall', 3));
+    assert.equal(buildingPoints('wall', 3), 8 + 10 + 12);
   });
 });

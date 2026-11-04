@@ -12,6 +12,7 @@ import {
   buildingCost,
   buildingPop,
   checkBuild,
+  levelPoints,
   netProductionPerHour,
   populationCap,
   populationUsage,
@@ -164,6 +165,9 @@ export function BuildingPanel({
             })}
             <Chip icon="time" label={`Build time ${formatDuration(timeMs)}`}>
               {formatDuration(timeMs)}
+            </Chip>
+            <Chip icon="ranks" label={`Adds ${levelPoints(id, target)} village points when done`}>
+              +{formatInt(levelPoints(id, target))} pts
             </Chip>
           </ul>
         </>
@@ -339,6 +343,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
                       : started
                         ? `Done at ${formatClock(job.finishAt, now)}`
                         : 'Waiting for a builder'}
+                    {` · +${formatInt(levelPoints(job.building, job.targetLevel))} points`}
                   </div>
                   <ProgressBar value={started ? (now - job.startAt) / total : 0} label={`${def.name} progress`} />
                   {index === jobs.length - 1 && (

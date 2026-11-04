@@ -6,6 +6,7 @@ import {
   MAX_BUILD_QUEUE,
   UNITS,
   buildingCost,
+  villagePoints,
   type MapResponse,
   type OwnVillageDto,
   type ReportListResponse,
@@ -88,7 +89,7 @@ test('build: success charges the cost, queues the job and completes with time', 
 
   // The map's cached points follow once the owner has looked.
   const map = (await c.get(`/api/map?x=${done.x}&y=${done.y}&w=1&h=1`)).json<MapResponse>();
-  assert.equal(map.villages[0]?.points, Object.values(done.state.buildings).reduce((a, b) => a + b, 0));
+  assert.equal(map.villages[0]?.points, villagePoints(done.state));
   await app.close();
 });
 

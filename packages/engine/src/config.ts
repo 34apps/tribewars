@@ -607,7 +607,24 @@ export const SCOUT_APPROX_STEP = 10;
 // ---- Art-facing rules (docs/ART_DIRECTION.md) ----
 
 /** Map picture stage by village points: stage n starts at MAP_STAGE_MIN_POINTS[n-1]. */
-export const MAP_STAGE_MIN_POINTS = [0, 15, 35, 65, 100, 150] as const;
+export const MAP_STAGE_MIN_POINTS = [0, 100, 300, 800, 1800, 3500] as const;
+
+/** Village points: level L of a building adds round(base * POINTS_GROWTH^(L-1)) points, so high levels are worth far more. */
+export const POINTS_GROWTH = 1.2;
+export const BUILDING_POINTS_BASE: Record<BuildingId, number> = {
+  hall: 10,
+  lumber: 8,
+  farm: 8,
+  mine: 8,
+  goldmine: 12,
+  storehouse: 6,
+  barracks: 10,
+  stables: 12,
+  wall: 8,
+  vault: 6,
+  market: 10,
+  drillyard: 12,
+};
 export const MAP_STAGE_NAMES = ['Hamlet', 'Palisade village', 'Stockade town', 'Stone-walled town', 'Fortified town', 'Castle'] as const;
 /** Abandoned villages show a ruin: hamlet below the first, town below the second, fort above. */
 export const RUIN_STAGE_MIN_POINTS = MAP_STAGE_MIN_POINTS; // 6 abandoned pictures, same steps as player villages (owner, 2026-11-04)

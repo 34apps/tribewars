@@ -12,6 +12,8 @@ import {
   TRIBE_INVITE_TTL_HOURS,
   TRIBE_MAX_MEMBERS,
   TRIBE_MAX_OPEN_INVITES,
+  buildingPoints,
+  levelPoints,
   villagePoints,
   type GameStateResponse,
   type MeResponse,
@@ -679,13 +681,13 @@ test('tribe list ranks by members\' points (ties: older tribe first), searches b
   list = await ranking();
   assert.deepEqual(list.map((t) => t.tag), ['WOLF3', 'FIRST', 'SECOND']);
   const base = list[1]?.points ?? 0;
-  assert.equal((list[0]?.points ?? 0) - base, 7);
+  assert.equal((list[0]?.points ?? 0) - base, buildingPoints('hall', 10) - buildingPoints('hall', 3));
   const joiner = await newPlayer(app, 'joiner');
   setHall(app, joiner.id, 12);
   await join(joiner, t2.tribeId);
   list = await ranking();
   assert.deepEqual(list.map((t) => [t.tag, t.rank]), [['SECOND', 1], ['WOLF3', 2], ['FIRST', 3]]);
-  assert.equal(list[0]?.points, 2 * base + 9, 'two members: leader + joiner');
+  assert.equal(list[0]?.points, 2 * base + buildingPoints('hall', 12) - buildingPoints('hall', 3),'two members: leader + joiner');
   assert.equal(list[0]?.members, 2);
 
   // The view of a single tribe carries the same rank and the member list.
@@ -714,8 +716,8 @@ test('member points follow the village: completed builds show up once the player
   ok(await lead.c.post(`/api/villages/${vid}/build`, { building: 'lumber' }));
   clock.advance(HOUR);
   const after = (await myTribe(lead)).tribe;
-  assert.equal(after?.points, before + 1);
-  assert.equal(after?.memberList[0]?.points, before + 1);
+  assert.equal(after?.points, before + levelPoints('lumber', 2));
+  assert.equal(after?.memberList[0]?.points, before + levelPoints('lumber', 2));
   await app.close();
 });
 
