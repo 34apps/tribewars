@@ -47,8 +47,6 @@ const K = {
   woodDark: '#80603C',
   haze: '#D5E0B5',
 };
-const HILL = { light: '#B7CF88', mid: '#97B86B', dark: '#739652' };
-const CRAG = { light: '#D5D0C4', mid: '#AFA999', dark: '#857F73' };
 
 type UV = readonly [number, number];
 const f = (n: number) => Math.round(n * 10) / 10;
@@ -239,63 +237,6 @@ const FIELDS: Field[] = [
 const onField = (u: number, v: number, pad: number) => FIELDS.some((q) => u > q.u0 - pad && u < q.u1 + pad && v > q.v0 - pad && v < q.v1 + pad);
 
 // ---- Prop pieces ---------------------------------------------------------------------------------------------------
-
-type Pal = typeof HILL;
-
-/** A rolling grass hill: a bell dome with a soft, off-centre peak, lit left, shaded right, sitting flush on the ground. */
-function mound(x: number, y: number, w: number, h: number, pal: Pal = HILL, skew = 0.12): ReactNode {
-  const top = y - h;
-  const px = x + w * skew;
-  const L = `${f(x - w)} ${f(y)}`;
-  const R = `${f(x + w)} ${f(y)}`;
-  const P = `${f(px)} ${f(top)}`;
-  const left = `C${f(x - w * 0.94)} ${f(y - h * 0.5)} ${f(px - w * 0.62)} ${f(top + h * 0.02)} ${P}`;
-  const right = `C${f(px + w * 0.5)} ${f(top)} ${f(x + w * 0.92)} ${f(y - h * 0.42)} ${R}`;
-  const base = `Q${f(x)} ${f(y + w * 0.1)} ${L}`;
-  const body = `M${L}${left}${right}${base}Z`;
-  const shade = `M${P}${right}Q${f(x + w * 0.6)} ${f(y + w * 0.08)} ${f(x + w * 0.16)} ${f(y + w * 0.06)}C${f(x + w * 0.34)} ${f(y - h * 0.4)} ${f(px + w * 0.02)} ${f(top + h * 0.42)} ${P}Z`;
-  const hx = x - w * 0.3 + w * skew * 0.5;
-  const hy = y - h * 0.62;
-  return (
-    <g strokeLinejoin="round" strokeLinecap="round">
-      <ellipse cx={f(x + w * 0.1)} cy={f(y + w * 0.04)} rx={f(w * 1.02)} ry={f(w * 0.2)} fill={INK} opacity={0.14} />
-      <path d={body} fill={pal.mid} />
-      <path d={shade} fill={pal.dark} />
-      <ellipse cx={f(hx)} cy={f(hy)} rx={f(w * 0.26)} ry={f(h * 0.2)} transform={`rotate(-30 ${f(hx)} ${f(hy)})`} fill={pal.light} opacity={0.85} />
-      <path d={`M${L}${left}${right}`} fill="none" stroke={INK} strokeWidth={LW} />
-    </g>
-  );
-}
-
-/** A rocky outcrop: 2-3 jagged peaks of different height, lit left and shaded right facets, rubble at the foot. */
-function crag(x: number, y: number, w: number, h: number): ReactNode {
-  const p = (dx: number, dy: number) => `${f(x + w * dx)} ${f(y - h * dy)}`;
-  const poly = (...pts: string[]) => `M${pts.join('L')}Z`;
-  // Peaks: [apex dx, apex height, half-width dx]; tall one in the middle-left, a lower one right, a stub far left.
-  const stub = [poly(p(-1, 0), p(-0.86, 0.34), p(-0.7, 0.3), p(-0.58, 0.48), p(-0.42, 0), p(-0.7, -0.1)), poly(p(-0.58, 0.48), p(-0.42, 0), p(-0.5, 0.1))];
-  const lowR = [
-    poly(p(0.3, 0), p(0.38, 0.4), p(0.52, 0.34), p(0.62, 0.6), p(0.74, 0.42), p(0.78, 0.2), p(0.62, 0)),
-    poly(p(0.62, 0.6), p(0.74, 0.42), p(0.78, 0.2), p(1, 0), p(0.62, 0), p(0.6, 0.3)),
-  ];
-  return (
-    <g strokeLinejoin="round" stroke={INK} strokeWidth={LW}>
-      <ellipse cx={f(x + w * 0.05)} cy={f(y + w * 0.05)} rx={f(w * 1.1)} ry={f(w * 0.22)} fill={INK} opacity={0.15} stroke="none" />
-      <path d={stub[0]} fill={CRAG.light} />
-      <path d={stub[1]} fill={CRAG.dark} />
-      {/* tall main spire: lit left facet, mid centre facet, shaded right facet */}
-      <path d={poly(p(-0.62, 0), p(-0.5, 0.5), p(-0.3, 0.6), p(-0.12, 1), p(0.02, 0.62), p(0.1, 0), p(-0.2, -0.12))} fill={CRAG.mid} />
-      <path d={poly(p(-0.62, 0), p(-0.5, 0.5), p(-0.3, 0.6), p(-0.12, 1), p(-0.14, 0.45), p(-0.3, 0.02))} fill={CRAG.light} />
-      <path d={poly(p(-0.12, 1), p(0.02, 0.62), p(0.18, 0.5), p(0.34, 0.42), p(0.4, 0), p(0.1, 0), p(0.02, 0.62))} fill={CRAG.dark} />
-      <path d={lowR[0]} fill={CRAG.mid} />
-      <path d={lowR[1]} fill={CRAG.dark} />
-      <path d={poly(p(0.38, 0.4), p(0.52, 0.34), p(0.62, 0.6), p(0.5, 0.2))} fill={CRAG.light} strokeWidth={1} />
-      {/* rubble */}
-      <path d={poly(p(-0.92, 0), p(-0.86, 0.1), p(-0.74, 0.1), p(-0.7, 0))} fill={CRAG.mid} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.12)})`} />
-      <path d={poly(p(0.84, 0), p(0.9, 0.1), p(1.04, 0.07), p(1.1, 0))} fill={CRAG.dark} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.1)})`} />
-      <path d={poly(p(0.05, 0), p(0.1, 0.08), p(0.22, 0.06), p(0.26, 0))} fill={CRAG.light} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.2)})`} />
-    </g>
-  );
-}
 
 const sheep = (
   <g stroke={INK} strokeWidth={1.1} strokeLinejoin="round">
@@ -589,6 +530,29 @@ function meadow(box: LandBox): ReactNode {
   );
 }
 
+// ---- Hill and rock sprites -----------------------------------------------------------------------------------------
+// Plain SVG files with the foot point (the middle of the ground they sit on) at (0, 0), see design/sprites/landscape/anchors.json.
+// Bundled as text and inlined as <g> markup, so they render the same on the server, in the app and in the single-file preview
+// (no fetch, no ids inside the files that could clash).
+
+const SPRITE_FILES = import.meta.glob('./landscape-sprites/*.svg', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+type Sprite = 'hill-1' | 'hill-2' | 'hill-3' | 'rocks-1' | 'rocks-2';
+/** Half width and height above the foot point, in scene units. */
+const SPRITE: Record<Sprite, { w: number; h: number }> = {
+  'hill-1': { w: 92, h: 55 },
+  'hill-2': { w: 58, h: 60 },
+  'hill-3': { w: 76, h: 48 },
+  'rocks-1': { w: 62, h: 42 },
+  'rocks-2': { w: 52, h: 38 },
+};
+const SPRITE_ART = Object.fromEntries(
+  (Object.keys(SPRITE) as Sprite[]).map((name) => {
+    const raw = SPRITE_FILES[`./landscape-sprites/${name}.svg`];
+    if (!raw) throw new Error(`Missing landscape sprite ${name}.svg`);
+    return [name, raw.replace(/^<svg[^>]*>/, '').replace(/<title>.*?<\/title>/, '').replace(/<\/svg>\s*$/, '')];
+  }),
+) as Record<Sprite, string>;
+
 // ---- Props (trees, rocks, hills, animals), sorted by depth ----------------------------------------------------------
 
 interface Item {
@@ -662,32 +626,32 @@ function build(): Item[] {
   const items: Item[] = [];
   const inBox = (x: number, y: number) => x > FIT_BOX.x0 + 14 && x < FIT_BOX.x1 - 14 && y > FIT_BOX.y0 + 40 && y < FIT_BOX.y1 - 6;
   const taken = (u: number, v: number, rad: number) => items.some((it) => (it.gr ?? 0) > 0 && Math.hypot(u - it.gu!, v - it.gv!) < rad + it.gr!);
-  // Hills are placed by hand (screen look matters most there); each is a landmark that keeps the zones away from it.
-  const hills: [number, number, number, number, number, number][] = [
-    // u, v, width, height, minimum tier, peak skew
-    [-330, -340, 118, 58, 0, -0.18],
-    [-410, -270, 70, 48, 0, 0.2],
-    [-215, -450, 78, 40, 0, 0.12],
-    [-80, -410, 104, 66, 0, -0.1],
-    [-560, -110, 84, 44, 1, 0.16],
-    [40, -520, 88, 50, 1, -0.2],
-    [-440, -440, 62, 38, 2, 0.1],
+  // Hills and rock outcrops are hand-drawn sprites (design/sprites/landscape), placed by hand (the screen look matters most
+  // here); each is a landmark that keeps the zones away from it. Loose, at different depths, none over a field, the road or
+  // the stream, and none reaching over the plate.
+  const marks: [Sprite, number, number, number, number][] = [
+    // sprite, u, v, scale, minimum tier
+    ['hill-1', -250, -385, 1.35, 0],
+    ['hill-2', -440, -250, 1.35, 0],
+    ['hill-3', -110, -475, 1.3, 0],
+    ['hill-2', -75, -350, 1.05, 1],
+    ['hill-1', -560, -120, 1.15, 1],
+    ['hill-3', -430, -420, 1.1, 1],
+    ['hill-2', 20, -560, 1.2, 2],
+    ['rocks-1', 70, -410, 1.5, 0],
+    ['rocks-2', 190, -460, 1.6, 0],
+    ['rocks-2', -5, -300, 1.2, 1],
+    ['rocks-1', 275, -345, 1.4, 1],
+    ['rocks-2', 130, -545, 1.45, 2],
+    ['rocks-1', 340, -240, 1.2, 2],
   ];
-  hills.forEach(([u, v, w, h, tier, sk], i) => {
+  marks.forEach(([name, u, v, s, tier], i) => {
+    const sp = SPRITE[name];
     const [x, y] = gp(u, v);
-    items.push({ key: `hill${i}`, x, y, tier, h: h + 10, w, gu: u, gv: v, gr: w * 0.7, node: mound(x, y, w, h, HILL, sk) });
-  });
-  const crags: [number, number, number, number, number][] = [
-    [60, -420, 70, 78, 0],
-    [170, -470, 80, 100, 0],
-    [-20, -380, 52, 52, 1],
-    [270, -360, 66, 70, 1],
-    [340, -250, 56, 56, 2],
-    [130, -540, 70, 76, 2],
-  ];
-  crags.forEach(([u, v, w, h, tier], i) => {
-    const [x, y] = gp(u, v);
-    items.push({ key: `crag${i}`, x, y, tier, h, w, gu: u, gv: v, gr: w * 0.7, node: crag(x, y, w, h) });
+    const rad = sp.w * s * 0.75;
+    if (reachesPlate(u, v, x, y, sp.w * s, sp.h * s) || onField(u, v, rad * 0.5) || onRoad(u, v, rad * 0.5) || inWater(u, v, rad * 0.5)) return;
+    const node = <g transform={`translate(${f(x)} ${f(y)}) scale(${s})`} dangerouslySetInnerHTML={{ __html: SPRITE_ART[name] }} />;
+    items.push({ key: `${name}-${i}`, x, y, tier, h: sp.h * s, w: sp.w * s, gu: u, gv: v, gr: rad, node });
   });
 
   for (const [kinds, cu, cv, su, sv, n, s0, s1] of ZONES) {

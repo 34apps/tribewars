@@ -1,0 +1,10 @@
+{
+  "note": "Free-standing scenery for the village landscape (apps/web/src/art/landscape.tsx), not map tiles. Each file's viewBox origin (0,0) is the foot point: the middle of the ground footprint the piece sits on. The base is a flattened isometric ellipse (hills ry = 0.3 rx). Lit from the top left: light top-left, mid body, dark right. Stroke #2B211C 1.4-1.9. Plain paths only (no ids, clips or gradients) so several can be inlined in one SVG. App copies live in apps/web/src/art/landscape-sprites/.",
+  "sprites": {
+    "hill-1": { "viewBox": "-100 -78 200 126", "anchor": [100, 78], "halfWidth": 92, "height": 55, "shape": "long low ridge with a footpath" },
+    "hill-2": { "viewBox": "-70 -66 140 112", "anchor": [70, 66], "halfWidth": 58, "height": 60, "shape": "round knoll with a pine and bushes" },
+    "hill-3": { "viewBox": "-86 -64 172 112", "anchor": [86, 64], "halfWidth": 76, "height": 48, "shape": "double hump with pines in the saddle" },
+    "rocks-1": { "viewBox": "-72 -52 144 84", "anchor": [72, 52], "halfWidth": 62, "height": 42, "shape": "wide cluster of faceted boulders" },
+    "rocks-2": { "viewBox": "-62 -48 124 76", "anchor": [62, 48], "halfWidth": 52, "height": 38, "shape": "taller cluster with a small pine" }
+  }
+}
