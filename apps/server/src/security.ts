@@ -52,6 +52,7 @@ export const ROUTE_LIMITS = {
   research: 30, // start or cancel research
   market: 30, // resource shipments
   feast: 30, // Feast (resources into Renown)
+  village: 30, // rename a village, the light village list
   tribe: 60, // every tribe write: create, join, invites, members, diplomacy, ...
   mail: 60, // all mail calls (sending has its own gaps in mail-service)
   search: 60, // tribe search / list, player profiles
@@ -66,6 +67,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'research', test: /^\/api\/villages\/:id\/(research|cancel-research)$/ },
   { bucket: 'market', test: /^\/api\/villages\/:id\/ship$/ },
   { bucket: 'feast', test: /^\/api\/villages\/:id\/feast$/ },
+  { bucket: 'village', test: /^\/api\/villages(\/:id\/rename)?$/ },
   { bucket: 'mail', test: /^\/api\/mail(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },

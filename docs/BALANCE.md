@@ -66,7 +66,8 @@ is fine; do not change it.**
 
 ## 6. Balance simulator and results (2026-11-04)
 
-**Tool:** `npm run sim` (`scripts/sim/balance.ts`, options `--days N --speed N --seed N --full --json`). It plays 30 days at
+**Tool:** `npm run sim` (`scripts/sim/balance.ts`, options `--days N --speed N --seed N --home x,y --out file --full --json`;
+`--out docs/sim/<date>-<name>.txt` saves the report; since step 2 each style plays several villages, §7.5). It plays 30 days at
 world speed 1 for four computer styles — **builder** (economy first), **raider** (raids abandoned villages from the
 first day), **turtle** (Wall, Vault, defenders), **balanced** — through the real engine: `settleVillage`, `applyBuild`,
 `applyResearch`, `applyTrain`, `applySend`, `resolveBattle`, `applyBattleToDefender`, `applyAttackerLosses`,
@@ -78,7 +79,8 @@ loot vs unit losses and raids won; the hour each building and unit is first affo
 wins by far (score > 1.5x runner-up), dead periods (nothing worthwhile to do for > 8 h), units nobody trains,
 resources at >= 90% storage for a quarter of the time, raids that cost more than they bring, risk-free raiding.
 
-**Model assumptions** (printed at the end of every report): one village per style, 10-minute decision steps, free-player
+**Model assumptions** (printed at the end of every report; the one-village and never-refill parts below are the first version,
+see §7.2 and §7.5 for what changed): one village per style, 10-minute decision steps, free-player
 queues; 8 abandoned villages (tiers 1–5, 3–14 tiles) whose garrisons never refill; loot and losses valued
 wood+food+iron+10×gold; troop upkeep not valued; enemy raiders (4 × day) hit each village on days 7, 14, 21, 28.
 
@@ -187,3 +189,64 @@ builder and turtle in the report are expected.
 **What feels different for players:** *slower* travel by about 12% for an average mixed army (grass roads exactly as before; rough
 ground up to 2.2 times the flat time); *faster* to the 2nd village for anyone who keeps troops at home (pure defender about day 25
 instead of never within 30 days, builder about a week earlier). Nothing becomes unreachable.
+
+### 7.5 Several villages in the simulator (step 2, 2026-11-05), `docs/sim/2026-11-05-after-step2.txt` (30 days), `docs/sim/2026-11-05-after-step2-45days.txt`
+
+**What the sim does now** (`scripts/sim/balance.ts`; real engine calls: `villageRenownPrice`, `applyTrain` for the Chieftain, `checkStrike`,
+`applyStrike`, `updateHold`, `applyOwnerChange`, `checkFoundTarget`, `createFoundedVillage`). Once Renown balance >= `villageRenownPrice` and a Banner Hall
+exists, a style reserves the Renown and trains **one Chieftain at a time** (4,000/3,000/5,000 + 150 gold, 6 h). Then:
+- **take** (raider, balanced): the whole home army + the Chieftain strike the abandoned village with the **most points** that it beats (attack >= 1.25 x
+  defence in a preview with another seed, the Chieftain survives, survivors >= 150 population so the hold clock runs); the survivors hold 6 h; the village
+  keeps all buildings, stock x 0.5. Before the Chieftain, a take style stops raiding and trains an escort of 158 fighters (raids burn the army). A
+  Chieftain that finds no beatable village for 72 h founds instead.
+- **found** (builder, turtle): Chieftain + up to 30 defenders walk to the nearest free buildable tile.
+- Extra villages play the same style script (build list, army, research, raids, Feast) from their own start; production, building Renown and the defender
+  trickle accrue per village; the assumed enemy raids hit every village outside founding protection.
+- **Idle stretch (definition):** after the player has done everything the style wants at a 10-minute step, the longest time until the next step at which
+  something useful is still possible in ANY village (a building, a batch of 10 units, a research, a Feast, a Chieftain). Reported for the whole run and for
+  gaps that start on or after day 20. Target: under 8 hours.
+
+| 30 days, speed 1 | builder | raider | turtle (pure defender) | balanced |
+|---|---|---|---|---|
+| Renown reaches 500 / Banner Hall 1 (unchanged, 7.4) | 14.5 / 7.3 | 14.5 / 20.3 | 25.4 / 7.8 | 13.6 / 18.9 |
+| Chieftain queued | 14.9 | not within 30 days | 26.5 | 20.2 |
+| 2nd village, **before** (7.4: Renown + Banner Hall only) | 14.5 | 20.4 | 25.4 | 19.1 |
+| 2nd village, **after** (village really in hand) | **15.2, founded** | **not within 30 days** (day 41.9 in a 45-day run, taken) | **26.8, founded** | **20.7, taken (tier 1)** |
+| 3rd village | day 34.9 (45-day run) | - | day 41.8 (45-day run) | 27.8, taken |
+| villages on day 30 | 2 | 1 | 2 | 3 |
+| points day 30 (all villages), before -> after | 4,288 -> 8,423 | 1,243 -> 1,067 | 2,136 -> 2,547 | 3,647 -> 7,957 |
+| score, before -> after | 8,444 -> 13,504 | 3,668 -> 3,389 | 4,465 -> 4,912 | 7,772 -> 12,035 |
+| **longest idle stretch, whole run, before -> after** | 70.2 h -> 7.3 h | 1.3 h -> 1.3 h | 13.2 h -> 6.0 h | 4.7 h -> 5.2 h |
+| longest idle stretch starting after day 20 (after) | 2.0 h | 0.8 h | 2.2 h | 1.3 h |
+
+**Idle stretch against the 8 h target: met.** The 70 h builder gap (nothing left to build after day 16) is gone: from the day the 2nd village exists
+it has a whole village to build (the founded village reaches about 4,100 points in 15 days, the same as the home village did), and the next Chieftain
+is saved for. The whole-run figures (7.3 h builder, 6.0 h turtle) are early-game gaps (hours 5 and 18, waiting for the first affordable
+batch), not late-game idling. Caveat: "something useful" includes a batch of 10 cheap troops or a Feast, which are weak sinks; the real test is whether
+players find those worthwhile. In the 45-day run the idle stretch after day 20 stays at or below 2.2 h for all four.
+
+**Pace against the GAME_DESIGN 18.2 targets**
+- **Pure defender (turtle): day 26.8**, target 24-26. About 1 day over: Renown is there on day 25.4 (unchanged), then 1.1 days to collect
+  4,000/3,000/5,000 resources while it builds nothing else, 6 h of training and the walk. Route: founded. If 24-26 must hold, the cheapest lever is
+  the Chieftain cost (e.g. wood 4,000 -> 3,000) or the defender trickle cap; owner decides.
+- **Active raider: not met with the pure-raid script, met by the balanced style (day 20.7, taken).** The pure raider has Renown on day 14.5 and the
+  Banner Hall on day 20.3, but its economy is small (48 building levels on day 21 against 138 for the builder's home village): it needs 158 fighters
+  (its army sits around 120-150) AND about 12,000 resources for the Chieftain, and had neither by day 30. The balanced
+  style, which is the same player with a real economy, hits day 20.7 and then a 2nd taken village on day 27.8 (3rd price 800 Renown). Read this as:
+  **raiding as the only plan is too poor for conquest in the first month**; conquest rewards an economy plus an army. Levers if the owner wants the raider
+  at day 19-20: lower `HOLD_MIN_POPULATION` (150) or allow a second wave of occupiers, a cheaper Chieftain, or let the Strike army carry loot home.
+- Builder: founds on day 15.2 (Renown is what it waits for; saving up and walking add 0.7 days). Faster than any fighting style, as noted in 7.4.
+
+**What the numbers say about the design**
+- Founding is strong: a founded village starts with 40 points and was worth 4,100 points after 15 days, a taken tier-1 village is worth about 1,700
+  points on arrival (2,000-3,000 by day 30). Taking is faster to a *useful* village for a balanced player; founding is slower per village but needs no
+  fight, no escort and works for builder and defender, as intended (GAME_DESIGN 18.2 "expanding must be possible without fighting"). All taken villages
+  in the sim had about the same points (the abandoned villages grow to the same cap), so "highest points" mattered little.
+- The take route's real cost is the **150-population hold**, not the Chieftain: a style with a small army cannot hold at all, and it loses its raids
+  while it builds the escort.
+
+**Not modeled / simplified:** troops or resources sent between the player's villages (extra villages start from their own small stock, so founding is
+if anything harsher than for a player who ships goods); a second hold wave (late occupiers); Chieftains trained in villages other than the first with a
+Banner Hall; players as targets and real Strike defence (abandoned villages only in step 2); loot carried by the strike army (set to 0). The enemy raids
+(4 x day raiders on every unprotected village, days 7-28) are an assumption: they hit weakly defended raider villages hard once the army stays home,
+which is part of why the pure raider does not make it. **Nothing in `config.ts` was changed for this run.**

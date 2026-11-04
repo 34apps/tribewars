@@ -1,6 +1,6 @@
 // Renown in the village view: a compact readout (desktop badge on the board, phone chip under the scene) and the card with
 // the numbers. Renown limits how many villages a player may own (docs/GAME_DESIGN.md section 18.2). Display only: the
-// server keeps the numbers; founding and taking villages is not built yet.
+// server keeps the numbers.
 
 import { Icon } from '../../art/Icon.tsx';
 import { ProgressBar } from '../../components/ui.tsx';
@@ -77,7 +77,12 @@ export function RenownCard() {
       </div>
       <ProgressBar value={renownProgress(renown)} label="Renown saved towards the next village" tone={toGo > 0 ? 'brand' : 'ok'} />
       <p className="renown-note">Earned by building, fighting, keeping troops at home (a little each day once beginner protection ends) and Feasts. Never lost.</p>
-      <p className="renown-note renown-soon">Founding and taking villages: coming soon.</p>
+      <p className="renown-note renown-soon">
+        {renown.reserved
+          ? `${formatInt(renown.reserved)} Renown is reserved for ${renown.chieftains ?? 0} Chieftain${renown.chieftains === 1 ? '' : 's'} (it is part of Spent). `
+          : ''}
+        New villages come from a Chieftain (trained in the Banner Hall): he founds one on free land or, with an escort, takes an abandoned one.
+      </p>
     </section>
   );
 }

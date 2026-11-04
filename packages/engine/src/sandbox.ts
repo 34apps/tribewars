@@ -15,9 +15,10 @@ export function maxOutVillage(state: VillageState, t: number): VillageState {
   for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].maxLevel;
   const cap = storageCap(v);
   for (const r of RESOURCE_IDS) v.resources[r] = cap;
-  for (const u of UNIT_IDS) v.troops[u] = Math.max(v.troops[u], SANDBOX_ARMY_PER_UNIT);
+  // No Chieftains: they cost Renown and every living one is a future village.
+  for (const u of UNIT_IDS) if (u !== 'chieftain') v.troops[u] = Math.max(v.troops[u], SANDBOX_ARMY_PER_UNIT);
   v.buildQueue = [];
-  v.trainQueues = { barracks: [], stables: [] };
+  v.trainQueues = { barracks: [], stables: [], bannerhall: [] };
   v.lastUpdate = t;
   return v;
 }

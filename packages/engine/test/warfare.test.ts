@@ -42,7 +42,7 @@ describe('normalizeUnits', () => {
     assert.deepEqual(normalizeUnits({}), units({}));
     assert.deepEqual(normalizeUnits({ raider: 7, pathfinder: 2 }), units({ raider: 7, pathfinder: 2 }));
     const old = { pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5 } as Units; // saved before Pathfinders
-    assert.deepEqual(normalizeUnits(old), units({ pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5, pathfinder: 0 }));
+    assert.deepEqual(normalizeUnits(old), units({ pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5, pathfinder: 0, chieftain: 0 }));
   });
 
   it('turns non-finite and non-numeric values into 0 and drops unknown keys', () => {
@@ -79,7 +79,7 @@ describe('normalizeVillage / old saved states', () => {
     const out = normalizeVillage(old);
     assert.deepEqual(out.troops, units({ pikeman: 12, raider: 6 }));
     assert.deepEqual(out.away, units({ raider: 4 }));
-    assert.deepEqual(out.trainQueues, { barracks: [], stables: [] });
+    assert.deepEqual(out.trainQueues, { barracks: [], stables: [], bannerhall: [] });
     assert.equal(out.buildings.vault, 0);
     assert.equal(out.buildings.barracks, 3);
     assert.notEqual(out.troops, old.troops);
@@ -370,6 +370,8 @@ describe('checkMission', () => {
     attack: { empty: 'no_troops', pathfinders: 'invalid_input', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
     scout: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'invalid_input', knights: 'invalid_input', mixed: 'invalid_input' },
     support: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
+    found: { empty: 'no_troops', pathfinders: 'invalid_input', pikemen: 'invalid_input', knights: 'invalid_input', mixed: 'invalid_input' },
+    occupy: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
   };
 
   for (const mission of MISSIONS) {

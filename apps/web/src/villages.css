@@ -1,0 +1,339 @@
+/* Several villages (step 2): village bar and switcher, cold-village (hearth out) cards, Chieftain panel.
+   Toy Diorama tokens only (docs/ART_DIRECTION.md). Base rules target 360 px; no inner scrollbars except the switcher menu. */
+
+/* ---- Village bar under the top bar -------------------------------------------------------------------- */
+
+.vbar-wrap {
+  position: relative;
+  flex: none;
+  margin: 0 8px 6px;
+}
+
+.vbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 2px solid var(--c-ink);
+  border-radius: 999px;
+  background: var(--c-bone);
+  box-shadow: inset 0 2px 0 #fff3dc, inset 0 -3px 0 var(--c-bone-shade);
+  color: var(--c-ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.vbar.is-cold {
+  background: #d9d3c6;
+  box-shadow: inset 0 2px 0 #f0ece2, inset 0 -3px 0 #a39e94;
+}
+
+.vbar-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vbar-coords {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.vbar-tag {
+  flex: none;
+}
+
+.vbar-chev {
+  margin-left: auto;
+  padding-left: 6px;
+}
+
+.vsw-pop {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 10px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--c-ink);
+  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color: var(--c-cream);
+}
+
+.vsw-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vsw-row {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 2px solid var(--c-ink-4);
+  border-radius: 12px;
+  background: var(--c-ink-2);
+  color: var(--c-cream);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.vsw-row.is-current {
+  border-color: var(--c-sun);
+  background: var(--c-ink-3);
+}
+
+.vsw-row.is-cold .vsw-row-name {
+  color: var(--c-iron);
+}
+
+.vsw-row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vsw-hearth {
+  display: inline-flex;
+  flex: none;
+}
+
+/* A cold hearth is grey with a thin smoke curl, not just a colour: the badge below says it in words too. */
+.vsw-hearth.is-out {
+  filter: grayscale(1) brightness(0.8);
+}
+
+.vsw-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.vsw-row-coords {
+  flex: none;
+  color: var(--c-dust);
+  font-size: 0.85rem;
+}
+
+.vsw-here {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--c-sun);
+  color: var(--c-ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.vsw-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--c-dust);
+  font-size: 0.82rem;
+}
+
+.vsw-res {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.vsw-row-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.vsw-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vsw-rename {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.vsw-rename-label {
+  color: var(--c-dust);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.vsw-rename-row {
+  display: flex;
+  gap: 8px;
+}
+
+.vsw-rename-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vsw-error {
+  margin: 0;
+  color: var(--c-terra-hi);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 600px) {
+  .vsw-pop {
+    right: auto;
+    width: 460px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vbar-wrap {
+    margin: 8px 16px 6px;
+  }
+}
+
+/* ---- Hold clock card (tile panel, village view) ------------------------------------------------------------- */
+
+.hold {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 2px dashed #6e675e;
+  border-radius: 14px;
+  background: rgba(163, 158, 148, 0.22);
+  color: inherit;
+}
+
+.hold-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-weight: 800;
+}
+
+.hold-clock {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hold p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.vv-hearth-notice {
+  flex: none;
+  margin: 8px 8px 0;
+  color: var(--c-cream);
+}
+
+.vv-hearth-notice .hold {
+  background: var(--c-ink-2);
+  border-color: var(--c-iron);
+}
+
+.hold-smoke {
+  display: inline-flex;
+  flex: none;
+  filter: grayscale(1) brightness(0.85);
+}
+
+/* ---- Chieftain panel -------------------------------------------------------------------------------------------- */
+
+.chief-ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.chief-ledger div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chief-ledger dt {
+  color: var(--ink-soft);
+}
+
+.chief-ledger dd {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.chief-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+}
+
+.chief-note {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.chief-count {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.chief-count .btn[aria-pressed='true'] {
+  background: var(--c-sun);
+}
+
+/* Map key sample: a grey dashed ring */
+.wm-cold-sample {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 18px;
+  border: 2.5px dashed #8a8680;
+  border-radius: 50%;
+  background: rgba(163, 158, 148, 0.25);
+}
+
+/* Hold card in the map tile panel */
+.wm-hold {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 2px dashed #6e675e;
+  border-radius: 12px;
+  background: rgba(163, 158, 148, 0.2);
+  font-size: 0.9rem;
+}
+
+.wm-hold strong {
+  font-variant-numeric: tabular-nums;
+}

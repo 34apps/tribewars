@@ -26,7 +26,7 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
 /**
@@ -37,11 +37,12 @@ export type UnitClass = 'infantry' | 'cavalry';
 export type Units = Record<UnitId, number>;
 
 /** What a troop movement is for (docs/GAME_DESIGN.md section 12). */
-export const MISSIONS = ['attack', 'scout', 'support'] as const;
+export const MISSIONS = ['attack', 'scout', 'support', 'found', 'occupy'] as const;
 export type Mission = (typeof MISSIONS)[number];
 
 /** Buildings that train units. */
-export type TrainingBuildingId = 'barracks' | 'stables';
+export const TRAINING_BUILDING_IDS = ['barracks', 'stables', 'bannerhall'] as const;
+export type TrainingBuildingId = (typeof TRAINING_BUILDING_IDS)[number];
 
 export interface BuildingDef {
   id: BuildingId;
@@ -182,6 +183,30 @@ export interface VillageState {
    * Absent on old saved states and abandoned villages; the first collection only sets it.
    */
   defenceMark?: { at: number; strength: number };
+  /**
+   * Present while the hearth is out (docs/GAME_DESIGN.md 18.2, hearth.ts): somebody struck this village and holds it.
+   * Absent = lit. Only abandoned villages can be struck in step 2.
+   */
+  hearth?: HearthState;
+  /** No Strike on this village before this time (set at a change of owner); raids are still allowed. Absent = no lock. */
+  lockUntil?: number;
+  /** No attack of any kind before this time (a newly founded village, a restarted player). Absent = none. */
+  protectedUntil?: number;
+}
+
+/** The "hearth is out" state of a village (hearth.ts). */
+export interface HearthState {
+  status: 'out';
+  /** Player id of the claimant (the occupiers' owner). */
+  claimBy: number;
+  /** When the hearth went out. */
+  outAt: number;
+  /** Hold time still to run, in ms (world speed already applied). */
+  holdMs: number;
+  /** Set while the clock runs (occupiers >= HOLD_MIN_POPULATION): the time `holdMs` was last brought up to date. null = paused. */
+  runningSince: number | null;
+  /** Set while the occupiers are under the minimum: since when. null = enough occupiers. */
+  underSince: number | null;
 }
 
 export interface Coords {

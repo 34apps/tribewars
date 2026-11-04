@@ -15,6 +15,8 @@ export * from './shipment.ts';
 export * from './sandbox.ts';
 export * from './cancel.ts';
 export * from './world.ts';
+export * from './hearth.ts';
+export * from './found.ts';
 export * from './tribes.ts';
 export * from './achievements.ts';
 export * from './bot.ts';

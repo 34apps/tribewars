@@ -24,15 +24,18 @@ export const UNIT_ICON: Record<UnitId, IconName> = {
   outrider: 'outrider',
   knight: 'knight',
   pathfinder: 'pathfinder',
+  chieftain: 'chieftain',
 };
 
-/** Movement kinds: the three missions plus the trip home. */
+/** Movement kinds: the missions plus the trip home. */
 export type MovementKind = Mission | 'return' | 'shipment';
 
 export const MISSION_ICON: Record<MovementKind, IconName> = {
   attack: 'send',
   scout: 'scout',
   support: 'support',
+  found: 'send',
+  occupy: 'support',
   return: 'return',
   shipment: 'support',
 };
@@ -41,6 +44,8 @@ export const MISSION_NAME: Record<MovementKind, string> = {
   attack: 'Attack',
   scout: 'Scout',
   support: 'Support',
+  found: 'Found village',
+  occupy: 'Occupy',
   return: 'Return',
   shipment: 'Shipment',
 };

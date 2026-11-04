@@ -3,6 +3,7 @@
 import {
   BATTLE_LOSS_EXPONENT,
   BATTLE_LUCK,
+  HEARTH_MAX_CHIEFTAINS,
   MAX_UNIT_COUNT,
   NPC_REPEAT_LOOT_FACTOR,
   NPC_REPEAT_LOOT_FLOOR,
@@ -16,6 +17,7 @@ import {
   WALL_DEFENSE_PER_LEVEL,
 } from './config.ts';
 import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
+import { isFreeBuildSite } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
 import { GameError, MISSIONS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
@@ -128,12 +130,43 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
     }
     return { ok: true };
   }
+  const chieftains = army.chieftain;
+  if (mission === 'found') {
+    // One Chieftain carries the ember; everything else is the escort that becomes the new village's garrison.
+    if (chieftains !== 1) return fail('invalid_input', `A found mission needs exactly one ${UNITS.chieftain.name}.`);
+    return { ok: true };
+  }
+  if (mission === 'support' || mission === 'occupy') {
+    if (chieftains > 0) return fail('invalid_input', `${UNITS.chieftain.name}s can't be stationed in a village.`);
+    return { ok: true };
+  }
   if (mission === 'attack') {
+    if (chieftains > HEARTH_MAX_CHIEFTAINS) {
+      return fail('invalid_input', `At most ${HEARTH_MAX_CHIEFTAINS} ${UNITS.chieftain.name}s can join an attack.`);
+    }
     let attack = 0;
     for (const u of UNIT_IDS) attack += army[u] * UNITS[u].attack;
-    if (!(attack > 0)) {
+    // A Chieftain alone may be sent (the Strike attempt on an abandoned village needs him); with no escort he simply dies.
+    if (!(attack > 0) && chieftains <= 0) {
       return fail('invalid_input', `${UNITS[SCOUT_UNIT].name}s can't attack alone — send them on a scouting mission.`);
     }
+  }
+  return { ok: true };
+}
+
+/**
+ * Can a found mission go to tile (x, y)? In the world, buildable ground (no lake, no mountain), no village on it or within
+ * SPAWN_MIN_SPACING (Chebyshev) of it. `isOccupied(x, y)` is the server's village lookup. Re-check on arrival: the tile may
+ * have been taken meanwhile (then the Chieftain turns back). Never throws.
+ */
+export function checkFoundTarget(
+  target: Coords,
+  s: WorldSettings,
+  isOccupied: (x: number, y: number) => boolean,
+): CheckResult<{}> {
+  if (!target || !Number.isInteger(target.x) || !Number.isInteger(target.y)) return fail('invalid_target', 'Invalid coordinates.');
+  if (!isFreeBuildSite(target.x, target.y, s, isOccupied)) {
+    return fail('invalid_target', 'A village cannot be founded there: it needs free, buildable land away from other villages.');
   }
   return { ok: true };
 }

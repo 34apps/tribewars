@@ -54,6 +54,10 @@ export function Legend() {
             <span className="wm-dome-sample" aria-hidden="true" />
             Beginner protection
           </li>
+          <li className="wm-legend-wide">
+            <span className="wm-cold-sample" aria-hidden="true" />
+            Hearth out: grey ring and smoke. Someone is holding it
+          </li>
         </ul>
         <h3>Route to the selected tile</h3>
         <ul className="wm-legend-banners">

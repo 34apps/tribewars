@@ -87,7 +87,10 @@ test('max: every building at max, stores full, an army of every unit, queues cle
   ok(res);
   const home = res.json<GameStateResponse>().villages[0]!.state;
   for (const b of BUILDING_IDS) assert.equal(home.buildings[b], BUILDINGS[b].maxLevel, b);
-  for (const u of UNIT_IDS) assert.ok(home.troops[u] >= SANDBOX_ARMY_PER_UNIT, u);
+  for (const u of UNIT_IDS) {
+    if (u === 'chieftain') assert.equal(home.troops[u], 0, 'no Chieftains from the sandbox');
+    else assert.ok(home.troops[u] >= SANDBOX_ARMY_PER_UNIT, u);
+  }
   const cap = storageCapForLevel(BUILDINGS.storehouse.maxLevel);
   assert.ok(home.resources.wood >= cap - 1 && home.resources.gold >= cap - 1);
   assert.deepEqual([home.buildQueue.length, home.trainQueues.barracks.length], [0, 0]);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto } from '@clanfire/engine';
+import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
@@ -10,6 +10,8 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { unitListText } from '../rules.ts';
+import { villageReportText } from '../villages.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
   const { showOnMap, player } = useGame();
@@ -33,15 +35,18 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
-const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support', shipment: 'Shipment' };
+const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support', shipment: 'Shipment', village: 'Village' };
 const SIDE_NAME: Record<ReportSummaryDto['side'], string> = {
   attack: 'You attacked',
   defense: 'You were attacked',
   support: 'Your troops there were attacked',
   shipment: 'Resources',
 };
+// Village reports use side 'attack' for the claimant or founder and 'defense' for the owner; the sub-line names the event instead.
+const VILLAGE_SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Your claim', defense: 'Your village', support: 'Your village', shipment: 'Your village' };
 
 function reportIcon(r: ReportSummaryDto): IconName {
+  if (r.type === 'village') return 'chieftain';
   if (r.type === 'shipment') return MISSION_ICON.shipment;
   if (r.type === 'scout') return MISSION_ICON.scout;
   if (r.type === 'support' || r.side === 'support') return MISSION_ICON.support;
@@ -50,6 +55,7 @@ function reportIcon(r: ReportSummaryDto): IconName {
 
 /** What happened, from the report owner's point of view. */
 function OutcomeTag({ report }: { report: ReportSummaryDto }) {
+  if (report.type === 'village') return <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{report.won ? 'Good news' : 'Setback'}</span>;
   if (report.type === 'shipment') return <span className="tag tag-ok">Delivered</span>;
   if (report.type === 'support') return <span className="tag tag-muted">Turned back</span>;
   if (report.side === 'support' && report.type === 'battle' && report.outcome !== 'called_off') {
@@ -65,6 +71,7 @@ function OutcomeTag({ report }: { report: ReportSummaryDto }) {
 }
 
 function metaText(report: ReportSummaryDto): string {
+  if (report.type === 'village') return report.side === 'attack' ? 'Your claim or new village' : 'Your village';
   if (report.type === 'scout') return report.side === 'attack' ? 'You scouted' : 'Enemy scouts were spotted';
   if (report.type === 'shipment') return report.side === 'shipment' ? 'Resources arrived' : '';
   if (report.type === 'support') return 'Your support turned back';
@@ -435,7 +442,45 @@ function ShipmentDetail({ s }: { s: ShipmentReportData }) {
   );
 }
 
+/** Strike, Hold, Found and Taken events (step 2): a few plain sentences, the village, and the troops that were involved. */
+function VillageDetail({ d }: { d: VillageReportData }) {
+  const { now } = useGame();
+  const text = villageReportText(d, now);
+  const good = d.kind === 'struck' || d.kind === 'taken' || d.kind === 'founded' || d.kind === 'relit';
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role={d.kind === 'found_failed' ? 'Free land' : 'Village'} v={d.village} won={false} />
+      </div>
+      <p className={`notice called-off ${good ? 'notice-ok' : 'notice-block'}`} role="note">
+        <Icon name="chieftain" size={20} className="inline-icon" />{' '}
+        <span>
+          {text.lines.map((line, i) => (
+            <span key={i}>
+              {i > 0 && <br />}
+              {line}
+            </span>
+          ))}
+        </span>
+      </p>
+      {d.units && unitListText(d.units) !== '' && (
+        <section className="subsection" aria-label="Troops">
+          <h4 className="subtitle-small">Troops</h4>
+          <p>{unitListText(d.units)}</p>
+        </section>
+      )}
+      {d.overflow && unitListText(d.overflow) !== '' && (
+        <section className="subsection" aria-label="Troops that did not fit">
+          <h4 className="subtitle-small">Did not fit, went home</h4>
+          <p>{unitListText(d.overflow)}</p>
+        </section>
+      )}
+    </>
+  );
+}
+
 function ReportBody({ report }: { report: ReportDto }) {
+  if (report.type === 'village' && report.village) return <VillageDetail d={report.village} />;
   if (report.type === 'shipment' && report.shipment) return <ShipmentDetail s={report.shipment} />;
   if (report.type === 'scout' && report.scout) return <ScoutDetail s={report.scout} side={report.side} />;
   if (report.type === 'support' && report.support) return <SupportDetail s={report.support} />;
@@ -558,7 +603,7 @@ export function ReportsView() {
                         {r.title}
                       </span>
                       <span className="muted report-sub">
-                        {TYPE_NAME[r.type]} · {SIDE_NAME[r.side]} · {formatAgo(r.createdAt, now)}
+                        {TYPE_NAME[r.type]} · {(r.type === 'village' ? VILLAGE_SIDE_NAME : SIDE_NAME)[r.side]} · {formatAgo(r.createdAt, now)}
                       </span>
                     </span>
                     <OutcomeTag report={r} />

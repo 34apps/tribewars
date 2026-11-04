@@ -30,6 +30,8 @@ import type {
   OwnVillageDto,
   ReportDto,
   RecallRequest,
+  RenameVillageRequest,
+  VillageListResponse,
   RankRequest,
   ResearchRequest,
   ReportListResponse,
@@ -224,6 +226,10 @@ export const api = {
   dismissAbandonedNotice: () => request<MeResponse>('POST', '/api/me/abandoned-notice/dismiss', {}),
   setHousehold: (shared: boolean) => request<MeResponse>('POST', '/api/me/household', { shared } satisfies HouseholdRequest),
   state: () => request<GameStateResponse>('GET', '/api/state'),
+  /** Every village of mine, light (name, points, hearth, incoming attack, protection, stock). */
+  villages: () => request<VillageListResponse>('GET', '/api/villages'),
+  renameVillage: (villageId: number, name: string) =>
+    request<OwnVillageDto>('POST', `/api/villages/${villageId}/rename`, { name } satisfies RenameVillageRequest),
   build: (villageId: number, building: string) =>
     request<OwnVillageDto>('POST', `/api/villages/${villageId}/build`, { building } satisfies BuildRequest),
   cancelBuild: (villageId: number, index: number) =>

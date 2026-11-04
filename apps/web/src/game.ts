@@ -7,6 +7,7 @@ import type {
   RenownInfo,
   SendResponse,
   StationedDto,
+  VillageListItemDto,
   VillageState,
   WorldSettings,
 } from '@clanfire/engine';
@@ -52,7 +53,14 @@ export interface GameApi {
   player: PlayerDto;
   /** The player's Renown (docs/GAME_DESIGN.md section 18.2). */
   renown: RenownInfo;
+  /** The current village: every screen (build, train, send, map) acts on this one. */
   village: OwnVillageDto;
+  /** All my villages (the state response), in server order. */
+  villages: OwnVillageDto[];
+  /** Make another of my villages the current one (kept in localStorage). */
+  selectVillage: (id: number) => void;
+  /** GET /api/villages rows (name, points, hearth, incoming attack, protection); null while there is one village or before the first fetch. */
+  villageList: VillageListItemDto[] | null;
   /** village.state settled to `now`. */
   live: VillageState;
   /** Server-corrected time in ms. */

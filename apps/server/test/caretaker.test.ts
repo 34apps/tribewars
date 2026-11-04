@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { abandonIdleMs, ACTIVITY_WRITE_INTERVAL_MS, BOT_MAX_STEPS_PER_RUN, botIdleMs, botStepMs, totalUnits } from '@clanfire/engine';
+import { abandonIdleMs, ACTIVITY_WRITE_INTERVAL_MS, BOT_MAX_STEPS_PER_RUN, botIdleMs, botStepMs, fullGarrison, totalUnits } from '@clanfire/engine';
 import { HOUR, MINUTE, makeApp, ok } from './helpers.ts';
 import { newPlayer, type App, type P } from './tribe-helpers.ts';
 
@@ -49,7 +49,7 @@ test('after 30 days idle the villages become abandoned, troops stay; the owner r
   const here = await newPlayer(app, 'still_here');
   const goneId = enrich(app, gone);
   const hereId = enrich(app, here);
-  const troops = structuredClone(app.ctx.store.getVillage(goneId)?.state.troops);
+  const buildings = structuredClone(app.ctx.store.getVillage(goneId)?.state.buildings);
   const ms = abandonIdleMs(app.ctx.settings);
 
   clock.advance(ms - HOUR);
@@ -59,7 +59,9 @@ test('after 30 days idle the villages become abandoned, troops stay; the owner r
   const v = app.ctx.store.getVillage(goneId);
   assert.ok(v);
   assert.equal(v.ownerId, null, 'abandoned');
-  assert.deepEqual(v.state.troops, troops, 'troops stay');
+  assert.deepEqual(v.state.buildings, buildings, 'every building is kept');
+  assert.deepEqual(v.state.troops, fullGarrison(v.state.buildings.hall), 'garrison for its Town Hall level');
+  assert.ok(v.state.npc, 'now an abandoned village');
   assert.equal(app.ctx.store.getVillage(hereId)?.ownerId, here.id, 'active owner keeps the village');
   assert.equal(app.ctx.store.villagesOfPlayer(gone.id).length, 0);
 
@@ -88,7 +90,7 @@ test('caretaker queues builds for an idle owner only, never touches troops, move
   assert.deepEqual(v.state.troops, troopsBefore, 'no troops trained');
   assert.equal(totalUnits(v.state.away), 0);
   assert.equal(v.state.researchQueue, undefined, 'no research');
-  assert.deepEqual(v.state.trainQueues, { barracks: [], stables: [] });
+  assert.deepEqual(v.state.trainQueues, { barracks: [], stables: [], bannerhall: [] });
   assert.equal(app.ctx.store.movementViewsForPlayer(idle.id).length, 0, 'no movements or shipments');
   assert.equal(app.ctx.store.shipmentsInTransit(idleId), 0);
 });

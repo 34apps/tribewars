@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { makeRenownInfo, settleVillage } from '@clanfire/engine';
-import type { Mission } from '@clanfire/engine';
+import { makeRenownInfo, settleVillage, worldPrefixOf } from '@clanfire/engine';
+import type { Mission, VillageListItemDto } from '@clanfire/engine';
 import { api } from './api.ts';
 import { markManualSignOut } from './lobby.ts';
 import { Shell } from './components/Shell.tsx';
@@ -44,6 +44,17 @@ function useTab(): [Tab, (t: Tab) => void] {
 
 const EMPTY_STATIONED: GameApi['stationed'] = { here: [], abroad: [] };
 
+/** The current village is remembered per world; an id that no longer exists falls back to the first village. */
+const VILLAGE_KEY = () => `clanfire.village${worldPrefixOf(window.location.pathname)}`;
+function readSelectedVillage(): number | null {
+  try {
+    const n = Number(window.localStorage.getItem(VILLAGE_KEY()));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 const MAX_TOASTS = 2;
 const TOAST_MS = 4000;
 const TOAST_LONG_MS = 8000;
@@ -72,7 +83,38 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   if (tab === 'map') mapVisited.current = true;
 
   const { data } = store;
-  const village = data?.villages[0] ?? null;
+  const [selectedId, setSelectedId] = useState<number | null>(readSelectedVillage);
+  const village = data?.villages.find((v) => v.id === selectedId) ?? data?.villages[0] ?? null;
+  const selectVillage = useCallback((id: number) => {
+    setSelectedId(id);
+    try {
+      window.localStorage.setItem(VILLAGE_KEY(), String(id));
+    } catch {
+      // Private mode: the choice just lasts until the page is closed.
+    }
+  }, []);
+  // The switcher list: fetched with every state update, but only when there is more than one village to switch between.
+  const [villageList, setVillageList] = useState<VillageListItemDto[] | null>(null);
+  const multi = (data?.villages.length ?? 0) > 1;
+  const stamp = data?.serverTime;
+  useEffect(() => {
+    if (!multi) {
+      setVillageList(null);
+      return;
+    }
+    let dead = false;
+    api
+      .villages()
+      .then((r) => {
+        if (!dead) setVillageList(r.villages);
+      })
+      .catch(() => {
+        // The state poll reports connection problems; the list simply keeps its last rows.
+      });
+    return () => {
+      dead = true;
+    };
+  }, [multi, stamp]);
   const settings = data?.settings ?? null;
   const live = useMemo(() => (village && settings ? settleVillage(village.state, now, settings) : null), [village, settings, now]);
 
@@ -151,6 +193,9 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       player: data.player,
       renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length),
       village,
+      villages: data.villages,
+      selectVillage,
+      villageList,
       live,
       now,
       movements: data.movements,
@@ -178,7 +223,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       applySend: store.applySend,
       toast,
     };
-  }, [data, village, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft]);
 
   if (!ctx) {
     return (

@@ -81,7 +81,7 @@ const DISPLAY = '"Bagel Fat One", Rubik, system-ui, sans-serif';
 /** Flat tile colours while the terrain art loads. */
 const FLAT = ['#A6C964', '#7FA94A', '#B4D274', '#E3DED3', '#2F9AA0'] as const;
 
-const MOVE_COLOR: Record<string, string> = { attack: '#C4623A', scout: '#7A3B5E', support: '#2F9AA0', return: '#5E8C3A', shipment: '#B8892B' };
+const MOVE_COLOR: Record<string, string> = { attack: '#C4623A', scout: '#7A3B5E', support: '#2F9AA0', found: '#5E8C3A', occupy: '#2F9AA0', return: '#5E8C3A', shipment: '#B8892B' };
 
 // Shapes from design/style-directions/artboards/MapVillageStages.dc.html, in tile-centre SVG px (tile = 96 wide).
 const RING = new Path2D('M-5.4 -19.9Q0 -22.6 5.4 -19.9L39.8 -2.7Q45.1 0 39.8 2.7L5.4 19.9Q0 22.6 -5.4 19.9L-39.8 2.7Q-45.1 0 -39.8 -2.7Z');
@@ -359,28 +359,54 @@ function drawSelectFrame(ctx: CanvasRenderingContext2D, x: number, y: number, s:
   ctx.restore();
 }
 
+const COLD_RING = '#8A8680';
+const COLD_DASH = [4, 4];
+
+/** A thin grey smoke line curling up from a cold hearth (dark outline under a pale line, like the other toy strokes). */
+function drawSmoke(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  const p = new Path2D();
+  p.moveTo(x, y);
+  p.bezierCurveTo(x - 9 * s, y - 9 * s, x + 9 * s, y - 18 * s, x - 1 * s, y - 28 * s);
+  p.bezierCurveTo(x - 8 * s, y - 34 * s, x - 3 * s, y - 40 * s, x + 4 * s, y - 44 * s);
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(3, 4.2 * s);
+  ctx.strokeStyle = 'rgba(43, 33, 28, 0.55)';
+  ctx.stroke(p);
+  ctx.lineWidth = Math.max(1.6, 2.2 * s);
+  ctx.strokeStyle = 'rgba(214, 210, 202, 0.95)';
+  ctx.stroke(p);
+  ctx.restore();
+}
+
 function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapVillageDto, x: number, y: number, s: number): DrawnVillage {
   const al = allegianceOf(v);
   const style = ALLEGIANCE_STYLE[al];
   const sprite = villageSprite(v);
   const abandoned = al === 'abandoned';
   const dome = v.protected && !abandoned;
+  // Hearth out (step 2): a grey ring whatever the owner, plus a thin smoke line above the roofs.
+  const cold = !!v.hearth;
+  const ringColor = cold ? COLD_RING : style.ring;
+  const ringDash = (cold ? COLD_DASH : style.dash) as number[];
 
   // Ring (back half is hidden by the sprite) and the dome's back under the sprite.
   withTile(ctx, x, y, s, () => {
     ctx.lineJoin = 'round';
-    ctx.setLineDash(style.dash as number[]);
+    ctx.setLineDash(ringDash);
     if (abandoned) {
       ctx.scale(0.94, 0.94);
-      ctx.lineWidth = 2.6;
-      ctx.strokeStyle = 'rgba(110, 103, 94, 0.9)';
+      ctx.lineWidth = cold ? 4 : 2.6;
+      ctx.strokeStyle = cold ? 'rgba(74, 70, 64, 0.95)' : 'rgba(110, 103, 94, 0.9)';
       ctx.stroke(RING);
     } else {
       ctx.lineWidth = 6.5;
       ctx.strokeStyle = 'rgba(255, 248, 232, 0.95)';
       ctx.stroke(RING);
       ctx.lineWidth = 3.6;
-      ctx.strokeStyle = style.ring;
+      ctx.strokeStyle = ringColor;
       ctx.stroke(RING);
     }
     if (dome) {
@@ -407,16 +433,21 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     withTile(ctx, x, y, s, () => {
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.setLineDash(style.dash as number[]);
+      ctx.setLineDash(ringDash);
       ctx.lineWidth = 6.5;
       ctx.strokeStyle = BONE;
       ctx.stroke(RING_FRONT);
       ctx.lineWidth = 3.6;
-      ctx.strokeStyle = style.ring;
+      ctx.strokeStyle = ringColor;
       ctx.stroke(RING_FRONT);
     });
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
     painter.draw(`banner-${al}`, x + base[0] * s * k, y + base[1] * s * k, 1.15 * k);
+  }
+
+  if (cold) {
+    const top = abandoned ? RUIN_TOP[ruinStage(v.points) - 1] : STAGE_TOP[mapStage(v.points) - 1];
+    drawSmoke(ctx, x + 6 * s, y + ((top ?? -80) * k - 2) * s, s);
   }
 
   if (dome) {
@@ -758,6 +789,8 @@ function drawMovements(sc: Scene): number {
       else if (mv.kind === 'attack') text = `${mv.target.ownerName ? 'Attack on' : 'Raid on'} ${where} · ${left}`;
       else if (mv.kind === 'scout') text = `Scouting ${where} · ${left}`;
       else if (mv.kind === 'support') text = `Support to ${where} · ${left}`;
+      else if (mv.kind === 'found') text = `Founding at ${where} · ${left}`;
+      else if (mv.kind === 'occupy') text = `Occupying ${where} · ${left}`;
       else text = `Returning${returnCargoText(mv)} · home in ${left}`;
       const fs = Math.max(10, Math.min(14, tile * 0.13));
       labels.push(() => pill(ctx, text, x, y - m * 1.55 - fs, fs, incoming ? '#C4623A' : SUN, incoming ? BONE : INK));

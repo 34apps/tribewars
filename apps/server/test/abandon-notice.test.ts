@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { abandonIdleMs, type MovementResponse } from '@clanfire/engine';
+import { abandonIdleMs } from '@clanfire/engine';
 import { Client, HOUR, MINUTE, errorOf, makeApp, ok } from './helpers.ts';
 import { newPlayer } from './tribe-helpers.ts';
 import { stateOf, stationSupport, village, world } from './warfare-helpers.ts';
@@ -40,10 +40,14 @@ test('notice: set per owner on abandon, exposed on the player, cleared by dismis
   await app.close();
 });
 
-test('support stationed elsewhere stays when its owner is abandoned; the host can still send it home', async () => {
+test('an abandoned village disbands its owner\'s troops standing elsewhere (the home is gone) and sends hosted support home', async () => {
   const { app, clock, alice, amy } = await world();
-  const entry = await stationSupport(app, clock, alice, amy, { pikeman: 5 });
+  const away = await stationSupport(app, clock, alice, amy, { pikeman: 5 }); // alice's troops stand in amy's village
+  const hosted = await stationSupport(app, clock, amy, alice, { guard: 4 }); // amy's troops stand in alice's village
   const homeId = (await village(alice)).id;
+  const amyHome = (await village(amy)).id;
+  const awayBefore = app.ctx.store.getVillage(amyHome)?.state.away.guard;
+  assert.equal(awayBefore, 4);
 
   clock.advance(abandonIdleMs(app.ctx.settings) - HOUR);
   ok(await amy.c.get('/api/state'));
@@ -51,18 +55,17 @@ test('support stationed elsewhere stays when its owner is abandoned; the host ca
   app.ctx.game.runCaretaker(clock.now());
   assert.equal(app.ctx.store.getVillage(homeId)?.ownerId, null, 'alice lost her home village');
 
-  const still = (await stateOf(amy)).stationed.here;
-  assert.deepEqual(still.map((s) => [s.id, s.units.pikeman]), [[entry.id, 5]], 'support still stands in the host village');
-  assert.equal(app.ctx.store.getStationed(entry.id)?.ownerPlayerId, alice.id);
-
-  // The host sends it home to the now-abandoned village; arrival and later reads do not break.
-  const res = await amy.c.post(`/api/stationed/${entry.id}/send-back`);
-  ok(res, 201);
-  const { movement } = res.json<MovementResponse>();
-  clock.set(movement.arriveAt);
-  app.ctx.game.processDue(clock.now());
+  // Alice's contingent is gone with its home; amy's support was sent home from the abandoned village.
+  assert.equal(app.ctx.store.getStationed(away.id), null, 'the troops of the abandoned owner are disbanded');
+  assert.equal(app.ctx.store.getStationed(hosted.id), null, 'hosted support left the abandoned village');
   assert.deepEqual((await stateOf(amy)).stationed.here, []);
-  assert.ok((app.ctx.store.getVillage(homeId)?.state.troops.pikeman ?? 0) >= 5, 'troops arrived in the abandoned village');
-  ok(await alice.c.get('/api/state'));
+  const back = (await stateOf(amy)).movements.find((m) => m.kind === 'return');
+  assert.ok(back, 'amy\'s support walks home');
+  assert.equal(back.units?.guard, 4);
+  clock.set(back.arriveAt);
+  const home = (await village(amy)).state;
+  assert.equal(home.troops.guard, 4, 'and arrives');
+  assert.equal(home.away.guard, 0);
+  ok(await alice.c.get('/api/state')); // the returning owner is fine
   await app.close();
 });

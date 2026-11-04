@@ -3,6 +3,7 @@ import { BUILDINGS, MAX_BUILD_QUEUE } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { HoldCard } from '../components/HoldCard.tsx';
 import { formatCoords, formatDuration } from '../format.ts';
 import { useGame } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
@@ -223,11 +224,23 @@ function AbandonedNotice() {
   );
 }
 
+/** The current village's hearth is out: who holds it and the clock (phones get the short card). */
+function HearthNotice({ compact }: { compact: boolean }) {
+  const { village } = useGame();
+  if (!village.hearth) return null;
+  return (
+    <div className="vv-hearth-notice">
+      <HoldCard hearth={village.hearth} viewpoint="owner" compact={compact} />
+    </div>
+  );
+}
+
 export function VillageView() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   return (
     <>
       <AbandonedNotice />
+      <HearthNotice compact={!desktop} />
       {desktop ? <DesktopVillage /> : <PhoneVillage />}
     </>
   );

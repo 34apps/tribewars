@@ -12,8 +12,8 @@ import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 const POLL_MS = 10_000; // slower while live updates are connected
 
 function AlertRow({ a }: { a: TribeAlertDto }) {
-  const { now, village, showOnMap, viewMovement } = useGame();
-  const mine = a.target.villageId === village.id;
+  const { now, villages, showOnMap, viewMovement } = useGame();
+  const mine = villages.some((v) => v.id === a.target.villageId);
   const left = a.arriveAt - now;
   const total = Math.max(1, a.arriveAt - a.departAt);
   const owner = mine ? 'you' : (a.target.ownerName ?? 'a member');

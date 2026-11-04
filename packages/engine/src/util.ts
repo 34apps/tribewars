@@ -1,7 +1,7 @@
 // Small shared helpers: math, empty containers, cloning, id guards.
 
 import { BUILDINGS, UNITS } from './config.ts';
-import { BUILDING_IDS, UNIT_IDS } from './types.ts';
+import { BUILDING_IDS, TRAINING_BUILDING_IDS, UNIT_IDS } from './types.ts';
 import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, ResearchJob, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
 
 export const MS_PER_HOUR = 3_600_000;
@@ -26,7 +26,14 @@ export function distance(a: Coords, b: Coords): number {
 }
 
 export function emptyUnits(): Units {
-  return { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0, pathfinder: 0 };
+  return { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0, pathfinder: 0, chieftain: 0 };
+}
+
+/** Every training batch of every training building, in one list. */
+export function allTrainJobs(v: Pick<VillageState, 'trainQueues'>): TrainJob[] {
+  const out: TrainJob[] = [];
+  for (const b of TRAINING_BUILDING_IDS) for (const j of v.trainQueues?.[b] ?? []) out.push(j);
+  return out;
 }
 
 export function emptyResources(): Resources {
@@ -77,6 +84,7 @@ export function normalizeVillage(v: VillageState): VillageState {
     trainQueues: {
       barracks: copyJobs(v.trainQueues?.barracks),
       stables: copyJobs(v.trainQueues?.stables),
+      bannerhall: copyJobs(v.trainQueues?.bannerhall),
     },
   };
   if (v.npc) out.npc = { ...v.npc };
@@ -87,7 +95,7 @@ export function normalizeVillage(v: VillageState): VillageState {
   for (const id of v.researched ?? []) if (isUnitId(id)) researched.add(id);
   for (const id of UNIT_IDS) {
     if (!UNITS[id].research || out.npc) continue; // abandoned villages never train
-    const queued = [...out.trainQueues.barracks, ...out.trainQueues.stables].some((j) => j.unit === id);
+    const queued = allTrainJobs(out).some((j) => j.unit === id);
     if (out.troops[id] > 0 || out.away[id] > 0 || queued) researched.add(id);
   }
   if (researched.size > 0) out.researched = UNIT_IDS.filter((id) => researched.has(id));
@@ -104,6 +112,9 @@ export function normalizeVillage(v: VillageState): VillageState {
     paid[b] = out.npc ? buildings[b] : typeof n === 'number' && Number.isFinite(n) ? n : BUILDINGS[b].startLevel;
   }
   out.renownPaid = paid;
+  if (v.hearth) out.hearth = { ...v.hearth };
+  if (typeof v.lockUntil === 'number') out.lockUntil = v.lockUntil;
+  if (typeof v.protectedUntil === 'number') out.protectedUntil = v.protectedUntil;
   if (v.feast) out.feast = { windowStart: v.feast.windowStart, count: v.feast.count };
   if (v.defenceMark && !out.npc) out.defenceMark = { at: v.defenceMark.at, strength: v.defenceMark.strength };
   if (v.ranks) {

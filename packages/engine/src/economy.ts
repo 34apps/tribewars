@@ -22,7 +22,7 @@ import {
 } from './config.ts';
 import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type { BuildingId, BuildingLevels, Resources, VillageState, WorldSettings } from './types.ts';
-import { emptyResources, ipow } from './util.ts';
+import { allTrainJobs, emptyResources, ipow } from './util.ts';
 
 /** Cost of building `b` at `level` (level >= 1). */
 export function buildingCost(b: BuildingId, level: number): Resources {
@@ -68,9 +68,7 @@ export function upkeepPerHour(state: VillageState, s: WorldSettings): number {
   if (state.npc) return 0;
   let food = 0;
   for (const u of UNIT_IDS) food += ((state.troops[u] || 0) + (state.away[u] || 0)) * UNITS[u].upkeep;
-  for (const queue of [state.trainQueues.barracks, state.trainQueues.stables]) {
-    for (const job of queue) food += (job.count - job.done) * UNITS[job.unit].upkeep;
-  }
+  for (const job of allTrainJobs(state)) food += (job.count - job.done) * UNITS[job.unit].upkeep;
   return food * s.speed;
 }
 
@@ -99,9 +97,7 @@ export function populationUsage(state: VillageState): { buildings: number; troop
   }
   let troops = 0;
   for (const u of UNIT_IDS) troops += ((state.troops[u] || 0) + (state.away[u] || 0)) * POP_PER_UNIT[u];
-  for (const queue of [state.trainQueues.barracks, state.trainQueues.stables]) {
-    for (const job of queue) troops += (job.count - job.done) * POP_PER_UNIT[job.unit];
-  }
+  for (const job of allTrainJobs(state)) troops += (job.count - job.done) * POP_PER_UNIT[job.unit];
   return { buildings, troops, total: buildings + troops };
 }
 

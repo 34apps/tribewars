@@ -3,6 +3,8 @@
 import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
+  CHIEFTAIN_MAX_BATCH,
+  CHIEFTAIN_MAX_QUEUED_BATCHES,
   MAX_BUILD_QUEUE,
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
@@ -34,7 +36,7 @@ import {
   storageCapForLevel,
   upkeepPerHour,
 } from './economy.ts';
-import { BUILDING_IDS, GameError, RESOURCE_IDS, UNIT_IDS } from './types.ts';
+import { BUILDING_IDS, GameError, RESOURCE_IDS, TRAINING_BUILDING_IDS, UNIT_IDS } from './types.ts';
 import type {
   BuildJob,
   BuildingId,
@@ -47,7 +49,7 @@ import type {
   VillageState,
   WorldSettings,
 } from './types.ts';
-import { EPSILON, MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId } from './util.ts';
+import { EPSILON, MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId, normalizeUnits } from './util.ts';
 
 // ---- Creation -----------------------------------------------------------------------------------
 
@@ -61,22 +63,44 @@ function emptyVillage(t: number): VillageState {
     troops: emptyUnits(),
     away: emptyUnits(),
     buildQueue: [],
-    trainQueues: { barracks: [], stables: [] },
+    trainQueues: { barracks: [], stables: [], bannerhall: [] },
   };
 }
 
-/** A fresh player village at time t: start resources, start levels, no troops. */
-export function createPlayerVillage(t: number): VillageState {
+/** A fresh player village at time t: start resources (`resources`, default START_RESOURCES), start levels, no troops. */
+export function createPlayerVillage(t: number, resources: Resources = START_RESOURCES): VillageState {
   const v = emptyVillage(t);
-  v.resources = { ...START_RESOURCES };
+  v.resources = { ...resources };
   for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
   v.renownPaid = { ...v.buildings }; // start levels pay no Renown
   v.defenceMark = { at: t, strength: 0 };
   return v;
 }
 
+/**
+ * Let `units` move into the village as its own troops, as many as the population cap allows (whole units, in UNIT_IDS
+ * order; Chieftains never move in). Returns the new state and what did not fit. Pure.
+ */
+export function admitTroops(state: VillageState, units: Partial<Units>): { state: VillageState; overflow: Units } {
+  const v = cloneVillage(state);
+  const want = normalizeUnits(units);
+  const overflow = emptyUnits();
+  let room = populationCap(v) - populationUsage(v).total;
+  for (const u of UNIT_IDS) {
+    if (u === 'chieftain') {
+      overflow[u] = want[u];
+      continue;
+    }
+    const fit = Math.min(want[u], Math.max(0, Math.floor(room / POP_PER_UNIT[u])));
+    v.troops[u] += fit;
+    room -= fit * POP_PER_UNIT[u];
+    overflow[u] = want[u] - fit;
+  }
+  return { state: v, overflow };
+}
+
 /** Full garrison of an abandoned village for its current Town Hall level. */
-function fullGarrison(hallLevel: number): Units {
+export function fullGarrison(hallLevel: number): Units {
   const out = emptyUnits();
   for (const u of UNIT_IDS) out[u] = (NPC_GARRISON_PER_HALL[u] ?? 0) * hallLevel;
   return out;
@@ -167,9 +191,18 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
   // Food upkeep is constant over the whole span: training moves units between queue and troops only.
   const upkeep = upkeepPerHour(v, s);
   let cur = v.lastUpdate;
+  // While the hearth is out (hearth.ts) the village produces nothing and eats nothing, and an abandoned village's growth
+  // clock stands still. Build jobs and training batches that were already queued carry on (docs/GAME_DESIGN.md 18.2).
+  // The caller settles to the exact event time before it puts the hearth out or relights it.
+  const frozen = v.hearth !== undefined;
+  if (frozen && v.npc) v.npc.createdAt += t - v.lastUpdate;
 
   const advance = (to: number): void => {
     if (!(to > cur)) return;
+    if (frozen) {
+      cur = to;
+      return;
+    }
     const hours = (to - cur) / MS_PER_HOUR;
     const gross = productionFromLevels(v.buildings, s.speed);
     const cap = storageCapForLevel(v.buildings.storehouse);
@@ -190,7 +223,7 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
   }
 
   // 2. Abandoned-village growth steps (older steps beyond the per-settle cap are skipped).
-  if (v.npc) {
+  if (v.npc && !frozen) {
     const stepMs = (s.npcGrowthHours * MS_PER_HOUR) / s.speed;
     if (stepMs > 0) {
       const due = Math.floor((t - v.npc.createdAt) / stepMs);
@@ -219,7 +252,8 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
   }
 
   // 3. Training: units finish one by one.
-  for (const queue of [v.trainQueues.barracks, v.trainQueues.stables]) {
+  for (const b of TRAINING_BUILDING_IDS) {
+    const queue = v.trainQueues[b];
     for (const job of queue) {
       const finished = Math.min(job.count, Math.max(0, Math.floor((t - job.startAt) / job.perUnitMs)));
       if (finished > job.done) {
@@ -341,6 +375,13 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
   if (def.research && !(v.researched ?? []).includes(u)) {
     return fail('requirements_not_met', `${def.name} must be researched in the Drillyard first.`);
   }
+  if (v.hearth) return fail('requirements_not_met', 'The hearth is out: nothing new can be trained until it is relit.');
+  if (u === 'chieftain') {
+    if (count > CHIEFTAIN_MAX_BATCH) return fail('invalid_input', `At most ${CHIEFTAIN_MAX_BATCH} Chieftains can be trained at once.`);
+    if (v.trainQueues[def.building].length >= CHIEFTAIN_MAX_QUEUED_BATCHES) {
+      return fail('queue_full', 'A batch of Chieftains is already in training in this village.');
+    }
+  }
   if (v.trainQueues[def.building].length >= MAX_TRAIN_QUEUE) {
     return fail('queue_full', `The ${BUILDINGS[def.building].name} queue is full.`);
   }
@@ -437,7 +478,7 @@ export function applyCancelTrain(
   s: WorldSettings,
 ): { state: VillageState; refund: Resources } {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
-  if (building !== 'barracks' && building !== 'stables') throw new GameError('invalid_input', 'Unknown training building.');
+  if (!(TRAINING_BUILDING_IDS as readonly unknown[]).includes(building)) throw new GameError('invalid_input', 'Unknown training building.');
   const v = settleVillage(state, t, s);
   const queue = v.trainQueues[building as TrainingBuildingId];
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= queue.length) {

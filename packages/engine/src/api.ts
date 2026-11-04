@@ -119,6 +119,33 @@ export interface OwnVillageDto extends Coords {
   state: VillageState;
   /** Feasts this village may still hold (engine feastAllowance at serverTime). Max 0 without a Banner Hall. */
   feastAllowance: FeastAllowanceDto;
+  /** Present while this village's hearth is out (somebody struck it and holds it); `state.hearth` has the raw clock. */
+  hearth?: HearthInfoDto;
+}
+
+/**
+ * The hearth of a village that is out (docs/GAME_DESIGN.md 18.2). Everything is computed by the server at serverTime; the
+ * client only counts down to `endsAt` / `failsAt`. On the map (`MapVillageDto.hearth`) everybody sees the clock and the
+ * claimant's name, like the grey ring on the map; `occupierPopulation` is only sent on the owner's own village.
+ */
+export interface HearthInfoDto {
+  /** Name of the player holding the claim (the occupiers' owner). */
+  claimBy: string;
+  claimById: number;
+  /** When the hearth went out (ms). */
+  outAt: number;
+  /** True while the occupiers are strong enough (>= minPopulation) and the hold clock runs. */
+  running: boolean;
+  /** When the village changes owner if the clock keeps running (ms); null while it is paused. */
+  endsAt: number | null;
+  /** Hold time left at serverTime (ms); while paused, what is left once it runs again. */
+  holdMsLeft: number;
+  /** When the claim fails if the occupiers stay under the minimum (ms); null while running. */
+  failsAt: number | null;
+  /** Occupiers needed to keep the clock running (HOLD_MIN_POPULATION). */
+  minPopulation: number;
+  /** Population of the claimant's occupiers standing there now. Only on the owner's own village, never on the map. */
+  occupierPopulation?: number;
 }
 
 /** Feast limit of one village (engine `feastAllowance`). */
@@ -150,6 +177,17 @@ export interface RenownInfo {
   nextVillageCost: number;
   /** Villages owned now. */
   villages: number;
+  /**
+   * Chieftain ledger (step 2, section 18.2). `spent` already contains `reserved`: the Renown held by Chieftains that are queued,
+   * at home, away or standing as occupiers. Each Chieftain's share is reserved / chieftains (the average); it is released when he
+   * founds or takes a village and half comes back (CHIEFTAIN_RENOWN_REFUND_SHARE) when he dies. Cancelling a queued batch gives
+   * its Renown back in full. Sent by GET /api/state; absent in older responses.
+   */
+  reserved?: number;
+  /** Renown the next Chieftain reserves: villageRenownPrice(villages, chieftains). Needs balance >= this to train one. */
+  chieftainPrice?: number;
+  /** Chieftains the player has now: queued + at home + away + standing as occupiers, in all villages. */
+  chieftains?: number;
 }
 
 export interface FeastRequest {
@@ -194,6 +232,8 @@ export interface VillageRefDto extends Coords {
 /**
  * origin/target follow the direction of travel: for attack/scout/support, origin = the sender's home and
  * target = the destination; for a return, origin = where the troops were and target = home.
+ * A `found` movement (and the return of a failed one) goes to a free tile: its `target` has villageId 0, the name "New village",
+ * the tile's x/y and no owner. `occupy` goes to the cold village of the sender's own claim and stays there as occupiers.
  */
 export interface MovementDto {
   id: number;
@@ -260,6 +300,10 @@ export interface StationedDto {
 // POST /api/villages/:id/cancel-train  body CancelTrainRequest -> 200 CancelResponse (80% of the untrained rest back)
 // POST /api/villages/:id/cancel-research  body CancelResearchRequest -> 200 CancelResponse (80% back; the next queued research starts)
 // POST /api/villages/:id/send   body SendRequest  -> 201 SendResponse
+// POST /api/villages/:id/rename body RenameVillageRequest -> 200 OwnVillageDto (owner only; 404 not_found for villages you do not own)
+// GET  /api/villages  -> 200 VillageListResponse (every village of the caller, light: no full state)
+// Several villages (step 2): everything above is per village (queues, stock, troops). A send from village A to village B of the same
+// player is allowed for `support` (the troops stand in B as a contingent and can be recalled) and, for resources, `ship`.
 // Support troops (section 12):
 // POST /api/stationed/:id/recall     body RecallRequest -> 201 { movement: MovementDto }  (owner of the troops)
 // POST /api/stationed/:id/send-back  -> 201 { movement: MovementDto }  (owner of the host village; all units)
@@ -277,7 +321,7 @@ export interface CancelResearchRequest {
 }
 
 export interface CancelTrainRequest {
-  building: string; // 'barracks' | 'stables'
+  building: string; // 'barracks' | 'stables' | 'bannerhall'
   index: number; // position in that building's queue
 }
 
@@ -285,8 +329,43 @@ export interface CancelResponse {
   village: OwnVillageDto;
   /** What came back (CANCEL_REFUND_PERCENT of the cost). */
   refund: Resources;
+  /** Cancelling a Chieftain batch only: the Renown that came back in full (the batch's reservation). Absent otherwise. */
+  renownRefund?: number;
 }
 
+/** POST /api/villages/:id/rename */
+export interface RenameVillageRequest {
+  /** 1 to 30 characters: letters, digits, spaces and ' . _ -. */
+  name: string;
+}
+
+/** One row of GET /api/villages. */
+export interface VillageListItemDto extends Coords {
+  id: number;
+  name: string;
+  points: number;
+  /** 'out' while a claimant holds the cold village (see `OwnVillageDto.hearth`). */
+  hearth: 'lit' | 'out';
+  /** When the village changes owner if the hold clock keeps running; null when lit or paused. */
+  holdEndsAt: number | null;
+  /** Stock settled to serverTime, floored. */
+  resources: Resources;
+  /** An attack is on the way to this village. */
+  incomingAttack: boolean;
+  /** Arrival of the soonest incoming attack, else null. */
+  nextAttackAt: number | null;
+  /** The village cannot be attacked before this time (founded or restarted), else null. */
+  protectedUntil: number | null;
+}
+
+export interface VillageListResponse {
+  serverTime: number;
+  villages: VillageListItemDto[];
+}
+
+// Training a Chieftain (unit 'chieftain', Banner Hall level 1): the same train route. On top of the resources the server reserves
+// Renown (sum of villageRenownPrice(villages, others + i) per Chieftain) in the same transaction: 409 not_enough_resources
+// ("Not enough Renown") when `renown.balance` is short. See RenownInfo for the ledger.
 export interface TrainRequest {
   unit: string; // UnitId; validated server-side
   count: number;
@@ -306,9 +385,16 @@ export interface RankRequest {
 }
 
 export interface SendRequest extends Coords {
-  /** Target tile; a village must stand there. */
+  /** Target tile; a village must stand there (except for `found`, where the tile must be free). */
   units: Partial<Units>;
-  /** attack (default rules), scout (Pathfinders only) or support (tribe-mates and allies only). */
+  /**
+   * attack (default rules; with 1-3 Chieftains it is a Strike attempt on an abandoned village: no loot, and if the battle is won
+   * and enough Chieftains live the hearth goes out and the survivors stay as occupiers), scout (Pathfinders only), support
+   * (tribe-mates, allies and your own other villages), found (exactly one Chieftain, the rest is the escort and becomes the
+   * garrison; x/y is a free build site, 400 invalid_target otherwise; re-checked on arrival, when the Chieftain walks home with a
+   * `found_failed` report if the tile was taken or the village limit is reached) or occupy (own troops, no Chieftain, to the cold
+   * village of your own claim; 400 invalid_target when you hold no claim there).
+   */
   mission: Mission;
   /** Test mode only (accounts on the sandbox list; others get `forbidden`): fixed seconds for the way out. 0 = arrives at once. */
   travelSeconds?: number;
@@ -359,8 +445,13 @@ export interface MapVillageDto extends Coords {
   ownerName: string | null;
   /** Sum of building levels; drives the icon size. */
   points: number;
-  /** Under beginner protection (players only). */
+  /** Under beginner, founding or restart protection (players only). */
   protected: boolean;
+  /**
+   * Present while the hearth is out (grey ring): the claimant and the hold clock, the same for everybody. Never the occupiers'
+   * numbers. Not safe: `protected` stays false for a cold village.
+   */
+  hearth?: HearthInfoDto;
   /** Owner's tribe tag; null for abandoned villages and tribeless players. */
   tribeTag: string | null;
   /** Owner's tribe id (open it with GET /api/tribes/:id); null for abandoned villages and tribeless players. */
@@ -386,8 +477,11 @@ export interface ReportSummaryDto {
   title: string;
   /** attack = I sent the troops; defense = my village was the target; support = my stationed troops were involved. */
   side: 'attack' | 'defense' | 'support' | 'shipment';
-  /** battle = attack (or called off); scout = scouting mission; support = support turned back on arrival; shipment = resources delivered / received. */
-  type: 'battle' | 'scout' | 'support' | 'shipment';
+  /**
+   * battle = attack (or called off); scout = scouting mission; support = support turned back on arrival; shipment = resources
+   * delivered / received; village = Strike, Hold, Found and Taken events (`ReportDto.village`).
+   */
+  type: 'battle' | 'scout' | 'support' | 'shipment' | 'village';
   /** From the report owner's point of view. Always false for a called-off attack. */
   won: boolean;
   read: boolean;
@@ -478,12 +572,35 @@ export interface ShipmentReportData {
   lost: Resources;
 }
 
-/** Exactly one of battle / scout / support / shipment is set, matching `type`. */
+/**
+ * What happened to a village's hearth or ownership (step 2). `side` is 'attack' for the claimant / founder, 'defense' for the owner.
+ *  - struck: your attack put the hearth out (claimant). `holdEndsAt` is when it is yours if the clock keeps running (null = paused).
+ *  - hearth_out: your village's hearth was put out (owner; `claimBy` names the claimant).
+ *  - taken: the hold ended and the village is yours (claimant; `overflow` = troops that did not fit and went home).
+ *  - lost: your village changed owner (previous owner; `units` = troops that were away and are disbanded).
+ *  - founded: a new village stands at the tile (founder; `overflow` as for taken).
+ *  - found_failed: the Chieftain found the tile taken / the village limit reached and walked home (`reason`).
+ *  - claim_failed: the claim ended without taking the village (claimant; `reason`), occupiers go home (`units`).
+ *  - relit: the claim ended and the hearth burns again (owner).
+ */
+export interface VillageReportData {
+  kind: 'struck' | 'hearth_out' | 'taken' | 'lost' | 'founded' | 'found_failed' | 'claim_failed' | 'relit';
+  /** The village concerned; for found_failed a tile (villageId 0, name "New village"). */
+  village: VillageRefDto;
+  holdEndsAt?: number | null;
+  claimBy?: string;
+  reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim';
+  units?: Units;
+  overflow?: Units;
+}
+
+/** Exactly one of battle / scout / support / shipment / village is set, matching `type`. */
 export interface ReportDto extends ReportSummaryDto {
   battle: BattleReportData | null;
   scout: ScoutReportData | null;
   support: SupportReportData | null;
   shipment: ShipmentReportData | null;
+  village: VillageReportData | null;
 }
 
 export interface ReportListResponse {

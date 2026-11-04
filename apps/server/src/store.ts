@@ -24,6 +24,7 @@ import {
   type SupportReportData,
   type Units,
   type VillageRanks,
+  type VillageReportData,
   type VillageState,
   type WorldSettings,
 } from '@clanfire/engine';
@@ -52,6 +53,8 @@ export interface PlayerRow {
   /** Renown earned in total (never goes down) and spent on villages; fractions are kept (docs/GAME_DESIGN.md section 18.2). */
   renownTotal: number;
   renownSpent: number;
+  /** The part of `renownSpent` reserved by Chieftains that are queued, at home, away or standing as occupiers (<= renownSpent). */
+  renownReserved: number;
   /** The player reported that others play from the same household (self-declared, shown in the admin report). */
   householdShared: boolean;
   /** When the account was banned (ms), or null. Banned accounts cannot sign in; their sessions are dead. */
@@ -86,6 +89,8 @@ export interface VillageRecord {
   y: number;
   points: number;
   state: VillageState;
+  /** While the hearth is out: when the hold clock (or fail timer) next needs attention. null = lit. */
+  holdDueAt: number | null;
 }
 
 export type MovementKind = Mission | 'return' | 'shipment';
@@ -104,6 +109,9 @@ export interface MovementRow {
   ranks?: VillageRanks | null;
   /** Test mode: fixed seconds for the return trip, set when sending. Null = normal travel time. */
   returnSecs?: number | null;
+  /** The free tile a `found` mission walks to (and a failed one walks back from); null for every other kind. */
+  targetX?: number | null;
+  targetY?: number | null;
 }
 
 export interface VillageStub {
@@ -162,10 +170,14 @@ export interface MapRow {
   ownerChieftain: string | null;
   /** The stored village state, only for abandoned villages (they grow lazily; the map settles them to now). */
   npcState: VillageState | null;
+  /** The village's own protection end (founded villages), 0 when none. The owner's beginner protection is `ownerProtectedUntil`. */
+  protectedUntil: number;
+  /** The stored village state, only while the hearth is out (the map shows the clock). */
+  coldState: VillageState | null;
 }
 
 export type ReportSide = 'attack' | 'defense' | 'support' | 'shipment';
-export type ReportType = 'battle' | 'scout' | 'support' | 'shipment';
+export type ReportType = 'battle' | 'scout' | 'support' | 'shipment' | 'village';
 
 export interface ReportRow {
   id: number;
@@ -185,7 +197,8 @@ export type ReportBody =
   | { type: 'battle'; battle: BattleReportData }
   | { type: 'scout'; scout: ScoutReportData }
   | { type: 'support'; support: SupportReportData }
-  | { type: 'shipment'; shipment: ShipmentReportData };
+  | { type: 'shipment'; shipment: ShipmentReportData }
+  | { type: 'village'; village: VillageReportData };
 
 export type NewReport = ReportBody & {
   playerId: number;
@@ -201,10 +214,12 @@ export type FullReport = ReportRow & {
   scout: ScoutReportData | null;
   support: SupportReportData | null;
   shipment: ShipmentReportData | null;
+  village: VillageReportData | null;
 };
 
 const MOVEMENT_VIEW_SQL = `
 SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json, m.return_secs,
+       m.target_x, m.target_y,
        o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM movements m
@@ -231,7 +246,7 @@ AND m.target_village_id IN (
 )`;
 
 const VILLAGE_SQL = `
-SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, v.state_json,
+SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, v.state_json, v.hold_due_at,
        p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until
 FROM villages v LEFT JOIN players p ON p.id = v.owner_id`;
 
@@ -247,6 +262,7 @@ function toVillage(r: Raw): VillageRecord {
     points: r.points as number,
     // Villages saved before a unit existed lack its key: normalise on every load.
     state: normalizeVillage(JSON.parse(r.state_json as string) as VillageState),
+    holdDueAt: (r.hold_due_at as number | null) ?? null,
   };
 }
 
@@ -275,10 +291,14 @@ function toMovement(r: Raw): MovementRow {
     arriveAt: r.arrive_at as number,
     ranks: parseRanks(r.ranks_json),
     returnSecs: (r.return_secs as number | null) ?? null,
+    targetX: (r.target_x as number | null) ?? null,
+    targetY: (r.target_y as number | null) ?? null,
   };
 }
 
 function toMovementView(r: Raw): MovementView {
+  // A mission to a free tile (found, or the way back from one) shows the tile as its target, not the placeholder village.
+  const tile = r.target_x !== null && r.target_x !== undefined && r.target_y !== null && r.target_y !== undefined;
   return {
     ...toMovement(r),
     origin: {
@@ -289,16 +309,21 @@ function toMovementView(r: Raw): MovementView {
       ownerId: (r.o_owner_id as number | null) ?? null,
       ownerName: (r.o_owner_name as string | null) ?? null,
     },
-    target: {
-      villageId: r.target_village_id as number,
-      name: r.t_name as string,
-      x: r.t_x as number,
-      y: r.t_y as number,
-      ownerId: (r.t_owner_id as number | null) ?? null,
-      ownerName: (r.t_owner_name as string | null) ?? null,
-    },
+    target: tile
+      ? { villageId: 0, name: NEW_VILLAGE_NAME, x: r.target_x as number, y: r.target_y as number, ownerId: null, ownerName: null }
+      : {
+          villageId: r.target_village_id as number,
+          name: r.t_name as string,
+          x: r.t_x as number,
+          y: r.t_y as number,
+          ownerId: (r.t_owner_id as number | null) ?? null,
+          ownerName: (r.t_owner_name as string | null) ?? null,
+        },
   };
 }
+
+/** Name shown for a free tile a Chieftain is walking to. */
+export const NEW_VILLAGE_NAME = 'New village';
 
 function toPlayer(r: Raw): PlayerRow {
   return {
@@ -310,6 +335,7 @@ function toPlayer(r: Raw): PlayerRow {
     chieftain: r.chieftain as string,
     renownTotal: (r.renown_total as number | null) ?? 0,
     renownSpent: (r.renown_spent as number | null) ?? 0,
+    renownReserved: (r.renown_reserved as number | null) ?? 0,
     householdShared: (r.household_shared as number) === 1,
     bannedAt: (r.banned_at as number | null) ?? null,
     banReason: (r.ban_reason as string | null) ?? null,
@@ -323,7 +349,7 @@ function toPlayer(r: Raw): PlayerRow {
 }
 
 function reportTypeOf(raw: unknown): ReportType {
-  return raw === 'scout' || raw === 'support' || raw === 'shipment' ? raw : 'battle'; // reports saved before scouting have no type
+  return raw === 'scout' || raw === 'support' || raw === 'shipment' || raw === 'village' ? raw : 'battle'; // reports saved before scouting have no type
 }
 
 function toReport(r: Raw): ReportRow {
@@ -360,6 +386,7 @@ function parseReportBody(json: string): ReportBody {
     return { type, scout: { ...d, intel: d.intel ? { ...d.intel, troops: d.intel.troops ? normalizeUnits(d.intel.troops) : null } : null } };
   }
   if (type === 'shipment') return { type, shipment: data as unknown as ShipmentReportData };
+  if (type === 'village') return { type, village: data as unknown as VillageReportData };
   if (type === 'support') {
     const d = data as unknown as SupportReportData;
     return { type, support: { ...d, units: normalizeUnits(d.units) } };
@@ -383,6 +410,7 @@ function parseReportBody(json: string): ReportBody {
 function reportJson(r: ReportBody): string {
   if (r.type === 'scout') return JSON.stringify({ type: 'scout', ...r.scout });
   if (r.type === 'shipment') return JSON.stringify({ type: 'shipment', ...r.shipment });
+  if (r.type === 'village') return JSON.stringify({ type: 'village', ...r.village });
   if (r.type === 'support') return JSON.stringify({ type: 'support', ...r.support });
   return JSON.stringify({ type: 'battle', ...r.battle });
 }
@@ -682,18 +710,84 @@ export class Store extends SqlBase {
     ).map(toVillage);
   }
 
-  /** Villages whose owner has not been active since `idleBefore`. */
-  abandonDueVillages(idleBefore: number, limit: number): VillageRecord[] {
+  /**
+   * Villages whose owner has not been active since `idleBefore`. Owners still under beginner protection at `now` and sandbox
+   * (test) accounts are never due.
+   */
+  abandonDueVillages(idleBefore: number, now: number, limit: number): VillageRecord[] {
+    const sandbox = [...this.sandboxUsers];
+    const skipSandbox = sandbox.length > 0 ? `AND p.username_lower NOT IN (${sandbox.map(() => '?').join(', ')})` : '';
     return this.all(
-      `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND COALESCE(p.last_active, p.created_at) <= ? ORDER BY v.id LIMIT ?`,
+      `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND COALESCE(p.last_active, p.created_at) <= ? AND p.protected_until <= ? ${skipSandbox}
+       ORDER BY v.id LIMIT ?`,
       idleBefore,
+      now,
+      ...sandbox,
       limit,
     ).map(toVillage);
   }
 
-  /** Turn a village into an abandoned one: no owner, state (troops, queues) untouched. */
+  /** Give a village up: no owner (the caller saves the new abandoned state), no hold clock. */
   releaseVillage(id: number, name: string): void {
-    this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0 WHERE id = ?', name, id);
+    this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', name, id);
+  }
+
+  /** The village changes owner (taken by a hold): new owner, new name, the hold clock is gone, the bot starts fresh. */
+  setVillageOwner(id: number, ownerId: number, name: string): void {
+    this.run('UPDATE villages SET owner_id = ?, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', ownerId, name, id);
+  }
+
+  setVillageName(id: number, name: string): void {
+    this.run('UPDATE villages SET name = ? WHERE id = ?', name, id);
+  }
+
+  /** When the hold clock (or fail timer) of a cold village next needs attention; null when the hearth is lit. */
+  setHoldDue(id: number, at: number | null): void {
+    this.run('UPDATE villages SET hold_due_at = ? WHERE id = ?', at, id);
+  }
+
+  /** Cold villages whose hold clock or fail timer is due by `now`, earliest first. */
+  dueHolds(now: number, limit: number): Array<{ id: number; dueAt: number }> {
+    return this.all('SELECT id, hold_due_at FROM villages WHERE hold_due_at IS NOT NULL AND hold_due_at <= ? ORDER BY hold_due_at, id LIMIT ?', now, limit).map((r) => ({
+      id: r.id as number,
+      dueAt: r.hold_due_at as number,
+    }));
+  }
+
+  hasVillage(playerId: number): boolean {
+    return this.get('SELECT 1 AS one FROM villages WHERE owner_id = ? LIMIT 1', playerId) !== undefined;
+  }
+
+  // ---- Chieftain Renown ledger (docs/GAME_DESIGN.md 18.2) ----------------------------------------------
+
+  /** A Chieftain batch was bought: `amount` leaves the balance (spent) and is reserved. Call inside the action's transaction. */
+  reserveRenown(playerId: number, amount: number): void {
+    if (!(amount > 0)) return;
+    this.run('UPDATE players SET renown_spent = renown_spent + ?, renown_reserved = renown_reserved + ? WHERE id = ?', amount, amount, playerId);
+  }
+
+  /**
+   * Chieftains left the ledger: `release` comes off the reservation (used up founding or taking, died, cancelled) and `refund`
+   * (<= release) comes back to the balance by lowering spent. Neither ever goes below 0.
+   */
+  releaseRenown(playerId: number, release: number, refund: number): void {
+    if (!(release > 0) && !(refund > 0)) return;
+    this.run(
+      'UPDATE players SET renown_reserved = MAX(0, renown_reserved - ?), renown_spent = MAX(0, renown_spent - ?) WHERE id = ?',
+      Math.max(0, release),
+      Math.max(0, Math.min(refund, release)),
+      playerId,
+    );
+  }
+
+  /** Movements that left from this village (every kind), oldest first. */
+  movementsFrom(villageId: number): MovementRow[] {
+    return this.all('SELECT * FROM movements WHERE origin_village_id = ? ORDER BY id', villageId).map(toMovement);
+  }
+
+  /** Contingents whose home is this village (its troops standing elsewhere). */
+  stationedHomedAt(villageId: number): StationedRow[] {
+    return this.all('SELECT * FROM stationed WHERE home_village_id = ? ORDER BY id', villageId).map(toStationed);
   }
 
   /** Remember that `n` more of the player's villages were abandoned, until they dismiss the notice. */
@@ -996,7 +1090,9 @@ export class Store extends SqlBase {
     return this.all(
       `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
               tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag, p.chieftain AS owner_chieftain,
-              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json
+              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json,
+              CASE WHEN v.hold_due_at IS NOT NULL THEN v.state_json END AS cold_state_json,
+              COALESCE(json_extract(v.state_json, '$.protectedUntil'), 0) AS v_protected_until
        FROM villages v
        LEFT JOIN players p ON p.id = v.owner_id
        LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
@@ -1020,6 +1116,8 @@ export class Store extends SqlBase {
       ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
       ownerChieftain: (r.owner_chieftain as string | null) ?? null,
       npcState: r.npc_state_json ? normalizeVillage(JSON.parse(r.npc_state_json as string) as VillageState) : null,
+      protectedUntil: r.v_protected_until as number,
+      coldState: r.cold_state_json ? normalizeVillage(JSON.parse(r.cold_state_json as string) as VillageState) : null,
     }));
   }
 
@@ -1027,7 +1125,7 @@ export class Store extends SqlBase {
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
     const id = this.run(
-      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
       m.targetVillageId,
@@ -1037,6 +1135,8 @@ export class Store extends SqlBase {
       m.arriveAt,
       stampRanks(m.ranks),
       m.returnSecs ?? null,
+      m.targetX ?? null,
+      m.targetY ?? null,
     ).id;
     this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, true);
     return id;
@@ -1243,6 +1343,7 @@ export class Store extends SqlBase {
       scout: body.type === 'scout' ? body.scout : null,
       support: body.type === 'support' ? body.support : null,
       shipment: body.type === 'shipment' ? body.shipment : null,
+      village: body.type === 'village' ? body.village : null,
     };
   }
 

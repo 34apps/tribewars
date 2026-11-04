@@ -765,6 +765,20 @@ const ICONS = {
       </>
     ),
   },
+  // Chieftain: a round helm with a gold band, carrying an ember (the flame of the home hearth) on a short staff.
+  chieftain: {
+    vb: '0 0 32 32',
+    draw: (u) => (
+      <>
+        <path d="M16 11C12 7 15 4 16 1C17 4 20 7 16 11Z" fill="#E0703F" stroke={INK} strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M16 10C14.5 8 15.6 6.6 16 5.4C16.4 6.6 17.5 8 16 10Z" fill="#FFDC7A" />
+        <T u={u + 'a'} d="M7 21A9 9 0 0 1 25 21V29H7Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1.4} x={-2.2} y={-2.8} w={2} />
+        <path d="M7 22.5H25" stroke="#F2B33D" strokeWidth="3" />
+        <path d="M7 22.5H25" stroke={INK} strokeWidth="0.9" />
+        <path d="M12 25.5H20" stroke={INK} strokeWidth="2.2" strokeLinecap="round" />
+      </>
+    ),
+  },
   pathfinder: {
     vb: '0 0 32 32',
     draw: (u) => (

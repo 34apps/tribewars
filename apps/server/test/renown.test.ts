@@ -248,7 +248,7 @@ test('a version 3 database is upgraded in place: backup first, Renown columns an
     assert.deepEqual([cols.t, cols.s], [0, 0]);
     assert.equal((db.prepare('SELECT COUNT(*) AS n FROM renown_pairs').get() as { n: number }).n, 0);
     assert.equal((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version, SCHEMA_VERSION);
-    assert.equal(SCHEMA_VERSION, 4);
+    assert.equal(SCHEMA_VERSION, 5);
 
     const c = new Client(app);
     ok(await c.post('/api/auth/login', { username: 'alice', password: PASSWORD }));

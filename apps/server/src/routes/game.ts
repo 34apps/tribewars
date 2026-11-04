@@ -24,11 +24,13 @@ import {
   type MovementResponse,
   type OwnVillageDto,
   type RecallRequest,
+  type RenameVillageRequest,
   type SendRequest,
   type SendResponse,
   type SendShipmentRequest,
   type SendShipmentResponse,
   type TrainRequest,
+  type VillageListResponse,
 } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
@@ -75,6 +77,14 @@ const cancelResearchBody = {
   properties: { index: { type: 'integer', minimum: 0, maximum: MAX_RESEARCH_QUEUE } },
 } as const;
 
+// The pattern is re-checked (after trimming) in GameService.rename.
+const renameBody = {
+  type: 'object',
+  required: ['name'],
+  additionalProperties: false,
+  properties: { name: { type: 'string', minLength: 1, maxLength: 60 } },
+} as const;
+
 // A Feast count is a small whole number; the engine's daily limit (FEAST_DAILY_PER_LEVEL x Banner Hall level) is far below this cap.
 const FEAST_MAX_COUNT = 100;
 const feastBody = {
@@ -89,7 +99,7 @@ const cancelTrainBody = {
   required: ['building', 'index'],
   additionalProperties: false,
   properties: {
-    building: { type: 'string', enum: ['barracks', 'stables'] },
+    building: { type: 'string', enum: ['barracks', 'stables', 'bannerhall'] },
     index: { type: 'integer', minimum: 0, maximum: MAX_TRAIN_QUEUE },
   },
 } as const;
@@ -195,6 +205,14 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
   });
 
   app.get('/api/state', auth, async (req): Promise<GameStateResponse> => ctx.game.getState(playerOf(req), req.nowMs));
+
+  app.get('/api/villages', auth, async (req): Promise<VillageListResponse> => ctx.game.villageList(playerOf(req), req.nowMs));
+
+  app.post<{ Params: { id: string }; Body: RenameVillageRequest }>(
+    '/api/villages/:id/rename',
+    { ...auth, schema: { params: idParams, body: renameBody } },
+    async (req): Promise<OwnVillageDto> => ctx.game.rename(playerOf(req), Number(req.params.id), req.body.name, req.nowMs),
+  );
 
   app.post<{ Params: { id: string }; Body: BuildRequest }>(
     '/api/villages/:id/build',

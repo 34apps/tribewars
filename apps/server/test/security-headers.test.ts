@@ -48,6 +48,8 @@ test('route patterns map to the intended limit buckets', () => {
     ['GET', '/api/rankings/players', 'rankings'],
     ['GET', '/api/state', null],
     ['GET', '/api/map', null],
+    ['GET', '/api/villages', 'village'],
+    ['POST', '/api/villages/:id/rename', 'village'],
   ];
   for (const [m, p, b] of cases) assert.equal(routeBucket(m, p), b, `${m} ${p}`);
 });
@@ -60,6 +62,7 @@ const CALLS: Record<RouteBucket, (c: Client, vid: number) => ReturnType<Client['
   research: (c, v) => c.post(`/api/villages/${v}/research`, {}),
   market: (c, v) => c.post(`/api/villages/${v}/ship`, {}),
   feast: (c, v) => c.post(`/api/villages/${v}/feast`, {}),
+  village: (c, v) => c.post(`/api/villages/${v}/rename`, {}),
   tribe: (c) => c.post('/api/tribe/leave'),
   mail: (c) => c.get('/api/mail'),
   search: (c) => c.get('/api/tribes'),

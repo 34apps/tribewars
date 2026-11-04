@@ -1,13 +1,26 @@
 import { useState } from 'react';
-import { MAP_STAGE_NAMES, SCOUT_UNIT, UNITS, UNIT_IDS, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
+import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
+import { Icon } from '../art/Icon.tsx';
+import { HoldCard } from '../components/HoldCard.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
-import { allowedMissions } from '../rules.ts';
 import { Segmented } from '../tribe/bits.tsx';
+import {
+  SEND_MODE_BUTTON,
+  SEND_MODE_HINT,
+  SEND_MODE_SENT,
+  foundProblem,
+  missionsFor,
+  myOccupierPopulation,
+  occupyWarning,
+  selectableUnits,
+  sendMode,
+  strikeWarning,
+} from '../villages.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
 import { ShipmentForm } from './ShipmentForm.tsx';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
@@ -22,12 +35,15 @@ interface Props {
   terrain: TerrainCache;
   /** Mission to pre-select for this tile (a jump from a tribe alert); null otherwise. */
   preferred: { mission: Mission; nonce: number } | null;
+  /** Is a village standing on this tile (as far as the loaded map chunks know)? Previews the free-site rule for Found. */
+  occupied: (x: number, y: number) => boolean;
   onClose: () => void;
 }
 
-const SEND_LABEL: Record<Mission, string> = { attack: 'Send attack', scout: 'Send scouts', support: 'Send support' };
-const SENT_TOAST: Record<Mission, string> = { attack: 'Attack sent to', scout: 'Scouts sent to', support: 'Support sent to' };
-
+/**
+ * `target` is null for a free tile (Found a village). One form for every mission: the army list follows the mission, and the
+ * mode (Strike, Found, Occupy...) picks the wording, the hint and the warnings. The server re-checks everything.
+ */
 function SendForm({
   tile,
   target,
@@ -35,14 +51,17 @@ function SendForm({
   preferred,
 }: {
   tile: Coords;
-  target: MapVillageDto;
+  target: MapVillageDto | null;
   missions: Mission[];
   preferred: Mission | null;
 }) {
-  const { live, now, settings, village, player, applySend, refresh, toast, viewMovement, navigate } = useGame();
+  const { live, now, settings, village, player, stationed, applySend, refresh, toast, viewMovement, navigate } = useGame();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
-  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
+  // A Found send starts with the Chieftain already chosen.
+  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>(() =>
+    (preferred ?? fallback) === 'found' && live.troops.chieftain > 0 ? { chieftain: '1' } : {},
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Test mode only: own seconds for the way out / home (blank = normal travel time).
@@ -52,11 +71,10 @@ function SendForm({
   // The relation can change while the panel is open (a pact formed): fall back to an allowed mission.
   const mission: Mission = missions.includes(chosenMission) ? chosenMission : fallback;
   const scouting = mission === 'scout';
-  const fights = mission !== 'support';
+  const fights = mission === 'attack' || mission === 'scout';
+  const targetName = target?.name ?? 'the new village';
 
-  const atHome = UNIT_IDS.filter((u) => live.troops[u] > 0);
-  // Scout missions carry Pathfinders only; the other units are neither shown nor sent.
-  const visible = scouting ? atHome.filter((u) => u === SCOUT_UNIT) : atHome;
+  const visible = selectableUnits(mission, live.troops);
   const chosen: Units = emptyUnits();
   for (const u of visible) {
     const n = Number(counts[u] ?? '');
@@ -65,6 +83,7 @@ function SendForm({
   const total = totalUnits(chosen);
   const partial: Partial<Units> = {};
   for (const u of UNIT_IDS) if (chosen[u] > 0) partial[u] = chosen[u];
+  const mode = sendMode(mission, partial, target?.kind ?? null);
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
   // The server computes the real time from the same rule and its own seed; this only shows it in advance.
@@ -72,16 +91,28 @@ function SendForm({
   const travel = preview ? preview.ms : 0;
   const slowdown = preview ? slowdownText(preview.flatMs, preview.ms) : null;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
-  const targetProtected = fights && target.protected && target.kind === 'player';
-  const breaksProtection = fights && target.kind === 'player' && player.protectedUntil > now;
+  const targetProtected = fights && !!target && target.protected && target.kind === 'player';
+  const breaksProtection = fights && target?.kind === 'player' && player.protectedUntil > now;
+  const chieftainHome = live.troops.chieftain > 0;
+  const offerStrike = mission === 'attack' && target?.kind === 'abandoned' && chieftainHome && chosen.chieftain === 0;
 
   let reason: string | null = null;
   if (targetProtected) reason = 'This player is under beginner protection';
   else if (total < 1) {
-    if (visible.length > 0) reason = scouting ? 'Choose how many Pathfinders to send' : 'Choose troops to send';
+    if (mission === 'found') reason = chieftainHome ? 'Choose your Chieftain' : 'No Chieftain at home. Train one in the Banner Hall';
+    else if (visible.length > 0) reason = scouting ? 'Choose how many Pathfinders to send' : 'Choose troops to send';
     else reason = scouting ? 'No Pathfinders at home' : 'No troops at home';
   } else if (!check.ok) reason = check.message;
   else if (!missionCheck.ok) reason = missionCheck.message;
+  else if (mission === 'found') reason = foundProblem(chosen);
+
+  // Not blocking (the server decides), but worth saying before the army leaves.
+  let warning: string | null = null;
+  if (mode === 'strike') warning = strikeWarning(chosen, true, target?.points ?? 0);
+  else if (mode === 'occupy' && target) {
+    const there = target.hearth ? myOccupierPopulation(stationed.abroad, target.id) : 0;
+    warning = target.hearth ? occupyWarning(chosen, there, target.hearth.minPopulation) : null;
+  }
 
   function setCount(u: UnitId, value: string) {
     setError(null);
@@ -109,7 +140,7 @@ function SendForm({
       const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...timing });
       applySend(res);
       setCounts({});
-      toast(`${SENT_TOAST[mission]} ${target.name}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
+      toast(`${SEND_MODE_SENT[mode]} ${target?.name ?? formatCoords(tile.x, tile.y)}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
     } catch (e) {
@@ -120,6 +151,8 @@ function SendForm({
     }
   }
 
+  const title = mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`;
+
   return (
     <form
       className="wm-send"
@@ -128,7 +161,7 @@ function SendForm({
         void send();
       }}
     >
-      <h3 className="wm-send-title">{missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`}</h3>
+      <h3 className="wm-send-title">{title}</h3>
       {missions.length > 1 && (
         <Segmented
           label="Mission"
@@ -140,12 +173,13 @@ function SendForm({
           }}
         />
       )}
-      <p className="wm-muted">{MISSION_HINT[mission]}</p>
+      <p className="wm-muted">{SEND_MODE_HINT[mode] ?? MISSION_HINT[mission]}</p>
+      {offerStrike && <p className="wm-muted">Add a Chieftain and an escort to try a Strike: it tries to put the hearth of {targetName} out.</p>}
       {visible.length === 0 ? (
         <p className="wm-muted">
-          {scouting ? 'No Pathfinders at home. ' : 'No troops at home. '}
+          {scouting ? 'No Pathfinders at home. ' : mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
           <button type="button" className="wm-link" onClick={() => navigate('army')}>
-            Train some in the Army tab
+            {mission === 'found' ? 'Train one in the Army tab' : 'Train some in the Army tab'}
           </button>
           .
         </p>
@@ -154,7 +188,7 @@ function SendForm({
           {visible.map((u) => (
             <li key={u}>
               <label htmlFor={`send-${u}`}>
-                <span aria-hidden="true">{UNIT_ICON[u]}</span> {UNITS[u].name}
+                <Icon name={UNIT_ICON[u]} size={18} className="inline-icon" /> {UNITS[u].name}
                 <span className="wm-muted"> / {formatInt(live.troops[u])}</span>
               </label>
               <input
@@ -169,8 +203,8 @@ function SendForm({
                 value={counts[u] ?? ''}
                 onChange={(e) => setCount(u, e.target.value)}
               />
-              <button type="button" className="wm-btn wm-btn-small" onClick={() => setCount(u, String(live.troops[u]))}>
-                All
+              <button type="button" className="wm-btn wm-btn-small" onClick={() => setCount(u, String(mission === 'found' && u === 'chieftain' ? Math.min(1, live.troops[u]) : live.troops[u]))}>
+                {mission === 'found' && u === 'chieftain' ? '1' : 'All'}
               </button>
             </li>
           ))}
@@ -196,10 +230,16 @@ function SendForm({
             <dt>Arrives</dt>
             <dd>{formatClock(now + travel, now)}</dd>
           </div>
-          {mission === 'attack' && (
+          {mission === 'attack' && mode !== 'strike' && (
             <div>
               <dt>Can carry</dt>
               <dd>{formatInt(carry)}</dd>
+            </div>
+          )}
+          {mode === 'found' && (
+            <div>
+              <dt>Price</dt>
+              <dd>Renown already paid</dd>
             </div>
           )}
         </dl>
@@ -240,6 +280,7 @@ function SendForm({
       {breaksProtection && !targetProtected && (
         <p className="wm-note">{scouting ? 'Scouting' : 'Attacking'} another player ends your beginner protection.</p>
       )}
+      {warning && <p className="wm-note">{warning}</p>}
       {error && (
         <p className="wm-error" role="alert">
           {error}
@@ -249,32 +290,43 @@ function SendForm({
         <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 4l11 11M20 4 9 15M6 18l-2 2M18 18l2 2M13 17l4 4M11 17l-4 4" />
         </svg>
-        {busy ? 'Sending…' : SEND_LABEL[mission]}
+        {busy ? 'Sending…' : SEND_MODE_BUTTON[mode]}
       </button>
       {reason && <div className="wm-why">{reason}</div>}
     </form>
   );
 }
 
-export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }: Props) {
-  const { village: mine, player, navigate, viewTribe } = useGame();
-  const isOwn = village?.kind === 'own' || (tile.x === mine.x && tile.y === mine.y);
+export function TilePanel({ tile, village, loaded, terrain, preferred, occupied, onClose }: Props) {
+  const { village: mine, villages, selectVillage, player, navigate, viewTribe, settings, stationed } = useGame();
+  // One of my villages stands here (the map may still be loading, then my own list answers).
+  const ownHere = villages.find((v) => v.id === village?.id || (v.x === tile.x && v.y === tile.y));
+  const isOwn = village?.kind === 'own' || !!ownHere;
+  const isCurrent = ownHere?.id === mine.id;
+  const free = !village && !isOwn && loaded;
   const terrainName = TERRAIN_NAME[terrain.get(tile.x, tile.y)] ?? 'Land';
   const dist = distance(mine, tile);
   const al = village ? allegianceOf(village) : isOwn ? 'own' : null;
   const style = al ? ALLEGIANCE_STYLE[al] : null;
   const owner = isOwn ? player.username : village ? (village.ownerName ?? null) : null;
   // Resources can also go to another village of mine (the server allows it).
-  const canShip = village?.kind === 'own' && (tile.x !== mine.x || tile.y !== mine.y);
+  const canShip = village?.kind === 'own' && !isCurrent;
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
-  const missions = village && !isOwn ? allowedMissions(village.kind, village.relation) : [];
+  const missions: Mission[] = village ? missionsFor(village, { playerId: player.id, currentVillageId: mine.id }) : free ? ['found'] : [];
   // Attack and scout go together, so a missing attack means the relation blocks both.
   const attackBlocked = relation !== null && !missions.includes('attack');
+  // Found: the same rule as the server on free, buildable land away from other villages (the server re-checks on send and arrival).
+  const foundSite = free ? checkFoundTarget(tile, settings, occupied) : null;
   // ownerChieftain may be missing from an older server; badgeUrl treats undefined as "no portrait".
   const badge = badgeUrl(isOwn ? player.chieftain : village?.ownerChieftain);
   const stageNo = village ? (village.kind === 'abandoned' ? ruinStage(village.points) : mapStage(village.points)) : 0;
   const stageCount = village?.kind === 'abandoned' ? RUIN_NAMES.length : MAP_STAGE_NAMES.length;
+  // Hold clock of a cold village: my own village shows the owner's numbers (occupiers), my claim shows my stationed troops.
+  const hearth = ownHere?.hearth ?? village?.hearth;
+  const claimant = !!hearth && hearth.claimById === player.id;
+  const viewpoint = isOwn ? 'owner' : claimant ? 'claimant' : 'other';
+  const occupiers = hearth && claimant && village ? myOccupierPopulation(stationed.abroad, village.id) : undefined;
 
   return (
     <aside className="wm-panel" aria-label="Selected tile">
@@ -283,7 +335,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
         <div className="wm-panel-titles">
           <h2>
             {al && al !== 'abandoned' && <img className="wm-head-banner" src={artUrl(`banner-${al}`)} alt="" width={24} height={28} />}
-            {village ? village.name : isOwn ? mine.name : terrainName}
+            {village ? village.name : ownHere ? ownHere.name : terrainName}
           </h2>
           <div className="wm-owner">
             {badge && <img className="wm-badge" src={badge} alt="" width={28} height={28} />}
@@ -323,6 +375,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
                 <span className="wm-ring-sample" data-al={al ?? undefined} aria-hidden="true" />
                 {style.words}
                 {al !== 'abandoned' && ` · ${style.banner.toLowerCase()}`}
+                {hearth && ' · hearth out'}
               </div>
             )}
           </div>
@@ -336,7 +389,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
         </div>
         <div>
           <dt>Distance</dt>
-          <dd>{isOwn ? '–' : `${dist.toFixed(1)} fields`}</dd>
+          <dd>{isCurrent ? '–' : `${dist.toFixed(1)} fields`}</dd>
         </div>
         <div>
           <dt>Terrain</dt>
@@ -348,26 +401,46 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, onClose }
             <dd className="wm-protected">Beginner protection</dd>
           </div>
         )}
+        {free && (
+          <div>
+            <dt>Land</dt>
+            <dd>{foundSite?.ok ? 'Free to settle' : 'Not buildable'}</dd>
+          </div>
+        )}
       </dl>
 
+      {hearth && <HoldCard hearth={hearth} viewpoint={viewpoint} occupiers={occupiers} className="wm-hold" compact />}
+
       {isOwn && (
-        <button type="button" className="wm-btn wm-btn-sun wm-btn-big" onClick={() => navigate('village')}>
-          Open my village
+        <button
+          type="button"
+          className="wm-btn wm-btn-sun wm-btn-big"
+          onClick={() => {
+            if (ownHere && !isCurrent) selectVillage(ownHere.id);
+            navigate('village');
+          }}
+        >
+          {isCurrent ? 'Open my village' : 'Switch to this village'}
         </button>
       )}
       {village && (canShip || (!isOwn && (village.kind === 'player' || village.kind === 'abandoned'))) && (
-        <ShipmentForm key={`ship-${tile.x}|${tile.y}`} tile={tile} target={village} />
+        <ShipmentForm key={`ship-${mine.id}-${tile.x}|${tile.y}`} tile={tile} target={village} />
       )}
       {village && !isOwn && attackBlocked && relation && (
         <p className="wm-note" role="note">
           {ATTACK_BLOCKED_TEXT[relation] ?? 'Attacks on this village are blocked.'}
         </p>
       )}
-      {village && !isOwn && missions.length > 0 && (
+      {free && foundSite && !foundSite.ok && (
+        <p className="wm-note" role="note">
+          {foundSite.message}
+        </p>
+      )}
+      {missions.length > 0 && !(free && foundSite && !foundSite.ok) && (
         <SendForm
-          key={`${tile.x}|${tile.y}|${preferred?.nonce ?? 0}`}
+          key={`${mine.id}|${tile.x}|${tile.y}|${preferred?.nonce ?? 0}`}
           tile={tile}
-          target={village}
+          target={village ?? null}
           missions={missions}
           preferred={preferred?.mission ?? null}
         />

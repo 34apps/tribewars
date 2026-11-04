@@ -73,7 +73,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.1;
 /** Population per troop type (separate from food upkeep). */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1 };
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8 };
 /** Food a troop eats per hour for each population point it takes (owner decision 2026-11-04: 0.25; was 1 per unit). Unit upkeep = POP_PER_UNIT * this. */
 export const FOOD_UPKEEP_PER_POP = 0.25;
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
@@ -246,7 +246,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   bannerhall: {
     id: 'bannerhall',
     name: 'Banner Hall',
-    description: 'Feast turns resources into Renown; later trains Chieftains and founds villages.',
+    description: 'Feast turns resources into Renown; trains Chieftains who take abandoned villages and found new ones.',
     maxLevel: 4,
     startLevel: 0,
     requires: { hall: 7, drillyard: 2, market: 2, storehouse: 6 },
@@ -383,6 +383,22 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'barracks',
     requires: { barracks: 2 },
   },
+  chieftain: {
+    id: 'chieftain',
+    name: 'Chieftain',
+    description: 'Carries a village\'s ember. Puts out the hearth of an abandoned village, or founds a new village on free land. Weak fighter: needs an escort.',
+    unitClass: 'infantry',
+    attack: 0,
+    defenseInfantry: 10,
+    defenseCavalry: 10,
+    speed: 5,
+    carry: 0,
+    upkeep: POP_PER_UNIT.chieftain * FOOD_UPKEEP_PER_POP,
+    cost: res(4000, 3000, 5000, 150),
+    trainTimeSec: 6 * 3600,
+    building: 'bannerhall',
+    requires: { bannerhall: 1 },
+  },
 };
 
 // ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
@@ -413,6 +429,37 @@ export const RENOWN_VILLAGE_BASE = 500;
 export const RENOWN_VILLAGE_GROWTH = 1.6;
 /** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
 export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
+/** Chieftains per village in the Banner Hall queue: one batch of at most this many (each living or queued one is a future village). */
+export const CHIEFTAIN_MAX_QUEUED_BATCHES = 1;
+export const CHIEFTAIN_MAX_BATCH = 3;
+/** Most villages one player may own (sanity cap for performance; the Renown price makes it unreachable). */
+export const MAX_VILLAGES_PER_PLAYER = 20;
+
+// ---- Hearth: Strike and Hold, founding, restart (docs/GAME_DESIGN.md 18.2). Times in hours at speed 1, divided by world speed. ----
+
+/** Hold clock after a Strike: players' villages / abandoned villages. */
+export const HOLD_HOURS = 12;
+export const HOLD_HOURS_ABANDONED = 6;
+/** Occupier population that keeps the hold clock running. */
+export const HOLD_MIN_POPULATION = 150;
+/** Occupiers may stay under HOLD_MIN_POPULATION this long before the claim fails. */
+export const HOLD_FAIL_HOURS = 2;
+/** No new Strike on a village for this long after it changed owner (raids stay possible). */
+export const STRIKE_LOCK_HOURS = 24;
+/** Chieftains needed to Strike a player village: 1 + floor(points / this), at most HEARTH_MAX_CHIEFTAINS (abandoned: always 1). */
+export const HEARTH_POINTS_PER_CHIEFTAIN = 4000;
+export const HEARTH_MAX_CHIEFTAINS = 3;
+/** Striking player villages is built (and tested) but switched on only in step 4. */
+export const HEARTH_PLAYERS_ENABLED = false;
+/** Share of each resource a village keeps when it changes owner. */
+export const TAKE_KEEP_RESOURCE_SHARE = 0.5;
+/** A founded village starts with this stock (levels are the new-player start levels) and is safe from attacks for this long. */
+export const FOUND_START_RESOURCES: Resources = res(300, 300, 150, 0);
+export const FOUND_PROTECTION_HOURS = 24;
+/** A player who lost their last village restarts at the world edge with this much protection. */
+export const RESTART_PROTECTION_HOURS = 48;
+/** The restart spot lies within this many tiles inside the edge of the populated disc. */
+export const RESTART_EDGE_BAND = 2;
 /** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
 export const FEAST_COST: Resources = res(600, 600, 600, 0);
 export const FEAST_RENOWN = 10;
@@ -539,6 +586,7 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   outrider: 'mounted',
   knight: 'mounted',
   pathfinder: 'pathfinder',
+  chieftain: 'foot',
 };
 /** Length of one sample along the route, in tiles. */
 export const TERRAIN_SAMPLE_STEP = 1;

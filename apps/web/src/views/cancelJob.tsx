@@ -20,7 +20,7 @@ export function useCancelJob() {
   const [busy, setBusy] = useState(false);
 
   /** `paid` is what the job cost (or its untrained rest); the dialog shows what comes back and what is lost. */
-  async function run(what: string, paid: Resources, call: () => Promise<CancelResponse>) {
+  async function run(what: string, paid: Resources, call: () => Promise<CancelResponse>, reservesRenown = false) {
     if (busy) return;
     const back = refundOf(paid);
     const ok = await confirm({
@@ -31,6 +31,7 @@ export function useCancelJob() {
             You only get {CANCEL_REFUND_PERCENT}% of the resources back: <strong>{amounts(back)}</strong>.
           </p>
           <p>The other {100 - CANCEL_REFUND_PERCENT}% is lost.</p>
+          {reservesRenown && <p>The Renown reserved for the batch comes back in full.</p>}
         </>
       ),
       confirmLabel: 'Cancel it',
@@ -41,7 +42,8 @@ export function useCancelJob() {
     try {
       const res = await call();
       applyVillage(res.village);
-      toast(`Cancelled ${what}. You got back ${amounts(res.refund)} (${CANCEL_REFUND_PERCENT}%); the rest is lost.`);
+      const renown = res.renownRefund ? ` ${formatInt(res.renownRefund)} Renown came back in full.` : '';
+      toast(`Cancelled ${what}. You got back ${amounts(res.refund)} (${CANCEL_REFUND_PERCENT}%); the rest is lost.${renown}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
@@ -57,6 +59,6 @@ export function useCancelJob() {
     cancelResearch: (what: string, paid: Resources, index: number) =>
       run(what, paid, () => api.cancelResearch(village.id, index)),
     cancelTrain: (what: string, paid: Resources, building: string, index: number) =>
-      run(what, paid, () => api.cancelTrain(village.id, building, index)),
+      run(what, paid, () => api.cancelTrain(village.id, building, index), building === 'bannerhall'),
   };
 }

@@ -1,5 +1,6 @@
-// Banner Hall panel: the Feast turns resources into Renown (docs/GAME_DESIGN.md section 18.2). The engine numbers decide what
-// the controls allow; the server re-checks everything.
+// Banner Hall panel: the Feast turns resources into Renown (docs/GAME_DESIGN.md section 18.2); Chieftains are trained in the Army
+// tab (components/ChieftainPanel.tsx), this panel summarises the price. The engine numbers decide what the controls allow; the
+// server re-checks everything.
 
 import { BUILDINGS, FEAST_COST, FEAST_DAILY_PER_LEVEL, FEAST_RENOWN } from '@clanfire/engine';
 import { useState } from 'react';
@@ -10,9 +11,10 @@ import { formatDuration, formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { clampFeastCount, currentFeastAllowance, feastMaxCount, feastTotal } from '../../renown.ts';
 import { requirementText, unmetRequirements } from '../../rules.ts';
+import { chieftainRenownNote, nextChieftainPrice } from '../../villages.ts';
 
 export function BannerHallPanel() {
-  const { live, now, village, applyVillage, refresh, toast } = useGame();
+  const { live, now, village, renown, applyVillage, refresh, toast, navigate } = useGame();
   const [want, setWant] = useState(1);
   const [busy, setBusy] = useState(false);
   const [gained, setGained] = useState<number | null>(null);
@@ -131,6 +133,17 @@ export function BannerHallPanel() {
           +{formatInt(gained)} Renown earned
         </div>
       )}
+
+      <h3 className="eyebrow bh-chief-title">Chieftain</h3>
+      <p className="bh-text">
+        The Chieftain founds a new village on free land or, with an escort, puts out the hearth of an abandoned one. Renown is reserved when training
+        starts: {formatInt(nextChieftainPrice(renown))} for the next one ({formatInt(renown.balance)} to spend
+        {renown.reserved ? `, ${formatInt(renown.reserved)} reserved` : ''}).
+      </p>
+      <p className="bh-text muted">{chieftainRenownNote()}</p>
+      <button type="button" className="btn btn-primary bh-go" onClick={() => navigate('army')}>
+        <Icon name="chieftain" size={22} /> Train Chieftains
+      </button>
     </div>
   );
 }

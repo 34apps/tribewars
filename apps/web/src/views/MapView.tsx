@@ -285,6 +285,15 @@ export function MapView({ active }: { active: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
 
+  // The current village was switched: bring the map to it (not on first load, which already starts there).
+  const shownVillage = useRef(village.id);
+  useEffect(() => {
+    if (shownVillage.current === village.id) return;
+    shownVillage.current = village.id;
+    centerOn(own.x, own.y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [village.id]);
+
   const zoomAt = useCallback(
     (px: number, py: number, nextTile: number) => {
       zoomedAt.current = performance.now();
@@ -341,6 +350,7 @@ export function MapView({ active }: { active: boolean }) {
     const abandoned = v.kind === 'abandoned';
     const rows: [string, string][] = [['Points', String(v.points)]];
     if (!abandoned && v.ownerName) rows.push(['Owner', v.tribeTag ? `${v.ownerName} [${v.tribeTag}]` : v.ownerName]);
+    if (v.hearth) rows.push(['Hearth', `out, held by ${v.hearth.claimBy}`]);
     el.replaceChildren();
     const head = document.createElement('div');
     head.className = 'wm-tip-head';
@@ -608,6 +618,7 @@ export function MapView({ active }: { active: boolean }) {
           loaded={selectedLoaded}
           terrain={terrain}
           preferred={preferred && preferred.x === selected.x && preferred.y === selected.y ? preferred : null}
+          occupied={(x, y) => chunks.villageAt(x, y) !== undefined}
           onClose={() => select(null)}
         />
       )}

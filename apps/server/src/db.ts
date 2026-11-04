@@ -12,10 +12,14 @@ export const statColumn = (k: StatKey): string => k.replace(/[A-Z]/g, (c) => `_$
 // ---- Tables with a CHECK that grew after release -----------------------------------------------------------
 // SQLite cannot alter a CHECK, so `rebuildOutdatedTables` copies older databases into the new shape (see applySchema).
 
-/** kind: attack / scout / support / shipment go out; return comes home. For every kind `origin_village_id` is the army's home. */
+/**
+ * kind: attack / scout / support / shipment / found / occupy go out; return comes home. For every kind `origin_village_id` is the
+ * army's home. A `found` movement (and the return of a failed one) walks to a free tile, not to a village: `target_x`/`target_y`
+ * hold the tile and `target_village_id` is the army's own home as a placeholder.
+ */
 const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${name} (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'scout', 'support', 'return', 'shipment')),
+  kind              TEXT    NOT NULL CHECK (kind IN ('attack', 'scout', 'support', 'return', 'shipment', 'found', 'occupy')),
   origin_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
   target_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
   units_json        TEXT    NOT NULL,
@@ -23,7 +27,9 @@ const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${n
   depart_at         INTEGER NOT NULL,
   arrive_at         INTEGER NOT NULL,
   ranks_json        TEXT,
-  return_secs       INTEGER
+  return_secs       INTEGER,
+  target_x          INTEGER,
+  target_y          INTEGER
 );`;
 
 /** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
@@ -41,9 +47,10 @@ const reportsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${nam
 const REBUILDS = [
   {
     table: 'movements',
-    marker: "'shipment'",
+    marker: "'occupy'",
     create: movementsTable,
-    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at',
+    // Only the columns the old table has are copied (older ones lack ranks_json, return_secs, target_x, target_y).
+    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y',
   },
   {
     table: 'reports',
@@ -86,7 +93,10 @@ CREATE TABLE IF NOT EXISTS players (
   account_id      INTEGER,
   -- Renown (docs/GAME_DESIGN.md section 18.2): everything earned (never goes down) and everything spent on villages. REAL: fractions are kept.
   renown_total    REAL    NOT NULL DEFAULT 0,
-  renown_spent    REAL    NOT NULL DEFAULT 0
+  renown_spent    REAL    NOT NULL DEFAULT 0,
+  -- The part of renown_spent that is reserved by Chieftains (queued, at home, away): it comes back (partly) if they die, and is
+  -- released when they are used up founding or taking a village. Always <= renown_spent.
+  renown_reserved REAL    NOT NULL DEFAULT 0
 );
 
 -- Entry passes already used (single use). A row is kept until the pass could no longer be accepted (exp + clock skew).
@@ -126,6 +136,8 @@ CREATE TABLE IF NOT EXISTS villages (
   state_json TEXT    NOT NULL,
   -- Earliest time the caretaker bot may act on this village again (0 = any time). Only used while the owner is idle.
   bot_next_at INTEGER NOT NULL DEFAULT 0,
+  -- While the hearth is out: the time the hold clock (or the fail timer) next needs attention (engine holdDueAt); NULL = lit.
+  hold_due_at INTEGER,
   UNIQUE (x, y)
 );
 CREATE INDEX IF NOT EXISTS idx_villages_owner ON villages(owner_id);
@@ -447,9 +459,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '152f8703d2eeae09';
+export const SCHEMA_FINGERPRINT = '9818fd1735929cae';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -535,12 +547,15 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'account_id')) db.exec('ALTER TABLE players ADD COLUMN account_id INTEGER');
   if (!cols.some((c) => c.name === 'renown_total')) db.exec('ALTER TABLE players ADD COLUMN renown_total REAL NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'renown_spent')) db.exec('ALTER TABLE players ADD COLUMN renown_spent REAL NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'renown_reserved')) db.exec('ALTER TABLE players ADD COLUMN renown_reserved REAL NOT NULL DEFAULT 0');
   // Name and column are fixed: the lobby import command (links existing players to lobby accounts) uses exactly these. NULL may repeat.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_account ON players(account_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
   const villageCols = db.prepare('PRAGMA table_info(villages)').all() as Array<{ name: string }>;
   if (!villageCols.some((c) => c.name === 'bot_next_at')) db.exec('ALTER TABLE villages ADD COLUMN bot_next_at INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_bot ON villages(bot_next_at) WHERE owner_id IS NOT NULL');
+  if (!villageCols.some((c) => c.name === 'hold_due_at')) db.exec('ALTER TABLE villages ADD COLUMN hold_due_at INTEGER');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_villages_hold ON villages(hold_due_at) WHERE hold_due_at IS NOT NULL');
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
   if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).
@@ -550,6 +565,10 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   for (const table of ['movements', 'stationed']) {
     const t = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (!t.some((c) => c.name === 'ranks_json')) db.exec(`ALTER TABLE ${table} ADD COLUMN ranks_json TEXT`);
+  }
+  // Found missions walk to a free tile (see movementsTable).
+  for (const col of ['target_x', 'target_y']) {
+    if (!moveCols.some((c) => c.name === col)) db.exec(`ALTER TABLE movements ADD COLUMN ${col} INTEGER`);
   }
 }
 
@@ -562,10 +581,13 @@ function rebuildOutdatedTables(db: DatabaseSync): void {
     const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(table) as { sql: string } | undefined;
     if (!row || row.sql.includes(marker)) continue;
     const seq = db.prepare('SELECT seq FROM sqlite_sequence WHERE name = ?').get(table) as { seq: number } | undefined;
+    // Copy only what the old table has (columns added later start empty).
+    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name));
+    const copied = columns.split(', ').filter((c) => have.has(c)).join(', ');
     db.exec('BEGIN IMMEDIATE');
     try {
       db.exec(create(`${table}_new`));
-      db.exec(`INSERT INTO ${table}_new (${columns}) SELECT ${columns} FROM ${table}`);
+      db.exec(`INSERT INTO ${table}_new (${copied}) SELECT ${copied} FROM ${table}`);
       db.exec(`DROP TABLE ${table}`); // its indexes go with it; SCHEMA re-creates them
       db.exec(`ALTER TABLE ${table}_new RENAME TO ${table}`);
       if (seq) {

@@ -14,6 +14,7 @@ import {
   generateNpcsForSpawn,
   mulberry32,
   protectionEndsAt,
+  restartPlacement,
   villagePoints,
   abandonIdleDays,
   type AbandonedNoticeDto,
@@ -261,27 +262,48 @@ export class AuthService {
     return outcome;
   }
 
-  /** A returning player whose villages were abandoned after a long absence starts over with a fresh village (new beginner protection). */
+  /**
+   * A player who owns no village (all abandoned after a long absence, or the last one was taken) starts again: a fresh village at
+   * the restart place (engine `restartPlacement`: the outer edge of the populated world for the expanding layout, with its ring of
+   * abandoned villages, else a random free tile) and a short restart protection (RESTART_PROTECTION_HOURS / speed).
+   * Account, tribe, Renown and rankings stay. Cheap no-op for everyone who has a village; called on sign-in and on every
+   * authenticated request (so a loss shows up as a new village at the very next request).
+   */
+  ensureStartingVillage(player: PlayerRow): void {
+    if (this.store.hasVillage(player.id)) return;
+    try {
+      this.store.tx(() => {
+        if (this.store.hasVillage(player.id)) return;
+        const t = this.now();
+        const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
+        const { spot, protectionMs } = restartPlacement(this.settings, this.store.playerVillageCount(), randomInt(0, 0xffffffff), occupied);
+        this.spawnVillage(player.id, `${player.username}'s village`, t, spot);
+        this.store.setProtectedUntil(player.id, t + protectionMs);
+      });
+    } catch (err) {
+      if (!(err instanceof GameError && err.code === 'not_found')) throw err; // a full world leaves the player without a village
+    }
+  }
+
+  /** @deprecated Old name of ensureStartingVillage. */
   ensureVillage(player: PlayerRow): void {
-    if (this.store.villagesOfPlayer(player.id).length > 0) return;
-    this.store.tx(() => {
-      const t = this.now();
-      this.spawnVillage(player.id, `${player.username}'s village`, t);
-      this.store.setProtectedUntil(player.id, protectionEndsAt(t, this.settings));
-    });
+    this.ensureStartingVillage(player);
   }
 
   /**
    * Place a new player village. In the 'expanding' layout it lands at the edge of the growing populated disc and
    * brings abandoned villages around it (a fixed few plus a chance of more); otherwise it lands anywhere free.
+   * `at` forces the tile (restart placement).
    */
-  private spawnVillage(playerId: number, name: string, t: number): void {
+  private spawnVillage(playerId: number, name: string, t: number, at?: { x: number; y: number }): void {
     const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
     const rng = mulberry32(randomInt(0, 0xffffffff));
     const expanding = this.settings.layout === 'expanding';
-    const spot = expanding
-      ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount())
-      : findSpawnLocation(occupied, rng, this.settings);
+    const spot =
+      at ??
+      (expanding
+        ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount())
+        : findSpawnLocation(occupied, rng, this.settings));
     const state = createPlayerVillage(t);
     this.store.insertVillage(playerId, name, spot.x, spot.y, villagePoints(state), state);
     if (!expanding) return;

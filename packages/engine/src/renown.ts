@@ -96,6 +96,17 @@ export function villageRenownCost(villagesOwned: number): number {
   return Math.round(RENOWN_VILLAGE_BASE * ipow(RENOWN_VILLAGE_GROWTH, owned - 1));
 }
 
+/**
+ * Renown to reserve for the next Chieftain: every living or queued Chieftain is a future village, so it costs what the
+ * village after those would cost = villageRenownCost(villagesOwned + outstandingChieftains). `outstandingChieftains` counts
+ * the player's other Chieftains (at home, away, queued), not the one being bought. Owned 1, none outstanding = the base price.
+ */
+export function villageRenownPrice(villagesOwned: number, outstandingChieftains: number): number {
+  const out = Number.isFinite(outstandingChieftains) ? Math.max(0, Math.floor(outstandingChieftains)) : 0;
+  const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
+  return villageRenownCost(owned + out);
+}
+
 /** Renown that comes back when a Chieftain who reserved `cost` dies on the way (rounded down). */
 export function chieftainRefund(cost: number): number {
   return Math.floor(Math.max(0, cost) * CHIEFTAIN_RENOWN_REFUND_SHARE);

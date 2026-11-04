@@ -38,6 +38,8 @@ export const MISSION_HINT: Record<Mission, string> = {
   attack: 'Fight for loot. Survivors carry what they can home.',
   scout: 'Pathfinders only. They report troops, buildings and resources, then come home.',
   support: 'Troops stay and defend this village until recalled or sent back.',
+  found: 'One Chieftain founds a new village on free land. An escort becomes its garrison.',
+  occupy: 'Troops stay at a village you are holding until the hold clock runs out.',
 };
 
 export const DIPLOMACY_NAME: Record<DiplomacyKind, string> = {

@@ -91,6 +91,17 @@ function villageNearby(x: number, y: number, minSpacing: number, radius: number,
   return false;
 }
 
+/**
+ * Can a new village (found mission, restart) stand on integer tile (x, y)? Inside the world, buildable ground, and at least
+ * SPAWN_MIN_SPACING (Chebyshev) from every village. `isOccupied(x, y)` reports a village standing exactly on that tile.
+ */
+export function isFreeBuildSite(x: number, y: number, s: WorldSettings, isOccupied: (x: number, y: number) => boolean): boolean {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
+  const radius = Math.max(0, Math.floor(s.radius));
+  if (Math.abs(x) > radius || Math.abs(y) > radius) return false;
+  return isBuildableTerrain(terrainAt(x, y, s.seed)) && !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied);
+}
+
 function randomCoord(rng: () => number, radius: number): number {
   return Math.min(radius, Math.floor(rng() * (2 * radius + 1)) - radius);
 }
@@ -185,6 +196,8 @@ export function findExpandingSpawn(
   rng: () => number,
   s: WorldSettings,
   playerVillages: number,
+  /** Land within `edgeBand` tiles inside the edge of the disc instead of anywhere in it (restart placement). */
+  edgeBand?: number,
 ): Coords {
   const radius = Math.max(0, Math.floor(s.radius));
   const fits = (x: number, y: number): boolean =>
@@ -196,7 +209,7 @@ export function findExpandingSpawn(
   for (let round = 0; round < 8; round++) {
     for (let i = 0; i < 300; i++) {
       const angle = rng() * 2 * Math.PI;
-      const r = Math.sqrt(rng()) * reach;
+      const r = edgeBand === undefined ? Math.sqrt(rng()) * reach : Math.max(0, reach - rng() * edgeBand);
       const x = Math.round(Math.cos(angle) * r);
       const y = Math.round(Math.sin(angle) * r);
       if (fits(x, y)) return { x, y };

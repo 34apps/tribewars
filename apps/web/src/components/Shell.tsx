@@ -10,6 +10,7 @@ import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
+import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
@@ -184,8 +185,9 @@ function Who({
   onSettings: () => void;
   compact?: boolean;
 }) {
-  const { player, village, tribeChanged, toast, navigate } = useGame();
+  const { player, village, villages, tribeChanged, toast, navigate } = useGame();
   const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const worldInfo = useWorldInfo();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -230,6 +232,15 @@ function Who({
               {village.name} ({formatCoords(village.x, village.y)})
             </div>
           </div>
+          {/* With several villages Rename sits in the village bar's list; with one it lives here. */}
+          {villages.length < 2 &&
+            (renaming ? (
+              <RenameVillage onDone={() => setRenaming(false)} />
+            ) : (
+              <button className="btn btn-block" onClick={() => setRenaming(true)}>
+                Rename village
+              </button>
+            ))}
           <button
             className="btn btn-block"
             onClick={() => {
@@ -331,6 +342,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
         <Resources compact />
       </div>
       <Strip />
+      <VillageBar />
       <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main">
         {children}
       </main>

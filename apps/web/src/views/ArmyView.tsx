@@ -20,6 +20,7 @@ import {
 } from '@clanfire/engine';
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
+import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -35,7 +36,7 @@ import { maxTrainable, reasonText, requirementText, unitListText, unmetRequireme
 function TroopsTable() {
   const { live, settings } = useGame();
   const training = emptyUnits();
-  for (const q of [live.trainQueues.barracks, live.trainQueues.stables]) for (const j of q) training[j.unit] += j.count - j.done;
+  for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
   const upkeep = upkeepPerHour(live, settings);
   const farm = productionPerHour(live, settings).food;
   return (
@@ -86,10 +87,10 @@ function VillageLink({ v }: { v: VillageRefDto }) {
   );
 }
 
-const KIND_TAG: Record<MovementDto['kind'], string> = { attack: 'tag-warn', scout: 'tag-info', support: 'tag-ok', return: 'tag-muted', shipment: 'tag-ok' };
+const KIND_TAG: Record<MovementDto['kind'], string> = { attack: 'tag-warn', scout: 'tag-info', support: 'tag-ok', found: 'tag-ok', occupy: 'tag-ok', return: 'tag-muted', shipment: 'tag-ok' };
 
 function MovementRow({ m }: { m: MovementDto }) {
-  const { now, village, highlightMovementId, refresh, toast } = useGame();
+  const { now, village, villages, highlightMovementId, refresh, toast } = useGame();
   const ref = useRef<HTMLLIElement>(null);
   const [cancelling, setCancelling] = useState(false);
   const cancelLeft = m.cancellableUntil === null ? 0 : m.cancellableUntil - now;
@@ -114,7 +115,10 @@ function MovementRow({ m }: { m: MovementDto }) {
   const incoming = m.direction === 'incoming';
   const attackIn = incoming && m.kind === 'attack';
   const supportIn = incoming && m.kind === 'support';
-  const other = m.origin.villageId === village.id ? m.target : m.origin;
+  // The village on the other end: with several villages of mine both ends can be mine, then show the one that is not current.
+  const originMine = villages.some((v) => v.id === m.origin.villageId);
+  const targetMine = villages.some((v) => v.id === m.target.villageId);
+  const other = originMine && !targetMine ? m.target : targetMine && !originMine ? m.origin : m.origin.villageId === village.id ? m.target : m.origin;
   const left = m.arriveAt - now;
   const total = Math.max(1, m.arriveAt - m.departAt);
   const cargo = m.kind === 'shipment' ? m.resources : m.loot;
@@ -612,6 +616,7 @@ export function ArmyView() {
       <SupportPanel />
       <TrainingPanel building="barracks" />
       <TrainingPanel building="stables" />
+      <ChieftainPanel />
     </div>
   );
 }

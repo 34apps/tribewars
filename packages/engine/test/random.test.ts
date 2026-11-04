@@ -55,7 +55,7 @@ describe('math helpers', () => {
     assert.equal(distance({ x: -2, y: -2 }, { x: -2, y: -2 }), 0);
   });
   it('empty containers have every key at zero', () => {
-    assert.deepEqual(Object.values(emptyUnits()), [0, 0, 0, 0, 0, 0]);
+    assert.deepEqual(Object.values(emptyUnits()), UNIT_IDS.map(() => 0));
     assert.deepEqual(Object.keys(emptyUnits()), [...UNIT_IDS]);
     assert.deepEqual(emptyResources(), { wood: 0, food: 0, iron: 0, gold: 0 });
     assert.equal(totalUnits({ pikeman: 1, guard: 2, raider: 3, outrider: 4, knight: 5, pathfinder: 6 }), 21);
