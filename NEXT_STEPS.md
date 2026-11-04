@@ -15,6 +15,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 
 - **Balance + conquest (asked 2026-11-03).** Read `docs/BALANCE.md`: approve or edit the proposal (troop upkeep ×0.25, Banner Hall, Standard-bearer, Loyalty, weighted points), then an implementer applies it step by step (upkeep first).
 
+- **Design preview picker check** (`b52b6ba`, never rendered): owner picks each building at 360 and 1440 px, steps with slider/−/+/Play; confirm the phone strip under the village doesn't squeeze the scene too much (it is ~3 rows tall) and the desktop bar (bottom right, 420 px, taller now) doesn't hide what you want to see. "All buildings" still shows only the wall (kept as before); say if it should show every building at the level.
 - **Village size/headroom check** (`90512c6`, never rendered): owner opens Design preview, compares wall 1, 5, 10, 15, 20 at 360 and 1440 px and screenshots 20: same village size each time, tower tops and flags fully visible, nothing behind the title block top-left. If desktop height-limited layouts (short windows) look too small, trim the 64 px `.vv-fit` top margin.
 
 ## Next big pieces

@@ -5,12 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`90512c6`): wall level 20 back tower/flag were clipped at the top on desktop (headroom hung into the 64 px margin,
-cut by `.vv-view` overflow). Fix: one fixed scene box `SCENE_VIEWBOX` (376 above centre; grand flag tip ≈353) at every wall level;
-`sceneViewBox` and `.vv-world` removed; phone zoom uses `SCENE_BASE_H` (old height) so size is unchanged. By geometry nothing clips and
-the village is the same size at all levels. NO browser/screenshot here (Bash can't launch one), so levels 1/5/10/15/20 at 360/1440 px
-and the level-20 screenshot are NOT done. Very next step: owner checks Design preview (see NEXT_STEPS "Village size/headroom check").
-Earlier: back tower draw order (`a4eb098`), level-5 flag (`dba0012`), grand wall look 18–20 (`ea92c87`), preview bar fixes (`80e2127`). Checks passed.
+2026-11-04 (`b52b6ba`): Design preview building picker. Bar has a select (All buildings = old wall-only 0–20; or any building, 1..max).
+A picked building steps alone via slider/−/+/Play, others keep real levels + queue (`levelOverride` = `{building, level}` in `VillageScene`;
+state in `designPreviewState.ts`). Bar shows name, level, "new picture"/"same picture" and change levels. Phone: bar is now an inline strip
+under the village (`.vv-phone-main` wrapper), not floating; desktop = fixed 420 px portal. NO browser here, so 360/1440 px NOT viewed.
+Very next step: owner checks the picker (NEXT_STEPS "Design preview picker check"), then the older "Village size/headroom check". Checks passed.
+Earlier: village headroom fix (`90512c6`), back tower order (`a4eb098`), level-5 flag (`dba0012`), grand wall look (`ea92c87`).
 
 ## How the owner works (important)
 
