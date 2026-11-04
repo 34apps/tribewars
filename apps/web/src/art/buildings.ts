@@ -31,7 +31,7 @@ const FILE: Record<BuildingId, string> = {
   stables: 'stables',
   wall: 'wall',
   vault: 'hidden-vault',
-  market: 'storehouse', // placeholder art: reuses the storehouse sprites until a Market sprite is drawn
+  market: 'market',
   drillyard: 'drillyard',
 };
 
