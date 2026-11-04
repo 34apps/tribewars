@@ -5,12 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`f734a4b`): docs only, no code: `docs/GAME_DESIGN.md` §18 proposal "what makes Clanfire different" (seasons + Fire Shrines + badges, taking villages by hold, rest hours, terrain + sites, tribe projects, cosmetics shop, build order §18.7, decisions §18.8). Checks passed.
-Left: owner must approve/edit §18 (7 decisions in §18.8). Nothing from §18 is built. Earlier run (`2d1c74d`): security audit; open: cap on movements in flight, limit bucket for rank/respec.
-Very next step: owner answers §18.8; then step 0 of §18.7 (secret battle seed, tame abandoned farming, upkeep, run `npm run sim`) and step 1 terrain travel.
-Note: in unattended runs only `npm run check` / `npm run build` are allowed (no single-file tests, no heredocs).
-Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`.
-Earlier (`df0f9b3`): balance simulator `npm run sim`; results not yet produced. Earlier (`beb5c59`): genre review `docs/GENRE_REVIEW.md`.
+2026-11-04 (`179c35f`): owner decisions for §18 recorded (§18.8). Step 0 part 1 built + tested: secret battle seed, abandoned garrison refill, repeat-raid loot limit (table `npc_raids`, schema v3), upkeep 0.25 per pop point; `npm run sim` now allowed in `scripts/agent/run.ts`. Checks passed (check + build).
+Left: **step 0 part 2, the pacing numbers, NOT done and no "after" sim** (this run's command list was fixed at start, so it could not run `npm run sim`). Baseline: `docs/sim/2026-11-04-baseline.txt`; summary and levers in `docs/BALANCE.md` §7.
+Very next step: run `npm run sim`; first find why the baseline shows 0 raids for every style (`tryRaid`), then tune `config.ts` per `BALANCE.md` §7.3 (targets listed there); save `docs/sim/<date>-after-step0.txt`.
+Then §18.7 step 1 (terrain travel). Premium queue removal (owner: dropped) is still to code. Open: cap on movements in flight, limit bucket for rank/respec.
+Note: an unattended run can only use commands in its allow list at start (now incl. `npm run sim`); no single-file tests, no heredocs.
+Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping` (stage with explicit paths, not `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
