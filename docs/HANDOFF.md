@@ -5,11 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`1b56264`): village wall gate closed + bigger; roads redrawn (`e03b158`). Owner felt the village drifted from
-the approved Toy Diorama look, so a **toy-style proposal** of the same layout is in
-`design/style-directions/village-v2/D-toy-proposal/` (screenshots + an `art/` folder that mirrors `apps/web/src/art/`).
-Waiting for the owner: keep style B or switch the village to the toy proposal (copy `art/buildings.ts`, `art/scenery.tsx`,
-`art/buildings/*.svg` over `apps/web/src/art/`, then check + build). Checks passed, build ok.
+2026-11-04 (`87d3695`): village view switched back to **Toy Diorama** (owner choice after trying style B): original toy
+building sprites + toy scenery + new toy Market, in the new layout (Town Hall centre, spread plots, wall on the plate
+edge, closed gate). The owner will request design tweaks inside the toy style next. Test-mode Design preview
+(Settings → Design preview) shows all levels. Checks passed, build + preview build ok; viewed in the preview.
 
 ## How the owner works (important)
 
@@ -31,7 +30,7 @@ Waiting for the owner: keep style B or switch the village to the toy proposal (c
   (tickets, reports, mute/ban), population cap, cancel within 2 min, rate limits, multi-account guard.
 - `npm run dev` = expanding 500x500 world at real pace (own DB `clanfire-world.sqlite`);
   `npm run dev:fast` = speed 10. Preview: `npm run build:preview` → `apps/preview/dist/index.html`.
-- Village buildings are style **B · Painted Miniature** (2026-11-04); the rest is **D · Toy Diorama**: village view (town square + campfire centre, Drillyard on its
+- Style **D · Toy Diorama** everywhere (village tried style B on 2026-11-04, owner went back to toy): village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
 - Tests: engine 223, server 210, all green. Not deployed; no CI.
