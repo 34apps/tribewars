@@ -5,9 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`2d1c74d`): security/fairness audit of game routes: `apps/server/test/security-audit.test.ts` (10 probe tests) + table in `docs/SECURITY_ROADMAP.md` §5. One hole fixed: shared-connection accounts shipping into abandoned villages for a partner to raid. Checks + build passed.
-Left: cap on movements in flight, limit bucket for rank/respec (NEXT_STEPS). Note: in unattended runs only `npm run check` / `npm run build` are allowed (no single-file test runs, no pipes, no heredocs).
-Very next step: pick from NEXT_STEPS (or the simulator: `npm run sim`, fill BALANCE.md §6; never run yet).
+2026-11-04 (`f734a4b`): docs only, no code: `docs/GAME_DESIGN.md` §18 proposal "what makes Clanfire different" (seasons + Fire Shrines + badges, taking villages by hold, rest hours, terrain + sites, tribe projects, cosmetics shop, build order §18.7, decisions §18.8). Checks passed.
+Left: owner must approve/edit §18 (7 decisions in §18.8). Nothing from §18 is built. Earlier run (`2d1c74d`): security audit; open: cap on movements in flight, limit bucket for rank/respec.
+Very next step: owner answers §18.8; then step 0 of §18.7 (secret battle seed, tame abandoned farming, upkeep, run `npm run sim`) and step 1 terrain travel.
+Note: in unattended runs only `npm run check` / `npm run build` are allowed (no single-file tests, no heredocs).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`.
 Earlier (`df0f9b3`): balance simulator `npm run sim`; results not yet produced. Earlier (`beb5c59`): genre review `docs/GENRE_REVIEW.md`.
 

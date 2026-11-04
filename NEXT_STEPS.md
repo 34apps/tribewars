@@ -3,6 +3,7 @@
 Current open work and decisions only (history goes in `CHANGELOG.md`). Newest priorities first.
 
 ## Decisions for the owner
+- **Design proposal: what makes Clanfire different (2026-11-04, `docs/GAME_DESIGN.md` §18, docs only).** Read §18.8 (7 short decisions): approve or edit the six parts (seasons with Fire Shrines + badges, taking villages by hold, rest hours, terrain + sites, tribe projects, cosmetics shop). Then build in the order of §18.7 (step 0 prerequisites, then terrain travel). Supersedes the loyalty sketch in `BALANCE.md` §4 if approved.
 - **Run the balance simulator once (2026-11-04).** `npm run sim` (about a second or two per style; `--full` for every day). Paste flags + day 7/14/30 rows into `docs/BALANCE.md` §6 and write suggested `config.ts` changes there (don't apply). The agent runner could not execute it, so no results exist yet. Check the style policies feel like real players before trusting the flags.
 - **Genre review (2026-11-04, `docs/GENRE_REVIEW.md`).** Pick from its Part C top 10. Suggested first batch: #3 limit abandoned-village farming, #4 upkeep 0.25 (`BALANCE.md`), #6 secret battle seed; then #1 several villages/conquest, #5 siege, #2 world end. Also tidy `GAME_DESIGN.md` (§14/§15 statuses) and `BALANCE.md` numbers.
 - **Name: Clanfire** (owner, 2026-11-02). Before launch: trademark + domain check. The GitHub repo
