@@ -70,6 +70,22 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },
 ];
 
+/**
+ * The Origin check shared by writes (app.ts) and the WebSocket upgrade (live.ts): a request without an Origin header
+ * (not a browser) passes; otherwise the Origin host must equal the Host header or its scheme://host[:port] must be in
+ * `allowed` (lowercase; ALLOWED_ORIGINS for CDN/load balancer setups). "null" and garbage are refused.
+ */
+export function originAllowed(origin: string | undefined, host: string | undefined, allowed: ReadonlySet<string>): boolean {
+  if (origin === undefined) return true;
+  let u: URL;
+  try {
+    u = new URL(origin);
+  } catch {
+    return false;
+  }
+  return u.host.toLowerCase() === (host ?? '').toLowerCase() || allowed.has(u.origin.toLowerCase());
+}
+
 /** Which limit bucket a matched route pattern (e.g. `/api/villages/:id/send`) belongs to, if any. */
 export function routeBucket(method: string, pattern: string): RouteBucket | null {
   for (const r of RULES) {

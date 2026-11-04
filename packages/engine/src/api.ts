@@ -1096,3 +1096,19 @@ export interface TemplateRequest {
 }
 
 export type UpdateTemplateRequest = Partial<Omit<TemplateRequest, 'key'>>;
+
+// ---- live updates (WebSocket GET /api/live) -----------------------------------------------------------------------
+// Push-only "something changed" hints. The client never sends game commands over the socket; on a hint it refetches
+// through the normal GET endpoints. Hints carry no data.
+
+/** What changed: game = state/villages/movements/incoming; reports; mail; chat = tribe chat; tribe = tribe info + alerts. */
+export type LiveTopic = 'game' | 'reports' | 'mail' | 'chat' | 'tribe';
+export const LIVE_TOPICS: readonly LiveTopic[] = ['game', 'reports', 'mail', 'chat', 'tribe'];
+
+/** Server -> client text frames (JSON). */
+export type LiveMessage = { type: 'hello' } | { type: 'hint'; topics: LiveTopic[] } | { type: 'pong' };
+
+/** Server close codes (the browser sees them as CloseEvent.code). */
+export const LIVE_CLOSE_SESSION_ENDED = 4401; // logout, ban or expiry: do not reconnect until signed in again
+export const LIVE_CLOSE_TOO_MANY = 4429; // too many sockets for this session/IP: back off
+export const LIVE_CLOSE_BAD_MESSAGE = 4400; // the client sent something other than ping, too big, or too fast

@@ -101,6 +101,9 @@ async function boot(): Promise<void> {
   // Debug handle for poking at the in-page server from the console (e.g. clanfirePreview.ctx.store).
   (window as unknown as { clanfirePreview?: unknown }).clanfirePreview = { ctx: backend.ctx };
 
+  // The web client's live-update socket stays off here (no network); polling carries the preview as before.
+  (window as unknown as { __CLANFIRE_PREVIEW__?: boolean }).__CLANFIRE_PREVIEW__ = true;
+
   const root = document.getElementById('root');
   if (!root) throw new Error('Missing #root element');
   createRoot(root).render(

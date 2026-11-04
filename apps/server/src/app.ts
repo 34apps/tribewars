@@ -14,6 +14,7 @@ import { statusFor } from './errors.ts';
 import { GameService } from './game.ts';
 import { ForumService } from './forum-service.ts';
 import { MailService } from './mail-service.ts';
+import { LiveHub, liveRoutes } from './live.ts';
 import { advisorRoutes } from './routes/advisor.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
@@ -26,7 +27,7 @@ import { supportRoutes } from './routes/support.ts';
 import { tribeRoutes } from './routes/tribes.ts';
 import { ReportService } from './report-service.ts';
 import { StaffService } from './staff-service.ts';
-import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, routeBucket, type RouteBucket } from './security.ts';
+import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, originAllowed, routeBucket, type RouteBucket } from './security.ts';
 import { Store } from './store.ts';
 import { SupportService } from './support-service.ts';
 import { TribeService } from './tribe-service.ts';
@@ -61,6 +62,8 @@ export interface BuildAppOptions {
   maxAccountsPerIp?: number;
   /** Claude client for Mags's advisor. Null/absent = advisor answers `advisor_unavailable`. Tests inject a fake. */
   advisorClient?: AdvisorClient | null;
+  /** Live-update heartbeat interval in ms (default 30 s). Tests shorten it. */
+  liveHeartbeatMs?: number;
   /** Usernames allowed to use sandbox/test mode (compared lowercase). Absent = nobody. */
   sandboxUsers?: readonly string[];
 }
@@ -98,12 +101,20 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg));
   const forum = new ForumService(store);
   const support = new SupportService(store);
+  // Live updates: the store hands over events after each commit; the hub pushes them to the right sockets.
+  const live = new LiveHub(store, now, app.log, { heartbeatMs: opts.liveHeartbeatMs });
+  store.onLive = (events) => live.publish(events);
+  live.start();
+  app.addHook('onClose', async () => {
+    live.stop();
+  });
   const ctx: AppContext = {
     store,
     settings,
     now,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     limiter: new RateLimiter(10, 60_000),
+    live,
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
     game: new GameService(store, settings, app.log),
     tribes: new TribeService(store, settings),
@@ -137,20 +148,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
     // Blocks cross-site form/fetch posts: a browser always sends Origin on those.
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-      const origin = req.headers.origin;
-      if (origin !== undefined) {
-        let originHost: string | null = null;
-        let originNorm: string | null = null;
-        try {
-          const u = new URL(origin);
-          originHost = u.host.toLowerCase();
-          originNorm = u.origin.toLowerCase();
-        } catch {
-          // "null" or garbage: refuse below.
-        }
-        if (originHost === null || (originHost !== (req.headers.host ?? '').toLowerCase() && !(originNorm !== null && allowedOrigins.has(originNorm)))) {
-          throw new GameError('forbidden', 'Cross-site requests are not allowed.');
-        }
+      if (!originAllowed(req.headers.origin, req.headers.host, allowedOrigins)) {
+        throw new GameError('forbidden', 'Cross-site requests are not allowed.');
       }
     }
 
@@ -247,6 +246,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   supportRoutes(app, ctx);
   staffRoutes(app, ctx);
   rankingRoutes(app, ctx);
+  await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 
   // ---- static client + SPA fallback --------------------------------------------------------------

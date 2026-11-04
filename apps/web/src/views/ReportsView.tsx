@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
 import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
+import { useLiveTopic } from '../hooks/useLive.tsx';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
@@ -480,6 +481,7 @@ export function ReportsView() {
   useEffect(() => {
     void loadList();
   }, [loadList, unreadReports]);
+  useLiveTopic('reports', () => void loadList());
 
   useEffect(() => {
     if (selected === null) {

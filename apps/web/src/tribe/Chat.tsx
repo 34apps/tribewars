@@ -7,6 +7,8 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatChatTime } from '../format.ts';
 import { useGame } from '../game.ts';
 import { ReportButton } from '../components/supportBits.tsx';
+import { pollMs } from '../hooks/live.ts';
+import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 import { CharCount, PlainText } from './bits.tsx';
 
 const POLL_MS = 5000;
@@ -63,11 +65,16 @@ export function Chat() {
     lastId.current = messages && messages.length > 0 ? (messages[messages.length - 1]?.id ?? 0) : 0;
   }, [messages]);
 
+  const fetchNewer = useRef<() => void>(() => undefined);
   useEffect(() => {
     let cancelled = false;
     let inflight = false;
+    let again = false;
     const fetchMessages = async (initial: boolean) => {
-      if (inflight) return;
+      if (inflight) {
+        again = !initial; // a hint that lands mid-request must not be lost
+        return;
+      }
       inflight = true;
       try {
         const res = await api.chat(initial ? undefined : lastId.current || undefined);
@@ -79,22 +86,34 @@ export function Chat() {
         if (!cancelled) setError(errorMessage(e));
       } finally {
         inflight = false;
+        if (again && !cancelled) {
+          again = false;
+          // Let the merged messages update lastId first.
+          window.setTimeout(() => void fetchMessages(false), 50);
+        }
       }
     };
+    fetchNewer.current = () => void fetchMessages(false);
     void fetchMessages(true);
-    const id = window.setInterval(() => {
-      if (!document.hidden) void fetchMessages(false);
-    }, POLL_MS);
     const onVisible = () => {
       if (!document.hidden) void fetchMessages(false);
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [merge]);
+
+  // Safety poll: every 5 s, or every 60 s while live updates are connected (a 'chat' hint fetches right away).
+  const pollEvery = pollMs(POLL_MS, useLiveConnected());
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!document.hidden) fetchNewer.current();
+    }, pollEvery);
+    return () => window.clearInterval(id);
+  }, [pollEvery]);
+  useLiveTopic('chat', () => fetchNewer.current());
 
   // Keep the view pinned to the newest message unless the player scrolled up to read.
   useLayoutEffect(() => {

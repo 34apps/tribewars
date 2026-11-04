@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { MAIL_BODY_MAX, MAIL_SUBJECT_MAX } from '@clanfire/engine';
 import type { MailBox, MailDto, MailSummaryDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
+import { useLiveTopic } from '../hooks/useLive.tsx';
 import { formatAgo } from '../format.ts';
 import { useGame } from '../game.ts';
 import { ReportButton } from '../components/supportBits.tsx';
@@ -185,6 +186,7 @@ export function MailView() {
   useEffect(() => {
     void loadList(box);
   }, [loadList, box, unreadMail]);
+  useLiveTopic('mail', () => void loadList(boxRef.current));
 
   // A draft from Reply, a profile or a ranking row opens the compose form once.
   useEffect(() => {

@@ -317,21 +317,31 @@ export class TribeStore extends SqlBase {
 
   insertMember(playerId: number, tribeId: number, role: TribeRole, joinedAt: number): void {
     this.run('INSERT INTO tribe_members (player_id, tribe_id, role, joined_at) VALUES (?, ?, ?, ?)', playerId, tribeId, role, joinedAt);
+    this.memberChanged(playerId);
   }
 
   setMemberRole(playerId: number, role: TribeRole): void {
     this.run('UPDATE tribe_members SET role = ? WHERE player_id = ?', role, playerId);
+    this.memberChanged(playerId);
   }
 
   /** Replace the explicit grants (already validated by the service). */
   setMemberGrants(playerId: number, grants: TribeAction[]): void {
     this.run('UPDATE tribe_members SET grants = ? WHERE player_id = ?', JSON.stringify(grants), playerId);
+    this.memberChanged(playerId);
   }
 
   /** Leaving or being removed clears the grants (they live on the row) and the forum read markers. */
   deleteMember(playerId: number): void {
     this.run('DELETE FROM tribe_members WHERE player_id = ?', playerId);
     this.run('DELETE FROM forum_reads WHERE player_id = ?', playerId);
+    this.memberChanged(playerId);
+  }
+
+  /** Live: the player's tribe view changed, and their sockets may belong to another tribe channel now. */
+  private memberChanged(playerId: number): void {
+    this.emit({ kind: 'membership', playerId });
+    this.emit({ kind: 'player', playerId, topics: ['tribe', 'game'] });
   }
 
   memberCount(tribeId: number): number {
@@ -601,6 +611,7 @@ export class TribeStore extends SqlBase {
   /** Add a log line and drop the oldest beyond `keep`. */
   insertEvent(tribeId: number, createdAt: number, text: string, keep: number): void {
     this.run('INSERT INTO tribe_events (tribe_id, created_at, text) VALUES (?, ?, ?)', tribeId, createdAt, text);
+    this.emit({ kind: 'tribe', tribeId, topics: ['tribe'] });
     this.run(
       `DELETE FROM tribe_events WHERE tribe_id = ?
          AND id <= COALESCE((SELECT id FROM tribe_events WHERE tribe_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`,
@@ -624,6 +635,7 @@ export class TribeStore extends SqlBase {
   /** Add a chat message and drop the oldest beyond `keep`. */
   insertMessage(tribeId: number, playerId: number, text: string, createdAt: number, keep: number): number {
     const id = this.run('INSERT INTO tribe_messages (tribe_id, player_id, text, created_at) VALUES (?, ?, ?, ?)', tribeId, playerId, text, createdAt).id;
+    this.emit({ kind: 'tribe', tribeId, topics: ['chat'] });
     this.run(
       `DELETE FROM tribe_messages WHERE tribe_id = ?
          AND id <= COALESCE((SELECT id FROM tribe_messages WHERE tribe_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`,

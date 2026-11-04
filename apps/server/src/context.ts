@@ -2,6 +2,7 @@ import type { WorldSettings } from '@clanfire/engine';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
+import type { LiveHub } from './live.ts';
 import type { MailService } from './mail-service.ts';
 import type { ReportService } from './report-service.ts';
 import type { StaffService } from './staff-service.ts';
@@ -22,6 +23,8 @@ export interface AppContext {
   msgReports: ReportService;
   settings: WorldSettings;
   limiter: RateLimiter;
+  /** WebSocket hub for live-update hints (live.ts). Absent in the in-browser preview, which has no network. */
+  live?: LiveHub;
   now: () => number;
   secureCookies: boolean;
 }

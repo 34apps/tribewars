@@ -53,7 +53,10 @@ export class MailStore extends SqlBase {
   }
 
   insert(from: number, to: number, subject: string, body: string, t: number): number {
-    return this.run('INSERT INTO mail (from_player, to_player, subject, body, created_at) VALUES (?, ?, ?, ?, ?)', from, to, subject, body, t).id;
+    const id = this.run('INSERT INTO mail (from_player, to_player, subject, body, created_at) VALUES (?, ?, ?, ?, ?)', from, to, subject, body, t).id;
+    this.emit({ kind: 'player', playerId: to, topics: ['mail', 'game'] }); // game: the unread count
+    if (from !== to) this.emit({ kind: 'player', playerId: from, topics: ['mail'] }); // their other tabs: sent box
+    return id;
   }
 
   markRead(id: number, playerId: number, t: number): void {

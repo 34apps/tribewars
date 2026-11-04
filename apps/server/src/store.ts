@@ -24,6 +24,7 @@ import {
 import { statColumn } from './db.ts';
 import { SqlBase, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
+import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
 import { ReportStore } from './report-store.ts';
 import { StaffStore, type NewAudit } from './staff-store.ts';
@@ -413,6 +414,8 @@ export class Store extends SqlBase {
     this.staff = new StaffStore(db);
     this.support = new SupportStore(db);
     this.msgReports = new ReportStore(db);
+    this.emit = (event) => this.queueLive(event);
+    for (const s of [this.tribes, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
   }
 
   /** Append a row to the audit log (never put secrets in `detail`). */
@@ -452,11 +455,12 @@ export class Store extends SqlBase {
     if (this.depth > 0) return fn();
     this.db.exec('BEGIN IMMEDIATE');
     this.depth = 1;
+    let result: T;
     try {
-      const result = fn();
+      result = fn();
       this.db.exec('COMMIT');
-      return result;
     } catch (err) {
+      this.pendingLive = []; // rolled back: nothing happened, so nothing is announced
       try {
         this.db.exec('ROLLBACK');
       } catch {
@@ -465,6 +469,55 @@ export class Store extends SqlBase {
       throw err;
     } finally {
       this.depth = 0;
+    }
+    this.flushLive(); // only after COMMIT, never inside the transaction
+    return result;
+  }
+
+  /** Receives live-update events after the commit that caused them (set by the live hub). Must not throw. */
+  onLive: ((events: readonly LiveEvent[]) => void) | null = null;
+  private pendingLive: LiveEvent[] = [];
+
+  /** Inside a transaction: hold the event until COMMIT. Outside one the write is already committed: deliver now. */
+  private queueLive(event: LiveEvent): void {
+    this.pendingLive.push(event);
+    if (this.depth === 0) this.flushLive();
+  }
+
+  private flushLive(): void {
+    if (this.pendingLive.length === 0) return;
+    const events = this.pendingLive;
+    this.pendingLive = [];
+    try {
+      this.onLive?.(events);
+    } catch {
+      // A broken listener must never break a game action that already committed.
+    }
+  }
+
+  /** Owner ids of two villages (null = abandoned/unknown), for movement hints. */
+  private ownersOf(a: number, b: number): [number | null, number | null] {
+    const owner = (id: number): number | null => {
+      const r = this.get('SELECT owner_id FROM villages WHERE id = ?', id);
+      return r ? ((r.owner_id as number | null) ?? null) : null;
+    };
+    return [owner(a), owner(b)];
+  }
+
+  /**
+   * Hints for a movement that was created or has finished: both sides' game state changes. An incoming attack or
+   * support also tells the target; an attack also changes the target tribe's alert list. Scouts stay silent for the
+   * target (they must not learn that one is coming).
+   */
+  private emitMovement(kind: MovementRow['kind'], originVillageId: number, targetVillageId: number, created: boolean): void {
+    const [from, to] = this.ownersOf(originVillageId, targetVillageId);
+    if (from !== null) this.emit({ kind: 'player', playerId: from, topics: ['game'] });
+    // Scouts and returning troops stay silent for the village they came from / went to; a shipment shows up on arrival.
+    const visibleToTarget = kind === 'attack' || kind === 'support' || (kind === 'shipment' && !created);
+    if (to !== null && to !== from && visibleToTarget) this.emit({ kind: 'player', playerId: to, topics: ['game'] });
+    if (kind === 'attack' && to !== null) {
+      const t = this.tribes.membership(to);
+      if (t) this.emit({ kind: 'tribe', tribeId: t.tribeId, topics: ['game', 'tribe'] });
     }
   }
 
@@ -659,6 +712,7 @@ export class Store extends SqlBase {
   banPlayer(playerId: number, reason: string, now: number): void {
     this.run('UPDATE players SET banned_at = ?, ban_reason = ? WHERE id = ?', now, reason, playerId);
     this.run('DELETE FROM sessions WHERE player_id = ?', playerId);
+    this.emit({ kind: 'player-banned', playerId });
   }
 
   unbanPlayer(playerId: number): void {
@@ -680,6 +734,7 @@ export class Store extends SqlBase {
 
   deleteSession(tokenHash: string): void {
     this.run('DELETE FROM sessions WHERE token_hash = ?', tokenHash);
+    this.emit({ kind: 'session-ended', tokenHash });
   }
 
   deleteExpiredSessions(now: number): void {
@@ -787,7 +842,7 @@ export class Store extends SqlBase {
   // ---- movements -------------------------------------------------------------------------------
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
-    return this.run(
+    const id = this.run(
       'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
@@ -799,6 +854,8 @@ export class Store extends SqlBase {
       stampRanks(m.ranks),
       m.returnSecs ?? null,
     ).id;
+    this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, true);
+    return id;
   }
 
   getMovement(id: number): MovementRow | null {
@@ -807,7 +864,9 @@ export class Store extends SqlBase {
   }
 
   deleteMovement(id: number): void {
+    const m = this.getMovement(id);
     this.run('DELETE FROM movements WHERE id = ?', id);
+    if (m) this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, false);
   }
 
   /** Movements that have arrived by `now`, in processing order. */
@@ -970,6 +1029,7 @@ export class Store extends SqlBase {
       r.playerId,
       REPORTS_KEEP,
     );
+    this.emit({ kind: 'player', playerId: r.playerId, topics: ['reports', 'game'] }); // game: the unread count
     return id;
   }
 

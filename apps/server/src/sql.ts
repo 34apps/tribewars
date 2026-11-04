@@ -1,12 +1,15 @@
 // Shared prepared-statement plumbing for the stores. SQL is only ever written with bound parameters.
 
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
+import type { LiveEmit } from './live-events.ts';
 
 export type Raw = Record<string, unknown>;
 export type Param = string | number | null;
 
 export abstract class SqlBase {
   private readonly cache = new Map<string, StatementSync>();
+  /** Live-update hints (see live-events.ts). The Store wires this to its commit-aware queue; the default drops them. */
+  emit: LiveEmit = () => {};
 
   constructor(readonly db: DatabaseSync) {}
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
+import { pollMs } from './live.ts';
+import { useLiveConnected, useLiveTopic } from './useLive.tsx';
 
 const POLL_MS = 10_000;
 /** Ignore offset changes smaller than this so countdowns do not wobble with network latency. */
@@ -20,7 +22,7 @@ export interface GameStateStore {
 }
 
 /**
- * GET /api/state on load, every 10 s, on window focus and after every action.
+ * GET /api/state on load, every 10 s (60 s while the live socket is up; hints refetch sooner), on window focus and after every action.
  * Responses that started before a newer one was applied are dropped.
  */
 export function useGameState(onUnauthorized: () => void): GameStateStore {
@@ -64,20 +66,29 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
 
   useEffect(() => {
     void refresh();
-    const poll = window.setInterval(() => {
-      if (!document.hidden) void refresh();
-    }, POLL_MS);
     const wake = () => {
       if (!document.hidden && Date.now() - lastStart.current > 1000) void refresh();
     };
     window.addEventListener('focus', wake);
     document.addEventListener('visibilitychange', wake);
     return () => {
-      window.clearInterval(poll);
       window.removeEventListener('focus', wake);
       document.removeEventListener('visibilitychange', wake);
     };
   }, [refresh]);
+
+  // Slow safety poll while the live socket is up; today's 10 s without it.
+  const connected = useLiveConnected();
+  const pollEvery = pollMs(POLL_MS, connected);
+  useEffect(() => {
+    const poll = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, pollEvery);
+    return () => window.clearInterval(poll);
+  }, [refresh, pollEvery]);
+
+  // Hints: state also carries the unread counts and tribe counters, so these topics all refresh it.
+  useLiveTopic(['game', 'reports', 'mail', 'tribe'], () => void refresh());
 
   // Refresh just after the next movement lands so reports and troops appear without waiting for the poll.
   useEffect(() => {
@@ -86,10 +97,10 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
     let next = Infinity;
     for (const m of data.movements) if (m.arriveAt > serverNow) next = Math.min(next, m.arriveAt);
     const delay = next - serverNow + 1500;
-    if (!Number.isFinite(delay) || delay > POLL_MS) return;
+    if (!Number.isFinite(delay) || delay > pollEvery) return;
     const id = window.setTimeout(() => void refresh(), delay);
     return () => window.clearTimeout(id);
-  }, [data, refresh]);
+  }, [data, refresh, pollEvery]);
 
   const applyVillage = useCallback((village: OwnVillageDto) => {
     applied.current = ++seq.current;

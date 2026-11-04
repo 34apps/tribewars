@@ -6,8 +6,10 @@ import { api, errorMessage } from '../api.ts';
 import { ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration } from '../format.ts';
 import { useGame } from '../game.ts';
+import { pollMs } from '../hooks/live.ts';
+import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 
-const POLL_MS = 10_000;
+const POLL_MS = 10_000; // slower while live updates are connected
 
 function AlertRow({ a }: { a: TribeAlertDto }) {
   const { now, village, showOnMap, viewMovement } = useGame();
@@ -81,11 +83,12 @@ export function Alerts() {
     void load();
   }, [load, tribeAlerts]);
 
-  // Refresh every 10 s while this section is on screen and the page is visible.
+  // Refresh every 10 s (60 s with live updates) while this section is on screen and the page is visible.
+  const pollEvery = pollMs(POLL_MS, useLiveConnected());
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!document.hidden) void load();
-    }, POLL_MS);
+    }, pollEvery);
     const wake = () => {
       if (!document.hidden) void load();
     };
@@ -94,7 +97,9 @@ export function Alerts() {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', wake);
     };
-  }, [load]);
+  }, [load, pollEvery]);
+
+  useLiveTopic('tribe', () => void load());
 
   return (
     <section className="card" aria-labelledby="alerts-title">

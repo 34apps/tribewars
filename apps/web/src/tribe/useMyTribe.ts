@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MyTribeResponse } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { useGame } from '../game.ts';
+import { pollMs } from '../hooks/live.ts';
+import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 
 const POLL_MS = 20_000;
 
@@ -90,12 +92,17 @@ export function useMyTribe(): MyTribeStore {
     void reload();
   }, [reload, tribeId, role, tribeInvites]);
 
+  const pollEvery = pollMs(POLL_MS, useLiveConnected());
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!document.hidden && !busyRef.current) void reload();
-    }, POLL_MS);
+    }, pollEvery);
     return () => window.clearInterval(id);
-  }, [reload]);
+  }, [reload, pollEvery]);
+
+  useLiveTopic('tribe', () => {
+    if (!busyRef.current) void reload();
+  });
 
   return { data, error, busy, reload, run };
 }

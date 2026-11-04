@@ -8,6 +8,7 @@ import type { ToastItem } from './components/Toasts.tsx';
 import { GameContext, MENU_PAGES, TABS } from './game.ts';
 import type { GameApi, MailDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
+import { LiveProvider } from './hooks/useLive.tsx';
 import { useNow } from './hooks/useNow.ts';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MailView } from './views/MailView.tsx';
@@ -46,7 +47,16 @@ const MAX_TOASTS = 2;
 const TOAST_MS = 4000;
 const TOAST_LONG_MS = 8000;
 
+/** The signed-in app. Mounted only while signed in, so the live socket lives and dies with the session. */
 export function Game({ onSignedOut }: { onSignedOut: () => void }) {
+  return (
+    <LiveProvider>
+      <GameScreen onSignedOut={onSignedOut} />
+    </LiveProvider>
+  );
+}
+
+function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const store = useGameState(onSignedOut);
   const now = useNow(store.serverOffset);
   const [tab, navigate] = useTab();
