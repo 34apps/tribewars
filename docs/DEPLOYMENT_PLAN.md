@@ -64,7 +64,7 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
 | 5 | AWS setup (owner + a session): account, domain, ACM cert, S3, CloudFront, EC2, SSM, alarms — ideally as code (CDK/Terraform) | M | ☐ |
 | 6 | **CI** (GitHub Actions): `npm run check`, `npm run build`, `npm audit`, secret scan; deploy: web → S3 + CloudFront invalidation, server → `git pull && docker compose up -d --build` on the instance via SSM | M | ☐ |
 | 7 | Security Phase 1 (`SECURITY_ROADMAP.md`): CSP + HSTS, session expiry/rotation, password policy | M | ☐ |
-| 8 | Schema version table + numbered migrations (today: `CREATE IF NOT EXISTS` + add-missing-columns) | M | ☐ |
+| 8 | Safe migrations: schema version (`PRAGMA user_version`), automatic backup before any migration (start aborts if it fails), all-or-nothing column changes, guard test | S | ✅ `d37e4a3` |
 
 Not needed: Postgres/RDS, Redis, load balancer, auto-scaling. WebSockets later on the same process.
 
@@ -95,13 +95,51 @@ When the native app project starts (all additive; the web keeps its cookie login
    on the backup bucket. Install Docker + compose plugin and git; `git clone` the repo to `/opt/clanfire`.
 3. DNS: `origin.<domain>` → Elastic IP. Security group: 80 from anywhere (Let's Encrypt), 443 from the
    CloudFront origin-facing prefix list only, no 22.
-4. `sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data`;
-   `cp deploy/.env.example deploy/.env`, fill it in; `cd deploy && docker compose up -d --build`.
+4. `sudo mkdir -p /srv/clanfire/data && sudo chown 1000:1000 /srv/clanfire/data`; in `deploy/`:
+   `cp .env.example .env` (Caddy: origin domain + secret) and `cp game.env.example game.env` (game
+   settings), fill both in; `docker compose up -d --build`.
 5. S3 bucket for the web (private) + one for backups (lifecycle 30 days). `npm run build`, upload
    `apps/web/dist` to the web bucket.
 6. CloudFront: ACM cert (us-east-1) for `play.<domain>`; origins S3 (OAC) and `origin.<domain>` (HTTPS
    only, custom header `X-Origin-Verify`); behaviours as in §2; HTTP/3 on; `play.<domain>` → CloudFront.
 7. Cron on the host: `deploy/backup.sh` daily (`BACKUP_BUCKET=…`). Restore test: download a backup,
    start a local server on it with `DATABASE_PATH`, sign in.
-8. Update: `git pull && docker compose up -d --build` (a few seconds of downtime; in-flight troop
-   movements are stored with their arrival time and resolve on restart).
+8. Update: `deploy/update.sh` (details in `deploy/README.md`); rollback `deploy/rollback.sh`;
+   restore a backup `deploy/restore.sh <file>`.
+
+## 6. Updates never lose the world
+
+- **All world state is in the database file** on the host (`/srv/clanfire/data`): villages with their
+  build, recruit and research queues and resources (`villages.state_json`, settled lazily from
+  `lastUpdate`), troop movements (`movements`), stationed support, players, tribes, reports, mail.
+  Containers hold nothing; rebuilding or replacing one changes no game data. Nothing on startup
+  regenerates or resets the world (`world.ts` only creates one when none exists).
+- **`update.sh`**: builds the new image while the old one keeps serving → backs up the database (and to
+  S3) — no backup, no update → swaps the container (old one gets SIGTERM: stops its tick, finishes
+  requests, closes the DB; 30 s grace) → waits until healthy → otherwise puts the previous image back
+  automatically. Players see a few seconds of downtime.
+- **Catch-up after downtime:** on start, before taking requests, the server resolves every movement
+  that came due while it was down, oldest first (`arrive_at, id`). Each battle uses the villages as
+  they were *at the arrival time*: a recruit that finished at 10:00 defends against an attack that
+  landed at 10:05, one finishing at 10:10 does not. Builds and recruits need no catch-up: they are
+  worked out from their timestamps whenever a village is read. Proven by `apps/server/test/restart.test.ts`.
+- **Migrations:** a new version that changes the database layout first writes
+  `backups/pre-migrate-v<old>-v<new>-<time>.sqlite` (refuses to start if that fails), then applies
+  the change in a transaction. Changes are additive only (new tables/columns, copied rebuilds), so the
+  previous version still runs after a rollback. Developers bump `SCHEMA_VERSION` in `db.ts` with every
+  schema change; a test fails if they forget. (The guard hashes the migration code, so a pure refactor
+  of those functions also asks for a bump — harmless.)
+- A crash or `docker kill` mid-write loses nothing committed: every battle/arrival is its own
+  transaction. Only a sudden machine power loss could drop the last second (`synchronous=NORMAL`);
+  the file stays consistent. Daily S3 backups cover losing the machine.
+
+## 7. Scaling later (same image, no rewrite)
+
+1. **Bigger machine** (t4g.medium → large → xlarge): one click, same setup; one world handles
+   thousands of players.
+2. **More worlds**: one more `game-wN` service with its own data folder and Caddy route
+   (`deploy/README.md` shows it). Never two containers on one world.
+3. **Many worlds / several machines**: the same image on ECS (EC2) with one task per world and a
+   persistent EBS volume, an ALB once there is more than one machine, and a small Postgres (RDS)
+   account service so one login works across worlds.
+

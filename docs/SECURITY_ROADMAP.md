@@ -27,7 +27,7 @@ Must hold for every feature that sends or receives troops:
 2. **Deterministic order.** Same arrival ms → lower `id` first. Tests with a controllable clock for races
    (two attacks and a support landing in the same second; support arriving 1 ms before an attack).
 3. **Resolve at the arrival time, not at tick time.** Battle and loot use the village state settled
-   *at `arrive_at`*, even if the tick runs late (server was busy or down). Verify after restarts.
+   *at `arrive_at`*, even if the tick runs late (server was busy or down). ✅ Verified after restarts (`restart.test.ts`, 2026-11-04); startup catch-up runs before listening; the caretaker resolves due movements before settling villages.
 4. **Idempotent.** A movement row is deleted/marked in the same transaction as its outcome; a crash
    never double-resolves or loses it.
 5. **Fair under load.** Validate → compute → write inside one `BEGIN IMMEDIATE`; no awaits inside.

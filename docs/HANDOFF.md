@@ -5,10 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`94f77e4`, `352b072`): AWS chosen and planned (`docs/DEPLOYMENT_PLAN.md`): SQLite on one Graviton EC2
-(Docker: Caddy + game) behind CloudFront, web on S3, ≈ $20/month. This repo = desktop + phone browsers + backend.
-Server is now compiled (`apps/server/dist`), `npm run backup`, `Dockerfile` + `deploy/` (never built: no Docker here).
-Not pushed. Next: owner creates the AWS account + domain; then a session follows the plan's §5 checklist.
+2026-11-04 (`d37e4a3`): owner: updates must never lose the world. All state is in the DB file; server now catches up
+overdue movements at startup before listening; caretaker order bug fixed; schema version + automatic pre-migration
+backup; restart tests. `deploy/update.sh` (backup first, health wait, auto rollback), `rollback.sh`, `restore.sh`.
+Earlier today (`94f77e4`, `352b072`): AWS plan, compiled server, Dockerfile. Docker never built here. Not pushed.
+Next: owner creates the AWS account + domain; then follow `docs/DEPLOYMENT_PLAN.md` §5. Bump `SCHEMA_VERSION` (db.ts) with every schema change.
 
 Before that (`b8b8b61`): owner said the scenery around the village looked weird. Current landscape: loaf-shaped hills and triangle crags
 replaced by rolling hills and rocky outcrops. Option C: broken mountain cut edges and white-slab cliffs fixed. A and B looked fine in renders.
@@ -39,7 +40,7 @@ Stray `Pasted ... textClipping` file in the repo root is the owner's; don't comm
 - Style **D · Toy Diorama** everywhere (village tried style B on 2026-11-04, owner went back to toy): village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
-- Tests: engine 223, server 217, web 2, all green. Not deployed; no CI.
+- Tests: engine 223, server 223, web 2, all green. Not deployed; no CI.
 
 ## Owner decisions (don't re-ask)
 

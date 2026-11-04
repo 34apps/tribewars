@@ -58,7 +58,8 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Ask Mags AI advisor is off (owner: credit spend). If revived: decide a budget first; server code is ready behind `ADVISOR_ENABLED`; add stationed support troops to her snapshot.
 - Mobile polish: installable web app (PWA), haptics-free touch tuning, landscape layout.
 - Deployment (AWS): open items in `docs/DEPLOYMENT_PLAN.md` §3 (AWS setup as code, CI + deploy,
-  security Phase 1, schema migrations). Phone-browser speed items in §4 (split the main JS file,
+  security Phase 1). First real Docker build + a test run of `deploy/update.sh`, `rollback.sh` and
+  `restore.sh` on the instance (never run yet). Backup restore test. Phone-browser speed items in §4 (split the main JS file,
   installable web app, fewer polls). Native-app items (token login, `/api/v1`, engine package) wait
   for that project.
 - Security: work through `docs/SECURITY_ROADMAP.md` Phase 1 (CSP, session expiry, password policy, CI audit; global rate limits are done) before any public server.
