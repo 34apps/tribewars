@@ -5,7 +5,9 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`a4eb098`): owner screenshots (wall 13 and 18) showed the top corner tower badly joined to its walls.
+2026-11-04 (`dba0012`): wall level 5 watchtower flag was clipped by the scene's top edge; `sceneViewBox` stage 1 raised 296→312
+(`apps/web/src/art/buildings.ts`). Not rendered here; owner should check level 5 at 360 and 1440 px. Checks passed.
+Before that (`a4eb098`): owner screenshots (wall 13 and 18) showed the top corner tower badly joined to its walls.
 Cause: draw order. Back tower was sorted by its front corner, so its base was painted over the first back-wall pieces
 (tie at 13–17, overlap at 18+). Now sorted by centre in `wallItems`; back walls start at its face. Other corners unchanged.
 Not rendered here. Very next step: owner re-checks Design preview at 13, 17, 18, 20 (360 and 1440 px); if the top tower
