@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`b3a01ba`): barracks, stables, hidden vault, gold mine, iron mine (levels 1–3, files in
-`apps/web/src/art/buildings/`) redrawn on the town hall's isometric angle: two visible walls (shear matrices
-`1 .5 0 -1` left / `1 -.5 0 -1` right), door on the lit wall, mine entrances/rails/carts along the diagonal, all on the
-plinth diamond. Drawn blind (no renderer, XML not parsed, `design/sprites` copy not synced). Very next step: open the
-village / Settings → Design preview at 360 and 1440 px and fix any broken sprite. Checks passed (check + build).
+2026-11-04 (`da2867c`): village layout only. All ten plots in `PLACEMENT` (`art/buildings.ts`) moved inward, and the
+paths + two crop fields in `art/scenery.tsx` re-aimed, so every building pad keeps ~25 grid units of open ground from the
+ring wall (plate 234, wall unchanged). Not viewed (no renderer): possible touching pairs are market/farm, mine path/greens
+field, drillyard/lumber; tree/rock zones near the wall were left as they were. Very next step: open the village at 360 and
+1440 px and adjust. The earlier isometric sprite redraw (`b3a01ba`) is also still unviewed. Checks passed (check + build).
 
 ## How the owner works (important)
 
