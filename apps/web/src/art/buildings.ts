@@ -60,6 +60,17 @@ export function buildingStage(id: BuildingId, level: number): Stage {
   return level <= a ? 1 : level <= b ? 2 : 3;
 }
 
+/** First wall level with the grand look (gold trim, taller towers, crest on the gate); levels below keep stage 3. */
+export const WALL_GRAND_FROM = 18;
+
+/** The ring wall's look: the three building stages plus a fourth, grand one for the last levels. */
+export type WallLook = Stage | 4;
+
+export function wallLook(level: number): WallLook {
+  const s = buildingStage('wall', level);
+  return s === 3 && level >= WALL_GRAND_FROM ? 4 : s;
+}
+
 /** "Lv 6–12" style range for a stage, for captions. */
 export function stageRange(id: BuildingId, stage: Exclude<Stage, 0>): string {
   const [a, b] = STAGE_TOPS[id];
@@ -104,9 +115,9 @@ export const SCENE_FOCUS = { x: C.x, y: C.y - 30 } as const;
 export const SCENE_VIEWBOX = { x: C.x - 474, y: C.y - 250, w: 948, h: 250 + 262 } as const;
 
 /** The scene grows upwards when the wall's towers get taller (the back corner tower and its flag must stay inside). */
-export function sceneViewBox(wallStage: Stage = 0): { x: number; y: number; w: number; h: number } {
+export function sceneViewBox(wallStage: WallLook = 0): { x: number; y: number; w: number; h: number } {
   // The Town Hall stands in the middle, so even at its last stage its label stays well below the plate's top corner.
-  const wall = wallStage >= 3 ? 342 : wallStage === 2 ? 304 : wallStage === 1 ? 296 : 250;
+  const wall = wallStage === 4 ? 376 : wallStage === 3 ? 342 :wallStage === 2 ? 304 : wallStage === 1 ? 296 : 250;
   const top = C.y - wall;
   const bottom = SCENE_VIEWBOX.y + SCENE_VIEWBOX.h;
   return { x: SCENE_VIEWBOX.x, y: top, w: SCENE_VIEWBOX.w, h: bottom - top };

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
-import { buildingStage } from '../../art/buildings.ts';
+import { wallLook } from '../../art/buildings.ts';
 import { PREVIEW_MAX_LEVEL, setDesignPreview, setPreviewLevel, useDesignPreview } from './designPreviewState.ts';
 
 const bar: React.CSSProperties = {
@@ -40,7 +40,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
   // Only the wall is drawn in this preview.
   const max = BUILDINGS.wall.maxLevel;
   const changed = BUILDING_IDS.filter(
-    (id) => id === 'wall' && level > 0 && buildingStage(id, Math.min(level, max)) !== buildingStage(id, Math.max(0, Math.min(level - 1, max))),
+    (id) => id === 'wall' && level > 0 && wallLook(Math.min(level, max)) !== wallLook(Math.max(0, Math.min(level - 1, max))),
   );
 
   // Drawn straight into <body>: inside the village board an ancestor's containment/overflow would clip or move a fixed bar.

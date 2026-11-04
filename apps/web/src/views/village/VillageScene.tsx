@@ -20,8 +20,9 @@ import {
   sceneViewBox,
   scopeIds,
   spriteUrl,
+  wallLook,
 } from '../../art/buildings.ts';
-import type { Box, Stage } from '../../art/buildings.ts';
+import type { Box, Stage, WallLook } from '../../art/buildings.ts';
 import { Ground, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
@@ -34,7 +35,8 @@ const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vaul
 
 /** What the scene draws for one building. */
 interface ArtState {
-  stage: Stage;
+  /** 0-3 for every building; the wall also has a fourth, grand look. */
+  stage: WallLook;
   /** Has a job in the build queue. */
   queued: boolean;
   /** Not built and its requirements are not met yet: drawn as a faded plot with a lock. */
@@ -109,7 +111,7 @@ export const SceneArt = memo(function SceneArt({
   const items: DepthItem[] = [...sceneryItems()];
   const wall = arts.wall;
   if (wall.stage > 0) {
-    for (const it of wallItems(wall.stage as Exclude<Stage, 0>)) {
+    for (const it of wallItems(wall.stage as Exclude<WallLook, 0>)) {
       items.push({
         ...it,
         node: (
@@ -126,7 +128,7 @@ export const SceneArt = memo(function SceneArt({
     if (id === 'wall' && !art.queued) continue;
     // Unbuilt buildings show nothing at all (no empty plot): they are started from the Town Hall list.
     if (art.stage === 0 && !art.queued) continue;
-    let url = spriteUrl(id, art.stage);
+    let url = spriteUrl(id, art.stage as Stage);
     if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
     const node = (
@@ -273,7 +275,7 @@ export function VillageScene({
   const queue = levelOverride == null ? live.buildQueue : [];
   const artKey = BUILDING_IDS.map(
     (id) =>
-      `${buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
+      `${id === 'wall' ? wallLook(levels[id]) : buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
         levels[id] === 0 && unmetRequirements(levels, BUILDINGS[id].requires).length > 0 ? 'l' : ''
       }`,
   ).join(',');
@@ -282,7 +284,7 @@ export function VillageScene({
     const parts = artKey.split(',');
     BUILDING_IDS.forEach((id, i) => {
       const p = parts[i] ?? '0';
-      out[id] = { stage: Number(p[0]) as Stage, queued: p.includes('q'), locked: p.includes('l') };
+      out[id] = { stage: Number(p[0]) as WallLook, queued: p.includes('q'), locked: p.includes('l') };
     });
     return out;
   }, [artKey]);
