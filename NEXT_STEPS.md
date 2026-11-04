@@ -31,7 +31,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Tribe mass message (forum threads and player mail are done). Look at the forum + per-member tribe rights in a browser.
 
 ## Gameplay follow-ups
-- **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px, and check the new village layout (bigger ring wall, buildings spread out, Drillyard in the middle: tune `PLACEMENT` in `apps/web/src/art/buildings.ts`); show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
+- **Drillyard (built end to end)** — still to do: look at the panel and the 3 Drillyard sprites in a browser at 360 and 1440 px, and check the new village layout (2026-11-04: smaller buildings, more space, lumber grove/stumps/logs, mine boulders; tune `PLACEMENT` in `apps/web/src/art/buildings.ts` and `PROPS` in `apps/web/src/art/scenery.tsx`; richer lumber/mine sprites with saw, cart, ore are a follow-up); show ranks in battle reports; research/rank not audit-logged; tune research/rank costs. Later: new units unlocked per building level (ranged Barracks unit, heavy Stables unit, with art).
 - Map panel for abandoned villages: show a rough strength hint (e.g. "weak / strong") so players
   don't send 3 Pikemen into a big one. Their map size (points) is also only refreshed when raided.
 - Test mode follow-ups: warp for build/training queues; look at the new "Way out / Way home" inputs in the send form at 360/1440 px. Owner to confirm: abandoned villages never recruit for ALL players now (raided ones stay empty for good), not only in test mode.

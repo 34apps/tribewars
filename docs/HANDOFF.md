@@ -2,10 +2,11 @@
 
 ## Last run
 
-2026-11-03 (`c7bc950`): expanding world — abandoned villages now start like a player village and each grows in its own random order (`createNpcVillage(tier, t, growthSeed)`, `npc.growthSeed`, shuffle in `village.ts`). Also earlier: 70% ruin size + hover card (`012066d`).
-Left: villages already in an existing DB keep old bigger levels (delete `clanfire-world.sqlite` for a fresh world); no server test for the seeded spawn; not viewed in a browser; `EXPAND_*`/`NPC_RING_*` untuned.
-Very next step: delete the dev world DB, `npm run dev`, sign up, check the neighbours look small.
-Checks passed (engine 223 + server 210), build ok.
+2026-11-04 (`08aa071`): village view re-laid out — smaller, more spread-out buildings (`PLACEMENT` in `art/buildings.ts`), new `PROPS` in `art/scenery.tsx` (lumber grove + stumps + log stack, iron/gold boulder fields, corner woods; new `stump`/`logs` props).
+Left: NOT viewed in a browser (positions picked by arithmetic against the ring wall) — check 360 px and 1280–1440 px for overlaps, labels, wall label (`WALL_HIT`) vs farm; sprite art for lumber/mines itself unchanged (could add saw/cart/ore details); smoke puffs moved by estimate.
+Very next step: `npm run dev`, open the village, nudge any overlapping positions.
+Checks passed, build ok.
+Earlier (`c7bc950`): expanding-world abandoned villages start at player level; delete `clanfire-world.sqlite` for a fresh world.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
