@@ -242,33 +242,57 @@ const onField = (u: number, v: number, pad: number) => FIELDS.some((q) => u > q.
 
 type Pal = typeof HILL;
 
-/** A chunky grass hill (dome with a lit side and a shaded side). */
-function mound(x: number, y: number, w: number, h: number, pal: Pal = HILL): ReactNode {
+/** A rolling grass hill: a bell dome with a soft, off-centre peak, lit left, shaded right, sitting flush on the ground. */
+function mound(x: number, y: number, w: number, h: number, pal: Pal = HILL, skew = 0.12): ReactNode {
   const top = y - h;
-  const body = `M${f(x - w)} ${f(y)}C${f(x - w)} ${f(y - h * 1.15)} ${f(x - w * 0.5)} ${f(top)} ${f(x)} ${f(top)}C${f(x + w * 0.5)} ${f(top)} ${f(x + w)} ${f(y - h * 1.15)} ${f(x + w)} ${f(y)}A${f(w)} ${f(w * 0.36)} 0 0 1 ${f(x - w)} ${f(y)}Z`;
-  const shade = `M${f(x + w * 0.22)} ${f(top + h * 0.04)}C${f(x + w * 0.7)} ${f(top + h * 0.12)} ${f(x + w)} ${f(y - h * 0.8)} ${f(x + w)} ${f(y)}A${f(w)} ${f(w * 0.36)} 0 0 1 ${f(x + w * 0.2)} ${f(y + w * 0.35)}C${f(x + w * 0.62)} ${f(y + w * 0.12)} ${f(x + w * 0.64)} ${f(y - h * 0.5)} ${f(x + w * 0.22)} ${f(top + h * 0.04)}Z`;
+  const px = x + w * skew;
+  const L = `${f(x - w)} ${f(y)}`;
+  const R = `${f(x + w)} ${f(y)}`;
+  const P = `${f(px)} ${f(top)}`;
+  const left = `C${f(x - w * 0.94)} ${f(y - h * 0.5)} ${f(px - w * 0.62)} ${f(top + h * 0.02)} ${P}`;
+  const right = `C${f(px + w * 0.5)} ${f(top)} ${f(x + w * 0.92)} ${f(y - h * 0.42)} ${R}`;
+  const base = `Q${f(x)} ${f(y + w * 0.1)} ${L}`;
+  const body = `M${L}${left}${right}${base}Z`;
+  const shade = `M${P}${right}Q${f(x + w * 0.6)} ${f(y + w * 0.08)} ${f(x + w * 0.16)} ${f(y + w * 0.06)}C${f(x + w * 0.34)} ${f(y - h * 0.4)} ${f(px + w * 0.02)} ${f(top + h * 0.42)} ${P}Z`;
+  const hx = x - w * 0.3 + w * skew * 0.5;
+  const hy = y - h * 0.62;
   return (
-    <g strokeLinejoin="round">
-      <ellipse cx={f(x + w * 0.12)} cy={f(y + w * 0.1)} rx={f(w * 1.08)} ry={f(w * 0.4)} fill={INK} opacity={0.16} />
+    <g strokeLinejoin="round" strokeLinecap="round">
+      <ellipse cx={f(x + w * 0.1)} cy={f(y + w * 0.04)} rx={f(w * 1.02)} ry={f(w * 0.2)} fill={INK} opacity={0.14} />
       <path d={body} fill={pal.mid} />
       <path d={shade} fill={pal.dark} />
-      <ellipse cx={f(x - w * 0.34)} cy={f(y - h * 0.6)} rx={f(w * 0.3)} ry={f(h * 0.26)} transform={`rotate(-26 ${f(x - w * 0.34)} ${f(y - h * 0.6)})`} fill={pal.light} opacity={0.85} />
-      <path d={body} fill="none" stroke={INK} strokeWidth={LW} />
+      <ellipse cx={f(hx)} cy={f(hy)} rx={f(w * 0.26)} ry={f(h * 0.2)} transform={`rotate(-30 ${f(hx)} ${f(hy)})`} fill={pal.light} opacity={0.85} />
+      <path d={`M${L}${left}${right}`} fill="none" stroke={INK} strokeWidth={LW} />
     </g>
   );
 }
 
-/** A rocky crag: two faceted faces and a light ridge. */
+/** A rocky outcrop: 2-3 jagged peaks of different height, lit left and shaded right facets, rubble at the foot. */
 function crag(x: number, y: number, w: number, h: number): ReactNode {
-  const ax = x + w * 0.08;
-  const ay = y - h;
-  const bm = [x + w * 0.1, y + w * 0.22] as const;
+  const p = (dx: number, dy: number) => `${f(x + w * dx)} ${f(y - h * dy)}`;
+  const poly = (...pts: string[]) => `M${pts.join('L')}Z`;
+  // Peaks: [apex dx, apex height, half-width dx]; tall one in the middle-left, a lower one right, a stub far left.
+  const stub = [poly(p(-1, 0), p(-0.86, 0.34), p(-0.7, 0.3), p(-0.58, 0.48), p(-0.42, 0), p(-0.7, -0.1)), poly(p(-0.58, 0.48), p(-0.42, 0), p(-0.5, 0.1))];
+  const lowR = [
+    poly(p(0.3, 0), p(0.38, 0.4), p(0.52, 0.34), p(0.62, 0.6), p(0.74, 0.42), p(0.78, 0.2), p(0.62, 0)),
+    poly(p(0.62, 0.6), p(0.74, 0.42), p(0.78, 0.2), p(1, 0), p(0.62, 0), p(0.6, 0.3)),
+  ];
   return (
     <g strokeLinejoin="round" stroke={INK} strokeWidth={LW}>
-      <ellipse cx={f(x + w * 0.1)} cy={f(y + w * 0.08)} rx={f(w * 1.1)} ry={f(w * 0.36)} fill={INK} opacity={0.16} stroke="none" />
-      <path d={`M${f(x - w)} ${f(y)}L${f(x - w * 0.5)} ${f(y - h * 0.55)}L${f(ax)} ${f(ay)}L${f(bm[0])} ${f(bm[1])}Z`} fill={CRAG.mid} />
-      <path d={`M${f(ax)} ${f(ay)}L${f(x + w * 0.55)} ${f(y - h * 0.5)}L${f(x + w)} ${f(y)}L${f(bm[0])} ${f(bm[1])}Z`} fill={CRAG.dark} />
-      <path d={`M${f(x - w * 0.5)} ${f(y - h * 0.55)}L${f(ax)} ${f(ay)}L${f(x + w * 0.1)} ${f(y - h * 0.5)}L${f(x - w * 0.2)} ${f(y - h * 0.3)}Z`} fill={CRAG.light} strokeWidth={1} />
+      <ellipse cx={f(x + w * 0.05)} cy={f(y + w * 0.05)} rx={f(w * 1.1)} ry={f(w * 0.22)} fill={INK} opacity={0.15} stroke="none" />
+      <path d={stub[0]} fill={CRAG.light} />
+      <path d={stub[1]} fill={CRAG.dark} />
+      {/* tall main spire: lit left facet, mid centre facet, shaded right facet */}
+      <path d={poly(p(-0.62, 0), p(-0.5, 0.5), p(-0.3, 0.6), p(-0.12, 1), p(0.02, 0.62), p(0.1, 0), p(-0.2, -0.12))} fill={CRAG.mid} />
+      <path d={poly(p(-0.62, 0), p(-0.5, 0.5), p(-0.3, 0.6), p(-0.12, 1), p(-0.14, 0.45), p(-0.3, 0.02))} fill={CRAG.light} />
+      <path d={poly(p(-0.12, 1), p(0.02, 0.62), p(0.18, 0.5), p(0.34, 0.42), p(0.4, 0), p(0.1, 0), p(0.02, 0.62))} fill={CRAG.dark} />
+      <path d={lowR[0]} fill={CRAG.mid} />
+      <path d={lowR[1]} fill={CRAG.dark} />
+      <path d={poly(p(0.38, 0.4), p(0.52, 0.34), p(0.62, 0.6), p(0.5, 0.2))} fill={CRAG.light} strokeWidth={1} />
+      {/* rubble */}
+      <path d={poly(p(-0.92, 0), p(-0.86, 0.1), p(-0.74, 0.1), p(-0.7, 0))} fill={CRAG.mid} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.12)})`} />
+      <path d={poly(p(0.84, 0), p(0.9, 0.1), p(1.04, 0.07), p(1.1, 0))} fill={CRAG.dark} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.1)})`} />
+      <path d={poly(p(0.05, 0), p(0.1, 0.08), p(0.22, 0.06), p(0.26, 0))} fill={CRAG.light} strokeWidth={1.1} transform={`translate(0 ${f(w * 0.2)})`} />
     </g>
   );
 }
@@ -639,19 +663,19 @@ function build(): Item[] {
   const inBox = (x: number, y: number) => x > FIT_BOX.x0 + 14 && x < FIT_BOX.x1 - 14 && y > FIT_BOX.y0 + 40 && y < FIT_BOX.y1 - 6;
   const taken = (u: number, v: number, rad: number) => items.some((it) => (it.gr ?? 0) > 0 && Math.hypot(u - it.gu!, v - it.gv!) < rad + it.gr!);
   // Hills are placed by hand (screen look matters most there); each is a landmark that keeps the zones away from it.
-  const hills: [number, number, number, number, number][] = [
-    // u, v, width, height, minimum tier
-    [-330, -360, 92, 62, 0],
-    [-450, -250, 100, 66, 0],
-    [-210, -440, 84, 54, 0],
-    [-90, -420, 90, 58, 0],
-    [-560, -90, 90, 56, 1],
-    [30, -500, 96, 60, 1],
-    [-420, -420, 80, 50, 2],
+  const hills: [number, number, number, number, number, number][] = [
+    // u, v, width, height, minimum tier, peak skew
+    [-330, -340, 118, 58, 0, -0.18],
+    [-410, -270, 70, 48, 0, 0.2],
+    [-215, -450, 78, 40, 0, 0.12],
+    [-80, -410, 104, 66, 0, -0.1],
+    [-560, -110, 84, 44, 1, 0.16],
+    [40, -520, 88, 50, 1, -0.2],
+    [-440, -440, 62, 38, 2, 0.1],
   ];
-  hills.forEach(([u, v, w, h, tier], i) => {
+  hills.forEach(([u, v, w, h, tier, sk], i) => {
     const [x, y] = gp(u, v);
-    items.push({ key: `hill${i}`, x, y, tier, h: h + 10, w, gu: u, gv: v, gr: w * 0.7, node: mound(x, y, w, h) });
+    items.push({ key: `hill${i}`, x, y, tier, h: h + 10, w, gu: u, gv: v, gr: w * 0.7, node: mound(x, y, w, h, HILL, sk) });
   });
   const crags: [number, number, number, number, number][] = [
     [60, -420, 70, 78, 0],

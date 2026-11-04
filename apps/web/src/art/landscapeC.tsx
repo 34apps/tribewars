@@ -153,27 +153,31 @@ function peaks(rd: Ridge): number[] {
  * One side of a peak, from the summit down to the next valley, cut off by a wandering spine line: dir 1 = the shaded right
  * face, -1 = the lit left face. `foot(x)` is the ground under the ridge.
  */
-function side(r: Rng, rd: Ridge, p: number, foot: (x: number) => number, dir: 1 | -1): XY[] | null {
+function side(r: Rng, rd: Ridge, p: number, foot: (x: number) => number, dir: 1 | -1, full = false): XY[] | null {
   const ys = rd.keys.map((i) => rd.top[i]![1]);
   const k = rd.keys.indexOf(p);
   let e = k;
   while (e + dir >= 0 && e + dir < ys.length && ys[e + dir]! >= ys[e]! - 0.5) e += dir;
   if (e === k) return null;
-  const a = rd.top[p]!;
   const bi = rd.keys[e]!;
-  const b = rd.top[bi]!;
-  const sx = dir > 0 ? clamp(a[0] + (r() - 0.4) * 14, a[0] - 6, b[0] - 6) : clamp(a[0] + (r() - 0.6) * 14, b[0] + 6, a[0] + 6);
-  const fs: XY = [sx, foot(sx)];
-  const fb: XY = [b[0], foot(b[0])];
-  const mid: XY = [lerp(sx, a[0], 0.5) + (r() - 0.5) * 12, lerp(fs[1], a[1], 0.5)];
-  return dir > 0 ? [...rd.top.slice(p, bi + 1), fb, fs, mid] : [...rd.top.slice(bi, p + 1), mid, fs, fb];
+  // The face hugs the slope: its lower edge is the slope shifted down by an amount that is largest at the summit and shrinks
+  // to nothing at the valley, so the face tapers out along the slope (no vertical or horizontal cut edge anywhere).
+  const run = dir > 0 ? rd.top.slice(p, bi + 1) : rd.top.slice(bi, p + 1).reverse();
+  const a = rd.top[p]!;
+  const depth = full ? (foot(a[0]) - a[1]) * (0.8 + 0.15 * r()) : Math.min(foot(a[0]) - a[1], 14 + (rd.top[bi]![1] - a[1]) * 0.9) * (0.7 + 0.3 * r());
+  const last = run.length - 1;
+  const inner: XY[] = run.map(([x, y], i) => [x, y + depth * Math.pow(1 - i / last, full ? 0.7 : 1.2) * (0.85 + 0.3 * r())] as XY);
+  inner[0] = [a[0] - dir * depth * (0.25 + 0.2 * r()), a[1] + depth];
+  inner[last] = run[last]!;
+  const out: XY[] = [...run, ...inner.slice(0, last).reverse()];
+  return dir > 0 ? out : out.reverse();
 }
 
 /** A pale, irregular summit cap (rock above the soil), its underside ragged. */
 function cap(r: Rng, rd: Ridge, p: number): XY[] {
   const top = rd.top;
   const py = top[p]![1];
-  const depth = 18 + r() * 14;
+  const depth = 7 + r() * 6;
   let a = p;
   while (a > 0 && top[a - 1]![1] < py + depth) a--;
   let b = p;
@@ -240,7 +244,7 @@ function tile(r: Rng, a: number, b: number, wMin: number, wMax: number, over: nu
 /** Far ridges: pale, hazy; the nearer of the two layers carries a conifer tree line on top. */
 function farRidge(r: Rng, key: string, x0: number, x1: number, h: number, base: (x: number) => number, pal: typeof FAR, wooded: boolean): Back {
   const rd = ridge(r, x0, x1, base, h, wooded ? 0.9 : 0.7);
-  const deep = (x: number) => HZ(x) + 60;
+  const deep = (x: number) => HZ(x) + 140;
   const top = wooded ? spikes(r, sample(rd.top, 9), 3, 8) : rd.top;
   const body: XY[] = [...top, [x1, deep(x1)], [x0, deep(x0)]];
   const shades = peaks(rd).map((p) => side(r, rd, p, base, 1)).filter(notNull);
@@ -250,11 +254,11 @@ function farRidge(r: Rng, key: string, x0: number, x1: number, h: number, base: 
     x1,
     node: (
       <g key={key} stroke={pal.line} strokeWidth={1.1}>
-        <path d={shapeD(body)} fill={pal.fill} />
+        <path d={shapeD(body)} fill={pal.fill} stroke="none" />
         {shades.map((s, i) => (
           <path key={i} d={shapeD(s)} fill={pal.shade} stroke="none" />
         ))}
-        <path d={shapeD(body)} fill="none" />
+        <path d={lineD(top)} fill="none" />
       </g>
     ),
   };
@@ -326,8 +330,8 @@ function cliff(r: Rng, key: string, x0: number, x1: number, h: number): Prop {
   const caps: ReactNode[] = [];
   const faces: ReactNode[] = [];
   pk.forEach((p, i) => {
-    const lit = side(r, rd, p, base, -1);
-    const dark = side(r, rd, p, base, 1);
+    const lit = side(r, rd, p, base, -1, true);
+    const dark = side(r, rd, p, base, 1, true);
     if (lit) faces.push(<path key={`l${i}`} d={shapeD(lit)} fill={ROCK.lit} stroke={ROCK.ledge} strokeWidth={0.9} />);
     if (dark) faces.push(<path key={`d${i}`} d={shapeD(dark)} fill={ROCK.dark} stroke={ROCK.ledge} strokeWidth={0.9} />);
     caps.push(<path key={`c${i}`} d={shapeD(cap(r, rd, p))} fill={ROCK.cap} stroke={INK} strokeWidth={1} />);
