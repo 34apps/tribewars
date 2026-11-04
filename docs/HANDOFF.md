@@ -5,11 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`3f42d5f`): Multiple worlds part 1. `WORLD_ID`/`WORLD_NAME`; every route also under `/w/<id>/api` (prefix stripped
-by Fastify `rewriteUrl`), cookie `Path=/w/<id>/`, public `/api/world/info`; web reads the prefix from the page URL; deploy has
-`game-w1` (+ commented `game-w2`), Caddy route per world, scripts take a world id; design in `docs/MULTI_WORLD.md`. Data untouched.
-Left: deploy scripts/compose never run (no Docker, `bash -n` denied here); no browser view of `/w/w1/`; WebSocket via CloudFront.
-Next: part 2 = lobby service + Ed25519 entry pass (see MULTI_WORLD.md), then Security Phase 1B, self-host fonts. Checks passed.
+2026-11-04 (`0a043e2`): Multiple worlds part 2 = the lobby. New `apps/lobby` (accounts, `tw_lobby` cookie, IP guard, world list, admin CLI,
+`lobby:import`), Ed25519 entry pass (`LOBBY_SIGNING_KEY`), worlds with `LOBBY_PUBLIC_KEY` take `POST /api/auth/enter` (one-time nonces,
+`players.account_id`, schema v2) and switch their own register/login off; web lobby sign-in + world picker + "Worlds" link; deploy `lobby` service,
+Caddy `/lobby/*`, scripts take `lobby`/`all`. Old worlds unchanged without the key. Checks passed (engine 223, lobby 62, server 283, web 19; build + preview).
+Left: Docker, compose, shell scripts, `Dockerfile.lobby` never run; lobby/picker never viewed in a browser (360/1440 px); no password change at the lobby.
+Next: owner runs the rollout in `deploy/README.md` "Lobby" (key, import, switch) or I do Security Phase 1B / self-host fonts. See NEXT_STEPS "Multiple worlds, follow-ups".
 Stray `Pasted ... textClipping`, `.claude/launch.json`, `design/proposals/landscape/toy-*` are uncommitted on purpose.
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
