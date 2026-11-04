@@ -5,11 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`6da7f95`): WebSocket live updates finished. Hang fixed (tests terminate sockets + close apps in afterEach, hub
-stops its timer in onClose, `--test-timeout=60000` in the server test script). Server sends `hello` first; web client pings
-every 25 s and reconnects if silent for 10 s. Left: never viewed in a real browser; CloudFront needs WebSocket on `/api/live`.
-Next: owner checks the game in a browser; then Security Phase 1B (sessions, password policy/lockout), self-host fonts.
-Stray `Pasted ... textClipping`, `.claude/launch.json`, `design/proposals/landscape/toy-*` are uncommitted on purpose. Checks passed.
+2026-11-04 (`3f42d5f`): Multiple worlds part 1. `WORLD_ID`/`WORLD_NAME`; every route also under `/w/<id>/api` (prefix stripped
+by Fastify `rewriteUrl`), cookie `Path=/w/<id>/`, public `/api/world/info`; web reads the prefix from the page URL; deploy has
+`game-w1` (+ commented `game-w2`), Caddy route per world, scripts take a world id; design in `docs/MULTI_WORLD.md`. Data untouched.
+Left: deploy scripts/compose never run (no Docker, `bash -n` denied here); no browser view of `/w/w1/`; WebSocket via CloudFront.
+Next: part 2 = lobby service + Ed25519 entry pass (see MULTI_WORLD.md), then Security Phase 1B, self-host fonts. Checks passed.
+Stray `Pasted ... textClipping`, `.claude/launch.json`, `design/proposals/landscape/toy-*` are uncommitted on purpose.
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
