@@ -2,9 +2,9 @@
 
 ## Last run
 
-2026-11-04 (`08aa071`): village view re-laid out — smaller, more spread-out buildings (`PLACEMENT` in `art/buildings.ts`), new `PROPS` in `art/scenery.tsx` (lumber grove + stumps + log stack, iron/gold boulder fields, corner woods; new `stump`/`logs` props).
-Left: NOT viewed in a browser (positions picked by arithmetic against the ring wall) — check 360 px and 1280–1440 px for overlaps, labels, wall label (`WALL_HIT`) vs farm; sprite art for lumber/mines itself unchanged (could add saw/cart/ore details); smoke puffs moved by estimate.
-Very next step: `npm run dev`, open the village, nudge any overlapping positions.
+2026-11-04 (`f43c399`): owner screenshot showed trees floating outside the ground diamond and tiny buildings. Fixed: buildings re-placed on the plate and bigger (`PLACEMENT`), props filtered by `onPlate` (`art/scenery.tsx`), corner woods removed.
+Left: still not viewed by me in a browser; owner wants the BUILDING DESIGNS changed too (new art needs owner approval per ART_DIRECTION) — questions asked in the final answer; wait for answers. Smoke puffs may be misplaced after the move.
+Very next step: get owner's answers on building style, then redraw sprites in `art/buildings/*.svg`.
 Checks passed, build ok.
 Earlier (`c7bc950`): expanding-world abandoned villages start at player level; delete `clanfire-world.sqlite` for a fresh world.
 
