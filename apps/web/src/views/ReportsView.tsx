@@ -223,6 +223,11 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             This village was raided recently, so your troops could only carry off {b.lootShare}% of the usual load. Wait a day or try another target.
           </p>
         )}
+        {b.renownGained !== undefined && b.renownGained > 0 && (
+          <p className="report-renown">
+            <strong>Renown +{formatInt(b.renownGained)}</strong>
+          </p>
+        )}
       </section>
     </>
   );

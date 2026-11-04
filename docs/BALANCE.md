@@ -113,19 +113,31 @@ may never be met) before raiding numbers can be trusted.
 
 The simulator models the refill (it uses the real `settleVillage`) and the repeat-raid limit (`lootFactorAt`).
 
-### 7.3 Not done yet: pacing numbers (step 0, item 4)
+### 7.3 Pacing numbers and Renown (step 0 part 2, 2026-11-04), `docs/sim/2026-11-04-after-step0.txt`
 
-The run that made §7.2 could not start `npm run sim` (its command list is fixed when it starts), so **no pacing number
-was changed and there is no "after" run**: tuning storage, costs or unit values without a run would be guessing.
-`scripts/agent/run.ts` now allows `npm run sim`, so the next run can do it. Targets: no style above 1.5x the next, no dead
-period above 8 h, every unit trained by at least one style, Stables and Drillyard reached within ~10 days for a focused player;
-raiding should pay but not beat building. Levers (config.ts only): storage growth and Storehouse cost (builder's wood/iron/gold
-sit at the cap), Stables/Drillyard requirements and cost (hall 5 + barracks 3 and ~260/200/300 never affordable), Outrider and
-Knight cost or research, Shieldbearer and Pathfinder value (nobody trains them), and a sink for the builder's idle hours.
+**Why the baseline showed 0 raids (simulator bug, fixed).** (a) The training wheel let the cheapest unit win every race for
+scarce wood, so raiders were almost never trained (raider style: 12 raiders, 285 pikemen) and the raid step had no raiders
+to send. (b) The raider style spent all its wood on units and never built Barracks 2+. (c) A won battle costs the winner
+about (defence/attack)^1.5 of its army, so the old 1.15x attack margin lost most of every raid; raids now pick the target by
+net profit (loot minus dead units) per travel time and need 1.25x. Raiders now net a profit (loot 73k vs losses 51k in 30 days).
+
+**What was changed (numbers only, `config.ts`):** wood was the binding resource while food and iron piled up, so unit costs
+moved from wood to iron/food (pikeman 35/30/40, shieldbearer 30/40/75, raider 50/40/70, outrider 80/100/180, knight
+130/150/320 + 30 gold, pathfinder 20/30/40); Banner Hall (new, max 4) requires Hall 7, Drillyard 2, Market 2, Storehouse 6
+and costs 2,500 x3 + 100 gold; Renown numbers in GAME_DESIGN §18.2. Upkeep 0.25, the 20% refill and the repeat-raid limit were
+re-checked and kept (raiding stays clearly below building: raider 3.3k score vs builder 7.7k; the refill keeps one village from
+being farmed). Stables and Drillyard are reached by day ~4-6 (they were never affordable: the sim styles now build them).
 
 | | before (baseline) | after step 0 |
 |---|---|---|
-| builder vs runner-up | 9.9x | not measured |
-| longest dead stretch | 372 h (builder) | not measured |
-| units trained by nobody | 4 of 6 | not measured |
-| Stables / Drillyard first affordable | never | not measured |
+| builder vs runner-up | 9.9x | 1.15x (builder 7,700 vs balanced 6,696; score now counts Renown, army, net raid) |
+| longest dead stretch | 372 h (builder) | 70 h (builder, from day 16: nothing left in its script but max-level buildings); turtle 13 h; raider 1.3 h; balanced 4.7 h. **Still above the 8 h target for builder and turtle.** |
+| units trained by nobody | 4 of 6 | 0 (knight only by the builder, day 12; outrider by raider and balanced) |
+| Stables / Drillyard first affordable | never | day 4.3-5.7 / day 3.7-5.7 |
+| 2nd village (Renown 500 + Banner Hall 1) | n/a | raider day 20.4 (Renown alone day 14.5), balanced 18.6, builder 21.5, turtle not within 30 days in the script (it almost never holds a Feast; with Feasts about day 28-30) |
+
+**What feels different for players:** *faster*: armies and early military (cheaper wood-light units), Stables/Drillyard
+appear in the first week, builders get Renown from the first level on. *Slower*: nothing existing except raiding one village
+over and over (step 0 part 1). *New*: Renown pace is about 3 weeks to a second village. **Open:** a pure defender is slowest
+(about 5-10 days after the raider, close to the target but not proven by the sim), the builder's late-game idle stretch needs
+more sinks (higher max levels), and food piles up for the weaker styles (Farm/storage balance).

@@ -2,9 +2,12 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import {
+  BUILDING_IDS,
   DEFAULT_CHIEFTAIN,
   STAT_KEYS,
+  collectBuildRenown,
   emptyStats,
+  markRenownPaid,
   normalizeUnits,
   normalizeVillage,
   isStaffRole,
@@ -43,8 +46,9 @@ export interface PlayerRow {
   protectedUntil: number;
   /** Chieftain portrait id (CHIEFTAINS in the engine). */
   chieftain: string;
-  /** Premium subscription active (longer build queue). Set by billing, never by the client. */
-  premium: boolean;
+  /** Renown earned in total (never goes down) and spent on villages; fractions are kept (docs/GAME_DESIGN.md section 18.2). */
+  renownTotal: number;
+  renownSpent: number;
   /** The player reported that others play from the same household (self-declared, shown in the admin report). */
   householdShared: boolean;
   /** When the account was banned (ms), or null. Banned accounts cannot sign in; their sessions are dead. */
@@ -301,7 +305,8 @@ function toPlayer(r: Raw): PlayerRow {
     createdAt: r.created_at as number,
     protectedUntil: r.protected_until as number,
     chieftain: r.chieftain as string,
-    premium: (r.premium as number) === 1,
+    renownTotal: (r.renown_total as number | null) ?? 0,
+    renownSpent: (r.renown_spent as number | null) ?? 0,
     householdShared: (r.household_shared as number) === 1,
     bannedAt: (r.banned_at as number | null) ?? null,
     banReason: (r.ban_reason as string | null) ?? null,
@@ -333,7 +338,15 @@ function toReport(r: Raw): ReportRow {
   };
 }
 
-const optionalUnits = (u: Partial<Units> | null | undefined): Units | null => (u ? normalizeUnits(u) : null);
+/** True when a finished building level has not been paid Renown yet (compares `buildings` with `renownPaid`; npc villages never owe). */
+export function hasUnpaidBuildRenown(state: VillageState): boolean {
+  if (state.npc) return false;
+  const paid = state.renownPaid;
+  if (!paid) return true; // old state: normalizeVillage fills the start levels in, the engine then decides
+  return BUILDING_IDS.some((b) => (state.buildings[b] ?? 0) > (paid[b] ?? 0));
+}
+
+const optionalUnits =(u: Partial<Units> | null | undefined): Units | null => (u ? normalizeUnits(u) : null);
 
 /** Parse stored report JSON; every unit map goes through normalizeUnits so reports saved before a unit existed still read. */
 function parseReportBody(json: string): ReportBody {
@@ -691,10 +704,6 @@ export class Store extends SqlBase {
     this.run('UPDATE villages SET bot_next_at = ? WHERE id = ?', t, villageId);
   }
 
-  setPremium(playerId: number, premium: boolean): void {
-    this.run('UPDATE players SET premium = ? WHERE id = ?', premium ? 1 : 0, playerId);
-  }
-
   setChieftain(playerId: number, chieftain: string): void {
     this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
   }
@@ -845,8 +854,90 @@ export class Store extends SqlBase {
     return this.run('INSERT INTO villages (owner_id, name, x, y, points, state_json) VALUES (?, ?, ?, ?, ?, ?)', ownerId, name, x, y, points, JSON.stringify(state)).id;
   }
 
+  /**
+   * Save a village. Building Renown (section 18.2) is paid right here, so every path that persists a village pays it
+   * exactly once: for a village with an owner, each finished building level not yet in `renownPaid` is added to the
+   * owner's total and remembered in the saved state. Sandbox accounts earn nothing (their levels are marked paid);
+   * villages without an owner are left alone.
+   */
   saveVillage(id: number, state: VillageState, points: number): void {
-    this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(state), points, id);
+    if (!hasUnpaidBuildRenown(state)) {
+      this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(state), points, id);
+      return;
+    }
+    this.tx(() => {
+      let out = state;
+      const o = this.get('SELECT v.owner_id, p.username FROM villages v LEFT JOIN players p ON p.id = v.owner_id WHERE v.id = ?', id);
+      const ownerId = (o?.owner_id as number | null | undefined) ?? null;
+      if (ownerId !== null) {
+        if (this.isSandboxUser(o?.username as string)) {
+          out = markRenownPaid(state);
+        } else {
+          const paid = collectBuildRenown(state);
+          out = paid.state;
+          if (paid.renown > 0) this.addRenown(ownerId, paid.renown);
+        }
+      }
+      this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(out), points, id);
+    });
+  }
+
+  // ---- Renown (docs/GAME_DESIGN.md section 18.2) --------------------------------------------------
+
+  /** Add earned Renown to a player's total. Never negative: Renown is never taken away. */
+  addRenown(playerId: number, amount: number): void {
+    if (!(amount > 0)) return;
+    this.run('UPDATE players SET renown_total = renown_total + ? WHERE id = ?', amount, playerId);
+  }
+
+  /** Raw Renown already counted for (earner, opponent) in the window that is open at `at`; 0 when there is none. */
+  openRenownPair(earnerId: number, opponent: string, at: number, windowMs: number): number {
+    const r = this.get('SELECT window_start, value FROM renown_pairs WHERE earner_id = ? AND opponent = ?', earnerId, opponent);
+    if (!r || (r.window_start as number) + windowMs <= at) return 0;
+    return r.value as number;
+  }
+
+  /** Add `raw` to the pair's window, or start a new window at `at` when none is open. Expired rows are replaced. */
+  addRenownPair(earnerId: number, opponent: string, raw: number, at: number, windowMs: number): void {
+    if (!(raw > 0)) return;
+    this.run(
+      `INSERT INTO renown_pairs (earner_id, opponent, window_start, value) VALUES (?, ?, ?, ?)
+       ON CONFLICT(earner_id, opponent) DO UPDATE SET
+         value = CASE WHEN window_start + ? > ? THEN value + excluded.value ELSE excluded.value END,
+         window_start = CASE WHEN window_start + ? > ? THEN window_start ELSE excluded.window_start END`,
+      earnerId,
+      opponent,
+      at,
+      raw,
+      windowMs,
+      at,
+      windowMs,
+      at,
+    );
+  }
+
+  /** Every player with at least one village, most Renown first (ties: name). */
+  renownRanking(): { id: number; username: string; tribeId: number | null; tribeTag: string | null; villages: number; renown: number; mainX: number; mainY: number }[] {
+    return this.all(
+      `SELECT p.id, p.username, p.renown_total, tm.tribe_id, tr.tag AS tribe_tag, COUNT(v.id) AS villages,
+              (SELECT x FROM villages m WHERE m.owner_id = p.id ORDER BY m.points DESC, m.id ASC LIMIT 1) AS main_x,
+              (SELECT y FROM villages m WHERE m.owner_id = p.id ORDER BY m.points DESC, m.id ASC LIMIT 1) AS main_y
+       FROM players p
+       JOIN villages v ON v.owner_id = p.id
+       LEFT JOIN tribe_members tm ON tm.player_id = p.id
+       LEFT JOIN tribes tr ON tr.id = tm.tribe_id
+       GROUP BY p.id
+       ORDER BY p.renown_total DESC, p.username_lower ASC, p.id ASC`,
+    ).map((r) => ({
+      id: r.id as number,
+      username: r.username as string,
+      tribeId: (r.tribe_id as number | null) ?? null,
+      tribeTag: (r.tribe_tag as string | null) ?? null,
+      villages: r.villages as number,
+      renown: r.renown_total as number,
+      mainX: r.main_x as number,
+      mainY: r.main_y as number,
+    }));
   }
 
   /** Ids of all abandoned (npc) villages. */

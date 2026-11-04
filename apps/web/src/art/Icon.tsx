@@ -785,6 +785,19 @@ const ICONS = {
       </>
     ),
   },
+  // Renown: a banner on a pole with a gold finial.
+  renown: {
+    vb: '0 0 32 32',
+    draw: (u) => (
+      <>
+        <path d="M8 29V4" fill="none" stroke="#2B211C" strokeWidth="4" strokeLinecap="round" />
+        <path d="M8 29V4" fill="none" stroke="#B07D46" strokeWidth="2" strokeLinecap="round" />
+        <T u={u + 'a'} d="M8.5 5.5C13 3 18 8 28 5L24 12L28 19C18 22 13 17 8.5 19Z" l="#E5604A" k="#843A23" m="#C0392B" s={1.3} x={-1.6} y={-2} w={1.8} />
+        <circle cx="17" cy="12" r="2.8" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.3" />
+        <circle cx="8" cy="3.2" r="2.1" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.3" />
+      </>
+    ),
+  },
   // Population: two heads and shoulders.
   pop: {
     vb: '0 0 32 32',

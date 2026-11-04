@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BUILDINGS, buildQueueLimit } from '@clanfire/engine';
+import { BUILDINGS, MAX_BUILD_QUEUE } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -8,6 +8,7 @@ import { useGame } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
 import { MovementsSummary } from './village/MovementsSummary.tsx';
+import { RenownBadge, RenownCard, RenownChip } from './village/RenownCard.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
 import { DesignPreviewBar } from './village/DesignPreviewBar.tsx';
 import { useDesignPreview } from './village/designPreviewState.ts';
@@ -58,6 +59,7 @@ function DesktopVillage() {
           </div>
           {preview && <DesignPreviewBar />}
         </div>
+        <RenownBadge />
         <VillageScene mode="fit" selected={selected} onSelect={setSelected} levelOverride={preview ? dp : null} />
         <Production />
       </section>
@@ -74,6 +76,7 @@ function DesktopVillage() {
           <p className="muted vv-side-hint">Click a building to see its details.</p>
         )}
         <BuildQueue onPick={setSelected} />
+        <RenownCard />
         {selected && <Advisor id={selected} />}
       </aside>
     </div>
@@ -82,10 +85,10 @@ function DesktopVillage() {
 
 function PhoneVillage() {
   const { village, live, now, player } = useGame();
-  const maxQueue = buildQueueLimit(player.premium);
+  const maxQueue = MAX_BUILD_QUEUE;
   const dp = useDesignPreview();
   const preview = player.sandbox && dp.on;
-  const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | null>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -118,7 +121,7 @@ function PhoneVillage() {
   const jobs = live.buildQueue;
   const first = jobs[0];
   const selected = sheet?.kind === 'building' ? sheet.id : null;
-  const sheetTitle = sheet?.kind === 'building' ? BUILDINGS[sheet.id].name : 'Construction queue';
+  const sheetTitle = sheet?.kind === 'building' ? BUILDINGS[sheet.id].name : sheet?.kind === 'renown' ? 'Renown' : 'Construction queue';
 
   return (
     <div className="vv vv-phone">
@@ -161,6 +164,7 @@ function PhoneVillage() {
             {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
           </button>
         )}
+        {!sheet && <RenownChip onClick={() => setSheet({ kind: 'renown' })} />}
         {sheet && (
           <div className="vv-sheet dark" ref={sheetRef} role="dialog" aria-modal="false" aria-label={sheetTitle}>
             <div className="vv-sheet-top" tabIndex={-1} ref={headRef}>
@@ -175,6 +179,8 @@ function PhoneVillage() {
                   <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" onPick={(b) => setSheet({ kind: 'building', id: b })} />
                   <Advisor id={sheet.id} compact />
                 </>
+              ) : sheet.kind === 'renown' ? (
+                <RenownCard />
               ) : (
                 <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />
               )}

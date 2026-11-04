@@ -4,15 +4,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
-import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, TribeSummaryDto } from '@clanfire/engine';
+import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { ProfileExtras } from './ProfileExtras.tsx';
 import { makeSample } from './rankingsSample.ts';
 
-type Section = 'players' | 'tribes';
-const SECTION_LABEL: Record<Section, string> = { players: 'Players', tribes: 'Tribes' };
+type Section = 'players' | 'tribes' | 'renown';
+const SECTION_LABEL: Record<Section, string> = { players: 'Players', tribes: 'Tribes', renown: 'Renown' };
 const PAGE_SIZE = 20;
 
 /** Remembered while the player moves between tabs. */
@@ -274,6 +274,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
       ['Tribe', prof?.tribe ? `${prof.tribe.name} [${prof.tribe.tag}] · ${prof.tribe.role}` : pickedRow.tribe ? `[${pickedRow.tribe.tag}]` : '—'],
       ...(prof
         ? ([
+            ['Renown', typeof prof.renown === 'number' ? `${formatInt(prof.renown)} · #${prof.renownRank}` : '—'],
             ['Joined', new Date(prof.joinedAt).toLocaleDateString()],
             ['Protection', prof.protectedNow ? 'Beginner protection' : 'None'],
           ] as [string, string][])
@@ -502,13 +503,125 @@ function Tribes({ real, sample }: { real: TribeSummaryDto[]; sample: TribeSummar
   );
 }
 
+/** Players by Renown earned in total (not the balance, so spending it on villages never drops anyone). */
+function RenownRanking({ data }: { data: RenownRankingResponse }) {
+  const { viewTribe, showOnMap, player } = useGame();
+  const [page, setPage] = useState(1);
+  const meId = data.me?.playerId ?? player.id;
+  const rows = useMemo(() => {
+    const base = [...data.players];
+    if (data.me && !base.some((p) => p.playerId === data.me!.playerId)) base.push(data.me);
+    return base;
+  }, [data]);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const cur = Math.min(page, pages);
+  const slice = rows.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE);
+  const myIndex = rows.findIndex((p) => p.playerId === meId);
+  const top = rows[0];
+
+  return (
+    <>
+      <p className="rk-note muted small">
+        Renown is earned by building, fighting and holding Feasts, and it never goes down. The ranking counts everything earned, spent or not.
+      </p>
+      <Tiles
+        items={[
+          { label: 'Players', value: formatInt(data.total) },
+          { label: 'Top player', value: top ? top.username : '—', sub: top ? `${formatInt(top.renown)} Renown` : undefined },
+          { label: 'You', value: data.me ? `#${data.me.rank}` : '—', sub: data.me ? `${formatInt(data.me.renown)} Renown` : undefined },
+        ]}
+      />
+      {myIndex >= 0 && (
+        <div className="rk-toolbar">
+          <button className="btn btn-small" onClick={() => setPage(Math.floor(myIndex / PAGE_SIZE) + 1)}>
+            Jump to me
+          </button>
+        </div>
+      )}
+      {slice.length === 0 ? (
+        <p className="muted rk-empty">Nobody has earned Renown yet.</p>
+      ) : (
+        <div className="rk-scroll">
+          <table className="rk-table">
+            <thead>
+              <tr>
+                <th scope="col" className="rk-c-rank">Rank</th>
+                <th scope="col">Player</th>
+                <th scope="col" className="rk-c-tribe">Tribe</th>
+                <th scope="col" className="rk-c-vill num">Villages</th>
+                <th scope="col" className="num">Renown</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slice.map((p) => {
+                const mine = p.playerId === meId;
+                const tribe = p.tribe;
+                return (
+                  <tr key={p.playerId} className={mine ? 'rk-me' : undefined} aria-current={mine ? 'true' : undefined}>
+                    <td className="rk-c-rank"><Medal rank={p.rank} /></td>
+                    <td className="rk-name">
+                      <button type="button" className="rk-who" onClick={() => showOnMap(p.villageX, p.villageY)} aria-label={`${p.username}, show on the map`}>
+                        {p.username}
+                      </button>
+                      {mine && <span className="rk-you">you</span>}
+                      <span className="rk-sub muted small">
+                        {tribe ? `[${tribe.tag}] · ` : ''}
+                        {p.villages} {p.villages === 1 ? 'village' : 'villages'}
+                      </span>
+                    </td>
+                    <td className="rk-c-tribe">
+                      {tribe ? (
+                        <button className="link" onClick={() => viewTribe({ id: tribe.id })}>[{tribe.tag}]</button>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td className="rk-c-vill num">{p.villages}</td>
+                    <td className="num rk-pts">{formatInt(p.renown)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="rk-foot">
+        <span className="muted small">
+          {rows.length === 0 ? '0' : `${(cur - 1) * PAGE_SIZE + 1}–${(cur - 1) * PAGE_SIZE + slice.length}`} of {formatInt(rows.length)}
+        </span>
+        <Pager page={cur} pages={pages} onPage={setPage} />
+      </div>
+    </>
+  );
+}
+
 export function RankingsView() {
   const [section, setSection] = useState<Section>(lastSection);
   const [players, setPlayers] = useState<PlayerRankingResponse | null>(null);
   const [tribes, setTribes] = useState<TribeSummaryDto[] | null>(null);
+  const [renown, setRenown] = useState<RenownRankingResponse | null>(null);
+  const [renownError, setRenownError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sampleOn, setSampleOn] = useState<boolean | null>(lastSample);
   const sample = useMemo(makeSample, []);
+
+  // The Renown list loads when its tab is first opened (and again each time the page is opened).
+  useEffect(() => {
+    if (section !== 'renown' || renown) return;
+    let cancelled = false;
+    setRenownError(null);
+    api
+      .renownRanking()
+      .then((r) => {
+        if (!cancelled) setRenown(r);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setRenownError(errorMessage(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [section, renown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -528,7 +641,7 @@ export function RankingsView() {
 
   // Default: sample data on while the world is still small, so there is something to browse.
   const showSample = sampleOn ?? (players !== null && players.total < 15);
-  const sections: Section[] = ['players', 'tribes'];
+  const sections: Section[] = ['players', 'tribes', 'renown'];
 
   return (
     <div className="rk-stage">
@@ -547,7 +660,7 @@ export function RankingsView() {
           <span>Sample data</span>
         </label>
       </div>
-      <div className="subtabs subtabs-2" role="tablist" aria-label="Rankings">
+      <div className="subtabs" role="tablist" aria-label="Rankings">
         {sections.map((s) => (
           <button
             key={s}
@@ -565,8 +678,16 @@ export function RankingsView() {
         ))}
       </div>
       <section className="card rk-card" id="rank-panel" role="tabpanel">
-        {showSample && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
-        {error ? (
+        {showSample && section !== 'renown' && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
+        {section === 'renown' ? (
+          renownError ? (
+            <p className="form-error" role="alert">{renownError}</p>
+          ) : !renown ? (
+            <p className="muted">Loading…</p>
+          ) : (
+            <RenownRanking data={renown} />
+          )
+        ) : error ? (
           <p className="form-error" role="alert">{error}</p>
         ) : !players || !tribes ? (
           <p className="muted">Loading…</p>

@@ -9,6 +9,7 @@ export * from './economy.ts';
 export * from './village.ts';
 export * from './army.ts';
 export * from './drillyard.ts';
+export * from './renown.ts';
 export * from './shipment.ts';
 export * from './sandbox.ts';
 export * from './cancel.ts';

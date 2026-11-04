@@ -136,6 +136,8 @@ export const PATHS: PathDef[] = [
   branch('barracks', [-20, 56]),
   // Out of the back of the square, then along v.
   { key: 'stables', to: 'stables', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, door('stables')]] },
+  // Straight up the back of the square along u to the Banner Hall's door (between the Stables and Vault roads).
+  { key: 'bannerhall', to: 'bannerhall', w: BRANCH_W, pts: [[PLOTS_BY_ID.bannerhall.u, -30], [PLOTS_BY_ID.bannerhall.u, door('bannerhall')]] },
   { key: 'vault', to: 'vault', w: BRANCH_W, pts: [[-20, -20], [PLOTS_BY_ID.vault.u, -20], [PLOTS_BY_ID.vault.u, door('vault')]] },
   { key: 'mine', to: 'mine', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, -94], [PLOTS_BY_ID.mine.u, -94], [PLOTS_BY_ID.mine.u, door('mine')]] },
   {

@@ -4,7 +4,7 @@ import {
   BUILDINGS,
   BUILDING_IDS,
   CANCEL_REFUND_PERCENT,
-  buildQueueLimit,
+  MAX_BUILD_QUEUE,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
@@ -30,6 +30,7 @@ import { useGame } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
 import { useCancelJob } from '../cancelJob.tsx';
+import { BannerHallPanel } from './BannerHall.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
 import { tipFor } from './tips.ts';
 
@@ -59,7 +60,7 @@ export function BuildingPanel({
   headingId: string;
   onPick?: (id: BuildingId) => void;
 }) {
-  const { live, now, settings, navigate, player } = useGame();
+  const { live, now, settings, navigate } = useGame();
   const def = BUILDINGS[id];
   const level = live.buildings[id];
   const jobs = live.buildQueue.filter((j) => j.building === id);
@@ -67,7 +68,7 @@ export function BuildingPanel({
   const target = level + queued + 1;
   const atMax = target > def.maxLevel;
   const unmet = unmetRequirements(live.buildings, def.requires);
-  const check = checkBuild(live, id, now, settings, buildQueueLimit(player.premium));
+  const check = checkBuild(live, id, now, settings, MAX_BUILD_QUEUE);
   const cap = storageCap(live);
   const net = netProductionPerHour(live, settings);
   const cost = atMax ? null : check.ok ? check.cost : buildingCost(id, target);
@@ -199,6 +200,7 @@ export function BuildingPanel({
       ) : null}
       {trains.length > 0 && <div className="bpanel-note">Trains {trains.map((u) => UNITS[u].name).join(' · ')}</div>}
       {id === 'drillyard' && <DrillyardPanel />}
+      {id === 'bannerhall' && <BannerHallPanel />}
       {id === 'hall' && <HallBuildings busy={busy} onBuild={onBuild} onPick={onPick} />}
     </section>
   );
@@ -216,8 +218,8 @@ function HallBuildings({
   onBuild: (id: BuildingId) => void;
   onPick?: (id: BuildingId) => void;
 }) {
-  const { live, now, settings, player } = useGame();
-  const limit = buildQueueLimit(player.premium);
+  const { live, now, settings } = useGame();
+  const limit = MAX_BUILD_QUEUE;
   const pop = populationUsage(live);
   const ids = BUILDING_IDS.filter((b) => b !== 'hall');
   const isLocked = (b: BuildingId) => live.buildings[b] === 0 && unmetRequirements(live.buildings, BUILDINGS[b].requires).length > 0;
@@ -293,8 +295,8 @@ function HallBuildings({
 // ---- Construction queue --------------------------------------------------------------------------------------
 
 export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
-  const { live, now, settings, player } = useGame();
-  const maxQueue = buildQueueLimit(player.premium);
+  const { live, now, settings } = useGame();
+  const maxQueue = MAX_BUILD_QUEUE;
   const jobs = live.buildQueue;
   const last = jobs[jobs.length - 1];
   const cancel = useCancelJob();

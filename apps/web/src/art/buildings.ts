@@ -33,6 +33,8 @@ const FILE: Record<BuildingId, string> = {
   vault: 'hidden-vault',
   market: 'market',
   drillyard: 'drillyard',
+  // Placeholder drawings (a timber hall with banners) until the final art exists: replace banner-hall-<stage>.svg.
+  bannerhall: 'banner-hall',
 };
 
 /** Last level of stage 1 and stage 2; stage 3 runs to max level (design/style-directions/renders/E-building-stages.webp). */
@@ -49,6 +51,7 @@ const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
   vault: [3, 7],
   market: [3, 6],
   drillyard: [3, 6],
+  bannerhall: [1, 2],
 };
 
 export type Stage = 0 | 1 | 2 | 3;
@@ -155,6 +158,9 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   // Market and Drill Yard on either side of the main road to the gate.
   market: plot(62, 152, 1.2),
   drillyard: plot(-64, 148, 1.25),
+  // The Banner Hall stands at the back between the Stables and the Hidden Vault, on its own road straight up from the square.
+  // Its pad (28 * 0.9 = about 25 grid units) leaves a few units of grass on both sides.
+  bannerhall: plot(-2, -148, 0.9),
   // Resource sites out in the four corners: gold in the back rocks, iron on the right, timber on the left, fields in front.
   // Every pad stays about 25 grid units clear of the ring wall so the wall never crowds a building.
   goldmine: plot(-160, -160, 1.2),
@@ -182,6 +188,7 @@ const ROOF_TOP: Record<Exclude<BuildingId, 'wall'>, readonly [number, number, nu
   vault: [-22, -25, -29],
   market: [-22, -32, -36],
   drillyard: [-20, -30, -40],
+  bannerhall: [-22, -34, -36],
 };
 
 /** Scene point just on top of a built building (stage 1..3): where its label badge and pointer attach. */

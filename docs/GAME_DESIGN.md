@@ -60,9 +60,8 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   using the Town Hall level when the job is queued.
 - **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2, food upkeep 0.5), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
-- **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village for players without a premium subscription,
-  `MAX_BUILD_QUEUE_PREMIUM` (5) for premium subscribers (`buildQueueLimit(premium)`; the server reads the
-  player's `premium` flag, never the client). Cost paid when queued. A job starts at
+- **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village, the same for everyone (the premium queue was removed
+  on 2026-11-04, owner decision; the `premium` database column is unused). Cost paid when queued. A job starts at
   `max(now, finishAt of the previous job)`. Queuing the same building twice targets the next level
   after the queued one (target = current level + jobs for it in queue + 1). Refuse with:
   `max_level` (target > maxLevel), `requirements_not_met`, `exceeds_storage` (any cost > cap — can never
@@ -92,8 +91,7 @@ Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, co
 - **Research gate (Drillyard, see §15):** Shieldbearer, Outrider and Knight have `UnitDef.research`
   (Drillyard level to start, cost, time). They can only be trained after the research finished in that
   village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
-  (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting) without a premium subscription,
-  `MAX_RESEARCH_QUEUE_PREMIUM` (4) with one (`researchQueueLimit(premium)`; server reads the flag). Cost is paid when
+  (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting), the same for everyone. Cost is paid when
   queued; jobs run one after another; the same unit can't be queued twice (full queue is `queue_full`);
   time is divided by world speed. Pikeman, Raider and Pathfinder need none. Villages saved before the Drillyard
   keep every unit they already have (home, away or queued count as researched; abandoned villages never train).
@@ -367,7 +365,7 @@ searchable by name/tag.
   or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
 
 ### Rankings
-Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab.
+Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab. A third list ranks players by **Renown earned** (`GET /api/rankings/renown`, §18.2; total earned, never the balance, so spending does not lower the rank); Renown and its rank also show on the profile.
 
 ## 12. Tribe warfare — scouts, support, alerts
 
@@ -781,9 +779,64 @@ village has a grey ring and a thin line of smoke). Orders already in the queues 
 is the safest way to get a second village and gives the abandoned villages a new purpose. (They start at the
 state a new player village has; their growth is kept.)
 
-**Owning several villages**
-- A player can own up to `VILLAGE_LIMIT_BASE (1) + highest Banner Hall level` villages. The Banner Hall (max level 4 in this
-  proposal, one level more than in `BALANCE.md`) is built once; the limit therefore tops out at **5 villages**.
+**Owning several villages — Renown (owner decision 2026-11-04, replaces "Banner Hall level allows more villages")**
+The number of villages is limited by **Renown**, a score of its own. Purpose: **expanding must be possible without fighting.**
+A builder or a defender who is never attacked still reaches the second village; fighting only makes it faster.
+
+*Rules*
+- Renown is **earned, never bought, never lost, only spent**. A player has `renownTotal` (all earned, used for the Renown
+  ranking), `renownSpent` and `balance = total - spent`. Nothing takes Renown away; losing a village or a battle costs none.
+- **A new village costs** `RENOWN_VILLAGE_BASE x 1.6^(villages owned - 1)` Renown (the 2nd costs the base, the 3rd 1.6x,
+  the 4th 2.56x, the 5th 4.1x). There is no hard village limit, the rising price is the limit. Numbers: `config.ts`.
+- **Two ways to get a village** (built in step 2; the rules are fixed here): **FOUND** a new village on a free map spot (the
+  Chieftain carries an ember from the home hearth, no attack and no hold needed), or **TAKE** one by the Strike and Hold of
+  this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
+  cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
+  Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
+- Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
+
+*Sources*
+1. **MAIN, buildings.** Every finished building level gives `round(RENOWN_BUILD_SCALE x level^RENOWN_BUILD_EXP)` Renown,
+   once per village and level (a village remembers the levels already paid, so a Wall rebuilt after a takeover pays nothing
+   twice). Levels a village starts with, sandbox villages and abandoned villages pay nothing.
+2. **BONUS, fighting** (value = resources + 10 x gold for loot, unit cost for troops):
+   - loot taken in a raid: `RENOWN_PER_LOOT_VALUE` per value (credited when the battle is resolved);
+   - enemy troop value destroyed, when attacking and when defending: `RENOWN_PER_KILL_VALUE` per value;
+   - **support** troops stationed in a village that help kill attackers: the defending side's credit is split between the
+     village owner and each support owner by their share of the defence strength and goes to each owner;
+   - never credited to computer-run (abandoned) villages, which have no owner.
+3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. One Feast costs `FEAST_COST` (a bundle of
+   wood, food, iron, gold) and gives `FEAST_RENOWN`; at most `FEAST_DAILY_PER_LEVEL x Banner Hall level` Feasts per village
+   per 24 h (÷ world speed). It is the sink for a builder's full storehouses, deliberately worse per resource than fighting
+   well and better than idling.
+
+*Anti-abuse (combat Renown only).* A battle earns **nothing** when:
+- attacker and target are on the same IP group (`householdShared` guard), in the same tribe, or in allied tribes;
+- its value is under `RENOWN_MIN_BATTLE_VALUE` (token pokes pay nothing);
+and Renown is reduced:
+- **Diminishing per pair.** A battle's raw Renown is `R = loot value x RENOWN_PER_LOOT_VALUE + troop value destroyed x
+  RENOWN_PER_KILL_VALUE`. For one earner and one opponent (a player, or one abandoned village) in a 24 h window (÷ speed)
+  the pair has earned `F(R_total) = RENOWN_PAIR_CAP x (1 - e^(-R_total / RENOWN_PAIR_CAP))`; a battle pays
+  `F(R_total + R) - F(R_total)`. Small amounts pay nearly 1 to 1, then it flattens. This is **path independent: many small
+  sends earn exactly what one big send earns**, and `RENOWN_PAIR_CAP` is the daily cap per pair. The window starts at the
+  first paying battle.
+- **Hitting far smaller players.** The earner's Renown is multiplied by
+  `clamp((opponent village points / own village points / RENOWN_SMALL_RATIO)^2, RENOWN_SMALL_FLOOR, 1)`: no reduction when
+  the opponent has at least `RENOWN_SMALL_RATIO` (0.5) of your points, at most 95% off for tiny ones.
+Building and Feast Renown are never reduced by these rules (the Feast has its own daily limit).
+
+*Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
+`max(1, round(0.25 x level^1.25))`; loot 1 Renown per 16 value, troops destroyed 1 per 16 value; pair cap 60 per 24 h;
+minimum battle value 300; village base price 500 (then 800, 1,280, 2,048 ...); Feast 600/600/600 for 10 Renown, 3 per
+Banner Hall level per day; Chieftain refund 50%. **Abandoned villages are exempt from the size factor** (they are always
+small by design; the repeat-raid loot limit and the pair cap already limit farming them). Support owners who kill attackers
+and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
+from that player.
+
+*Pace targets (checked with `npm run sim`).* An active raider can afford the 2nd village around **day 14-20**; a pure
+builder, or a defender who is never attacked, about **5-7 days later**; nobody is blocked for good.
+
+**Other notes on several villages**
 - A new village is named "<name>'s village 2" until renamed. Everything that is "per village" (queues, ranks, population,
   Market) already exists per village. The web top bar already has a "current village" switch for this.
 
@@ -804,14 +857,14 @@ state a new player village has; their growth is kept.)
 
 | Name | Value | Meaning |
 |---|---|---|
-| `BANNER_HALL` | max level 4; requires Town Hall 10, Drillyard 3, Market 3, Storehouse 8 (lower than `BALANCE.md`, see questions); cost level 1 about 8,000 of each of wood/food/iron + 300 gold, ×1.35 per level; build time about 20 h | The building that allows more villages and trains Chieftains |
+| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,500 of each of wood/food/iron + 100 gold, ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
 | `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; upkeep 2; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
 | `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
 | `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
-| `VILLAGE_LIMIT_BASE` | 1 | Plus Banner Hall level |
+| `RENOWN_VILLAGE_BASE` | see `config.ts` | Renown price of the 2nd village; each further one x1.6 (replaces `VILLAGE_LIMIT_BASE`, owner 2026-11-04) |
 | `PAIR_CONQUEST_CAP` | 2 per season | Per attacker–defender pair |
 
 **What it needs**
@@ -1122,7 +1175,8 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 2. **Season: 63 days with a fixed end. No early win and no shared win for allies.**
 3. **A player's last village is safe from Strikes.**
 4. **Banner Hall: use the lower requirements** from §18.2. They still have to be checked with `npm run sim` (first second village around day 14–20 for a focused player) before step 2 is built.
-5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (`MAX_BUILD_QUEUE_PREMIUM` / `MAX_RESEARCH_QUEUE_PREMIUM` and the premium flag stay in the code until a build step removes them; do not sell or advertise anything that speeds up play.)
+5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (Removed from the code 2026-11-04; do not sell or advertise anything that speeds up play.)
+8. **Renown (owner, 2026-11-04):** the village limit is Renown, not Banner Hall level; see §18.2 "Owning several villages". Built 2026-11-04: earning (buildings, fights, Feast), anti-abuse, ranking, profile, cost formula. Founding and taking villages: step 2.
 6. **Rest hours: 8 hours a day, +25% defence, and no economy pause** (production, building and training run as usual while a village rests; the hold-clock pause of §18.3 stays as written).
 7. **The name Chieftain is final.**
 

@@ -132,7 +132,8 @@ test('support defends: the host\'s own troops and every contingent fight; each l
     assert.deepEqual([list[0]?.side, list[0]?.type, list[0]?.won, list[0]?.outcome, list[0]?.read], ['support', 'battle', true, 'battle', false]);
     assert.equal(list[0]?.title, `Your troops at ${amyHome.name} (${amyHome.x}|${amyHome.y}) were attacked`);
     const sb = battleOf(await latestReport(p));
-    assert.deepEqual(sb, b, 'the supporter reads the same battle');
+    // Same battle; only the Renown line is per reader.
+    assert.deepEqual({ ...sb, renownGained: undefined }, { ...b, renownGained: undefined }, 'the supporter reads the same battle');
     assert.equal(sb.attacker.ownerName, 'bob');
   }
   assert.deepEqual((await reports(amy)).length, 1);

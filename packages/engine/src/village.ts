@@ -70,6 +70,7 @@ export function createPlayerVillage(t: number): VillageState {
   const v = emptyVillage(t);
   v.resources = { ...START_RESOURCES };
   for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
+  v.renownPaid = { ...v.buildings }; // start levels pay no Renown
   return v;
 }
 
@@ -103,6 +104,7 @@ export function createNpcVillage(tier: number, t: number, growthSeed?: number): 
     v.resources = { ...START_RESOURCES };
   }
   v.troops = fullGarrison(v.buildings.hall);
+  v.renownPaid = { ...v.buildings }; // abandoned villages never pay Renown
   v.npc = { tier, growthSteps: 0, createdAt: t };
   if (growthSeed !== undefined) v.npc.growthSeed = growthSeed >>> 0;
   return v;

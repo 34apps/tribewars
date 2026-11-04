@@ -1619,6 +1619,10 @@ button.strip {
   font-size: 0.86rem;
 }
 
+.report-renown {
+  margin: 6px 0 0;
+}
+
 .tag {
   display: inline-block;
   padding: 2px 8px;

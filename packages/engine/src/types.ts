@@ -20,6 +20,7 @@ export const BUILDING_IDS = [
   'vault',
   'market',
   'drillyard',
+  'bannerhall',
 ] as const;
 export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
@@ -169,6 +170,13 @@ export interface VillageState {
   researchQueue?: ResearchJob[];
   /** Bought ranks per unit (Drillyard Training Points). */
   ranks?: VillageRanks;
+  /**
+   * Building levels whose Renown was already paid (docs/GAME_DESIGN.md section 18.2). Absent on old saved states:
+   * `normalizeVillage` then fills in each building's start level (everything above it pays once). See renown.ts.
+   */
+  renownPaid?: BuildingLevels;
+  /** Feast limit window: starts at the first Feast, resets after FEAST_WINDOW_HOURS / speed. See renown.ts. */
+  feast?: { windowStart: number; count: number };
 }
 
 export interface Coords {

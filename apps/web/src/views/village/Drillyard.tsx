@@ -15,7 +15,7 @@ import {
   pointsSpent,
   pointsTotal,
   rankOf,
-  researchQueueLimit,
+  MAX_RESEARCH_QUEUE,
 } from '@clanfire/engine';
 import type { RankTrack, UnitId } from '@clanfire/engine';
 import { useState } from 'react';
@@ -39,7 +39,7 @@ const trackApplies = (unit: UnitId, track: RankTrack) =>
   track === 'keen' ? unit === SCOUT_UNIT : track === 'might' ? unit !== SCOUT_UNIT : true;
 
 export function DrillyardPanel() {
-  const { live, now, settings, village, applyVillage, refresh, toast, player } = useGame();
+  const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
   const { confirm, dialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const cancel = useCancelJob();
@@ -76,7 +76,7 @@ export function DrillyardPanel() {
   const total = pointsTotal(live);
   const spent = pointsSpent(live);
   const queue = live.researchQueue ?? [];
-  const limit = researchQueueLimit(player.premium);
+  const limit = MAX_RESEARCH_QUEUE;
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = UNIT_IDS.filter((u) => isResearched(live, u));
 

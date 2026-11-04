@@ -18,20 +18,27 @@ import {
   applyAttackerLosses,
   applyBattleToDefender,
   applyBuild,
+  applyFeast,
   applyResearch,
   applyReturn,
   applySend,
   applyTrain,
   buildingCost,
+  FEAST_COST,
+  battleRenown,
   canAfford,
   checkBuild,
+  checkFeast,
+  collectBuildRenown,
   checkResearch,
   checkTrain,
   createNpcVillage,
   createPlayerVillage,
   emptyResources,
   emptyUnits,
+  feastAllowance,
   hashSeed,
+  renownPairWindowMs,
   repeatRaidLootFactor,
   repeatRaidWindowMs,
   resolveBattle,
@@ -40,6 +47,7 @@ import {
   totalUnits,
   travelTimeMs,
   villagePoints,
+  villageRenownCost,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 
@@ -73,6 +81,8 @@ interface Style {
   research: UnitId[];
   /** Units kept at home when raiding is allowed (never sent). */
   keepHome: number;
+  /** Does the assumed enemy hit this village on days 7, 14, 21, 28? (turtle: never, to see what a pure defender earns.) */
+  enemyRaids: boolean;
 }
 
 const eco: Step[] = [['lumber', 4], ['farm', 4], ['mine', 4], ['storehouse', 3]];
@@ -82,61 +92,68 @@ export const STYLE_DEFS: Record<StyleName, Style> = {
     order: [
       ...eco, ['hall', 3], ['lumber', 8], ['farm', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
       ['goldmine', 3], ['lumber', 12], ['farm', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
-      ['goldmine', 8], ['lumber', 16], ['farm', 16], ['mine', 16], ['storehouse', 15], ['hall', 12],
+      ['barracks', 3], ['hall', 10], ['drillyard', 3], ['bannerhall', 1], ['stables', 1], ['goldmine', 8], ['lumber', 16],
+      ['farm', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
+      ['wall', 10], ['vault', 8], ['market', 8], ['barracks', 8], ['drillyard', 9], ['stables', 8], ['bannerhall', 4],
     ],
-    tail: ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'goldmine'],
-    army: [{ unit: 'pikeman', weight: 100 }],
+    tail: ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
+    army: [{ unit: 'pikeman', weight: 85 }, { unit: 'guard', weight: 10 }, { unit: 'knight', weight: 5 }],
     reserve: 1,
     trainFromDay: 4,
     raiders: [],
-    research: [],
+    research: ['guard', 'knight'],
     keepHome: 0,
+    enemyRaids: true,
   },
   raider: {
     order: [
       ['lumber', 2], ['farm', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['lumber', 4],
-      ['mine', 5], ['barracks', 4], ['farm', 7], ['storehouse', 5], ['hall', 4], ['lumber', 6], ['mine', 7], ['farm', 9],
-      ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 6], ['barracks', 8],
-      ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 10],
+      ['mine', 5], ['barracks', 4], ['farm', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9],
+      ['stables', 1], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 8],
+      ['market', 3], ['barracks', 8], ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
     ],
     tail: ['farm', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
-    army: [{ unit: 'raider', weight: 90 }, { unit: 'pikeman', weight: 10 }],
-    reserve: 0.25,
-    trainFromDay: 0.25,
-    raiders: ['raider'],
-    research: [],
+    army: [{ unit: 'raider', weight: 72 }, { unit: 'outrider', weight: 15 }, { unit: 'pikeman', weight: 10 }, { unit: 'pathfinder', weight: 3 }],
+    reserve: 0.8,
+    trainFromDay: 2,
+    raiders: ['raider', 'outrider'],
+    research: ['outrider'],
     keepHome: 0,
+    enemyRaids: true,
   },
   turtle: {
     order: [
       ['lumber', 3], ['farm', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
       ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
-      ['drillyard', 1], ['wall', 8], ['vault', 5], ['farm', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['wall', 12],
-      ['hall', 7], ['farm', 12], ['lumber', 11], ['mine', 11], ['storehouse', 11], ['wall', 15], ['vault', 8],
+      ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8], ['vault', 5], ['farm', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8],
+      ['market', 3], ['drillyard', 3], ['lumber', 11], ['farm', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
+      ['wall', 12], ['wall', 15], ['vault', 8],
     ],
     tail: ['wall', 'farm', 'lumber', 'mine', 'storehouse', 'hall'],
-    army: [{ unit: 'pikeman', weight: 60 }, { unit: 'guard', weight: 40 }],
-    reserve: 0.5,
-    trainFromDay: 1,
+    army: [{ unit: 'pikeman', weight: 55 }, { unit: 'guard', weight: 40 }, { unit: 'pathfinder', weight: 5 }],
+    reserve: 0.9,
+    trainFromDay: 2,
     raiders: [],
     research: ['guard'],
     keepHome: 0,
+    enemyRaids: false,
   },
   balanced: {
     order: [
       ['lumber', 3], ['farm', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6],
       ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['lumber', 7],
       ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['lumber', 9],
-      ['mine', 9], ['storehouse', 8], ['barracks', 5], ['stables', 3], ['hall', 7], ['farm', 12], ['lumber', 11], ['mine', 11],
-      ['goldmine', 5], ['storehouse', 10],
+      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12],
+      ['lumber', 11], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1], ['goldmine', 5],
     ],
     tail: ['farm', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
     army: [{ unit: 'raider', weight: 40 }, { unit: 'pikeman', weight: 40 }, { unit: 'outrider', weight: 10 }, { unit: 'guard', weight: 10 }],
-    reserve: 0.6,
+    reserve: 0.8,
     trainFromDay: 1.5,
     raiders: ['raider', 'outrider'],
     research: ['guard', 'outrider'],
     keepHome: 0,
+    enemyRaids: true,
   },
 };
 
@@ -156,6 +173,15 @@ export interface DayRow {
   raidLosses: number; // cumulative, valued
   raids: number;
   raidWins: number;
+  renownTotal: number;
+  renownBalance: number;
+}
+
+export interface RenownSources {
+  buildings: number;
+  raids: number;
+  defence: number;
+  feast: number;
 }
 
 export interface RaidStat {
@@ -179,6 +205,15 @@ export interface StyleResult {
   finalPoints: number;
   threats: Array<{ day: number; raiders: number; defended: boolean; lootLost: number; troopsLost: number }>;
   errors: string[];
+  renownTotal: number;
+  renownSources: RenownSources;
+  feasts: number;
+  /** Hour the balance first reached villageRenownCost(1) (the 2nd village's price). */
+  renownAffordableHour?: number;
+  /** Hour Banner Hall level 1 was first finished (step 2 needs it to train a Chieftain). */
+  bannerHallHour?: number;
+  /** Real pace: the later of the two. */
+  secondVillageHour?: number;
 }
 
 export interface SimOptions {
@@ -245,6 +280,24 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   let idleStartHour = 0;
   let nextDay = 1;
   let trainCursor = 0;
+  // Renown (step 1 of GAME_DESIGN 18.2): total earned, nothing is spent in the sim (only "when is the 2nd village affordable").
+  let renownTotal = 0;
+  const renownSources: RenownSources = { buildings: 0, raids: 0, defence: 0, feast: 0 };
+  let feasts = 0;
+  let renownAffordableHour: number | undefined;
+  let bannerHallHour: number | undefined;
+  /** Open pair windows of raw Renown: one per abandoned village ('t<i>') and one for the assumed enemy ('enemy'). */
+  const pairs = new Map<string, { start: number; raw: number }>();
+  const pairRaw = (key: string, now: number): number => {
+    const w = pairs.get(key);
+    return w && now < w.start + renownPairWindowMs(s) ? w.raw : 0;
+  };
+  const pairAdd = (key: string, now: number, counted: number): void => {
+    if (!(counted > 0)) return;
+    const w = pairs.get(key);
+    if (w && now < w.start + renownPairWindowMs(s)) w.raw += counted;
+    else pairs.set(key, { start: now, raw: counted });
+  };
   const end = opt.days * 24 * HOUR;
   const threatTimes = [7, 14, 21, 28].filter((d) => d <= opt.days).map((d) => (d * 24 + 12) * HOUR);
 
@@ -274,6 +327,20 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     if (r.attackerWon) tg.hits.push(e.at);
     tg.state = applyBattleToDefender(def0, r);
     v = applyAttackerLosses(settleVillage(v, e.at, s), r.attackerLosses);
+    // Combat Renown for the raider (abandoned villages have no owner: never eligible, they earn nothing).
+    const key = `t${e.target}`;
+    for (const a of battleRenown({
+      result: r,
+      attacker: { eligible: true, points: villagePoints(v) },
+      // Abandoned villages are exempt from the size factor (docs/GAME_DESIGN.md 18.2): same points as the attacker.
+      defender: { eligible: false, points: villagePoints(v) },
+      pairValue: () => pairRaw(key, e.at),
+    })) {
+      if (a.side !== 'attacker') continue;
+      renownTotal += a.renown;
+      renownSources.raids += a.renown;
+      pairAdd(key, e.at, a.counted);
+    }
     const stat = raidByTier[tg.tier - 1] as RaidStat;
     const lootVal = value(r.loot);
     let lossVal = 0;
@@ -290,18 +357,16 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
   };
 
+  /** The building the player wants next: the first list entry below its target, then the lowest of the tail. */
+  const wanted = (): { building: BuildingId; level: number } | undefined => {
+    for (const [b, lvl] of def.order) if (levelWithQueue(b) < lvl) return { building: b, level: levelWithQueue(b) + 1 };
+    const b = [...def.tail].sort((x, y) => levelWithQueue(x) - levelWithQueue(y))[0];
+    return b ? { building: b, level: levelWithQueue(b) + 1 } : undefined;
+  };
+
   const tryBuild = (t: number): void => {
     // Strict list first; fix storage / population blocks on the way.
-    let want: BuildingId | undefined;
-    for (const [b, lvl] of def.order) {
-      if (levelWithQueue(b) < lvl) {
-        want = b;
-        break;
-      }
-    }
-    if (!want) {
-      want = [...def.tail].sort((a, b) => levelWithQueue(a) - levelWithQueue(b))[0];
-    }
+    const want = wanted()?.building;
     if (!want) return;
     let cur: BuildingId = want;
     for (let guard = 0; guard < 4; guard++) {
@@ -323,8 +388,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
 
   /** Resources the next building would need (reserved from training). */
   const nextBuildCost = (): Resources => {
-    for (const [b, lvl] of def.order) if (levelWithQueue(b) < lvl) return buildingCost(b, levelWithQueue(b) + 1);
-    return emptyResources();
+    const w = wanted();
+    return w && w.level <= BUILDINGS[w.building].maxLevel ? buildingCost(w.building, w.level) : emptyResources();
   };
 
   const tryTrain = (t: number, day: number): void => {
@@ -332,7 +397,9 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const total = def.army.reduce((a, x) => a + x.weight, 0);
     // Pick a unit by cycling a weighted wheel, skipping units that are not trainable yet.
     for (let k = 0; k < def.army.length * 4; k++) {
-      const pick = (trainCursor++ * 37) % total;
+      // The wheel only moves on when a batch was queued or the unit cannot be trained at all yet: otherwise the
+      // cheapest unit always wins the race for scarce resources and a wanted unit (raider) starves (baseline bug).
+      const pick = (trainCursor * 37) % total;
       let acc = 0;
       let unit: UnitId = (def.army[0] as { unit: UnitId }).unit;
       for (const a of def.army) {
@@ -343,10 +410,17 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         }
       }
       const building = UNITS[unit].building;
-      if (v.trainQueues[building].length >= 2) continue;
+      const c1 = checkTrain(v, unit, 1, t, s);
+      if (!c1.ok && c1.reason === 'requirements_not_met') {
+        trainCursor++;
+        continue;
+      }
+      if (v.trainQueues[building].length >= 2) return;
       const reserve = nextBuildCost();
       const spare = emptyResources();
       for (const id of RESOURCE_IDS) spare[id] = Math.max(0, v.resources[id] - reserve[id] * def.reserve);
+      // A sensible player never lets troops eat the food stock down to nothing: keep a quarter of the storehouse.
+      spare.food = Math.max(0, spare.food - storageCap(v) * 0.25);
       let n = 40;
       for (const id of RESOURCE_IDS) if (UNITS[unit].cost[id] > 0) n = Math.min(n, Math.floor(spare[id] / UNITS[unit].cost[id]));
       while (n >= 1) {
@@ -354,11 +428,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (c.ok) {
           v = applyTrain(v, unit, n, t, s);
           trained[unit] += n;
+          trainCursor++;
           return;
         }
         if (c.reason !== 'population_full' && c.reason !== 'not_enough_food') break;
         n = Math.floor(n / 2);
       }
+      return; // saving up for the picked unit
     }
   };
 
@@ -384,12 +460,14 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       // Preview with a different seed: a player judges by scouting, not by knowing the luck.
       const arrival = settleVillage(st, t + travel, s);
       const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 999, raidSeq), lootFactor: lootFactorAt(i, t + travel) });
-      if (!(pre.attackPower > pre.defensePower * 1.15)) continue;
-      let cap = 0;
-      for (const u of UNIT_IDS) cap += (send[u] - pre.attackerLosses[u]) * UNITS[u].carry;
-      const lootable = Math.min(cap, value(pre.loot));
-      const score = lootable / (2 * travel);
-      if (lootable > 0 && score > bestScore) {
+      // A won battle costs the winner (defence / attack)^1.5 of the army, so a thin win loses most of it. A sensible
+      // player judges by NET profit (loot minus the value of the units that die) and keeps a luck margin.
+      if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
+      let lossVal = 0;
+      for (const u of UNIT_IDS) lossVal += pre.attackerLosses[u] * value(UNITS[u].cost);
+      const net = value(pre.loot) - lossVal;
+      const score = net / (2 * travel);
+      if (net > 0 && score > bestScore) {
         best = i;
         bestScore = score;
       }
@@ -404,8 +482,31 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     events.sort((a, b) => a.at - b.at);
   };
 
-  /** Is there a worthwhile move for the player right now? (a build, a batch of >= 10 units, a research, a raid) */
-  const hasAction = (t: number): boolean => {
+  /**
+   * Feast (Banner Hall level 1+): turn resources into Renown when storage is nearly full or nothing else is worth doing,
+   * never touching what the next building needs (scaled by the style's reserve).
+   */
+  const tryFeast = (t: number): void => {
+    if (v.buildings.bannerhall < 1) return;
+    const left = feastAllowance(v, t, s).left;
+    if (left < 1) return;
+    const cap = storageCap(v);
+    const nearCap = RESOURCE_IDS.some((id) => FEAST_COST[id] > 0 && v.resources[id] >= cap * 0.5);
+    if (!nearCap && hasAction(t, true)) return;
+    const reserve = nextBuildCost();
+    let n = left;
+    for (const id of RESOURCE_IDS) if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((v.resources[id] - reserve[id] * def.reserve) / FEAST_COST[id]));
+    if (n < 1 || !checkFeast(v, n, t, s).ok) return;
+    const r = applyFeast(v, n, t, s);
+    v = r.state;
+    renownTotal += r.renown;
+    renownSources.feast += r.renown;
+    feasts += n;
+  };
+
+  /** Is there a worthwhile move for the player right now? (a build, a batch of >= 10 units, a research, a Feast) */
+  const hasAction = (t: number, skipFeast = false): boolean => {
+    if (!skipFeast && v.buildings.bannerhall >= 1 && checkFeast(v, 1, t, s).ok) return true;
     for (const b of BUILDING_IDS) if (checkBuild(v, b, t, s, QUEUE_LIMIT).ok) return true;
     for (const u of UNIT_IDS) {
       if (UNITS[u].attack <= 0 && UNITS[u].defenseInfantry <= 2) continue; // scouts alone are not a plan
@@ -417,7 +518,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
 
   for (let t = 0; t <= end; t += STEP_MS) {
     while (events.length > 0 && (events[0] as Event).at <= t) resolveEvent(events.shift() as Event);
-    for (const th of threatTimes) {
+    for (const th of def.enemyRaids ? threatTimes : []) {
       if (th > t - STEP_MS && th <= t) {
         const day = Math.floor(th / (24 * HOUR));
         const raiders = day * 4;
@@ -426,6 +527,19 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         atk.raider = raiders;
         const r = resolveBattle({ attackerUnits: atk, defender: v, seed: hashSeed(styleSeed, 777, day) });
         const before = totalUnits(v.troops);
+        // The enemy is a real player of about our size: the defender earns Renown for the raiders that die (pair 'enemy').
+        const points = villagePoints(v);
+        for (const a of battleRenown({
+          result: r,
+          attacker: { eligible: true, points },
+          defender: { eligible: true, points },
+          pairValue: () => pairRaw('enemy', th),
+        })) {
+          if (a.side !== 'defender') continue;
+          renownTotal += a.renown;
+          renownSources.defence += a.renown;
+          pairAdd('enemy', th, a.counted);
+        }
         v = applyBattleToDefender(v, r);
         threats.push({ day, raiders, defended: !r.attackerWon, lootLost: num(value(r.loot)), troopsLost: before - totalUnits(v.troops) });
       }
@@ -433,6 +547,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     try {
       v = settleVillage(v, t, s);
       const day = t / (24 * HOUR);
+      // Renown from finished building levels (paid once per level) and the 2nd village's timing.
+      const br = collectBuildRenown(v);
+      v = br.state;
+      renownTotal += br.renown;
+      renownSources.buildings += br.renown;
+      if (bannerHallHour === undefined && v.buildings.bannerhall >= 1) bannerHallHour = t / HOUR;
+      if (renownAffordableHour === undefined && renownTotal >= villageRenownCost(1)) renownAffordableHour = t / HOUR;
       // Affordability: first time requirements are met and one level / one unit can be paid.
       for (const b of BUILDING_IDS) {
         if (firstBuilding[b] !== undefined) continue;
@@ -456,6 +577,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       tryResearch(t);
       tryTrain(t, day);
       tryRaid(t);
+      tryFeast(t);
 
       // Dead time: nothing worthwhile to do.
       if (hasAction(t)) {
@@ -494,6 +616,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           raidLosses: num(raidLosses),
           raids,
           raidWins,
+          renownTotal: Math.floor(renownTotal),
+          renownBalance: Math.floor(renownTotal),
         });
         nextDay += 1;
       }
@@ -517,6 +641,17 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     finalPoints: villagePoints(settleVillage(v, end, s)),
     threats,
     errors,
+    renownTotal: Math.floor(renownTotal),
+    renownSources: {
+      buildings: Math.floor(renownSources.buildings),
+      raids: Math.floor(renownSources.raids),
+      defence: Math.floor(renownSources.defence),
+      feast: Math.floor(renownSources.feast),
+    },
+    feasts,
+    ...(renownAffordableHour !== undefined ? { renownAffordableHour } : {}),
+    ...(bannerHallHour !== undefined ? { bannerHallHour } : {}),
+    ...(renownAffordableHour !== undefined && bannerHallHour !== undefined ? { secondVillageHour: Math.max(renownAffordableHour, bannerHallHour) } : {}),
   };
 }
 
@@ -534,9 +669,17 @@ export function runSimulation(options: Partial<SimOptions> = {}): SimReport {
   return { options: opt, results, flags: findProblems(results, opt) };
 }
 
+/**
+ * Overall progress in "points": village points (the ranking) + 2 per Renown earned (Renown buys villages) + 1 per 100
+ * resources of troops alive or in training + 1 per 100 resources of net raid profit. (Before step 1 it was points +
+ * 0.5 per unit + raid profit / 100, which let a pure builder win by 10x because army and Renown did not count.)
+ */
 function score(r: StyleResult): number {
   const last = r.rows[r.rows.length - 1];
-  return last ? last.points + last.armySize * 0.5 + (last.raidLoot - last.raidLosses) / 100 : 0;
+  if (!last) return 0;
+  let troops = 0;
+  for (const u of UNIT_IDS) troops += last.army[u] * value(UNITS[u].cost);
+  return last.points + 2 * r.renownTotal + troops / 100 + (last.raidLoot - last.raidLosses) / 100;
 }
 
 function findProblems(results: StyleResult[], opt: SimOptions): string[] {
@@ -588,26 +731,38 @@ function fmtHour(h: number | undefined): string {
   return h < 48 ? `${h.toFixed(1)} h` : `day ${(h / 24).toFixed(1)}`;
 }
 
+function fmtDay(h: number | undefined): string {
+  return h === undefined ? 'not within run' : (h / 24).toFixed(1);
+}
+
 export function formatReport(rep: SimReport, full = false): string {
   const out: string[] = [];
   out.push(`# Balance simulation — ${rep.options.days} days, speed ${rep.options.speed}, seed ${rep.options.seed}`, '');
   for (const r of rep.results) {
     out.push(`## ${r.style}`, '');
-    out.push('| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) |');
-    out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+    out.push('| day | wood | food | iron | gold | bldg lvls | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |');
+    out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
     for (const row of r.rows) {
       if (!full && !DAYS_SHOWN.includes(row.day) && row.day !== rep.options.days) continue;
       const k = row.buildings;
       out.push(
-        `| ${row.day} | ${num(row.resources.wood)} | ${num(row.resources.food)} | ${num(row.resources.iron)} | ${num(row.resources.gold)} | ${row.levelSum} (hall ${k.hall} farm ${k.farm} barr ${k.barracks}) | ${row.points} | ${row.armySize} | ${num(row.attack)} | ${num(row.defense)} | ${row.raidLoot} | ${row.raidLosses} | ${row.raids} (${row.raidWins}) |`,
+        `| ${row.day} | ${num(row.resources.wood)} | ${num(row.resources.food)} | ${num(row.resources.iron)} | ${num(row.resources.gold)} | ${row.levelSum} (hall ${k.hall} farm ${k.farm} barr ${k.barracks}) | ${row.points} | ${row.armySize} | ${num(row.attack)} | ${num(row.defense)} | ${row.raidLoot} | ${row.raidLosses} | ${row.raids} (${row.raidWins}) | ${row.renownTotal} / ${row.renownBalance} |`,
       );
     }
     out.push('');
     const tiers = r.raidByTier.filter((t) => t.sent > 0).map((t) => `T${t.tier}: ${t.sent} raids, ${t.wins} won, loot ${num(t.loot)}, losses ${num(t.losses)}`);
     if (tiers.length > 0) out.push(`Raids by target tier — ${tiers.join('; ')}`, '');
     out.push(`Trained: ${UNIT_IDS.filter((u) => r.trained[u] > 0).map((u) => `${u} ${r.trained[u]}`).join(', ') || 'nothing'}. Longest stretch with nothing worthwhile to do: ${r.longestIdleHours.toFixed(1)} h.`);
-    out.push(`Enemy raids (assumed, day x4 raiders): ${r.threats.map((t) => `d${t.day}: ${t.raiders} raiders ${t.defended ? 'held' : 'broke through, lost ' + t.lootLost}`).join('; ') || 'none'}.`, '');
+    out.push(`Enemy raids (assumed, day x4 raiders): ${r.threats.map((t) => `d${t.day}: ${t.raiders} raiders ${t.defended ? 'held' : 'broke through, lost ' + t.lootLost}`).join('; ') || 'none'}.`);
+    const src = r.renownSources;
+    out.push(`Renown ${r.renownTotal} (buildings ${src.buildings}, raids ${src.raids}, defence ${src.defence}, Feast ${src.feast} from ${r.feasts} Feasts).`, '');
   }
+  out.push('## Renown pace: when can the 2nd village be paid? (nothing is spent; days since start)', '');
+  out.push(`| | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
+  out.push(`| Renown reaches ${villageRenownCost(1)} (2nd village price) | ${rep.results.map((r) => fmtDay(r.renownAffordableHour)).join(' | ')} |`);
+  out.push(`| Banner Hall level 1 finished (Chieftain needs it) | ${rep.results.map((r) => fmtDay(r.bannerHallHour)).join(' | ')} |`);
+  out.push(`| **real pace: the later of both** | ${rep.results.map((r) => fmtDay(r.secondVillageHour)).join(' | ')} |`, '');
+  out.push(`Score (points + 2 x Renown + troops/100 + net raid/100): ${rep.results.map((r) => `${r.style} ${num(score(r))}`).join(', ')}.`, '');
   out.push('## First affordable (hours / days since start, own economy)', '');
   out.push(`| item | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
   for (const b of BUILDING_IDS) out.push(`| building ${b} (next level) | ${rep.results.map((r) => fmtHour(r.firstBuilding[b])).join(' | ')} |`);
@@ -628,7 +783,11 @@ export function formatReport(rep: SimReport, full = false): string {
     '- One village per style, 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.',
     '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons refill 20% of full per 6 h step and repeat raids by the same player within 24 h carry 50% less each (engine rules since step 0).',
     '- Loot and losses valued wood+food+iron+10xgold. Troop upkeep, travel idle time and Drillyard ranks are not valued.',
-    '- Enemy raiders hit each village on days 7, 14, 21, 28 (4 x day raiders) to give defence something to do.',
+    '- Enemy raiders hit each village on days 7, 14, 21, 28 (4 x day raiders) to give defence something to do; the turtle is never attacked (pure defender).',
+    '- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).',
+    '- Renown (engine renown.ts): building levels pay once after each settle (collectBuildRenown); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.',
+    '- Nothing is spent: "balance" equals "total". The 2nd village is "affordable" when total Renown reaches villageRenownCost(1) AND Banner Hall level 1 is finished (step 2 needs it to train a Chieftain); the later of both is the real pace.',
+    '- "Dead period" also counts an affordable Feast as something to do.',
     '- "Dead period" = no building, 10-unit batch or research possible; "pile-up" = resource at >= 90% storage.',
   );
   return out.join('\n');

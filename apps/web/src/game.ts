@@ -1,5 +1,15 @@
 import { createContext, useContext } from 'react';
-import type { Mission, MovementDto, OwnVillageDto, PlayerDto, SendResponse, StationedDto, VillageState, WorldSettings } from '@clanfire/engine';
+import type {
+  Mission,
+  MovementDto,
+  OwnVillageDto,
+  PlayerDto,
+  RenownInfo,
+  SendResponse,
+  StationedDto,
+  VillageState,
+  WorldSettings,
+} from '@clanfire/engine';
 
 /** Tabs shown in the main navigation. */
 export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
@@ -40,6 +50,8 @@ export interface ToastOptions {
 export interface GameApi {
   settings: WorldSettings;
   player: PlayerDto;
+  /** The player's Renown (docs/GAME_DESIGN.md section 18.2). */
+  renown: RenownInfo;
   village: OwnVillageDto;
   /** village.state settled to `now`. */
   live: VillageState;

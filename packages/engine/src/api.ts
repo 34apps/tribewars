@@ -72,8 +72,6 @@ export interface PlayerDto {
   tribe: PlayerTribeDto | null;
   /** Chosen chieftain portrait id (CHIEFTAINS in config.ts). */
   chieftain: string;
-  /** Premium subscriber: longer build queue (buildQueueLimit in config.ts). */
-  premium: boolean;
   /** The player reported (Settings) that someone else plays from the same household/connection. */
   householdShared: boolean;
   /** Set until the player dismisses the news that villages of theirs were abandoned after a long absence; else null. */
@@ -119,6 +117,71 @@ export interface OwnVillageDto extends Coords {
   name: string;
   /** Settled to serverTime. */
   state: VillageState;
+  /** Feasts this village may still hold (engine feastAllowance at serverTime). Max 0 without a Banner Hall. */
+  feastAllowance: FeastAllowanceDto;
+}
+
+/** Feast limit of one village (engine `feastAllowance`). */
+export interface FeastAllowanceDto {
+  /** FEAST_DAILY_PER_LEVEL * Banner Hall level. */
+  max: number;
+  used: number;
+  left: number;
+  /** When the open window ends (ms), or null when no window is open (the next Feast starts one). */
+  windowEnd: number | null;
+}
+
+// ---- Renown (docs/GAME_DESIGN.md section 18.2) ----------------------------------------------
+// GameStateResponse.renown carries the player's Renown. All numbers are integers, floored (the server may store fractions).
+// POST /api/villages/:id/feast  body FeastRequest -> 200 FeastResponse
+//   Needs Banner Hall level 1 (409 requirements_not_met), FEAST_COST * count in the village (409 not_enough_resources) and
+//   count <= feastAllowance.left (409 queue_full). Server: settle, applyFeast, add `renown` to the player's total, all in one
+//   transaction; the village row also stores `feast` (window). 400 invalid_input for a bad count.
+// GET  /api/rankings/renown -> 200 RenownRankingResponse (signed in; top 100 by Renown earned (total, not balance), ties share a rank)
+
+export interface RenownInfo {
+  /** Everything earned so far (the Renown ranking uses it). Never goes down. */
+  total: number;
+  /** Spent on villages (and reserved for Chieftains in training). */
+  spent: number;
+  /** total - spent: what can be spent now. */
+  balance: number;
+  /** What the next village costs (villageRenownCost(villages)). */
+  nextVillageCost: number;
+  /** Villages owned now. */
+  villages: number;
+}
+
+export interface FeastRequest {
+  /** Whole number, 1 or more. */
+  count: number;
+}
+
+export interface FeastResponse {
+  village: OwnVillageDto;
+  renown: RenownInfo;
+  /** Renown this Feast gave (count * FEAST_RENOWN). */
+  gained: number;
+}
+
+export interface RenownRankDto {
+  /** 1-based; players with equal Renown share the rank (1, 2, 2, 4). */
+  rank: number;
+  playerId: number;
+  username: string;
+  tribe: { id: number; tag: string } | null;
+  villages: number;
+  /** Renown earned in total (floored). */
+  renown: number;
+  villageX: number;
+  villageY: number;
+}
+
+export interface RenownRankingResponse {
+  players: RenownRankDto[];
+  /** The caller's own row, also when outside the top 100. */
+  me: RenownRankDto | null;
+  total: number;
 }
 
 export interface VillageRefDto extends Coords {
@@ -175,6 +238,8 @@ export interface GameStateResponse {
   tribeAlerts: number;
   /** Support troops: others' troops stationed in my villages, and my troops stationed elsewhere. */
   stationed: { here: StationedDto[]; abroad: StationedDto[] };
+  /** The player's Renown (section 18.2). */
+  renown: RenownInfo;
 }
 
 /** A support contingent standing in someone else's village. */
@@ -228,7 +293,7 @@ export interface TrainRequest {
 }
 
 // Drillyard (docs/GAME_DESIGN.md section 15), all -> 200 OwnVillageDto (owner only; time is the server's):
-// POST /api/villages/:id/research  body ResearchRequest -> queues a research (cost paid now; queue size by premium)
+// POST /api/villages/:id/research  body ResearchRequest -> queues a research (cost paid now; queue size MAX_RESEARCH_QUEUE)
 // POST /api/villages/:id/rank      body RankRequest     -> buys the next rank of a track (instant)
 // POST /api/villages/:id/respec    body RankRequest     -> resets a track to rank 0 (gold fee, points return)
 export interface ResearchRequest {
@@ -354,6 +419,11 @@ export interface BattleReportData {
   loot: Resources;
   /** Only set below 100: a repeat raid on an abandoned village could carry off just this percent of what the survivors can carry. */
   lootShare?: number;
+  /**
+   * Renown the report owner earned from this battle (attacker, defender or support owner; absent or 0 when none, e.g. forbidden
+   * pair, under RENOWN_MIN_BATTLE_VALUE, or nothing left in the daily pair window). Floored for display.
+   */
+  renownGained?: number;
 }
 
 export interface ScoutReportData {
@@ -476,6 +546,9 @@ export interface PlayerProfileDto {
   /** Rank by points among all players (ties share a rank). */
   rank: number;
   points: number;
+  /** Renown earned in total, floored (public, like points) and the rank by it (ties share a rank). */
+  renown: number;
+  renownRank: number;
   tribe: { id: number; name: string; tag: string; role: TribeRole } | null;
   /** When the account was created (server clock, ms). */
   joinedAt: number;

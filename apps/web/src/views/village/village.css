@@ -64,7 +64,8 @@ th[scope='row'] {
   left: 22px;
   top: 18px;
   z-index: 3;
-  max-width: calc(100% - 44px);
+  /* Leaves room for the Renown badge in the opposite corner. */
+  max-width: calc(100% - 44px - 210px);
   /* Same toy panel as the phone name pill, so the name stays readable over the busy map-tile landscape. */
   padding: 10px 16px 9px;
   border: 2.5px solid var(--c-ink);
@@ -1010,7 +1011,8 @@ th[scope='row'] {
 .vv-draghint {
   position: absolute;
   right: 10px;
-  bottom: 18px;
+  /* Above the Renown chip in the bottom right corner. */
+  bottom: 68px;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -1482,4 +1484,258 @@ th[scope='row'] {
 
 .vv-side-close {
   align-self: flex-end;
+}
+
+/* ---- Renown: board badge (desktop), chip (phone), card ---- */
+.vv-renown-badge {
+  position: absolute;
+  right: 20px;
+  top: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 6px 14px 6px 8px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 999px;
+  background: var(--c-cream);
+  box-shadow: 0 3px 0 var(--c-ink);
+  color: var(--c-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vv-renown-badge-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.vv-renown-badge-text strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-renown-badge-next {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.vv-renownchip {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px 2px 8px;
+  border: 2.5px solid var(--c-cream);
+  border-radius: 999px;
+  background: var(--c-ink);
+  box-shadow: 0 3px 0 var(--c-edge);
+  color: var(--c-cream);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.vv-renownchip strong {
+  color: var(--c-sun-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-renownchip-next {
+  color: var(--c-dust);
+}
+
+.renown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.renown-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.renown-bal {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--c-dust);
+  text-align: right;
+}
+
+.renown-bal strong {
+  color: var(--c-sun-hi);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.renown-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.renown-facts > div {
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--c-ink-2);
+}
+
+.renown-facts dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--c-dust);
+}
+
+.renown-facts dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-cream);
+  overflow-wrap: anywhere;
+}
+
+.renown-next {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  font-size: 14px;
+  color: var(--c-cream);
+}
+
+.renown-togo {
+  color: var(--c-sun-hi);
+  font-weight: 700;
+}
+
+.renown-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--c-dust);
+}
+
+.vv-sheet .renown-head {
+  padding-right: 40px;
+}
+
+/* ---- Banner Hall: the Feast (dark card, explicit light text) ---- */
+.bh {
+  color: var(--c-cream);
+}
+
+.bh .eyebrow {
+  margin-top: 18px;
+}
+
+.bh-text {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--c-dust);
+  overflow-wrap: anywhere;
+}
+
+.bh-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--c-ink-2);
+}
+
+.bh-gain {
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--c-sun-hi);
+  white-space: nowrap;
+}
+
+.bh-allow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.bh-reset {
+  color: var(--c-dust);
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bh-step {
+  flex: none;
+  width: 48px;
+  min-height: 48px;
+  padding: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.bh-count {
+  flex: 0 1 64px;
+  min-width: 40px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-max {
+  flex: none;
+  min-height: 48px;
+  margin-left: auto;
+}
+
+.bh-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.bh .muted {
+  color: var(--c-dust);
+}
+
+.bh-go {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.bh-why {
+  color: var(--c-dust);
+}
+
+.bh-result {
+  margin-top: 8px;
+  font-weight: 800;
+  color: var(--c-sun-hi);
 }

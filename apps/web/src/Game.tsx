@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { settleVillage } from '@clanfire/engine';
+import { makeRenownInfo, settleVillage } from '@clanfire/engine';
 import type { Mission } from '@clanfire/engine';
 import { api } from './api.ts';
 import { markManualSignOut } from './lobby.ts';
@@ -149,6 +149,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     return {
       settings,
       player: data.player,
+      renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length),
       village,
       live,
       now,

@@ -3,6 +3,7 @@
 
 import {
   BUILDINGS,
+  FEAST_DAILY_PER_LEVEL,
   HALL_TIME_FACTOR,
   MAX_TRAIN_BATCH,
   POP_PER_UNIT,
@@ -133,6 +134,9 @@ export function buildingEffects(id: BuildingId, from: number, to: number, speed:
         from: formatInt(WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * from),
         to: formatInt(WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * to),
       });
+      break;
+    case 'bannerhall':
+      lines.push({ label: 'Feasts per day', from: formatInt(FEAST_DAILY_PER_LEVEL * from), to: formatInt(FEAST_DAILY_PER_LEVEL * to) });
       break;
     case 'hall':
       lines.push({ label: 'Build speed', from: speedBonus(HALL_TIME_FACTOR, Math.max(1, from)), to: speedBonus(HALL_TIME_FACTOR, to) });

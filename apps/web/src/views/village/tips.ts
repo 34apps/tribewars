@@ -3,6 +3,7 @@
 
 import {
   BUILDINGS,
+  FEAST_RENOWN,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
@@ -78,6 +79,10 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
       return level === 0
         ? 'Without a Market your traders stay home. Build one to send resources to your other villages and to friends.'
         : 'Each Market level lets one shipment carry more. Receiving needs no Market.';
+    case 'bannerhall':
+      return level === 0
+        ? 'The Banner Hall turns surplus resources into Renown at a Feast. Renown is what lets you own more than one village.'
+        : `Hold Feasts here while the stores are full: ${FEAST_RENOWN} Renown each, and Renown is never lost. More levels allow more Feasts a day.`;
     case 'vault':
       return level === 0
         ? 'Raiders take what they find. A Hidden Vault keeps some of each resource out of their reach.'

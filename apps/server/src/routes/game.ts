@@ -14,9 +14,11 @@ import {
   type CancelResponse,
   type CancelResearchRequest,
   type CancelTrainRequest,
-  MAX_RESEARCH_QUEUE_PREMIUM,
+  MAX_RESEARCH_QUEUE,
   MAX_TRAIN_QUEUE,
-  MAX_BUILD_QUEUE_PREMIUM,
+  MAX_BUILD_QUEUE,
+  type FeastRequest,
+  type FeastResponse,
   type GameStateResponse,
   type MapResponse,
   type MovementResponse,
@@ -63,14 +65,23 @@ const cancelBuildBody = {
   type: 'object',
   required: ['index'],
   additionalProperties: false,
-  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_BUILD_QUEUE_PREMIUM } },
+  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_BUILD_QUEUE } },
 } as const;
 
 const cancelResearchBody = {
   type: 'object',
   required: ['index'],
   additionalProperties: false,
-  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_RESEARCH_QUEUE_PREMIUM } },
+  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_RESEARCH_QUEUE } },
+} as const;
+
+// A Feast count is a small whole number; the engine's daily limit (FEAST_DAILY_PER_LEVEL x Banner Hall level) is far below this cap.
+const FEAST_MAX_COUNT = 100;
+const feastBody = {
+  type: 'object',
+  required: ['count'],
+  additionalProperties: false,
+  properties: { count: { type: 'integer', minimum: 1, maximum: FEAST_MAX_COUNT } },
 } as const;
 
 const cancelTrainBody = {
@@ -221,6 +232,12 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/research',
     { ...auth, schema: { params: idParams, body: researchBody } },
     async (req): Promise<OwnVillageDto> => ctx.game.research(playerOf(req), Number(req.params.id), req.body.unit, req.nowMs),
+  );
+
+  app.post<{ Params: { id: string }; Body: FeastRequest }>(
+    '/api/villages/:id/feast',
+    { ...auth, schema: { params: idParams, body: feastBody } },
+    async (req): Promise<FeastResponse> => ctx.game.feast(playerOf(req), Number(req.params.id), req.body.count, req.nowMs),
   );
 
   for (const action of ['rank', 'respec'] as const) {

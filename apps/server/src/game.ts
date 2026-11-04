@@ -20,8 +20,10 @@ import {
   applyCancelResearch,
   applyCancelTrain,
   type CancelResponse,
-  buildQueueLimit,
-  researchQueueLimit,
+  MAX_RESEARCH_QUEUE,
+  applyFeast,
+  feastAllowance,
+  makeRenownInfo,
   applyReturn,
   applySend,
   applyShipmentArrival,
@@ -61,6 +63,7 @@ import {
   travelTimeMs,
   villagePoints,
   type BattleReportData,
+  type FeastResponse,
   type GameStateResponse,
   type MapResponse,
   type MapVillageDto,
@@ -85,7 +88,8 @@ import {
 import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
-import type { MovementRow, MovementView, PlayerRow, Store, StationedRow, StationedView, VillageRecord, VillageStub } from './store.ts';
+import { RenownService } from './renown-service.ts';
+import { hasUnpaidBuildRenown, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
 import { addUnits, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
 
 const BATCH_SIZE = 100;
@@ -100,8 +104,9 @@ function refOf(v: { id: number; name: string; x: number; y: number; ownerName: s
   return { villageId: v.id, name: v.name, x: v.x, y: v.y, ownerName: v.ownerName };
 }
 
-function ownDto(v: VillageRecord, state: OwnVillageDto['state']): OwnVillageDto {
-  return { id: v.id, name: v.name, x: v.x, y: v.y, state };
+/** `t` is the server time the DTO is built at: the Feast allowance is read at that moment. */
+function ownDto(v: VillageRecord, state: OwnVillageDto['state'], t: number, s: WorldSettings): OwnVillageDto {
+  return { id: v.id, name: v.name, x: v.x, y: v.y, state, feastAllowance: feastAllowance(state, t, s) };
 }
 
 function stubRef(s: VillageStub): VillageRefDto {
@@ -148,11 +153,15 @@ export class GameService {
   /** Secret battle salt, read from the database on first battle. */
   private salt: number[] | null = null;
 
+  private readonly renown: RenownService;
+
   constructor(
     private readonly store: Store,
     readonly settings: WorldSettings,
     private readonly log: GameLogger = { error: () => {} },
-  ) {}
+  ) {
+    this.renown = new RenownService(store, settings);
+  }
 
   // ---- caretaker bot (docs/GAME_DESIGN.md section 17) ----------------------------------------------
 
@@ -317,6 +326,21 @@ export class GameService {
     this.applyContingentLosses(contingents, supportLosses, at);
 
     this.countBattleStats(origin, target, contingents, result, supportLosses);
+    // Combat Renown (bonus source, section 18.2): states are the settled, pre-battle ones; who earns is decided in the service.
+    const renownGained = this.renown.awardBattle({
+      at,
+      result,
+      origin,
+      target,
+      originState,
+      targetState,
+      attackerRanks: m.ranks ?? undefined,
+      contingents,
+    });
+    const gained = (playerId: number | null): { renownGained?: number } => {
+      const n = playerId === null ? 0 : (renownGained.get(playerId) ?? 0);
+      return n > 0 ? { renownGained: n } : {};
+    };
 
     const survived = totalUnits(result.attackerSurvivors) > 0;
     const full: BattleReportData = {
@@ -349,7 +373,7 @@ export class GameService {
         title: `Raid on ${target.name} ${coords(target)}`,
         createdAt: at,
         type: 'battle',
-        battle,
+        battle: { ...battle, ...gained(origin.ownerId) },
       });
     }
     if (target.ownerId !== null) {
@@ -360,7 +384,7 @@ export class GameService {
         title: `Attack from ${origin.name} ${coords(origin)}`,
         createdAt: at,
         type: 'battle',
-        battle: full,
+        battle: { ...full, ...gained(target.ownerId) },
       });
     }
     // Everyone who had troops standing there gets the full picture (one report per owner).
@@ -372,7 +396,7 @@ export class GameService {
         title: `Your troops at ${target.name} ${coords(target)} were attacked`,
         createdAt: at,
         type: 'battle',
-        battle: full,
+        battle: { ...full, ...gained(ownerId) },
       });
     }
 
@@ -696,19 +720,23 @@ export class GameService {
   // ---- reads -------------------------------------------------------------------------------------
 
   getState(player: PlayerRow, t: number): GameStateResponse {
+    const villages = this.store.villagesOfPlayer(player.id).map((v) => {
+      const settled = settleVillage(v.state, t, this.settings);
+      // Builds finish lazily; keep the map's cached points current once the owner looks.
+      const points = villagePoints(settled);
+      // Levels that finished since the last save pay their Renown now (saveVillage), so the number shown is current.
+      if (hasUnpaidBuildRenown(settled)) this.store.saveVillage(v.id, settled, points);
+      else if (points !== v.points) this.store.setPoints(v.id, points);
+      return ownDto(v, settled, t, this.settings);
+    });
     const fresh = this.store.getPlayer(player.id) ?? player;
     const dto = this.playerDto(fresh);
     return {
       serverTime: t,
       settings: this.settings,
       player: dto,
-      villages: this.store.villagesOfPlayer(player.id).map((v) => {
-        const settled = settleVillage(v.state, t, this.settings);
-        // Builds finish lazily; keep the map's cached points current once the owner looks.
-        const points = villagePoints(settled);
-        if (points !== v.points) this.store.setPoints(v.id, points);
-        return ownDto(v, settled);
-      }),
+      villages,
+      renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, villages.length),
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
       unreadReports: this.store.unreadReportCount(player.id),
       unreadMail: this.store.mail.unreadCount(player.id),
@@ -815,10 +843,10 @@ export class GameService {
   build(player: PlayerRow, villageId: number, building: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyBuild(v.state, building, t, this.settings, buildQueueLimit(player.premium));
+      const next = applyBuild(v.state, building, t, this.settings, MAX_BUILD_QUEUE);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { buildingLevelsBuilt: 1 });
-      return ownDto(v, next);
+      return ownDto(v, next, t, this.settings);
     });
   }
 
@@ -828,7 +856,7 @@ export class GameService {
       const next = applyTrain(v.state, unit, count, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { troopsTrained: count });
-      return ownDto(v, next);
+      return ownDto(v, next, t, this.settings);
     });
   }
 
@@ -838,7 +866,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const { state, refund } = applyCancelBuild(v.state, index, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
-      return { village: ownDto(v, state), refund };
+      return { village: ownDto(v, state, t, this.settings), refund };
     });
   }
 
@@ -848,7 +876,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const { state, refund } = applyCancelTrain(v.state, building, index, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
-      return { village: ownDto(v, state), refund };
+      return { village: ownDto(v, state, t, this.settings), refund };
     });
   }
 
@@ -858,7 +886,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const { state, refund } = applyCancelResearch(v.state, index, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
-      return { village: ownDto(v, state), refund };
+      return { village: ownDto(v, state, t, this.settings), refund };
     });
   }
 
@@ -866,9 +894,9 @@ export class GameService {
   research(player: PlayerRow, villageId: number, unit: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyResearch(v.state, unit, t, this.settings, researchQueueLimit(player.premium));
+      const next = applyResearch(v.state, unit, t, this.settings, MAX_RESEARCH_QUEUE);
       this.store.saveVillage(v.id, next, villagePoints(next));
-      return ownDto(v, next);
+      return ownDto(v, next, t, this.settings);
     });
   }
 
@@ -877,7 +905,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const next = applyRank(v.state, unit, track, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
-      return ownDto(v, next);
+      return ownDto(v, next, t, this.settings);
     });
   }
 
@@ -886,7 +914,24 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const next = applyRespec(v.state, unit, track, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
-      return ownDto(v, next);
+      return ownDto(v, next, t, this.settings);
+    });
+  }
+
+  /**
+   * Hold `count` Feasts in the player's village (section 18.2): the engine checks Banner Hall, stock and the daily
+   * limit, the cost leaves the village and the Renown is added to the player's total, all in one transaction.
+   * A sandbox account may feast too (test mode has no other way to see the Feast work).
+   */
+  feast(player: PlayerRow, villageId: number, count: number, t: number): FeastResponse {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const { state, renown } = applyFeast(v.state, count, t, this.settings);
+      this.store.saveVillage(v.id, state, villagePoints(state));
+      this.store.addRenown(player.id, renown);
+      const fresh = this.store.getPlayer(player.id) ?? player;
+      const owned = this.store.villagesOfPlayer(player.id).length;
+      return { village: ownDto(v, state, t, this.settings), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned), gained: renown };
     });
   }
 
@@ -942,7 +987,7 @@ export class GameService {
 
       const view = this.store.getMovementView(movementId);
       if (!view) throw new Error('movement vanished after insert');
-      return { village: ownDto(v, next), movement: movementDto(view, player.id, t) };
+      return { village: ownDto(v, next, t, this.settings), movement: movementDto(view, player.id, t) };
     });
   }
 
@@ -987,7 +1032,7 @@ export class GameService {
       });
       const view = this.store.getMovementView(movementId);
       if (!view) throw new Error('movement vanished after insert');
-      return { village: ownDto(v, next), movement: movementDto(view, player.id, t) };
+      return { village: ownDto(v, next, t, this.settings), movement: movementDto(view, player.id, t) };
     });
   }
 
@@ -1135,7 +1180,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, premium: p.premium, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole };
   }
 
   /**

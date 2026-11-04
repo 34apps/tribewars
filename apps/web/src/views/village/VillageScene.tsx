@@ -35,7 +35,7 @@ import { unmetRequirements } from '../../rules.ts';
 import { useGame } from '../../game.ts';
 
 type ViewBox = { x: number; y: number; w: number; h: number };
-const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vault: 'Vault' };
+const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vault: 'Vault', bannerhall: 'Banners' };
 const MAX_LEVELS = Object.fromEntries(BUILDING_IDS.map((id) => [id, BUILDINGS[id].maxLevel])) as Record<BuildingId, number>;
 
 /** What the scene draws for one building. */

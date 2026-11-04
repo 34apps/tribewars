@@ -16,17 +16,13 @@ export const DEFAULT_WORLD: WorldSettings = {
 
 export const START_RESOURCES: Resources = res(600, 600, 600, 100);
 
-/** Build queue for players without a premium subscription: one job building + one waiting. */
+/**
+ * Build queue: one job building + one waiting. The premium (longer queue) option was removed on 2026-11-04 (owner):
+ * `buildQueueLimit()` / `researchQueueLimit()` and the *_PREMIUM constants are gone; use these constants directly.
+ */
 export const MAX_BUILD_QUEUE = 2;
-/** Build queue for premium subscribers. */
-export const MAX_BUILD_QUEUE_PREMIUM = 5;
-/** Build queue length allowed for a player. */
-export const buildQueueLimit = (premium: boolean): number => (premium ? MAX_BUILD_QUEUE_PREMIUM : MAX_BUILD_QUEUE);
-/** Research queue for players without a premium subscription: two researches (one running, one waiting). */
+/** Research queue: two researches (one running, one waiting). */
 export const MAX_RESEARCH_QUEUE = 2;
-/** Research queue for premium subscribers. */
-export const MAX_RESEARCH_QUEUE_PREMIUM = 4;
-export const researchQueueLimit = (premium: boolean): number => (premium ? MAX_RESEARCH_QUEUE_PREMIUM : MAX_RESEARCH_QUEUE);
 /** Batches waiting per training building. */
 export const MAX_TRAIN_QUEUE = 5;
 /** Share (percent) of the paid cost that comes back when a queued build or training batch is cancelled. The rest is lost. */
@@ -71,6 +67,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   barracks: 5,
   stables: 6,
   drillyard: 5,
+  bannerhall: 6,
   wall: 2,
   vault: 2,
 };
@@ -246,6 +243,20 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     baseTimeSec: 1500,
     timeGrowth: 1.32,
   },
+  bannerhall: {
+    id: 'bannerhall',
+    name: 'Banner Hall',
+    description: 'Feast turns resources into Renown; later trains Chieftains and founds villages.',
+    maxLevel: 4,
+    startLevel: 0,
+    requires: { hall: 7, drillyard: 2, market: 2, storehouse: 6 },
+    // Tuned with the sim (2026-11-04): the first design numbers (Hall 10, Drillyard 3, Market 3, Storehouse 8, 8000 each) put
+    // the raider's Banner Hall after day 28. 2500 per resource fits the Storehouse level 6 that is required (cap 2930).
+    baseCost: res(2500, 2500, 2500, 100),
+    costGrowth: 1.35,
+    baseTimeSec: 72000,
+    timeGrowth: 1.32,
+  },
   wall: {
     id: 'wall',
     name: 'Wall',
@@ -284,7 +295,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 6,
     carry: 15,
     upkeep: POP_PER_UNIT.pikeman * FOOD_UPKEEP_PER_POP,
-    cost: res(50, 30, 25),
+    cost: res(35, 30, 40),
     trainTimeSec: 270,
     building: 'barracks',
     requires: { barracks: 1 },
@@ -300,7 +311,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 5,
     carry: 10,
     upkeep: POP_PER_UNIT.guard * FOOD_UPKEEP_PER_POP,
-    cost: res(40, 35, 70),
+    cost: res(30, 40, 75),
     trainTimeSec: 330,
     building: 'barracks',
     requires: { barracks: 3 },
@@ -317,7 +328,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 6,
     carry: 30,
     upkeep: POP_PER_UNIT.raider * FOOD_UPKEEP_PER_POP,
-    cost: res(70, 40, 50),
+    cost: res(50, 40, 70),
     trainTimeSec: 300,
     building: 'barracks',
     requires: { barracks: 2 },
@@ -333,7 +344,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 14,
     carry: 70,
     upkeep: POP_PER_UNIT.outrider * FOOD_UPKEEP_PER_POP,
-    cost: res(120, 90, 150),
+    cost: res(80, 100, 180),
     trainTimeSec: 600,
     building: 'stables',
     requires: { stables: 1 },
@@ -350,7 +361,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 10,
     carry: 40,
     upkeep: POP_PER_UNIT.knight * FOOD_UPKEEP_PER_POP,
-    cost: res(200, 150, 250, 30),
+    cost: res(130, 150, 320, 30),
     trainTimeSec: 1320,
     building: 'stables',
     requires: { stables: 5, hall: 10 },
@@ -367,12 +378,48 @@ export const UNITS: Record<UnitId, UnitDef> = {
     speed: 18,
     carry: 0,
     upkeep: POP_PER_UNIT.pathfinder * FOOD_UPKEEP_PER_POP,
-    cost: res(35, 30, 25),
+    cost: res(20, 30, 40),
     trainTimeSec: 180,
     building: 'barracks',
     requires: { barracks: 2 },
   },
 };
+
+// ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
+
+/** What one unit of each resource is worth when valuing loot and troops for Renown (same convention as scripts/sim: gold = 10). */
+export const RENOWN_VALUE_WEIGHT: Resources = { wood: 1, food: 1, iron: 1, gold: 10 };
+/** Building Renown for finishing level L: round(RENOWN_BUILD_SCALE * L ^ RENOWN_BUILD_EXP), once per village and level. */
+export const RENOWN_BUILD_SCALE = 0.25;
+export const RENOWN_BUILD_EXP = 1.25;
+/** Renown per point of loot value taken in a raid. */
+export const RENOWN_PER_LOOT_VALUE = 1 / 16;
+/** Renown per point of enemy troop value destroyed (attacking and defending). */
+export const RENOWN_PER_KILL_VALUE = 1 / 16;
+/** A battle worth less than this (loot + kills, in value) earns nothing and does not count in the pair window. */
+export const RENOWN_MIN_BATTLE_VALUE = 300;
+/**
+ * Daily cap of combat Renown per (earner, opponent) pair. The pair window counts raw Renown R (loot value * RENOWN_PER_LOOT_VALUE
+ * + kill value * RENOWN_PER_KILL_VALUE) and pays F(R) = CAP * (1 - exp(-R / CAP)): slope 1 for small R, never more than CAP.
+ */
+export const RENOWN_PAIR_CAP = 60;
+/** Length of the pair window in hours (divided by world speed); it starts at the first paying battle. */
+export const RENOWN_PAIR_WINDOW_HOURS = 24;
+/** Hitting a smaller player: factor = clamp((opponentPoints / ownPoints / RENOWN_SMALL_RATIO)^2, RENOWN_SMALL_FLOOR, 1). */
+export const RENOWN_SMALL_RATIO = 0.5;
+export const RENOWN_SMALL_FLOOR = 0.05;
+/** Renown price of the 2nd village; each further village costs RENOWN_VILLAGE_GROWTH times more. */
+export const RENOWN_VILLAGE_BASE = 500;
+export const RENOWN_VILLAGE_GROWTH = 1.6;
+/** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
+export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
+/** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
+export const FEAST_COST: Resources = res(600, 600, 600, 0);
+export const FEAST_RENOWN = 10;
+/** Feasts per village per window, per Banner Hall level. */
+export const FEAST_DAILY_PER_LEVEL = 3;
+/** Feast window in hours (divided by world speed); it starts at the first Feast. */
+export const FEAST_WINDOW_HOURS = 24;
 
 // ---- Drillyard: research and ranks (docs/GAME_DESIGN.md sections 4 and 15) -----------------------------
 
@@ -638,6 +685,7 @@ export const BUILDING_POINTS_BASE: Record<BuildingId, number> = {
   vault: 6,
   market: 10,
   drillyard: 12,
+  bannerhall: 14,
 };
 export const MAP_STAGE_NAMES = ['Hamlet', 'Palisade village', 'Stockade town', 'Stone-walled town', 'Fortified town', 'Castle'] as const;
 /** Abandoned villages show a ruin: hamlet below the first, town below the second, fort above. */
@@ -716,4 +764,5 @@ export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
   vault: 3,
   market: 1,
   drillyard: 0,
+  bannerhall: 0,
 };

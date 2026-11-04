@@ -95,6 +95,16 @@ export function normalizeVillage(v: VillageState): VillageState {
   const legacy = (v as { researchJob?: ResearchJob }).researchJob;
   const jobs = [...(legacy ? [legacy] : []), ...(v.researchQueue ?? [])].filter((j) => isUnitId(j.unit));
   if (jobs.length > 0) out.researchQueue = jobs.map((j) => ({ ...j }));
+  // Renown already paid per building. Never recorded (old state): the levels the village started with are free and
+  // everything above pays once. Keys missing for a building added later count as its start level. Abandoned villages
+  // never pay: they track their current levels (so a captured one starts clean; the server still calls markRenownPaid).
+  const paid = {} as BuildingLevels;
+  for (const b of BUILDING_IDS) {
+    const n = v.renownPaid?.[b];
+    paid[b] = out.npc ? buildings[b] : typeof n === 'number' && Number.isFinite(n) ? n : BUILDINGS[b].startLevel;
+  }
+  out.renownPaid = paid;
+  if (v.feast) out.feast = { windowStart: v.feast.windowStart, count: v.feast.count };
   if (v.ranks) {
     const ranks: VillageRanks = {};
     for (const id of UNIT_IDS) {

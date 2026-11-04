@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS players (
   created_at      INTEGER NOT NULL,
   protected_until INTEGER NOT NULL DEFAULT 0,
   chieftain       TEXT    NOT NULL DEFAULT 'old-orm',
+  -- Unused since the premium queue effect was removed (docs/GAME_DESIGN.md section 18.2); SQLite keeps the column.
   premium         INTEGER NOT NULL DEFAULT 0,
   household_shared INTEGER NOT NULL DEFAULT 0,
   banned_at       INTEGER,
@@ -82,7 +83,10 @@ CREATE TABLE IF NOT EXISTS players (
   mute_reason     TEXT,
   -- Lobby account this player belongs to (docs/MULTI_WORLD.md); null for players of a world without a lobby.
   -- The unique index idx_players_account is created in addMissingColumns (the column may not exist yet on old databases).
-  account_id      INTEGER
+  account_id      INTEGER,
+  -- Renown (docs/GAME_DESIGN.md section 18.2): everything earned (never goes down) and everything spent on villages. REAL: fractions are kept.
+  renown_total    REAL    NOT NULL DEFAULT 0,
+  renown_spent    REAL    NOT NULL DEFAULT 0
 );
 
 -- Entry passes already used (single use). A row is kept until the pass could no longer be accepted (exp + clock skew).
@@ -144,6 +148,16 @@ CREATE TABLE IF NOT EXISTS npc_raids (
   at         INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_npc_raids_pair ON npc_raids(player_id, village_id, at);
+
+-- ---- Combat Renown (section 18.2): what one earner has already counted against one opponent in the open 24 h window.
+-- opponent is 'p:<playerId>' or 'v:<abandonedVillageId>'. value is raw Renown (engine rawRenown), window_start in ms.
+CREATE TABLE IF NOT EXISTS renown_pairs (
+  earner_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  opponent     TEXT    NOT NULL,
+  window_start INTEGER NOT NULL,
+  value        REAL    NOT NULL,
+  PRIMARY KEY (earner_id, opponent)
+);
 
 -- ---- Support troops (docs/GAME_DESIGN.md section 12). One contingent per (home, host) pair; new arrivals merge.
 -- The units stay in the owner's home village "away" count while stationed.
@@ -433,9 +447,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '8662c665c3896365';
+export const SCHEMA_FINGERPRINT = '152f8703d2eeae09';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -519,6 +533,8 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'muted_until')) db.exec('ALTER TABLE players ADD COLUMN muted_until INTEGER');
   if (!cols.some((c) => c.name === 'mute_reason')) db.exec('ALTER TABLE players ADD COLUMN mute_reason TEXT');
   if (!cols.some((c) => c.name === 'account_id')) db.exec('ALTER TABLE players ADD COLUMN account_id INTEGER');
+  if (!cols.some((c) => c.name === 'renown_total')) db.exec('ALTER TABLE players ADD COLUMN renown_total REAL NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'renown_spent')) db.exec('ALTER TABLE players ADD COLUMN renown_spent REAL NOT NULL DEFAULT 0');
   // Name and column are fixed: the lobby import command (links existing players to lobby accounts) uses exactly these. NULL may repeat.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_account ON players(account_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');

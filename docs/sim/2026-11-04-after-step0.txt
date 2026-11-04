@@ -1,0 +1,88 @@
+> clanfire@0.1.0 sim
+> tsx scripts/sim/balance.ts
+
+# Balance simulation — 30 days, speed 1, seed 20261104
+(After step 0: upkeep 0.25, refill, repeat-raid limit, raid logic fixed, unit costs moved from wood to iron/food,
+Banner Hall + Renown + Feast in the model. Daily tables shortened to the days shown below.)
+
+## builder
+| day | points | army | renown total |  buildings (levels) |
+|---|---|---|---|---|
+| 1 | 251 | 0 | 20 | 21 |
+| 5 | 1249 | 0 | 128 | 57 |
+| 7 | 1607 | 6 | 160 | 74 |
+| 10 | 2711 | 0 | 300 | 91 |
+| 14 | 4004 | 122 | 416 | 130 |
+| 21 | 4288 | 899 | 496 | 138 |
+| 30 | 4288 | 1422 | 726 | 138 |
+Trained: pikeman 1394, guard 152, knight 56. Longest stretch with nothing worthwhile to do: 70.2 h.
+Renown 726 (buildings 378, raids 0, defence 238, Feast 110 from 11 Feasts).
+
+## raider
+| day | points | army | renown total | raids (won) | raid loot | raid losses |
+|---|---|---|---|---|---|---|
+| 5 | 491 | 21 | 102 | 4 (4) | 2359 | 960 |
+| 7 | 614 | 36 | 234 | 11 (11) | 10104 | 6400 |
+| 14 | 655 | 89 | 447 | 30 (30) | 32451 | 23520 |
+| 21 | 733 | 109 | 572 | 35 (35) | 45655 | 33120 |
+| 30 | 1243 | 58 | 858 | 45 (45) | 73156 | 51200 |
+Trained: pikeman 88, raider 641, pathfinder 31. Longest stretch with nothing worthwhile to do: 1.3 h.
+Renown 858 (buildings 120, raids 538, defence 199, Feast 0 from 0 Feasts).
+
+## turtle (never attacked in the Renown model)
+| day | points | army | renown total |
+|---|---|---|---|
+| 5 | 572 | 0 | 50 |
+| 10 | 797 | 44 | 75 |
+| 14 | 1506 | 132 | 151 |
+| 21 | 1893 | 489 | 189 |
+| 30 | 2136 | 885 | 221 |
+Trained: pikeman 485, guard 352, pathfinder 48. Longest stretch with nothing worthwhile to do: 13.2 h.
+Renown 221 (buildings 211, raids 0, defence 0, Feast 10 from 1 Feasts). NOTE: this style script almost never holds a Feast
+(it always finds something else to do first); a player who feasts 3 times a day from day 8 would add about 30 Renown a day.
+
+## balanced
+| day | points | army | renown total | raids (won) |
+|---|---|---|---|---|
+| 5 | 541 | 42 | 109 | 3 (3) |
+| 10 | 913 | 109 | 328 | 14 (14) |
+| 14 | 1345 | 202 | 367 | 14 (14) |
+| 21 | 2288 | 278 | 580 | 19 (19) |
+| 30 | 3647 | 509 | 1047 | 41 (41) |
+Trained: pikeman 476, guard 107, raider 447, outrider 83. Longest stretch with nothing worthwhile to do: 4.7 h.
+Renown 1047 (buildings 330, raids 478, defence 239, Feast 0 from 0 Feasts).
+
+## Renown pace: when can the 2nd village be paid? (nothing is spent; days since start)
+
+| | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| Renown reaches 500 (2nd village price) | 21.5 | 14.5 | not within run | 18.0 |
+| Banner Hall level 1 finished (Chieftain needs it) | 7.3 | 20.4 | 7.8 | 18.6 |
+| **real pace: the later of both** | 21.5 | 20.4 | not within run | 18.6 |
+
+Score (points + 2 x Renown + troops/100 + net raid/100): builder 7700, raider 3266, turtle 3641, balanced 6696.
+
+## First affordable (days since start)
+
+| item | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| building stables | 5.7 | 4.6 | 4.3 | 4.9 |
+| building drillyard | 5.7 | 4.5 | 3.7 | 4.8 |
+| building bannerhall | 6.8 | 19.8 | 7.2 | 18.1 |
+| unit guard | 5.6 | 1.9 | 1.7 | 3.2 |
+| unit raider | 5.5 | 0.5 | 1.4 | 0.6 |
+| unit outrider | 7.3 | 5.8 | never | 4.9 |
+| unit knight | 11.7 | never | never | never |
+| unit pathfinder | 5.5 | 0.4 | 1.3 | 0.6 |
+
+## Flags
+
+- DEAD PERIOD: builder had nothing worthwhile to do for 70.2 h (from hour 390).
+- PILE-UP: raider sat at >= 90% storage in wood for 181 h of 720 h.
+- PILE-UP: raider sat at >= 90% storage in food for 603 h of 720 h.
+- DEAD PERIOD: turtle had nothing worthwhile to do for 13.2 h (from hour 707).
+- PILE-UP: turtle sat at >= 90% storage in food for 400 h of 720 h.
+- PILE-UP: balanced sat at >= 90% storage in food for 409 h of 720 h.
+(No DOMINANT STYLE flag, no UNUSED UNIT flag, no LOSING RAIDS flag.)
+
+Full output: run `npm run sim` (deterministic, seed 20261104).
