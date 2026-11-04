@@ -62,3 +62,27 @@ is fine; do not change it.**
 2. Implementer: upkeep change + tests (small, first).
 3. Weighted points + re-spread of map stages.
 4. Banner Hall + Standard-bearer + Loyalty in engine, then server, then web (sprites are placeholders).
+
+## 6. Balance simulator and results (2026-11-04)
+
+**Tool:** `npm run sim` (`scripts/sim/balance.ts`, options `--days N --speed N --seed N --full --json`). It plays 30 days at
+world speed 1 for four computer styles — **builder** (economy first), **raider** (raids abandoned villages from the
+first day), **turtle** (Wall, Vault, defenders), **balanced** — through the real engine: `settleVillage`, `applyBuild`,
+`applyResearch`, `applyTrain`, `applySend`, `resolveBattle`, `applyBattleToDefender`, `applyAttackerLosses`,
+`applyReturn`. No server, no clock; luck comes from fixed seeds (`hashSeed`), so a run is repeatable. The engine test
+`packages/engine/test/sim.test.ts` plays 1 day of every style and checks for errors and repeatability.
+
+It reports per style and per day: resources, building levels and points, army size, attack and defence strength, raid
+loot vs unit losses and raids won; the hour each building and unit is first affordable; and these flags: a style that
+wins by far (score > 1.5x runner-up), dead periods (nothing worthwhile to do for > 8 h), units nobody trains,
+resources at >= 90% storage for a quarter of the time, raids that cost more than they bring, risk-free raiding.
+
+**Model assumptions** (printed at the end of every report): one village per style, 10-minute decision steps, free-player
+queues; 8 abandoned villages (tiers 1–5, 3–14 tiles) whose garrisons never refill; loot and losses valued
+wood+food+iron+10×gold; troop upkeep not valued; enemy raiders (4 × day) hit each village on days 7, 14, 21, 28.
+
+**Results: NOT YET RUN.** The unattended session that wrote the simulator was not allowed to start it (only
+`npm run check` and `npm run build` were permitted), so only the 1-day test run is verified. No numbers are invented
+here. Next: run `npm run sim` once, paste the flags and the 7/14/30-day rows here, and derive suggested number
+changes (config.ts only, nothing applied). Likely candidates, to be confirmed or dropped by the output: troop upkeep
+0.25 (§3.1), a refill or cap for abandoned-village garrisons, knight cost/requirements, gold sinks if gold piles up.

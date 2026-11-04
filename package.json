@@ -26,6 +26,7 @@
     "type-check": "npm run type-check --workspaces --if-present",
     "check": "npm run type-check && npm test",
     "agent": "tsx scripts/agent/run.ts",
+    "sim": "tsx scripts/sim/balance.ts",
     "backup": "npm run backup -w @clanfire/server"
   },
   "devDependencies": {
