@@ -20,4 +20,5 @@ test-results/
 # deploy secrets/settings
 deploy/game.env
 deploy/game-*.env
+deploy/lobby.env
 deploy/.env

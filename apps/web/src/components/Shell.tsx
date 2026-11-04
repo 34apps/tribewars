@@ -9,6 +9,7 @@ import { useGame, TABS } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
@@ -183,6 +184,7 @@ function Who({
 }) {
   const { player, village, tribeChanged, toast, navigate } = useGame();
   const [open, setOpen] = useState(false);
+  const worldInfo = useWorldInfo();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -283,6 +285,11 @@ function Who({
             />
             <span>Someone else in my household plays Clanfire. Our accounts can't send troops to each other.</span>
           </label>
+          {isLobbyWorld(worldInfo) && (
+            <a className="btn btn-block" href={LOBBY_URL}>
+              Worlds
+            </a>
+          )}
           <button className="btn btn-block" onClick={onSignOut}>
             Sign out
           </button>

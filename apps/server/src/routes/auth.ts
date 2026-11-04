@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { ACTIVITY_WRITE_INTERVAL_MS, GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
+import { ACTIVITY_WRITE_INTERVAL_MS, GameError, isChieftainId, type AuthRequest, type ChieftainRequest, type EnterPassRequest, type HouseholdRequest,type MeResponse } from '@clanfire/engine';
+import { ENTRY_PASS_MAX_CHARS } from '../entry-pass.ts';
 import { PASSWORD_MAX, PASSWORD_MIN, SESSION_COOKIE, SESSION_TTL_MS, USERNAME_PATTERN, type SessionGrant } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
@@ -90,9 +91,34 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     });
   };
 
+  // With lobby keys the world has no accounts of its own: register/login are closed before any counter or password work.
+  const closedWithLobby = async (): Promise<void> => {
+    if (ctx.lobby) throw new GameError('forbidden', 'Sign in through the lobby.');
+  };
+  const onlyWithLobby = async (): Promise<void> => {
+    if (!ctx.lobby) throw new GameError('not_found', 'Not found.');
+  };
+
+  app.post<{ Body: EnterPassRequest }>(
+    '/api/auth/enter',
+    {
+      // The pass is the credential: capped at 2 KB before anything reads it. Never logged, never in a URL.
+      schema: { body: { type: 'object', required: ['pass'], additionalProperties: false, properties: { pass: { type: 'string', maxLength: ENTRY_PASS_MAX_CHARS } } } },
+      onRequest: [onlyWithLobby, rateLimit(ctx, 'enter')],
+    },
+    async (req, reply): Promise<MeResponse> => {
+      const lobby = ctx.lobby;
+      if (!lobby) throw new GameError('not_found', 'Not found.');
+      const { grant, created } = ctx.auth.enterWithPass(req.body.pass, lobby.keys, ctx.worldId, req.ip);
+      setSession(req, reply, grant);
+      void reply.code(created ? 201 : 200);
+      return { player: ctx.auth.toDto(grant.player) };
+    },
+  );
+
   app.post<{ Body: AuthRequest }>(
     '/api/auth/register',
-    { schema: registerSchema, onRequest: rateLimit(ctx, 'register') },
+    { schema: registerSchema, onRequest: [closedWithLobby, rateLimit(ctx, 'register')] },
     async (req, reply): Promise<MeResponse> => {
       if (req.body.chieftain !== undefined) checkChieftain(req.body.chieftain);
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
@@ -104,7 +130,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
 
   app.post<{ Body: AuthRequest }>(
     '/api/auth/login',
-    { schema: loginSchema, onRequest: rateLimit(ctx, 'login') },
+    { schema: loginSchema, onRequest: [closedWithLobby, rateLimit(ctx, 'login')] },
     async (req, reply): Promise<MeResponse> => {
       const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
       setSession(req, reply, grant);

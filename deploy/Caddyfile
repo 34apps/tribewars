@@ -20,6 +20,12 @@
 	# CloudFront does not compress uncached /api responses.
 	encode zstd gzip
 
+	# The lobby (accounts, world list, entry passes): API only, under /lobby/api/...; the page /lobby/ comes from S3.
+	# `handle` keeps the full path; the lobby serves /lobby/api/... itself. No WebSocket needed.
+	handle /lobby/* {
+		reverse_proxy lobby:3001
+	}
+
 	# One game process per world. `handle` keeps the FULL original path (/w/w1/api/...): the game strips the
 	# /w/<id> prefix itself. WebSocket upgrades (/w/<id>/api/live) pass through reverse_proxy by default.
 	# World on another machine: reverse_proxy <that-host>:3000 instead (or point CloudFront at that origin directly).

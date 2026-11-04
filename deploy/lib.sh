@@ -1,7 +1,11 @@
 # Shared helpers for deploy scripts (sourced, not run). Callers cd to this folder first, then `set_world "<id or empty>"`.
 # One game container per world: service game-<id> (old installs: `game` for w1), data in DATA_DIR.
+# `lobby` is a pseudo world id: the lobby service (account service, own image and database file), data in /srv/clanfire/lobby.
 WORLD="w1"
 SERVICE=""
+IMAGE="clanfire-game"       # image name without tag (latest/previous); the lobby has its own: clanfire-lobby
+DB_FILE="clanfire.sqlite"   # database file name inside the data folder; the lobby uses lobby.sqlite
+BACKUP_GLOB="clanfire-"     # prefix of the backup file names backup.js writes (lobby: clanfire-lobby-)
 DATA_DIR="${DATA_DIR:-}"   # optional override from the environment; set_world fills it in
 
 # env_or_dotenv NAME: the variable from the environment, else from deploy/.env, else empty.
@@ -22,7 +26,13 @@ set_world() {
 
   local services
   services="$(docker compose config --services)" || { echo "'docker compose config' failed (is .env / game.env missing?)." >&2; return 1; }
-  if grep -qx "game-${WORLD}" <<<"$services"; then
+  if [ "$WORLD" = lobby ]; then
+    grep -qx "lobby" <<<"$services" || { echo "No service 'lobby' in docker-compose.yml." >&2; return 1; }
+    SERVICE="lobby"
+    IMAGE="clanfire-lobby"
+    DB_FILE="lobby.sqlite"
+    BACKUP_GLOB="clanfire-lobby-"
+  elif grep -qx "game-${WORLD}" <<<"$services"; then
     SERVICE="game-${WORLD}"
   elif [ "$WORLD" = w1 ] && grep -qx "game" <<<"$services"; then
     SERVICE="game"   # old compose file; never used as a stand-in for any other world
@@ -35,7 +45,7 @@ set_world() {
   var="DATA_$(printf '%s' "$WORLD" | tr 'a-z-' 'A-Z_')"
   if [ -z "$DATA_DIR" ]; then DATA_DIR="$(env_or_dotenv "$var")"; fi
   if [ -z "$DATA_DIR" ]; then
-    DATA_DIR="/srv/clanfire/${WORLD}"
+    DATA_DIR="/srv/clanfire/${WORLD}"   # lobby: /srv/clanfire/lobby (override with DATA_LOBBY)
     if [ "$WORLD" = w1 ] && [ ! -d "$DATA_DIR" ] && [ -d /srv/clanfire/data ]; then
       echo "WARNING: /srv/clanfire/w1 does not exist; using the old data folder /srv/clanfire/data (see deploy/README.md to move it)." >&2
       DATA_DIR=/srv/clanfire/data
@@ -52,6 +62,26 @@ set_world() {
       echo "Stop and remove it first: docker stop $old && docker rm $old   (see deploy/README.md, 'Several worlds')." >&2
       return 1
     fi
+  fi
+}
+
+# list_targets: the ids that `all` stands for, one per line: `lobby` first (when defined), then every world service
+# (game-<id> gives <id>; an old compose file's `game` counts as w1). Used by update.sh and backup.sh.
+list_targets() {
+  local services s
+  services="$(docker compose config --services)" || { echo "'docker compose config' failed (is .env / game.env missing?)." >&2; return 1; }
+  if grep -qx "lobby" <<<"$services"; then echo lobby; fi
+  if grep -qx "game" <<<"$services" && ! grep -qx "game-w1" <<<"$services"; then echo w1; fi
+  while IFS= read -r s; do
+    case "$s" in game-*) echo "${s#game-}" ;; esac
+  done <<<"$services"
+}
+
+# no_data_dir_override_for_all: a DATA_DIR from the environment would point every target at one folder.
+no_data_dir_override_for_all() {
+  if [ -n "${DATA_DIR:-}" ]; then
+    echo "DATA_DIR is set in the environment; with 'all' use DATA_<ID> (e.g. DATA_W1, DATA_LOBBY) in deploy/.env instead." >&2
+    return 1
   fi
 }
 
@@ -76,12 +106,13 @@ wait_healthy() {
 make_backup() {
   local file
   file="$(docker compose exec -T "$SERVICE" node backup.js | tail -n 1 | tr -d '\r')"
-  case "$file" in /data/backups/clanfire-*.sqlite) ;; *) echo "Unexpected backup output: $file" >&2; return 1 ;; esac
+  case "$file" in "/data/backups/${BACKUP_GLOB}"*.sqlite) ;; *) echo "Unexpected backup output: $file" >&2; return 1 ;; esac
   echo "${DATA_DIR}/${file#/data/}"
 }
 
 # Upload to S3 when BACKUP_BUCKET is set (env or deploy/.env); otherwise a no-op.
-# Worlds share one bucket: w1 stays at the bucket root (as before), every other world uses a <world>/ prefix.
+# Worlds share one bucket: w1 stays at the bucket root (as before), every other world uses a <world>/ prefix,
+# and the lobby uses lobby/ (WORLD is "lobby" there).
 upload_backup() {
   [ -n "${BACKUP_BUCKET:-}" ] || return 0
   local prefix=""

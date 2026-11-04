@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { DEFAULT_WORLD_ID, type WorldSettings } from '@clanfire/engine';
+import { parsePublicKeys } from './entry-pass.ts';
 import { checkWorldId, checkWorldName } from './world-path.ts';
 
 export interface ServerEnv {
@@ -27,6 +28,12 @@ export interface ServerEnv {
   anthropicApiKey: string | null;
   /** Lowercase usernames allowed to use sandbox/test mode (SANDBOX_USERS, comma list; default metinaltinbas outside production, empty in production; empty = nobody). */
   sandboxUsers: string[];
+  /**
+   * LOBBY_PUBLIC_KEY: the lobby's Ed25519 public key(s), comma list of base64 SPKI DER or PEM. Set = this world only accepts
+   * entry passes from the lobby (its own register/login are off). null = no lobby (empty/unset). Validated at start;
+   * the value is a public key, but errors never print it.
+   */
+  lobbyPublicKeys: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -104,6 +111,10 @@ export function loadEnv(env: Env = process.env): ServerEnv {
   const worldId = checkWorldId(env.WORLD_ID?.trim() || DEFAULT_WORLD_ID);
   const worldName = checkWorldName(env.WORLD_NAME?.trim() || `World ${worldId}`);
 
+  const lobbyRaw = env.LOBBY_PUBLIC_KEY?.trim() ?? '';
+  // Fail fast on a malformed key; a list with only empty entries ("," or ", ,") counts as a mistake, not "off".
+  if (lobbyRaw !== '' && parsePublicKeys(lobbyRaw).length === 0) throw new Error('Invalid LOBBY_PUBLIC_KEY: no key found in the list.');
+
   return {
     port: num(env, 'PORT', (n) => Number.isInteger(n) && n >= 0 && n <= 65535, 'a port number') ?? 3000,
     host: env.HOST?.trim() || '0.0.0.0',
@@ -121,5 +132,6 @@ export function loadEnv(env: Env = process.env): ServerEnv {
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s !== ''),
     anthropicApiKey: /^(1|true|yes)$/i.test(env.ADVISOR_ENABLED ?? '') ? env.ANTHROPIC_API_KEY?.trim() || null : null,
+    lobbyPublicKeys: lobbyRaw === '' ? null : lobbyRaw,
   };
 }

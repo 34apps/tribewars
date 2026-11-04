@@ -10,6 +10,7 @@ COPY apps/server/package.json apps/server/
 # The lockfile lists every workspace, so their package.json files must exist for `npm ci`; only the server's deps are installed.
 COPY apps/web/package.json apps/web/
 COPY apps/preview/package.json apps/preview/
+COPY apps/lobby/package.json apps/lobby/
 RUN npm ci --workspace @clanfire/server --include-workspace-root=false --ignore-scripts
 COPY tsconfig.base.json ./
 COPY packages/engine packages/engine

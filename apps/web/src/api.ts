@@ -89,7 +89,16 @@ import type {
   TribeMemberDto,
 } from '@clanfire/engine';
 
-import { worldPrefixOf } from '@clanfire/engine';
+import type {
+  EnterPassRequest,
+  EnterWorldResponse,
+  LobbyAuthRequest,
+  LobbyMeResponse,
+  LobbyWorldsResponse,
+  WorldInfoResponse,
+} from '@clanfire/engine';
+
+import { LOBBY_PREFIX, worldPrefixOf } from '@clanfire/engine';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
 
@@ -124,10 +133,37 @@ export function withApiBase(path: string): string {
   return prefix !== '' && path.startsWith('/api') ? prefix + path : path;
 }
 
-async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
+/** The lobby's API base ("/lobby/api"). Lobby paths are sent verbatim: they never get a world prefix. */
+export const lobbyApiBase = `${LOBBY_PREFIX}/api`;
+
+/**
+ * A world page path from the lobby, or null when it is not safe to navigate or POST to. Only plain same-origin
+ * absolute paths ending in "/" pass ("/w/w1/"): no scheme, no "//host", no dot segments, no query or fragment.
+ */
+export function safeWorldPath(path: unknown): string | null {
+  if (typeof path !== 'string' || path.length > 200) return null;
+  if (!/^\/[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*\/$/.test(path)) return null;
+  if (path.split('/').some((seg) => seg === '.' || seg === '..')) return null;
+  return path;
+}
+
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+/** World requests: "/api/..." gets the page's "/w/<id>" prefix. */
+function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  return send<T>(method, withApiBase(path), body);
+}
+
+/** Lobby requests: the path (always under /lobby/api) is used as given. */
+function lobbyRequest<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  if (!path.startsWith(`${lobbyApiBase}/`)) throw new Error(`Not a lobby API path: ${path}`);
+  return send<T>(method, path, body);
+}
+
+async function send<T>(method: Method, url: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(withApiBase(path), {
+    res = await fetch(url, {
       method,
       credentials: 'same-origin',
       cache: method === 'GET' ? 'no-store' : 'default',
@@ -154,6 +190,21 @@ async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: strin
 }
 
 export const api = {
+  // ---- lobby (one account, many worlds) ----
+  lobbyMe: () => lobbyRequest<LobbyMeResponse>('GET', `${lobbyApiBase}/auth/me`),
+  lobbyLogin: (body: LobbyAuthRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/login`, body),
+  lobbyRegister: (body: LobbyAuthRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/register`, body),
+  lobbyLogout: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout`, {}),
+  lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
+  lobbyEnter: (id: string) => lobbyRequest<EnterWorldResponse>('POST', `${lobbyApiBase}/worlds/${encodeURIComponent(id)}/enter`, {}),
+  /** Hand the entry pass to the world (same origin: sets its session cookie). The pass travels in the body only. */
+  worldEnter: (worldPath: string, pass: string): Promise<MeResponse> => {
+    const safe = safeWorldPath(worldPath);
+    if (safe === null) return Promise.reject(new ApiRequestError('server_error', 'This world has an invalid address.', 0));
+    return send<MeResponse>('POST', `${safe}api/auth/enter`, { pass } satisfies EnterPassRequest);
+  },
+  /** Public facts about this world, including whether it only accepts lobby entry passes. */
+  worldInfo: () => request<WorldInfoResponse>('GET', '/api/world/info'),
   me: () => request<MeResponse>('GET', '/api/auth/me'),
   login: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/login', body),
   register: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/register', body),

@@ -183,7 +183,7 @@ test('another world\'s path is a 404, never this world (API or page)', async () 
   assert.equal((await app.inject({ method: 'GET', url: '/w/w1/index.html', headers: { host: HOST } })).statusCode, 200);
 });
 
-test('world info is public and shows only id, name, speed and start date', async () => {
+test('world info is public and shows only id, name, speed, start date and lobby flag', async () => {
   const app = await world('w7', { worldName: 'Hearth', world: { speed: 3 } });
   const jar = new Jar();
   assert.equal((await jar.call(app, 'POST', '/w/w7/api/auth/register', creds('secretplayer'))).statusCode, 201);
@@ -191,7 +191,8 @@ test('world info is public and shows only id, name, speed and start date', async
     const anon = await app.inject({ method: 'GET', url, headers: { host: HOST } }); // no cookie: public
     assert.equal(anon.statusCode, 200, url);
     const info = anon.json<WorldInfoResponse>();
-    assert.deepEqual(Object.keys(info).sort(), ['id', 'name', 'speed', 'startedAt']);
+    assert.deepEqual(Object.keys(info).sort(), ['id', 'lobby', 'name', 'speed', 'startedAt']);
+    assert.equal(info.lobby, false);
     assert.equal(info.id, 'w7');
     assert.equal(info.name, 'Hearth');
     assert.equal(info.speed, 3);

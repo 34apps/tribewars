@@ -79,8 +79,18 @@ CREATE TABLE IF NOT EXISTS players (
   staff_role      TEXT CHECK (staff_role IN ('support', 'moderator', 'admin')),
   -- Mute: cannot write mail, chat or forum text until this time (ms).
   muted_until     INTEGER,
-  mute_reason     TEXT
+  mute_reason     TEXT,
+  -- Lobby account this player belongs to (docs/MULTI_WORLD.md); null for players of a world without a lobby.
+  -- The unique index idx_players_account is created in addMissingColumns (the column may not exist yet on old databases).
+  account_id      INTEGER
 );
+
+-- Entry passes already used (single use). A row is kept until the pass could no longer be accepted (exp + clock skew).
+CREATE TABLE IF NOT EXISTS used_pass_nonces (
+  nonce      TEXT    PRIMARY KEY,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_used_pass_nonces_expires ON used_pass_nonces(expires_at);
 
 -- Every IP an account registered or signed in from (multi-account detection). Raw IPs: needed to review and ban;
 -- rows go with the account (cascade).
@@ -413,9 +423,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = 'e0c763d696d6ad1b';
+export const SCHEMA_FINGERPRINT = '1f486ecf7694c069';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -498,6 +508,9 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   }
   if (!cols.some((c) => c.name === 'muted_until')) db.exec('ALTER TABLE players ADD COLUMN muted_until INTEGER');
   if (!cols.some((c) => c.name === 'mute_reason')) db.exec('ALTER TABLE players ADD COLUMN mute_reason TEXT');
+  if (!cols.some((c) => c.name === 'account_id')) db.exec('ALTER TABLE players ADD COLUMN account_id INTEGER');
+  // Name and column are fixed: the lobby import command (links existing players to lobby accounts) uses exactly these. NULL may repeat.
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_account ON players(account_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
   const villageCols = db.prepare('PRAGMA table_info(villages)').all() as Array<{ name: string }>;
   if (!villageCols.some((c) => c.name === 'bot_next_at')) db.exec('ALTER TABLE villages ADD COLUMN bot_next_at INTEGER NOT NULL DEFAULT 0');

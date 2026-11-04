@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
+import { isLobbyPath } from '@clanfire/engine';
 import { api, errorMessage } from './api.ts';
-import { AuthScreen } from './components/AuthScreen.tsx';
+import { LobbyApp } from './components/LobbyApp.tsx';
+import { ErrorSplash, LoadingSplash } from './components/Splash.tsx';
+import { WorldGate } from './components/WorldGate.tsx';
 import { Game } from './Game.tsx';
-import { Icon } from './art/Icon.tsx';
 
 type Session = 'loading' | 'out' | 'in';
 
+/** One build, three situations by page path: the lobby (/lobby/), a world (/w/<id>/), or the old single-world root. */
 export function App() {
+  return isLobbyPath(window.location.pathname) ? <LobbyApp /> : <WorldApp />;
+}
+
+function WorldApp() {
   const [session, setSession] = useState<Session>('loading');
   const [bootError, setBootError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -30,29 +37,8 @@ export function App() {
   const signedOut = useCallback(() => setSession('out'), []);
   const signedIn = useCallback(() => setSession('in'), []);
 
-  if (bootError) {
-    return (
-      <div className="splash" role="alert">
-        <div className="splash-logo" aria-hidden="true">
-          <Icon name="flame" size={44} />
-        </div>
-        <p>{bootError}</p>
-        <button className="btn btn-primary" onClick={() => setAttempt((n) => n + 1)}>
-          Try again
-        </button>
-      </div>
-    );
-  }
-  if (session === 'loading') {
-    return (
-      <div className="splash" role="status">
-        <div className="splash-logo" aria-hidden="true">
-          <Icon name="flame" size={44} />
-        </div>
-        <p>Loading Clanfire…</p>
-      </div>
-    );
-  }
-  if (session === 'out') return <AuthScreen onAuthed={signedIn} />;
+  if (bootError) return <ErrorSplash message={bootError} onRetry={() => setAttempt((n) => n + 1)} />;
+  if (session === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
+  if (session === 'out') return <WorldGate onAuthed={signedIn} />;
   return <Game onSignedOut={signedOut} />;
 }

@@ -25,11 +25,14 @@ and never deployed.
 ```
 player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
              ├─ /*                → S3 bucket: apps/web/dist (private, Origin Access Control), shared by all worlds
+             ├─ /lobby/*          → S3 index.html (the lobby page; same SPA fallback as /w/<id>/)
+             ├─ /lobby/api/*      → origin.<domain> (same origin as the worlds on this machine)
              └─ /w/<id>/api/*     → origin.<domain> → EC2 t4g.small (arm64), Docker Compose:
                 (and old /api/*)      caddy    (Let's Encrypt TLS, gzip/zstd, checks X-Origin-Verify)
+                                      lobby    (apps/lobby, port 3001 internal only; accounts, world list, entry passes)
                                       game-w1  (apps/server, compiled JS, port 3000 internal only)
                                       SQLite on EBS gp3 → daily backup to S3
-                                      (game-w2 ... : one container, one SQLite file per world)
+                                      (game-w2 ... : one container, one SQLite file per world; lobby has its own file)
 ```
 
 - **Region:** eu-central-1 (Frankfurt) by default — low latency for Turkey and Europe. Change it if
@@ -49,7 +52,12 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
   origin, policy CachingDisabled + AllViewerExceptHostHeader, all methods. **WebSocket** works on
   `/w/<id>/api/live` (and `/api/live`) through the same behaviour: CloudFront passes the upgrade when the
   behaviour allows all methods and forwards the viewer headers; keep the origin response timeout above the
-  server's heartbeat interval so idle sockets are not cut. `/assets/*` → cached 1 year (file names carry hashes). Default (`index.html`,
+  server's heartbeat interval so idle sockets are not cut. **Lobby:** one more behaviour `/lobby/api/*` → the
+  origin (policy CachingDisabled + AllViewerExceptHostHeader so headers, cookies and query strings reach the
+  lobby; all methods, POST is used; no WebSocket). Caddy checks `X-Origin-Verify` for it like for the worlds
+  (CloudFront adds the same custom origin header on every origin behaviour) and routes `/lobby/*` to
+  `lobby:3001`. The page `/lobby/*` stays on the S3 behaviour: extend the viewer-request function so URIs under
+  `/lobby/` without a file extension (and not `/lobby/api/`) become `/index.html`. `/assets/*` → cached 1 year (file names carry hashes). Default (`index.html`,
   sprites) → short cache; 403/404 → `/index.html` (SPA) on the S3 behaviour only.
 - **World pages (`/w/<id>/`):** the client is one build and reads `/w/<id>/` from the URL, so every
   `/w/*` path that is not `/w/<id>/api/*` must return `index.html`. On the default S3 behaviour attach a
@@ -68,8 +76,10 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
     the API is the same origin (`/api/*` behaviour on the same CloudFront domain).
 - **Exactly one game container per world.** Never run two against one database (tick, rate limits
   and troop order assume one process). Never put SQLite on EFS.
-- Secrets: only `ANTHROPIC_API_KEY` if the advisor is ever on, plus the origin secret; keep them in
-  SSM Parameter Store and write `deploy/.env` on the instance — never in git or the image.
+- Secrets: only `ANTHROPIC_API_KEY` if the advisor is ever on, plus the origin secret and the lobby's
+  `LOBBY_SIGNING_KEY` (Ed25519 private key that signs entry passes; only in `deploy/lobby.env`, only the lobby
+  container reads it; worlds get the public key `LOBBY_PUBLIC_KEY`, not a secret); keep them in
+  SSM Parameter Store and write `deploy/.env` / `deploy/lobby.env` on the instance — never in git or the image.
 - Health: `GET /api/health` (checks the database); Docker `HEALTHCHECK` + a CloudWatch alarm.
 
 ## 3. Before going live — ranked
@@ -165,7 +175,11 @@ When the native app project starts (all additive; the web keeps its cookie login
    hosts that world, so moving a world is a behaviour change. The static client from S3 is shared by all worlds
    (the `/w/*` page rewrite in section 2); CSP and the other headers do not change, since every
    world stays on the same CloudFront domain.
+   **One login for all worlds (built):** the `lobby` service (own image, SQLite file and data folder, behaviour
+   `/lobby/api/*`, page `/lobby/`) holds the accounts; a world on another machine needs only the lobby's public key
+   (`LOBBY_PUBLIC_KEY`) and no connection to the lobby. `deploy/README.md` ("Lobby"), `docs/MULTI_WORLD.md`.
 4. **Many machines**: the same image on ECS (EC2) with one task per world and a
-   persistent EBS volume, an ALB once there is more than one machine, and a small Postgres (RDS)
-   account service so one login works across worlds.
+   persistent EBS volume, an ALB once there is more than one machine, and, only if the lobby itself ever
+   needs more than one machine, a small Postgres (RDS) behind it. Until then the lobby stays one process
+   with one SQLite file.
 

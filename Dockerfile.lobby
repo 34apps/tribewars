@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+# Clanfire lobby image (one account for many worlds). linux/arm64 on t4g, also builds on amd64. API only, no web client.
+# The signing key (LOBBY_SIGNING_KEY) is never baked in: pass it as an environment variable at runtime.
+ARG NODE_VERSION=26
+
+FROM node:${NODE_VERSION}-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/engine/package.json packages/engine/
+COPY apps/server/package.json apps/server/
+# The lockfile lists every workspace, so their package.json files must exist for `npm ci`; only the lobby's deps are installed.
+COPY apps/web/package.json apps/web/
+COPY apps/preview/package.json apps/preview/
+COPY apps/lobby/package.json apps/lobby/
+RUN npm ci --workspace @clanfire/lobby --include-workspace-root=false --ignore-scripts
+COPY tsconfig.base.json ./
+COPY packages/engine packages/engine
+COPY apps/lobby apps/lobby
+RUN npm run build -w @clanfire/lobby
+
+FROM node:${NODE_VERSION}-slim
+LABEL org.opencontainers.image.title="clanfire-lobby" \
+      org.opencontainers.image.description="Clanfire lobby: accounts, world list and entry passes" \
+      org.opencontainers.image.source="https://github.com/34apps/tribewars"
+WORKDIR /app
+ENV NODE_ENV=production \
+    DATABASE_PATH=/data/lobby.sqlite \
+    BACKUP_DIR=/data/backups \
+    HOST=0.0.0.0 \
+    PORT=3001
+COPY --from=build /app/apps/lobby/dist ./
+RUN mkdir -p /data && chown node:node /data
+USER node
+VOLUME /data
+EXPOSE 3001
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "--enable-source-maps", "index.js"]

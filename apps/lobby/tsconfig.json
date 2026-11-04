@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "test"],
+  // e2e.test.ts imports the real world app too; apps/server and apps/lobby both augment FastifyInstance.ctx with their own
+  // AppContext, so the two cannot be type-checked in one program. The test still runs (tsx); the rest is checked as usual.
+  "exclude": ["test/e2e.test.ts"]
+}

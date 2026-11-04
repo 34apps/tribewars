@@ -17,9 +17,11 @@ const app = await buildApp({
   allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
   sandboxUsers: env.sandboxUsers,
+  lobbyPublicKey: env.lobbyPublicKeys ?? undefined,
   logger: true,
   advisorClient: env.anthropicApiKey ? createAnthropicClient(env.anthropicApiKey) : null,
 });
+if (env.lobbyPublicKeys) app.log.info('Lobby entry is on (LOBBY_PUBLIC_KEY set): this world only accepts entry passes from the lobby');
 if (!env.anthropicApiKey) app.log.info('Advisor (Ask Mags) is off (needs ADVISOR_ENABLED=true and ANTHROPIC_API_KEY)');
 
 // Catch up on everything that came due while the server was down (oldest first) before taking requests.

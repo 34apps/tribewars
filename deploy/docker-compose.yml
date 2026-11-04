@@ -13,13 +13,9 @@ x-logging: &logging
     max-size: "10m"
     max-file: "5"
 
-# Settings shared by every world's service (hardening, limits). `<<: *game` merges them in; each world adds
-# its own env file, WORLD_ID and data folder. update.sh keeps the prior build as clanfire-game:previous for rollback.
-x-game: &game
-  image: clanfire-game:latest
-  build:
-    context: ..
-    dockerfile: Dockerfile
+# Hardening shared by every app container (worlds and the lobby): read-only root, no capabilities, no new privileges.
+# No published ports: only caddy reaches them, over the compose network.
+x-hardened: &hardened
   restart: unless-stopped
   init: true
   read_only: true
@@ -29,11 +25,19 @@ x-game: &game
     - no-new-privileges:true
   cap_drop:
     - ALL
+  stop_grace_period: 30s          # the server stops its tick and closes the DB on SIGTERM
+  logging: *logging
+
+# Settings shared by every world's service (image, limits). `<<: *game` merges them in; each world adds
+# its own env file, WORLD_ID and data folder. update.sh keeps the prior build as clanfire-game:previous for rollback.
+x-game: &game
+  <<: *hardened
+  image: clanfire-game:latest
+  build:
+    context: ..
+    dockerfile: Dockerfile
   pids_limit: 200
   mem_limit: 1500m
-  stop_grace_period: 30s          # server stops its tick and closes the DB on SIGTERM
-  logging: *logging
-  # No published ports: only caddy reaches it, over the compose network.
 
 services:
   game-w1:
@@ -56,6 +60,24 @@ services:
   #   volumes:
   #     # sudo mkdir -p /srv/clanfire/w2 && sudo chown 1000:1000 /srv/clanfire/w2
   #     - ${DATA_W2:-/srv/clanfire/w2}:/data
+
+  # The lobby: one account for all worlds, the world list, and the signer of entry passes (docs/MULTI_WORLD.md).
+  # Own image (clanfire-lobby, built from ../Dockerfile.lobby), own SQLite file in /data/lobby.sqlite, own env file.
+  # Setup order and the one-time import of existing players: deploy/README.md, "Lobby (one account, many worlds)".
+  # Operator commands: docker compose exec lobby node admin.js <command>
+  lobby:
+    <<: *hardened
+    image: clanfire-lobby:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile.lobby
+    pids_limit: 100
+    mem_limit: 512m
+    env_file: lobby.env           # holds LOBBY_SIGNING_KEY (secret); only the lobby gets it
+    volumes:
+      # Create once on the host, owned by the container's `node` user (uid 1000):
+      #   sudo mkdir -p /srv/clanfire/lobby && sudo chown 1000:1000 /srv/clanfire/lobby
+      - ${DATA_LOBBY:-/srv/clanfire/lobby}:/data
 
   caddy:
     image: caddy:2.10-alpine
@@ -82,6 +104,7 @@ services:
     logging: *logging
     depends_on:
       - game-w1
+      - lobby
 
 volumes:
   caddy_data:

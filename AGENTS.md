@@ -20,6 +20,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
   Numbers in `src/config.ts`, data model in `src/types.ts`, HTTP contract in `src/api.ts`.
 - `apps/server` — Fastify API, SQLite (`node:sqlite`), authoritative game state.
 - `apps/web` — Vite + React client (map canvas, village, troops, reports). Mobile-first.
+- `apps/lobby` — account service for all worlds (`/lobby/api`): accounts, world list, signed entry passes; own SQLite file. `docs/MULTI_WORLD.md`.
 - `apps/preview` — single-file in-browser preview: runs the real server code on sql.js plus the real web client, no server. Computer players for tribe features. Output `apps/preview/dist/index.html`.
 
 ## Commands (repo root)
@@ -33,6 +34,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--budget`, `--model`, `--effort`, `--max-turns`, `--continue`); see `docs/AI-WORKFLOW.md`.
 - `npm start` — compiled production server (serves `apps/web/dist` only if it exists; on AWS the web is on S3).
 - `npm run backup` — consistent copy of the database to `data/backups`. AWS setup: `docs/DEPLOYMENT_PLAN.md`, `deploy/`.
+- `npm run dev:lobby` — lobby with hot reload (+ web client); `npm run lobby:admin -- <command>` — operator CLI (keygen, worlds, world-add, ban, grant, ...); `npm run lobby:import -- <world db>` — one-time import of a world's players as lobby accounts.
 - Several worlds (one process + SQLite file + container each; `WORLD_ID`, routes under `/w/<id>/api`): `docs/MULTI_WORLD.md`.
 
 ## Rules

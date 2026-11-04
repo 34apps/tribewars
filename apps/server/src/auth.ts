@@ -4,7 +4,9 @@ import { createHash, randomBytes, randomInt, scrypt, timingSafeEqual } from 'nod
 import { promisify } from 'node:util';
 import {
   DEFAULT_CHIEFTAIN,
+  ENTRY_PASS_CLOCK_SKEW_MS,
   GameError,
+  isChieftainId,
   createNpcVillage,
   createPlayerVillage,
   findExpandingSpawn,
@@ -18,6 +20,7 @@ import {
   type PlayerDto,
   type WorldSettings,
 } from '@clanfire/engine';
+import { verifyEntryPass, type EntryKey } from './entry-pass.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 
@@ -31,6 +34,8 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const USERNAME_PATTERN = '^[A-Za-z0-9_]{3,20}$';
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
+/** Password hash of players created through the lobby: not in the scrypt format, so `verifyPassword` is false for every password. */
+export const LOBBY_PASSWORD_HASH = '!lobby-account';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 const KEY_LEN = 64;
@@ -177,6 +182,69 @@ export class AuthService {
       this.ensureVillage(player);
       return this.openSession(player, t);
     });
+  }
+
+  /**
+   * Sign in with an entry pass from the lobby (the world's only way in when LOBBY_PUBLIC_KEY is set). Everything the pass
+   * says comes from its verified signature; the player is found by lobby account id only. NEVER link by name: a world player
+   * who merely has the same name as a lobby account is refused (that would be an account takeover). Existing players are
+   * linked by the operator with the lobby import command, which sets players.account_id.
+   * The nonce, the player lookup/creation, the audit row and the session are written in one transaction. Refusals that
+   * must keep their audit row (banned, name clash) are returned from the transaction and thrown after the commit.
+   */
+  enterWithPass(pass: string, keys: readonly EntryKey[], worldId: string, ip?: string): { grant: SessionGrant; created: boolean } {
+    const claims = verifyEntryPass(pass, keys, this.now(), worldId);
+    const outcome = this.store.tx((): { grant: SessionGrant; created: boolean } | GameError => {
+      const t = this.now();
+      this.store.deleteExpiredEntryNonces(t);
+      // Remembered at least as long as the pass could still be accepted (it is valid until exp; the margin covers clock skew).
+      if (!this.store.useEntryNonce(claims.nonce, claims.exp + ENTRY_PASS_CLOCK_SKEW_MS)) {
+        throw new GameError('unauthorized', 'This entry pass was already used.');
+      }
+      let player = this.store.getPlayerByAccountId(claims.aid);
+      let created = false;
+      if (!player) {
+        const clash = this.store.getPlayerByLowerName(claims.name.toLowerCase());
+        if (clash) {
+          this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'enter_blocked_unlinked_name', targetPlayer: clash.id, detail: `account ${claims.aid}` });
+          return new GameError(
+            'username_taken',
+            'A player with this name already exists in this world and is not linked to a lobby account. Ask the operator to run the lobby import.',
+          );
+        }
+        const chieftain = isChieftainId(claims.chn) ? claims.chn : DEFAULT_CHIEFTAIN;
+        const playerId = this.store.insertPlayer(claims.name, LOBBY_PASSWORD_HASH, t, protectionEndsAt(t, this.settings), chieftain, claims.aid);
+        try {
+          this.spawnVillage(playerId, `${claims.name}'s village`, t);
+        } catch (err) {
+          if (err instanceof GameError && err.code === 'not_found') throw new GameError('forbidden', 'This world is full.');
+          throw err;
+        }
+        player = this.store.getPlayer(playerId);
+        if (!player) throw new Error('player vanished after insert');
+        created = true;
+        this.store.audit({ at: t, actorId: player.id, actorIp: ip ?? null, action: 'register', targetPlayer: player.id, detail: 'lobby' });
+      } else {
+        if (player.bannedAt !== null) {
+          this.store.audit({ at: t, actorId: player.id, actorIp: ip ?? null, action: 'login_blocked_banned', targetPlayer: player.id });
+          return new GameError('forbidden', 'This account has been suspended.');
+        }
+        this.store.touchActive(player.id, t, 0);
+        this.ensureVillage(player);
+        this.store.audit({ at: t, actorId: player.id, actorIp: ip ?? null, action: 'enter', targetPlayer: player.id });
+      }
+      if (ip) this.store.recordIp(player.id, ip, t);
+      // The lobby is the source of truth for the staff role of linked accounts: copy it at every entry, so a role
+      // granted or revoked there reaches this world with the next pass (a role set by the world's CLI is overwritten).
+      if (player.staffRole !== claims.role) {
+        this.store.staff.setStaffRole(player.id, claims.role);
+        this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'role_sync', targetPlayer: player.id, detail: `${player.staffRole ?? 'none'} -> ${claims.role ?? 'none'}` });
+        player = this.store.getPlayer(player.id) ?? player;
+      }
+      return { grant: this.openSession(player, t), created };
+    });
+    if (outcome instanceof GameError) throw outcome;
+    return outcome;
   }
 
   /** A returning player whose villages were abandoned after a long absence starts over with a fresh village (new beginner protection). */

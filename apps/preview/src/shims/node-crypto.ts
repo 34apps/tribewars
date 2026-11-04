@@ -125,5 +125,14 @@ export function scrypt(
   }
 }
 
+// Entry passes (server entry-pass.ts) need real Ed25519 verification. The preview has no lobby (ctx.lobby is unset, so
+// POST /api/auth/enter answers 404 and nothing calls these); they exist so the bundle links.
+export function createPublicKey(): never {
+  throw new Error('Entry passes are not available in the preview.');
+}
+export function verify(): never {
+  throw new Error('Entry passes are not available in the preview.');
+}
+
 // auth.ts uses the global Buffer.
 (globalThis as { Buffer?: unknown }).Buffer ??= Buffer;

@@ -1,0 +1,34 @@
+import type { ReactNode } from 'react';
+import { Icon } from '../art/Icon.tsx';
+
+function Logo() {
+  return (
+    <div className="splash-logo" aria-hidden="true">
+      <Icon name="flame" size={44} />
+    </div>
+  );
+}
+
+/** Full-screen "please wait" splash (role=status). */
+export function LoadingSplash({ text, children }: { text: string; children?: ReactNode }) {
+  return (
+    <div className="splash" role="status">
+      <Logo />
+      <p>{text}</p>
+      {children}
+    </div>
+  );
+}
+
+/** Full-screen error splash with a retry button (role=alert). */
+export function ErrorSplash({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="splash" role="alert">
+      <Logo />
+      <p>{message}</p>
+      <button className="btn btn-primary" onClick={onRetry}>
+        Try again
+      </button>
+    </div>
+  );
+}

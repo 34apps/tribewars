@@ -59,6 +59,8 @@ export interface PlayerRow {
   /** Muted (no mail, chat or forum writing) until this time (ms), or null. Check with `isMuted`. */
   mutedUntil: number | null;
   muteReason: string | null;
+  /** Lobby account this player belongs to, or null (worlds without a lobby, or not yet linked). */
+  accountId: number | null;
 }
 
 export interface SharedIpGroup {
@@ -308,6 +310,7 @@ function toPlayer(r: Raw): PlayerRow {
     staffRole: isStaffRole(r.staff_role) ? r.staff_role : null,
     mutedUntil: (r.muted_until as number | null) ?? null,
     muteReason: (r.mute_reason as string | null) ?? null,
+    accountId: (r.account_id as number | null) ?? null,
   };
 }
 
@@ -555,9 +558,10 @@ export class Store extends SqlBase {
     createdAt: number,
     protectedUntil: number,
     chieftain: string = DEFAULT_CHIEFTAIN,
+    accountId: number | null = null,
   ): number {
     return this.run(
-      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until, chieftain, last_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO players (username, username_lower, password_hash, created_at, protected_until, chieftain, last_active, account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       username,
       username.toLowerCase(),
       passwordHash,
@@ -565,7 +569,30 @@ export class Store extends SqlBase {
       protectedUntil,
       chieftain,
       createdAt,
+      accountId,
     ).id;
+  }
+
+  /** The player linked to a lobby account (players.account_id is unique), or null. */
+  getPlayerByAccountId(accountId: number): PlayerRow | null {
+    const r = this.get('SELECT * FROM players WHERE account_id = ?', accountId);
+    return r ? toPlayer(r) : null;
+  }
+
+  // ---- entry-pass nonces (single-use passes from the lobby) ----------------------------------------
+
+  /** Remember a pass nonce until `expiresAt`. False when it was already used. */
+  useEntryNonce(nonce: string, expiresAt: number): boolean {
+    return this.run('INSERT OR IGNORE INTO used_pass_nonces (nonce, expires_at) VALUES (?, ?)', nonce, expiresAt).changes > 0;
+  }
+
+  /** Forget nonces whose pass could no longer be accepted. */
+  deleteExpiredEntryNonces(now: number): void {
+    this.run('DELETE FROM used_pass_nonces WHERE expires_at <= ?', now);
+  }
+
+  countEntryNonces(): number {
+    return Number(this.get('SELECT COUNT(*) AS n FROM used_pass_nonces')?.n ?? 0);
   }
 
   /** Record activity at `t`. Cheap no-op unless the stored time is older than `minGapMs`. Returns whether it wrote. */

@@ -1138,4 +1138,118 @@ export interface WorldInfoResponse {
   speed: number;
   /** When this world's database was created, ISO 8601 UTC. */
   startedAt: string;
+  /** True when the world only accepts entry passes from the lobby (LOBBY_PUBLIC_KEY set): its own register/login are off. */
+  lobby: boolean;
+}
+
+// ---- lobby: one account, many worlds (docs/MULTI_WORLD.md) ---------------------------------------------------------
+// The lobby (apps/lobby) owns accounts, passwords, lobby sessions, the multi-account IP guard and the world list.
+// It answers under /lobby/api/... (cookie `tw_lobby`, Path=/lobby/). Errors use ApiError like every other route.
+//
+//   POST /lobby/api/auth/register  body LobbyAuthRequest -> 201 LobbyMeResponse (sets cookie)
+//   POST /lobby/api/auth/login     body LobbyAuthRequest -> 200 LobbyMeResponse (sets cookie)
+//   POST /lobby/api/auth/logout    -> 204 (clears cookie)
+//   GET  /lobby/api/auth/me        -> 200 LobbyMeResponse (account null when signed out)
+//   GET  /lobby/api/worlds         -> 200 LobbyWorldsResponse (signed in)
+//   POST /lobby/api/worlds/:id/enter (empty body {}, signed in) -> 200 EnterWorldResponse; 403 forbidden when banned or the world is closed
+//   GET  /lobby/api/health         -> 200 { ok: true }
+//
+// Entering a world: the client POSTs the pass to the world (same origin, so the world's session cookie is set):
+//   POST /w/<id>/api/auth/enter  body EnterPassRequest -> 200 MeResponse (sets the world session cookie)
+// Only worlds started with LOBBY_PUBLIC_KEY accept it (404 otherwise); such worlds refuse their own register/login (403 forbidden).
+
+export const LOBBY_PREFIX = '/lobby';
+export const LOBBY_SESSION_COOKIE = 'tw_lobby';
+
+/** True when a page or request path is the lobby's ("/lobby", "/lobby/", "/lobby/api/..."). */
+export function isLobbyPath(pathname: string): boolean {
+  return pathname === LOBBY_PREFIX || pathname.startsWith(`${LOBBY_PREFIX}/`);
+}
+
+export type WorldStatus = 'open' | 'full' | 'closed';
+export const WORLD_STATUSES: readonly WorldStatus[] = ['open', 'full', 'closed'];
+export function isWorldStatus(v: unknown): v is WorldStatus {
+  return v === 'open' || v === 'full' || v === 'closed';
+}
+
+export interface LobbyAuthRequest {
+  /** 3-20 chars: letters, digits, underscore. Case-insensitive unique. Same rules as the old world accounts. */
+  username: string;
+  /** 8-128 chars. */
+  password: string;
+  /** Register only: chieftain portrait id; the world uses it when it first creates this account's player. */
+  chieftain?: string;
+}
+
+export interface LobbyAccountDto {
+  id: number;
+  username: string;
+  chieftain: string;
+  /** Staff role of the account; worlds copy it onto the player at every entry. */
+  staffRole: StaffRole | null;
+}
+
+export interface LobbyMeResponse {
+  account: LobbyAccountDto | null;
+}
+
+export interface LobbyWorldDto {
+  id: string;
+  name: string;
+  /** 'full' = no new players (returning ones can still enter); 'closed' = nobody enters. */
+  status: WorldStatus;
+  /** Public URL path of the world's page, always "/..../" (e.g. "/w/w1/"). The world's API is `${path}api/...`. */
+  path: string;
+}
+
+export interface LobbyWorldsResponse {
+  worlds: LobbyWorldDto[];
+}
+
+export interface EnterWorldResponse {
+  /** Signed entry pass (see EntryPassClaims). Single use, valid for ENTRY_PASS_TTL_MS. Never put it in a URL. */
+  pass: string;
+  /** The world's page path (same as LobbyWorldDto.path). */
+  path: string;
+  /** When the pass expires, ms since epoch. */
+  expiresAt: number;
+}
+
+export interface EnterPassRequest {
+  pass: string;
+}
+
+// ---- entry pass format ----
+// pass = base64url(JSON(EntryPassClaims)) + "." + base64url(Ed25519 signature)
+// The signature is over the UTF-8 bytes of ENTRY_PASS_DOMAIN + "\n" + <the base64url payload part exactly as sent>.
+// The lobby signs with the private key from env LOBBY_SIGNING_KEY; a world verifies with LOBBY_PUBLIC_KEY.
+// Keys travel as base64 of DER: private = PKCS#8, public = SPKI. kid = first 16 hex chars of SHA-256(public SPKI DER).
+
+export const ENTRY_PASS_TTL_MS = 60_000;
+/** Worlds refuse passes whose lifetime (exp - iat) is longer than this, whatever the signer says. */
+export const ENTRY_PASS_MAX_LIFETIME_MS = 120_000;
+/** Allowed clock difference between lobby and world (iat may be this far in the future). */
+export const ENTRY_PASS_CLOCK_SKEW_MS = 10_000;
+export const ENTRY_PASS_DOMAIN = 'clanfire-entry-pass-v1';
+
+export interface EntryPassClaims {
+  /** Format version, 1. */
+  v: 1;
+  /** Key id of the signing key. */
+  kid: string;
+  /** Lobby account id. */
+  aid: number;
+  /** Lobby username (used as the player name when the world first creates the player). */
+  name: string;
+  /** World id this pass is for; any other world refuses it. */
+  wid: string;
+  /** Chieftain portrait id the account chose. */
+  chn: string;
+  /** Staff role of the account or null. */
+  role: StaffRole | null;
+  /** Issued at / expires at, ms since epoch. */
+  iat: number;
+  exp: number;
+  /** 22+ random url-safe characters, never reused. */
+  nonce: string;
 }

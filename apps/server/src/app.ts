@@ -9,6 +9,7 @@ import { DEFAULT_WORLD_ID, GameError, type ApiError, type GameErrorCode, type Wo
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
+import { parsePublicKeys } from './entry-pass.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
 import { GameService } from './game.ts';
@@ -71,6 +72,8 @@ export interface BuildAppOptions {
   worldId?: string;
   /** Display name for GET /api/world/info (default "World <worldId>"). */
   worldName?: string;
+  /** LOBBY_PUBLIC_KEY: comma list of base64 SPKI DER / PEM Ed25519 public keys. Set = entry passes from the lobby only (own register/login off). */
+  lobbyPublicKey?: string;
 }
 
 const DEFAULT_WEB_DIST = resolve(import.meta.dirname, '../../web/dist');
@@ -89,6 +92,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const worldId = checkWorldId(opts.worldId ?? DEFAULT_WORLD_ID, 'worldId');
   const worldName = checkWorldName(opts.worldName ?? `World ${worldId}`, 'worldName');
   const rewriteWorldPath = makeWorldRewrite(worldId);
+  const lobbyKeys = parsePublicKeys(opts.lobbyPublicKey ?? '');
+  if ((opts.lobbyPublicKey ?? '').trim() !== '' && lobbyKeys.length === 0) throw new Error('Invalid LOBBY_PUBLIC_KEY: no key found in the list.');
   const app = Fastify({
     logger: opts.logger ?? false,
     // "/w/<id>/api/x" is routed as "/api/x": one set of routes, hooks and limits for both paths.
@@ -125,6 +130,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     worldId,
     worldName,
+    lobby: lobbyKeys.length > 0 ? { keys: lobbyKeys } : null,
     limiter: new RateLimiter(10, 60_000),
     live,
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
@@ -252,7 +258,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // Public and private-data-free: id, name, speed, start date. Nothing about players, villages or the database.
   app.get('/api/world/info', async (): Promise<WorldInfoResponse> => {
     const created = Number(store.getMeta('world_created_at'));
-    return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString() };
+    return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString(), lobby: Boolean(ctx.lobby) };
   });
   authRoutes(app, ctx);
   gameRoutes(app, ctx);

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CHIEFTAINS, DEFAULT_CHIEFTAIN } from '@clanfire/engine';
+import type { AuthRequest } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 
@@ -8,7 +9,15 @@ const ChieftainPicker = lazy(() => import('./ChieftainPicker.tsx'));
 
 type Mode = 'login' | 'register';
 
-export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
+/** The two account calls the form makes: the world's own (default) or the lobby's. */
+export interface AuthCalls {
+  login: (body: AuthRequest) => Promise<unknown>;
+  register: (body: AuthRequest) => Promise<unknown>;
+}
+
+const WORLD_CALLS: AuthCalls = { login: api.login, register: api.register };
+
+export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => void; calls?: AuthCalls }) {
   const [mode, setMode] = useState<Mode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +50,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
     }
     setBusy(true);
     try {
-      await api.login({ username: username.trim(), password });
+      await calls.login({ username: username.trim(), password });
       onAuthed();
     } catch (err) {
       setError(errorMessage(err));
@@ -54,7 +63,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.register({ username: username.trim(), password, chieftain });
+      await calls.register({ username: username.trim(), password, chieftain });
       onAuthed();
     } catch (err) {
       // Most failures (name taken, rate limit) are about the account fields: go back to them with the message.
