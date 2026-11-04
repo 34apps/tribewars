@@ -5,13 +5,12 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`ee21c6c`): owner picked village-building style **B · Painted Miniature** from 3 drawn directions
-(`design/style-directions/village-v2/A|B|C`). All 12 buildings x 3 stages + empty plot / under construction /
-scaffold are now B (`apps/web/src/art/buildings/`); Market has its own art. Earlier today: 6 abandoned-village
-map stages; villages fit one tile (`VILLAGE_DRAW_SCALE` 1 — don't scale above 1).
-Checks passed, build + preview build ok; village viewed in the preview at 1440 and 390 px.
-Very next step: scenery (trees, rocks, campfire, ground) is still toy style next to B buildings — ask the owner
-whether to redraw it in B; maybe draw buildings larger in `PLACEMENT`.
+2026-11-04 (`443a2e3`): village view re-laid out after the owner's "maxed village looks cramped/mismatched": bigger
+ring + ground, 11 spaced plots around the town square, larger buildings, all scenery redrawn in style B. New
+test-mode **Design preview** (Settings → Design preview; slider 0–20 / Play) shows every building at a level in the
+real scene, client-only. Earlier today: buildings redrawn in style B; 6 abandoned map stages; villages fit one map tile.
+Checks passed, build + preview build ok; viewed in the preview at 1440 and 390 px.
+Very next step: owner checks the village (fresh + max + design preview) on their Mac; follow-ups in NEXT_STEPS.
 
 ## How the owner works (important)
 
