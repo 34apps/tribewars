@@ -1329,7 +1329,7 @@ button.strip {
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1599px) {
+@media (min-width: 1024px) and (max-width: 1919px) {
   .topbar {
     gap: 10px;
     padding: 0 12px;

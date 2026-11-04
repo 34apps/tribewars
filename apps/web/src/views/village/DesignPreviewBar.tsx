@@ -1,6 +1,7 @@
 // Control bar for the test-mode "Design preview": step every building through levels 0-20 in the real village scene.
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
 import { buildingStage } from '../../art/buildings.ts';
 import { PREVIEW_MAX_LEVEL, setDesignPreview, setPreviewLevel, useDesignPreview } from './designPreviewState.ts';
@@ -42,7 +43,8 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
     (id) => id === 'wall' && level > 0 && buildingStage(id, Math.min(level, max)) !== buildingStage(id, Math.max(0, Math.min(level - 1, max))),
   );
 
-  return (
+  // Drawn straight into <body>: inside the village board an ancestor's containment/overflow would clip or move a fixed bar.
+  return createPortal(
     <div
       style={floating ? { ...bar, position: 'fixed', bottom: 70, left: 8, right: 8, zIndex: 30 } : { ...bar, position: 'fixed', bottom: 8, right: 8, width: 420, maxWidth: 'calc(100vw - 16px)', zIndex: 30 }}
       role="group"
@@ -83,6 +85,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
             ? `New picture at level ${level}: ${changed.map((id) => BUILDINGS[id].name).join(', ')}`
             : `No picture change at level ${level}.`}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
