@@ -5,9 +5,9 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`115a93a`): **defender Renown trickle** (`min(22, 0.006 x defence at home)`/village/day, none in protection, lazy `defenceMark`, paid in `Store.saveVillage`, reads only show it) and **step 1 terrain travel** (`packages/engine/src/travel.ts`, `TERRAIN_SPEED`, cap 2.2x, ~12% slower on average, same both ways; send/shipment forms + coloured map route). Sim: pure defender 2nd village day 25.4, raider 20.4, builder 14.5 (faster than the raider: owner to judge), terrain moved nothing in the sim; idle stretch left for after step 2 (owner). Checks passed (check, build, build:preview); `BALANCE.md` §7.4, `docs/sim/2026-11-04-after-*.txt`.
-Left: nothing viewed in a browser (360/1440 px); step 2 (found/take villages, spend Renown, several villages in the sim) not started. Details: `NEXT_STEPS.md` first item.
-Very next step: owner looks at the map route + send preview and decides about the builder pace; then §18.7 step 2.
+2026-11-05 (`12392ef`): **step 2, several villages** (engine `hearth.ts`/`found.ts`, Chieftain + Banner Hall training with reserved Renown, Strike and Hold on abandoned villages, founding, restart rule for a lost last village, inactive villages keep buildings, `GET /api/villages`, rename, web switcher/Chieftain panel/Strike-Found-Occupy/hold card, multi-village sim). Owner rules in `GAME_DESIGN.md` §18.2 + §18.8 #9. Checks passed (check, build, build:preview). Sim (`BALANCE.md` 7.5): balanced day 20.7, builder 15.2, defender 26.8, pure raider none in 30 days; idle stretch after day 20 under 3 h.
+Left: nothing viewed in a browser (360/1440 px); pace of defender/raider is the owner's call (levers in `NEXT_STEPS.md`); player villages cannot be taken yet (`HEARTH_PLAYERS_ENABLED=false`, step 4); shipment to a taken village lands in the conqueror's stock.
+Very next step: owner looks at the new screens and judges the pace; then step 3 (rest hours) and step 4 (taking player villages).
 Notes: Bash is an allow list (no python, no `rm`, no `node` directly); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch file `packages/engine/test/probe.test.ts` (runner cannot).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping` (stage with explicit paths, not `git add -A`).
 
