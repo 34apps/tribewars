@@ -58,7 +58,7 @@ export const ALLEGIANCES: readonly Allegiance[] = ['own', 'tribe', 'ally', 'nap'
 export const TILE_VARIANTS: ReadonlyArray<readonly string[]> = [
   ['tile-grass-0', 'tile-grass-1', 'tile-grass-2', 'tile-grass-3'],
   ['tile-forest-0', 'tile-forest-1'],
-  ['tile-hills-clear', 'tile-hills-0', 'tile-hills-1', 'tile-hills-2'],
+  ['tile-hills-0'],
   ['tile-mountain-0', 'tile-mountain-1'],
   ['tile-lake-0', 'tile-lake-1'],
 ];

@@ -95,17 +95,6 @@ const SHIELD_TICK = new Path2D('M-4 0.5L-1 3.5L4.5 -3');
 
 const vkey = (x: number, y: number) => (x + 32768) * 65536 + (y + 32768);
 
-/** Villages are drawn this much bigger than the raw art so each one fills its tile. */
-const VILLAGE_SCALE = 1.8;
-/** Tribe banner size on top of the village scale. */
-const BANNER_SCALE = 1.25;
-
-/** Is (x, y) a village tile or one of its 8 neighbours (trees are cleared there)? */
-function nearVillage(villages: Map<number, MapVillageDto>, x: number, y: number): boolean {
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (villages.has(vkey(x + dx, y + dy))) return true;
-  return false;
-}
-
 /** Pick a label step so labels stay at least `min` px apart. */
 function labelStep(px: number, min: number): number {
   for (const s of [1, 2, 5, 10, 20, 50, 100, 200]) if (s * px >= min) return s;
@@ -260,7 +249,7 @@ export function drawMap(sc: Scene): FrameResult {
         const y = (v - u) >> 1;
         const p = sxy(u, v);
         const code = terrain.get(x, y);
-        const name = nearVillage(villages, x, y) ? CLEARED_TILE[code]! : tileArt(code, x, y);
+        const name = villages.has(vkey(x, y)) ? CLEARED_TILE[code]! : tileArt(code, x, y);
         if (!painter.draw(name, p.x, p.y)) drawFlatTile(ctx, code, p.x, p.y, s);
       }
     }
@@ -293,7 +282,7 @@ export function drawMap(sc: Scene): FrameResult {
         drawn.push(drawVillage(ctx, painter, vil, gx, gy, s));
         if (isSel) {
           const top = vil.kind === 'abandoned' ? RUIN_TOP[ruinStage(vil.points) - 1] : STAGE_TOP[mapStage(vil.points) - 1];
-          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : VILLAGE_SCALE) - 16) * s };
+          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : 1) - 16) * s };
         }
       } else if (isSel) {
         pointerAt = { x: gx, y: gy - 34 * s };
@@ -306,12 +295,11 @@ export function drawMap(sc: Scene): FrameResult {
   drawRoutePreview(sc);
   const markerSpeed = drawMovements(sc);
 
-  const fs = Math.max(8, Math.min(11, t * 0.1));
+  const fs = Math.max(10, Math.min(14, t * 0.13));
   for (const d of drawn) {
     const vil = d.village;
     const own = vil.kind === 'own';
-    const hovered = !!sc.hover && sc.hover.x === vil.x && sc.hover.y === vil.y;
-    if (!own && !hovered && t < LABEL_TILE) continue;
+    if (!own && t < LABEL_TILE) continue;
     const coords = `${vil.x}|${vil.y}`;
     const ly = d.y + 30 * s + fs * 0.6;
     if (own) pill(ctx, t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, fs, SUN, INK);
@@ -373,16 +361,6 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
 
   // Ring (back half is hidden by the sprite) and the dome's back under the sprite.
   withTile(ctx, x, y, s, () => {
-    // Small dirt clearing under the village.
-    const dk = abandoned ? 0.7 : 1;
-    ctx.beginPath();
-    ctx.ellipse(0, 2, 44 * dk, 22 * dk, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#B88A56';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(-3, 0, 32 * dk, 15 * dk, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#C99A62';
-    ctx.fill();
     ctx.lineJoin = 'round';
     ctx.setLineDash(style.dash as number[]);
     if (abandoned) {
@@ -400,7 +378,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     }
     if (dome) {
       ctx.setLineDash([]);
-      ctx.scale(1.8, 1.8);
+      ctx.scale(1.2, 1.2);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.28)';
       ctx.fill(DOME_BACK);
       ctx.lineWidth = 1.6;
@@ -410,7 +388,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
   });
 
   // Ruins are drawn smaller than player villages so they never dominate the map.
-  const k = abandoned ? RUIN_DRAW_SCALE : VILLAGE_SCALE;
+  const k = abandoned ? RUIN_DRAW_SCALE : 1;
   if (!painter.draw(sprite, x, y, k)) {
     ctx.beginPath();
     ctx.arc(x, y - 10 * s, 14 * s, 0, Math.PI * 2);
@@ -431,12 +409,12 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
       ctx.stroke(RING_FRONT);
     });
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
-    painter.draw(`banner-${al}`, x + base[0] * s * VILLAGE_SCALE, y + base[1] * s * VILLAGE_SCALE, VILLAGE_SCALE * BANNER_SCALE);
+    painter.draw(`banner-${al}`, x + base[0] * s, y + base[1] * s, 1.15);
   }
 
   if (dome) {
     withTile(ctx, x, y, s, () => {
-      ctx.scale(1.8, 1.8);
+      ctx.scale(1.2, 1.2);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.26)';
       ctx.fill(DOME_FRONT);
       ctx.lineCap = 'round';
