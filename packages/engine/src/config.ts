@@ -76,7 +76,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.1;
 /** Population per troop type (separate from food upkeep). */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 3, knight: 4, pathfinder: 1 };
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1 };
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 150;
@@ -320,7 +320,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 70,
     upkeep: 3,
     cost: res(120, 90, 150),
-    trainTimeSec: 720,
+    trainTimeSec: 600,
     building: 'stables',
     requires: { stables: 1 },
     research: { drillyard: 3, cost: res(300, 220, 350, 20), timeSec: 7200 },

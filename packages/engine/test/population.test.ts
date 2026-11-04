@@ -8,6 +8,7 @@ import {
   popCapForLevel,
   populationCap,
   populationUsage,
+  POP_PER_UNIT,
 } from '../src/index.ts';
 import { S1, village } from './helpers.ts';
 
@@ -30,7 +31,7 @@ describe('population', () => {
     const lumber = base.buildings.lumber;
     assert.equal(populationUsage(queued).buildings, before.buildings + (buildingPop('lumber', lumber + 1) - buildingPop('lumber', lumber)));
     const withTroops = village({ buildings: LEVELS, troops: { pikeman: 10 }, away: { outrider: 2 }, resources: RICH });
-    assert.equal(populationUsage(withTroops).troops, 10 + 2 * 3);
+    assert.equal(populationUsage(withTroops).troops, 10 + 2 * POP_PER_UNIT.outrider);
   });
 
   it('refuses training and building that would go over the cap, but never the Farm', () => {

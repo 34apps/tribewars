@@ -55,7 +55,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
   using the Town Hall level when the job is queued.
-- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 720, knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
+- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2, food upkeep 3), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
 - **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village for players without a premium subscription,
   `MAX_BUILD_QUEUE_PREMIUM` (5) for premium subscribers (`buildQueueLimit(premium)`; the server reads the
