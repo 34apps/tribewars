@@ -5,6 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
+2026-11-04 (`dd8c40a`): population retuned (`POP_CAP_GROWTH` 1.2, `POP_BUILDING_GROWTH` 1.1) so a maxed village has
+~3,100 pop left for troops. Numbers only in `config.ts`; `GAME_DESIGN.md` updated. Checks passed.
+Very next step: owner plays and says if the army size feels right; tune the two constants if not.
+(Older notes below.)
+
 2026-11-04 (`149035b`, `676d342`): abandoned villages now have 6 pictures, one ruined version per growth
 stage (`abandoned-stage-1..6.svg`, same point steps as player villages), replacing the 3 old ruins. Earlier today:
 ruins same scale as villages, protection dome fits its tile (`7bdc1e7`); villages tried at 1.3x but that spilled over
