@@ -5,7 +5,9 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
+2026-11-04 (`53da13a`): preview bar moved out of the way: fixed bottom-right on desktop, bottom on phone (hint hidden). Not viewed.
+Next: owner checks whole wall is visible at 360 and 1440 px; move bar elsewhere if still in the way. Checks passed.
+Earlier (`80e2127`): owner screenshot showed the Design preview slider dead (bar sat in `.vv-board-head`, pointer-events:none;
 now auto), buildings in the preview (now wall only, other buildings level 0, no queue), and sideways + page scrollbars
 (`html:has(.app)` overflow hidden, `.app` clipped, compact top bar up to 1599 px). Not viewed (no renderer).
 Very next step: owner opens Settings → Design preview, drags the slider to 20, screenshots the corner tower at 360 and 1440 px,
