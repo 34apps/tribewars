@@ -41,7 +41,9 @@ export interface Scene {
 /** Abandoned villages are drawn at this share of the player-village size. */
 // Villages are drawn larger than the tile frame so they read clearly next to the trees (owner, 2026-11-04).
 const VILLAGE_DRAW_SCALE = 1.3;
-const RUIN_DRAW_SCALE = 1.0;
+// Protection dome stays inside its own tile (tile half-width 48, dome radius 50).
+const DOME_SCALE = 0.94;
+const RUIN_DRAW_SCALE = VILLAGE_DRAW_SCALE; // same scale, so more points always looks bigger
 
 export interface DrawnVillage {
   village: MapVillageDto;
@@ -85,12 +87,13 @@ const RING_FRONT = new Path2D('M-41.3 -1.9L-45.1 0L0 22.6L45.1 0L41.3 -1.9');
 const SELECT = new Path2D('M-7.2 -22.3Q0 -25.9 7.2 -22.3L44.7 -3.6Q51.8 0 44.7 3.6L7.2 22.3Q0 25.9 -7.2 22.3L-44.7 3.6Q-51.8 0 -44.7 -3.6Z');
 const POINTER = new Path2D('M-9 -8H9L0 4Z');
 const POINTER_HI = new Path2D('M-9 -8H9L7.2 -5.2H-7.2Z');
-const DOME_BACK = new Path2D('M-50 0A50 25 0 0 1 50 0A50 62 0 0 0 -50 0Z');
+// Dome: base ellipse fits the tile; tall enough to cover a 1.3x village.
+const DOME_BACK = new Path2D('M-50 0A50 25 0 0 1 50 0A50 82 0 0 0 -50 0Z');
 const DOME_BACK_RIM = new Path2D('M-50 0A50 25 0 0 1 50 0');
-const DOME_FRONT = new Path2D('M-50 0A50 62 0 0 1 50 0A50 25 0 0 1 -50 0Z');
+const DOME_FRONT = new Path2D('M-50 0A50 82 0 0 1 50 0A50 25 0 0 1 -50 0Z');
 const DOME_FRONT_RIM = new Path2D('M-50 0A50 25 0 0 0 50 0');
-const DOME_SHINE = new Path2D('M-38 -26A40 46 0 0 1 -8 -58');
-const DOME_SHINE2 = new Path2D('M30 -40A40 46 0 0 1 40 -24');
+const DOME_SHINE = new Path2D('M-38 -34A40 60 0 0 1 -8 -76');
+const DOME_SHINE2 = new Path2D('M30 -52A40 60 0 0 1 40 -31');
 const SHIELD = new Path2D('M0 -10L9 -7V0C9 6 4 9.5 0 11C-4 9.5 -9 6 -9 0V-7Z');
 const SHIELD_SHADE = new Path2D('M0 -10L9 -7V0C9 6 4 9.5 0 11Z');
 const SHIELD_TICK = new Path2D('M-4 0.5L-1 3.5L4.5 -3');
@@ -380,7 +383,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     }
     if (dome) {
       ctx.setLineDash([]);
-      ctx.scale(1.2 * VILLAGE_DRAW_SCALE, 1.2 * VILLAGE_DRAW_SCALE);
+      ctx.scale(DOME_SCALE, DOME_SCALE);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.28)';
       ctx.fill(DOME_BACK);
       ctx.lineWidth = 1.6;
@@ -416,7 +419,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
 
   if (dome) {
     withTile(ctx, x, y, s, () => {
-      ctx.scale(1.2 * VILLAGE_DRAW_SCALE, 1.2 * VILLAGE_DRAW_SCALE);
+      ctx.scale(DOME_SCALE, DOME_SCALE);
       ctx.fillStyle = 'rgba(221, 244, 241, 0.26)';
       ctx.fill(DOME_FRONT);
       ctx.lineCap = 'round';
@@ -429,7 +432,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#2F9AA0';
       ctx.stroke(DOME_FRONT_RIM);
-      ctx.translate(34, -52);
+      ctx.translate(34, -66);
       ctx.lineJoin = 'round';
       ctx.fillStyle = '#2F9AA0';
       ctx.fill(SHIELD);
