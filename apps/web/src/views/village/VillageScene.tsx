@@ -249,7 +249,11 @@ export function VillageScene({
   levelOverride?: number | null;
 }) {
   const { live, now } = useGame();
-  const levels = levelOverride == null ? live.buildings : (Object.fromEntries(BUILDING_IDS.map((id) => [id, Math.min(levelOverride, BUILDINGS[id].maxLevel)])) as typeof live.buildings);
+  // Design preview shows the wall alone (every other building unbuilt, no queue work) at the chosen level.
+  const levels =
+    levelOverride == null
+      ? live.buildings
+      : (Object.fromEntries(BUILDING_IDS.map((id) => [id, id === 'wall' ? Math.min(levelOverride, BUILDINGS.wall.maxLevel) : 0])) as typeof live.buildings);
   const [boxes, setBoxes] = useState<Partial<Record<BuildingId, Box>>>({});
   const onBox = useCallback((id: BuildingId, box: Box) => {
     setBoxes((prev) => {
@@ -266,7 +270,7 @@ export function VillageScene({
     });
   }, []);
 
-  const queue = live.buildQueue;
+  const queue = levelOverride == null ? live.buildQueue : [];
   const artKey = BUILDING_IDS.map(
     (id) =>
       `${buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${

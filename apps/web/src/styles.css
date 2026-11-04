@@ -105,6 +105,13 @@ html {
   text-size-adjust: 100%;
 }
 
+/* The app shell fills the window and scrolls inside itself: the page never gets its own scrollbars
+   (sign-in and splash screens have no shell and keep normal page scrolling). */
+html:has(.app) {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background-color: var(--bg);
@@ -751,6 +758,8 @@ textarea {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* Desktop top bar (hidden on phones) */
@@ -1320,7 +1329,7 @@ button.strip {
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1365px) {
+@media (min-width: 1024px) and (max-width: 1599px) {
   .topbar {
     gap: 10px;
     padding: 0 12px;

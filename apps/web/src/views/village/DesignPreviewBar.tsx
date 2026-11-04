@@ -17,6 +17,8 @@ const bar: React.CSSProperties = {
   borderRadius: 10,
   fontSize: 14,
   boxSizing: 'border-box',
+  // The desktop board header ignores pointer events; the bar must not inherit that.
+  pointerEvents: 'auto',
 };
 const btn: React.CSSProperties = { minWidth: 44, minHeight: 44 };
 
@@ -34,12 +36,11 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
     return () => clearTimeout(t);
   }, [playing, level]);
 
-  const changed = BUILDING_IDS.filter((id) => {
-    const max = BUILDINGS[id].maxLevel;
-    const a = Math.min(level, max);
-    const b = Math.min(level - 1, max);
-    return level > 0 && buildingStage(id, a) !== buildingStage(id, Math.max(0, b));
-  });
+  // Only the wall is drawn in this preview.
+  const max = BUILDINGS.wall.maxLevel;
+  const changed = BUILDING_IDS.filter(
+    (id) => id === 'wall' && level > 0 && buildingStage(id, Math.min(level, max)) !== buildingStage(id, Math.max(0, Math.min(level - 1, max))),
+  );
 
   return (
     <div
@@ -47,7 +48,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
       role="group"
       aria-label="Design preview"
     >
-      <strong style={{ flex: '1 1 auto' }}>Design preview · Level {level}</strong>
+      <strong style={{ flex: '1 1 auto' }}>Wall preview · Level {level}</strong>
       <button type="button" className="btn btn-small" style={btn} aria-label="Previous level" onClick={() => { setPlaying(false); setPreviewLevel(level - 1); }}>−</button>
       <input
         id="dp-slider"
@@ -77,7 +78,7 @@ export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
       <button type="button" className="btn btn-small" style={btn} onClick={() => setDesignPreview(false)}>Exit preview</button>
       <div style={{ flexBasis: '100%', fontSize: 12, opacity: 0.8 }}>
         {level === 0
-          ? 'Level 0: nothing built.'
+          ? 'Level 0: no wall.'
           : changed.length
             ? `New picture at level ${level}: ${changed.map((id) => BUILDINGS[id].name).join(', ')}`
             : `No picture change at level ${level}.`}
