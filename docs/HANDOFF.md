@@ -2,11 +2,10 @@
 
 ## Last run
 
-2026-11-04 (`f43c399`): owner screenshot showed trees floating outside the ground diamond and tiny buildings. Fixed: buildings re-placed on the plate and bigger (`PLACEMENT`), props filtered by `onPlate` (`art/scenery.tsx`), corner woods removed.
-Left: still not viewed by me in a browser; owner wants the BUILDING DESIGNS changed too (new art needs owner approval per ART_DIRECTION) — questions asked in the final answer; wait for answers. Smoke puffs may be misplaced after the move.
-Very next step: get owner's answers on building style, then redraw sprites in `art/buildings/*.svg`.
+2026-11-04 (`282cfe1`): village centre is now an open paved town square with a big campfire (`TownSquarePaving`, `Campfire` in `art/scenery.tsx`). The stalls seen earlier were the static `scene/market.svg` (now unused, delete it), NOT the Drillyard. Drillyard moved to its own plot north-west (`PLACEMENT.drillyard` 140,150 scale 1.05).
+Left: not viewed in a browser (check 360 and 1440 px: overlaps with Storehouse/Lumber, labels, click areas); Drillyard sprite art unchanged; owner's building-design answers still pending.
+Very next step: look at the village view, adjust positions if needed.
 Checks passed, build ok.
-Earlier (`c7bc950`): expanding-world abandoned villages start at player level; delete `clanfire-world.sqlite` for a fresh world.
 
 Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
 
