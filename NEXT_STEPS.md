@@ -27,7 +27,6 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
   approval on canvas rows H (units), I (tutorial + practice-ruin decision), J (building panels +
   reports), K (terrain + armies); then build each in. Reports need the opponent's chieftain in
   `VillageRefDto` (server) to show both faces. Rivers need engine support before river tiles can be used.
-- Clean-up: delete unused `apps/web/src/art/map/tile-hills-1.svg` and `tile-hills-2.svg` (left over from the reverted map change).
 - Clean-up: old `.map-*` / `.map-legend` rules in `apps/web/src/styles.css` are unused; `RELATION_STYLE`
   / `LEGEND_ORDER` in `relations.ts` unused by the map.
 - Tribe mass message (forum threads and player mail are done). Look at the forum + per-member tribe rights in a browser.

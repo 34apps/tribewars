@@ -1,40 +1,62 @@
 # Handoff — Clanfire
 
+Written 2026-11-04 (HEAD `4c548c5`+). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+`CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
+
 ## Last run
 
-2026-11-04 (`bc0ce1f`): reverted the world map change `e471d92` (owner preferred the old look); `map/render.ts`, `sprites.ts`, `blocks.ts` are back to the earlier versions.
-Left: unused `art/map/tile-hills-1.svg`, `tile-hills-2.svg` and `art/scene/market.svg` to delete (shell rm not allowed in agent runs); village-view town square (`282cfe1`) still unseen in a browser.
-Very next step: look at the village view; ask the owner what map changes (if any) they do want.
-Checks passed, build ok.
+2026-11-04 (`4c548c5`): world map villages drawn 1.3x and ruins at full size (were 0.7x), because they
+looked tiny next to the trees. Terrain, trees and labels unchanged (the owner rejected the bigger
+`e471d92` change, which was reverted in `bc0ce1f`). Deleted unused `tile-hills-1/2.svg` and `scene/market.svg`.
+Checks passed, build + preview build ok; map viewed in the preview at 1440 px.
+Very next step: owner looks at the map on their Mac; if villages still look small, tune `VILLAGE_DRAW_SCALE`
+in `apps/web/src/map/render.ts` (one number) rather than redesigning.
 
-Still unseen in a browser (see CHANGELOG): Mail, population numbers, Town Hall list, new lumber/iron/gold sprites. Design work is paused by the owner (brain of the game first).
+## How the owner works (important)
 
-## Read first
-`docs/AI-WORKFLOW.md` (main session orchestrates; haiku `runner`/`scout`/`editor`, sonnet `implementer`), `docs/ART_DIRECTION.md`, top of `CHANGELOG.md`, the relevant part of `NEXT_STEPS.md`, `docs/STANDARDS.md` before code, `docs/SECURITY_ROADMAP.md` §4 gate for each feature.
+- Owner (Metin) is not a developer, writes Turkish/English, wants **short, plain answers** and
+  copy-paste commands. One change at a time, so a disliked change can be undone alone.
+- Day-to-day dev runs on the owner's Mac with `agent "task"` (= `npm run agent -- "task"`,
+  `scripts/agent/run.ts`), billed to platform.claude.com API credits (not the Max plan). Every run starts
+  fresh; the previous final answer (`.agent/last-reply.md`, ≤60 lines) is passed as context; `--continue`
+  resumes fully (expensive, avoid); default budget $10 (`--budget N`).
+- Runner permissions are an allow list (`dontAsk` mode): chained commands need every part allowed.
+  `rm`, `git reset/checkout/stash`, `npm install`, `curl` are denied — ask the owner to run those.
+- Each run ends with: check → commit → CHANGELOG/NEXT_STEPS → "Last run" above → docs commit → `git push origin main`.
 
-## State in one minute (2026-11-03, HEAD `ae1340d`+)
-- **Clanfire** (GitHub repo still `tribewars`) is playable: villages, 4 resources, buildings, troops, raids, growing abandoned villages, tribes + diplomacy, tribe warfare (Pathfinder scouts, support), rankings + profiles, Market + resource shipments, cancel within 2 min, multi-account guard, global rate limits.
-- Drillyard built end to end (research Shieldbearer/Outrider/Knight, Training Points, ranks Might/Bulwark/Keen, ranks stamped on movements, scout intel tiers by Keen). Panel and sprites not yet looked at in a browser.
-- Redesign **Toy Diorama** in: village view, isometric map with growth stages, chieftains. Slower pace (speed 1; `dev:fast` = 10).
-- `npm run agent -- "task"` runs unattended tasks on the API key (budget, safe tool list).
-- Ask Mags AI advisor removed from UI, server off unless `ADVISOR_ENABLED=true` (owner: avoid credit spend).
-- Preview: `npm run build:preview` → `apps/preview/dist/index.html`. Not deployed; no CI.
-- Tests at last green run: engine 188, server 162+; `npm run build` ok before the ranks work.
+## State in one minute
+
+- **Clanfire** (GitHub repo `34apps/tribewars`) is playable: villages, 4 resources, buildings, troops,
+  raids, growing abandoned villages, tribes + diplomacy + forum + chat, tribe warfare (scouts, support),
+  Drillyard research queue + ranks, Market + shipments, rankings + profiles, mail, staff tooling
+  (tickets, reports, mute/ban), population cap, cancel within 2 min, rate limits, multi-account guard.
+- `npm run dev` = expanding 500x500 world at real pace (own DB `clanfire-world.sqlite`);
+  `npm run dev:fast` = speed 10. Preview: `npm run build:preview` → `apps/preview/dist/index.html`.
+- Style **D · Toy Diorama** is in the game: village view (town square + campfire centre, Drillyard on its
+  own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
+- Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
+- Tests: engine 223, server 210, all green. Not deployed; no CI.
 
 ## Owner decisions (don't re-ask)
-- Original game, never copy Tribal Wars/Travian. Web first (360 px phone + 1440 px desktop), native later.
-- Style D Toy Diorama; designs may be touched up, keep art swappable via sprite maps.
-- Security gate for every feature; balance numbers only in `config.ts`; rule change updates `GAME_DESIGN.md`.
+
+- Original game, never copy Tribal Wars/Travian. Web first (360 px phone + 1280–1440 px desktop), native later.
+- Keep Toy Diorama; polish, don't restyle. Keep the current map look (no clearings, labels always shown,
+  normal hills). Art stays swappable (sprite registries).
+- No scrollbars inside desktop side panels; server tests for every new endpoint; security gate per feature.
 
 ## Open
-- Owner: approve design rows H–K (units, tutorial + practice-ruin decision, panels/reports, terrain/armies), L (tribe page/chat/emblems); answer `GAME_DESIGN.md` §15 questions; hosting; trademark/domain check.
-- Dev: view Drillyard and Market in a browser, run `npm run build`; ranks in battle reports; opponent chieftain in `VillageRefDto`.
+
+- Owner: Tripo3D test (3D models rendered to flat sprites) — suggested first: Town Hall, Lumber Camp,
+  Iron Mine in Toy Diorama style; map village stages later if it works. Check Tripo's commercial licence.
+- Owner: approve design rows H–L; practice-ruin decision; hosting; `GAME_DESIGN.md` §15 questions.
+- Dev: many screens built but never viewed in a browser (see CHANGELOG "not viewed"): Drillyard, Market,
+  Mail, staff screens, town square. View them at 360 and 1440 px.
 
 ## Traps
-- `node:sqlite` server; old DBs get columns added in place. `data/`, `*.sqlite` are git-ignored.
-- Existing scout tests rely on scout village Keen 2–5 (Keen 0 sees only resources).
-- Placeholder art: Market = Storehouse sprite.
-- Push only `origin main`; the agent runner denies everything else.
 
-## Very next step
-Run `npm run check` and `npm run build`, open the app, review the Drillyard panel at 360/1440 px, then pick from `NEXT_STEPS.md`.
+- Vite dev proxy needs `changeOrigin: false` (server's Origin check).
+- `node:sqlite`; old DBs get columns added in place. `data/`, `*.sqlite` are git-ignored.
+- Preview must stay CSP-safe: sql.js asm build, no wasm/eval/network.
+- Scout tests rely on scout village Keen 2–5.
+- Dark/light token contexts: set explicit text colours on light surfaces inside dark cards.
+- Never put the API key in the repo, a commit or chat; it lives in the owner's `~/.zshrc` only.
