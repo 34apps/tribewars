@@ -35,6 +35,8 @@ When a rule changes, change it here in the same commit.
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
   that would push used above the cap is refused (`population_full`); losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
+  Tuning (2026-11-04, Tribal-Wars-like feel): growth 1.10 (buildings) / 1.20 (cap) so a fully built village
+  uses roughly 1,650 of the ~4,800 cap at Farm 20, leaving about 3,100 for troops (about 65%); early game unchanged.
   The top bar shows a "Population used / cap" chip next to the resources for the current village (own row
   under the resources on phones), with a mini meter and warning colour from 90% (`aria-label` "Population X of Y").
 - **Storage cap** (same for every resource) from the storehouse level:

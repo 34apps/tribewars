@@ -74,13 +74,13 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   wall: 2,
   vault: 2,
 };
-export const POP_BUILDING_GROWTH = 1.12;
+export const POP_BUILDING_GROWTH = 1.1;
 /** Population per troop type (separate from food upkeep). */
 export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 3, knight: 4, pathfinder: 1 };
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 150;
-export const POP_CAP_GROWTH = 1.17;
+export const POP_CAP_GROWTH = 1.2;
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
 export const HALL_TIME_FACTOR = 0.95;
