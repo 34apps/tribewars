@@ -29,7 +29,8 @@ const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${n
   ranks_json        TEXT,
   return_secs       INTEGER,
   target_x          INTEGER,
-  target_y          INTEGER
+  target_y          INTEGER,
+  siege_target      TEXT
 );`;
 
 /** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
@@ -50,7 +51,7 @@ const REBUILDS = [
     marker: "'occupy'",
     create: movementsTable,
     // Only the columns the old table has are copied (older ones lack ranks_json, return_secs, target_x, target_y).
-    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y',
+    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target',
   },
   {
     table: 'reports',
@@ -459,9 +460,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '9818fd1735929cae';
+export const SCHEMA_FINGERPRINT = '9a880b98e38cb2db';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -570,6 +571,8 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   for (const col of ['target_x', 'target_y']) {
     if (!moveCols.some((c) => c.name === col)) db.exec(`ALTER TABLE movements ADD COLUMN ${col} INTEGER`);
   }
+  // The building a Boulder Sling attack was aimed at (sender's pick, never checked against the target; GAME_DESIGN 18.9).
+  if (!moveCols.some((c) => c.name === 'siege_target')) db.exec('ALTER TABLE movements ADD COLUMN siege_target TEXT');
 }
 
 /**

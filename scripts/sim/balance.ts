@@ -6,6 +6,8 @@
 //   npm run sim -- --days 5 --seed 7 --json
 //   npm run sim -- --out docs/sim/<file>.txt       write the report to a file
 //   npm run sim -- --home -10,-10                  other start tile (terrain on the raid routes)
+//   npm run sim -- --siege                         siege units (GAME_DESIGN 18.9): focused experiments (scripts/sim/siege.ts) + the
+//                                                  computer players with and without siege. Without --siege nothing about siege runs.
 //
 // Since step 2 a style plays SEVERAL villages: once Renown pays for it and a Banner Hall exists it trains a Chieftain, then
 // either TAKES an abandoned village (Strike + 6 h hold, raider / balanced) or FOUNDS a new one on free land (builder / turtle).
@@ -72,6 +74,7 @@ import {
   villageRenownPrice,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
+import { formatSiegeExperiments, runSiegeExperiments } from './siege.ts';
 
 const HOUR = 3_600_000;
 const STEP_MS = 10 * 60_000; // a player "looks at the game" every 10 minutes
@@ -301,6 +304,8 @@ export interface StyleResult {
   /** Villages owned at the end and the points of each. */
   villages: number;
   villagePointsEach: number[];
+  /** Siege use (only when the run had siege units switched on). */
+  siege?: SiegeStats;
 }
 
 export interface SimOptions {
@@ -309,6 +314,50 @@ export interface SimOptions {
   seed: number;
   /** Map position of the simulated village (`--home x,y`); the terrain around it sets the raid travel times. */
   home: { x: number; y: number };
+  /**
+   * Siege units in play (`--siege`, default OFF so every older result stays valid): the attacking styles (raider, balanced) build
+   * what Log Rams / Boulder Slings need, research and train a few, and send them with the raiders against fortified targets.
+   */
+  siege?: boolean;
+}
+
+/** What siege did to one style's run (only present when `SimOptions.siege`). */
+export interface SiegeStats {
+  /** Siege units trained (queued). */
+  trained: { logram: number; boulder: number };
+  /** Raids that carried siege units. */
+  raids: number;
+  /** ... of which won. */
+  wins: number;
+  /** Building levels lowered on abandoned villages. */
+  levelsLowered: number;
+  /** Value of the siege units that died (wood+food+iron+10xgold). */
+  lossValue: number;
+  /** Value of rebuilding the lowered levels (buildingCost): what the abandoned village's "owner" would have paid. */
+  loweredValue: number;
+  /** Day the first siege unit was trained (undefined = never). */
+  firstTrainedDay?: number;
+}
+
+/** Siege caps for a computer player: units owned at once (home + away + queued) and units per training batch. */
+const SIEGE_OWN_CAP: { logram: number; boulder: number } = { logram: 20, boulder: 12 };
+const SIEGE_BATCH = 6;
+/** A target with at least this Wall level can get a siege run (abandoned villages have Wall 0-4 by tier, so this is almost "any"). */
+const SIEGE_MIN_WALL = 1;
+
+/** The styles that attack (raider, balanced) add the siege prerequisites, research and a few units; the others stay as they are. */
+function withSiege(style: StyleName, def: Style): Style {
+  if (style !== 'raider' && style !== 'balanced') return def;
+  // Raider: right after its Barracks 8 (it already has Drillyard 2); balanced: at the end of its list (Barracks 8, Drillyard 5).
+  const order: Step[] = [...def.order];
+  if (style === 'raider') order.splice(order.findIndex(([b, l]) => b === 'barracks' && l === 8) + 1, 0, ['drillyard', 3], ['drillyard', 5]);
+  else order.push(['barracks', 8], ['drillyard', 5]);
+  return {
+    ...def,
+    order,
+    army: [...def.army, { unit: 'logram', weight: 6 }, { unit: 'boulder', weight: 4 }],
+    research: [...def.research, 'logram', 'boulder'],
+  };
 }
 
 // ---- Simulation of one style --------------------------------------------------------------------
@@ -377,7 +426,8 @@ function queuedUnits(v: VillageState): Units {
 const CHIEF_COST = UNITS.chieftain.cost;
 
 function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
-  const def = STYLE_DEFS[style];
+  const def = opt.siege ? withSiege(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
+  const siegeStats: SiegeStats = { trained: { logram: 0, boulder: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   const vils: Vil[] = [{ id: 0, state: createPlayerVillage(0), pos: opt.home, trainCursor: 0, how: 'home' }];
@@ -455,7 +505,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const armyPop = (vil: Vil): number => {
     const all = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
     let pop = 0;
-    for (const u of UNIT_IDS) if (UNITS[u].attack > 0) pop += all[u] * POP_PER_UNIT[u];
+    // Siege units never go with a Chieftain (a taken village keeps its buildings), so they do not count as escort.
+    for (const u of UNIT_IDS) if (UNITS[u].attack > 0 && !UNITS[u].siege) pop += all[u] * POP_PER_UNIT[u];
     return pop;
   };
   /**
@@ -532,7 +583,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         return;
       }
       const def0 = targetAt(e.target, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: lootFactorAt(e.target, e.at) });
+      const withSiege = e.units.logram + e.units.boulder > 0;
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: lootFactorAt(e.target, e.at), ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
       if (r.attackerWon) tg.hits.push(e.at);
       tg.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
@@ -541,6 +593,15 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       const lootVal = value(r.loot);
       let lossVal = 0;
       for (const id of UNIT_IDS) lossVal += r.attackerLosses[id] * value(UNITS[id].cost);
+      if (withSiege) {
+        siegeStats.raids += 1;
+        if (r.attackerWon) siegeStats.wins += 1;
+        for (const id of ['logram', 'boulder'] as const) siegeStats.lossValue += r.attackerLosses[id] * value(UNITS[id].cost);
+        for (const h of r.siege ?? []) for (let lvl = h.from; lvl > h.to; lvl--) {
+          siegeStats.levelsLowered += 1;
+          siegeStats.loweredValue += value(buildingCost(h.building, lvl));
+        }
+      }
       stat.loot += lootVal;
       stat.losses += lossVal;
       raidLoot += lootVal;
@@ -693,15 +754,17 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     // Saving for a Chieftain: nothing is trained (the escort was built before, takePrep).
     const saving = chiefSaving(vil);
     if (saving) return;
-    const total = def.army.reduce((a, x) => a + x.weight, 0);
+    // Siege units only join the wheel once researched, so the wheel (and the early game) is the old one until then.
+    const wheel = def.army.filter((a) => !UNITS[a.unit].siege || (vil.state.researched ?? []).includes(a.unit));
+    const total = wheel.reduce((a, x) => a + x.weight, 0);
     // Pick a unit by cycling a weighted wheel, skipping units that are not trainable yet.
-    for (let k = 0; k < def.army.length * 4; k++) {
+    for (let k = 0; k < wheel.length * 4; k++) {
       // The wheel only moves on when a batch was queued or the unit cannot be trained at all yet: otherwise the
       // cheapest unit always wins the race for scarce resources and a wanted unit (raider) starves (baseline bug).
       const pick = (vil.trainCursor * 37) % total;
       let acc = 0;
-      let unit: UnitId = (def.army[0] as { unit: UnitId }).unit;
-      for (const a of def.army) {
+      let unit: UnitId = (wheel[0] as { unit: UnitId }).unit;
+      for (const a of wheel) {
         acc += a.weight;
         if (pick < acc) {
           unit = a.unit;
@@ -714,19 +777,31 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         vil.trainCursor++;
         continue;
       }
+      if (UNITS[unit].siege) {
+        // A player keeps only a few siege units: skip the wheel slot while enough are owned (home, away or queued).
+        const owned = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state))[unit];
+        if (owned >= SIEGE_OWN_CAP[unit as 'logram' | 'boulder']) {
+          vil.trainCursor++;
+          continue;
+        }
+      }
       if (vil.state.trainQueues[building].length >= 2) return;
       const reserve = nextBuildCost(vil);
       const spare = emptyResources();
       for (const id of RESOURCE_IDS) spare[id] = Math.max(0, vil.state.resources[id] - Math.max(reserve[id] * def.reserve, saving ? CHIEF_COST[id] : 0));
       // A sensible player never lets troops eat the food stock down to nothing: keep a quarter of the storehouse.
       spare.food = Math.max(0, spare.food - storageCap(vil.state) * 0.25);
-      let n = 40;
+      let n = UNITS[unit].siege ? SIEGE_BATCH : 40;
       for (const id of RESOURCE_IDS) if (UNITS[unit].cost[id] > 0) n = Math.min(n, Math.floor(spare[id] / UNITS[unit].cost[id]));
       while (n >= 1) {
         const c = checkTrain(vil.state, unit, n, t, s);
         if (c.ok) {
           vil.state = applyTrain(vil.state, unit, n, t, s);
           trained[unit] += n;
+          if (unit === 'logram' || unit === 'boulder') {
+            siegeStats.trained[unit] += n;
+            siegeStats.firstTrainedDay ??= t / (24 * HOUR);
+          }
           vil.trainCursor++;
           return;
         }
@@ -752,35 +827,70 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const send = emptyUnits();
     for (const u of def.raiders) send[u] = Math.max(0, vil.state.troops[u] - def.keepHome);
     if (totalUnits(send) < 5) return;
+    // Siege units at home go along on fortified targets (wall >= SIEGE_MIN_WALL) as a second candidate army; the slow siege
+    // units set the pace of the whole army (travelTimeMs takes the slowest unit).
+    const siegeHome = { logram: vil.state.troops.logram, boulder: vil.state.troops.boulder };
+    const haveSiege = opt.siege === true && siegeHome.logram + siegeHome.boulder > 0;
     let best = -1;
     let bestScore = 0;
-    for (let i = 0; i < targets.length; i++) {
+    let bestSend = send;
+    let siegeBest = -1;
+    let siegeScore = 0;
+    let siegeSend = send;    for (let i = 0; i < targets.length; i++) {
       const tg = targets[i] as Target;
       if (!tg.alive || tg.state.hearth) continue;
       const st = targetAt(i, t);
-      const travel = travelTimeMs(vil.pos, tg.pos, send, s);
-      // Preview with a different seed: a player judges by scouting, not by knowing the luck.
-      const arrival = settleVillage(st, t + travel, s);
-      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 999, raidSeq), lootFactor: lootFactorAt(i, t + travel) });
-      // A won battle costs the winner (defence / attack)^1.5 of the army, so a thin win loses most of it. A sensible
-      // player judges by NET profit (loot minus the value of the units that die) and keeps a luck margin.
-      if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
-      let lossVal = 0;
-      for (const u of UNIT_IDS) lossVal += pre.attackerLosses[u] * value(UNITS[u].cost);
-      const net = value(pre.loot) - lossVal;
-      const score = net / (2 * travel);
-      if (net > 0 && score > bestScore) {
-        best = i;
-        bestScore = score;
+      const candidates: Units[] = [send];
+      if (haveSiege && st.buildings.wall >= SIEGE_MIN_WALL) candidates.push({ ...send, ...siegeHome });
+      for (const army of candidates) {
+        const travel = travelTimeMs(vil.pos, tg.pos, army, s);
+        // Preview with a different seed: a player judges by scouting, not by knowing the luck.
+        const arrival = settleVillage(st, t + travel, s);
+        const siegeArmy = army.logram + army.boulder > 0;
+        const pre = resolveBattle({
+          attackerUnits: army,
+          defender: arrival,
+          seed: hashSeed(styleSeed, 999, raidSeq),
+          lootFactor: lootFactorAt(i, t + travel),
+          ...(siegeArmy ? { siegeTarget: 'wall' as BuildingId } : {}),
+        });
+        // A won battle costs the winner (defence / attack)^1.5 of the army, so a thin win loses most of it. A sensible
+        // player judges by NET profit (loot minus the value of the units that die) and keeps a luck margin.
+        if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
+        let lossVal = 0;
+        for (const u of UNIT_IDS) lossVal += pre.attackerLosses[u] * value(UNITS[u].cost);
+        const net = value(pre.loot) - lossVal;
+        if (siegeArmy) {
+          // A siege run is worth the Wall levels it takes down at what they cost to build (the next raid there is easier), but only
+          // when the preview really lowers one: a thin win leaves too few survivors. It beats the loot raids when it qualifies.
+          let lowered = 0;
+          for (const h of pre.siege ?? []) for (let lvl = h.from; lvl > h.to; lvl--) lowered += value(buildingCost(h.building, lvl));
+          if (lowered > 0 && lowered / travel > siegeScore) {
+            siegeBest = i;
+            siegeScore = lowered / travel;
+            siegeSend = army;
+          }
+          continue;
+        }
+        const score = net / (2 * travel);
+        if (net > 0 && score > bestScore) {
+          best = i;
+          bestScore = score;
+          bestSend = army;
+        }
       }
+    }
+    if (siegeBest >= 0) {
+      best = siegeBest;
+      bestSend = siegeSend;
     }
     if (best < 0) return;
     const tg = targets[best] as Target;
-    const travel = travelTimeMs(vil.pos, tg.pos, send, s);
-    vil.state = applySend(vil.state, send, t, s);
+    const travel = travelTimeMs(vil.pos, tg.pos, bestSend, s);
+    vil.state = applySend(vil.state, bestSend, t, s);
     raids += 1;
     (raidByTier[tg.tier - 1] as RaidStat).sent += 1;
-    events.push({ at: t + travel, kind: 'battle', from: vil.id, target: best, units: send, seed: hashSeed(styleSeed, raidSeq++), travel });
+    events.push({ at: t + travel, kind: 'battle', from: vil.id, target: best, units: bestSend, seed: hashSeed(styleSeed, raidSeq++), travel });
     sortEvents();
   };
 
@@ -848,7 +958,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
     if (chiefWaitSince < 0) chiefWaitSince = t;
     if (def.expand === 'take') {
-      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0 };
+      // Siege units stay home on a strike: a taken village keeps all its buildings, so lowering them would only hurt the new owner.
+      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0, logram: 0, boulder: 0 };
       let best = -1;
       let bestPoints = -1;
       let bestTravel = 0;
@@ -1087,6 +1198,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     expansion,
     villages: vils.length,
     villagePointsEach: finals,
+    ...(opt.siege ? { siege: siegeStats } : {}),
   };
 }
 
@@ -1170,6 +1282,30 @@ function fmtDay(h: number | undefined): string {
   return h === undefined ? 'not within run' : (h / 24).toFixed(1);
 }
 
+function formatSiegeStats(g: SiegeStats): string {
+  if (g.firstTrainedDay === undefined) return 'Siege: switched on, but no siege unit was trained within the run.';
+  return `Siege: trained ${g.trained.logram} Log Rams + ${g.trained.boulder} Boulder Slings (first on day ${g.firstTrainedDay.toFixed(1)}); ${g.raids} raids carried siege (${g.wins} won), ${g.levelsLowered} levels lowered (rebuild value ${num(g.loweredValue)}), siege units lost worth ${num(g.lossValue)}.`;
+}
+
+/** Side-by-side of a run without and with siege units (same seed, same options): what siege costs and brings the sim players. */
+export function formatSiegeComparison(off: SimReport, on: SimReport): string {
+  const out: string[] = ['## Computer players with and without siege units (same seed)', ''];
+  out.push('| style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Rams + Slings trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |');
+  out.push('|---|---|---|---|---|---|---|---|---|---|');
+  off.results.forEach((a, i) => {
+    const b = on.results[i] as StyleResult;
+    const la = a.rows[a.rows.length - 1];
+    const lb = b.rows[b.rows.length - 1];
+    const net = (r: DayRow | undefined): number => (r ? r.raidLoot - r.raidLosses : 0);
+    const g = b.siege;
+    out.push(
+      `| ${a.style} | ${a.finalPoints} / ${b.finalPoints} | ${a.villages} / ${b.villages} | ${num(net(la))} / ${num(net(lb))} | ${a.longestIdleHours.toFixed(1)} / ${b.longestIdleHours.toFixed(1)} | ${g ? `${g.trained.logram} + ${g.trained.boulder}` : '-'} | ${g?.firstTrainedDay !== undefined ? `day ${g.firstTrainedDay.toFixed(1)}` : 'never'} | ${g ? `${g.raids} (${g.wins})` : '-'} | ${g ? g.levelsLowered : '-'} | ${g ? num(g.lossValue) : '-'} |`,
+    );
+  });
+  out.push('');
+  return out.join('\n');
+}
+
 export function formatReport(rep: SimReport, full = false): string {
   const out: string[] = [];
   out.push(`# Balance simulation — ${rep.options.days} days, speed ${rep.options.speed}, seed ${rep.options.seed}`, '');
@@ -1192,7 +1328,9 @@ export function formatReport(rep: SimReport, full = false): string {
     const src = r.renownSources;
     out.push(`Renown ${r.renownTotal} earned, ${r.renownSpent} reserved for Chieftains (buildings ${src.buildings}, raids ${src.raids}, defence kills ${src.defence}, defender trickle ${src.trickle}, Feast ${src.feast} from ${r.feasts} Feasts).`);
     const x = r.expansion;
-    out.push(`Villages: ${r.villages} at the end (points each: ${r.villagePointsEach.join(', ')}). Gains: ${r.gains.map((g) => `${g.route === 'take' ? `taken (tier ${g.tier})` : 'founded'} on day ${(g.hour / 24).toFixed(1)} with ${g.points} points`).join('; ') || 'none'}. Chieftains ${x.chieftainsTrained} trained, strikes ${x.strikeWins}/${x.strikes} won, lost ${x.chieftainsLost}, hold failed ${x.holdFails}, founded ${x.founds}, waited and fell back to founding ${x.fallbacks}.`, '');
+    out.push(`Villages: ${r.villages} at the end (points each: ${r.villagePointsEach.join(', ')}). Gains: ${r.gains.map((g) => `${g.route === 'take' ? `taken (tier ${g.tier})` : 'founded'} on day ${(g.hour / 24).toFixed(1)} with ${g.points} points`).join('; ') || 'none'}. Chieftains ${x.chieftainsTrained} trained, strikes ${x.strikeWins}/${x.strikes} won, lost ${x.chieftainsLost}, hold failed ${x.holdFails}, founded ${x.founds}, waited and fell back to founding ${x.fallbacks}.`);
+    if (r.siege) out.push(formatSiegeStats(r.siege));
+    out.push('');
   }
   out.push('## Renown pace and several villages: when does the 2nd village come? (days since start)', '');
   out.push(`| | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
@@ -1249,6 +1387,11 @@ export function formatReport(rep: SimReport, full = false): string {
     '- Extra villages play the same style script (build list, army, research, raids against the shared abandoned villages from their own tile, Feast), starting from their own levels; a taken village starts with all its buildings. Chieftains are only trained in the first village with a Banner Hall. Not modeled: sending resources or troops between the player\'s villages, a second hold wave (occupiers who arrive late), the Banner Hall of an extra village training Chieftains, enemy attacks on a village while it is struck, players as targets.',
     `- IDLE STRETCH ("dead period"): after the player did everything the style wants at a step, the longest time until the next step at which something useful was still possible in ANY village (a building, a batch of 10 units, a research, a Feast, a Chieftain with Renown to pay him). Target under 8 h. Reported for the whole run and for gaps that start on or after day ${LATE_DAY}. "Pile-up" = resource at >= 90% storage (first village).`,
   );
+  if (rep.options.siege) {
+    out.push(
+      `- SIEGE (switched on with --siege; GAME_DESIGN 18.9): raider adds Drillyard 3 and 5 to its build list right after Barracks 8, balanced appends Barracks 8 and Drillyard 5; both research Log Ram then Boulder Sling and train batches of ${SIEGE_BATCH} (wheel weights 6 and 4) while they own fewer than ${SIEGE_OWN_CAP.logram} Rams / ${SIEGE_OWN_CAP.boulder} Slings. When a target's Wall is >= ${SIEGE_MIN_WALL} the siege units at home form a second candidate army next to the raiders alone (the slowest unit sets the travel time). That siege run is only chosen when the preview (other seed, attack >= 1.25 x defence) really lowers a Wall level; it then goes before the loot raids, valued at the build cost of the levels (siegeTarget 'wall', applyBattleToDefender). Siege never goes on a Chieftain strike (a taken village keeps its buildings).`,
+    );
+  }
   return out.join('\n');
 }
 
@@ -1262,8 +1405,16 @@ function main(): void {
   const homeAt = args.indexOf('--home');
   const homeParts = homeAt >= 0 ? String(args[homeAt + 1]).split(',').map(Number) : [];
   const home = homeParts.length === 2 && homeParts.every((n) => Number.isInteger(n)) ? { x: homeParts[0] as number, y: homeParts[1] as number } : DEFAULT_HOME;
-  const rep = runSimulation({ days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home });
-  const text = args.includes('--json') ? JSON.stringify(rep, null, 1) : formatReport(rep, args.includes('--full'));
+  const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home };
+  const siege = args.includes('--siege');
+  const rep = runSimulation(siege ? { ...base, siege: true } : base);
+  let text: string;
+  if (args.includes('--json')) text = JSON.stringify(rep, null, 1);
+  else if (siege) {
+    // --siege: the focused siege experiments (scripts/sim/siege.ts), then the computer players without and with siege units.
+    text = [formatSiegeExperiments(runSiegeExperiments(rep.options.home)), formatSiegeComparison(runSimulation(base), rep)].join('\n');
+    if (args.includes('--full')) text += `\n${formatReport(rep, true)}`;
+  } else text = formatReport(rep, args.includes('--full'));
   const outAt = args.indexOf('--out');
   if (outAt >= 0 && args[outAt + 1]) {
     writeFileSync(args[outAt + 1] as string, `${text}\n`);

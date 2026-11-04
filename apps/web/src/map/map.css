@@ -704,6 +704,38 @@
   grid-template-columns: 1fr;
 }
 
+/* Boulder Sling target: a labelled full-width select (44 px tall, like the unit fields) and a one-line hint. */
+.wm-siege {
+  display: grid;
+  gap: 6px;
+}
+
+.wm-siege label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.wm-siege p {
+  margin: 0;
+}
+
+.wm-select {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 10px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 12px;
+  background: var(--wm-paper);
+  color: var(--wm-ink);
+  font: 600 1rem var(--wm-text);
+}
+
+.wm-select:focus-visible {
+  outline: 3px solid var(--wm-sky);
+  outline-offset: 1px;
+}
+
 /* "Without terrain" row of the send preview: the flat time, the slowdown and which ground causes it (can wrap on a phone). */
 .wm-terrain-time dd {
   min-width: 0;

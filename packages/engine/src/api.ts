@@ -11,6 +11,7 @@ import type {
   PlayerRelation,
   Recruitment,
   Resources,
+  SiegeHit,
   TribeAction,
   TribeRole,
   Units,
@@ -396,6 +397,13 @@ export interface SendRequest extends Coords {
    * village of your own claim; 400 invalid_target when you hold no claim there).
    */
   mission: Mission;
+  /**
+   * Boulder Slings only (docs/GAME_DESIGN.md 18.9): the building (a BuildingId; names are public, levels are not) they lower after a
+   * won attack. Optional: left out, the engine draws one at random on arrival. Only allowed on an `attack` that carries Boulder Slings
+   * (400 invalid_input otherwise, and for an unknown id). It is NOT checked against the target village (that would reveal what it
+   * has): a building that is not there simply takes no damage, which the battle report shows.
+   */
+  targetBuilding?: string;
   /** Test mode only (accounts on the sandbox list; others get `forbidden`): fixed seconds for the way out. 0 = arrives at once. */
   travelSeconds?: number;
   /** Test mode only: fixed seconds for the way home after the battle. */
@@ -518,6 +526,12 @@ export interface BattleReportData {
    * pair, under RENOWN_MIN_BATTLE_VALUE, or nothing left in the daily pair window). Floored for display.
    */
   renownGained?: number;
+  /**
+   * Buildings the attacker's surviving siege units lowered (docs/GAME_DESIGN.md 18.9), Log Ram first. Absent on reports saved before
+   * siege and when no siege unit was sent. `wallLevel` above is the Wall BEFORE the battle (it counted in full); the drop applies after.
+   * Hidden (absent) from the attacker when the army was wiped out; empty when the attacker lost.
+   */
+  siege?: SiegeHit[];
 }
 
 export interface ScoutReportData {

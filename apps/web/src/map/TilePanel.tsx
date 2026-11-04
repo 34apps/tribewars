@@ -4,6 +4,7 @@ import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/en
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
+import { SiegePicker } from '../components/Siege.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
@@ -19,6 +20,8 @@ import {
   occupyWarning,
   selectableUnits,
   sendMode,
+  showsSiegePicker,
+  siegeTargetFor,
   strikeWarning,
 } from '../villages.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
@@ -67,6 +70,8 @@ function SendForm({
   // Test mode only: own seconds for the way out / home (blank = normal travel time).
   const [outSecs, setOutSecs] = useState('');
   const [backSecs, setBackSecs] = useState('');
+  // Boulder Slings only: the building they hit ('' = random).
+  const [siegePick, setSiegePick] = useState('');
 
   // The relation can change while the panel is open (a pact formed): fall back to an allowed mission.
   const mission: Mission = missions.includes(chosenMission) ? chosenMission : fallback;
@@ -117,6 +122,11 @@ function SendForm({
   function setCount(u: UnitId, value: string) {
     setError(null);
     setCounts((c) => ({ ...c, [u]: value }));
+    // The chosen building only means something while Boulder Slings are in the army: drop it when they are deselected.
+    if (u === 'boulder') {
+      const n = Number(value);
+      if (!(Number.isInteger(n) && n > 0)) setSiegePick('');
+    }
   }
 
   async function send() {
@@ -137,9 +147,11 @@ function SendForm({
         if (Number.isInteger(o) && o >= 0 && o <= 86400) timing.travelSeconds = o;
         if (fights && Number.isInteger(b) && b >= 0 && b <= 86400) timing.returnSeconds = b;
       }
-      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...timing });
+      const targetBuilding = siegeTargetFor(mission, partial, siegePick);
+      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...(targetBuilding ? { targetBuilding } : {}), ...timing });
       applySend(res);
       setCounts({});
+      setSiegePick('');
       toast(`${SEND_MODE_SENT[mode]} ${target?.name ?? formatCoords(tile.x, tile.y)}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
@@ -169,6 +181,7 @@ function SendForm({
           options={missions.map((m) => ({ value: m, label: MISSION_NAME[m] }))}
           onChange={(m) => {
             setError(null);
+            setSiegePick('');
             setChosenMission(m);
           }}
         />
@@ -210,6 +223,7 @@ function SendForm({
           ))}
         </ul>
       )}
+      {showsSiegePicker(mission, chosen) && <SiegePicker value={siegePick} onChange={setSiegePick} />}
 
       {total > 0 && Number.isFinite(travel) && (
         <dl className="wm-facts wm-facts-send">

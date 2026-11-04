@@ -132,6 +132,8 @@ const sendBody = {
     y: COORD,
     units: unitsObject,
     mission: { type: 'string', enum: [...MISSIONS] },
+    // Form only here (a string); whether it names a building, and that the army has Boulder Slings, is checked in game.send.
+    targetBuilding: { type: 'string', maxLength: 32 },
     travelSeconds: { type: 'integer', minimum: 0, maximum: 86400 },
     returnSeconds: { type: 'integer', minimum: 0, maximum: 86400 },
   },
@@ -275,8 +277,8 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/send',
     { ...auth, schema: { params: idParams, body: sendBody } },
     async (req, reply): Promise<SendResponse> => {
-      const { x, y, units, mission, travelSeconds, returnSeconds } = req.body;
-      const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs, { travelSeconds, returnSeconds });
+      const { x, y, units, mission, travelSeconds, returnSeconds, targetBuilding } = req.body;
+      const res = ctx.game.send(playerOf(req), Number(req.params.id), x, y, units, mission, req.nowMs, { travelSeconds, returnSeconds }, targetBuilding);
       void reply.code(201);
       return res;
     },

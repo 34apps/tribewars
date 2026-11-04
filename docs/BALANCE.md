@@ -66,7 +66,7 @@ is fine; do not change it.**
 
 ## 6. Balance simulator and results (2026-11-04)
 
-**Tool:** `npm run sim` (`scripts/sim/balance.ts`, options `--days N --speed N --seed N --home x,y --out file --full --json`;
+**Tool:** `npm run sim` (`scripts/sim/balance.ts`, options `--days N --speed N --seed N --home x,y --out file --full --json --siege` (siege units, §8);
 `--out docs/sim/<date>-<name>.txt` saves the report; since step 2 each style plays several villages, §7.5). It plays 30 days at
 world speed 1 for four computer styles — **builder** (economy first), **raider** (raids abandoned villages from the
 first day), **turtle** (Wall, Vault, defenders), **balanced** — through the real engine: `settleVillage`, `applyBuild`,
@@ -250,3 +250,117 @@ if anything harsher than for a player who ships goods); a second hold wave (late
 Banner Hall; players as targets and real Strike defence (abandoned villages only in step 2); loot carried by the strike army (set to 0). The enemy raids
 (4 x day raiders on every unprotected village, days 7-28) are an assumption: they hit weakly defended raider villages hard once the army stays home,
 which is part of why the pure raider does not make it. **Nothing in `config.ts` was changed for this run.**
+
+## 8. Siege units (GAME_DESIGN §18.9), 2026-11-05
+
+**Tools.** `npm run sim -- --siege` (`scripts/sim/siege.ts` + a flag in `scripts/sim/balance.ts`; reports `docs/sim/2026-11-05-siege.txt`, 30 days, and
+`...-siege-45days.txt`). Without `--siege` nothing about siege runs: the default report is unchanged (checked on the day-14/30 rows, Trained,
+Villages and Score lines of all four styles), so §6-7 stay valid. With `--siege` it prints the focused experiments below (real `resolveBattle`, `resolveSiege`,
+`applyBattleToDefender`, `buildingCost`, `buildTimeMs`, `travelPreview`, `trainTimeMs`; fixed seeds, 9 per fight because luck is +-10%), then the four
+computer players without and with siege units. `sim.test.ts` runs the experiments and checks seven invariants (cap per attack, lost battles lower
+nothing, garrison+Wall still needs a much bigger army, siege column much slower, ...). Values use the sim's weights (wood + food + iron + 10 x gold):
+Log Ram 620, Boulder Sling 720, Raider 160, Pikeman 105, Shieldbearer 145. In a decisive win (attack = 2 x defence) 64% of an army comes back, so about
+157% of the units that must survive have to be sent.
+
+### 8.1 How many siege units drop a level, and how many levels one attack can drop (survivors needed)
+
+| Wall level | points / level | Log Rams: 1 level | 2 levels | 3 levels (cap) | Boulder Slings: 1 level | 2 levels (cap) |
+|---|---|---|---|---|---|---|
+| 3 | 12 | 12 | 22 | 30 | 15 | 28 |
+| 6 | 18 | 18 | 34 | 48 | 23 | 43 |
+| 10 | 26 | 26 | 50 | 72 | 33 | 63 |
+| 15 | 36 | 36 | 70 | 102 | 45 | 88 |
+| 20 | 46 | 46 | 90 | 132 | 58 | 113 |
+
+Even 5,000 survivors lower the Wall by at most 3 (Rams) or 2 (Slings) levels in one attack: the cap works. Send size = survivors / 0.64.
+
+### 8.2 (a) What the attacker pays vs what the defender pays to rebuild (decisive win, Town Hall 10, speed 1)
+
+| target | unit | send | attacker capital (all sent) | attacker loses (dead units) | defender rebuild | rebuild time | rebuild / loses | rebuild / capital |
+|---|---|---|---|---|---|---|---|---|
+| Wall 10 -> 9 | Log Ram | 41 | 25,420 | 9,300 | 1,600 | 1.5 h | 0.17 | 0.06 |
+| Wall 10 -> 7 (cap) | Log Ram | 114 | 70,680 | 26,040 | 3,879 | 3.6 h | 0.15 | 0.05 |
+| Wall 15 -> 14 | Log Ram | 57 | 35,340 | 13,020 | 5,084 | 6.1 h | 0.39 | 0.14 |
+| Wall 20 -> 19 | Log Ram | 73 | 45,260 | 16,740 | 16,146 | 24.6 h | 0.96 | 0.36 |
+| Market 10 -> 9 | Boulder Sling | 52 | 37,440 | 13,680 | 1,977 | 2.2 h | 0.14 | 0.05 |
+| Drillyard 9 -> 8 | Boulder Sling | 48 | 34,560 | 12,960 | 5,979 | 2.4 h | 0.46 | 0.17 |
+| **Banner Hall 1 -> 0** | Boulder Sling | 16 | 11,520 | 4,320 | 8,500 | 12.6 h | **1.97** | 0.74 |
+| **Banner Hall 3 -> 2** | Boulder Sling | 24 | 17,280 | 6,480 | 15,488 | 22.0 h | **2.39** | 0.90 |
+| **Banner Hall 4 -> 3** | Boulder Sling | 29 | 20,880 | 7,920 | 20,913 | 29.0 h | **2.64** | 1.00 |
+| **Banner Hall 4 -> 2** (cap) | Boulder Sling | 52 | 37,440 | 13,680 | 36,401 | 51.0 h | **2.66** | 0.97 |
+
+(All rows incl. Market 5, Drillyard 5, Wall 5 and Wall 15-20 are in the report; a real-battle check column confirms the drops, 0.6-1.0 levels per
+level asked on average because luck decides how many survive.) **Wall and cheap buildings: the rebuild costs 3-36% of what the siege army cost;
+only Wall 20 gets close.** **Banner Hall (and in general the 3-resource, gold-bearing,
+slow-to-build buildings) is the exception: the damage is worth 2-2.7x the Slings that die and as much as buying the whole sling army, and costs the
+defender 12-51 hours of build time.**
+
+### 8.3 (c) Does siege cut the attacks needed against a fortified village? (waves at 2 x defence, garrison back to 50% between waves)
+
+| village | defence wave 1 | Raiders needed, no siege | with Rams (sized for 3 levels) | defence of wave 2: no siege -> after Rams | Raiders saved per wave (value) | Rams lost per wave (value) | defender cancels it with |
+|---|---|---|---|---|---|---|---|
+| Wall 10, 250 Pike + 150 Shield | 16,005 | 801, then 407 per wave | 114 Rams (70,680) | 8,130 -> 7,256 (-11%) | 44 (about 7,000) | about 24,000 | 15 Shieldbearers (2,175) or 3 Wall levels (3,879, 3.6 h) |
+| Wall 15, 250 Pike + 150 Shield | 18,804 | 941, then 481 | 161 Rams (99,820) | 9,616 -> 8,720 (-9%) | 45 (about 7,200) | about 35,000 | 13 Shieldbearers (1,885) or 3 Wall levels (12,322, 14.3 h) |
+| Wall 15, no garrison | 429 | 22 | 161 Rams | 429 -> 320 | 5 (about 900) | - | 2 Shieldbearers |
+
+Four waves cost 323,520 value sent without siege and 557,440 with Rams (Wall 10 village); the Rams take the Wall to 0 in four waves, but the
+Raiders they save are worth about a tenth of what the Rams cost. **Siege does not meaningfully reduce the number of attacks needed:** the garrison
+is the defence, the Wall is a multiplier of about 1.5-1.75 and three levels are 9-11% of it. To keep the same outcome the defender adds about 15
+Shieldbearers (a quarter of the 150 it has) or rebuilds the three levels.
+
+### 8.4 (d) Does siege make defending pointless? No.
+
+- **A defence that holds loses nothing** (siege acts only after a won battle). Same attack (60 Rams + 20 Slings + Raiders) against a Wall 10 / Banner
+  Hall 3 / Market 5 village with 250 Pikemen + 150 Shieldbearers, 9 seeds each: at 0.6 / 0.9 of the defence 0 of 9 won and **0 buildings lowered in
+  any lost battle** (also 0 of 5 at 1.0 and 0 of 2 at 1.1). Wins at 1.25 x lower **0 levels** on average (the winner loses (defence/attack)^1.5 of
+  every unit, siege units too), 1.5 x 0.6, 2 x 1.0, 3 x 2.1 levels. A narrow win is not enough; the attacker must outclass the defence first.
+- **A real garrison + Wall still forces a much bigger army, siege or not** (army to win AND lower one Wall level at 2 x defence): Wall 10 empty 26,860
+  value (1.0x); with 100 Pike + 60 Shield 77,260 (2.9x); with 250 + 150 152,940 (5.7x, 920 population); Wall 15 with 500 + 300 331,980 (12.4x,
+  2,025 population). Siege adds a fixed Ram block on top and does nothing to the garrison part.
+- **The siege army is slow, so the defender has warning** (20 tiles, speed 1, with terrain): 100 Raiders 3.5 h, 100 Outriders 1.6 h, Raiders + 20
+  Boulder Slings 5.4 h, Raiders + 20 Log Rams (or Rams alone) 7.2 h, about twice the Raiders; the defender sees a column on the map for the whole trip
+  and can reinforce, recall support or strike it. Preparation is slow too: 13 min per Ram and 16 min per Sling in a Barracks 8 (20 Rams = 4.3 h of
+  queue), after 3 h / 6 h Drillyard research.
+
+### 8.5 Computer players with siege (`--siege`, same seed)
+
+Raider and balanced add Drillyard 3/5 (and Barracks 8) to their list, research both units and keep up to 20 Rams / 12 Slings; siege units go with the
+raiders as a second candidate army when the preview really lowers a Wall level.
+
+| style | points, end (off / on) | villages (off / on) | siege units trained | siege raids | levels lowered |
+|---|---|---|---|---|---|
+| builder, turtle | unchanged (never train siege) | | 0 | 0 | 0 |
+| raider, 30 days | 1,067 / 1,067 (siege prerequisites not reached) | 1 / 1 | 0 | 0 | 0 |
+| raider, 45 days | 4,467 / 4,095 | 2 / 2 | 20 Rams + 12 Slings (day 35) | 0 | 0 |
+| balanced, 30 days | 7,957 / 6,014 | 3 / 2 | 39 + 11 (day 15) | 0 | 0 |
+| balanced, 45 days | 22,775 / 17,559 | 5 / 4 | 87 + 40 (day 15) | 0 | 0 |
+
+**No computer player ever found a siege run worth sending** against the abandoned villages (Wall 0-4: a raid that wins by the sim's 1.25 margin leaves
+too few survivors to lower anything, and the loot raids beat it). The siege investment (Barracks 8, Drillyard 5, units, and Rams that die as home
+defenders in the assumed enemy raids) cost balanced about a quarter of its points and a village. So against abandoned villages siege is a pure cost,
+as it should be: it is a player-versus-player tool, and the player-like cases are the experiments above. (The with/without rows diverge chaotically
+after day 15 because training and Chieftain timing shift, so single numbers like raid loot should not be read as an effect of siege.)
+
+### 8.6 Verdict
+
+**Balanced for defending: siege does not make defending pointless.** It needs a won battle first, the winner of a close battle loses most of its siege units
+anyway, a garrison and Wall decide how big the attack must be (5.7x - 12x an empty village), the cap is 3 / 2 levels per attack, the column walks about twice
+as slowly as raiders (3.5 h vs 7.2 h over 20 tiles), and a defender repairs the damage cheaply (Wall levels cost 3-40% of what the Rams cost).
+
+**Weak spots (not changed, nothing in `config.ts` was tuned):**
+1. **Boulder Slings on the Banner Hall (also Drillyard 9+)**: 16-29 Slings sent (11-21k capital, 4-8k lost) cost the defender 8.5-21k and 13-29 hours
+   per level, and the sender picks the building. Banner Hall 1 -> 0 stops Chieftain training and the Feast. It is the one place where siege is
+   cost-efficient. It still needs a won attack on a village that has a Banner Hall (a developed, garrisoned village), so it is a late-game denial tool,
+   not a raid trick. Watch it in play; if sniping shows up, the clean fix is an engine change (a per-building "resistance", e.g. points per level x2 for
+   Banner Hall and Drillyard), not a number change here, because `SIEGE_POINTS_PER_LEVEL` is shared by every building.
+2. **Log Ram is probably too expensive to ever pay for itself** (25k capital for 1 Wall level, 70k for 3, against 1.6k-3.9k to rebuild, and the Raiders
+   it saves per wave are worth about a third of the Rams it loses). That fits the design text ("far more expensive than rebuilding"), and nobody is forced to
+   build it, but if play shows no Rams at all, lower its price (about -40% still keeps it 9x dearer than the damage) rather than its power.
+3. **Siege units at home count as (weak) defenders**: 20 Rams are 60 population that die with the garrison when a village is broken (balanced
+   trained 87 Rams to keep 20). A reason to send them home only for a planned run; players have no way yet to station them elsewhere (not a bug).
+4. **The sim cannot show PvP use**: abandoned villages have Wall 0-4 and refill, so the computer players have no worthwhile siege target; real use
+   is judged from the experiments above and from the first live world.
+
+**Recommendations.** Keep the numbers as they are for now. Re-check after the first world with players: the number of Banner Hall / Drillyard levels
+lowered per week, and the number of Rams built. Pace for players: **no effect on speed to game start**; siege itself is slower than raiding by
+design (speed 3-4, 2 x the Raiders' trip) and a late-game investment (Barracks 5-8 + Drillyard 3-5).

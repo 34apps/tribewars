@@ -75,6 +75,9 @@ import {
   emptyResources,
   emptyUnits,
   hashSeed,
+  hasChosenSiege,
+  hasSiegeUnits,
+  isBuildingId,
   battleSeed,
   repeatRaidLootFactor,
   repeatRaidWindowMs,
@@ -88,6 +91,7 @@ import {
   travelTimeMs,
   villagePoints,
   type BattleReportData,
+  type BuildingId,
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
@@ -448,6 +452,7 @@ export class GameService {
       supportRanks: contingents.map((c) => c.ranks ?? undefined),
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
       lootFactor,
+      siegeTarget: m.siegeTarget ?? null,
     });
     if (result.attackerWon && target.ownerId === null && origin.ownerId !== null && !strikeTry) {
       this.store.recordNpcRaid(origin.ownerId, target.id, at, at - raidWindow);
@@ -503,12 +508,14 @@ export class GameService {
       wallLevel: targetState.buildings.wall,
       loot: result.loot,
       ...(lootFactor < 1 ? { lootShare: Math.round(lootFactor * 100) } : {}),
+      ...(hasSiegeUnits(m.units) ? { siege: result.siege ?? [] } : {}),
     };
     if (origin.ownerId !== null) {
-      // An army wiped out sees nothing of the defence.
+      // An army wiped out sees nothing of the defence (nor of any siege).
+      const { siege: _siege, ...withoutSiege } = full;
       const battle: BattleReportData = survived
         ? full
-        : { ...full, defenderUnits: null, defenderLosses: null, supportUnits: null, supportLosses: null, wallLevel: null };
+        : { ...withoutSiege, defenderUnits: null, defenderLosses: null, supportUnits: null, supportLosses: null, wallLevel: null };
       this.store.insertReport({
         playerId: origin.ownerId,
         side: 'attack',
@@ -1555,8 +1562,16 @@ export class GameService {
    * Send troops on a mission (attack, scout or support). Order of checks: the target exists and is not yours, the
    * relation and beginner protection allow the mission, the army suits the mission, the troops are at home.
    */
-  send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}): SendResponse {
+  send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
     const s = this.settings;
+    // The Boulder Sling pick is checked for form only, NEVER against the target's buildings: any difference in the answer would
+    // tell the sender what the village holds (docs/SECURITY_ROADMAP.md section 2).
+    let siegeTarget: BuildingId | null = null;
+    if (targetBuilding !== undefined && targetBuilding !== null) {
+      if (!isBuildingId(targetBuilding)) throw new GameError('invalid_input', 'That is not a building.');
+      if (mission !== 'attack' || !hasChosenSiege(units)) throw new GameError('invalid_input', 'Only an attack with Boulder Slings can aim at a building.');
+      siegeTarget = targetBuilding;
+    }
     const custom = timing.travelSeconds !== undefined || timing.returnSeconds !== undefined;
     if (custom && !this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
     return this.store.tx(() => {
@@ -1619,6 +1634,7 @@ export class GameService {
         arriveAt: t + travel,
         ranks: next.ranks ?? null, // stamped now: a later respec can't change a march in flight
         ...(target ? {} : { targetX: x, targetY: y }),
+        ...(siegeTarget ? { siegeTarget } : {}),
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support, found and occupy never do.

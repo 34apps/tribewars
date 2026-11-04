@@ -20,6 +20,7 @@ import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
 import { isFreeBuildSite } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
+import { applySiegeHits, hasSiegeUnits, resolveSiege } from './siege.ts';
 import { GameError, MISSIONS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type {
   BattleInput,
@@ -31,6 +32,7 @@ import type {
   Resources,
   ScoutInput,
   ScoutResult,
+  SiegeHit,
   Units,
   VillageState,
   WorldSettings,
@@ -129,6 +131,10 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
       }
     }
     return { ok: true };
+  }
+  // Siege units only ever go on an attack: they cannot scout, found, occupy or be stationed.
+  if (mission !== 'attack' && hasSiegeUnits(army)) {
+    return fail('invalid_input', 'Log Rams and Boulder Slings can only join an attack.');
   }
   const chieftains = army.chieftain;
   if (mission === 'found') {
@@ -266,6 +272,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
   const defenderLosses = emptyUnits();
   const supportLosses = support.map(() => emptyUnits());
   let loot = emptyResources();
+  let siege: SiegeHit[] = [];
 
   if (attackerWon) {
     const ratio = Math.pow(defensePower / attackPower, BATTLE_LOSS_EXPONENT);
@@ -285,6 +292,8 @@ export function resolveBattle(input: BattleInput): BattleResult {
     const lootable = emptyResources();
     for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden);
     loot = waterFillLoot(capacity, lootable);
+    // Siege acts on the village as it stood BEFORE the battle (the Wall above counted in full); the drop applies afterwards.
+    siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed);
   } else {
     const ratio = Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT);
     for (const u of UNIT_IDS) {
@@ -307,6 +316,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
     defenderLosses,
     supportLosses,
     loot,
+    siege,
   };
 }
 
@@ -336,14 +346,15 @@ export function resolveScouting(input: ScoutInput): ScoutResult {
 }
 
 /**
- * Remove the defender's losses and the loot. The defender must already be settled to the battle time
- * (resolveBattle's `defender` input must be that same state).
+ * Remove the defender's losses and the loot, then lower the buildings the siege units hit (docs/GAME_DESIGN.md 18.9). The
+ * defender must already be settled to the battle time (resolveBattle's `defender` input must be that same state).
  */
 export function applyBattleToDefender(defender: VillageState, r: BattleResult): VillageState {
   const v = cloneVillage(defender);
   const losses = normalizeUnits(r.defenderLosses);
   for (const u of UNIT_IDS) v.troops[u] = Math.max(0, v.troops[u] - losses[u]);
   for (const id of RESOURCE_IDS) v.resources[id] = Math.max(0, v.resources[id] - r.loot[id]);
+  applySiegeHits(v, r.siege ?? []);
   return v;
 }
 

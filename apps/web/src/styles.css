@@ -2163,6 +2163,15 @@ button.strip {
   font-variant-numeric: tabular-nums;
 }
 
+/* Battle report, siege: one line per building hit. */
+.siege-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .report-hint {
   display: none;
 }

@@ -26,7 +26,7 @@ export function distance(a: Coords, b: Coords): number {
 }
 
 export function emptyUnits(): Units {
-  return { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0, pathfinder: 0, chieftain: 0 };
+  return { pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0, pathfinder: 0, chieftain: 0, logram: 0, boulder: 0 };
 }
 
 /** Every training batch of every training building, in one list. */

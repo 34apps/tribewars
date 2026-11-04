@@ -1273,4 +1273,51 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 7. **The name Chieftain is final.**
 9. **Taking and founding (owner, 2026-11-04, step 2):** taking developed villages is the main way ahead, founding on empty land the slow safe path; a taken village keeps ALL buildings (no automatic level loss; only siege units, later, damage buildings); a player's LAST village CAN be taken and they restart at the outer edge of the world circle (account, tribe and Renown kept) with a short restart protection. Details: §18.2 "Owner decisions 2026-11-04 for step 2".
 
+10. **Siege (owner, 2026-11-04):** building levels only drop through siege, never automatically (no loss on capture, none from time). Our own design, details in §18.9.
+
 Terrain slowing an average trip by about 12% was not answered; it stays as proposed (§18.4a) and was built and re-checked with `npm run sim` on 2026-11-04 (step 1 done; the sim's pace did not move, `BALANCE.md` 7.4).
+
+### 18.9 Siege units: the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05)
+
+Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.logram`,
+`UNITS.boulder`, `SIEGE_*`); the rules live in `packages/engine/src/siege.ts`.
+
+**Rule.** A building level never drops by itself: not on capture, not with time. It drops only when siege units **survive a battle
+their side won**. A lost attack, a called-off attack and a scouting mission never lower anything.
+
+**Two units**, both trained in the **Barracks** (simplest fit: no new building, no new queue; they simply sit behind high Barracks
+levels) and both **researched at the Drillyard** first, like the other advanced units:
+
+| Unit | Does | Barracks | Drillyard research | Speed | Attack / defence | Cost | Pop |
+|---|---|---|---|---|---|---|---|
+| **Log Ram** | lowers the **Wall** | 5 | Drillyard 3 | 3 (slowest unit) | 4 / 6 vs foot, 4 vs riders | 220 wood, 120 food, 240 iron, 4 gold | 3 |
+| **Boulder Sling** | lowers **one building the sender picks** | 8 | Drillyard 5 | 4 | 6 / 4 vs foot, 3 vs riders | 180 wood, 140 food, 280 iron, 12 gold | 2 |
+
+Both walk over rough ground like heavy carriers (`UNIT_TERRAIN_FAMILY` = carrier) and can only go on an **attack** (not scout, support,
+found or occupy; `checkMission` refuses them). They fight, but badly: they add a little attack and a little defence, and die in the
+battle like everyone else (loss ratio is the same for every unit of the army).
+
+**Damage (deterministic, `resolveSiege`).** After the battle, in this order: Log Rams on the Wall, then Boulder Slings on their building.
+Each kind has `survivors x power` **siege points** (Log Ram power 1, Boulder Sling 0.8). Lowering a building from level L to L-1 costs
+`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16).
+A kind lowers **at most `maxLevels`** levels in one attack (Log Ram 3, Boulder Sling 2) and **stops at the floor**: a building never goes below
+level 0, the **Town Hall never below 1** (`SIEGE_MIN_LEVEL`). The points of a kind that is not used up are lost; there is no carry-over.
+
+**Order of events.** The battle uses the Wall level as it stood **before** the battle (it counts in full, siege units do not shoot first).
+The drop applies **after** the battle, together with the losses and the loot. A queued upgrade of the lowered building aims the same number
+of levels lower (its cost is not refunded); levels that already paid Renown stay paid, so rebuilding them earns none. Population, storage and
+production simply follow the new levels.
+
+**Picking the building (Boulder Sling).** The send form lists the building **names** (public knowledge) without levels. Levels are only known
+from a scouting report with Keen 4 (`SCOUT_INTEL_KEEN.buildings`). The server **never checks the pick against the target village**: it only
+accepts a known building id on an attack that carries Boulder Slings, so the send cannot be used to find out what a village has. A pick
+that turns out to be level 0 (or at its floor) is a miss, and the report says so. With **no pick** the engine draws one from the battle
+seed among the buildings that can still drop (the draw is part of the secret seed, so nobody can predict it).
+
+**Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`). `wallLevel`
+stays the Wall before the battle. An attacker whose army was wiped out sees nothing of it, like the rest of the defence.
+
+**Balance (`BALANCE.md` section 8).** Siege only acts after the attacker has already won, so a defence that holds loses nothing, and the
+defender can rebuild. The siege army is far more expensive than rebuilding what it lowers (Wall levels cost little), is the slowest thing
+on the map (a defender sees it coming a long way off and can recall, reinforce or counter), and is capped per attack. So siege makes the
+next attack easier; it does not make defending pointless.

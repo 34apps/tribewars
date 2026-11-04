@@ -26,7 +26,7 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain', 'logram', 'boulder'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
 /**
@@ -85,6 +85,12 @@ export interface UnitDef {
   requires: Partial<Record<BuildingId, number>>;
   /** If set, the unit must be researched once per village (Drillyard level needed to START the research). */
   research?: { drillyard: number; cost: Resources; timeSec: number };
+  /**
+   * Siege units only (docs/GAME_DESIGN.md 18.9): after a won attack the survivors lower a building. `target` 'wall' = always the
+   * Wall; 'chosen' = the building the sender picked (random if none). `power` = siege points per surviving unit; `maxLevels` =
+   * most levels this kind lowers in one attack.
+   */
+  siege?: { target: 'wall' | 'chosen'; power: number; maxLevels: number };
 }
 
 /** Training-point tracks (docs/GAME_DESIGN.md section 15). Keen is for the scout unit only. */
@@ -304,6 +310,21 @@ export interface BattleInput {
   seed: number;
   /** 0..1, default 1: share of the survivors' carrying capacity that can be taken (repeat raids on abandoned villages). */
   lootFactor?: number;
+  /**
+   * Building the Boulder Slings were told to hit (a BuildingId, picked by the sender). Absent = random among the buildings that
+   * can still drop, drawn from `seed`. Never checked against the village: the server must not reveal what a village has.
+   */
+  siegeTarget?: BuildingId | null;
+}
+
+/** One building a siege kind lowered (or tried to) after a won battle. `from === to` means nothing was there to hit or the points fell short. */
+export interface SiegeHit {
+  unit: UnitId;
+  building: BuildingId;
+  from: number;
+  to: number;
+  /** The sender picked no building, so the engine drew one. */
+  random?: boolean;
 }
 
 export interface BattleResult {
@@ -321,6 +342,8 @@ export interface BattleResult {
   supportLosses: Units[];
   /** Resources taken from the defender (0s when the attacker lost). */
   loot: Resources;
+  /** Buildings lowered by the surviving siege units, in order (Log Ram first); [] when nobody sieged or the attacker lost. Applied by applyBattleToDefender. */
+  siege?: SiegeHit[];
 }
 
 export interface ScoutInput {

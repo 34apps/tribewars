@@ -7,6 +7,7 @@ import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } 
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
+import { SiegeResult } from '../components/Siege.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
@@ -201,7 +202,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             <dd className={b.luck >= 0 ? 'gain' : 'loss'}>{formatSignedPercent(b.luck)}</dd>
           </div>
           <div>
-            <dt>Wall level</dt>
+            <dt>Wall before the battle</dt>
             <dd>{b.wallLevel === null ? <span className="muted">Unknown</span> : b.wallLevel}</dd>
           </div>
           <div>
@@ -210,6 +211,8 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
           </div>
         </dl>
       </section>
+
+      <SiegeResult hits={b.siege} />
 
       <section className="subsection" aria-label="Loot">
         <h3 className="subtitle">Loot</h3>

@@ -73,7 +73,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.1;
 /** Population per troop type (separate from food upkeep). */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8 };
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, logram: 3, boulder: 2 };
 /** Food a troop eats per hour for each population point it takes (owner decision 2026-11-04: 0.25; was 1 per unit). Unit upkeep = POP_PER_UNIT * this. */
 export const FOOD_UPKEEP_PER_POP = 0.25;
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
@@ -399,7 +399,57 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'bannerhall',
     requires: { bannerhall: 1 },
   },
+  // Siege units (docs/GAME_DESIGN.md 18.9). Slow, weak fighters; trained in the Barracks at a high level and researched at the
+  // Drillyard first. They only matter in a battle the attacker WINS: the survivors then lower a building (SIEGE_* below).
+  logram: {
+    id: 'logram',
+    name: 'Log Ram',
+    description: 'A heavy battering log on wheels. After a won attack the surviving rams knock down part of the Wall. Slow, and a poor fighter.',
+    unitClass: 'infantry',
+    attack: 4,
+    defenseInfantry: 6,
+    defenseCavalry: 4,
+    speed: 3,
+    carry: 0,
+    upkeep: POP_PER_UNIT.logram * FOOD_UPKEEP_PER_POP,
+    cost: res(220, 120, 240, 4),
+    trainTimeSec: 1200,
+    building: 'barracks',
+    requires: { barracks: 5 },
+    research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
+    siege: { target: 'wall', power: 1, maxLevels: 3 },
+  },
+  boulder: {
+    id: 'boulder',
+    name: 'Boulder Sling',
+    description: 'Hurls boulders over the Wall. After a won attack the surviving slings lower one building you pick when sending (a random one if you pick none). Slow, and a poor fighter.',
+    unitClass: 'infantry',
+    attack: 6,
+    defenseInfantry: 4,
+    defenseCavalry: 3,
+    speed: 4,
+    carry: 0,
+    upkeep: POP_PER_UNIT.boulder * FOOD_UPKEEP_PER_POP,
+    cost: res(180, 140, 280, 12),
+    trainTimeSec: 1500,
+    building: 'barracks',
+    requires: { barracks: 8 },
+    research: { drillyard: 5, cost: res(700, 500, 900, 40), timeSec: 21600 },
+    siege: { target: 'chosen', power: 0.8, maxLevels: 2 },
+  },
 };
+
+// ---- Siege (docs/GAME_DESIGN.md 18.9). Building levels only ever drop through siege. ----
+
+/**
+ * After a battle the attacker won, each siege kind (Log Ram, then Boulder Sling) lowers its target building. It has
+ * `survivors * power` siege points; lowering a building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L
+ * points, so high levels are harder to knock down. A kind lowers at most `maxLevels` levels per attack (its UnitDef.siege).
+ */
+export const SIEGE_BASE_POINTS = 6;
+export const SIEGE_POINTS_PER_LEVEL = 2;
+/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall never drops below 1. */
+export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1 };
 
 // ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
 
@@ -587,6 +637,8 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   knight: 'mounted',
   pathfinder: 'pathfinder',
   chieftain: 'foot',
+  logram: 'carrier',
+  boulder: 'carrier',
 };
 /** Length of one sample along the route, in tiles. */
 export const TERRAIN_SAMPLE_STEP = 1;

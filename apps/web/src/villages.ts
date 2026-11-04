@@ -3,17 +3,20 @@
 // imports (unit-tested). The server decides everything; these only keep the screens honest.
 
 import {
+  BUILDINGS,
+  BUILDING_IDS,
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
+  hasChosenSiege,
   normalizeUnits,
   occupierPopulation,
   villageRenownPrice,
 } from '@clanfire/engine';
-import type { HearthInfoDto, MapVillageDto, Mission, RenownInfo, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
+import type { BuildingId, HearthInfoDto, MapVillageDto, Mission, RenownInfo, SiegeHit, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
 import { formatInt, formatLeft } from './format.ts';
 import { allowedMissions } from './rules.ts';
 
@@ -197,15 +200,45 @@ export function occupyWarning(chosen: Partial<Units>, alreadyThere: number, minP
   return `Together with the ${formatInt(alreadyThere)} already there that is ${formatInt(total)} of the ${formatInt(minPopulation)} needed to keep the clock running.`;
 }
 
-/** Units at home that make sense for this mode (scouts: Pathfinders only; support and occupy: no Chieftains). */
+/**
+ * Units at home that make sense for this mode (scouts: Pathfinders only; support and occupy: no Chieftains). Siege units
+ * (Log Ram, Boulder Sling) only join an attack, as in checkMission.
+ */
 export function selectableUnits(mode: SendMode, atHome: Units): Array<(typeof UNIT_IDS)[number]> {
   const home = normalizeUnits(atHome);
   return UNIT_IDS.filter((u) => {
     if (home[u] <= 0) return false;
+    if (UNITS[u].siege && mode !== 'attack' && mode !== 'strike') return false;
     if (mode === 'scout') return u === 'pathfinder';
     if (mode === 'support' || mode === 'occupy') return u !== 'chieftain';
     return true;
   });
+}
+
+// ---- Siege (docs/GAME_DESIGN.md 18.9) -------------------------------------------------------------------
+
+/** The building picker shows only on an attack that carries Boulder Slings (the units that take a chosen building). */
+export function showsSiegePicker(mission: Mission, chosen: Partial<Units>): boolean {
+  return mission === 'attack' && hasChosenSiege(chosen);
+}
+
+/** Buildings a Boulder Sling can be told to hit. Names only: levels are known from a scouting report, never here. */
+export function siegeTargetOptions(): Array<{ id: BuildingId; name: string }> {
+  return BUILDING_IDS.map((id) => ({ id, name: BUILDINGS[id].name }));
+}
+
+/** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = random = leave it out). */
+export function siegeTargetFor(mission: Mission, chosen: Partial<Units>, picked: string): BuildingId | undefined {
+  if (!showsSiegePicker(mission, chosen)) return undefined;
+  return (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
+}
+
+/** One report line per siege hit: "Log Ram: Wall 8 -> 6", "Boulder Sling: Market 4 -> 3 (random)", or why nothing happened. */
+export function siegeHitText(h: SiegeHit): string {
+  const unit = UNITS[h.unit]?.name ?? h.unit;
+  const building = BUILDINGS[h.building]?.name ?? h.building;
+  if (h.from === h.to) return `${unit} found nothing to hit at ${building}${h.random ? ' (random)' : ''}.`;
+  return `${unit}: ${building} ${h.from} → ${h.to}${h.random ? ' (random)' : ''}`;
 }
 
 /** Free-tile Found needs exactly one Chieftain; the rest is the escort. */

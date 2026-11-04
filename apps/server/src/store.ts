@@ -10,11 +10,13 @@ import {
   defenderEligibleFrom,
   emptyStats,
   markDefenceCollected,
+  isBuildingId,
   markRenownPaid,
   normalizeUnits,
   normalizeVillage,
   isStaffRole,
   type BattleReportData,
+  type BuildingId,
   type Mission,
   type PlayerStatsDto,
   type Resources,
@@ -112,6 +114,8 @@ export interface MovementRow {
   /** The free tile a `found` mission walks to (and a failed one walks back from); null for every other kind. */
   targetX?: number | null;
   targetY?: number | null;
+  /** Boulder Sling pick of an attack (sender's choice, never compared with the target's buildings); null = random / none. */
+  siegeTarget?: BuildingId | null;
 }
 
 export interface VillageStub {
@@ -219,7 +223,7 @@ export type FullReport = ReportRow & {
 
 const MOVEMENT_VIEW_SQL = `
 SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json, m.return_secs,
-       m.target_x, m.target_y,
+       m.target_x, m.target_y, m.siege_target,
        o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM movements m
@@ -293,6 +297,7 @@ function toMovement(r: Raw): MovementRow {
     returnSecs: (r.return_secs as number | null) ?? null,
     targetX: (r.target_x as number | null) ?? null,
     targetY: (r.target_y as number | null) ?? null,
+    siegeTarget: isBuildingId(r.siege_target) ? r.siege_target : null,
   };
 }
 
@@ -1125,7 +1130,7 @@ export class Store extends SqlBase {
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
     const id = this.run(
-      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
       m.targetVillageId,
@@ -1137,6 +1142,7 @@ export class Store extends SqlBase {
       m.returnSecs ?? null,
       m.targetX ?? null,
       m.targetY ?? null,
+      m.siegeTarget ?? null,
     ).id;
     this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, true);
     return id;
