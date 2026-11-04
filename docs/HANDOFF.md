@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`fceb1e6`): village view re-laid out again after owner feedback: no campfire, Town Hall in the centre,
-buildings spread over the whole plate (core ring + resource corners), wall flush with the plate edge. Earlier today:
-style B buildings + scenery, test-mode Design preview (Settings → Design preview), 6 abandoned map stages.
-Checks passed, build ok; viewed fresh/max/design preview at 1440 and 390 px in the preview build.
-Very next step: owner checks the village on their Mac; follow-ups in NEXT_STEPS ("Village layout follow-ups").
+2026-11-04 (`1b56264`): village wall gate closed + bigger; roads redrawn (`e03b158`). Owner felt the village drifted from
+the approved Toy Diorama look, so a **toy-style proposal** of the same layout is in
+`design/style-directions/village-v2/D-toy-proposal/` (screenshots + an `art/` folder that mirrors `apps/web/src/art/`).
+Waiting for the owner: keep style B or switch the village to the toy proposal (copy `art/buildings.ts`, `art/scenery.tsx`,
+`art/buildings/*.svg` over `apps/web/src/art/`, then check + build). Checks passed, build ok.
 
 ## How the owner works (important)
 
