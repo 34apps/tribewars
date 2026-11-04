@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-04 (`da2867c`): village layout only. All ten plots in `PLACEMENT` (`art/buildings.ts`) moved inward, and the
-paths + two crop fields in `art/scenery.tsx` re-aimed, so every building pad keeps ~25 grid units of open ground from the
-ring wall (plate 234, wall unchanged). Not viewed (no renderer): possible touching pairs are market/farm, mine path/greens
-field, drillyard/lumber; tree/rock zones near the wall were left as they were. Very next step: open the village at 360 and
-1440 px and adjust. The earlier isometric sprite redraw (`b3a01ba`) is also still unviewed. Checks passed (check + build).
+2026-11-04 (`b4f74cf`): ring wall + towers redrawn per level in `art/scenery.tsx` (`wallItems` and helpers): L1 double
+palisade + braced watchtowers, L2 coursed stone + slits + corbelled square towers, L3 tall tile-capped wall + banded round
+towers. Wall flush with the plate edge; the two camera-facing walls are low (`hFront`) so the inside shows, far walls tall
+(`hBack`). Not viewed (no renderer, Bash denied tsx/qlmanage): tune heights/colours after looking. Very next step: open the
+village at wall levels 1–3, 360 and 1440 px. Layout (`da2867c`) and isometric sprites (`b3a01ba`) are also unviewed. Checks passed.
 
 ## How the owner works (important)
 
