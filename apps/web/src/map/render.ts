@@ -39,8 +39,8 @@ export interface Scene {
 
 /** A drawn village sprite, kept for picking (front-most last). */
 /** Abandoned villages are drawn at this share of the player-village size. */
-// Villages are drawn larger than the tile frame so they read clearly next to the trees (owner, 2026-11-04).
-const VILLAGE_DRAW_SCALE = 1.3;
+// 1 = the art's own size: the widest stages fill exactly one tile (1.3 spilled onto neighbours; owner, 2026-11-04).
+const VILLAGE_DRAW_SCALE = 1;
 // Protection dome stays inside its own tile (tile half-width 48, dome radius 50).
 const DOME_SCALE = 0.94;
 const RUIN_DRAW_SCALE = VILLAGE_DRAW_SCALE; // same scale, so more points always looks bigger
