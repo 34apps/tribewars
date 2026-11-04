@@ -248,15 +248,19 @@ export function VillageScene({
   /** Phone: pixels covered by the bottom sheet, so the selected building can be panned above it. */
   bottomInset?: number;
   onPanned?: () => void;
-  /** Design preview: show every building at min(this, its max level) instead of the real level. */
-  levelOverride?: number | null;
+  /**
+   * Design preview. building = null ("All buildings"): the wall alone (every other building unbuilt, no queue work) at the
+   * chosen level. building = an id: that building alone at min(level, its max); the others keep their real levels and work.
+   */
+  levelOverride?: { building: BuildingId | null; level: number } | null;
 }) {
   const { live, now } = useGame();
-  // Design preview shows the wall alone (every other building unbuilt, no queue work) at the chosen level.
-  const levels =
-    levelOverride == null
-      ? live.buildings
-      : (Object.fromEntries(BUILDING_IDS.map((id) => [id, id === 'wall' ? Math.min(levelOverride, BUILDINGS.wall.maxLevel) : 0])) as typeof live.buildings);
+  const ov = levelOverride ?? null;
+  const levels = !ov
+    ? live.buildings
+    : ov.building
+      ? { ...live.buildings, [ov.building]: Math.min(ov.level, BUILDINGS[ov.building].maxLevel) }
+      : (Object.fromEntries(BUILDING_IDS.map((id) => [id, id === 'wall' ? Math.min(ov.level, BUILDINGS.wall.maxLevel) : 0])) as typeof live.buildings);
   const [boxes, setBoxes] = useState<Partial<Record<BuildingId, Box>>>({});
   const onBox = useCallback((id: BuildingId, box: Box) => {
     setBoxes((prev) => {
@@ -273,7 +277,8 @@ export function VillageScene({
     });
   }, []);
 
-  const queue = levelOverride == null ? live.buildQueue : [];
+  // No scaffolding on the building being previewed; other buildings keep their real queue work in single-building mode.
+  const queue = !ov ? live.buildQueue : ov.building ? live.buildQueue.filter((j) => j.building !== ov.building) : [];
   const artKey = BUILDING_IDS.map(
     (id) =>
       `${id === 'wall' ? wallLook(levels[id]) : buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${

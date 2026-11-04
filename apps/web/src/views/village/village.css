@@ -934,6 +934,15 @@ th[scope='row'] {
 /* ---- Phone ---- */
 .vv-phone {
   overflow: hidden;
+  flex-direction: column;
+}
+
+/* The village stage and everything floating over it. A test-mode strip (design preview bar) can sit below it without covering it. */
+.vv-phone-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .vv-phone .vv-name {

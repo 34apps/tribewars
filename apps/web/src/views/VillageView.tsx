@@ -58,7 +58,7 @@ function DesktopVillage() {
           </div>
           {preview && <DesignPreviewBar />}
         </div>
-        <VillageScene mode="fit" selected={selected} onSelect={setSelected} levelOverride={preview ? dp.level : null} />
+        <VillageScene mode="fit" selected={selected} onSelect={setSelected} levelOverride={preview ? dp : null} />
         <Production />
       </section>
       <aside className="vv-side" aria-label="Village details">
@@ -122,65 +122,68 @@ function PhoneVillage() {
 
   return (
     <div className="vv vv-phone">
-      {preview && <DesignPreviewBar floating />}
-      <VillageScene
-        mode="pan"
-        levelOverride={preview ? dp.level : null}
-        selected={selected}
-        onSelect={(id) => setSheet({ kind: 'building', id })}
-        bottomInset={sheetH}
-        onPanned={() => setPanned(true)}
-      />
-      <div className="vv-namepill">
-        <Icon name="flame" size={18} />
-        <h1 className="vv-namepill-name">{village.name}</h1>
-        <span className="vv-namepill-xy">{formatCoords(village.x, village.y)}</span>
+      <div className="vv-phone-main">
+        <VillageScene
+          mode="pan"
+          levelOverride={preview ? dp : null}
+          selected={selected}
+          onSelect={(id) => setSheet({ kind: 'building', id })}
+          bottomInset={sheetH}
+          onPanned={() => setPanned(true)}
+        />
+        <div className="vv-namepill">
+          <Icon name="flame" size={18} />
+          <h1 className="vv-namepill-name">{village.name}</h1>
+          <span className="vv-namepill-xy">{formatCoords(village.x, village.y)}</span>
+        </div>
+        {!sheet && (
+          <div className="vv-moves-float">
+            <MovementsSummary compact />
+          </div>
+        )}
+        {!panned && !sheet && (
+          <div className="vv-draghint" aria-hidden="true">
+            <Icon name="drag" size={22} />
+            Drag to look around
+          </div>
+        )}
+        {!sheet && (
+          <button
+            type="button"
+            className="vv-queuechip"
+            onClick={() => setSheet({ kind: 'queue' })}
+            aria-label={`Construction queue, ${jobs.length} of ${maxQueue} slots used`}
+          >
+            <Icon name="queue" size={20} />
+            <span>
+              {jobs.length}/{maxQueue}
+            </span>
+            {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
+          </button>
+        )}
+        {sheet && (
+          <div className="vv-sheet dark" ref={sheetRef} role="dialog" aria-modal="false" aria-label={sheetTitle}>
+            <div className="vv-sheet-top" tabIndex={-1} ref={headRef}>
+              <span className="vv-grip" aria-hidden="true" />
+              <button type="button" className="vv-sheet-close" onClick={() => setSheet(null)} aria-label="Close">
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+            <div className="vv-sheet-body">
+              {sheet.kind === 'building' ? (
+                <>
+                  <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" onPick={(b) => setSheet({ kind: 'building', id: b })} />
+                  <Advisor id={sheet.id} compact />
+                </>
+              ) : (
+                <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      {!sheet && (
-        <div className="vv-moves-float">
-          <MovementsSummary compact />
-        </div>
-      )}
-      {!panned && !sheet && (
-        <div className="vv-draghint" aria-hidden="true">
-          <Icon name="drag" size={22} />
-          Drag to look around
-        </div>
-      )}
-      {!sheet && (
-        <button
-          type="button"
-          className="vv-queuechip"
-          onClick={() => setSheet({ kind: 'queue' })}
-          aria-label={`Construction queue, ${jobs.length} of ${maxQueue} slots used`}
-        >
-          <Icon name="queue" size={20} />
-          <span>
-            {jobs.length}/{maxQueue}
-          </span>
-          {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
-        </button>
-      )}
-      {sheet && (
-        <div className="vv-sheet dark" ref={sheetRef} role="dialog" aria-modal="false" aria-label={sheetTitle}>
-          <div className="vv-sheet-top" tabIndex={-1} ref={headRef}>
-            <span className="vv-grip" aria-hidden="true" />
-            <button type="button" className="vv-sheet-close" onClick={() => setSheet(null)} aria-label="Close">
-              <Icon name="close" size={24} />
-            </button>
-          </div>
-          <div className="vv-sheet-body">
-            {sheet.kind === 'building' ? (
-              <>
-                <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" onPick={(b) => setSheet({ kind: 'building', id: b })} />
-                <Advisor id={sheet.id} compact />
-              </>
-            ) : (
-              <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />
-            )}
-          </div>
-        </div>
-      )}
+      {/* In its own strip under the scene (not floating), so it never covers the village. */}
+      {preview && <DesignPreviewBar inline />}
     </div>
   );
 }

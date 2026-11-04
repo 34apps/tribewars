@@ -1,18 +1,26 @@
-// Control bar for the test-mode "Design preview": step every building through levels 0-20 in the real village scene.
+// Control bar for the test-mode "Design preview": pick one building (or "All buildings" = the wall) and step it through its
+// levels in the real village scene.
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
-import { wallLook } from '../../art/buildings.ts';
-import { PREVIEW_MAX_LEVEL, setDesignPreview, setPreviewLevel, useDesignPreview } from './designPreviewState.ts';
+import type { BuildingId } from '@clanfire/engine';
+import { buildingStage, wallLook } from '../../art/buildings.ts';
+import {
+  previewRange,
+  setDesignPreview,
+  setPreviewBuilding,
+  setPreviewLevel,
+  useDesignPreview,
+  type PreviewBuilding,
+} from './designPreviewState.ts';
 
 const bar: React.CSSProperties = {
   display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  gap: 8,
+  flexDirection: 'column',
+  gap: 6,
   padding: '8px 10px',
-  background: 'rgba(24,18,12,0.88)',
+  background: 'rgba(24,18,12,0.92)',
   color: '#f3e7d0',
   border: '1px solid rgba(243,231,208,0.25)',
   borderRadius: 10,
@@ -21,70 +29,139 @@ const bar: React.CSSProperties = {
   // The desktop board header ignores pointer events; the bar must not inherit that.
   pointerEvents: 'auto',
 };
+const row: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 };
 const btn: React.CSSProperties = { minWidth: 44, minHeight: 44 };
+const select: React.CSSProperties = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  minHeight: 44,
+  padding: '0 8px',
+  font: 'inherit',
+  color: '#2a1f14',
+  background: '#f3e7d0',
+  border: '1px solid rgba(243,231,208,0.6)',
+  borderRadius: 8,
+};
 
-export function DesignPreviewBar({ floating = false }: { floating?: boolean }) {
-  const { level } = useDesignPreview();
+/** Named first (the ones the owner checks most), then the rest in game order. */
+const PICKER_ORDER: readonly BuildingId[] = [
+  ...(['hall', 'lumber', 'farm', 'mine', 'goldmine', 'wall'] as const),
+  ...BUILDING_IDS.filter((id) => !['hall', 'lumber', 'farm', 'mine', 'goldmine', 'wall'].includes(id)),
+];
+
+/** The picture a building shows at a level (the wall has a fourth, grand look). 0 = not built. */
+const look = (id: BuildingId, level: number): number => (id === 'wall' ? wallLook(level) : buildingStage(id, level));
+
+/** Levels (1..max) whose picture differs from the level before. */
+function changeLevels(id: BuildingId): number[] {
+  const out: number[] = [];
+  for (let l = 1; l <= BUILDINGS[id].maxLevel; l++) if (look(id, l) !== look(id, l - 1)) out.push(l);
+  return out;
+}
+
+export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
+  const { level, building } = useDesignPreview();
   const [playing, setPlaying] = useState(false);
+  const { max } = previewRange(building);
+  const subject: BuildingId = building ?? 'wall';
 
   useEffect(() => {
     if (!playing) return;
-    if (level >= PREVIEW_MAX_LEVEL) {
+    if (level >= max) {
       setPlaying(false);
       return;
     }
     const t = setTimeout(() => setPreviewLevel(level + 1), 1000);
     return () => clearTimeout(t);
-  }, [playing, level]);
+  }, [playing, level, max]);
 
-  // Only the wall is drawn in this preview.
-  const max = BUILDINGS.wall.maxLevel;
-  const changed = BUILDING_IDS.filter(
-    (id) => id === 'wall' && level > 0 && wallLook(Math.min(level, max)) !== wallLook(Math.max(0, Math.min(level - 1, max))),
+  const lvl = Math.min(level, BUILDINGS[subject].maxLevel);
+  const changed = lvl > 0 && look(subject, lvl) !== look(subject, lvl - 1);
+  const name = BUILDINGS[subject].name;
+  const info =
+    lvl === 0
+      ? 'Level 0: no wall.'
+      : changed
+        ? `New picture at level ${lvl}.`
+        : `Same picture as level ${lvl - 1}.`;
+  const changes = building ? changeLevels(building) : null;
+
+  const content = (
+    <>
+      <div style={row}>
+        <select
+          style={select}
+          aria-label="Building to preview"
+          value={building ?? ''}
+          onChange={(e) => {
+            setPlaying(false);
+            setPreviewBuilding((e.target.value || null) as PreviewBuilding);
+          }}
+        >
+          <option value="">All buildings</option>
+          {PICKER_ORDER.map((id) => (
+            <option key={id} value={id}>
+              {BUILDINGS[id].name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="btn btn-small" style={btn} onClick={() => setDesignPreview(false)}>Exit preview</button>
+      </div>
+      <div style={row}>
+        <button type="button" className="btn btn-small" style={btn} aria-label="Previous level" onClick={() => { setPlaying(false); setPreviewLevel(level - 1); }}>−</button>
+        <input
+          id="dp-slider"
+          type="range"
+          min={previewRange(building).min}
+          max={max}
+          value={level}
+          aria-label="Preview level"
+          style={{ flex: '1 1 auto', minWidth: 0, minHeight: 44 }}
+          onChange={(e) => { setPlaying(false); setPreviewLevel(Number(e.target.value)); }}
+        />
+        <button type="button" className="btn btn-small" style={btn} aria-label="Next level" onClick={() => { setPlaying(false); setPreviewLevel(level + 1); }}>+</button>
+        <button
+          type="button"
+          className="btn btn-small"
+          style={btn}
+          onClick={() => {
+            if (playing) setPlaying(false);
+            else {
+              if (level >= max) setPreviewLevel(1);
+              setPlaying(true);
+            }
+          }}
+        >
+          {playing ? 'Pause' : 'Play'}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, lineHeight: 1.35 }} aria-live="polite">
+        <strong style={{ fontSize: 14 }}>{building ? `${name} · Level ${lvl} of ${BUILDINGS[subject].maxLevel}` : `Wall preview · Level ${lvl}`}</strong>
+        <span style={{ opacity: 0.85 }}>
+          {' '}
+          — {info}
+          {changes && changes.length > 0 ? ` Picture changes at level ${changes.join(', ')}.` : ''}
+        </span>
+      </div>
+    </>
   );
 
-  // Drawn straight into <body>: inside the village board an ancestor's containment/overflow would clip or move a fixed bar.
+  // Phone: an ordinary strip under the village, so it takes its own space and never covers the scene.
+  if (inline) {
+    return (
+      <div style={{ ...bar, flexShrink: 0, borderRadius: 0, borderWidth: '1px 0 0' }} role="group" aria-label="Design preview">
+        {content}
+      </div>
+    );
+  }
+  // Desktop: drawn straight into <body>: inside the village board an ancestor's containment/overflow would clip or move a fixed bar.
   return createPortal(
     <div
-      style={floating ? { ...bar, position: 'fixed', bottom: 70, left: 8, right: 8, zIndex: 30 } : { ...bar, position: 'fixed', bottom: 8, right: 8, width: 420, maxWidth: 'calc(100vw - 16px)', zIndex: 30 }}
+      style={{ ...bar, position: 'fixed', bottom: 8, right: 8, width: 420, maxWidth: 'calc(100vw - 16px)', zIndex: 30 }}
       role="group"
       aria-label="Design preview"
     >
-      <strong style={{ flex: '1 1 auto' }}>Wall preview · Level {level}</strong>
-      <button type="button" className="btn btn-small" style={btn} aria-label="Previous level" onClick={() => { setPlaying(false); setPreviewLevel(level - 1); }}>−</button>
-      <input
-        id="dp-slider"
-        type="range"
-        min={0}
-        max={PREVIEW_MAX_LEVEL}
-        value={level}
-        aria-label="Preview level"
-        style={{ flex: '1 1 120px', minWidth: 100, minHeight: 44 }}
-        onChange={(e) => { setPlaying(false); setPreviewLevel(Number(e.target.value)); }}
-      />
-      <button type="button" className="btn btn-small" style={btn} aria-label="Next level" onClick={() => { setPlaying(false); setPreviewLevel(level + 1); }}>+</button>
-      <button
-        type="button"
-        className="btn btn-small"
-        style={btn}
-        onClick={() => {
-          if (playing) setPlaying(false);
-          else {
-            if (level >= PREVIEW_MAX_LEVEL) setPreviewLevel(1);
-            setPlaying(true);
-          }
-        }}
-      >
-        {playing ? 'Pause' : 'Play'}
-      </button>
-      <button type="button" className="btn btn-small" style={btn} onClick={() => setDesignPreview(false)}>Exit preview</button>
-      <div style={{ flexBasis: '100%', fontSize: 12, opacity: 0.8 }} hidden={floating}>
-        {level === 0
-          ? 'Level 0: no wall.'
-          : changed.length
-            ? `New picture at level ${level}: ${changed.map((id) => BUILDINGS[id].name).join(', ')}`
-            : `No picture change at level ${level}.`}
-      </div>
+      {content}
     </div>,
     document.body,
   );
