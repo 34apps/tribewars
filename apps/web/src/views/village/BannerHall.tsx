@@ -136,8 +136,8 @@ export function BannerHallPanel() {
 
       <h3 className="eyebrow bh-chief-title">Chieftain</h3>
       <p className="bh-text">
-        The Chieftain founds a new village on free land or, with an escort, puts out the hearth of an abandoned one. Renown is reserved when training
-        starts: {formatInt(nextChieftainPrice(renown))} for the next one ({formatInt(renown.balance)} to spend
+        The Chieftain founds a new village on free land or, with an escort, puts out the hearth of an abandoned one. The next one costs{' '}
+        {formatInt(nextChieftainPrice(renown))} Renown ({formatInt(renown.balance)} to spend
         {renown.reserved ? `, ${formatInt(renown.reserved)} reserved` : ''}).
       </p>
       <p className="bh-text muted">{chieftainRenownNote()}</p>

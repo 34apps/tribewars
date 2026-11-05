@@ -745,7 +745,7 @@ function returnCargoText(mv: MovementDto): string {
   for (const n of Object.values(mv.units ?? {})) troops += n ?? 0;
   let loot = 0;
   for (const n of Object.values(mv.loot ?? {})) loot += n ?? 0;
-  return `${troops > 0 ? ` · ${troops} troops` : ''}${loot > 0 ? ` · loot ${Math.round(loot)}` : ''}`;
+  return `${troops > 0 ? ` · ${troops} units` : ''}${loot > 0 ? ` · +${Math.round(loot)}` : ''}`;
 }
 
 /** Marching armies: dotted route ahead of each marker, a toy soldier at its current place. */
@@ -791,9 +791,12 @@ function drawMovements(sc: Scene): number {
       else if (mv.kind === 'support') text = `Support to ${where} · ${left}`;
       else if (mv.kind === 'found') text = `Founding at ${where} · ${left}`;
       else if (mv.kind === 'occupy') text = `Occupying ${where} · ${left}`;
-      else text = `Returning${returnCargoText(mv)} · home in ${left}`;
-      const fs = Math.max(10, Math.min(14, tile * 0.13));
-      labels.push(() => pill(ctx, text, x, y - m * 1.55 - fs, fs, incoming ? '#C4623A' : SUN, incoming ? BONE : INK));
+      else text = `Home${returnCargoText(mv)} · ${left}`;
+      const returning = mv.kind === 'return';
+      // Returning armies end at a village whose own label sits right there: keep theirs small and lifted clear of it.
+      const fs = Math.max(10, Math.min(14, tile * 0.13)) * (returning ? 0.85 : 1);
+      const ly = y - m * (returning ? 2.1 : 1.55) - fs;
+      labels.push(() => pill(ctx, text, x, ly, fs, incoming ? '#C4623A' : SUN, incoming ? BONE : INK));
     }
   }
   for (const l of labels) l();

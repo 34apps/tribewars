@@ -555,7 +555,7 @@ stored and sent as plain text and the client renders it as text (line breaks kep
    villages, world end and winners.
 5. New visual identity (style directions in progress), characters, isometric map; 3D models later.
 6. Troop ranks, Armory, scout intel tiers — see §15 (proposal).
-7. Seasons with Fire Shrines, taking villages, rest hours, terrain, tribe projects, cosmetics shop — see §18 (proposal, needs owner approval).
+7. Seasons with Fire Shrines, taking villages, terrain, tribe projects, cosmetics shop — see §18 (proposal, needs owner approval).
 
 ## 15. DECIDED, NOT BUILT YET (see owner answers below) — troop ranks, Armory, scout intel tiers
 
@@ -648,14 +648,13 @@ all matter.**
 |---|---|---|
 | A season with a finish line | "We are playing for something, and in nine weeks everyone starts fresh." | 18.1 |
 | Villages are won by holding, not by one click | "They put our fire out, we have twelve hours to answer." | 18.2 |
-| The game respects sleep | "I can sleep without waking up poorer." | 18.3 |
+| ~~The game respects sleep~~ (dropped 2026-11-05) | ~~"I can sleep without waking up poorer."~~ | 18.3 |
 | The land matters | "The mountain is between us, so the real road goes round." | 18.4 |
 | A tribe builds together | "Our shipments built the watchtower." | 18.5 |
 | Money buys looks, never strength | "I support the game and nobody is stronger for it." | 18.6 |
 
 How they connect: seasons give the goal (Fire Shrines); shrines are sites on the map (18.4); taking and holding
-sites reuses the troop-stationing rules; tribe projects make a tribe tougher at holding them; rest hours make
-conquest fair across time zones; badges and cosmetics are what players keep when the season ends.
+sites reuses the troop-stationing rules; tribe projects make a tribe tougher at holding them; badges and cosmetics are what players keep when the season ends.
 
 Prerequisites from `GENRE_REVIEW.md` Part C that should land **before** conquest, because conquest raises the
 stakes: secret battle seed (#6), tame abandoned-village farming and upkeep rebalance (#3, #4), cap on stationed
@@ -886,6 +885,9 @@ than the raider, because it builds the Banner Hall by day 7 (owner to judge, `BA
 - A new village is named "<name>'s village 2" until renamed. Everything that is "per village" (queues, ranks, population,
   Market) already exists per village. The web top bar already has a "current village" switch for this.
 
+**No rest hours (owner decision 2026-11-05).** Taking player villages does not use rest hours (18.3 is dropped).
+It relies on the hold period, tribe alerts, restart protection and the pair cap instead.
+
 **Why it is fair**
 - It costs a lot (gold-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
   event, not a click. The hold gives the defender **a fixed window to answer** that both sides can see.
@@ -961,60 +963,9 @@ with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall leve
 
 ---
 
-### 18.3 Daily rest hours
+### 18.3 Daily rest hours — dropped by the owner 2026-11-05
 
-**How it works**
-- Each player picks **one daily rest window** of fixed length `REST_HOURS` (8) by choosing the start hour in
-  their own time zone (the client sends the zone name; the server stores the start hour in UTC and recomputes
-  with the zone's rules, so daylight-saving changes do not shift sleep by an hour twice).
-- While the window is open, for **all villages of that player**:
-  1. **Defence +25%** in battles (`REST_DEFENCE_BONUS`), on top of wall and ranks.
-  2. **The hold clock stops** on their villages if the Hearth is out (18.2). A strike at 23:00 lands, but the
-     owner has the full 12 awake hours before the village can change hands.
-  3. A small moon icon shows on their villages on the map ("Resting"); the exact hours are private.
-- Real-time hours, not scaled by world speed (people sleep in real time). This is the same rule as the 2-minute cancel window.
-
-**Abuse limits (so it is a blanket, not a shield)**
-- **Change at most once every 7 days**; the new window starts 24 hours after the change (`REST_CHANGE_DELAY_HOURS`). First pick is free.
-- **Fixed length.** No longer window, no second window.
-- **Sending a hostile order ends your rest for that window.** If a resting player sends an attack, scout or
-  Strike at another *player* (raids on abandoned villages and support do not count), the rest effect is off for
-  the rest of that window **and for the next 4 hours** (`REST_AGGRESSOR_LOCK_HOURS`). So nobody can strike at
-  22:55 and sit behind the bonus at 23:00.
-- Only the **owner's side** benefits: **troops that occupy another player's village never get the rest bonus**,
-  and a resting owner's support troops in somebody else's village don't carry it either.
-- The defence bonus is a bonus, not immunity. A very strong attack still wins. Stacking is not possible
-  (one `REST_DEFENCE_BONUS` per battle however many villages or support).
-- **A hold cannot be stretched for ever by resting.** Rest pauses the clock for at most `REST_HOLD_PAUSE_MAX_HOURS`
-  (36) in total per claim; after that the clock runs through the owner's rest too. Abandonment rules (30 days
-  idle, §17) are unchanged.
-- Staff can see the hours; they appear in the audit log when changed. Tribe leaders cannot see them (privacy).
-
-**Why it is fair**
-- Everyone gets the same 8 hours, same bonus, same limits, whatever the time zone. The bonus is moderate, so a
-  tribe in a time zone that is awake while their enemy sleeps gets an edge, but not a free win.
-- The aggressor lock removes the one trick that would turn the bonus into a weapon.
-- Not everyone is protected at once (the window is per player), so a tribe cannot declare "the night is safe".
-  The only way to make a whole tribe safe at the same time is for all of them to be asleep at the same time, which
-  also makes the tribe unable to react. That is a real, honest trade-off.
-
-**Rough numbers for `config.ts`**
-`REST_HOURS` 8, `REST_DEFENCE_BONUS` 0.25, `REST_CHANGE_COOLDOWN_DAYS` 7, `REST_CHANGE_DELAY_HOURS` 24,
-`REST_AGGRESSOR_LOCK_HOURS` 4, `REST_HOLD_PAUSE_MAX_HOURS` 36.
-
-**What it needs**
-- Engine: `rest.ts` (`isResting(rest, t)`, `restBonus`), an optional `defenceMultiplier` input in `resolveBattle`, hold-clock pause support (18.2).
-- Server: columns on the player (`rest_start_min_utc`, `rest_zone`, `rest_changed_at`, `rest_pending_json`, `last_hostile_at`), `GET/PUT /api/me/rest` (own account only, validated zone name from a fixed list, once per 7 days), the hostile order stamps `last_hostile_at`, battle uses the bonus at arrival time (judged at the arrival time like other timing rules, §11). Tests: every limit above, daylight-saving edges, owner change during a window.
-- Web: a Settings section "Rest hours" (a clock picker with the next window shown in local time), the "Resting" moon icon on the map and village view, defence bonus listed in the battle report.
-- Security: own account only; no way to read another player's hours; rate limit on the endpoint; the time zone list is a closed list, never free text.
-
-**Size: M.**
-
-**Open questions for the owner**
-1. 8 hours and +25%? A shorter window (6 h) with +35% is possible. I suggest 8 / 25% as the first try.
-2. Should the rest also pause **building** or **production**? I suggest no: nothing about rest should change the economy.
-3. Should the moon icon be public? I suggest yes (the enemy only learns "now", not the hours).
-4. Should the first window be forced at sign-up (a nice onboarding step) or skippable?
+Not built and not planned. Dropped by the owner 2026-11-05 (see 18.8 decision 6).
 
 ---
 
@@ -1196,7 +1147,7 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
   4. **Tribe look** (extra banner shapes for the tribe, bought by the leader; every member sees it).
   5. **Report and mail themes** (colours only).
 - **Not for sale, ever:** anything that speeds, strengthens, protects or scores; extra queue slots; resources, gold or
-  troops; village limit; rest-hour changes; protection time. Some looks can only be **earned** (season winner flame
+  troops; village limit; protection time. Some looks can only be **earned** (season winner flame
   frame, Pioneer marker) so they remain a sign of play. Badges (18.1) are never sold.
 - Items belong to the **account** (lobby database `account_items`) so they work in every season. The server of
   a world only asks the lobby "which cosmetic ids does this account own" (included in the signed entry pass)
@@ -1245,7 +1196,7 @@ every step can be undone alone.
 | 0 | Prerequisites from `GENRE_REVIEW.md`: secret battle seed (#6), tame abandoned farming + upkeep (#3, #4), run `npm run sim` | S | Conquest raises the stakes; fix the economy and the predictable-luck hole first. |
 | 1 | **Terrain travel** (18.4a) | M | Small, self-contained, visible on the map, and changes every travel time, so do it before any other number depends on it. Re-run `npm run sim`. |
 | 2 | **Several villages: Banner Hall, Chieftain, Strike and Hold on abandoned villages only** (18.2, first half) | M | The genre's biggest hole, with only computer-run targets, so no one can be hurt while we learn it. A second village changes the whole game. |
-| 3 | **Rest hours** (18.3) | M | Must exist before players can take villages from each other. |
+| 3 | ~~**Rest hours** (18.3)~~ — dropped by the owner 2026-11-05 | – | – |
 | 4 | **Taking player villages** (18.2, second half: alerts, last-village rule, pair cap, lock, move-in) | M | The payoff for tribes and the reason to defend. |
 | 5 | **Sites and Fire Shrines, season clock and score** (18.4b + 18.1 engine/server) | L | The goal of the game. Uses the stationed-troops and battle rules from step 4. |
 | 6 | **Badges + Hall of Fame + lobby season list** (18.1 rest) | M | Needed before the first real season ends, not before it starts. |
@@ -1253,7 +1204,8 @@ every step can be undone alone.
 | 8 | **Cosmetics shop** (18.6) | M | Independent of the rules; do it when the first season is live and has players to look at it. |
 
 Quick check of the order against the two risks:
-- *"Conquest ships without sleep protection."* No: step 3 is before step 4.
+- ~~*"Conquest ships without sleep protection."* No: step 3 is before step 4.~~ Rest hours were dropped by the owner
+  2026-11-05, so step 4 relies on the hold period, alerts, restart protection and the pair cap (18.2).
 - *"Seasons without anyone able to fight for shrines."* No: sites reuse step 4's rules and need step 2's village growth.
 
 Every step follows the usual protocol: config numbers first, engine with tests, server routes with tests, security
@@ -1269,7 +1221,7 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 4. **Banner Hall: use the lower requirements** from §18.2. They still have to be checked with `npm run sim` (first second village around day 14–20 for a focused player) before step 2 is built.
 5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (Removed from the code 2026-11-04; do not sell or advertise anything that speeds up play.)
 8. **Renown (owner, 2026-11-04):** the village limit is Renown, not Banner Hall level; see §18.2 "Owning several villages". Built 2026-11-04: earning (buildings, fights, Feast), anti-abuse, ranking, profile, cost formula. Founding and taking villages: step 2.
-6. **Rest hours: 8 hours a day, +25% defence, and no economy pause** (production, building and training run as usual while a village rests; the hold-clock pause of §18.3 stays as written).
+6. ~~**Rest hours: 8 hours a day, +25% defence, and no economy pause**~~ — **dropped by the owner 2026-11-05.** Not built, not planned; taking player villages relies on the hold period, tribe alerts, restart protection and the pair cap (18.2).
 7. **The name Chieftain is final.**
 9. **Taking and founding (owner, 2026-11-04, step 2):** taking developed villages is the main way ahead, founding on empty land the slow safe path; a taken village keeps ALL buildings (no automatic level loss; only siege units, later, damage buildings); a player's LAST village CAN be taken and they restart at the outer edge of the world circle (account, tribe and Renown kept) with a short restart protection. Details: §18.2 "Owner decisions 2026-11-04 for step 2".
 

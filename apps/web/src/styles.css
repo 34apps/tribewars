@@ -1458,11 +1458,19 @@ button.strip {
     color: var(--c-cream);
   }
 
+  .topbar .toptabs {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
   .topbar .resources {
     margin-left: auto;
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .topbar .who {
+    flex: none;
     padding-left: 12px;
     border-left: 2px solid var(--c-ink-3);
   }
@@ -1491,7 +1499,11 @@ button.strip {
   }
 
   .resources {
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .res-meter {
+    width: 22px;
   }
 
   .res-cap {
@@ -3186,6 +3198,8 @@ button.strip {
   display: grid;
   align-items: end;
   justify-items: center;
+  /* Phones: leave the bottom tab bar visible and uncovered. */
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
   background: rgba(26, 18, 14, 0.55);
 }
 
@@ -3193,7 +3207,7 @@ button.strip {
   display: grid;
   gap: 8px;
   width: min(100%, 440px);
-  max-height: 90vh;
+  max-height: calc(100dvh - var(--nav-h) - env(safe-area-inset-bottom, 0px) - 12px);
   overflow-y: auto;
   padding: 8px 16px 16px;
   border: 2px solid var(--c-wood-line);
@@ -3377,9 +3391,11 @@ button.strip {
 @media (min-width: 700px) {
   .rk-sheet-wrap {
     align-items: center;
+    padding-bottom: 0;
   }
 
   .rk-sheet {
+    max-height: 90dvh;
     border-radius: 16px;
   }
 }
@@ -3752,8 +3768,17 @@ button.strip {
 
 @media (min-width: 900px) {
   .reports {
-    grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
     align-items: start;
+  }
+
+  /* The list is narrow here: let a long title use two lines instead of cutting it off. */
+  .report-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .reports:not(.has-detail) .report-pane,

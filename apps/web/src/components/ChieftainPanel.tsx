@@ -80,7 +80,7 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
   let reason: string | null = null;
   if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = 'One batch at a time: wait for the queue or cancel it';
   else if (!check.ok) reason = reasonText(check);
-  else if (batchPrice > renown.balance) reason = `Needs ${formatInt(batchPrice)} Renown, you have ${formatInt(renown.balance)}`;
+  else if (batchPrice > renown.balance) reason = `Needs ${formatInt(batchPrice)} Renown (have ${formatInt(renown.balance)})`;
 
   async function train() {
     if (busy || reason) return;

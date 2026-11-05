@@ -491,7 +491,13 @@ export class Store extends SqlBase {
    * Sandbox time warp: every movement sent from, returning to or heading for this player's villages that is due later
    * than `arriveAt` is pulled forward to arrive then (departure moved back if needed so the span stays positive).
    */
-  warpMovementsOfPlayer(playerId: number, arriveAt: number): void {
+  warpMovementsOfPlayer(playerId: number, arriveAt: number, returnSecs: number): void {
+    // Returns do not exist yet: the outgoing movements carry the way home, so those walk home in `returnSecs` too.
+    this.run(
+      `UPDATE movements SET return_secs = ? WHERE kind != 'return' AND origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?)`,
+      returnSecs,
+      playerId,
+    );
     this.run(
       `UPDATE movements SET depart_at = MIN(depart_at, ? - 1000), arrive_at = MIN(arrive_at, ?)
        WHERE arrive_at > ? AND (origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?)

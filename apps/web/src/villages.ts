@@ -206,9 +206,13 @@ export function occupyWarning(chosen: Partial<Units>, alreadyThere: number, minP
  */
 export function selectableUnits(mode: SendMode, atHome: Units): Array<(typeof UNIT_IDS)[number]> {
   const home = normalizeUnits(atHome);
+  const attacks = mode === 'attack' || mode === 'strike';
+  // Siege units stay in the list at 0 (so the player sees they exist) once there is any other army to send with them.
+  const anyOther = UNIT_IDS.some((u) => !UNITS[u].siege && home[u] > 0);
   return UNIT_IDS.filter((u) => {
+    if (UNITS[u].siege && attacks && anyOther) return true;
     if (home[u] <= 0) return false;
-    if (UNITS[u].siege && mode !== 'attack' && mode !== 'strike') return false;
+    if (UNITS[u].siege && !attacks) return false;
     if (mode === 'scout') return u === 'pathfinder';
     if (mode === 'support' || mode === 'occupy') return u !== 'chieftain';
     return true;

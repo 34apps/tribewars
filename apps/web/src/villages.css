@@ -282,6 +282,13 @@
 
 .chief-ledger dt {
   color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .chief-ledger {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .chief-ledger dd {

@@ -17,6 +17,7 @@ import {
   foundProblem,
   missionsFor,
   myOccupierPopulation,
+  nextChieftainPrice,
   occupyWarning,
   selectableUnits,
   sendMode,
@@ -58,7 +59,7 @@ function SendForm({
   missions: Mission[];
   preferred: Mission | null;
 }) {
-  const { live, now, settings, village, player, stationed, applySend, refresh, toast, viewMovement, navigate } = useGame();
+  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate } = useGame();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
   // A Found send starts with the Chieftain already chosen.
@@ -253,7 +254,15 @@ function SendForm({
           {mode === 'found' && (
             <div>
               <dt>Price</dt>
-              <dd>Renown already paid</dd>
+              <dd>
+                {chosen.chieftain > 0 ? (
+                  'Renown already paid'
+                ) : (
+                  <>
+                    {formatInt(nextChieftainPrice(renown))} Renown
+                  </>
+                )}
+              </dd>
             </div>
           )}
         </dl>

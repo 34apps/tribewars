@@ -29,6 +29,8 @@ test('siege units can only be picked for an attack', () => {
     assert.ok(!list.includes('logram') && !list.includes('boulder'), mode);
   }
   assert.deepEqual(selectableUnits('found', units({ logram: 2 })), []);
+  assert.deepEqual(selectableUnits('attack', units({ pikeman: 5 })), ['pikeman', 'logram', 'boulder'], 'siege rows show at 0 beside a real army');
+  assert.deepEqual(selectableUnits('attack', units({})), [], 'nothing at home: the empty message shows');
 });
 
 test('the building picker shows only for an attack with Boulder Slings', () => {

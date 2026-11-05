@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BUILDINGS, BUILDING_IDS, SANDBOX_ARMY_PER_UNIT, START_RESOURCES, UNIT_IDS, storageCapForLevel, type GameStateResponse } from '@clanfire/engine';
+import { BUILDINGS, BUILDING_IDS, SANDBOX_ARMY_PER_UNIT, START_RESOURCES, UNIT_IDS, storageCapForLevel, villageRenownCost, type GameStateResponse } from '@clanfire/engine';
 import { loadEnv } from '../src/env.ts';
 import { errorOf, ok } from './helpers.ts';
 import { giveTroops, movementsOf, sendOk, stateOf, world } from './warfare-helpers.ts';
@@ -44,6 +44,35 @@ test('warp: pulls my movements forward, refuses others and bad input', async () 
   const after = res.json<GameStateResponse>().movements[0]!;
   assert.ok(after.arriveAt < before.arriveAt, 'arrives sooner');
   assert.ok(after.departAt < after.arriveAt, 'span stays positive');
+});
+
+test('warp: the way home of a warped outgoing movement is warped too', async () => {
+  const { app, clock, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  giveTroops(app, alice, { raider: 5 });
+  await sendOk(alice, bob, 'attack', { raider: 5 });
+  ok(await alice.c.post('/api/sandbox/warp', { seconds: 20 }));
+  const out = (await movementsOf(alice))[0]!;
+  clock.set(out.arriveAt);
+  const back = (await movementsOf(alice)).find((m) => m.kind === 'return');
+  assert.ok(back, 'the survivors walk home');
+  assert.equal(back.arriveAt - back.departAt, 20_000, 'in the warp time, not the real distance');
+});
+
+test('max: tops Renown up to the price of the next 3 villages, and never takes any away', async () => {
+  const { app, alice } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  const owned = app.ctx.store.villagesOfPlayer(alice.id).length;
+  const need = villageRenownCost(owned) + villageRenownCost(owned + 1) + villageRenownCost(owned + 2);
+  const balance = (): number => {
+    const p = app.ctx.store.getPlayer(alice.id)!;
+    return p.renownTotal - p.renownSpent;
+  };
+  ok(await alice.c.post('/api/sandbox/max', {}));
+  assert.ok(balance() >= need, `balance ${balance()} covers ${need}`);
+  const after = balance();
+  ok(await alice.c.post('/api/sandbox/max', {}));
+  assert.equal(balance(), after, 'a second Max adds nothing when it is already enough');
 });
 
 test('clear-abandoned: refuses others; afterwards every abandoned village has no troops', async () => {

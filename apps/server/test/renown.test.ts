@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { BUILDINGS, buildingRenown, type GameStateResponse, type PlayerProfileDto, type RenownRankingResponse, type VillageState } from '@clanfire/engine';
+import { BUILDINGS, buildingRenown, villageRenownCost, type GameStateResponse, type PlayerProfileDto, type RenownRankingResponse, type VillageState } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { SCHEMA_VERSION } from '../src/db.ts';
 import { Client, Clock, HOST, HOUR, PASSWORD, TEST_WORLD, makeApp, ok } from './helpers.ts';
@@ -107,8 +107,10 @@ test('sandbox accounts earn no Renown from buildings; their levels are marked pa
   assert.equal(renownOf(app, sandy), 0);
   assert.equal(app.ctx.store.villagesOfPlayer(sandy.id)[0]?.state.renownPaid?.hall, start + 4);
   ok(await sandy.c.post('/api/sandbox/max'));
-  assert.equal(renownOf(app, sandy), 0);
-  assert.equal((await sandy.c.state()).renown.total, 0);
+  // Max grants Renown for 3 more villages (owner, 2026-11-05) but the building levels still pay nothing.
+  const grant = villageRenownCost(1) + villageRenownCost(2) + villageRenownCost(3);
+  assert.equal(renownOf(app, sandy), (await sandy.c.state()).renown.total);
+  assert.equal(renownOf(app, sandy), grant, 'exactly the grant, nothing for building levels');
   // The same levels on a normal account do pay.
   const norm = await newPlayer(app, 'norma');
   setVillage(app, norm.id, { levels: { hall: start + 4 }, paid: false });

@@ -22,6 +22,7 @@ import {
   occupierPopulation,
   underVillageLimit,
   updateHold,
+  villageRenownCost,
   villageRenownPrice,
   type HearthInfoDto,
   type HearthState,
@@ -1851,6 +1852,15 @@ export class GameService {
   sandbox(player: PlayerRow, action: 'max' | 'reset', t: number): GameStateResponse {
     if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
     this.store.tx(() => {
+      const owned = this.store.villagesOfPlayer(player.id).length;
+      if (action === 'max') {
+        // Renown balance for the next 3 villages (founding or Chieftains), topped up only when short.
+        let need = 0;
+        for (let i = 0; i < 3; i++) need += villageRenownCost(owned + i);
+        const p = this.store.getPlayer(player.id) ?? player;
+        const short = need - (p.renownTotal - p.renownSpent);
+        if (short > 0) this.store.addRenown(player.id, short);
+      }
       for (const v of this.store.villagesOfPlayer(player.id)) {
         if (action === 'max') {
           const next = maxOutVillage(settleVillage(v.state, t, this.settings), t);
@@ -1868,7 +1878,8 @@ export class GameService {
   /** Sandbox time warp: all my movements (and attacks/support heading for me) arrive in `seconds` from now. */
   sandboxWarp(player: PlayerRow, seconds: number, t: number): GameStateResponse {
     if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
-    this.store.tx(() => this.store.warpMovementsOfPlayer(player.id, t + Math.round(seconds) * 1000));
+    // The same `seconds` also applies to the way home of everything still on its way out (and to returns already walking).
+    this.store.tx(() => this.store.warpMovementsOfPlayer(player.id, t + Math.round(seconds) * 1000, Math.round(seconds)));
     this.processDue(t);
     return this.getState(player, t);
   }

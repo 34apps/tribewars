@@ -504,15 +504,30 @@ function Tribes({ real, sample }: { real: TribeSummaryDto[]; sample: TribeSummar
 }
 
 /** Players by Renown earned in total (not the balance, so spending it on villages never drops anyone). */
-function RenownRanking({ data }: { data: RenownRankingResponse }) {
+function RenownRanking({ data, sample }: { data: RenownRankingResponse; sample: PlayerRankDto[] | null }) {
   const { viewTribe, showOnMap, player } = useGame();
   const [page, setPage] = useState(1);
   const meId = data.me?.playerId ?? player.id;
   const rows = useMemo(() => {
-    const base = [...data.players];
+    let base = [...data.players];
     if (data.me && !base.some((p) => p.playerId === data.me!.playerId)) base.push(data.me);
+    if (sample) {
+      // Made-up players follow the same switch as the other lists; their Renown is made up from their points.
+      const made = sample.map((s) => ({ ...s, rank: 0, renown: Math.round(s.points * 1.4) }));
+      let prev = -1;
+      let prevRank = 0;
+      base = [...base, ...made]
+        .sort((a, b) => b.renown - a.renown)
+        .map((r, i) => {
+          const rank = r.renown === prev ? prevRank : i + 1;
+          prev = r.renown;
+          prevRank = rank;
+          return { ...r, rank };
+        });
+    }
     return base;
-  }, [data]);
+  }, [data, sample]);
+  const me = rows.find((p) => p.playerId === meId) ?? null;
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const cur = Math.min(page, pages);
   const slice = rows.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE);
@@ -526,9 +541,9 @@ function RenownRanking({ data }: { data: RenownRankingResponse }) {
       </p>
       <Tiles
         items={[
-          { label: 'Players', value: formatInt(data.total) },
+          { label: 'Players', value: formatInt(sample ? rows.length : data.total) },
           { label: 'Top player', value: top ? top.username : '—', sub: top ? `${formatInt(top.renown)} Renown` : undefined },
-          { label: 'You', value: data.me ? `#${data.me.rank}` : '—', sub: data.me ? `${formatInt(data.me.renown)} Renown` : undefined },
+          { label: 'You', value: me ? `#${me.rank}` : '—', sub: me ? `${formatInt(me.renown)} Renown` : undefined },
         ]}
       />
       {myIndex >= 0 && (
@@ -678,14 +693,14 @@ export function RankingsView() {
         ))}
       </div>
       <section className="card rk-card" id="rank-panel" role="tabpanel">
-        {showSample && section !== 'renown' && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
+        {showSample && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
         {section === 'renown' ? (
           renownError ? (
             <p className="form-error" role="alert">{renownError}</p>
           ) : !renown ? (
             <p className="muted">Loading…</p>
           ) : (
-            <RenownRanking data={renown} />
+            <RenownRanking data={renown} sample={showSample ? sample.players : null} />
           )
         ) : error ? (
           <p className="form-error" role="alert">{error}</p>

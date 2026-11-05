@@ -321,8 +321,6 @@
 }
 
 .wm-legend-body {
-  max-height: calc(100dvh - 300px);
-  overflow-y: auto;
   padding: 0 16px 14px;
 }
 
@@ -798,11 +796,26 @@
 }
 
 @media (min-width: 768px) {
+  /* The region scrolls as a whole; the map stays pinned while a tall side panel scrolls past it. */
+  .wm {
+    align-items: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .wm-stage {
+    position: sticky;
+    top: 0;
+    height: 100%;
+  }
+
   .wm-panel {
     position: relative;
     flex: none;
+    align-self: stretch;
     width: 380px;
     max-height: none;
+    overflow: visible;
     padding: 16px;
     border-top: 0;
     border-left: 3px solid var(--wm-ink);

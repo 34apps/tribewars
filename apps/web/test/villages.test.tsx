@@ -219,7 +219,7 @@ test('selectableUnits: scouts are Pathfinders only, support and occupy never tak
   assert.deepEqual(selectableUnits('scout', home), ['pathfinder']);
   assert.deepEqual(selectableUnits('support', home), ['pikeman', 'pathfinder']);
   assert.deepEqual(selectableUnits('occupy', home), ['pikeman', 'pathfinder']);
-  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain']);
+  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain', 'logram', 'boulder']); // siege rows show at 0
   assert.deepEqual(selectableUnits('found', units({ chieftain: 1 })), ['chieftain']);
 });
 

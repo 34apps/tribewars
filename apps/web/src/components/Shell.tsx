@@ -61,7 +61,7 @@ function Resources({ compact }: { compact?: boolean }) {
             <span className="res-text">
               <span className="res-amount">
                 <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
-                {compact ? formatCompact(amount) : formatInt(amount)}
+                <span title={formatInt(amount)}>{formatCompact(amount)}</span>
                 <span className="res-cap">
                   <span aria-hidden="true"> /</span>
                   <span className="visually-hidden"> of </span>
