@@ -1863,7 +1863,7 @@ export class GameService {
       }
       for (const v of this.store.villagesOfPlayer(player.id)) {
         if (action === 'max') {
-          const next = maxOutVillage(settleVillage(v.state, t, this.settings), t);
+          const next = maxOutVillage(settleVillage(v.state, t, this.settings), t, this.settings);
           this.store.saveVillage(v.id, next, villagePoints(next));
         } else {
           this.store.clearVillageActivity(v.id);

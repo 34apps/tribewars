@@ -470,7 +470,7 @@ nobody) may call `POST /api/sandbox/max` and `POST /api/sandbox/reset`; everyone
 `PlayerDto.sandbox` tells the client to show Settings > Test mode. **Max**: every building of every village of the
 player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every unit at home (troops already away
 stay), build/train queues cleared. The army is fitted to the population room left (buildings, troops at home and away
-count) and keeps room for `SANDBOX_CHIEFTAIN_ROOM` (3) Chieftains, so conquest can be tested right after Max. **Clear army**
+count) and the food upkeep (the farms must still feed it plus 3 Chieftains), and keeps room for `SANDBOX_CHIEFTAIN_ROOM` (3) Chieftains, so conquest can be tested right after Max. **Clear army**
 (`POST /api/sandbox/clear-army`, no body): my own troops at home in every village of mine are removed (away troops and
 stationed contingents stay). **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
@@ -873,8 +873,7 @@ Building and Feast Renown are never reduced by these rules (the Feast has its ow
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 16 value, troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 500 (then 800, 1,280, 2,048 ...); Feast 600/600/600 for 10 Renown, 3 per
 Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
-22 per village per day** (a defence of about 3,700 points reaches the cap). **Abandoned villages are exempt from the size factor** (they are always
-small by design; the repeat-raid loot limit and the pair cap already limit farming them). Support owners who kill attackers
+22 per village per day** (a defence of about 3,700 points reaches the cap). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the repeat-raid loot limit, the minimum battle value and the pair cap limit farming them). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
 

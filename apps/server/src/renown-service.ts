@@ -129,8 +129,10 @@ export class RenownService {
    */
   private mayEarn(earner: number, opponent: number | null, at: number, ipOnly = false): boolean {
     const p = this.store.getPlayer(earner);
-    if (!p || this.store.isSandboxUser(p.username)) return false;
+    if (!p) return false;
+    // Test-mode accounts earn from abandoned villages (no one is hurt), but never from fights against real players.
     if (opponent === null) return true;
+    if (this.store.isSandboxUser(p.username)) return false;
     if (opponent === earner || this.store.shareAnIp(earner, opponent)) return false;
     if (ipOnly) return true;
     const rel = relationBetweenPlayers(this.store.tribes, earner, opponent, at).relation;

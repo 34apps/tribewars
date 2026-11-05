@@ -164,6 +164,36 @@ test('a won raid on an abandoned village adds Renown (paid at the battle) and it
   await app.close();
 });
 
+test('a raider with a big village earns the full pair-window Renown from a small abandoned village (no size rule), also in test mode', async () => {
+  const { app, clock } = await makeApp();
+  const c: Client = await register(app, 'bigfish', '10.0.0.3');
+  const vid = await trainRaiders(c, clock, 14);
+  const npc = await weakestAbandoned(c, 12);
+  const player = (await c.state()).player;
+  // Make the raider's village far bigger than the target (size factor would be the floor if it applied), and a test-mode account.
+  const home = app.ctx.store.getVillage(vid)!;
+  const big = structuredClone(home.state);
+  for (const b of Object.keys(big.buildings) as Array<keyof typeof big.buildings>) big.buildings[b] = Math.max(big.buildings[b], 10);
+  app.ctx.store.saveVillage(vid, big, villagePoints(big));
+  app.ctx.store.sandboxUsers = new Set(['bigfish']);
+  const n = (await c.village()).state.troops.raider;
+  const before = renownOf(app, player.id);
+  const sent = await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: n }, mission: 'attack' });
+  assert.equal(sent.statusCode, 201, sent.body);
+  clock.set(sent.json<{ movement: { arriveAt: number } }>().movement.arriveAt);
+  const atBattle = await c.state();
+  const battle = battleOf(await latestReportOf(c));
+  assert.ok(battle.attackerWon && battle.defenderLosses);
+  const raw = attackerRaw(battle);
+  assert.ok(raw > 0 && resourceValue(battle.loot) + troopValue(battle.defenderLosses) >= RENOWN_MIN_BATTLE_VALUE);
+  const back = atBattle.movements.find((m) => m.kind === 'return');
+  assert.ok(back);
+  clock.set(back.arriveAt);
+  assert.equal((await c.state()).movements.length, 0, 'troops are home');
+  near(renownOf(app, player.id) - before, pairRenown(0, raw));
+  await app.close();
+});
+
 /** The newest report of a client, opened in full. */
 async function latestReportOf(c: Client) {
   const list = (await c.get('/api/reports')).json<{ reports: Array<{ id: number }> }>().reports;

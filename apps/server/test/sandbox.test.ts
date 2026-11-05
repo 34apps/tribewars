@@ -157,6 +157,15 @@ test('max: the army fits the population cap and leaves room for 3 Chieftains, al
   }
 });
 
+test('max: the farms can still feed the army, so training 2 Chieftains right after Max works', async () => {
+  const { app, alice } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  ok(await alice.c.post('/api/sandbox/max', {}));
+  const vid = app.ctx.store.villagesOfPlayer(alice.id)[0]!.id;
+  const res = await alice.c.post(`/api/villages/${vid}/train`, { unit: 'chieftain', count: 2 });
+  assert.ok(res.statusCode < 300, res.body);
+});
+
 test('clear-army: refuses others; removes my troops at home and keeps those away', async () => {
   const { app, alice, bob } = await world();
   app.ctx.store.sandboxUsers = new Set(['alice']);
