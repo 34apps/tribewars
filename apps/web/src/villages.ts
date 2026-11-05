@@ -177,7 +177,7 @@ export const SEND_MODE_SENT: Record<SendMode, string> = {
 
 export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
   strike: `A Strike is an attack that tries to put the hearth out. No loot. If your army wins and at least one Chieftain lives, your survivors stay as occupiers and the hold clock starts. A Chieftain fights badly: bring an escort.`,
-  found: 'One Chieftain carries an ember from your hearth to this free land. The Renown is already paid. Anything else you send is his escort and becomes the new village\'s garrison.',
+  found: 'One Chieftain carries an ember from your hearth to this free land. Anything else you send is his escort and becomes the new village\'s garrison.',
   occupy: 'Reinforce the village you are holding. The hold clock only runs while your occupiers number enough.',
 };
 

@@ -8,7 +8,7 @@ import { setDesignPreview, useDesignPreview } from '../views/village/designPrevi
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { player, refresh, toast } = useGame();
-  const [busy, setBusy] = useState<'max' | 'reset' | 'warp' | 'clear' | null>(null);
+  const [busy, setBusy] = useState<'max' | 'reset' | 'warp' | 'clear' | 'army' | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dp = useDesignPreview();
@@ -25,15 +25,15 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  async function run(action: 'max' | 'reset' | 'clear') {
+  async function run(action: 'max' | 'reset' | 'clear' | 'army') {
     if (busy) return;
     setBusy(action);
     setError(null);
     try {
-      await (action === 'max' ? api.sandboxMax() : action === 'clear' ? api.sandboxClearAbandoned() : api.sandboxReset());
+      await (action === 'max' ? api.sandboxMax() : action === 'clear' ? api.sandboxClearAbandoned() : action === 'army' ? api.sandboxClearArmy() : api.sandboxReset());
       setConfirmReset(false);
       await refresh();
-      toast(action === 'max' ? 'Your villages are maxed out.' : action === 'clear' ? 'Abandoned villages are empty.' : 'Your villages are fresh again.');
+      toast(action === 'max' ? 'Your villages are maxed out.' : action === 'clear' ? 'Abandoned villages are empty.' : action === 'army' ? 'Your army at home is gone.' : 'Your villages are fresh again.');
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -82,6 +82,9 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           </label>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('max')}>
             {busy === 'max' ? 'Working…' : 'Max out my village'}
+          </button>
+          <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('army')}>
+            {busy === 'army' ? 'Working…' : 'Clear my army (troops at home)'}
           </button>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('clear')}>
             {busy === 'clear' ? 'Working…' : 'Empty abandoned villages'}

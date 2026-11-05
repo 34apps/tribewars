@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BUILDINGS, BUILDING_IDS, SANDBOX_ARMY_PER_UNIT, START_RESOURCES, UNIT_IDS, storageCapForLevel, villageRenownCost, type GameStateResponse } from '@clanfire/engine';
+import { BUILDINGS, BUILDING_IDS, POP_PER_UNIT, SANDBOX_ARMY_PER_UNIT, SANDBOX_CHIEFTAIN_ROOM, START_RESOURCES, populationCap, populationUsage, UNIT_IDS, storageCapForLevel, villageRenownCost, type GameStateResponse } from '@clanfire/engine';
 import { loadEnv } from '../src/env.ts';
 import { errorOf, ok } from './helpers.ts';
 import { giveTroops, movementsOf, sendOk, stateOf, world } from './warfare-helpers.ts';
@@ -118,8 +118,9 @@ test('max: every building at max, stores full, an army of every unit, queues cle
   for (const b of BUILDING_IDS) assert.equal(home.buildings[b], BUILDINGS[b].maxLevel, b);
   for (const u of UNIT_IDS) {
     if (u === 'chieftain') assert.equal(home.troops[u], 0, 'no Chieftains from the sandbox');
-    else assert.ok(home.troops[u] >= SANDBOX_ARMY_PER_UNIT, u);
+    else assert.ok(home.troops[u] > 0 && home.troops[u] <= SANDBOX_ARMY_PER_UNIT, `${u}: some, never more than the target (the cap decides)`);
   }
+  assert.ok(populationUsage(home).total <= populationCap(home), 'the army fits the population cap');
   const cap = storageCapForLevel(BUILDINGS.storehouse.maxLevel);
   assert.ok(home.resources.wood >= cap - 1 && home.resources.gold >= cap - 1);
   assert.deepEqual([home.buildQueue.length, home.trainQueues.barracks.length], [0, 0]);
@@ -137,4 +138,35 @@ test('max: every building at max, stores full, an army of every unit, queues cle
   assert.ok(v.resources.wood <= START_RESOURCES.wood + 5);
   assert.deepEqual(fresh.movements, []);
   assert.deepEqual(await movementsOf(alice), []);
+});
+
+test('max: the army fits the population cap and leaves room for 3 Chieftains, also when pressed twice or with troops away', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  giveTroops(app, alice, { raider: 5 });
+  await sendOk(alice, bob, 'attack', { raider: 5 }); // 5 raiders now away (they still use population)
+  for (let i = 0; i < 2; i++) {
+    ok(await alice.c.post('/api/sandbox/max', {}));
+    const v = app.ctx.store.villagesOfPlayer(alice.id)[0]!;
+    const usage = populationUsage(v.state).total;
+    const cap = populationCap(v.state);
+    assert.ok(usage <= cap, `population ${usage} within the cap ${cap}`);
+    assert.ok(cap - usage >= SANDBOX_CHIEFTAIN_ROOM * POP_PER_UNIT.chieftain, 'room for 3 Chieftains');
+    assert.ok(v.state.troops.pikeman > 0, 'some army was granted');
+    assert.equal(v.state.troops.chieftain, 0);
+  }
+});
+
+test('clear-army: refuses others; removes my troops at home and keeps those away', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  errorOf(await bob.c.post('/api/sandbox/clear-army', {}), 403, 'forbidden');
+  giveTroops(app, alice, { raider: 10, pikeman: 7 });
+  giveTroops(app, bob, { pikeman: 3 });
+  await sendOk(alice, bob, 'attack', { raider: 4 });
+  ok(await alice.c.post('/api/sandbox/clear-army', {}));
+  const mine = app.ctx.store.villagesOfPlayer(alice.id)[0]!.state;
+  assert.ok(Object.values(mine.troops).every((n) => n === 0), 'nothing at home');
+  assert.equal(mine.away.raider, 4, 'the army on the road is untouched');
+  assert.equal(app.ctx.store.villagesOfPlayer(bob.id)[0]!.state.troops.pikeman, 3, 'others are untouched');
 });

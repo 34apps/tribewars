@@ -469,7 +469,10 @@ Accounts named in the server env `SANDBOX_USERS` (comma list, compared lowercase
 nobody) may call `POST /api/sandbox/max` and `POST /api/sandbox/reset`; everyone else gets 403 `forbidden`.
 `PlayerDto.sandbox` tells the client to show Settings > Test mode. **Max**: every building of every village of the
 player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every unit at home (troops already away
-stay), build/train queues cleared. **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
+stay), build/train queues cleared. The army is fitted to the population room left (buildings, troops at home and away
+count) and keeps room for `SANDBOX_CHIEFTAIN_ROOM` (3) Chieftains, so conquest can be tested right after Max. **Clear army**
+(`POST /api/sandbox/clear-army`, no body): my own troops at home in every village of mine are removed (away troops and
+stationed contingents stay). **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
 changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
 the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). **Empty abandoned villages** (`POST /api/sandbox/clear-abandoned`, no body): every

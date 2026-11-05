@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
+import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -105,7 +105,7 @@ function SendForm({
   let reason: string | null = null;
   if (targetProtected) reason = 'This player is under beginner protection';
   else if (total < 1) {
-    if (mission === 'found') reason = chieftainHome ? 'Choose your Chieftain' : 'No Chieftain at home. Train one in the Banner Hall';
+    if (mission === 'found') reason = chieftainHome ? 'Choose your Chieftain' : 'No Chieftain at home. Train one in the Army tab (Banner Hall)';
     else if (visible.length > 0) reason = scouting ? 'Choose how many Pathfinders to send' : 'Choose troops to send';
     else reason = scouting ? 'No Pathfinders at home' : 'No troops at home';
   } else if (!check.ok) reason = check.message;
@@ -187,13 +187,16 @@ function SendForm({
           }}
         />
       )}
-      <p className="wm-muted">{SEND_MODE_HINT[mode] ?? MISSION_HINT[mission]}</p>
+      <p className="wm-muted">
+        {SEND_MODE_HINT[mode] ?? MISSION_HINT[mission]}
+        {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
+      </p>
       {offerStrike && <p className="wm-muted">Add a Chieftain and an escort to try a Strike: it tries to put the hearth of {targetName} out.</p>}
       {visible.length === 0 ? (
         <p className="wm-muted">
           {scouting ? 'No Pathfinders at home. ' : mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
           <button type="button" className="wm-link" onClick={() => navigate('army')}>
-            {mission === 'found' ? 'Train one in the Army tab' : 'Train some in the Army tab'}
+            {mission === 'found' ? 'Train one in the Army tab (Banner Hall)' : 'Train some in the Army tab'}
           </button>
           .
         </p>
@@ -255,13 +258,7 @@ function SendForm({
             <div>
               <dt>Price</dt>
               <dd>
-                {chosen.chieftain > 0 ? (
-                  'Renown already paid'
-                ) : (
-                  <>
-                    {formatInt(nextChieftainPrice(renown))} Renown
-                  </>
-                )}
+                {chosen.chieftain > 0 ? 'Renown already paid' : `${formatInt(nextChieftainPrice(renown))} Renown`}
               </dd>
             </div>
           )}
@@ -427,7 +424,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
         {free && (
           <div>
             <dt>Land</dt>
-            <dd>{foundSite?.ok ? 'Free to settle' : 'Not buildable'}</dd>
+            <dd>{foundSite?.ok ? 'Free to settle' : buildSiteProblem(tile.x, tile.y, settings, occupied) === 'near' ? 'Too close to a village' : 'Not buildable'}</dd>
           </div>
         )}
       </dl>

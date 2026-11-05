@@ -17,7 +17,7 @@ import {
   WALL_DEFENSE_PER_LEVEL,
 } from './config.ts';
 import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
-import { isFreeBuildSite } from './world.ts';
+import { buildSiteProblem } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
 import { applySiegeHits, hasSiegeUnits, resolveSiege } from './siege.ts';
@@ -160,6 +160,13 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
   return { ok: true };
 }
 
+/** Why a site fails, in words (shared by the server error and the map panel). Forest counts as buildable land. */
+export const FOUND_PROBLEM_TEXT = {
+  outside: 'A village cannot be founded there: it is outside the world.',
+  terrain: 'A village cannot be founded there: lakes and mountains cannot be built on.',
+  near: 'A village cannot be founded there: it is too close to another village.',
+} as const;
+
 /**
  * Can a found mission go to tile (x, y)? In the world, buildable ground (no lake, no mountain), no village on it or within
  * SPAWN_MIN_SPACING (Chebyshev) of it. `isOccupied(x, y)` is the server's village lookup. Re-check on arrival: the tile may
@@ -171,9 +178,8 @@ export function checkFoundTarget(
   isOccupied: (x: number, y: number) => boolean,
 ): CheckResult<{}> {
   if (!target || !Number.isInteger(target.x) || !Number.isInteger(target.y)) return fail('invalid_target', 'Invalid coordinates.');
-  if (!isFreeBuildSite(target.x, target.y, s, isOccupied)) {
-    return fail('invalid_target', 'A village cannot be founded there: it needs free, buildable land away from other villages.');
-  }
+  const problem = buildSiteProblem(target.x, target.y, s, isOccupied);
+  if (problem) return fail('invalid_target', FOUND_PROBLEM_TEXT[problem]);
   return { ok: true };
 }
 

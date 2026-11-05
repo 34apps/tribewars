@@ -137,6 +137,33 @@ test('a raid on an abandoned village pays the attacker only, under the village k
   await app.close();
 });
 
+test('a won raid on an abandoned village adds Renown (paid at the battle) and it is still there once the troops are home', async () => {
+  const { app, clock } = await makeApp();
+  const c: Client = await register(app, 'homecomer', '10.0.0.2');
+  const vid = await trainRaiders(c, clock, 14);
+  const npc = await weakestAbandoned(c, 12);
+  const player = (await c.state()).player;
+  const n = (await c.village()).state.troops.raider;
+  const before = renownOf(app, player.id);
+  const sent = await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: n }, mission: 'attack' });
+  assert.equal(sent.statusCode, 201, sent.body);
+  clock.set(sent.json<{ movement: { arriveAt: number } }>().movement.arriveAt);
+  const atBattle = await c.state();
+  const battle = battleOf(await latestReportOf(c));
+  assert.ok(battle.attackerWon);
+  const paid = renownOf(app, player.id) - before;
+  assert.ok(paid > 0, 'Renown was added by the won raid');
+  const back = atBattle.movements.find((m) => m.kind === 'return');
+  assert.ok(back, 'the survivors are walking home');
+  clock.set(back.arriveAt);
+  const home = await c.state();
+  assert.equal(home.movements.length, 0, 'everyone is home');
+  assert.ok(home.villages[0]!.state.troops.raider > 0, 'raiders are back at home');
+  near(renownOf(app, player.id) - before, paid);
+  assert.equal(home.renown.total, Math.floor(renownOf(app, player.id) + 1e-9), 'the state shows the same total (whole numbers)');
+  await app.close();
+});
+
 /** The newest report of a client, opened in full. */
 async function latestReportOf(c: Client) {
   const list = (await c.get('/api/reports')).json<{ reports: Array<{ id: number }> }>().reports;

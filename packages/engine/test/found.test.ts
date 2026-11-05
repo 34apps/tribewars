@@ -7,6 +7,7 @@ import {
   FOUND_START_RESOURCES,
   MAX_VILLAGES_PER_PLAYER,
   SPAWN_MIN_SPACING,
+  buildSiteProblem,
   checkFoundTarget,
   createFoundedVillage,
   createPlayerVillage,
@@ -83,6 +84,23 @@ describe('checkFoundTarget', () => {
     }
     // a village exactly SPAWN_MIN_SPACING away does not block (other tiles may, so use an isolated buildable tile)
     assert.ok(checkFoundTarget(spot, S1, at({ x: spot.x + SPAWN_MIN_SPACING, y: spot.y })).ok);
+  });
+
+  it('accepts forest and hills like grass; "too close" is told apart from "cannot build on"', () => {
+    for (const t of ['forest', 'hills'] as const) {
+      const c = find((x) => x === t);
+      assert.ok(isBuildableTerrain(t));
+      assert.ok(checkFoundTarget(c, S1, nobody).ok, t);
+    }
+    const forest = find((x) => x === 'forest');
+    const near = checkFoundTarget(forest, S1, (x, y) => x === forest.x + 1 && y === forest.y);
+    assert.ok(!near.ok && /too close/.test(near.message));
+    const lake = find((x) => x === 'lake');
+    const wet = checkFoundTarget(lake, S1, nobody);
+    assert.ok(!wet.ok && /lakes and mountains/.test(wet.message));
+    assert.equal(buildSiteProblem(forest.x, forest.y, S1, nobody), null);
+    assert.equal(buildSiteProblem(forest.x, forest.y, S1, (x, y) => x === forest.x && y === forest.y), 'near');
+    assert.equal(buildSiteProblem(lake.x, lake.y, S1, nobody), 'terrain');
   });
 
   it('rejects lakes, mountains, tiles outside the world and non-integers', () => {

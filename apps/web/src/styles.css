@@ -1458,15 +1458,16 @@ button.strip {
     color: var(--c-cream);
   }
 
+  /* Cause of the overlap: nav and resources were flex-shrink:1 with min-width:0, so the boxes shrank
+     below their content and the content painted over its neighbour. They never shrink now; the
+     breakpoint below collapses the nav to icons before the row runs out of room. */
   .topbar .toptabs {
-    flex: 0 1 auto;
-    min-width: 0;
+    flex: none;
   }
 
   .topbar .resources {
     margin-left: auto;
-    flex: 0 1 auto;
-    min-width: 0;
+    flex: none;
   }
 
   .topbar .who {
@@ -1515,7 +1516,54 @@ button.strip {
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1199px) {
+/* Map tab on desktop: the PAGE scrolls (owner rule: no scrollbar inside a side panel). Cause of the
+   old inner scrollbar: html, .app, .main and .wm were all fixed to the viewport with overflow
+   hidden/auto, so .wm became the scroller. Here none of them clips; the top bar sticks, the map stage
+   is sticky and exactly one screen tall, and the panel grows with its content. */
+@media (min-width: 1024px) {
+  html:has(.app-map) {
+    height: auto;
+    overflow: visible;
+  }
+
+  .app-map {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .app-map .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .app-map .main,
+  .app-map .main-map {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .app-map .main-map {
+    flex: none;
+  }
+
+  .app-map .wm {
+    flex: none;
+    overflow: visible;
+    min-height: calc(100dvh - var(--header-h));
+  }
+
+  .app-map .wm-stage {
+    position: sticky;
+    top: var(--header-h);
+    height: calc(100dvh - var(--header-h));
+  }
+}
+
+/* Labels collapse to icons (active tab keeps its label) below 1600 px: with 5-digit resources the
+   labelled nav plus the strip needs about 1500 px. */
+@media (min-width: 1024px) and (max-width: 1599px) {
   .tab-top:not(.is-active) .tab-label {
     position: absolute !important;
     width: 1px;

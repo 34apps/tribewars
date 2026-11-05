@@ -96,10 +96,21 @@ function villageNearby(x: number, y: number, minSpacing: number, radius: number,
  * SPAWN_MIN_SPACING (Chebyshev) from every village. `isOccupied(x, y)` reports a village standing exactly on that tile.
  */
 export function isFreeBuildSite(x: number, y: number, s: WorldSettings, isOccupied: (x: number, y: number) => boolean): boolean {
-  if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
+  return buildSiteProblem(x, y, s, isOccupied) === null;
+}
+
+/** Why (x, y) cannot take a new village, or null when it can. Forest, grass and hills are fine; lake and mountain are not. */
+export function buildSiteProblem(
+  x: number,
+  y: number,
+  s: WorldSettings,
+  isOccupied: (x: number, y: number) => boolean,
+): 'outside' | 'terrain' | 'near' | null {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return 'outside';
   const radius = Math.max(0, Math.floor(s.radius));
-  if (Math.abs(x) > radius || Math.abs(y) > radius) return false;
-  return isBuildableTerrain(terrainAt(x, y, s.seed)) && !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied);
+  if (Math.abs(x) > radius || Math.abs(y) > radius) return 'outside';
+  if (!isBuildableTerrain(terrainAt(x, y, s.seed))) return 'terrain';
+  return villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied) ? 'near' : null;
 }
 
 function randomCoord(rng: () => number, radius: number): number {

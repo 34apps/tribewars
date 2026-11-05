@@ -656,6 +656,8 @@ export const SHIPMENT_MIN_MARKET_LEVEL = 1;
 // ---- Sandbox / test mode (allow-listed accounts only; see SECURITY_ROADMAP.md) ----
 /** Troops of every type a village gets from "Max out" (at least this many at home). */
 export const SANDBOX_ARMY_PER_UNIT = 500;
+/** Test mode "Max": population room kept free for this many Chieftains (so conquest can be tested). */
+export const SANDBOX_CHIEFTAIN_ROOM = 3;
 /** Carriers walk at this many tiles per hour (speed 1; scaled by world speed like units). */
 export const SHIPMENT_SPEED = 8;
 /** Shipments a single village may have on the road at once. */

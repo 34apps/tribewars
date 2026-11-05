@@ -1884,6 +1884,18 @@ export class GameService {
     return this.getState(player, t);
   }
 
+  /** Sandbox: remove my own troops that are at home in every village of mine (away troops and stationed contingents stay). */
+  sandboxClearArmy(player: PlayerRow, t: number): GameStateResponse {
+    if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
+    this.store.tx(() => {
+      for (const v of this.store.villagesOfPlayer(player.id)) {
+        const next = { ...settleVillage(v.state, t, this.settings), troops: emptyUnits() };
+        this.store.saveVillage(v.id, next, villagePoints(next));
+      }
+    });
+    return this.getState(player, t);
+  }
+
   /** Sandbox: remove all troops from every abandoned village (their garrison slowly refills through growth steps). */
   sandboxClearAbandoned(player: PlayerRow, t: number): GameStateResponse {
     if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
