@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`42824c7`): **step 5 built: domination win + world end + sites** (rule 180 d / max(50, 30% peak) / 75% / 14 d, world freeze, final rankings once, operator CLI, lobby Finished, web bar + end screen, Great Fire + 8 Fire Shrines with Renown bonus, schema v9). The failing "lazy evaluation" test was a test-setup bug (`GET /api/state` recomputes village points and wiped the 75% the test wrote); code was right. Checks passed (check, build, build:preview; engine 445, lobby 87, server 450, web 80).
-Left: owner looks at 360/1440 px (bar, end banner/results, site markers and panel; never viewed in a browser); web has no recall buttons for site contingents; sites not simulated (`BALANCE.md` 7.7); Waymarks/Lookouts not built; flaky server test "everything per village is owner-only ..." (failed once, passed on rerun).
-Very next step: owner judges step 5 in a browser, then step 6 (badges, Hall of Fame) or step 7 (tribe projects).
-Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects/chains). `npm test -w <pkg>` runs the whole workspace; to run one test edit the package `test` script temporarily and restore it. Delete the empty `scripts/sim/_debug.ts` (runner cannot).
-Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, `scripts/sim/_debug.ts` (stage with pathspec excludes, not plain `git add -A`).
+2026-11-05 (`f0b3e97`): **owner conquest changes built**: Renown base 1,000, hold 8 h / 2 h, no pair cap, Chieftain chain (`strike_chain`, 2 h window), cold village builds only the Wall, defender Renown cap 22 -> 36 (my addition). Sim in `BALANCE.md` 7.8: balanced day 19.8, builder 27.5, defender 35.9, **pure raider 13.9 (target 21-28 missed: full-loot rule; owner decides)**. Earlier uncommitted work of a previous run (no upkeep, full loot, siege during battle, notifications) was committed first as `2af2d99`. Checks passed (check, build, build:preview; engine 453, lobby 87, server 470, web 98).
+Left: raider pace decision; owner browser check (Wall-only build list, strike hint, step 5 screens); no UI for chain progress; hold 8 h is tight for foot support beyond ~20-30 tiles.
+Very next step: owner decides raider pace and judges the 8 h hold; then step 6 (badges) or 7 (tribe projects).
+Notes: Bash is an allow list. `npm test -w <pkg>` runs the whole workspace. Never end a run while agents work in the background: use foreground agents. Delete the empty `scripts/sim/_debug.ts` (runner cannot).
+Owner files left uncommitted on purpose: `.claude/launch.json`, `Pasted ... textClipping`, `scripts/sim/_debug.ts` (stage with pathspec excludes).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
