@@ -65,7 +65,7 @@ test('loot is always full (owner 2026-11-05): repeat raids on one abandoned vill
 });
 
 test('an abandoned village never regains the troops a raid killed, however long it waits; its buildings still grow', async () => {
-  const { app, clock } = await makeApp({ world: { npcGrowthHours: 6 } });
+  const { app, clock } = await makeApp({ worldConfig: { npc: { selfBuild: true } } });
   const c = await register(app, 'clearer');
   const vid = await trainRaiders(c, clock, 14);
   const npc = await weakestAbandoned(c, 12);

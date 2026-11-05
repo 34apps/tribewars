@@ -21,7 +21,7 @@ import {
   type TribeDto,
 } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
-import { HOUR, MINUTE, TEST_WORLD, errorOf, makeApp, ok, register } from './helpers.ts';
+import { HOUR, MINUTE, TEST_WORLD, errorOf, makeApp, ok, register, TEST_WORLD_CONFIG } from './helpers.ts';
 import {
   addMember,
   count,
@@ -728,7 +728,7 @@ test('an older database without tribe tables is upgraded in place on start', asy
   const path = pathJoin(dir, 'game.sqlite');
   try {
     const clockNow = Date.UTC(2026, 5, 1, 12, 0, 0);
-    let app = await buildApp({ dbPath: path, now: () => clockNow, settings: TEST_WORLD, webDistDir: '/nonexistent', secureCookies: false });
+    let app = await buildApp({ dbPath: path, now: () => clockNow, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent', secureCookies: false });
     const c = await register(app, 'veteran');
     const id = (await c.state()).player.id;
     await app.close();
@@ -740,7 +740,7 @@ test('an older database without tribe tables is upgraded in place on start', asy
     }
     db.close();
 
-    app = await buildApp({ dbPath: path, now: () => clockNow, settings: TEST_WORLD, webDistDir: '/nonexistent', secureCookies: false });
+    app = await buildApp({ dbPath: path, now: () => clockNow, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent', secureCookies: false });
     const again = await register(app, 'newcomer');
     const mine = await again.get('/api/tribe');
     ok(mine);

@@ -32,14 +32,13 @@ import { configureSqlite, openDatabaseInstance } from './shims/node-sqlite.ts';
 
 /**
  * A world that is playable in minutes: small, and fast (all durations divide by `speed`).
- * protectionHours / speed = 1.5 h / 25 = 3.6 minutes of beginner protection; abandoned villages grow every 4 h / 25 = 9.6 min.
+ * protectionHours / speed = 1.5 h / 25 = 3.6 minutes of beginner protection; abandoned villages build from their own stock at the same fast pace.
  */
 export const PREVIEW_WORLD: Partial<WorldSettings> = {
   speed: 25,
   radius: 30,
   npcDensity: 0.025,
   protectionHours: 1.5,
-  npcGrowthHours: 4,
 };
 
 /**

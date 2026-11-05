@@ -13,7 +13,7 @@ When a rule changes, change it here in the same commit.
 
 - All times are ms since epoch. Durations in config are at speed 1.
 - `speed` (WorldSettings) multiplies production, and divides every duration
-  (build, train, travel, protection, abandoned-village growth). Dev servers run fast (e.g. 10).
+  (build, train, travel, protection, abandoned-village building). Dev servers run fast (e.g. 10).
 - Nothing runs on a timer inside the engine. State is brought up to date lazily with
   `settleVillage(state, t, settings)`; the server also processes troop movements in time order.
 
@@ -29,6 +29,11 @@ When a rule changes, change it here in the same commit.
   `netProductionPerHour` and the `not_enough_food` refusal are gone, and food is simply the farm's production. The Farm still
   sets the **population cap** (below), which is now the only limit on army size besides cost and time. Food is spent on
   buildings, troop costs and Feasts.
+- **Food has a real use (owner request, balance pass 2026-11-05).** Food piled up in every sim style once troops stopped eating, so unit costs
+  and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron: Pikeman 30/50/30,
+  Shieldbearer 25/70/55, Raider 40/80/50, Outrider 60/170/130, Knight 100/260/230 (+30 gold), Pathfinder 15/45/30, Log Ram 170/220/180 (+4 gold),
+  Boulder Sling 140/240/220 (+12 gold), Banner Hall level 1 1,800/2,900/1,800 (+100 gold; the food figure still fits the Storehouse level 6 it
+  requires), one Feast 400/1,000/400. Numbers in `config.ts`.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
   (queued levels are reserved when queued; the Farm takes 0). Each troop takes `POP_PER_UNIT[u]`
@@ -105,7 +110,8 @@ Pure; returns a new state with `lastUpdate = t`. If `t <= lastUpdate` return the
    and drop the job. Then add production from the last point to `t`.
 2. For each training batch: finished = clamp(floor((t − startAt) / perUnitMs), 0, count);
    move `finished − done` units into `troops`; drop batches with done = count.
-3. Abandoned villages: apply growth (section 8).
+3. Abandoned villages: build from their own stock (section 8). This happens inside step 1, in time order: with an empty build queue the village waits until
+   its stock pays the next level, pays it, queues it, and the job finishes like any other (production at the old rates up to `finishAt`).
 
 Resource accrual for a span: `amount = clamp(amount + ratePerHour * hours, 0, cap)` but never
 reduce an amount that is already above the cap (only stop it growing).
@@ -163,15 +169,32 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Created at world start: `round((2r+1)² × npcDensity)` villages at random free tiles (seeded),
   at least `NPC_MIN_SPACING` (Chebyshev) from each other. Tier from `NPC_TIER_WEIGHTS`.
 - Start levels for tier T: hall T; lumber, farm, mine, storehouse 2T; wall, vault and gold mine T−1;
-  others 0. Wood, food and iron start at half the cap; gold at `NPC_START_GOLD_PER_TIER × T` (their
-  gold mine adds more over time, so stronger abandoned villages are the gold source). Garrison starts full.
+  others 0. Wood, food and iron start at `npc.startStockShare` (80%) of the cap; gold at `NPC_START_GOLD_PER_TIER × T` (the gold
+  mine they start with keeps producing; they do not build more). Garrison starts full.
 - Starting garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit (owner 2026-11-05: **an abandoned village never trains or regains
   troops**; what a raid kills stays dead, so a cleared village is open for loot until a player takes it).
-- **Growth:** every `npcGrowthHours / speed` hours since `createdAt` is one step. Step n raises
-  `NPC_GROWTH_ORDER[n % length]` by one level (skip buildings at `NPC_MAX_LEVEL`; if all are maxed,
-  nothing grows). **Only the buildings grow.** The garrison does not refill (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is
-  removed). Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses the levels at that time
-  (accuracy within one step is fine).
+- **Self-build (owner 2026-11-05; replaces the fixed growth timer `npcGrowthHours`, the growth steps and `NPC_MAX_STEPS_PER_SETTLE`).** An abandoned
+  village builds itself up like a real player, **with its own resources only**. It produces like any village. When its build queue is empty it picks the
+  next building in its build order (`NPC_GROWTH_ORDER`, a list with repeats so the economy comes first and Wall and Vault come late; a seeded shuffle of
+  it in the expanding layout, `npc.growthSeed`), starting from its build pointer (`npc.growthSteps`), and takes the first one that is below its top level
+  (`npc.maxLevel`, the building's own maximum) and can ever be paid: the cost plus the reserve must fit in the storehouse and every missing
+  resource must be produced at all. It then **waits until the stock covers the cost plus a reserve** of `npc.keepShare` (default 25%) of the storage
+  cap, spends the cost, and the level completes after the **normal build time** (`buildTimeMs`, Town Hall level of the village, divided by the world speed).
+  One build at a time (queue of one). It ignores building prerequisites and the population cap (it has no Barracks and never trains).
+  *Settled lazily* inside `settleVillage` from timestamps: the waiting time is `max over resources of missing / production per hour`, so a village that
+  was not looked at for months builds many levels in one settle, in time order, with production changing at each completion; settling in many small
+  steps gives the same result. No timer and no loop beyond one iteration per build (at most `NPC_MAX_BUILDS_PER_SETTLE`).
+  - **Effect.** A village that is raided often has nothing to build with (the cost and the reserve must be refilled first) and stays small; an
+    unraided one grows to its top level and then keeps a full store, which is the prize. Loot is whatever stock is there when the raid arrives.
+  - **Reserve.** `npc.keepShare` keeps a village that builds all the time from being empty when a raider arrives (it is lootable; only the Vault protects).
+  - **Switch.** `npc.selfBuild` off: abandoned villages stay as created (tests, special worlds). A hearth that is out freezes production and starts no
+    new build (a running one finishes).
+  - **Old databases.** The stored state keeps its shape (`npc: { tier, growthSteps, createdAt, growthSeed? }`; the build job is a normal `buildQueue`
+    entry). `growthSteps` was the timer's step count and is now the build pointer, `createdAt` is informational. A village saved in the timer era
+    with an empty queue just starts building from its stock and carries on from that pointer. No schema change, so no `SCHEMA_VERSION` bump.
+  - Only the buildings grow. The garrison does not refill (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is removed) and nothing is ever trained.
+  - **Tuned 2026-11-05 (BALANCE.md section 10):** top level 7 (was 10), start stock 80% of the cap (was 50%), reserve 25%, build order
+    `lumber farm mine storehouse lumber farm mine hall storehouse wall vault` (the gold mine is no longer built: gold counts 10x in loot value).
 - They produce resources like player villages, which is what raiders take.
 - **Raid loot is always full** (owner 2026-11-05; the 2026-11-04 repeat-raid reduction, `npc_raids`, `NPC_REPEAT_*` and the report's
   "lootShare" are removed). Farming is limited instead by: the garrison dying once, the stock being finite (production is slow), and the
@@ -530,7 +553,7 @@ stored and sent as plain text and the client renders it as text (line breaks kep
   `bot_next_at = now + BOT_STEP_HOURS / speed`.
 - The bot never trains troops, researches, ranks up, or sends movements, shipments or support; troop buildings and
   the Drillyard have weight 0. Nothing to undo: the owner's next request moves `last_active` forward and the
-  village is theirs again at once. Abandoned villages already grow by section 8 and are left alone.
+  village is theirs again at once. Abandoned villages already build by section 8 and are left alone.
 - **Abandonment** (owner, 2026-11-03): the same job first releases villages whose owner has been away for
   `ABANDON_IDLE_DAYS` (30, divided by world speed): `owner_id` becomes NULL and the name "Abandoned village". The stored
   state is untouched, so troops stay and queued builds/training carry on, and the village can be raided like any
@@ -962,7 +985,7 @@ Building and Feast Renown are never reduced by these rules (the Feast has its ow
 
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
-minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 600/600/600 for 10 Renown, 3 per
+minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
 Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
 36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
@@ -998,7 +1021,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 
 | Name | Value | Meaning |
 |---|---|---|
-| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,500 of each of wood/food/iron + 100 gold, ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
+| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
 | `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
@@ -1033,7 +1056,548 @@ the Chieftain cost is too much for its economy (levers: `HOLD_MIN_POPULATION`, l
 for every style (target under 8 h met, with the weak-sink caveat).
 
 **Engine rules as built (2026-11-05, `hearth.ts`, `found.ts`).** A cold village (hearth out) produces nothing, eats nothing
-and its abandoned-village growth clock stands still; build jobs and training batches already queued carry on, but nothing new can be trained.
+and an abandoned village starts no new build; build jobs and training batches already queued carry on, but nothing new can be trained.
+At a change of owner one Chieftain is used up (his ember lights the new hearth), further Chieftains and troops over the population cap go home;
+all buildings keep their levels and `renownPaid` is kept. A found mission needs exactly one Chieftain (escort optional, it becomes the garrison); an
+attack may contain 1-3 Chieftains (alone he simply dies); Chieftains cannot scout, support or occupy. Inactive owners' villages become abandoned
+with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall level 1..5, full garrison for that level).
+
+**What it needs**
+- Engine: `hearth.ts` (`checkStrike`, `applyStrike`, `holdClock`, `checkOccupy`, `applyOwnerChange` including move-in and wall/hall reset), `Chieftain` unit, `Banner Hall` building, `VillageState.hearth` (`lit | out`, `claimBy`, `outAt`, `holdEndsAt`, `underSince`), changes in `resolveBattle` (count Chieftains among survivors) and in `checkSend` (new mission `occupy`, villages limit). All pure, with tests for every transition, ties and exact-time ends.
+- Server: new `claims` table (village, claimant, `ends_at`, `under_since`); the movement processor already works in time order, so claim ends become due events in the same pass (settled lazily, not on a timer); owner change in one transaction (village row, movements and stationed troops cleaned up, tribe alerts, reports for both sides: "Hearth out", "Village taken", "Village lost", "Claim failed"); live update events. Every endpoint with a test (strike, occupy, recall during hold, battle at a cold village, owner change, limit reached, last village, lock, pair cap, banned and shared-connection accounts).
+- Web: cold-village look (grey, smoke) on the map and in the village view, "Occupy" in the send dialog, hold clock on both sides, a village list or switcher for up to 5, reports.
+- Security: gate in `SECURITY_ROADMAP.md` §4 per route; follow §2 movement timing (no cancelling an occupy after the Strike landed except the normal 2-minute cancel before arrival); occupiers' food and population checked on move-in.
+
+**Size: L.** Cheapest path: first only abandoned villages (engine + server + web, M), then players (second M: alerts, last-village rule, pair cap, lock).
+
+**Open questions for the owner**
+1. Is the **Chieftain** name final? (It is generic English; the toy chieftain figures already exist on the map.)
+2. `BALANCE.md` wanted Town Hall 15 / Drillyard 6 / Market 5 / Storehouse 14 for the Banner Hall; that is probably day 25+ for a good player, which is late for a nine-week season with shrines waking on day 14. I propose the lower numbers above; they need a `npm run sim` run to check the pace (first second village around day 14–20 for a focused player).
+3. Should the **last village** be safe (my suggestion), or should a player be able to lose everything and start over with a new village (as abandoned-village rules already allow)?
+4. Should the 12-hour hold be shorter on faster worlds only by speed (my suggestion), or fixed in real time?
+5. Move-in of occupiers: good as proposed, or should they always go home and the new owner re-supply?
+
+---
+
+### 18.3 Daily rest hours — dropped by the owner 2026-11-05
+
+Not built and not planned. Dropped by the owner 2026-11-05 (see 18.8 decision 6).
+
+---
+
+### 18.4 Terrain changes travel speed; neutral sites tribes can hold
+
+#### Terrain and travel
+
+**Built 2026-11-04 (step 1).** Numbers in `config.ts` exactly as in the table below; code in `packages/engine/src/travel.ts` (route,
+sampling), `army.ts` (`travelTimeMs`, `flatTravelTimeMs`, `travelPreview`) and `shipment.ts` (`shipmentTravelMs`). Decisions made
+while building it: (1) the world seed comes from `WorldSettings.seed`, so `travelTimeMs`/`shipmentTravelMs` kept their signatures and
+every caller (send, return, recall, scout, shipment, cancel, bots, sim) changed at once; (2) each sample is the tile under the middle of
+its 1-tile stretch (`Math.round`), the endpoints are taken in a fixed order (lower x, then lower y) so a route back is exactly the same
+stretches reversed and the trip home takes the same time; (3) each unit walks the route by its own family and the army arrives with its
+slowest unit (a mixed army of foot and horse loses the foot's pace); (4) the cap is `TERRAIN_MAX_SLOWDOWN` x the flat time **per unit
+family**; (5) no rivers exist in `terrainAt`, "water" means the lake terrain; (6) in-flight movements keep their stored `arrive_at`, but a
+return trip is timed when the battle is resolved, so it uses the new rule. Measured on the default world (villages 5-35 tiles apart):
+foot units 9% slower on average, mounted 20%, pathfinders 3.5%, a mixed army (70% foot, 25% mounted, 5% scouts) about 12%, as
+proposed; a trip over grass only is exactly as before. The send dialog and the shipment form show "Travel time" (with terrain),
+"Without terrain" with the percentage and which ground slows it, and the map draws the route to the selected tile with yellow dots on
+forest and hills and orange dots on mountain and water (key in the map legend). Tests: `packages/engine/test/travel.test.ts`,
+`apps/server/test/terrain-travel.test.ts`, `apps/web/test/travel.test.tsx`.
+
+**How it works**
+- Terrain stops being decoration (§6). The engine's `terrainAt(x, y, seed)` already gives grass, forest, hills,
+  mountain and lake, and the client already draws it. Travel time is now the **sum of the time spent on each
+  tile along the straight line** between the two villages (sampled every 1 tile):
+  `travelMs = Σ over samples of ( 1 tile / (unitSpeed × terrainFactor) )`, using the slowest unit's total time.
+  No path-finding: it is cheap, repeatable and the client can preview it exactly.
+- Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
+
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (outrider, knight) | Pathfinder | Carriers (shipments) |
+|---|---|---|---|---|
+| Grass | 1.00 | 1.00 | 1.00 | 1.00 |
+| Forest | 0.85 | 0.70 | 0.95 | 0.80 |
+| Hills | 0.80 | 0.60 | 0.90 | 0.65 |
+| Mountain | 0.55 | 0.40 | 0.75 | 0.40 |
+| Lake | 0.45 | 0.35 | 0.70 | 0.30 |
+
+- A trip is never longer than `TERRAIN_MAX_SLOWDOWN` (2.2×) its flat-ground time, so one lake cannot make two
+  neighbours unreachable. Villages are never placed on mountain or lake (§6), but armies cross them slowly.
+- **Ranks never change speed** (owner rule, §15). Tribe roads (18.5) and Waymarks (below) are the only
+  things that reduce the penalty.
+- The send dialog shows both times (flat and with terrain) and the map draws the straight line with a
+  coloured stretch where the terrain is slow, so players see why a trip is longer.
+- Every rule that uses travel time (cancel returns, called-off checks, scout arrival, shipments, tribe alerts, the
+  sandbox) goes through one function `travelTimeMs`, so the change is in one place. The return trip is
+  the same stretch back (same total).
+
+**Why it is fair**
+- The map is the same for everyone and is visible in advance; nobody has hidden terrain.
+- It rewards scouting the map and picking where to settle, but it cannot stop anyone from reaching anyone.
+- It is a small average change: grass is exactly as before.
+
+**Numbers for `config.ts`:** `TERRAIN_SPEED` (the table), `TERRAIN_SAMPLE_STEP` 1, `TERRAIN_MAX_SLOWDOWN` 2.2.
+
+**What it needs:** Engine: `travelTimeMs` takes the seed and families (and keeps a fast path for a straight
+all-grass line); tests for sums, caps and reversal. Server: pass the world seed (already stored); movements keep their
+stored `arrive_at`, so nothing in flight changes when the rule ships. Web: preview in the send and shipment forms; legend on the map.
+**Size: M.** Run `npm run sim` afterwards (travel time changes every raid cycle).
+
+#### Neutral sites tribes can hold
+
+**How it works**
+- **Sites** are fixed tiles on the map, placed from the world seed, belonging to nobody at the start. Each has
+  a small **militia** (like an abandoned village, but only defence) so the first capture is a fight.
+- A site is **held by a tribe** while at least one of that tribe's members has troops stationed there.
+  To take a site, **attack it** (the normal attack mission): the garrison fights the attackers by the usual
+  battle rules (§7). If the attackers win, every defender dies, and the attackers' survivors stay as the
+  new garrison (same "stationed" rule as support in §12; the troops still cost their home village food).
+  If they lose, they die as usual. After a capture the site cannot be attacked for `SITE_CALM_HOURS` (2),
+  so the new holders can bring help.
+- **Support to a site** is allowed only from the holding tribe's members and its allies, like support to a
+  village. A **cap** keeps it from becoming an unbeatable pile: a site takes at most `SITE_MAX_POPULATION`
+  population stationed (Great Fire 5,000, others 3,000); further troops are refused. (The same cap idea should
+  later apply to villages, see `GENRE_REVIEW.md` B-7.)
+- Players can recall their troops at any time. If the last troop leaves, the site becomes neutral again.
+- Households that share a connection cannot attack, support or be stationed against each other (existing guard).
+- Sites are not villages: they have no resources, no loot, no points, and they cannot be struck with Chieftains.
+- **Site types** (all with a toy-style stone-and-fire sprite, drawn in the existing diorama style):
+
+| Site | Count | Effect for the holding tribe |
+|---|---|---|
+| **Fire Shrine** | 8 (+ the Great Fire) | **Bonus for the holding tribe** (see "Step 5" below). Not the win condition (18.1 is domination). |
+| **Waymark** | 6 | Terrain penalty is **halved** within 12 tiles of the Waymark for the holding tribe's own troops and shipments (their trips through that area are faster). Never for enemies. |
+| **Lookout** | 6 | The holders see every enemy **army march that passes within 20 tiles** of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. |
+
+  Waymarks and Lookouts are placed outside the shrine rings, between tribes' likely homes, with spacing of at
+  least 15 tiles. They persist all season.
+- The holder's side can use a Waymark's help only inside its radius, and only on movements that **start after**
+  the capture (movements in flight keep the times they were sent with, like everything else).
+
+**Step 5 (owner, 2026-11-05; built 2026-11-05): Fire Shrines as objectives with bonuses, not the win condition.**
+- **Built:** the Great Fire and eight Fire Shrines (kinds `great_fire`, `fire_shrine`). Waymarks and Lookouts are **not built yet** (follow-up).
+- **Placement** (pure function of the world seed, same for everyone): the Great Fire near the centre (0,0), four shrines on an inner ring
+  (radius `SHRINE_RING_RADII[0]` 35) and four on an outer ring (85), at 90° spacing with a seeded rotation; each ideal spot moves to the nearest
+  tile that is not mountain or lake and has no site within `SITE_MIN_SPACING`. No village is placed within `SITE_NO_VILLAGE_RADIUS` (4) of a site
+  (abandoned-village generation and new-player landing both check it).
+- **Holding** is by stationing troops, with the existing support rules (§12): an unheld site has a militia (`SITE_MILITIA` population, pikemen and
+  shieldbearers); **attack** it to take it (normal battle rules; if the attackers win, the militia and nothing else dies and the survivors stay as
+  the garrison); after a capture it cannot be attacked for `SITE_CALM_HOURS` (2, ÷ speed). Support to a held site only from the holding tribe's
+  members and its allies; at most `SITE_MAX_POPULATION` stationed (3,000; Great Fire 5,000). The holder is the tribe of the troops that took it; it
+  stays the holder while at least one of its members has troops there; when the last leaves or dies, allies' troops there go home and the site is
+  neutral again (militia restored). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
+  have no resources, no loot, no points, and cannot be struck.
+- **Wake-up:** shrines are **dormant** for the first `SHRINE_WAKE_DAYS` (120 = about four months, ÷ speed) of the world and then **awake** with a stronger
+  bonus and a doubled militia.
+- **Bonus** (our own number, one effect so it is easy to read and to test): every member of the holding tribe earns **extra Renown**
+  (§18.2, the currency for more villages): dormant shrine +1%, awake shrine +4%, dormant Great Fire +3%, awake Great Fire +10%; the sum is capped at
+  `SITE_RENOWN_BONUS_CAP` (+30%). It speeds up settling and taking, never a battle, and no site gives resources. `npm run sim -- --sites` checks it is
+  real but not decisive (`BALANCE.md` §7.7).
+- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
+  size, calm time and the send buttons; `GET /api/sites`.
+- **Server as built (2026-11-05), where it differs from or adds to the text above:**
+  - Attack and support go through the normal send route (`POST /api/villages/:id/send`) with the site's tile; the march is stored with the tile (like a
+    Chieftain's found mission). Scouts, occupiers, shipments and Chieftains are refused at a site. **Only tribe members** can attack or support a site
+    (a holder is a tribe), so a tribeless player gets a clear refusal.
+  - The garrison has its own table (`site_garrison`, one contingent per home village) instead of the `stationed` table; troops stay in the home village's
+    `away` count like support. They are recalled with **`POST /api/sites/:id/recall`** (`{ villageId, units? }`, added to the contract as `SiteRecallRequest`;
+    `SiteDto.myContingents` lists what the player has there), not `/api/stationed/:id/recall`.
+  - Tribe-mates, allies and NAP partners of the holder cannot attack its site (the same protection as for villages). The same-connection guard is applied to
+    attacks on a held site (refused when any garrison owner shares the attacker's connection); support is not blocked by it.
+  - The cap counts what stands there. At send a support that would not fit is refused; supports already on the road can overshoot, so at arrival only
+    what fits stays and the rest walks home (nothing fits = the whole army turns back and is told).
+  - **Holder housekeeping runs with every request and the 1 s tick**, not at the very instant a player leaves or is banned: troops of players who left the
+    tribe, were banned, lost their village, or belong to a tribe that is no longer the holder or an ally walk home from the site; with no troop of the holding
+    tribe left the site turns neutral (militia back) and the allies go home. A deleted holder tribe frees the site the same way.
+  - An arrival at a site whose conditions changed while marching (calm time, a relation, a shared connection, the world has ended) turns back and the sender
+    gets a "called off" / "turned back" report with the reason in its title. Reports reuse the battle and support report kinds; battles at sites pay **no combat
+    Renown** and count no battle statistics.
+  - A frozen (ended) world keeps its sites as they were: no new orders, arrivals at a site turn back, no housekeeping.
+  - The Renown bonus is applied in one place (`Store.addRenown`), so it covers building Renown, the defender trickle, battle Renown and Feasts exactly once;
+    test-mode top-ups are not earnings and get no bonus. The GET state shows the pending trickle with the bonus.
+  - Existing worlds: a village that already stands near a site stays (the no-village rule only applies to new placements); a village standing exactly on a
+    site's tile hides that site from attacks.
+
+**Why it is fair**
+- A site is won only by beating the troops on it. Nothing is given for free: the holders pay food for
+  their stationed troops and carry the risk of the next attack.
+- The cap and the 2-hour calm keep a site from being impossible to take or to hold.
+- Waymark and Lookout give **information and logistics, not damage**, so holding them is useful but never
+  decides a battle. No site gives resources, so sites cannot be "farmed" for an economy.
+
+**Rough numbers for `config.ts`**
+`SITE_MILITIA` (garrison per type, in population: Fire Shrine 600, Great Fire 1,500, Waymark 300, Lookout 300, mixed pikemen / shieldbearers),
+`SITE_MAX_POPULATION` (3,000 / Great Fire 5,000), `SITE_CALM_HOURS` 2, `WAYMARK_RADIUS` 12, `WAYMARK_PENALTY_FACTOR` 0.5,
+`LOOKOUT_RADIUS` 20, `SITE_MIN_SPACING` 15, `SITE_NO_VILLAGE_RADIUS` 4.
+
+**What it needs**
+- Engine: `sites.ts` (placement from the seed, `SiteState` with garrison contingents, holder = tribe of the contingents), reuse of `resolveBattle` with a site as defender (walls 0, flat militia), line-vs-circle test for Lookout and Waymark.
+- Server: `sites` table, `site_garrison` (reusing the stationed table with a site id), `POST` is the existing send route with a site as target (new target kind, validated); reports for attack on a site; a site list route; hourly score tick (18.1).
+- Web: site markers on the map with holder tag, site panel (garrison, Send attack/support), Lookout sightings in the Tribe tab.
+- Security: target is checked as a site id on the server; support only for tribe/ally; every amount validated; stationed cap enforced inside the send transaction.
+
+**Size: L for sites, M for terrain** (terrain first, sites with seasons).
+
+**Open questions for the owner**
+1. Are the three site types enough, or do you want one more kind (for example a **Ford** that removes lake slowdown for its tribe)?
+2. Should sites be reachable by **tribes of any size**? Suggest yes, with the tribe cap of 30 as the natural limit.
+3. Terrain: OK to make the average trip about 12% slower? If not, we raise all unit speeds by 12% in the same commit.
+
+---
+
+### 18.5 Tribe projects funded by shipments
+
+**How it works**
+- A tribe has a **Tribe Store** (4 resources, cap 1,500,000 each) at a place called the **Seat**: one village chosen by
+  the leader (changeable once every 7 days; it must be a member's village and the owner agrees by choosing it).
+- Members fund the store by **shipping** to the Seat: the shipment form gets "Tribe Store" as a destination.
+  It uses the normal shipment rules (Market gate, carrier capacity, travel time, 5 on the road, cancel
+  window, household guard), so the Seat's location matters and a far-away member's help takes longer. On
+  arrival the cargo goes **into the store, not into the Seat village** (no storage cap overflow, the Seat owner
+  never sees or touches it).
+- Leaders, and members with a new grantable right `projects`, **start a project**. Its cost is paid from the store
+  at once and it completes after a build time (hours, not scaled by anything but world speed). Only one
+  project at a time per tribe; levels one after another like buildings. Cancelling a running project returns 80% to the store (same as village cancel).
+- Visible **ledger**: who sent how much and when (so leaders can see who carries the tribe and who does not).
+- **Projects** (levels 1–3 unless noted; effects are for **all members' villages**):
+
+| Project | Effect | Why this one |
+|---|---|---|
+| **Roads** | Support and shipments **between tribe members' villages** travel 10 / 20 / 30% faster (applied on top of terrain). Not for attacks. | Makes defence and logistics better; does not boost offence. |
+| **Watchtowers** | Tribe alerts show more about incoming attacks: level 1 the army size in rough bands; level 2 the slowest unit's type; level 3 whether a Chieftain is among them. | Information to answer a Strike (18.2). Defenders still cannot see exact armies. |
+| **Ember Wards** | +4 / +8 / +12% defence at **sites the tribe holds** (not villages). | Helps keep shrines without making villages untouchable. |
+| **Tribe Banner** (one level) | Map colours, shapes and a banner flag for the tribe (looks only). | A cheap identity goal for new tribes. |
+
+**Why it is fair**
+- Every effect is **logistics, information or defence at sites**. None raises attack or production, so a rich tribe cannot buy a stronger army.
+- The cost is paid in real resources, shipped by real members with real travel time and exposed to the Market gate.
+- **Per-member cap**: a member can fund at most `PROJECT_DAILY_CAP_PER_MEMBER` (60,000 total) per day, and an account needs `PROJECT_MIN_ACCOUNT_DAYS` (3) of age. So one rich account or a stack of fresh alts cannot buy a project alone, and the ledger shows it.
+- Tribes cannot hoard forever: the store has a cap. Resources in the store cannot be taken out except by starting projects; a disbanded tribe loses the store (nobody can steal it).
+- Members who leave keep their ledger line but not the store (the contribution is a gift to the tribe).
+
+**Rough numbers for `config.ts`**
+`TRIBE_STORE_CAP` 1,500,000; project cost level L total goods `300,000 × 1.8^(L−1)` split evenly over 4 resources (level 1 = 75,000 each, so a 20-member tribe giving about 4% of one day's output each pays it in a day or two); build time `24 h × L` (÷ speed); `PROJECT_DAILY_CAP_PER_MEMBER` 60,000; `PROJECT_MIN_ACCOUNT_DAYS` 3; `SEAT_CHANGE_COOLDOWN_DAYS` 7; effects: `ROADS_SPEED_BONUS [0.10, 0.20, 0.30]`, `EMBER_WARD_DEFENCE [0.04, 0.08, 0.12]`, `WATCHTOWER_LEVELS`.
+(All to be checked with `npm run sim` against real production at day 20–40.)
+
+**What it needs**
+- Engine: `tribe-projects.ts` (cost, time, effect lookups), a `tribeStore` shape, shipment target kind `tribe_store`.
+- Server: tables `tribe_store`, `tribe_project` (running/finished), `tribe_ledger`; Seat set route; shipment resolve branch that credits the store; project start/cancel/finish (lazy, due events); alerts add detail by Watchtower level; roads applied inside the one `travelTimeMs` path.
+- Web: Tribe tab "Projects" page (store bars, current project, ledger, start button), Seat selector, "Tribe Store" in the shipment form, project icons.
+- Security: only leader/`projects` right starts projects; per-member daily cap and account age checked inside the shipment transaction; the store never goes below zero; event log entries; tests for double-spend (two projects started at once).
+
+**Size: M.**
+
+**Open questions for the owner**
+1. Is a **Seat village** the right model, or should shipments go to a "tribe stockpile" with no place on the map (simpler, but then no logistics)? I suggest the Seat.
+2. Do you want projects to give **permanent** effects (my proposal), or effects that need a small upkeep per week?
+3. Which projects do you want first? I suggest Roads and Watchtowers; Ember Wards only when sites exist.
+
+---
+
+### 18.6 Cosmetics-only shop
+
+**How it works**
+- The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or
+  ranking. This is a hard rule: a cosmetic is an **id** (for example `roof.red`) that the client draws; the
+  engine, the battle code and the server's game routes never read it.
+- What can be sold, always inside the Toy Diorama style (owner: no restyle, art stays swappable):
+  1. **Village skins** (roof colours, banner, garden props around the town square; the Town Hall keeps its shape so
+     everybody can still read the game).
+  2. **Map markers** for your villages (flag shapes and colour rings, within the map's colour rules: relation colours stay).
+  3. **Chieftain figures and profile frames** (portrait on the profile and in tribe lists).
+  4. **Tribe look** (extra banner shapes for the tribe, bought by the leader; every member sees it).
+  5. **Report and mail themes** (colours only).
+- **Not for sale, ever:** anything that speeds, strengthens, protects or scores; extra queue slots; resources, gold or
+  troops; village limit; protection time. Some looks can only be **earned** (season winner flame
+  frame, Pioneer marker) so they remain a sign of play. Badges (18.1) are never sold.
+- Items belong to the **account** (lobby database `account_items`) so they work in every season. The server of
+  a world only asks the lobby "which cosmetic ids does this account own" (included in the signed entry pass)
+  and the client draws them. Equipped ids are checked against ownership every time.
+- Payment: the lobby creates a checkout with a hosted payment provider (we never see card data); the provider's signed
+  webhook, verified by the lobby, grants the item; the purchase is stored once (idempotent on the provider's id); a refund or
+  chargeback removes the item.
+- **Owner decision 2026-11-05: cosmetics plus ONE small capped paid speed-up.** The shop sells looks, and exactly one thing that touches the
+  pace: a **paid speed-up of one building at a time, about 20% faster** (`features.paidSpeedups`, a per-world flag, **default off until the shop
+  exists**; a world without it is cosmetics-only). Hard limits: it is a convenience, never required to compete; one building at a time; capped at
+  about 20% (it shortens one build job, nothing else); the world speed stays the main way to change pace. **Never sold, in any world:** resources,
+  troops, Renown, instant finishes, extra queue slots, protection, village limit. The old premium subscription (longer queue) stays removed:
+  everybody has the same queue (`queues.build`). The flag exists in `WorldConfig` (default false, published, reserved); the shop and the speed-up
+  itself are **not built**.
+
+**Why it is fair**
+- Everyone starts level on the same day in a fresh world; badges cannot be bought and give no stats.
+- The "14 days in the tribe" and "active" rules stop people joining the winner on day 60 for a badge.
+- The soft cap on hourly gain and the late multipliers keep the race open into the last week.
+- Players who join late (day 40) still get a world that lasts 3 more weeks and a normal beginner start.
+
+**Rough numbers for `config.ts`**
+`SEASON_DAYS` 63, `SEASON_KINDLING_DAYS` 14, `SEASON_SCORING_START_DAY` 21, `SEASON_MULTIPLIERS` `[{day 21, ×1}, {day 42, ×2}, {day 56, ×3}]`,
+`SEASON_JOIN_CLOSES_DAY` 45, `SHRINE_RING_RADII` `[35, 85]`, `SHRINE_COUNT_PER_RING` 4, `SHRINE_POINTS_PER_HOUR` 1,
+`GREAT_FIRE_POINTS_PER_HOUR` 3, `SHRINE_SPREAD_PENALTY` 0.07, `SHRINE_SPREAD_FLOOR` 0.6,
+`BADGE_MIN_TRIBE_DAYS` 14, `BADGE_MIN_ACTIVE_DAYS` 3.
+
+**What it needs**
+- Engine: `season.ts` (phase for a given day, score per hour, multiplier, ranking and tie-break), shrine placement from the seed; all pure and tested.
+- Server: a `season` row on the world (start time, phase), an hourly score tick that catches up lazily like `settleVillage` (so downtime loses nothing), `tribe_season_score` table, a read-only mode flag that makes every write route answer 403 after the end, a `final results` snapshot, and a signed call to the lobby that writes badges (lobby verifies the world's key; an operator CLI command can also grant or revoke a badge).
+- Lobby: `account_badges` table, badge list on `/lobby/api/me`, world list shows season phase and week.
+- Web: season banner (phase, week, countdown), shrine markers and a score board on the map and in the Tribe tab, Hall of Fame page, badge row on the profile.
+- Security: the score tick has no user input; badge writes need the world key; the read-only flag is checked in one place.
+
+**Size: L** (M for engine + server score and phases, plus M for lobby badges + Hall of Fame + web).
+
+**Open questions for the owner**
+1. 63 days, or 56 / 70? 9 weeks was your wording ("8–10").
+2. Should a tribe be able to win early (e.g. hold 6 of 9 shrines for 7 days in a row)? I suggest **no**: a fixed finish keeps everyone playing and keeps the world schedule predictable.
+3. Should allies be allowed to win together (a shared top place)? I suggest no.
+4. Should the season world stay open to look at forever, or be deleted after 30 days to save server cost?
+5. Do you want a small head-start for veterans (for example a different village name colour)? I suggest only looks, never stats.
+
+---
+
+### 18.2 Taking villages: put out the fire, then hold it
+
+**How it works**
+Every village has a **Hearth**, drawn as the campfire in the middle of the town square. A hearth is **lit** or **out**.
+A village changes owner in two steps:
+
+1. **Strike.** An attack that contains **Chieftains** and wins the battle (every defender dead) puts the hearth
+   out, if at least `need` Chieftains survive. `need` is 1 for a village under 4,000 points, 2 from 4,000, 3
+   from 8,000 (a fully built village is about 10,000). The surviving Chieftains do not go home: they stay
+   at the cold hearth as the first occupiers. Losses from the battle follow the normal rules (§7). The Chieftain
+   is a weak fighter (attack 0, defence 10), so he needs an escort. **The Chieftains may come in separate attacks
+   ("Chieftain chain", owner 2026-11-05):** see the box "Conquest changes 2026-11-05" below.
+2. **Hold.** From the moment the hearth is out, the attacker must keep **occupiers** (their own troops stationed
+   at the village, same rule as support, arriving as a new mission `occupy`) of at least `HOLD_MIN_POPULATION`
+   (150 population) in the village. The **hold clock** starts at 8 hours (2 for abandoned villages; was 12 / 6 until
+   2026-11-05) and runs
+   only while enough occupiers are there. When it reaches zero the village changes owner.
+
+While the hearth is out, the owner can still fight and can still send support. What changes in the cold village:
+**nothing is produced, nothing new can be trained, the only thing that can be built is the Wall (owner 2026-11-05), and the
+village is not shown as safe on the map** (a cold
+village has a grey ring and a thin line of smoke). Orders already in the queues carry on.
+
+**How the owner (and friends) fight back**
+- Any battle at the cold village is a normal battle between the occupiers and the attackers on the owner's side
+  (the owner's other villages and tribe-mates' support). **If the occupiers fall under 150 population, the clock
+  stops; if they are all dead, the hearth relights at once** and the claim ends. If they stay under 150 for 2 hours
+  in a row the claim also fails and the remaining occupiers are sent home.
+- Every member of the owner's tribe sees an alert "Hearth out at <village>" at the moment of the strike, plus the
+  hold clock on the Tribe alerts list (the clock is also visible to the attacker, so both sides see the same time).
+- A third player can also attack the occupiers; if they destroy them and bring a Chieftain they start their own
+  claim. Otherwise the village is simply relit.
+
+**When the clock ends**
+- The village changes owner. Buildings stay at their levels (**no level loss**, owner 2026-11-04; the old "Wall and Banner Hall go back to level 0" rule is dropped), stock is partly kept
+  and the village starts with a fresh protection: **no new Strike for 24 hours** (`STRIKE_LOCK_HOURS`). Normal
+  attacks (raids) are still possible.
+- Build, train and research queues carry on for the new owner (this is the existing rule in §3).
+- The occupiers **move in**: they become the village's own troops, up to its population cap (extra ones go
+  home on a return movement). Their food is paid by the new village, not by the old home.
+- The old owner's troops and the support of others that were still inside are sent home.
+- Points move to the new owner at once (the ranking already adds up all of a player's villages).
+
+**Abandoned villages**: the same two steps but the hold is only 2 hours (was 6) and needs 1 Chieftain at any tier. This
+is the safest way to get a second village and gives the abandoned villages a new purpose. (They start at the
+state a new player village has; their growth is kept.)
+
+**Owning several villages — Renown (owner decision 2026-11-04, replaces "Banner Hall level allows more villages")**
+The number of villages is limited by **Renown**, a score of its own. Purpose: **expanding must be possible without fighting.**
+A builder or a defender who is never attacked still reaches the second village; fighting only makes it faster.
+
+**Owner decisions 2026-11-04 for step 2 (several villages) — these override the older text of this section where they differ**
+- **The main way to get ahead is TAKING already-developed, high-point villages.** FOUNDING a new village on empty land is the slow, safe path.
+  Both cost the same Renown (`RENOWN_VILLAGE_BASE x 1.6^(villages - 1)`), independent of the target's size.
+- **A captured village changes owner with ALL buildings intact.** No automatic level loss: the old "Wall and Banner Hall go back to level 0" rule is
+  dropped. Buildings only drop through **siege units** (a later run). Resources are partly kept (`TAKE_KEEP_RESOURCE_SHARE`); the old owner's troops are gone;
+  the new owner's occupiers move in (up to the population cap); queues are cleared (costs were paid by the old owner, not refunded); the Renown
+  already paid for building levels stays remembered by the village, so a taken village earns no building Renown a second time.
+- **A player's LAST village CAN be taken** (replaces "last village is safe"; `LAST_VILLAGE_SAFE` is dropped). That player is not wiped out: they get
+  a **fresh starting village at the outer edge of the current world circle** (expanding layout: the edge placement a newcomer gets, with its ring of
+  abandoned villages; scattered layout: a random free tile), keep account, tribe, Renown and rankings, and get a short **restart protection**
+  (`RESTART_PROTECTION_HOURS`, ÷ speed) so the same attacker cannot hunt them again at once. Built in step 2, it has triggered since step 4 (player villages can be taken).
+- **Built in step 2** (numbers in `config.ts`): the Banner Hall trains the **Chieftain** (Banner Hall level 1; Renown is **reserved** when training
+  starts, `CHIEFTAIN_RENOWN_REFUND_SHARE` comes back if he dies); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
+  out, 6 h hold with occupiers); **FOUND** (a Chieftain sent to a free tile carries an ember; the new village starts small, `FOUND_*` numbers);
+  **inactive players** (`ABANDON_IDLE_DAYS`) turn their villages abandoned **with buildings kept**, so they become valuable targets (never during
+  beginner protection); basic multi-village play (switch villages, per-village queues and resources, send troops and resources between own villages,
+  rankings count every village).
+- **Anti-abuse:** no taking from same-IP accounts, own tribe or allies (players: step 4); a captured village is **locked for 24 h** (`STRIKE_LOCK_HOURS`);
+  strike and hold timing is computed by the server only, in order of arrival time (SECURITY_ROADMAP §2); every new route is rate limited and acts only on
+  the caller's own Chieftains and villages.
+
+**Step 4 — taking PLAYER villages (owner decisions 2026-11-05, built the same day; these override older text where they differ)**
+- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 4,000) Chieftains (max 3); hold
+  `HOLD_HOURS` (12 h until 2026-11-05, now 8 h; ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
+  outer edge with restart protection (rule from step 2). **Captured villages keep all buildings** (levels only drop through siege, §18.9).
+- **Cold village, what 18.2 decides (kept):** it produces nothing and eats nothing; **nothing new can be built or trained** (the build block is new in step 4,
+  the training block was there); jobs already queued carry on. The caretaker bot skips a cold village.
+- **How the owner's side breaks a hold (the new RELIEF attack).** The owner (from another of their villages), a tribe-mate or an ally of the owner may send an
+  **attack** at the cold village. It is a battle against the claimant's **occupiers only**: the village's own troops take no part, the Wall does not shelter an
+  occupier, nothing is looted, no combat Renown is paid, and Chieftains and siege units are refused. All occupiers dead = the hearth relights at once; fewer than 150
+  population left = the clock stops (and the claim fails after `HOLD_FAIL_HOURS`). Relief does not end the sender's beginner protection. The owner **cannot
+  "occupy" their own village** with their own troops (decided: relief by battle is the only way; `occupy` stays the claimant's mission), and cannot dismiss the occupiers
+  with "send back". A third player who attacks the cold village normally still fights the occupiers together with the village's defenders (§18.2 above).
+- **Alerts never leak more than scouting.** An incoming attack alert (to the target's owner and their tribe) shows who and when, **never what it carries**: no hint
+  that Chieftains are coming. The first sign is the **Hearth out** alert at the moment of the strike: the tribe's alert list (`GET /api/tribe/alerts`) now has `holds`
+  (cold villages of members with claimant, clock, same as the map), the alert badge counts them, and the owner sees the occupiers' strength only on their own village.
+  Both sides see a **hold card** with the countdown. Live hints (WebSocket `game` / `tribe` topics) go to the owner, the claimant and the owner's tribe when the hearth
+  goes out, the clock starts / pauses, the hold is broken or ends, and when the village is taken.
+- **On change of owner** (as already built): all buildings stay, stock × `TAKE_KEEP_RESOURCE_SHARE`, old queues cleared, the old owner's troops there are gone, the old
+  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers move in (up to the population cap). Points move at once (rankings add up villages).
+- **Anti-abuse (server, deterministic, in order of arrival):** no Strike on same-IP accounts, tribe-mates or allies (refused at send and again at arrival); none on
+  players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; ~~**pair cap**~~ (2 takes per victim per 7 days: **removed 2026-11-05**, see the box below). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
+- **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
+
+**Conquest changes 2026-11-05 (owner; these override everything above where they differ)**
+1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). Sim target: the 2nd village around
+   **day 21-28 for active players**, about a week later for builders and defenders (`BALANCE.md` 7.8). With the base alone the pure defender needed day 47.8, so
+   `DEFENDER_RENOWN_DAILY_CAP` went 22 -> 36 (the defender trickle is what a player with a home army lives on; builders gain too). Sim: balanced 19.8, builder 27.5, defender 35.9, pure raider
+   13.9 (too early, caused by the always-full loot rule of 2026-11-05, not by this change; open for the owner).
+2. **Chieftain chain.** The Chieftains a village needs (1-3 by its size, unchanged) may arrive in **separate attacks**. Every won attack that reaches a village that can be struck
+   (not locked, not protected, not same-IP, not own tribe or ally) and brings at least one surviving Chieftain, but fewer than `need` together with the earlier ones, is written down as a **chain
+   entry** (village, attacker, surviving Chieftains, arrival time, the return movement that takes them home). An attack's survivors add up with the entries of the **same attacker on the
+   same village** that are not older than `STRIKE_CHAIN_WINDOW_HOURS` (2 h, divided by world speed; exactly the window still counts, one millisecond more does not) and whose Chieftains are
+   **still on their way home** (their return movement has not arrived yet). A Chieftain who is home again is a fresh Chieftain and cannot be counted twice, so one Chieftain can never
+   stand for two. When survivors + entries reach `need`, the hearth goes out at once and the hold starts, and the entries are used up. The occupiers are the survivors of
+   the attack that completed the chain; the earlier Chieftains walk home as before. A dead Chieftain counts for nothing: his Renown comes back by half (existing rule), train a new one.
+   Order is the usual one (SECURITY_ROADMAP §2): attacks arrive and are resolved by arrival time, then movement id; entries are written when an attack resolves, so the
+   result never depends on anything but the stored arrival times.
+3. **Hold time.** 8 h for player villages (`HOLD_HOURS`), 2 h for abandoned villages (`HOLD_HOURS_ABANDONED`), both divided by world speed. `HOLD_FAIL_HOURS` (the claim fails after 2 h
+   under the minimum) is unchanged. `BALANCE.md` 7.8 checks that typical tribe support can arrive within the player hold.
+4. **No pair cap.** A player may take any number of villages from the same player (`PAIR_CONQUEST_CAP`, `PAIR_CONQUEST_WINDOW_DAYS`, the `conquests` table, `pairCapReached` and the
+   report reason `pair_cap` are gone). Kept: no taking from the same IP group, own tribe, allies or players under beginner / restart protection; the 24 h lock after a take.
+5. **A cold village builds ONLY its Wall.** While the hearth is out the village cannot start any other building (the Wall can be queued and upgraded normally; queued jobs carry on) and still cannot train
+   or research. Error `hearth_out` for other buildings, the same refusal as before for training.
+
+*Rules*
+- Renown is **earned, never bought, never lost, only spent**. A player has `renownTotal` (all earned, used for the Renown
+  ranking), `renownSpent` and `balance = total - spent`. Nothing takes Renown away; losing a village or a battle costs none.
+- **A new village costs** `RENOWN_VILLAGE_BASE x 1.6^(villages owned - 1)` Renown (the 2nd costs the base, the 3rd 1.6x,
+  the 4th 2.56x, the 5th 4.1x). There is no hard village limit, the rising price is the limit. Numbers: `config.ts`.
+- **Two ways to get a village** (built in step 2; the rules are fixed here): **FOUND** a new village on a free map spot (the
+  Chieftain carries an ember from the home hearth, no attack and no hold needed), or **TAKE** one by the Strike and Hold of
+  this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
+  cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
+  Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
+- Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
+
+*Sources*
+1. **MAIN, buildings.** Every finished building level gives `round(RENOWN_BUILD_SCALE x level^RENOWN_BUILD_EXP)` Renown,
+   once per village and level (a village remembers the levels already paid, so a Wall rebuilt after a takeover pays nothing
+   twice). Levels a village starts with, sandbox villages and abandoned villages pay nothing.
+2. **BONUS, fighting** (value = resources + 10 x gold for loot, unit cost for troops):
+   - loot taken in a raid: `RENOWN_PER_LOOT_VALUE` per value (credited when the battle is resolved);
+   - enemy troop value destroyed, when attacking and when defending: `RENOWN_PER_KILL_VALUE` per value;
+   - **support** troops stationed in a village that help kill attackers: the defending side's credit is split between the
+     village owner and each support owner by their share of the defence strength and goes to each owner;
+   - never credited to computer-run (abandoned) villages, which have no owner.
+3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. One Feast costs `FEAST_COST` (a bundle of
+   wood, food, iron, gold) and gives `FEAST_RENOWN`; at most `FEAST_DAILY_PER_LEVEL x Banner Hall level` Feasts per village
+   per 24 h (÷ world speed). It is the sink for a builder's full storehouses, deliberately worse per resource than fighting
+   well and better than idling.
+
+4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
+   so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
+   each unit counted at the average of its infantry and cavalry defence (support troops belong to their owners and stay in the
+   stationed table; troops away, in training, the Wall and ranks do not count). Renown per 24 h (÷ world speed) =
+   `min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE)` for each village, **nothing during beginner
+   protection** (it counts from the natural end of protection even if the player ended it early by attacking a player),
+   never for abandoned villages or sandbox accounts. **Settled lazily like resources:** the village remembers when it was
+   last paid and how strong its defence was then (`defenceMark`); whenever the village is saved (any action: send, train,
+   battle, build...) the span since the mark is paid at the **smaller** of the strength at the mark and now, so troops that were
+   away or have left never count for that time and the result does not depend on how often the owner looks. A read of the game
+   state never writes: it shows the earned-but-unsaved amount, and the next save pays exactly that. (A batch of troops
+   that finishes training mid-span only counts from the next span: a small under-payment, never an over-payment.)
+
+*Anti-abuse (combat Renown only).* A battle earns **nothing** when:
+- attacker and target are on the same IP group (`householdShared` guard), in the same tribe, or in allied tribes;
+- its value is under `RENOWN_MIN_BATTLE_VALUE` (token pokes pay nothing);
+and Renown is reduced:
+- **Diminishing per pair.** A battle's raw Renown is `R = loot value x RENOWN_PER_LOOT_VALUE + troop value destroyed x
+  RENOWN_PER_KILL_VALUE`. For one earner and one opponent (a player, or one abandoned village) in a 24 h window (÷ speed)
+  the pair has earned `F(R_total) = RENOWN_PAIR_CAP x (1 - e^(-R_total / RENOWN_PAIR_CAP))`; a battle pays
+  `F(R_total + R) - F(R_total)`. Small amounts pay nearly 1 to 1, then it flattens. This is **path independent: many small
+  sends earn exactly what one big send earns**, and `RENOWN_PAIR_CAP` is the daily cap per pair. The window starts at the
+  first paying battle.
+- **Hitting far smaller players.** The earner's Renown is multiplied by
+  `clamp((opponent village points / own village points / RENOWN_SMALL_RATIO)^2, RENOWN_SMALL_FLOOR, 1)`: no reduction when
+  the opponent has at least `RENOWN_SMALL_RATIO` (0.5) of your points, at most 95% off for tiny ones.
+Building and Feast Renown are never reduced by these rules (the Feast has its own daily limit).
+
+*Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
+`max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
+minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
+Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
+and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
+from that player.
+
+*Pace targets (checked with `npm run sim`, 2026-11-04 after the defender trickle, `docs/sim/2026-11-04-after-terrain.txt`).* An active
+raider can afford the 2nd village (Renown 500 and Banner Hall level 1) around **day 19-20** (sim: 20.4; its Renown alone is there on
+day 14.5, the Banner Hall is what it waits for); a **pure defender who is never attacked** about **day 24-26** (sim: 25.4); nobody is
+blocked for good. A builder who also keeps an army at home gets the trickle too: in the sim it reaches the price on day 14.5, earlier
+than the raider, because it builds the Banner Hall by day 7 (owner to judge, `BALANCE.md` 7.4).
+
+**Other notes on several villages**
+- A new village is named "<name>'s village 2" until renamed. Everything that is "per village" (queues, ranks, population,
+  Market) already exists per village. The web top bar already has a "current village" switch for this.
+
+**No rest hours (owner decision 2026-11-05).** Taking player villages does not use rest hours (18.3 is dropped).
+It relies on the hold period, tribe alerts, restart protection and the pair cap instead.
+
+**Why it is fair**
+- It costs a lot (gold-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
+  event, not a click. The hold gives the defender **a fixed window to answer** that both sides can see.
+- Big villages need more Chieftains, so a player cannot snowball by taking everything at the top of the ranking.
+- ~~A player's last village cannot be struck~~ — **replaced 2026-11-04:** the last village can be taken; the player restarts at the outer edge of
+  the world with restart protection (see "Owner decisions 2026-11-04 for step 2" above).
+- The attacker's hold force is far from home and exposed, which is what lets a smaller tribe win a defence.
+- New owners get a 24-hour lock, so a village cannot be flipped back and forth in a night.
+- Beginner protection still blocks Strikes. Accounts that share a connection cannot attack each other (existing
+  guard), and tribe-mates cannot strike each other (existing `isAttackForbidden`), so villages cannot be "given" by
+  fake conquests inside a tribe or household. Built in step 4: the same attacker cannot take more than 2 villages
+  from the same defender per 7 days (`PAIR_CONQUEST_CAP`, `PAIR_CONQUEST_WINDOW_DAYS`).
+
+**Rough numbers for `config.ts`**
+
+| Name | Value | Meaning |
+|---|---|---|
+| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
+| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
+| `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
+| `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
+| `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
+| `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
+| `DEFENDER_RENOWN_PER_DEFENCE` / `DEFENDER_RENOWN_DAILY_CAP` | 0.006 / 36 (22 until 2026-11-05) | Defender trickle: Renown per day per defence point at home, and the cap per village per day |
+| `RENOWN_VILLAGE_BASE` | see `config.ts` | Renown price of the 2nd village; each further one x1.6 (replaces `VILLAGE_LIMIT_BASE`, owner 2026-11-04) |
+| `PAIR_CONQUEST_CAP` / `PAIR_CONQUEST_WINDOW_DAYS` | 2 / 7 | Villages one attacker may take from the same victim per window (÷ speed); built 2026-11-05 (replaces "per season") |
+| `TAKE_KEEP_RESOURCE_SHARE` | 0.5 | Share of each resource a village keeps when it changes owner (built 2026-11-05, engine `hearth.ts`) |
+| `HEARTH_MAX_CHIEFTAINS` / `HEARTH_PLAYERS_ENABLED` | 3 / true | Most Chieftains in one attack; Strike on player villages is on since step 4 |
+| `CHIEFTAIN_MAX_BATCH` / `CHIEFTAIN_MAX_QUEUED_BATCHES` | 3 / 1 | One batch of at most 3 Chieftains in the Banner Hall queue per village |
+| `FOUND_START_RESOURCES` / `FOUND_PROTECTION_HOURS` | 300 wood, 300 food, 150 iron, 0 gold / 24 | Stock of a founded village (levels = new-player start levels); it cannot be attacked for 24 h (÷ speed), `VillageState.protectedUntil` |
+| `RESTART_PROTECTION_HOURS` / `RESTART_EDGE_BAND` | 48 / 2 | A player who lost the last village restarts within 2 tiles inside the outer edge of the populated disc, protected 48 h (÷ speed) |
+| `MAX_VILLAGES_PER_PLAYER` | 20 | Sanity cap for performance; the Renown price makes it unreachable |
+
+**Server and web as built (2026-11-05).** *Renown ledger:* training a Chieftain adds its price (`villageRenownPrice(villages owned, own other outstanding Chieftains)`, summed
+for a batch) to `renown_spent` and to `players.renown_reserved` in the same transaction as the queue and the payment; each Chieftain's share is the average
+`reserved / outstanding` (queued + home + away + occupying, all villages); death in any battle, village loss or abandonment releases the share and refunds
+`floor(share x 0.5)`; founding or taking releases the share only (the spend stays); cancelling a queued batch refunds the Renown in full. *Strike and Hold*
+run inside `processDue` in strict time order with the movements (a `villages.hold_due_at` column holds the next due time); the surviving army stays as an occupier
+contingent in `stationed`; a taken village changes owner in one transaction (report "Village taken", old owner's troops away are disbanded and listed in
+"Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
+a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
+authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
+*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (garrison and tier from the Town Hall level); beginner
+protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
+protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
+*Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
+the Chieftain's cost is the lever); the pure raider script gets none within 30 days (day 41.9 in a 45-day run): the strike escort (158 population to hold) plus
+the Chieftain cost is too much for its economy (levers: `HOLD_MIN_POPULATION`, loot for the strike army, cheaper Chieftain). Idle stretch after day 20: under 3 h
+for every style (target under 8 h met, with the weak-sink caveat).
+
+**Engine rules as built (2026-11-05, `hearth.ts`, `found.ts`).** A cold village (hearth out) produces nothing, eats nothing
+and an abandoned village starts no new build; build jobs and training batches already queued carry on, but nothing new can be trained.
 At a change of owner one Chieftain is used up (his ember lights the new hearth), further Chieftains and troops over the population cap go home;
 all buildings keep their levels and `renownPaid` is kept. A found mission needs exactly one Chieftain (escort optional, it becomes the garrison); an
 attack may contain 1-3 Chieftains (alone he simply dies); Chieftains cannot scout, support or occupy. Inactive owners' villages become abandoned
@@ -1316,7 +1880,7 @@ Prices are the owner's call (suggest 1–5 EUR per village skin, 1–3 for marke
 **Size: M** (L if the art for the first catalogue counts).
 
 **Open questions for the owner**
-1. Drop the premium queue and make queues equal for everyone (my suggestion), or keep it? This is the main decision.
+1. ~~Drop the premium queue?~~ **Decided 2026-11-05:** yes, queues are equal for everyone; the shop sells cosmetics plus one small capped speed-up (see above).
 2. One-off item purchases (simple, my suggestion) or a currency like "sparks" in packs (more flexible, more legal work)?
 3. First catalogue: how many items and who draws them? Each must be in the Toy Diorama style. A first set of about 6 skins, 6 markers and 4 frames is enough.
 4. Sell before the first season ends, or only after the first season is live? I suggest after: cosmetics need players to see them.
@@ -1396,7 +1960,7 @@ battle like everyone else (loss ratio is the same for every unit of the army).
 **Damage (deterministic, `resolveSiege`).** Each unit kind has `count x power` **siege points** (Log Ram power 1, Boulder Sling 0.8).
 Lowering a building from level L to L-1 costs `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to
 knock down (level 10: 26 points, level 5: 16). A kind lowers **at most `maxLevels`** levels in one attack (Log Ram 3, Boulder Sling 2, both
-phases together) and **stops at the floor**: a building never goes below level 0, the **Town Hall never below 1** (`SIEGE_MIN_LEVEL`).
+phases together) and **stops at the floor**: a building never goes below level 0, the **Town Hall, Farm and Storehouse never below 1** (`SIEGE_MIN_LEVEL`; Farm and Storehouse added 2026-11-05 so a village keeps room for people and a store).
 Points that are not used up are lost; there is no carry-over between attacks.
 
 **Order of events.**
@@ -1445,9 +2009,9 @@ is open (it never asks for permission automatically). Native push comes with the
 
 ### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
 
-Per building, a queue slot can be made **about 20% faster with bought coins** (a cosmetics-shop-style premium currency, see §18.6). Not
-built and not designed in detail: it must never be required to compete, only a convenience; the world speed setting stays the main way
-to change pace.
+Settled by the owner on 2026-11-05 (§18.6): **one building at a time about 20% faster**, bought in the shop, per-world flag
+`features.paidSpeedups` (default off until the shop exists). Never resources, troops, Renown or instant finishes. Not built and not designed in
+detail; the world speed setting stays the main way to change pace.
 
 ## 19. Per-world settings (`WorldConfig`; owner request 2026-11-05, built 2026-11-05)
 
@@ -1462,7 +2026,7 @@ like every other duration.
 |---|---|
 | `pace` | `speed` (1: production and every waiting time), `unitSpeed` (1: extra speed for marching troops and shipments only; time = distance / (speed x unitSpeed)) |
 | `protection` | `beginnerHours` 72, `foundHours` 24, `restartHours` 48 |
-| `npc` (abandoned villages) | `density` 0.02 (creation only), `growthHours` 6, `maxLevel` 10, `startStockShare` 0.5, `startGoldPerTier` 40 |
+| `npc` (abandoned villages) | `density` 0.02 (creation only), `selfBuild` true (they build from their own stock, §8), `keepShare` 0.25 (reserve they keep when building), `maxLevel` 7, `startStockShare` 0.8, `startGoldPerTier` 40 |
 | `conquest` | `playersCanBeConquered` true, `renownBase` 1000, `renownGrowth` 1.6, `chainWindowHours` 2, `holdHours` 8, `holdHoursAbandoned` 2, `holdFailHours` 2, `lockHours` 24 |
 | `domination` | the six win-condition settings of §18.1 (moved into this object; `world_settings.domination` mirrors it) |
 | `tribe` | `maxMembers` 30 |
@@ -1482,7 +2046,7 @@ like every other duration.
   `tribe.maxMembers`, `features.scavenging`, `features.paidSpeedups`. Every change is audit-logged (`world_config_set`, `world_open`). A
   change reaches a running server on its next request, no restart. A new world can also be created with the `WORLD_CONFIG` environment variable (a
   JSON object with only the settings to change; bad values stop the start).
-- **Engine rule.** The flat `WorldSettings` fields `speed`, `npcDensity`, `protectionHours`, `npcGrowthHours`, `domination` always equal the config;
+- **Engine rule.** The flat `WorldSettings` fields `speed`, `npcDensity`, `protectionHours`, `domination` always equal the config;
   everything else is read through `worldRules(s)`; settings built without a config (tests, simulator) run on the defaults.
 - **The client** gets `settings.config` with every game state and the same object from the endpoint; queue sizes, tribe limit, Renown prices, hold
   and chain texts, march times and the siege/sites screens use it instead of constants.

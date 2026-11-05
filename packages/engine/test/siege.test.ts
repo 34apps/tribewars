@@ -62,6 +62,9 @@ describe('siege helpers', () => {
     for (const b of BUILDING_IDS) assert.equal(siegeFloor(b), SIEGE_MIN_LEVEL[b] ?? 0);
     assert.equal(siegeFloor('wall'), 0);
     assert.equal(siegeFloor('hall'), 1);
+    // Owner 2026-11-05: Farm and Storehouse never drop below 1 either (a village always keeps room and a store).
+    assert.equal(siegeFloor('farm'), 1);
+    assert.equal(siegeFloor('storehouse'), 1);
   });
 
   it('hasSiegeUnits / hasChosenSiege', () => {
@@ -143,6 +146,21 @@ describe('resolveSiege: Boulder Sling', () => {
   it('stops at maxLevels', () => {
     const hits = resolveSiege(units({ boulder: 100_000 }), levels({ barracks: 15 }), 'barracks', 3);
     assert.equal(hits[0]!.to, 15 - SLING.maxLevels);
+  });
+
+  it('Farm and Storehouse never drop below 1, and at 1 they are a miss (like the Town Hall)', () => {
+    for (const b of ['farm', 'storehouse'] as const) {
+      const a = resolveSiege(units({ boulder: 100_000 }), levels({ [b]: 6 }), b, 3);
+      assert.equal(a[0]!.to, Math.max(1, 6 - SLING.maxLevels));
+      const low = resolveSiege(units({ boulder: 100_000 }), levels({ [b]: 2 }), b, 3);
+      assert.equal(low[0]!.to, 1);
+      const miss = resolveSiege(units({ boulder: 100_000 }), levels({ [b]: 1 }), b, 3);
+      assert.deepEqual([miss[0]!.from, miss[0]!.to], [1, 1]);
+      for (let seed = 0; seed < 20; seed++) {
+        const r = resolveBattle({ attackerUnits: units({ boulder: 100_000 }), defender: village({ buildings: { wall: 0, [b]: 2 }, troops: { pikeman: 100 } }), seed, siegeTarget: b });
+        assert.ok(applyBattleToDefender(village({ buildings: { wall: 0, [b]: 2 }, troops: { pikeman: 100 } }), r).buildings[b] >= 1);
+      }
+    }
   });
 
   it('a pick at level 0 is a miss', () => {

@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { BUILDINGS, buildingRenown, villageRenownCost, type GameStateResponse, type PlayerProfileDto, type RenownRankingResponse, type VillageState } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { SCHEMA_VERSION } from '../src/db.ts';
-import { Client, Clock, HOST, HOUR, PASSWORD, TEST_WORLD, makeApp, ok } from './helpers.ts';
+import { Client, Clock, HOST, HOUR, PASSWORD, TEST_WORLD, makeApp, ok, TEST_WORLD_CONFIG } from './helpers.ts';
 import { newLeader, newPlayer } from './tribe-helpers.ts';
 import { near, renownOf, setRenown, setVillage } from './renown-helpers.ts';
 
@@ -223,7 +223,7 @@ test('a version 3 database is upgraded in place: backup first, Renown columns an
   try {
     const dbPath = join(dir, 'game.sqlite');
     const clock = new Clock();
-    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, webDistDir: '/nonexistent' });
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
     let app = await open();
     const alice = await newPlayer(app, 'alice');
     const vid = (await alice.c.village()).id;

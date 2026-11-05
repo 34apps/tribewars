@@ -273,26 +273,23 @@ describe('applyOwnerChange', () => {
 });
 
 describe('a cold village (hearth out)', () => {
-  it('produces nothing, eats nothing, and its growth clock stands still', () => {
+  it('produces nothing, eats nothing, and starts no new build', () => {
     const v = struck();
     const later = settleVillage(v, T + 10 * HOUR, S1);
     assert.deepEqual(later.resources, v.resources);
-    assert.deepEqual(later.buildings, v.buildings);
     assert.deepEqual(later.troops, v.troops);
-    assert.equal(later.npc?.growthSteps, v.npc?.growthSteps);
-    assert.equal(later.npc?.createdAt, (v.npc?.createdAt ?? 0) + 10 * HOUR);
+    assert.equal(later.npc?.growthSteps, v.npc?.growthSteps, 'the build pointer did not move: nothing new was started');
+    assert.equal(later.buildQueue.length, 0, 'a build that was already running finished, no other one started');
     assert.equal(later.lastUpdate, T + 10 * HOUR);
   });
 
-  it('after the hearth is relit the growth clock continues from where it stood', () => {
+  it('after the hearth is relit the abandoned village builds again from the stock it kept', () => {
     const v = struck();
     const relit = { ...settleVillage(v, T + 10 * HOUR, S1) };
     delete relit.hearth;
-    // npc growth is 6 h per step at speed 1, counted from the shifted origin: 5 h later is still no step
-    const soon = settleVillage(relit, T + 15 * HOUR, S1);
-    const base = v.npc?.growthSteps ?? 0;
-    assert.ok((soon.npc?.growthSteps ?? 0) <= base + Math.floor((T + 15 * HOUR - (relit.npc?.createdAt ?? 0)) / (6 * HOUR)));
-    assert.ok((soon.npc?.growthSteps ?? 0) < base + 3, 'the 10 cold hours did not count');
+    const soon = settleVillage(relit, T + 30 * HOUR, S1);
+    const sum = (x: VillageState): number => Object.values(x.buildings).reduce((a, b) => a + b, 0) + x.buildQueue.length;
+    assert.ok(sum(soon) > sum(relit), '20 warm hours built something');
   });
 
   it('build jobs already running carry on; training batches already queued carry on; nothing new can be trained', () => {

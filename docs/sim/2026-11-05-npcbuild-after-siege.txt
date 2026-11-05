@@ -1,0 +1,158 @@
+# Siege units: balance experiments (real engine, fixed seeds)
+
+Unit prices (valued wood + food + iron + 10 x gold): Log Ram 610 (pop 3), Boulder Sling 720 (pop 2), Raider 170, Pikeman 110, Shieldbearer 150. Points to lower a level: L1 8, L3 12, L6 18, L10 26, L15 36, L20 46. In a decisive win (attack = 2 x defence) 64% of an army comes back, so about 157% of the survivors must be sent.
+
+## (b) Siege units that must SURVIVE the battle to lower the Wall
+
+| Wall level | points / level | Log Rams: 1 level | 2 levels | 3 levels (cap) | Boulder Slings: 1 level | 2 levels (cap) |
+|---|---|---|---|---|---|---|
+| 3 | 12 | 12 | 22 | 30 | 15 | 28 |
+| 6 | 18 | 18 | 34 | 48 | 23 | 43 |
+| 10 | 26 | 26 | 50 | 72 | 33 | 63 |
+| 15 | 36 | 36 | 70 | 102 | 45 | 88 |
+| 20 | 46 | 46 | 90 | 132 | 58 | 113 |
+
+With 5,000 survivors one attack still lowers the Wall by at most 3 (Rams) or 2 (Slings) levels: the per-attack cap works. Send size = survivors / 0.64 in a decisive win (table (a)).
+
+## (a) What siege costs the attacker vs what the defender pays to rebuild
+
+Siege army = the units that must be SENT so enough survive a decisive win (attack 2 x defence). "Loses" = the units that die in that win (value). Rebuild = resources of the lowered levels + build hours (Town Hall 10, speed 1). Check = real battles, average levels dropped over 9 seeds.
+
+| target | unit | survivors | send | army value (capital) | loses (value) | defender rebuild cost | rebuild time | rebuild / loses | rebuild / capital | check: levels dropped |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Wall 5->4 | Log Ram | 16 | 26 | 15,860 | 6,100 | 504 | 0.4 h | 0.08 | 0.03 | 0.8 (won 100%) |
+| Wall 10->9 | Log Ram | 26 | 41 | 25,010 | 9,150 | 1,600 | 1.5 h | 0.17 | 0.06 | 0.6 (won 100%) |
+| Wall 10->7 | Log Ram | 72 | 114 | 69,540 | 25,620 | 3,879 | 3.6 h | 0.15 | 0.06 | 3.0 (won 100%) |
+| Wall 15->14 | Log Ram | 36 | 57 | 34,770 | 12,810 | 5,084 | 6.1 h | 0.40 | 0.15 | 0.6 (won 100%) |
+| Wall 20->19 | Log Ram | 46 | 73 | 44,530 | 16,470 | 16,146 | 24.6 h | 0.98 | 0.36 | 0.6 (won 100%) |
+| Wall 10->9 | Boulder Sling | 33 | 52 | 37,440 | 13,680 | 1,600 | 1.5 h | 0.12 | 0.04 | 0.6 (won 100%) |
+| Market 5->4 | Boulder Sling | 20 | 32 | 23,040 | 8,640 | 598 | 0.6 h | 0.07 | 0.03 | 0.8 (won 100%) |
+| Market 10->9 | Boulder Sling | 33 | 52 | 37,440 | 13,680 | 1,977 | 2.2 h | 0.14 | 0.05 | 0.6 (won 100%) |
+| Drillyard 5->4 | Boulder Sling | 20 | 32 | 23,040 | 8,640 | 2,225 | 0.8 h | 0.26 | 0.10 | 0.8 (won 100%) |
+| Drillyard 9->8 | Boulder Sling | 30 | 48 | 34,560 | 12,960 | 5,979 | 2.4 h | 0.46 | 0.17 | 0.8 (won 100%) |
+| Banner Hall 1->0 | Boulder Sling | 10 | 16 | 11,520 | 4,320 | 7,500 | 12.6 h | 1.74 | 0.65 | 0.8 (won 100%) |
+| Banner Hall 3->2 | Boulder Sling | 15 | 24 | 17,280 | 6,480 | 13,667 | 22.0 h | 2.11 | 0.79 | 0.8 (won 100%) |
+| Banner Hall 4->3 | Boulder Sling | 18 | 29 | 20,880 | 7,920 | 18,453 | 29.0 h | 2.33 | 0.88 | 0.8 (won 100%) |
+| Banner Hall 4->2 | Boulder Sling | 33 | 52 | 37,440 | 13,680 | 32,120 | 51.0 h | 2.35 | 0.86 | 1.6 (won 100%) |
+
+rebuild / loses above 1 means the defender pays MORE than the attacker lost in the attack (siege pays off even if every siege unit that survives is only reused); rebuild / capital above 1 means even buying the whole siege army for one attack would be cheaper than the damage (siege is a bargain).
+
+## (c) Attacks needed against a fortified village, with and without siege
+
+Each wave: the attacker sends Raiders + Log Rams so that attack = 2 x the defence the engine reports (Wall as it stands before the battle), wins, the garrison dies. Between waves the defender brings the garrison back to 50% of the original. Rams are sized to take 3 Wall levels from the starting level (survivors / 0.64). No siege = the same waves with no Rams (the Wall never drops).
+
+### Wall 10, 250 Pikemen + 150 Shieldbearers (114 Rams, value 69,540)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Rams sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 10 -> 10 | 16,005 | 801 | 0 | 136,170 | 41,820 |
+| 2 | no | 10 -> 10 | 8,130 | 407 | 0 | 69,190 | 26,350 |
+| 3 | no | 10 -> 10 | 8,130 | 407 | 0 | 69,190 | 24,310 |
+| 4 | no | 10 -> 10 | 8,130 | 407 | 0 | 69,190 | 28,560 |
+| 1 | yes | 10 -> 7 | 16,005 | 789 | 114 | 203,670 | 55,800 |
+| 2 | yes | 7 -> 4 | 7,256 | 352 | 114 | 129,380 | 40,830 |
+| 3 | yes | 4 -> 1 | 6,396 | 309 | 114 | 122,070 | 34,480 |
+| 4 | yes | 1 -> 0 | 5,549 | 267 | 114 | 114,930 | 43,400 |
+
+Wave 2 needs 8,130 attack without siege and 7,256 after a siege wave took the Wall to 7: the attacker saves 44 Raider-equivalents per wave (7,427 value). To cancel that the defender adds 15 Shieldbearers (2,250 value) or rebuilds 3 Wall levels (3,879 value, 3.6 h). First waves: 343,740 sent without siege (2022 Raiders over the same waves) vs 570,050 with.
+
+### Wall 15, 250 Pikemen + 150 Shieldbearers (161 Rams, value 98,210)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Rams sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 15 -> 15 | 18,804 | 941 | 0 | 159,970 | 49,130 |
+| 2 | no | 15 -> 15 | 9,616 | 481 | 0 | 81,770 | 31,110 |
+| 3 | no | 15 -> 15 | 9,616 | 481 | 0 | 81,770 | 28,900 |
+| 4 | no | 15 -> 15 | 9,616 | 481 | 0 | 81,770 | 33,660 |
+| 1 | yes | 15 -> 12 | 18,804 | 925 | 161 | 255,460 | 71,480 |
+| 2 | yes | 12 -> 9 | 8,720 | 420 | 161 | 169,610 | 58,030 |
+| 3 | yes | 9 -> 6 | 7,837 | 376 | 161 | 162,130 | 48,150 |
+| 4 | yes | 6 -> 3 | 6,968 | 333 | 161 | 154,820 | 52,150 |
+| 5 | yes | 3 -> 0 | 6,112 | 290 | 161 | 147,510 | 38,540 |
+
+Wave 2 needs 9,616 attack without siege and 8,720 after a siege wave took the Wall to 12: the attacker saves 45 Raider-equivalents per wave (7,618 value). To cancel that the defender adds 13 Shieldbearers (1,950 value) or rebuilds 3 Wall levels (12,322 value, 14.3 h). First waves: 405,280 sent without siege (2384 Raiders over the same waves) vs 889,530 with.
+
+### Wall 15, empty (just the Wall and militia) (161 Rams, value 98,210)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Rams sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 15 -> 15 | 429 | 22 | 0 | 3,740 | 1,020 |
+| 2 | no | 15 -> 15 | 429 | 22 | 0 | 3,740 | 1,360 |
+| 3 | no | 15 -> 15 | 429 | 22 | 0 | 3,740 | 1,190 |
+| 4 | no | 15 -> 15 | 429 | 22 | 0 | 3,740 | 1,530 |
+| 1 | yes | 15 -> 12 | 429 | 6 | 161 | 99,230 | 22,130 |
+| 2 | yes | 12 -> 9 | 320 | 0 | 161 | 98,210 | 26,230 |
+| 3 | yes | 9 -> 6 | 225 | 0 | 161 | 98,210 | 10,370 |
+| 4 | yes | 6 -> 3 | 143 | 0 | 161 | 98,210 | 4,270 |
+| 5 | yes | 3 -> 0 | 75 | 0 | 161 | 98,210 | 610 |
+
+Wave 2 needs 429 attack without siege and 320 after a siege wave took the Wall to 12: the attacker saves 5 Raider-equivalents per wave (924 value). To cancel that the defender adds 2 Shieldbearers (300 value) or rebuilds 3 Wall levels (12,322 value, 14.3 h). First waves: 14,960 sent without siege (88 Raiders over the same waves) vs 492,070 with.
+
+Reading: against a village with a real garrison the Wall is only a part of the defence, so lowering it three levels barely changes the attack the next wave needs. The Rams cost more than the Raiders they save, and the defender can undo it with a few Shieldbearers or three cheap Wall levels. Only a village that is mostly Wall gains a lot from siege.
+
+## (d) Does siege make defending pointless?
+
+### (d1) The same attack at different strengths: a hold still costs the attacker, a lost attack lowers little
+
+Attacker: 60 Log Rams + 20 Boulder Slings (picking the Banner Hall) + enough Raiders for the ratio. Defender: Wall 10, Banner Hall 3, Market 5, 250 Pikemen + 150 Shieldbearers. 9 seeds per row (luck +-10%).
+
+| attack / defence | battles won | buildings lowered when LOST | levels lowered when WON (avg) | attacker loses (value) | defender troops lost (avg) |
+|---|---|---|---|---|---|
+| 0.60 | 0 / 9 | 9 of 9 | - | 90,440 | 192 |
+| 0.90 | 1 / 9 | 8 of 8 | 1.0 | 110,360 | 351 |
+| 1.00 | 5 / 9 | 4 of 4 | 1.0 | 111,913 | 390 |
+| 1.10 | 9 / 9 | - | 1.0 | 105,441 | 400 |
+| 1.25 | 9 / 9 | - | 1.1 | 94,446 | 400 |
+| 1.50 | 9 / 9 | - | 2.0 | 80,739 | 400 |
+| 2.00 | 9 / 9 | - | 2.0 | 64,381 | 400 |
+| 3.00 | 9 / 9 | - | 4.0 | 47,913 | 400 |
+
+Since 2026-11-05 a defence that holds can still lose a Wall level or two: the Log Rams fire half their points during the battle, and a share of every siege kind counts as a survivor on a loss. The attacker lost the whole army for it, and a hopeless attack (ratio 0.6) lowers the Wall only by the during hit. A clear win lowers the most.
+
+### (d2) The army needed to win AND take one Wall level, by how well the village is defended
+
+Each row: Log Rams sized so one level survives a decisive win (attack 2 x defence), Raiders sized for the ratio. Defence = the engine's number for the village as it stands.
+
+| village | defence | Raiders | Rams | army pop | army value | x the empty-village army |
+|---|---|---|---|---|---|---|
+| Wall 10, no garrison | 255 | 9 | 41 | 132 | 26,540 | 1.0x |
+| Wall 10, 100 Pikemen + 60 Shieldbearers | 6,555 | 324 | 41 | 447 | 80,090 | 3.0x |
+| Wall 10, 250 Pikemen + 150 Shieldbearers | 16,005 | 797 | 41 | 920 | 160,500 | 6.0x |
+| Wall 15, 500 Pikemen + 300 Shieldbearers | 37,179 | 1854 | 57 | 2025 | 349,950 | 13.2x |
+
+The garrison, not the Wall, decides how big the attack must be; siege adds a fixed Ram block on top and does nothing to shrink the garrison part.
+
+### (d3) The siege army is slow: warning time for the defender (20 tiles, speed 1, terrain from the world seed)
+
+| army | slowest unit | flat ground | with terrain |
+|---|---|---|---|
+| Raiders only | Raider (speed 6) | 3.3 h | 3.5 h |
+| Outriders only | Outrider (speed 14) | 86 min | 1.6 h |
+| Pathfinder (scout) | Pathfinder (speed 18) | 67 min | 68 min |
+| Raiders + 20 Boulder Slings | Boulder Sling (speed 4) | 5.0 h | 5.4 h |
+| Raiders + 20 Log Rams | Log Ram (speed 3) | 6.7 h | 7.2 h |
+| Log Rams only | Log Ram (speed 3) | 6.7 h | 7.2 h |
+
+Training: one Log Ram takes 13 min and one Boulder Sling 16 min in a Barracks level 8, so 20 Rams are 4.3 h of queue; each unit first needs a Drillyard research of 3.0 h / 6.0 h. The defender sees the army on the map for the whole trip and can reinforce, recall support or strike the slow column first.
+
+## Invariants
+
+- OK: per-attack cap: Rams at most 3 levels
+- OK: per-attack cap: Slings at most 2 levels
+- OK: Wall levels are cheap to rebuild vs the Rams that lower them (rebuild < attacker capital)
+- OK: against a garrisoned village siege lowers the next wave's defence by under 40%
+- OK: a lost battle never lowers more than the siege kinds may lower in one attack
+- OK: a real garrison + Wall needs a much bigger army even with siege (at least 5x the empty village)
+- OK: a siege column is at least 1.8x slower than Raiders over 20 tiles
+
+All invariants hold.
+
+## Computer players with and without siege units (same seed)
+
+| style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Rams + Slings trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |
+|---|---|---|---|---|---|---|---|---|---|
+| builder | 5895 / 5895 | 2 / 2 | 0 / 0 | 50.8 / 50.8 | 0 + 0 | never | 0 (0) | 0 | 0 |
+| raider | 14862 / 13735 | 3 / 2 | 1022771 / 1029917 | 1.3 / 1.3 | 57 + 31 | day 10.2 | 68 (68) | 104 | 610 |
+| turtle | 1979 / 1979 | 1 / 1 | 0 / 0 | 6.2 / 6.2 | 0 + 0 | never | 0 (0) | 0 | 0 |
+| balanced | 14856 / 13599 | 3 / 3 | 875736 / 694168 | 2.0 / 2.0 | 48 + 24 | day 10.8 | 62 (62) | 65 | 610 |
+

@@ -1,6 +1,6 @@
 # Balance review (2026-11-03) — pace, economy, and a conquest unit
 
-Status (2026-11-05): troop upkeep, the garrison refill and the repeat-raid loot limit were **removed** on 2026-11-05 (§9); the
+Status (2026-11-05, §10: abandoned villages build from their own stock): troop upkeep, the garrison refill and the repeat-raid loot limit were **removed** on 2026-11-05 (§9); the
 sections below that mention them are history. §1–§4 were hand-computed from `config.ts`. **Upkeep 0.25 was applied** (§3.1, §7); the conquest
 proposal in §4 is superseded by `GAME_DESIGN.md` §18 (Banner Hall with lower requirements, Chieftain, hold instead of
 loyalty, owner approved 2026-11-04). The pacing tuning that needs the simulator is open: §7.3.
@@ -509,3 +509,65 @@ Sling trained by nobody. **LOSING RAIDS: none** (before: balanced lost 61k in un
   numbers were for the old rule and the Rams' real power is now a little higher (the lowered Wall lowers the defence in the same battle).
 - **Not modeled:** the simulator still sends raiders at a village only when attack >= 1.25 x defence in a preview, so with the garrison dead after one raid it
   sends everything at once at the same small group of villages; nobody trained siege units (affordable from hour 194, never picked by the training wheel).
+
+## 10. Abandoned villages build from their own stock; balance pass 2026-11-05 (evening)
+
+Owner rule 2026-11-05 (`GAME_DESIGN.md` §8): an abandoned village builds like a player with its **own** resources (replaces the 6-hour growth
+timer). This pass retunes the numbers around it. Same seed 20261104, 30 days, speed 1, home -30|-10, `npm run sim`. Raw output:
+`docs/sim/2026-11-05-npcbuild-before.txt` (old timer, rules of §9), `docs/sim/2026-11-05-npcbuild-after.txt` (this section),
+`docs/sim/2026-11-05-npcbuild-after-siege.txt` (`--siege`).
+
+### 10.1 What the new rule does to the old sim raider (nothing tuned yet)
+
+With the rule alone the raider collapsed: score 57,114 -> 1,344 (1 village, 655 points). The eight sim targets now spend what they produce on
+levels, so a raider that skims the same village after every spend finds a few hundred coins and loses a third of them in units (loot 101k,
+losses 88k). The sim raider only needed a profit test: **sim change** (`RAID_MIN_NET_SHARE = 1` in `scripts/sim/balance.ts`): a raid is only sent when
+loot beats the units it would lose by that much on top (prize at least twice the losses). A player who waits lets the stock grow; this is the
+behaviour the new rule rewards. Everything else in the sim is the real engine.
+
+### 10.2 Before / after
+
+| | before (timer, §9) | rule only (old sim policy) | after (tuned, this section) |
+|---|---|---|---|
+| score builder / raider / turtle / balanced | 10,027 / 57,114 / 4,877 / 15,120 | 10,027 / 1,344 / 4,877 / 3,689 | 12,094 / 36,393 / 5,581 / 38,659 |
+| **raider score / builder score** | 5.7x | 0.13x | **3.0x** (target about 1.5x: **not reached**) |
+| points day 14 builder / raider | 4,004 / 6,157 | 4,004 / 614 | 4,083 / 3,816 (day 30: 5,895 / 14,862) |
+| 2nd village (day) builder / raider / balanced | 27.5 / 13.9 / 19.8 | 27.5 / never / never | **23.1** / 15.7 / 16.4 |
+| 3rd village (raider / balanced) | 25.1 / never | never | 29.2 / 25.1 |
+| raid loot value, raider / balanced (30 d) | 2.90M / 0.60M | 0.10M / 0.10M | 1.29M / 1.04M |
+| food at >= 90% storage, hours of 720: builder / raider / turtle / balanced | 475 / 554 / 574 / 590 | 475 / 664 / 574 / 626 | **0 / 0 / 397 / 0** |
+| siege (`--siege`) raids won, Wall levels lowered (raider / balanced) | 0 / 0 (`BALANCE` 8.5) | - | 68 / 62 raids, 104 / 65 levels |
+
+### 10.3 What was changed (numbers in `config.ts` / `WorldConfig` defaults)
+
+- **NPC top level 10 -> 7** (`NPC_MAX_LEVEL`, `npc.maxLevel`), **start stock 50% -> 80%** of the cap, **new `npc.keepShare` 25%** (a village keeps a reserve
+  of its cap when it builds, so it is not empty whenever a raider arrives), **build order** `lumber farm mine storehouse lumber farm mine hall storehouse
+  wall vault` (economy first, Wall and Vault late, no gold mine: gold counts 10x in the loot value and doubled the raid supply). With top level 10 an
+  unraided village needed 8-14 days to finish its 80 builds and raiders starved first; at 8+ the raider took the 2nd village on day 12; at 7 and below the
+  step is gone (day 15-18).
+- **Food** gets a use: unit costs and the Banner Hall moved toward food (`GAME_DESIGN` §2 lists them), Feast 600/600/600 -> 400/1,000/400. Food pile-up is
+  gone for builder, raider and balanced; the turtle still sits at the cap 397 h (it trains few units).
+- **Siege floors:** Farm and Storehouse never below level 1 through siege (`SIEGE_MIN_LEVEL`), like the Town Hall.
+- Not changed: `RENOWN_VILLAGE_BASE` 1,000 (already in), carry values, Renown formulas (tried: building Renown scale 0.12-0.25 moves the builder's 2nd village by 1.3 days
+  and the raider's by 1.3 days the other way; carry x0.15-x1 moves the raider's score by less than the run-to-run noise).
+
+### 10.4 Reading it
+
+- **The 2nd village of the active builder is day 23.1** (target 21-28, was 27.5; the food-heavy Feast pays Renown faster). Raider and balanced take theirs
+  on day 15.7 / 16.4 (taken, tier 5): **earlier than the 21-28 target**.
+- **Raider vs builder is 3.0x, not 1.5x.** The reason is structural: the sim raider has eight abandoned villages within 14 tiles and harvests their whole
+  production (an abandoned village produces like a player village), which is about 9 village incomes against the builder's one. Tuning the supply down
+  (top level 2-4: 24-28k, i.e. 2.4x) cannot get under 2x because even level-2 villages produce 0.7M in 30 days, and the score counts net loot / 100.
+  The honest levers left are not NPC numbers: **fewer reachable targets per player** (the sim has 8; a real world has density 0.02 and competitors),
+  a **cap on what one raid can take** (reverses the owner's "always full loot", so it is the owner's call), or a **sim score that does not count raw
+  loot**. The raider also overtakes the builder in points only after day 14 (day 7: 1,041 vs 1,607; day 14: 3,816 vs 4,083), so **early on the builder
+  still grows as fast as the raider**; "raiding is the fastest early growth" holds from about day 16.
+- **Siege is used and roughly neutral:** with `--siege` both attacking styles train Rams and Slings from day 8-11 and win 68 / 62 siege raids (no Ram lost in vain: 610
+  value of siege units dead), lowering 104 / 65 Wall levels of the now growing abandoned villages. Loot minus losses: raider 1.030M with siege vs 1.023M
+  without; balanced 0.69M vs 0.88M; points -8% / -9% (the Barracks 8 / Drillyard 5 detour). Cheaper siege units (-35%) changed this by less than the run-to-run
+  noise, so they were not kept. **Siege is therefore not clearly "worth training" against abandoned villages in the sim**: their Wall is the only defence left after
+  the first raid and the raiders already win by a wide margin. It stays a player-versus-player tool.
+- **Randomness warning:** the sim is chaotic. A raider that is stuck early (saving iron for the Banner Hall while its units die) stays at 655 points for the whole run, as
+  in the rule-only column; runs that differ in one number can differ by 30,000 score. Compare columns, not single digits.
+- **Speed for players:** raiding is **slower** than §9 (loot 2.9M -> 1.3M for the raider); building is **faster** (food-heavy costs use the food that piled up).
+- **Not done / owner decisions:** the 1.5x raider target, the raider's 2nd village before day 21, and a Wall-based siege incentive.

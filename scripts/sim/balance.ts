@@ -386,6 +386,12 @@ type Event =
   | { at: number; kind: 'hold'; from: number; target: number; occupiers: Units; travel: number }
   | { at: number; kind: 'found'; from: number; pos: { x: number; y: number }; units: Units; travel: number };
 
+/**
+ * A raid is only sent when the loot beats the units it would lose by this share on top (2026-11-05): abandoned villages now build from
+ * their own stock (GAME_DESIGN 8), so skimming the same village for a few coins after every spend is a loss a sensible player
+ * avoids; waiting lets the stock grow. 1 = the prize must be at least twice the losses.
+ */
+const RAID_MIN_NET_SHARE = 1;
 const TARGET_LAYOUT: Array<[number, number]> = [[1, 3], [1, 5], [2, 5], [2, 7], [3, 8], [3, 10], [4, 12], [5, 14]]; // [tier, tiles]
 /**
  * The simulated village stands on a buildable tile of the default world whose surroundings are typical: the eight raid routes
@@ -861,7 +867,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           continue;
         }
         const score = net / (2 * travel);
-        if (net > 0 && score > bestScore) {
+        if (net > RAID_MIN_NET_SHARE * lossVal && score > bestScore) {
           best = i;
           bestScore = score;
           bestSend = army;

@@ -117,8 +117,8 @@ test('an old database without the column is upgraded in place', () => {
 });
 
 test('map: abandoned villages are settled to now, without writing', async () => {
-  // Growth step = 1h / speed 10 = 6 min of real time.
-  const { app, clock } = await makeApp({ world: { npcGrowthHours: 1 } });
+  // Abandoned villages build from their own stock here (self-building switched on).
+  const { app, clock } = await makeApp({ worldConfig: { npc: { selfBuild: true } } });
   const c = new Client(app, nextIp());
   ok(await c.post('/api/auth/register', { username: 'watcher', password: PASSWORD }), 201);
 

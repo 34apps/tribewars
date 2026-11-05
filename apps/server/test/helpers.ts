@@ -8,14 +8,14 @@ export const HOUR = 3_600_000;
 export const HOST = 'clanfire.test';
 export const PASSWORD = 'correct horse battery';
 
-/** Small, fast, static world: no abandoned-village growth during tests. */
+/** Small, fast, static world: abandoned villages do not build during tests (TEST_WORLD_CONFIG; ask for `npc.selfBuild: true` to test it). */
 export const TEST_WORLD: Partial<WorldSettings> = {
   seed: 4242,
   speed: 10,
   radius: 12,
   npcDensity: 0.04,
-  npcGrowthHours: 1000,
 };
+export const TEST_WORLD_CONFIG = { npc: { selfBuild: false } };
 
 export class Clock {
   t = Date.UTC(2026, 5, 1, 12, 0, 0);
@@ -36,6 +36,7 @@ export async function makeApp(over: Partial<BuildAppOptions> & { world?: Partial
     dbPath: ':memory:',
     now: clock.now,
     settings: { ...TEST_WORLD, ...world },
+    worldConfig: TEST_WORLD_CONFIG,
     webDistDir: '/nonexistent/web/dist',
     secureCookies: false,
     ...rest,
@@ -130,11 +131,12 @@ export async function weakestAbandoned(c: Client, radius: number) {
 
 /**
  * Take a fresh village from nothing to `n` raiders at home using only the public API:
- * Town Hall 2 -> Barracks 1 -> Barracks 2, wait for resources, train, wait for training.
+ * Town Hall 2 -> Barracks 1 -> Barracks 2 -> Storehouse 3 (a raider batch needs more food than the level 1 store holds), wait for resources, train,
+ * wait for training.
  */
 export async function trainRaiders(c: Client, clock: Clock, n: number): Promise<number> {
   const vid = (await c.village()).id;
-  for (const building of ['hall', 'barracks', 'barracks']) {
+  for (const building of ['hall', 'barracks', 'barracks', 'storehouse', 'storehouse']) {
     ok(await c.post(`/api/villages/${vid}/build`, { building }));
     clock.advance(10 * MINUTE);
   }

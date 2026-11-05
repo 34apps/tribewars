@@ -55,7 +55,6 @@ test('a new world stores the default config next to the flat settings, in sync',
   assert.equal(flat.speed, DEFAULT_WORLD_CONFIG.pace.speed);
   assert.equal(flat.npcDensity, DEFAULT_WORLD_CONFIG.npc.density);
   assert.equal(flat.protectionHours, DEFAULT_WORLD_CONFIG.protection.beginnerHours);
-  assert.equal(flat.npcGrowthHours, DEFAULT_WORLD_CONFIG.npc.growthHours);
   assert.deepEqual(flat.domination, DEFAULT_WORLD_CONFIG.domination);
   assert.equal(store.isWorldOpen(), false);
   assert.equal(store.worldOpenedAt(), null);
@@ -67,7 +66,7 @@ test('settings from the environment (flat) end up in the config too', async () =
   const cfg = stored(app.ctx.store);
   assert.equal(cfg.pace.speed, TEST_WORLD.speed);
   assert.equal(cfg.npc.density, TEST_WORLD.npcDensity);
-  assert.equal(cfg.npc.growthHours, TEST_WORLD.npcGrowthHours);
+  assert.equal(cfg.npc.selfBuild, false, 'the test helper switches it off');
   assert.deepEqual(cfg.domination, DOMINATION_DEFAULTS);
   await app.close();
 });

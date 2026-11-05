@@ -25,9 +25,9 @@ test('fresh profile: every counter zero, every achievement locked', async () => 
 test('build, train, raid an abandoned village: counters follow the real events', async () => {
   const { app, clock } = await makeApp();
   const a = await newPlayer(app, 'tally');
-  const vid = await trainRaiders(a.c, clock, 14); // hall, barracks, barracks, then 14 raiders
+  const vid = await trainRaiders(a.c, clock, 14); // hall, barracks, barracks, storehouse, storehouse, then 14 raiders
   let p = await profile(a, a.id);
-  assert.equal(p.stats.buildingLevelsBuilt, 3);
+  assert.equal(p.stats.buildingLevelsBuilt, 5);
   assert.equal(p.stats.troopsTrained, 14);
 
   const npc = await weakestAbandoned(a.c, 12);

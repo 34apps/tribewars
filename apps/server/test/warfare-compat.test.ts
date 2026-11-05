@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { UNIT_IDS, type VillageState } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { applySchema } from '../src/db.ts';
-import { Client, HOUR, PASSWORD, TEST_WORLD, battleOf, ok, register, weakestAbandoned } from './helpers.ts';
+import { Client, HOUR, PASSWORD, TEST_WORLD, battleOf, ok, register, weakestAbandoned, TEST_WORLD_CONFIG } from './helpers.ts';
 import { giveKeen, giveTroops, latestReport, movementsOf, reports, sendFails, sendOk, stateOf, units, village, world, type App, type P } from './warfare-helpers.ts';
 
 /** The five-unit maps of the first release. */
@@ -158,7 +158,7 @@ test('reports saved before scouting (no type, no support figures, five-unit maps
 test('a database from before scouting and support is upgraded in place: tables rebuilt with ids and rows kept, then the new kinds work', async () => {
   const dir = mkdtempSync(pathJoin(tmpdir(), 'tw-warfare-'));
   const path = pathJoin(dir, 'game.sqlite');
-  const settings = { dbPath: path, now: () => Date.UTC(2026, 5, 1, 12, 0, 0), settings: TEST_WORLD, webDistDir: '/nonexistent', secureCookies: false } as const;
+  const settings = { dbPath: path, now: () => Date.UTC(2026, 5, 1, 12, 0, 0), settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent', secureCookies: false } as const;
   try {
     let app = await buildApp(settings);
     const c = await register(app, 'veteran');

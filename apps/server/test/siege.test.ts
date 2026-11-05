@@ -26,7 +26,7 @@ import {
 import { buildApp } from '../src/app.ts';
 import { SCHEMA_VERSION } from '../src/db.ts';
 import { subtractUnits } from '../src/units.ts';
-import { Client, Clock, HOUR, MINUTE, PASSWORD, TEST_WORLD, battleOf, errorOf, makeApp, ok } from './helpers.ts';
+import { Client, Clock, HOUR, MINUTE, PASSWORD, TEST_WORLD, battleOf, errorOf, makeApp, ok, TEST_WORLD_CONFIG } from './helpers.ts';
 import { giveTroops, latestReport, sendFails, world } from './warfare-helpers.ts';
 import { clearedTarget, freeTileNear, homeOf, player, reserveFor, runTo, strongHome, type App, type P } from './village-helpers.ts';
 
@@ -324,6 +324,19 @@ test('the Town Hall never drops below 1, every other building never below 0', as
   assert.equal(buildingsOf(c.app, c.target.id).wall, 0);
 });
 
+test('the Farm and the Storehouse never drop below 1 either (owner 2026-11-05), like the Town Hall', async () => {
+  const c = await setup();
+  setBuildings(c.app, c.target.id, { farm: 2, storehouse: 2 });
+  const last = async () => (await lastBattle(c.p)).siege?.[0];
+  for (const b of ['farm', 'storehouse'] as const) {
+    await attack(c, { raider: 300, boulder: 100 }, b);
+    assert.deepEqual([(await last())?.from, (await last())?.to], [2, 1], `${b} 2 -> 1`);
+    await attack(c, { raider: 300, boulder: 100 }, b);
+    assert.deepEqual([(await last())?.from, (await last())?.to], [1, 1], `${b} at 1 is a miss`);
+    assert.equal(buildingsOf(c.app, c.target.id)[b], 1);
+  }
+});
+
 test('a hopeless lost attack lowers nothing: the few rams cannot lower a level, no survivors count; the wiped-out attacker sees only the (missed) Wall line', async () => {
   const c = await setup({}, ['victim']);
   const victim = await player(c.app, 'victim');
@@ -441,7 +454,7 @@ test('a version 5 database without movements.siege_target is upgraded in place; 
   try {
     const dbPath = join(dir, 'game.sqlite');
     const clock = new Clock();
-    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, webDistDir: '/nonexistent' });
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
     let app = await open();
     const c = new Client(app);
     ok(await c.post('/api/auth/register', { username: 'alice', password: PASSWORD }), 201);

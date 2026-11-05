@@ -11,7 +11,6 @@ export const DEFAULT_WORLD: WorldSettings = {
   radius: 100,
   npcDensity: 0.02,
   protectionHours: 72,
-  npcGrowthHours: 6,
 };
 
 /**
@@ -124,15 +123,19 @@ export const BATTLE_LOSS_EXPONENT = 1.5;
 export const BATTLE_LUCK = 0.1;
 
 /** Abandoned villages. */
-export const NPC_MAX_LEVEL = 10;
+export const NPC_MAX_LEVEL = 7;
 /** Share of abandoned villages per tier 1..5 (sums to 1). */
 export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
-/** Building that grows on growth step n is NPC_GROWTH_ORDER[n % length] (skipping maxed ones). */
-export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'];
+/**
+ * The simple build order of an abandoned village (owner 2026-11-05): it spends its OWN stock on the next level of the next building in
+ * this order (a seeded shuffle of it in the expanding layout), skipping maxed ones and ones it can never pay for. It ignores the
+ * building prerequisites (it has no Barracks and never trains).
+ */
+export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'lumber', 'farm', 'mine', 'hall', 'storehouse', 'wall', 'vault'];
 /** Full garrison = per-unit count * Town Hall level. */
 export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
-/** Growth steps applied per settle call at most; older steps are skipped (village is maxed by then anyway). */
-export const NPC_MAX_STEPS_PER_SETTLE = 500;
+/** Safety bound: builds an abandoned village can start in one settle (a village is maxed after far fewer). */
+export const NPC_MAX_BUILDS_PER_SETTLE = 1000;
 
 /** Villages may not be closer than this (Chebyshev distance) to another village. */
 export const NPC_MIN_SPACING = 2;
@@ -268,7 +271,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 7, drillyard: 2, market: 2, storehouse: 6 },
     // Tuned with the sim (2026-11-04): the first design numbers (Hall 10, Drillyard 3, Market 3, Storehouse 8, 8000 each) put
     // the raider's Banner Hall after day 28. 2500 per resource fits the Storehouse level 6 that is required (cap 2930).
-    baseCost: res(2500, 2500, 2500, 100),
+    baseCost: res(1800, 2900, 1800, 100),
     costGrowth: 1.35,
     baseTimeSec: 72000,
     timeGrowth: 1.32,
@@ -310,7 +313,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 45,
     speed: 6,
     carry: 15,
-    cost: res(35, 30, 40),
+    cost: res(30, 50, 30),
     trainTimeSec: 270,
     building: 'barracks',
     requires: { barracks: 1 },
@@ -325,7 +328,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 25,
     speed: 5,
     carry: 10,
-    cost: res(30, 40, 75),
+    cost: res(25, 70, 55),
     trainTimeSec: 330,
     building: 'barracks',
     requires: { barracks: 3 },
@@ -341,7 +344,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 5,
     speed: 6,
     carry: 30,
-    cost: res(50, 40, 70),
+    cost: res(40, 80, 50),
     trainTimeSec: 300,
     building: 'barracks',
     requires: { barracks: 2 },
@@ -356,7 +359,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 15,
     speed: 14,
     carry: 70,
-    cost: res(80, 100, 180),
+    cost: res(60, 170, 130),
     trainTimeSec: 600,
     building: 'stables',
     requires: { stables: 1 },
@@ -372,7 +375,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 50,
     speed: 10,
     carry: 40,
-    cost: res(130, 150, 320, 30),
+    cost: res(100, 260, 230, 30),
     trainTimeSec: 1320,
     building: 'stables',
     requires: { stables: 5, hall: 10 },
@@ -388,7 +391,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 1,
     speed: 18,
     carry: 0,
-    cost: res(20, 30, 40),
+    cost: res(15, 45, 30),
     trainTimeSec: 180,
     building: 'barracks',
     requires: { barracks: 2 },
@@ -420,7 +423,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 4,
     speed: 3,
     carry: 0,
-    cost: res(220, 120, 240, 4),
+    cost: res(170, 220, 180, 4),
     trainTimeSec: 1200,
     building: 'barracks',
     requires: { barracks: 5 },
@@ -437,7 +440,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 3,
     speed: 4,
     carry: 0,
-    cost: res(180, 140, 280, 12),
+    cost: res(140, 240, 220, 12),
     trainTimeSec: 1500,
     building: 'barracks',
     requires: { barracks: 8 },
@@ -465,8 +468,8 @@ export const SIEGE_LOST_SHARE = 0.5;
 export const NOTIFICATIONS_KEEP = 100; // per player
 export const NOTIFICATION_MAX_AGE_DAYS = 7; // real days, not scaled by world speed
 export const NOTIFICATION_READ_MAX_IDS = 200; // ids per POST /api/notifications/read
-/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall never drops below 1. */
-export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1 };
+/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall, Farm and Storehouse never drop below 1 (owner 2026-11-05). */
+export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1, farm: 1, storehouse: 1 };
 
 // ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
 
@@ -536,7 +539,7 @@ export const RESTART_PROTECTION_HOURS = 48;
 /** The restart spot lies within this many tiles inside the edge of the populated disc. */
 export const RESTART_EDGE_BAND = 2;
 /** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
-export const FEAST_COST: Resources = res(600, 600, 600, 0);
+export const FEAST_COST: Resources = res(400, 1000, 400, 0);
 export const FEAST_RENOWN = 10;
 /** Feasts per village per window, per Banner Hall level. */
 export const FEAST_DAILY_PER_LEVEL = 3;
@@ -594,7 +597,13 @@ export const NPC_START_LEVELS: Partial<Record<BuildingId, { perTier: number; off
   goldmine: { perTier: 1, offset: -1 },
 };
 /** Abandoned villages start with this share of their storage cap in wood, food and iron. */
-export const NPC_START_RESOURCE_SHARE = 0.5;
+/**
+ * An abandoned village only builds when the build leaves at least this share of its storage cap of each resource it spends (a reserve it keeps
+ * for hard times). Gives raiders something to find even in a village that builds all the time, and means a village raided empty first
+ * has to refill the reserve before it builds again.
+ */
+export const NPC_BUILD_KEEP_SHARE = 0.25;
+export const NPC_START_RESOURCE_SHARE = 0.8;
 /** ...and with this much gold per tier (gold is rare; their Gold Mine adds more over time). */
 export const NPC_START_GOLD_PER_TIER = 40;
 /** Random placement tries per abandoned village before giving up (only matters for very dense worlds). */

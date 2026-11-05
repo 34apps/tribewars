@@ -68,7 +68,7 @@ describe('Banner Hall building', () => {
 
   it('can be started once the requirements and a big enough Storehouse are there', () => {
     const base = { hall: 7, drillyard: 2, market: 2, farm: 15, storehouse: 6 };
-    const rich = res(2800, 2800, 2800, 200);
+    const rich = res(2930, 2930, 2930, 200);
     assert.ok(checkBuild(village({ buildings: base, resources: rich }), 'bannerhall', 0, S1).ok);
     // A Storehouse that cannot hold the cost gives a clear message, not a silent dead end.
     const small = checkBuild(village({ buildings: { ...base, storehouse: 4 }, resources: res(9000, 9000, 9000, 400) }), 'bannerhall', 0, S1);

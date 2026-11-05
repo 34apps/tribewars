@@ -13,6 +13,7 @@ import {
   MAX_BUILD_QUEUE,
   MAX_RESEARCH_QUEUE,
   MAX_TRAIN_QUEUE,
+  NPC_BUILD_KEEP_SHARE,
   NPC_MAX_LEVEL,
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
@@ -91,7 +92,8 @@ describe('DEFAULT_WORLD_CONFIG', () => {
     });
     assert.deepEqual(c.npc, {
       density: DEFAULT_WORLD.npcDensity,
-      growthHours: DEFAULT_WORLD.npcGrowthHours,
+      selfBuild: true,
+      keepShare: NPC_BUILD_KEEP_SHARE,
       maxLevel: NPC_MAX_LEVEL,
       startStockShare: NPC_START_RESOURCE_SHARE,
       startGoldPerTier: NPC_START_GOLD_PER_TIER,
@@ -237,13 +239,13 @@ describe('setWorldConfigValue / applyWorldConfig / worldConfigFromSettings / isS
     let c = setWorldConfigValue(DEFAULT_WORLD_CONFIG, 'pace.speed', 7);
     c = setWorldConfigValue(c, 'npc.density', 0.05);
     c = setWorldConfigValue(c, 'protection.beginnerHours', 12);
-    c = setWorldConfigValue(c, 'npc.growthHours', 2);
+    c = setWorldConfigValue(c, 'npc.selfBuild', false);
     c = setWorldConfigValue(c, 'domination.winShare', 0.4);
     const s = applyWorldConfig(S1, c);
     assert.equal(s.speed, 7);
     assert.equal(s.npcDensity, 0.05);
     assert.equal(s.protectionHours, 12);
-    assert.equal(s.npcGrowthHours, 2);
+    assert.equal(s.config?.npc.selfBuild, false);
     assert.equal(s.domination?.winShare, 0.4);
     assert.equal(s.config, c);
     assert.equal(s.seed, S1.seed);
@@ -252,11 +254,11 @@ describe('setWorldConfigValue / applyWorldConfig / worldConfigFromSettings / isS
   });
 
   it('worldConfigFromSettings: a world from before per-world rules keeps its flat values, defaults for the rest', () => {
-    const c = worldConfigFromSettings({ speed: 4, npcDensity: 0.05, protectionHours: 10, npcGrowthHours: 2, domination: { ...DOMINATION_DEFAULTS, minAgeDays: 10 } });
+    const c = worldConfigFromSettings({ speed: 4, npcDensity: 0.05, protectionHours: 10, domination: { ...DOMINATION_DEFAULTS, minAgeDays: 10 } });
     assert.equal(c.pace.speed, 4);
     assert.equal(c.npc.density, 0.05);
     assert.equal(c.protection.beginnerHours, 10);
-    assert.equal(c.npc.growthHours, 2);
+    assert.equal(c.npc.selfBuild, true);
     assert.equal(c.domination.minAgeDays, 10);
     assert.deepEqual(c.conquest, DEFAULT_WORLD_CONFIG.conquest);
     assert.deepEqual(c.queues, DEFAULT_WORLD_CONFIG.queues);

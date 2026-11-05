@@ -11,7 +11,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { OwnVillageDto } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { SCHEMA_FINGERPRINT, SCHEMA_VERSION, schemaFingerprintInput } from '../src/db.ts';
-import { Clock, HOUR, MINUTE, TEST_WORLD, ok, trainRaiders, weakestAbandoned } from './helpers.ts';
+import { Clock, HOUR, MINUTE, TEST_WORLD, ok, trainRaiders, weakestAbandoned, TEST_WORLD_CONFIG } from './helpers.ts';
 import { newPlayer, type App, type P } from './tribe-helpers.ts';
 import { giveTroops, reports, sendOk, unprotect, units, village } from './warfare-helpers.ts';
 
@@ -24,7 +24,7 @@ async function withDir(fn: (dir: string) => Promise<void>): Promise<void> {
   }
 }
 
-const open = (dbPath: string, clock: Clock): Promise<App> => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, webDistDir: '/nonexistent' });
+const open = (dbPath: string, clock: Clock): Promise<App> => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
 
 /** Log an existing player in again on a restarted app. */
 async function relogin(app: App, p: P): Promise<P> {

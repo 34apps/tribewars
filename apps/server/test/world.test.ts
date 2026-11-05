@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.ts';
 import { loadEnv } from '../src/env.ts';
-import { Clock, PASSWORD, TEST_WORLD, Client, errorOf, makeApp, ok } from './helpers.ts';
+import { Clock, PASSWORD, TEST_WORLD, Client, errorOf, makeApp, ok, TEST_WORLD_CONFIG } from './helpers.ts';
 
 test('stored world settings win over the environment on restart; data persists', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-test-'));
@@ -14,7 +14,7 @@ test('stored world settings win over the environment on restart; data persists',
     const clock = new Clock();
     const warnings: string[] = [];
 
-    let app = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD, speed: 5 }, webDistDir: '/nonexistent' });
+    let app = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD, speed: 5 }, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
     assert.equal(app.ctx.settings.speed, 5);
     const c = new Client(app);
     ok(await c.post('/api/auth/register', { username: 'persist', password: PASSWORD }), 201);
@@ -29,7 +29,7 @@ test('stored world settings win over the environment on restart; data persists',
     await app.close();
 
     // Restart with different environment settings.
-    app = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD, speed: 50, radius: 40 }, webDistDir: '/nonexistent' });
+    app = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD, speed: 50, radius: 40 }, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
     app.log.warn = ((msg: unknown) => void warnings.push(String(msg))) as typeof app.log.warn;
     assert.equal(app.ctx.settings.speed, 5, 'stored speed wins');
     assert.equal(app.ctx.settings.radius, TEST_WORLD.radius);
@@ -52,7 +52,7 @@ test('world creation warns when the environment differs from the stored world', 
   try {
     const dbPath = join(dir, 'w.sqlite');
     const clock = new Clock();
-    const first = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD }, webDistDir: '/nonexistent' });
+    const first = await buildApp({ dbPath, now: clock.now, settings: { ...TEST_WORLD }, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
     await first.close();
 
     const { Store } = await import('../src/store.ts');

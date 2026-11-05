@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   BUILDINGS,
+  DEFAULT_WORLD_CONFIG,
+  NPC_GROWTH_ORDER,
+  NPC_MAX_LEVEL,
+  NPC_START_RESOURCE_SHARE,
+  UNITS,
   GameError,
   MAX_BUILD_QUEUE,
   MAX_TRAIN_QUEUE,
@@ -13,11 +18,18 @@ import {
   createPlayerVillage,
   populationCap,
   populationUsage,
+  storageCap,
+  buildTimeMs,
+  buildingCost,
   settleVillage,
+  setWorldConfigValue,
   trainTimeMs,
 } from '../src/index.ts';
-import type { VillageState } from '../src/index.ts';
+import type { VillageState, WorldSettings } from '../src/index.ts';
 import { HOUR, S1, S10, near, village } from './helpers.ts';
+
+/** Settings of a world whose abandoned villages do not build (npc.selfBuild off). */
+const NO_SELF_BUILD: WorldSettings = { ...S1, config: setWorldConfigValue(DEFAULT_WORLD_CONFIG, 'npc.selfBuild', false) };
 
 const expectGameError = (fn: () => unknown, code: string): void => {
   assert.throws(fn, (e: unknown) => e instanceof GameError && e.code === code);
@@ -44,7 +56,8 @@ describe('village creation', () => {
     assert.equal(v.buildings.barracks, 0);
     assert.equal(v.buildings.goldmine, 2);
     // Gold is rare: a small per-tier stock instead of half the cap.
-    assert.deepEqual(v.resources, { wood: 1466, food: 1466, iron: 1466, gold: 120 });
+    const half = Math.floor(storageCap(v) * NPC_START_RESOURCE_SHARE);
+    assert.deepEqual(v.resources, { wood: half, food: half, iron: half, gold: 120 });
     assert.equal(v.troops.pikeman, 12);
     assert.equal(v.troops.guard, 6);
     assert.equal(v.troops.raider, 0);
@@ -147,79 +160,135 @@ describe('settleVillage', () => {
   });
 
   it('troops eat no food: food grows at the farm rate while units train and with a big army', () => {
-    const v0 = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: 500, iron: 1000 } });
-    const v = applyTrain(v0, 'pikeman', 10, 0, S1); // pays 300 food; 270 s per unit
+    const foodLeft = 700; // after paying the batch
+    const v0 = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: UNITS.pikeman.cost.food * 10 + foodLeft, iron: 1000 } });
+    const v = applyTrain(v0, 'pikeman', 10, 0, S1); // pays the food; 270 s per unit
     const mid = settleVillage(v, 1_350_000, S1);
     assert.equal(mid.troops.pikeman, 5);
-    assert.ok(near(mid.resources.food, 200 + (40 * 1350) / 3600));
+    assert.ok(near(mid.resources.food, foodLeft + (40 * 1350) / 3600));
     const end = settleVillage(v, 2 * HOUR, S1);
     assert.equal(end.troops.pikeman, 10);
-    assert.ok(near(end.resources.food, 200 + 40 * 2));
+    assert.ok(near(end.resources.food, foodLeft + 40 * 2));
     const big = village({ troops: { pikeman: 200 }, away: { raider: 50 }, resources: { food: 10 } });
     assert.ok(near(settleVillage(big, 5 * HOUR, S1).resources.food, 10 + 40 * 5));
   });
 
   it('abandoned villages produce like any village', () => {
     const v = createNpcVillage(1, 0);
-    const out = settleVillage(v, HOUR / 4, { ...S1, npcGrowthHours: 1000 });
+    const out = settleVillage(v, HOUR / 4, NO_SELF_BUILD);
     // level 2 farm = round(40*1.17) = 47/h
     assert.ok(near(out.resources.food, v.resources.food + 47 / 4, 1e-6));
   });
 });
 
-describe('abandoned village growth', () => {
-  const startOf = (tier = 1): VillageState => createNpcVillage(tier, 0);
+describe('abandoned village builds from its own stock (owner 2026-11-05)', () => {
+  const startOf = (tier = 1, seed?: number): VillageState => createNpcVillage(tier, 0, seed);
+  const levels = (v: VillageState): number => Object.values(v.buildings).reduce((x, y) => x + y, 0);
+  const ORDER = [...new Set(NPC_GROWTH_ORDER)];
 
-  it('adds one step per npcGrowthHours, in growth order', () => {
-    const v = startOf();
-    assert.equal(settleVillage(v, 6 * HOUR - 1, S1).npc?.growthSteps, 0);
-    const one = settleVillage(v, 6 * HOUR, S1);
-    assert.equal(one.npc?.growthSteps, 1);
-    assert.equal(one.buildings.lumber, 3); // order: lumber, farm, mine, storehouse, hall, wall, vault
-    const three = settleVillage(v, 18 * HOUR, S1);
-    assert.deepEqual([three.buildings.lumber, three.buildings.farm, three.buildings.mine, three.buildings.storehouse], [3, 3, 3, 2]);
-    const seven = settleVillage(v, 42 * HOUR, S1);
-    assert.deepEqual(
-      [seven.buildings.storehouse, seven.buildings.hall, seven.buildings.wall, seven.buildings.vault],
-      [3, 2, 1, 1],
-    );
+  it('pays the next level from its stock and finishes it after the normal build time', () => {
+    const v0 = startOf();
+    const lvl = v0.buildings.lumber + 1;
+    const cost = buildingCost('lumber', lvl);
+    const early = settleVillage(v0, 1000, S1); // one second in: the first build is paid and queued, not finished
+    assert.equal(early.buildQueue.length, 1);
+    const job = early.buildQueue[0]!;
+    assert.deepEqual([job.building, job.targetLevel, job.startAt], ['lumber', lvl, 0]);
+    assert.equal(job.finishAt, buildTimeMs('lumber', lvl, v0.buildings.hall, S1));
+    assert.equal(early.buildings.lumber, v0.buildings.lumber);
+    assert.ok(early.resources.wood < v0.resources.wood - cost.wood + 20, 'the cost left the stock');
+    assert.ok(early.resources.wood > v0.resources.wood - cost.wood - 1);
+    const done = settleVillage(early, job.finishAt, S1);
+    assert.equal(done.buildings.lumber, lvl);
+    assert.ok(done.buildQueue.length <= 1, 'the next build may already be queued');
+    // speed divides the build time like for everyone
+    assert.equal(settleVillage(v0, 1000, S10).buildQueue[0]!.finishAt, buildTimeMs('lumber', lvl, v0.buildings.hall, S10));
   });
 
-  it('seeded villages start like a player village and grow in their own order', () => {
+  it('follows its build order, one build at a time', () => {
+    const seenJob = new Set<string>();
+    let v = startOf();
+    const seen: string[] = [];
+    for (let t = 20_000; seen.length < NPC_GROWTH_ORDER.length && t < 2000 * HOUR; t += 20_000) {
+      v = settleVillage(v, t, S1);
+      assert.ok(v.buildQueue.length <= 1, 'never more than one build queued');
+      const job = v.buildQueue[0];
+      if (job && (seen.length === 0 || job.startAt > 0) && !seenJob.has(`${job.building}${job.targetLevel}`)) {
+        seenJob.add(`${job.building}${job.targetLevel}`);
+        seen.push(job.building);
+      }
+    }
+    assert.deepEqual(seen, [...NPC_GROWTH_ORDER]);
+  });
+
+  it('a village raided empty has nothing to build with and stays small; an unraided one grows', () => {
+    const rich = startOf();
+    const raided = startOf();
+    for (const r of ['wood', 'food', 'iron', 'gold'] as const) raided.resources[r] = 0;
+    const t = 20 * HOUR; // the raided village makes about 4 + 4 + 3 ... per hour: far too little for a first level in 20 h
+    const a = settleVillage(rich, t, S1);
+    const b = settleVillage(raided, t, S1);
+    assert.ok(levels(a) > levels(rich) + 3, 'the unraided one built several levels');
+    // Raided empty again right after the first build is paid: it ends with far fewer levels.
+    assert.ok(levels(b) < levels(a));
+    // Whatever a raid takes, the village does not conjure resources: total spent <= start stock + production.
+    const emptied = { ...a, resources: { wood: 0, food: 0, iron: 0, gold: 0 }, buildQueue: [] };
+    const after = settleVillage(emptied, t + 2 * HOUR, S1);
+    assert.ok(levels(after) - levels(a) <= 1);
+  });
+
+  it('never builds without enough stock: no resource goes below zero and a build waits for the missing resource', () => {
+    const v = startOf();
+    v.resources = { wood: 0, food: 100000, iron: 100000, gold: 0 };
+    const out = settleVillage(v, 30 * HOUR, S1);
+    assert.ok(Object.values(out.resources).every((x) => x >= 0));
+    const first = out.buildQueue[0] ?? null;
+    // wood production at the time of the first build tells when it could start: never earlier
+    const woodPerHour = Math.round(30 * 1.17 ** (v.buildings.lumber - 1)); // PRODUCTION_BASE.lumber = 30 (config)
+    if (first) assert.ok(first.startAt >= (buildingCost('lumber', v.buildings.lumber + 1).wood / woodPerHour) * HOUR * 0.99);
+  });
+
+  it('settles a long downtime in one go, in time order: same result as settling in many small steps', () => {
+    for (const seed of [undefined, 5]) {
+      const v = startOf(2, seed);
+      const once = settleVillage(v, 400 * HOUR, S1);
+      let stepped = v;
+      for (let h = 7; h <= 400; h += 7) stepped = settleVillage(stepped, h * HOUR, S1);
+      stepped = settleVillage(stepped, 400 * HOUR, S1);
+      assert.deepEqual(once.buildings, stepped.buildings);
+      assert.deepEqual(once.buildQueue.map((j) => j.building), stepped.buildQueue.map((j) => j.building));
+      for (const r of ['wood', 'food', 'iron', 'gold'] as const) assert.ok(near(once.resources[r], stepped.resources[r], 1e-3 * Math.max(1, once.resources[r])));
+      assert.ok(levels(once) > levels(v) + 10, 'many builds happened in a single settle');
+    }
+  });
+
+  it('seeded villages start like a player village and build in their own order', () => {
     const player = createPlayerVillage(0);
     const a = createNpcVillage(5, 0, 1);
     assert.deepEqual(a.buildings, player.buildings);
     assert.deepEqual(a.resources, player.resources);
     assert.equal(a.npc?.growthSeed, 1);
-    const grown = (seed: number): string =>
-      JSON.stringify(settleVillage(createNpcVillage(1, 0, seed), 18 * HOUR, S1).buildings);
-    assert.equal(grown(7), grown(7));
-    const variants = new Set([1, 2, 3, 4, 5, 6, 7, 8].map(grown));
-    assert.ok(variants.size > 1);
-    const total = (v: VillageState): number => Object.values(v.buildings).reduce((x, y) => x + y, 0);
-    assert.equal(total(settleVillage(createNpcVillage(1, 0, 3), 18 * HOUR, S1)), total(createPlayerVillage(0)) + 3);
+    const firstBuild = (seed: number): string => settleVillage(createNpcVillage(1, 0, seed), 1, S1).buildQueue[0]!.building;
+    assert.equal(firstBuild(7), firstBuild(7));
+    assert.ok(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(firstBuild)).size > 1);
   });
 
-  it('steps are not repeated and speed shortens the interval', () => {
-    const v = startOf();
-    const a = settleVillage(v, 12 * HOUR, S1);
-    const b = settleVillage(a, 12 * HOUR + 1000, S1);
-    assert.equal(b.npc?.growthSteps, 2);
-    assert.deepEqual(b.buildings, a.buildings);
-    const fast = settleVillage(v, 0.6 * HOUR, S10);
-    assert.equal(fast.npc?.growthSteps, 1);
+  it('does nothing when the world switched self-building off', () => {
+    const v = startOf(3);
+    const out = settleVillage(v, 500 * HOUR, NO_SELF_BUILD);
+    assert.deepEqual(out.buildings, v.buildings);
+    assert.deepEqual(out.buildQueue, []);
   });
 
   it('never trains or regains troops (owner 2026-11-05): the starting garrison stays, what a raid kills stays dead', () => {
     const v = startOf(); // Town Hall 1: garrison 4 pikemen + 2 shieldbearers at the start
     assert.equal(v.troops.pikeman, 4);
     assert.equal(v.troops.guard, 2);
-    // Many growth steps later (and the Town Hall grows): the garrison is exactly as it was.
     const grown = settleVillage(v, 300 * HOUR, S1);
     assert.ok(grown.buildings.hall >= 2);
     assert.equal(grown.troops.pikeman, 4);
     assert.equal(grown.troops.guard, 2);
-    // A depleted garrison does not come back, however long it waits.
+    assert.deepEqual(grown.trainQueues, { barracks: [], stables: [], bannerhall: [] });
     v.troops.pikeman = 1;
     v.troops.guard = 0;
     const later = settleVillage(v, 300 * HOUR, S1);
@@ -228,30 +297,29 @@ describe('abandoned village growth', () => {
     assert.ok(later.npc && later.npc.growthSteps > 0);
   });
 
-  it('a fully grown village that lost its garrison stays empty while its buildings (and stock) still grow', () => {
-    const grown = settleVillage(startOf(5), 1000 * HOUR, S1);
-    assert.equal(grown.troops.pikeman, 20); // tier 5 start: Town Hall 5, 4 per level
-    grown.troops.pikeman = 0;
-    grown.troops.guard = 0;
-    const later = settleVillage(grown, 1012 * HOUR, S1);
-    assert.equal(later.troops.pikeman, 0);
-    assert.equal(later.troops.guard, 0);
-  });
-
-  it('stops at the max level and is cheap even when thousands of steps are overdue', () => {
+  it('stops at the max level and is cheap even after an absurdly long downtime', () => {
     const v = startOf(5);
     const start = performance.now();
     const out = settleVillage(v, 1e6 * HOUR, S1);
     assert.ok(performance.now() - start < 200);
-    for (const b of ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'] as const) {
-      assert.equal(out.buildings[b], 10);
-    }
+    for (const b of ORDER) assert.equal(out.buildings[b], Math.max(NPC_MAX_LEVEL, startOf(5).buildings[b]));
     assert.equal(out.troops.pikeman, 20); // the start garrison of tier 5 (Town Hall 5): no growth, no refill
     assert.equal(out.troops.guard, 10);
-    assert.equal(out.npc?.growthSteps, Math.floor((1e6 * HOUR) / (6 * HOUR)));
-    // Nothing else grows once everything is maxed.
+    assert.equal(out.buildQueue.length, 0);
+    // Buildings outside the order never grow.
     assert.equal(out.buildings.barracks, 0);
     assert.equal(out.buildings.stables, 0);
+  });
+
+  it('a state saved with the old growth timer (growthSteps, createdAt long ago, empty queue) just carries on from its pointer', () => {
+    const old = startOf(2);
+    old.npc = { tier: 2, growthSteps: 3, createdAt: -90 * 24 * HOUR }; // pointer 3 -> the 4th entry of the order
+    old.lastUpdate = 0;
+    const out = settleVillage(old, 1000, S1);
+    assert.equal(out.buildQueue[0]?.building, NPC_GROWTH_ORDER[3]);
+    const later = settleVillage(old, 200 * HOUR, S1);
+    assert.ok(levels(later) > levels(old) + 5);
+    assert.equal(later.troops.pikeman, old.troops.pikeman);
   });
 });
 
@@ -366,11 +434,11 @@ describe('checkTrain / applyTrain', () => {
     const c = checkTrain(v, 'pikeman', 4, 0, S1);
     assert.ok(c.ok);
     if (c.ok) {
-      assert.deepEqual(c.cost, { wood: 140, food: 120, iron: 160, gold: 0 });
+      assert.deepEqual(c.cost, { wood: UNITS.pikeman.cost.wood * 4, food: UNITS.pikeman.cost.food * 4, iron: UNITS.pikeman.cost.iron * 4, gold: 0 });
       assert.equal(c.perUnitMs, 270_000);
     }
     const out = applyTrain(v, 'pikeman', 4, 0, S1);
-    assert.equal(out.resources.wood, 4860);
+    assert.equal(out.resources.wood, 5000 - UNITS.pikeman.cost.wood * 4);
     assert.deepEqual(out.trainQueues.barracks, [{ unit: 'pikeman', count: 4, done: 0, perUnitMs: 270_000, startAt: 0 }]);
   });
 
@@ -398,7 +466,7 @@ describe('checkTrain / applyTrain', () => {
     const c = checkTrain(v, 'pathfinder', 4, 0, S1);
     assert.ok(c.ok);
     if (c.ok) {
-      assert.deepEqual(c.cost, { wood: 80, food: 120, iron: 160, gold: 0 });
+      assert.deepEqual(c.cost, { wood: UNITS.pathfinder.cost.wood * 4, food: UNITS.pathfinder.cost.food * 4, iron: UNITS.pathfinder.cost.iron * 4, gold: 0 });
       assert.equal(c.perUnitMs, 169_200); // 180 s * 0.94 at barracks level 2
       assert.equal(c.perUnitMs, trainTimeMs('pathfinder', v, S1));
     }
@@ -407,7 +475,7 @@ describe('checkTrain / applyTrain', () => {
     const queued = applyTrain(v, 'pathfinder', 4, 0, S1);
     assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 169_200, startAt: 0 }]);
     assert.deepEqual(queued.trainQueues.stables, []);
-    assert.equal(queued.resources.wood, 4920);
+    assert.equal(queued.resources.wood, 5000 - UNITS.pathfinder.cost.wood * 4);
     assert.equal(settleVillage(queued, 70_499, S1).troops.pathfinder, 0);
     assert.equal(settleVillage(queued, 169_200, S1).troops.pathfinder, 1);
     assert.equal(settleVillage(queued, 4 * 169_200, S1).troops.pathfinder, 4);

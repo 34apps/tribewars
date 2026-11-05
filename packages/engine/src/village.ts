@@ -8,7 +8,7 @@ import {
   MAX_TRAIN_BATCH,
   NPC_GARRISON_PER_HALL,
   NPC_GROWTH_ORDER,
-  NPC_MAX_STEPS_PER_SETTLE,
+  NPC_MAX_BUILDS_PER_SETTLE,
   NPC_START_LEVELS,
   NPC_TIER_WEIGHTS,
   POP_PER_UNIT,
@@ -149,38 +149,63 @@ function growthOrder(seed: number | undefined): readonly BuildingId[] {
   return out;
 }
 
+/**
+ * The next building an abandoned village saves up for (owner 2026-11-05: it builds like a player, from its OWN stock): the first
+ * building from its build pointer on that is not at its top level, whose next level fits in the storehouse and whose missing
+ * resources it produces at all. Returns it with the cost and the ms after `v.resources` (the stock at the planning time) until the stock
+ * covers the cost at the current production, or null when nothing is left to build. Pure; the village keeps no troops, so population
+ * and prerequisites are not checked.
+ */
+function npcNextBuild(
+  v: VillageState,
+  s: WorldSettings,
+): { building: BuildingId; targetLevel: number; cost: Resources; waitMs: number; skipped: number } | null {
+  const order = growthOrder(v.npc?.growthSeed);
+  const top = worldRules(s).npc.maxLevel;
+  const rate = productionFromLevels(v.buildings, s.speed);
+  const cap = storageCapForLevel(v.buildings.storehouse);
+  const keep = Math.max(0, Math.min(0.9, worldRules(s).npc.keepShare)) * cap;
+  const start = v.npc?.growthSteps ?? 0;
+  for (let k = 0; k < order.length; k++) {
+    const b = order[(start + k) % order.length] as BuildingId;
+    if (v.buildings[b] >= Math.min(top, BUILDINGS[b].maxLevel)) continue;
+    const targetLevel = v.buildings[b] + 1;
+    const cost = buildingCost(b, targetLevel);
+    let waitMs = 0;
+    let possible = true;
+    for (const r of RESOURCE_IDS) {
+      if (cost[r] <= 0) continue;
+      if (cost[r] + keep > cap) possible = false;
+      const missing = cost[r] + keep - v.resources[r];
+      if (missing <= 0) continue;
+      if (!(rate[r] > 0)) possible = false;
+      else waitMs = Math.max(waitMs, Math.ceil((missing / rate[r]) * MS_PER_HOUR));
+    }
+    if (possible) return { building: b, targetLevel, cost, waitMs, skipped: k };
+  }
+  return null;
+}
+
 // ---- Settlement ---------------------------------------------------------------------------------
 
 /**
- * One abandoned-village growth step n: raise one building. Only buildings grow; the garrison never refills or grows
- * (owner, 2026-11-05). Returns whether anything changed.
- */
-function applyNpcStep(v: VillageState, n: number, maxLevel: number): boolean {
-  const order = growthOrder(v.npc?.growthSeed);
-  for (let k = 0; k < order.length; k++) {
-    const b = order[(n + k) % order.length] as BuildingId;
-    if (v.buildings[b] < Math.min(maxLevel, BUILDINGS[b].maxLevel)) {
-      v.buildings[b] += 1;
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Bring a village up to time `t`: production (with level changes at build completions), finished
- * training units and abandoned-village growth. Returns a new state; O(jobs + steps).
+ * training units and the building of an abandoned village. Returns a new state; O(jobs).
+ *
+ * An abandoned village builds like a player (owner 2026-11-05): with its build queue empty it waits until its own stock pays the next
+ * level of the next building in its order (`npcNextBuild`), spends it, and the level completes after the normal build time. All of it
+ * is computed here from timestamps, in time order, however long the village was not settled.
  */
 export function settleVillage(state: VillageState, t: number, s: WorldSettings): VillageState {
   const v = cloneVillage(state);
   if (!Number.isFinite(t) || t <= v.lastUpdate) return v;
 
   let cur = v.lastUpdate;
-  // While the hearth is out (hearth.ts) the village produces nothing and eats nothing, and an abandoned village's growth
-  // clock stands still. Build jobs and training batches that were already queued carry on (docs/GAME_DESIGN.md 18.2).
+  // While the hearth is out (hearth.ts) the village produces nothing and eats nothing, and an abandoned village starts no new build.
+  // Build jobs and training batches that were already queued carry on (docs/GAME_DESIGN.md 18.2).
   // The caller settles to the exact event time before it puts the hearth out or relights it.
   const frozen = v.hearth !== undefined;
-  if (frozen && v.npc) v.npc.createdAt += t - v.lastUpdate;
+  const selfBuild = v.npc !== undefined && !frozen && worldRules(s).npc.selfBuild;
 
   const advance = (to: number): void => {
     if (!(to > cur)) return;
@@ -195,30 +220,27 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
     cur = to;
   };
 
-  // 1. Build jobs that finish by t, in order: production at the old rates up to finishAt, then the new level.
+  // 1. Build jobs that finish by t, in order: production at the old rates up to finishAt, then the new level. An abandoned village
+  //    with an empty queue first saves up for its next build (production at the current levels), pays and queues it.
+  let starts = 0;
   for (;;) {
     const job = v.buildQueue[0];
-    if (!job || job.finishAt > t) break;
-    v.buildQueue.shift();
-    advance(job.finishAt);
-    v.buildings[job.building] = Math.max(v.buildings[job.building], job.targetLevel);
-  }
-
-  // 2. Abandoned-village growth steps (older steps beyond the per-settle cap are skipped).
-  if (v.npc && !frozen) {
-    const stepMs = (s.npcGrowthHours * MS_PER_HOUR) / s.speed;
-    if (stepMs > 0) {
-      const due = Math.floor((t - v.npc.createdAt) / stepMs);
-      if (due > v.npc.growthSteps) {
-        const first = Math.max(v.npc.growthSteps, due - NPC_MAX_STEPS_PER_SETTLE);
-        for (let n = first; n < due; n++) {
-          advance(Math.min(t, v.npc.createdAt + (n + 1) * stepMs));
-          // A step that changes nothing means the village is fully grown: every later step is a no-op too.
-          if (!applyNpcStep(v, n, worldRules(s).npc.maxLevel)) break;
-        }
-        v.npc.growthSteps = due;
-      }
+    if (job) {
+      if (job.finishAt > t) break;
+      v.buildQueue.shift();
+      advance(job.finishAt);
+      v.buildings[job.building] = Math.max(v.buildings[job.building], job.targetLevel);
+      continue;
     }
+    if (!selfBuild || v.npc === undefined || starts++ >= NPC_MAX_BUILDS_PER_SETTLE) break;
+    const next = npcNextBuild(v, s);
+    if (!next) break;
+    const startAt = cur + next.waitMs;
+    if (startAt > t) break; // not affordable yet: the stock just keeps growing until t
+    advance(startAt);
+    for (const r of RESOURCE_IDS) v.resources[r] = Math.max(0, v.resources[r] - next.cost[r]);
+    v.npc.growthSteps += next.skipped + 1;
+    v.buildQueue.push({ building: next.building, targetLevel: next.targetLevel, startAt, finishAt: startAt + buildTimeMs(next.building, next.targetLevel, v.buildings.hall, s) });
   }
 
   advance(t);

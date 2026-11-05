@@ -21,10 +21,10 @@ afterEach(async () => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-const WORLD_SETTINGS = { seed: 4242, speed: 10, radius: 12, npcDensity: 0.04, npcGrowthHours: 1000 };
+const WORLD_SETTINGS = { seed: 4242, speed: 10, radius: 12, npcDensity: 0.04 };
 
 async function world(dbPath: string, id: string, now: () => number, lobbyPublicKey?: string): Promise<FastifyInstance> {
-  const app = await buildWorld({ dbPath, now, settings: WORLD_SETTINGS, webDistDir: '/nonexistent/web/dist', secureCookies: false, worldId: id, worldName: `World ${id}`, lobbyPublicKey });
+  const app = await buildWorld({ dbPath, now, settings: WORLD_SETTINGS, worldConfig: { npc: { selfBuild: false } }, webDistDir: '/nonexistent/web/dist', secureCookies: false, worldId: id, worldName: `World ${id}`, lobbyPublicKey });
   apps.push(app);
   return app;
 }

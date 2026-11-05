@@ -115,8 +115,6 @@ export interface WorldSettings {
   npcDensity: number;
   /** New player villages can't be attacked for this many hours (divided by speed). */
   protectionHours: number;
-  /** Abandoned villages grow one step every this many hours (divided by speed). */
-  npcGrowthHours: number;
   /**
    * 'scattered' (default): abandoned villages everywhere at world creation, players land anywhere.
    * 'expanding': a populated disc grows from the centre; each new player lands at its edge and brings
@@ -130,7 +128,7 @@ export interface WorldSettings {
   domination?: Partial<DominationSettings>;
   /**
    * The world's complete rules (world-config.ts): set by the server from the stored per-world config. The flat fields above
-   * (speed, npcDensity, protectionHours, npcGrowthHours, domination) always equal the matching config values. Absent in tests
+   * (speed, npcDensity, protectionHours, domination) always equal the matching config values. Absent in tests
    * and old callers: `worldRules(settings)` then returns the defaults.
    */
   config?: import('./world-config.ts').WorldConfig;
@@ -173,9 +171,12 @@ export interface TrainJob {
 export interface NpcInfo {
   /** 1 (weak) .. 5 (strong); sets starting levels and garrison size. */
   tier: number;
-  /** Growth steps already applied (see GAME_DESIGN.md "Abandoned villages"). */
+  /**
+   * Build pointer: how far along its build order the village is (one per building it started, plus the ones it skipped). Named
+   * growthSteps since the timer era; states saved then keep working (the pointer just carries on). See GAME_DESIGN.md section 8.
+   */
   growthSteps: number;
-  /** Growth clock origin. */
+  /** When the village became abandoned (informational; it no longer drives growth). */
   createdAt: number;
   /** Seed of this village's own growth order ('expanding' layout); absent = the fixed NPC_GROWTH_ORDER. */
   growthSeed?: number;

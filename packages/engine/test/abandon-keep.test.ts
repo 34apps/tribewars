@@ -77,7 +77,8 @@ describe('abandonVillageKeepBuildings', () => {
   it('afterwards it is a normal abandoned village: grows, can be raided and struck', () => {
     const a = abandonVillageKeepBuildings(built(8), NOW, S1, 11);
     const later = settleVillage(a, NOW + 6 * HOUR, S1);
-    assert.equal(later.npc?.growthSteps, 1);
+    assert.ok((later.npc?.growthSteps ?? 0) >= 1, 'it started building from its own stock');
+    assert.equal(later.buildQueue.length + Object.values(later.buildings).reduce((x, y) => x + y, 0) > Object.values(a.buildings).reduce((x, y) => x + y, 0), true);
     const battle = resolveBattle({ attackerUnits: units({ raider: 500, chieftain: 1 }), defender: a, seed: 1 });
     assert.equal(battle.attackerWon, true);
     assert.ok(checkStrike(battle, battle.attackerSurvivors, { abandoned: true, points: villagePoints(a), now: NOW }).ok);

@@ -3,7 +3,7 @@
 // `worldRules(settings)`, published read-only at GET /api/world/config. Pure: no I/O. The server stores it and the admin tool edits it.
 //
 // How it reaches the rules: the server builds `WorldSettings` with `applyWorldConfig`, which sets the flat fields the engine always
-// read (speed, npcDensity, protectionHours, npcGrowthHours, domination) AND `settings.config` (the complete object). Engine code
+// read (speed, npcDensity, protectionHours, domination) AND `settings.config` (the complete object). Engine code
 // reads the flat fields where they exist and `worldRules(s)` for everything else. `WorldSettings` built by hand without `config`
 // (tests, simulator) get the defaults, so nothing changes for them.
 
@@ -19,6 +19,7 @@ import {
   MAX_BUILD_QUEUE,
   MAX_RESEARCH_QUEUE,
   MAX_TRAIN_QUEUE,
+  NPC_BUILD_KEEP_SHARE,
   NPC_MAX_LEVEL,
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
@@ -57,8 +58,10 @@ export interface WorldConfig {
   npc: {
     /** Abandoned villages per map tile at world creation (changing it later has no effect on a world that exists). */
     density: number;
-    /** Hours at speed 1 per growth step. */
-    growthHours: number;
+    /** Abandoned villages build themselves up from their own stock (owner 2026-11-05). Off: they stay as created (tests, special worlds). */
+    selfBuild: boolean;
+    /** Share (0..0.9) of the storage cap an abandoned village keeps unspent of each resource it builds with (its reserve). */
+    keepShare: number;
     /** Highest level an abandoned village builds to. */
     maxLevel: number;
     /** Share (0..1) of the storage cap that wood, food and iron start at. */
@@ -113,7 +116,8 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   protection: { beginnerHours: DEFAULT_WORLD.protectionHours, foundHours: FOUND_PROTECTION_HOURS, restartHours: RESTART_PROTECTION_HOURS },
   npc: {
     density: DEFAULT_WORLD.npcDensity,
-    growthHours: DEFAULT_WORLD.npcGrowthHours,
+    selfBuild: true,
+    keepShare: NPC_BUILD_KEEP_SHARE,
     maxLevel: NPC_MAX_LEVEL,
     startStockShare: NPC_START_RESOURCE_SHARE,
     startGoldPerTier: NPC_START_GOLD_PER_TIER,
@@ -173,7 +177,8 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   num('protection.foundHours', 'protection', 'Protection of a founded village', 'hours', 0, 720, false, 'A village you found cannot be attacked for this long.'),
   num('protection.restartHours', 'protection', 'Protection after a restart', 'hours', 0, 720, false, 'Protection of the new village of a player who lost their last one.'),
   num('npc.density', 'npc', 'Abandoned-village density', 'share', 0, 0.2, false, 'Abandoned villages per map tile when the world was created.'),
-  num('npc.growthHours', 'npc', 'Abandoned-village growth step', 'hours', 0.1, 720, false, 'An abandoned village grows one step this often.'),
+  flag('npc.selfBuild', 'Abandoned villages build', 'They spend their own resources on new building levels, so a village raided empty stays small.', 'npc'),
+  num('npc.keepShare', 'npc', 'Abandoned-village reserve', 'share', 0, 0.9, false, 'The share of its storage an abandoned village keeps unspent when it builds, so it always has something to lose to raiders.'),
   num('npc.maxLevel', 'npc', 'Abandoned-village top level', 'level', 1, 30, true, 'The highest building level abandoned villages grow to.'),
   num('npc.startStockShare', 'npc', 'Abandoned-village start stock', 'share', 0, 1, false, 'Share of the storage cap that wood, food and iron start at.'),
   num('npc.startGoldPerTier', 'npc', 'Abandoned-village start gold', 'count', 0, 10_000, true, 'Gold per tier at the start.'),
@@ -304,7 +309,6 @@ export function worldConfigFromSettings(s: Partial<WorldSettings>): WorldConfig 
   if (typeof s.speed === 'number') c.pace.speed = s.speed;
   if (typeof s.npcDensity === 'number') c.npc.density = s.npcDensity;
   if (typeof s.protectionHours === 'number') c.protection.beginnerHours = s.protectionHours;
-  if (typeof s.npcGrowthHours === 'number') c.npc.growthHours = s.npcGrowthHours;
   c.domination = mergeDominationSettings(s.domination);
   return c;
 }
@@ -316,7 +320,6 @@ export function applyWorldConfig(settings: WorldSettings, config: WorldConfig): 
     speed: config.pace.speed,
     npcDensity: config.npc.density,
     protectionHours: config.protection.beginnerHours,
-    npcGrowthHours: config.npc.growthHours,
     domination: { ...config.domination },
     config,
   };
