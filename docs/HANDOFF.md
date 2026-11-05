@@ -5,9 +5,9 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`99c3ba8`): **siege units** (Log Ram lowers the Wall, Boulder Sling lowers a picked building; Barracks 5/8 + Drillyard research; only after a won battle, from survivors; floors 0 / Town Hall 1; `GAME_DESIGN.md` §18.9, engine `siege.ts`, `movements.siege_target` schema v6, `SendRequest.targetBuilding` checked for form only, siege in battle reports, web picker (names only), `npm run sim -- --siege`, `BALANCE.md` §8). Checks passed (check, build, build:preview).
-Left: nothing viewed in a browser (picker, report lines, icons, 360/1440 px); owner to judge siege balance (weak spot: Boulder Slings on Banner Hall/Drillyard; Log Ram maybe too costly; levers in `NEXT_STEPS.md`); step 2 items (pace, screens) still open.
-Very next step: owner looks at the new screens; then step 3 (rest hours) and step 4 (taking player villages).
+2026-11-05 (`71afea4`): rest hours DROPPED by the owner (docs only); test mode: Max grants Renown for 3 villages, Warp covers returns; UI fixes (top bar, map panel, legend, profile sheet, small items), reasoned from CSS, NOT viewed in a browser. Raid Renown verified OK (paid at battle time). Checks passed (check, build, build:preview).
+Left: owner views 360/1440 px (top bar, map side panel sticky/scroll, map key on a phone, profile sheet); siege balance questions; flaky `found-village.test.ts` "nobody else can act..." (failed once).
+Very next step: step 4, taking player villages (`HEARTH_PLAYERS_ENABLED`, alerts, pair cap).
 Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, and the empty `scripts/sim/_debug.ts` (stage with explicit paths, not `git add -A`).
 
