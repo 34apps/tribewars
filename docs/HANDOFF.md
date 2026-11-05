@@ -5,10 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`f0b3e97`): **owner conquest changes built**: Renown base 1,000, hold 8 h / 2 h, no pair cap, Chieftain chain (`strike_chain`, 2 h window), cold village builds only the Wall, defender Renown cap 22 -> 36 (my addition). Sim in `BALANCE.md` 7.8: balanced day 19.8, builder 27.5, defender 35.9, **pure raider 13.9 (target 21-28 missed: full-loot rule; owner decides)**. Earlier uncommitted work of a previous run (no upkeep, full loot, siege during battle, notifications) was committed first as `2af2d99`. Checks passed (check, build, build:preview; engine 453, lobby 87, server 470, web 98).
-Left: raider pace decision; owner browser check (Wall-only build list, strike hint, step 5 screens); no UI for chain progress; hold 8 h is tight for foot support beyond ~20-30 tiles.
-Very next step: owner decides raider pace and judges the 8 h hold; then step 6 (badges) or 7 (tribe projects).
-Notes: Bash is an allow list. `npm test -w <pkg>` runs the whole workspace. Never end a run while agents work in the background: use foreground agents. Delete the empty `scripts/sim/_debug.ts` (runner cannot).
+2026-11-05 (`5dda6e2`): **per-world settings built**: `WorldConfig` (engine `world-config.ts`, `GAME_DESIGN` §19, `MULTI_WORLD` "Per-world rules"): stored at world creation, old worlds fall back in memory (no write), public `GET /api/world/config`, operator CLI `config` / `config-set` / `world-open` (all editable until open; after that only `domination.*`, `tribe.maxMembers`, `features.scavenging/paidSpeedups`, audit-logged), engine/server/web read it, new World rules page (`#rules`). morale/scavenging/paidSpeedups are flags only. Checks passed (check, build, build:preview; engine 485, lobby 87, server 498, web 115). `docs/GENRE_COMPARISON.md` pushed too.
+Left: World rules page not viewed in a browser (360/1440 px); many numbers (units, buildings, NPC production) are still constants; raider pace decision from the previous run is still open (`BALANCE.md` 7.8); no chain-progress UI.
+Very next step: owner looks at the World rules page; then balance pass (`GENRE_COMPARISON` §3) with numbers into the per-world defaults, or step 6/7.
+Notes: Bash is an allow list; subagents get NO npm access here (the main session runs `npm run check | tail`, `npm test -w <pkg>`, `npm run build`, `npm run build:preview`; no loops, python or cat >>: use Edit/Write). Never end a run while agents work in the background. Delete the empty `scripts/sim/_debug.ts` (runner cannot).
 Owner files left uncommitted on purpose: `.claude/launch.json`, `Pasted ... textClipping`, `scripts/sim/_debug.ts` (stage with pathspec excludes).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
