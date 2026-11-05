@@ -5,10 +5,10 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`8d5391f`): two scripted-check bugs. Max now also fits food upkeep (room for 3 Chieftains; test: Max then train 2). 0 Renown from abandoned raids: cause was `RenownService.mayEarn` refusing sandbox accounts (not the size factor, which was already exempt); sandbox accounts now earn from abandoned villages only. Checks passed (check, build).
-Left: owner re-checks 360/1440 px (top bar, map scroll; never viewed in a browser); flaky `found-village.test.ts`.
-Very next step: step 4, taking player villages (`HEARTH_PLAYERS_ENABLED`, alerts, pair cap).
-Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
+2026-11-05 (`2b5ace7`): **step 4 built, taking player villages** (on by default). New: pair cap 2 per 7 days (`conquests` table, schema v7), relief attack ("Win it back": owner/tribe-mate/ally fight only the occupiers), cold village cannot build, tribe alert list `holds` + live hints, web Alerts rows/relief button, sim `npm run sim -- --conquest` (biggest <= 1.84x second on 5 seeds, `BALANCE.md` 7.6). Checks passed (check, build, build:preview; engine 417, lobby 82, server 409, web 58).
+Left: owner looks at 360/1440 px (Alerts rows, "Win it back", hold card, strike hints; never viewed in a browser); relief pays no Renown; no alert for the owner tribe's allies; flaky `found-village.test.ts`.
+Very next step: step 5 (Sites, Fire Shrines, season clock/score, `GAME_DESIGN.md` 18.4b + 18.1) once the owner has judged step 4.
+Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects, no `npm run sim:conquest`; use `npm run sim -- --conquest`). `npm test -w <pkg>` runs the whole workspace; to read failures without the 40 KB cut-off edit the package `test` script temporarily (e.g. `--test-reporter=dot`) and restore it. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, and the empty `scripts/sim/_debug.ts` (stage with explicit paths, not `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
@@ -42,7 +42,7 @@ Stray `Pasted ... textClipping` file in the repo root is the owner's; don't comm
 - Style **D · Toy Diorama** everywhere (village tried style B on 2026-11-04, owner went back to toy): village view (town square + campfire centre, Drillyard on its
   own plot), isometric map with 6 growth stages + ruins, chieftains. Sprites in `design/sprites/`.
 - Ask Mags AI advisor is off (owner: no credit spend) unless `ADVISOR_ENABLED=true`.
-- Tests: engine 297, lobby 82, server 350, web 31, all green. Not deployed; no CI.
+- Tests: engine 417, lobby 82, server 409, web 58, all green. Not deployed; no CI.
 
 ## Owner decisions (don't re-ask)
 
