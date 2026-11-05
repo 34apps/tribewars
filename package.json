@@ -27,6 +27,7 @@
     "check": "npm run type-check && npm test",
     "agent": "tsx scripts/agent/run.ts",
     "sim": "tsx scripts/sim/balance.ts",
+    "sim:conquest": "tsx scripts/sim/conquest.ts",
     "backup": "npm run backup -w @clanfire/server"
   },
   "devDependencies": {

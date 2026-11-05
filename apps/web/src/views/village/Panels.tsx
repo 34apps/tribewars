@@ -29,6 +29,7 @@ import { formatClock, formatCompact, formatDuration, formatInt, formatRate } fro
 import { useGame } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
+import { HEARTH_OUT_REASON } from '../../villages.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { BannerHallPanel } from './BannerHall.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
@@ -60,7 +61,7 @@ export function BuildingPanel({
   headingId: string;
   onPick?: (id: BuildingId) => void;
 }) {
-  const { live, now, settings, navigate } = useGame();
+  const { live, now, settings, navigate, village } = useGame();
   const def = BUILDINGS[id];
   const level = live.buildings[id];
   const jobs = live.buildQueue.filter((j) => j.building === id);
@@ -84,7 +85,8 @@ export function BuildingPanel({
   else if (level === 0) status = 'Not built yet · empty plot';
   else status = `Level ${level} of ${def.maxLevel}`;
 
-  const reason = atMax ? 'Max level' : !check.ok ? reasonText(check, unmet) : null;
+  // A cold village (hearth out) builds nothing new; the server refuses too.
+  const reason = atMax ? 'Max level' : village.hearth ? HEARTH_OUT_REASON : !check.ok ? reasonText(check, unmet) : null;
   let affordHint: string | null = null;
   if (!check.ok && check.reason === 'not_enough_resources' && cost) {
     const wait = timeToAfford(live.resources, net, cost, cap);
@@ -218,7 +220,7 @@ function HallBuildings({
   onBuild: (id: BuildingId) => void;
   onPick?: (id: BuildingId) => void;
 }) {
-  const { live, now, settings } = useGame();
+  const { live, now, settings, village } = useGame();
   const limit = MAX_BUILD_QUEUE;
   const pop = populationUsage(live);
   const ids = BUILDING_IDS.filter((b) => b !== 'hall');
@@ -234,7 +236,7 @@ function HallBuildings({
     const atMax = target > def.maxLevel;
     const unmet = unmetRequirements(live.buildings, def.requires);
     const check = checkBuild(live, b, now, settings, limit);
-    const reason = atMax ? 'Max level' : !check.ok ? reasonText(check, unmet) : null;
+    const reason = atMax ? 'Max level' : village.hearth ? HEARTH_OUT_REASON : !check.ok ? reasonText(check, unmet) : null;
     const cost = atMax ? null : check.ok ? check.cost : buildingCost(b, target);
     const timeMs = atMax ? null : check.ok ? check.timeMs : buildTimeMs(b, target, live.buildings.hall, settings);
     const popCost = atMax ? 0 : buildingPop(b, target) - buildingPop(b, target - 1);

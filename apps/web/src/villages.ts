@@ -8,6 +8,7 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
+  HOLD_HOURS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
@@ -49,6 +50,17 @@ export function holdText(h: HearthInfoDto, now: number, mine = false): string {
 export function occupierGap(h: HearthInfoDto, population: number | undefined): { have: number; need: number; enough: boolean } | null {
   if (population === undefined) return null;
   return { have: population, need: h.minPopulation, enough: population >= h.minPopulation };
+}
+
+/** Tribe alerts: held villages first by the soonest change of owner (paused clocks last, by time left once they run). */
+export function sortHolds<T extends { hearth: HearthInfoDto }>(holds: readonly T[]): T[] {
+  const key = (h: HearthInfoDto): number => (h.running && h.endsAt !== null ? h.endsAt : Number.MAX_SAFE_INTEGER);
+  return [...holds].sort((a, b) => key(a.hearth) - key(b.hearth) || a.hearth.holdMsLeft - b.hearth.holdMsLeft);
+}
+
+/** The badge on the Alerts section: attacks on their way plus held villages. */
+export function alertCount(alerts: readonly unknown[] | null, holds: readonly unknown[]): number {
+  return (alerts?.length ?? 0) + holds.length;
 }
 
 /** Population of my occupiers standing in the village `villageId` (from the stationed list of my troops abroad). */
@@ -144,17 +156,46 @@ export interface MissionContext {
  */
 export function missionsFor(target: MapVillageDto | null, ctx: MissionContext): Mission[] {
   if (target === null) return ['found'];
-  if (target.kind === 'own') return target.id === ctx.currentVillageId ? [] : ['support'];
+  const relief = isReliefTarget(target, ctx);
+  if (target.kind === 'own') return target.id === ctx.currentVillageId ? [] : relief ? ['support', 'attack'] : ['support'];
   if (target.hearth && target.hearth.claimById === ctx.playerId) return ['occupy', 'scout'];
-  return allowedMissions(target.kind, target.relation);
+  const base = allowedMissions(target.kind, target.relation);
+  // A relief attack goes next to Support on a cold tribe-mate's or ally's village (the attack mission there fights only the occupiers).
+  return relief && !base.includes('attack') ? [...base, 'attack'] : base;
 }
 
-export type SendMode = 'attack' | 'strike' | 'scout' | 'support' | 'found' | 'occupy';
+/**
+ * A cold village (hearth out) I can fight for: another village of mine, or a tribe-mate's or ally's village, as long as I am
+ * not the one holding it. The 'attack' mission there is a relief attack (the server refuses loot, Wall, Chieftains and siege;
+ * it also refuses senders tied to the claimant, which only it can tell).
+ */
+export function isReliefTarget(target: MapVillageDto | null, ctx: MissionContext): boolean {
+  const h = target?.hearth;
+  if (!target || !h || h.claimById === ctx.playerId) return false;
+  if (target.kind === 'own') return target.id !== ctx.currentVillageId;
+  return target.kind === 'player' && (target.relation === 'tribe' || target.relation === 'ally');
+}
 
-/** What the send dialog calls this send: an attack with Chieftains on an abandoned village is a Strike. */
-export function sendMode(mission: Mission, chosen: Partial<Units>, targetKind: MapVillageDto['kind'] | null): SendMode {
-  if (mission === 'attack' && normalizeUnits(chosen).chieftain > 0 && targetKind === 'abandoned') return 'strike';
+export type SendMode = 'attack' | 'strike' | 'scout' | 'support' | 'found' | 'occupy' | 'relieve';
+
+/** Label of the relief attack in the mission switch and the dialog title (the confirm button says Relieve). */
+export const RELIEF_LABEL = 'Win it back';
+
+/** Villages a Strike can be aimed at: abandoned ones and other players' villages (never tribe-mates or allies: no attack mission there). */
+export function canStrike(targetKind: MapVillageDto['kind'] | null): boolean {
+  return targetKind === 'abandoned' || targetKind === 'player';
+}
+
+/** What the send dialog calls this send: an attack with Chieftains on an abandoned or a player's village is a Strike. */
+export function sendMode(mission: Mission, chosen: Partial<Units>, targetKind: MapVillageDto['kind'] | null, relief = false): SendMode {
+  if (mission === 'attack' && relief) return 'relieve';
+  if (mission === 'attack' && normalizeUnits(chosen).chieftain > 0 && canStrike(targetKind)) return 'strike';
   return mission;
+}
+
+/** Chieftains a Strike on this village needs (abandoned: one; a player's village: more as it grows). */
+export function strikeNeed(targetKind: MapVillageDto['kind'] | null, points: number): number {
+  return chieftainsNeeded(targetKind !== 'player', points);
 }
 
 export const SEND_MODE_BUTTON: Record<SendMode, string> = {
@@ -164,6 +205,7 @@ export const SEND_MODE_BUTTON: Record<SendMode, string> = {
   support: 'Send support',
   found: 'Found a village here',
   occupy: 'Occupy',
+  relieve: 'Relieve',
 };
 
 export const SEND_MODE_SENT: Record<SendMode, string> = {
@@ -173,13 +215,22 @@ export const SEND_MODE_SENT: Record<SendMode, string> = {
   support: 'Support sent to',
   found: 'Chieftain sent to',
   occupy: 'Occupiers sent to',
+  relieve: 'Relief sent to',
 };
 
 export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
   strike: `A Strike is an attack that tries to put the hearth out. No loot. If your army wins and at least one Chieftain lives, your survivors stay as occupiers and the hold clock starts. A Chieftain fights badly: bring an escort.`,
   found: 'One Chieftain carries an ember from your hearth to this free land. Anything else you send is his escort and becomes the new village\'s garrison.',
   occupy: 'Reinforce the village you are holding. The hold clock only runs while your occupiers number enough.',
+  relieve: 'Fights only the occupiers holding this village. No loot. If they all fall the hearth relights.',
 };
+
+/** The Strike hint for the send dialog; a player's village adds the hold length, who is safe and the escort advice. */
+export function strikeHint(targetKind: MapVillageDto['kind'] | null): string {
+  const base = SEND_MODE_HINT.strike ?? '';
+  if (targetKind !== 'player') return base;
+  return `${base} A player's village changes owner after a ${HOLD_HOURS}-hour hold if the occupiers stay strong enough. Tribe-mates and allies cannot be struck. Its owner can fight back, so bring a strong escort.`;
+}
 
 /** A reason the Strike cannot work as chosen, or null. Not blocking in the engine (a lone Chieftain just dies), but we say so. */
 export function strikeWarning(chosen: Partial<Units>, abandoned = true, points = 0): string | null {
@@ -190,6 +241,7 @@ export function strikeWarning(chosen: Partial<Units>, abandoned = true, points =
   let escort = 0;
   for (const u of UNIT_IDS) if (u !== 'chieftain') escort += army[u] * UNITS[u].attack;
   if (escort <= 0) return 'No escort: a Chieftain alone will die and the hearth stays lit.';
+  if (!abandoned) return 'A player defends this village: a weak escort loses the fight and the Chieftains die with it.';
   return null;
 }
 
@@ -210,6 +262,8 @@ export function selectableUnits(mode: SendMode, atHome: Units): Array<(typeof UN
   // Siege units stay in the list at 0 (so the player sees they exist) once there is any other army to send with them.
   const anyOther = UNIT_IDS.some((u) => !UNITS[u].siege && home[u] > 0);
   return UNIT_IDS.filter((u) => {
+    // A relief attack fights the occupiers only: no Chieftains, no siege units (the server refuses them).
+    if (mode === 'relieve') return home[u] > 0 && u !== 'chieftain' && !UNITS[u].siege;
     if (UNITS[u].siege && attacks && anyOther) return true;
     if (home[u] <= 0) return false;
     if (UNITS[u].siege && !attacks) return false;
@@ -263,7 +317,11 @@ const REASON_TEXT: Record<NonNullable<VillageReportData['reason']>, string> = {
   replaced: 'another player took over the claim',
   no_room: 'there was no room for the troops',
   no_claim: 'you no longer held the claim',
+  pair_cap: 'you already took as many villages from this player as the world allows for now',
 };
+
+/** Shown instead of a build or train button while the hearth of the current village is out. */
+export const HEARTH_OUT_REASON = 'The hearth is out';
 
 export interface VillageReportText {
   title: string;

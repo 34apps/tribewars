@@ -1397,6 +1397,11 @@ export function formatReport(rep: SimReport, full = false): string {
 
 function main(): void {
   const args = process.argv.slice(2);
+  if (args.includes('--conquest')) {
+    // Player-vs-player conquest, 20 computer players (scripts/sim/conquest.ts; same command, other mode).
+    void import('./conquest.ts').then((m) => m.main());
+    return;
+  }
   const get = (name: string, fallback: number): number => {
     const i = args.indexOf(name);
     const n = i >= 0 ? Number(args[i + 1]) : NaN;

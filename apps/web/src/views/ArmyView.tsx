@@ -30,6 +30,7 @@ import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
 import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
+import { HEARTH_OUT_REASON } from '../villages.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
@@ -450,7 +451,8 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   const queueFull = live.trainQueues[building].length >= MAX_TRAIN_QUEUE;
 
   let reason: string | null = null;
-  if (locked) reason = `Needs ${requirementText(unmet)}`;
+  if (village.hearth) reason = HEARTH_OUT_REASON;
+  else if (locked) reason = `Needs ${requirementText(unmet)}`;
   else if (!isResearched(live, unit)) reason = 'Research it in the Drillyard';
   else if (queueFull) reason = 'Queue full';
   else if (count < 1) reason = max < 1 ? 'Not enough resources or food for even one' : 'Enter how many to train';

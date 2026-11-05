@@ -251,6 +251,25 @@ Banner Hall; players as targets and real Strike defence (abandoned villages only
 (4 x day raiders on every unprotected village, days 7-28) are an assumption: they hit weakly defended raider villages hard once the army stays home,
 which is part of why the pure raider does not make it. **Nothing in `config.ts` was changed for this run.**
 
+### 7.6 Player conquest (step 4, 2026-11-05), `docs/sim/2026-11-05-conquest.txt`
+
+Command: `npm run sim -- --conquest [--seeds N] [--days N] [--pair-cap N --hold-hours H --chief-points P --lock-hours H] [--out file]`
+(`scripts/sim/conquest.ts`; same command as the other sim, `npm run sim:conquest` does the same). 20 computer players (5 of each style,
+shuffled on a grid), 30 days, speed 1, real engine (`checkStrike`, `applyStrike`, `updateHold`, `applyOwnerChange`, `resolveBattle`, Renown,
+restart). Rules: pair cap 2 per 7 days, hold 12 h, 1 Chieftain per 4,000 points, lock 24 h, protection as built.
+
+- **Snowball target met on all 5 seeds** (biggest vs second biggest, points after day 30): 1.11, 1.03, 1.64, 1.34, **1.84** (worst). Villages: 4 vs 4 on every seed.
+  Top 3 hold about 42% of all points on the main seed.
+- **Volume:** 7-18 villages taken per 30 days across the 20 players (main seed 7, of which 6 were a victim's LAST village: they restart with
+  protection), 9-18 holds started, 2 holds broken (main seed). Nobody was wiped out (restart keeps account and Renown).
+- **Who wins:** `balanced` takes most (6 of 7); `raider` rarely gets a Chieftain army together (as in 7.5); `builder`/`turtle` mostly lose villages and
+  found new ones. Leaders at day 30 are all `balanced` with 4 villages each, so the lead is shared, not a runaway.
+- **Caveats:** the sim's owner defence hits the occupiers *with the Wall* (the server's relief attack ignores the Wall, so real defence is slightly easier);
+  tribe-mates' support and third players are not modelled; raids on players are numerous (about 3,900 in 30 days) and weakly punishing, so the economy
+  effect of conquest is probably understated; a Strike here always finds its Chieftains ready (Renown is the limit). The ratio on seed 20261109 (1.84)
+  is close to the 2x line: the levers if a real world snowballs are `PAIR_CONQUEST_CAP` (2 -> 1), `HOLD_HOURS` (12 -> 18) and the Chieftain price.
+- **Nothing in `config.ts` was changed for this run** (only `HEARTH_PLAYERS_ENABLED` is now `true` and `PAIR_CONQUEST_*` were added with step 4).
+
 ## 8. Siege units (GAME_DESIGN §18.9), 2026-11-05
 
 **Tools.** `npm run sim -- --siege` (`scripts/sim/siege.ts` + a flag in `scripts/sim/balance.ts`; reports `docs/sim/2026-11-05-siege.txt`, 30 days, and

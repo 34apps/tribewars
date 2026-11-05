@@ -95,6 +95,10 @@ Gate note, stats/achievements and caretaker bot (2026-11-03): no new input and n
 counters written by the server inside the event's transaction). The bot only queues builds on the idle owner's own
 village via the normal build check; it cannot train, send troops, shipments or support. `last_active` writes are throttled.
 
+Gate note, taking player villages (2026-11-05, step 4; full gate in `CHANGELOG.md`): no new route. Strikes, relief attacks and occupiers use the
+existing owner-only `send` route (and its rate bucket); the pair cap, protection, lock, household / tribe / ally refusals and the hold clock are all
+decided by the server in arrival order (§2); an incoming attack alert never reveals its units; the tribe alert list shows only what the map shows.
+
 ## 5. Game-rules audit, 2026-11-04
 
 Every probe is a server test in `apps/server/test/security-audit.test.ts` and also asserts that the village state did not change.

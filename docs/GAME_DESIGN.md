@@ -802,8 +802,7 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **A player's LAST village CAN be taken** (replaces "last village is safe"; `LAST_VILLAGE_SAFE` is dropped). That player is not wiped out: they get
   a **fresh starting village at the outer edge of the current world circle** (expanding layout: the edge placement a newcomer gets, with its ring of
   abandoned villages; scattered layout: a random free tile), keep account, tribe, Renown and rankings, and get a short **restart protection**
-  (`RESTART_PROTECTION_HOURS`, ÷ speed) so the same attacker cannot hunt them again at once. In step 2 only abandoned villages can be taken, so this rule
-  is built and tested now but only triggers once player villages can be taken (step 4).
+  (`RESTART_PROTECTION_HOURS`, ÷ speed) so the same attacker cannot hunt them again at once. Built in step 2, it has triggered since step 4 (player villages can be taken).
 - **Built in step 2** (numbers in `config.ts`): the Banner Hall trains the **Chieftain** (Banner Hall level 1; Renown is **reserved** when training
   starts, `CHIEFTAIN_RENOWN_REFUND_SHARE` comes back if he dies); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
   out, 6 h hold with occupiers); **FOUND** (a Chieftain sent to a free tile carries an ember; the new village starts small, `FOUND_*` numbers);
@@ -813,6 +812,32 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **Anti-abuse:** no taking from same-IP accounts, own tribe or allies (players: step 4); a captured village is **locked for 24 h** (`STRIKE_LOCK_HOURS`);
   strike and hold timing is computed by the server only, in order of arrival time (SECURITY_ROADMAP §2); every new route is rate limited and acts only on
   the caller's own Chieftains and villages.
+
+**Step 4 — taking PLAYER villages (owner decisions 2026-11-05, built the same day; these override older text where they differ)**
+- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 4,000) Chieftains (max 3); hold
+  `HOLD_HOURS` (12 h ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
+  outer edge with restart protection (rule from step 2). **Captured villages keep all buildings** (levels only drop through siege, §18.9).
+- **Cold village, what 18.2 decides (kept):** it produces nothing and eats nothing; **nothing new can be built or trained** (the build block is new in step 4,
+  the training block was there); jobs already queued carry on. The caretaker bot skips a cold village.
+- **How the owner's side breaks a hold (the new RELIEF attack).** The owner (from another of their villages), a tribe-mate or an ally of the owner may send an
+  **attack** at the cold village. It is a battle against the claimant's **occupiers only**: the village's own troops take no part, the Wall does not shelter an
+  occupier, nothing is looted, no combat Renown is paid, and Chieftains and siege units are refused. All occupiers dead = the hearth relights at once; fewer than 150
+  population left = the clock stops (and the claim fails after `HOLD_FAIL_HOURS`). Relief does not end the sender's beginner protection. The owner **cannot
+  "occupy" their own village** with their own troops (decided: relief by battle is the only way; `occupy` stays the claimant's mission), and cannot dismiss the occupiers
+  with "send back". A third player who attacks the cold village normally still fights the occupiers together with the village's defenders (§18.2 above).
+- **Alerts never leak more than scouting.** An incoming attack alert (to the target's owner and their tribe) shows who and when, **never what it carries**: no hint
+  that Chieftains are coming. The first sign is the **Hearth out** alert at the moment of the strike: the tribe's alert list (`GET /api/tribe/alerts`) now has `holds`
+  (cold villages of members with claimant, clock, same as the map), the alert badge counts them, and the owner sees the occupiers' strength only on their own village.
+  Both sides see a **hold card** with the countdown. Live hints (WebSocket `game` / `tribe` topics) go to the owner, the claimant and the owner's tribe when the hearth
+  goes out, the clock starts / pauses, the hold is broken or ends, and when the village is taken.
+- **On change of owner** (as already built): all buildings stay, stock × `TAKE_KEEP_RESOURCE_SHARE`, old queues cleared, the old owner's troops there are gone, the old
+  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers move in (up to the population cap). Points move at once (rankings add up villages).
+- **Anti-abuse (server, deterministic, in order of arrival):** no Strike on same-IP accounts, tribe-mates or allies (refused at send and again at arrival); none on
+  players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; **pair cap**: one attacker may take at most
+  `PAIR_CONQUEST_CAP` (2) villages from the same victim within `PAIR_CONQUEST_WINDOW_DAYS` (7 days ÷ speed): the send is refused once the cap is used, a Strike at arrival is
+  only a battle, and a hold that ends over the cap fails with the report reason `pair_cap` (several holds can run at once, only the first ones get through). Takes are
+  recorded in the `conquests` table (schema v7). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
+- **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
 
 *Rules*
 - Renown is **earned, never bought, never lost, only spent**. A player has `renownTotal` (all earned, used for the Renown
@@ -900,8 +925,8 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 - New owners get a 24-hour lock, so a village cannot be flipped back and forth in a night.
 - Beginner protection still blocks Strikes. Accounts that share a connection cannot attack each other (existing
   guard), and tribe-mates cannot strike each other (existing `isAttackForbidden`), so villages cannot be "given" by
-  fake conquests inside a tribe or household. Add: the same attacker cannot take more than 2 villages from the same
-  defender per season (`PAIR_CONQUEST_CAP`).
+  fake conquests inside a tribe or household. Built in step 4: the same attacker cannot take more than 2 villages
+  from the same defender per 7 days (`PAIR_CONQUEST_CAP`, `PAIR_CONQUEST_WINDOW_DAYS`).
 
 **Rough numbers for `config.ts`**
 
@@ -916,9 +941,9 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
 | `DEFENDER_RENOWN_PER_DEFENCE` / `DEFENDER_RENOWN_DAILY_CAP` | 0.006 / 22 | Defender trickle: Renown per day per defence point at home, and the cap per village per day |
 | `RENOWN_VILLAGE_BASE` | see `config.ts` | Renown price of the 2nd village; each further one x1.6 (replaces `VILLAGE_LIMIT_BASE`, owner 2026-11-04) |
-| `PAIR_CONQUEST_CAP` | 2 per season | Per attacker–defender pair |
+| `PAIR_CONQUEST_CAP` / `PAIR_CONQUEST_WINDOW_DAYS` | 2 / 7 | Villages one attacker may take from the same victim per window (÷ speed); built 2026-11-05 (replaces "per season") |
 | `TAKE_KEEP_RESOURCE_SHARE` | 0.5 | Share of each resource a village keeps when it changes owner (built 2026-11-05, engine `hearth.ts`) |
-| `HEARTH_MAX_CHIEFTAINS` / `HEARTH_PLAYERS_ENABLED` | 3 / false | Most Chieftains in one attack; Strike on player villages is coded and tested but off until step 4 |
+| `HEARTH_MAX_CHIEFTAINS` / `HEARTH_PLAYERS_ENABLED` | 3 / true | Most Chieftains in one attack; Strike on player villages is on since step 4 |
 | `CHIEFTAIN_MAX_BATCH` / `CHIEFTAIN_MAX_QUEUED_BATCHES` | 3 / 1 | One batch of at most 3 Chieftains in the Banner Hall queue per village |
 | `FOUND_START_RESOURCES` / `FOUND_PROTECTION_HOURS` | 300 wood, 300 food, 150 iron, 0 gold / 24 | Stock of a founded village (levels = new-player start levels); it cannot be attacked for 24 h (÷ speed), `VillageState.protectedUntil` |
 | `RESTART_PROTECTION_HOURS` / `RESTART_EDGE_BAND` | 48 / 2 | A player who lost the last village restarts within 2 tiles inside the outer edge of the populated disc, protected 48 h (÷ speed) |
@@ -1199,7 +1224,7 @@ every step can be undone alone.
 | 1 | **Terrain travel** (18.4a) | M | Small, self-contained, visible on the map, and changes every travel time, so do it before any other number depends on it. Re-run `npm run sim`. |
 | 2 | **Several villages: Banner Hall, Chieftain, Strike and Hold on abandoned villages only** (18.2, first half) | M | The genre's biggest hole, with only computer-run targets, so no one can be hurt while we learn it. A second village changes the whole game. |
 | 3 | ~~**Rest hours** (18.3)~~ — dropped by the owner 2026-11-05 | – | – |
-| 4 | **Taking player villages** (18.2, second half: alerts, last-village rule, pair cap, lock, move-in) | M | The payoff for tribes and the reason to defend. |
+| 4 | **Taking player villages** (18.2, second half: alerts, last-village rule, pair cap, lock, move-in) — **built 2026-11-05** | M | The payoff for tribes and the reason to defend. |
 | 5 | **Sites and Fire Shrines, season clock and score** (18.4b + 18.1 engine/server) | L | The goal of the game. Uses the stationed-troops and battle rules from step 4. |
 | 6 | **Badges + Hall of Fame + lobby season list** (18.1 rest) | M | Needed before the first real season ends, not before it starts. |
 | 7 | **Tribe projects** (18.5) | M | Needs shipments, terrain (roads), sites (wards): last of the rules. |
@@ -1226,6 +1251,8 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 6. ~~**Rest hours: 8 hours a day, +25% defence, and no economy pause**~~ — **dropped by the owner 2026-11-05.** Not built, not planned; taking player villages relies on the hold period, tribe alerts, restart protection and the pair cap (18.2).
 7. **The name Chieftain is final.**
 9. **Taking and founding (owner, 2026-11-04, step 2):** taking developed villages is the main way ahead, founding on empty land the slow safe path; a taken village keeps ALL buildings (no automatic level loss; only siege units, later, damage buildings); a player's LAST village CAN be taken and they restart at the outer edge of the world circle (account, tribe and Renown kept) with a short restart protection. Details: §18.2 "Owner decisions 2026-11-04 for step 2".
+
+11. **Taking player villages (owner, 2026-11-05, step 4):** no rest hours; a player's last village CAN be taken (restart with protection); captured villages keep all buildings; hold 12 h with relief by battle for the owner, tribe-mates and allies; alerts never reveal Chieftains; pair cap 2 takes per 7 days. Details: §18.2 "Step 4".
 
 10. **Siege (owner, 2026-11-04):** building levels only drop through siege, never automatically (no loss on capture, none from time). Our own design, details in §18.9.
 

@@ -283,6 +283,7 @@ interface BuildPlan {
 /** Rule check on an already settled village. */
 function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: number): CheckResult<BuildPlan> {
   if (!isBuildingId(b)) return fail('invalid_input', 'Unknown building.');
+  if (v.hearth) return fail('requirements_not_met', 'The hearth is out: nothing new can be built until it is relit.');
   const def = BUILDINGS[b];
   let queued = 0;
   for (const job of v.buildQueue) if (job.building === b) queued++;

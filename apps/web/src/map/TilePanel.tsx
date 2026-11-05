@@ -11,10 +11,13 @@ import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { Segmented } from '../tribe/bits.tsx';
 import {
+  RELIEF_LABEL,
   SEND_MODE_BUTTON,
   SEND_MODE_HINT,
   SEND_MODE_SENT,
+  canStrike,
   foundProblem,
+  isReliefTarget,
   missionsFor,
   myOccupierPopulation,
   nextChieftainPrice,
@@ -23,6 +26,8 @@ import {
   sendMode,
   showsSiegePicker,
   siegeTargetFor,
+  strikeHint,
+  strikeNeed,
   strikeWarning,
 } from '../villages.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
@@ -80,7 +85,9 @@ function SendForm({
   const fights = mission === 'attack' || mission === 'scout';
   const targetName = target?.name ?? 'the new village';
 
-  const visible = selectableUnits(mission, live.troops);
+  // Attack on a cold own / tribe-mate / ally village = relief attack (occupiers only; no Chieftains, no siege, no loot).
+  const relief = mission === 'attack' && isReliefTarget(target, { playerId: player.id, currentVillageId: village.id });
+  const visible = selectableUnits(relief ? 'relieve' : mission, live.troops);
   const chosen: Units = emptyUnits();
   for (const u of visible) {
     const n = Number(counts[u] ?? '');
@@ -89,7 +96,7 @@ function SendForm({
   const total = totalUnits(chosen);
   const partial: Partial<Units> = {};
   for (const u of UNIT_IDS) if (chosen[u] > 0) partial[u] = chosen[u];
-  const mode = sendMode(mission, partial, target?.kind ?? null);
+  const mode = sendMode(mission, partial, target?.kind ?? null, relief);
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
   // The server computes the real time from the same rule and its own seed; this only shows it in advance.
@@ -97,10 +104,11 @@ function SendForm({
   const travel = preview ? preview.ms : 0;
   const slowdown = preview ? slowdownText(preview.flatMs, preview.ms) : null;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
-  const targetProtected = fights && !!target && target.protected && target.kind === 'player';
-  const breaksProtection = fights && target?.kind === 'player' && player.protectedUntil > now;
+  const targetProtected = fights && !relief && !!target && target.protected && target.kind === 'player';
+  const breaksProtection = fights && !relief && target?.kind === 'player' && player.protectedUntil > now;
   const chieftainHome = live.troops.chieftain > 0;
-  const offerStrike = mission === 'attack' && target?.kind === 'abandoned' && chieftainHome && chosen.chieftain === 0;
+  const offerStrike = mission === 'attack' && !relief && canStrike(target?.kind ?? null) && chieftainHome && chosen.chieftain === 0 && !targetProtected;
+  const strikeNeeds = strikeNeed(target?.kind ?? null, target?.points ?? 0);
 
   let reason: string | null = null;
   if (targetProtected) reason = 'This player is under beginner protection';
@@ -114,7 +122,7 @@ function SendForm({
 
   // Not blocking (the server decides), but worth saying before the army leaves.
   let warning: string | null = null;
-  if (mode === 'strike') warning = strikeWarning(chosen, true, target?.points ?? 0);
+  if (mode === 'strike') warning = strikeWarning(chosen, target?.kind !== 'player', target?.points ?? 0);
   else if (mode === 'occupy' && target) {
     const there = target.hearth ? myOccupierPopulation(stationed.abroad, target.id) : 0;
     warning = target.hearth ? occupyWarning(chosen, there, target.hearth.minPopulation) : null;
@@ -164,7 +172,8 @@ function SendForm({
     }
   }
 
-  const title = mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`;
+  const title = mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : mode === 'relieve' ? RELIEF_LABEL : missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`;
+  const reliefTarget = isReliefTarget(target, { playerId: player.id, currentVillageId: village.id });
 
   return (
     <form
@@ -179,7 +188,7 @@ function SendForm({
         <Segmented
           label="Mission"
           value={mission}
-          options={missions.map((m) => ({ value: m, label: MISSION_NAME[m] }))}
+          options={missions.map((m) => ({ value: m, label: m === 'attack' && reliefTarget ? RELIEF_LABEL : MISSION_NAME[m] }))}
           onChange={(m) => {
             setError(null);
             setSiegePick('');
@@ -188,10 +197,14 @@ function SendForm({
         />
       )}
       <p className="wm-muted">
-        {SEND_MODE_HINT[mode] ?? MISSION_HINT[mission]}
+        {mode === 'strike' ? strikeHint(target?.kind ?? null) : (SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
         {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
       </p>
-      {offerStrike && <p className="wm-muted">Add a Chieftain and an escort to try a Strike: it tries to put the hearth of {targetName} out.</p>}
+      {offerStrike && (
+        <p className="wm-muted">
+          Add {strikeNeeds === 1 ? 'a Chieftain' : `${strikeNeeds} Chieftains`} and an escort to try a Strike: it tries to put the hearth of {targetName} out.
+        </p>
+      )}
       {visible.length === 0 ? (
         <p className="wm-muted">
           {scouting ? 'No Pathfinders at home. ' : mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
@@ -248,7 +261,7 @@ function SendForm({
             <dt>Arrives</dt>
             <dd>{formatClock(now + travel, now)}</dd>
           </div>
-          {mission === 'attack' && mode !== 'strike' && (
+          {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
             <div>
               <dt>Can carry</dt>
               <dd>{formatInt(carry)}</dd>

@@ -162,6 +162,17 @@ CREATE TABLE IF NOT EXISTS npc_raids (
 );
 CREATE INDEX IF NOT EXISTS idx_npc_raids_pair ON npc_raids(player_id, village_id, at);
 
+-- ---- Villages taken from players (section 18.2, step 4): the pair cap counts rows of one taker and one victim in a window.
+-- Old rows are pruned when new ones are written.
+CREATE TABLE IF NOT EXISTS conquests (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  taker_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  victim_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  village_id INTEGER NOT NULL,
+  at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_conquests_pair ON conquests(taker_id, victim_id, at);
+
 -- ---- Combat Renown (section 18.2): what one earner has already counted against one opponent in the open 24 h window.
 -- opponent is 'p:<playerId>' or 'v:<abandonedVillageId>'. value is raw Renown (engine rawRenown), window_start in ms.
 CREATE TABLE IF NOT EXISTS renown_pairs (
@@ -460,9 +471,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7; // 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '9a880b98e38cb2db';
+export const SCHEMA_FINGERPRINT = 'b8e3f3ebe169dc92';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

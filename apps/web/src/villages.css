@@ -247,6 +247,11 @@
   font-size: 0.9rem;
 }
 
+/* Tribe alerts: a held village shows the clock card inside the alert row. */
+.alert-hold .hold {
+  margin-top: 8px;
+}
+
 .vv-hearth-notice {
   flex: none;
   margin: 8px 8px 0;

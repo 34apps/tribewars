@@ -604,7 +604,7 @@ export interface VillageReportData {
   village: VillageRefDto;
   holdEndsAt?: number | null;
   claimBy?: string;
-  reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim';
+  reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim' | 'pair_cap';
   units?: Units;
   overflow?: Units;
 }
@@ -883,8 +883,20 @@ export interface TribeAlertDto {
   arriveAt: number;
 }
 
+/**
+ * A village of a tribe member whose hearth is out (docs/GAME_DESIGN.md 18.2, step 4). Same information as the map shows to
+ * everybody (claimant name, clock); never the occupiers' numbers and never what the attack carried. `hearth.occupierPopulation`
+ * is only set when the viewer owns the village.
+ */
+export interface TribeHoldDto {
+  village: VillageRefDto;
+  hearth: HearthInfoDto;
+}
+
 export interface TribeAlertsResponse {
   alerts: TribeAlertDto[];
+  /** Cold villages of members (hearth out) with the hold clock, soonest end first. Shown on the alert list at the moment of the strike. */
+  holds: TribeHoldDto[];
 }
 
 // ---- Advisor (Mags the Tinker, AI tips) ----

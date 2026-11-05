@@ -11,7 +11,7 @@ import { formatClock, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../rules.ts';
 import { useCancelJob } from '../views/cancelJob.tsx';
-import { chieftainBatchPrice, chieftainRenownNote, chieftainsAffordable, nextChieftainPrice } from '../villages.ts';
+import { HEARTH_OUT_REASON, chieftainBatchPrice, chieftainRenownNote, chieftainsAffordable, nextChieftainPrice } from '../villages.ts';
 import { Cost, ProgressBar } from './ui.tsx';
 import '../villages.css';
 
@@ -57,7 +57,7 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
           <Icon name="chieftain" size={24} className="inline-icon" /> {def.name}
         </h2>
         <div className="empty-state">
-          <p>Build the {BUILDINGS.bannerhall.name} first: it trains the {def.name}, who founds new villages and puts out the hearths of abandoned ones.</p>
+          <p>Build the {BUILDINGS.bannerhall.name} first: it trains the {def.name}, who founds new villages and puts out the hearths of abandoned villages and of other players'.</p>
           {unmet.length > 0 && <p className="muted">Requires {requirementText(unmet)}.</p>}
           <button className="btn btn-small" onClick={() => navigate('village')}>
             Go to Village
@@ -78,7 +78,8 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
   const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * count])) as Resources;
 
   let reason: string | null = null;
-  if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = 'One batch at a time: wait for the queue or cancel it';
+  if (village.hearth) reason = HEARTH_OUT_REASON;
+  else if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = 'One batch at a time: wait for the queue or cancel it';
   else if (!check.ok) reason = reasonText(check);
   else if (batchPrice > renown.balance) reason = `Needs ${formatInt(batchPrice)} Renown (have ${formatInt(renown.balance)})`;
 

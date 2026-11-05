@@ -272,7 +272,7 @@ export function tribeRoutes(app: FastifyInstance, ctx: AppContext): void {
 
   // ---- incoming attacks on members (scouts and support are not shown) ------------------------------------
 
-  app.get('/api/tribe/alerts', auth, async (req): Promise<TribeAlertsResponse> => ctx.game.tribeAlerts(playerOf(req)));
+  app.get('/api/tribe/alerts', auth, async (req): Promise<TribeAlertsResponse> => ctx.game.tribeAlerts(playerOf(req), req.nowMs));
 
   // ---- chat ----------------------------------------------------------------------------------------
 

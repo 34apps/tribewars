@@ -765,6 +765,40 @@ export class Store extends SqlBase {
     }));
   }
 
+  /** A village of `victimId` was taken by `takerId` at `at`; rows older than `keepSince` are dropped. */
+  recordConquest(takerId: number, victimId: number, villageId: number, at: number, keepSince: number): void {
+    this.run('DELETE FROM conquests WHERE at <= ?', keepSince);
+    this.run('INSERT INTO conquests (taker_id, victim_id, village_id, at) VALUES (?, ?, ?, ?)', takerId, victimId, villageId, at);
+  }
+
+  /** Villages `takerId` took from `victimId` in (since, until]. */
+  countConquests(takerId: number, victimId: number, since: number, until: number): number {
+    const r = this.get('SELECT COUNT(*) AS n FROM conquests WHERE taker_id = ? AND victim_id = ? AND at > ? AND at <= ?', takerId, victimId, since, until);
+    return r ? Number(r.n) : 0;
+  }
+
+  /** Cold villages (hearth out) of the tribe's members, the ones that end soonest first. */
+  tribeColdVillages(tribeId: number, limit: number): VillageRecord[] {
+    return this.all(
+      `${VILLAGE_SQL} WHERE v.hold_due_at IS NOT NULL
+         AND v.owner_id IN (SELECT player_id FROM tribe_members WHERE tribe_id = ?)
+       ORDER BY v.hold_due_at, v.id LIMIT ?`,
+      tribeId,
+      limit,
+    ).map(toVillage);
+  }
+
+  /**
+   * Live hints for a change at a cold village (hearth out, hold broken or ended, village taken): both players and the owner's
+   * tribe re-read their game state, and the tribe re-reads its alert list (the hold clock lives there). Hints only: the
+   * receivers fetch their own view.
+   */
+  emitHearth(ownerId: number | null, claimantId: number | null): void {
+    for (const id of [ownerId, claimantId]) if (id !== null) this.emit({ kind: 'player', playerId: id, topics: ['game'] });
+    const t = ownerId === null ? null : this.tribes.membership(ownerId);
+    if (t) this.emit({ kind: 'tribe', tribeId: t.tribeId, topics: ['game', 'tribe'] });
+  }
+
   hasVillage(playerId: number): boolean {
     return this.get('SELECT 1 AS one FROM villages WHERE owner_id = ? LIMIT 1', playerId) !== undefined;
   }
@@ -1303,7 +1337,12 @@ export class Store extends SqlBase {
 
   countTribeAlerts(tribeId: number): number {
     const r = this.get(`SELECT COUNT(*) AS n FROM movements m WHERE ${TRIBE_ATTACKS_WHERE}`, tribeId);
-    return r ? (r.n as number) : 0;
+    // Cold villages of members (hearth out) count as alerts too: the hold clock is on the same list.
+    const h = this.get(
+      'SELECT COUNT(*) AS n FROM villages v WHERE v.hold_due_at IS NOT NULL AND v.owner_id IN (SELECT player_id FROM tribe_members WHERE tribe_id = ?)',
+      tribeId,
+    );
+    return (r ? (r.n as number) : 0) + (h ? (h.n as number) : 0);
   }
 
   // ---- reports ---------------------------------------------------------------------------------

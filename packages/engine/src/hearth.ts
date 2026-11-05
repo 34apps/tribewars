@@ -3,7 +3,7 @@
 // Flow: a winning attack with Chieftains puts the hearth out (`checkStrike`, `applyStrike`). The claimant's occupiers are
 // stationed at the village; `updateHold` runs the hold clock from the occupiers' population; when it ends the village
 // changes owner (`applyOwnerChange`). While the hearth is out `settleVillage` freezes production and growth.
-// Step 2 strikes abandoned villages only (HEARTH_PLAYERS_ENABLED is false); the player path is complete and tested for step 4.
+// Player villages can be struck since step 4 (HEARTH_PLAYERS_ENABLED); the pair cap (`pairCapReached`) limits repeat takes.
 
 import {
   HEARTH_MAX_CHIEFTAINS,
@@ -13,6 +13,8 @@ import {
   HOLD_HOURS,
   HOLD_HOURS_ABANDONED,
   HOLD_MIN_POPULATION,
+  PAIR_CONQUEST_CAP,
+  PAIR_CONQUEST_WINDOW_DAYS,
   POP_PER_UNIT,
   STRIKE_LOCK_HOURS,
   TAKE_KEEP_RESOURCE_SHARE,
@@ -202,6 +204,16 @@ export function applyOwnerChange(
   const chieftainUsed = moved.overflow.chieftain >= 1 ? 1 : 0;
   moved.overflow.chieftain -= chieftainUsed;
   return { state: v, overflow: moved.overflow, chieftainUsed };
+}
+
+/** Length of the pair-cap window in ms (PAIR_CONQUEST_WINDOW_DAYS divided by world speed). */
+export function pairConquestWindowMs(s: WorldSettings): number {
+  return hoursMs(PAIR_CONQUEST_WINDOW_DAYS * 24, s);
+}
+
+/** May the attacker take one more village from this victim? `takenInWindow` = villages already taken from them in the window. */
+export function pairCapReached(takenInWindow: number): boolean {
+  return takenInWindow >= PAIR_CONQUEST_CAP;
 }
 
 /** True while `v` may not be struck at `now` (locked after a change of owner, or protected). Raids are not affected by `lockUntil`. */

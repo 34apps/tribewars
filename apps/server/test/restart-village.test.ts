@@ -1,5 +1,5 @@
-// A player who loses the last village starts again (docs/GAME_DESIGN.md 18.2, step 2), and the player-village Strike path that
-// step 4 will open (switched on here through GameService.strikePlayers). Plus the anti-abuse rules for Strikes on players.
+// A player who loses the last village starts again (docs/GAME_DESIGN.md 18.2, steps 2 and 4: taking player villages is on),
+// plus the anti-abuse rules for Strikes on players.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -18,7 +18,6 @@ import { ledger, player, reserveFor, runTo, strongHome, villageReports, villages
 
 test('the whole player path: strike, hold, taken; the loser restarts protected with account, tribe and Renown kept', async () => {
   const { app, clock } = await makeApp({ sandboxUsers: ['claimer'] });
-  app.ctx.game.strikePlayers = true; // step 4 switches this on for everybody
   const store = app.ctx.store;
   const victim = await newLeader(app, 'victim', 'Victims', 'VIC', 'open');
   unprotect(app, victim);
@@ -119,7 +118,6 @@ test('the loss shows up as a new village at the very next authenticated request 
 
 test('no Strike on same-IP accounts, tribe-mates or allies, even with the player path switched on', async () => {
   const { app, clock, alice, amy, bob } = await world();
-  app.ctx.game.strikePlayers = true;
   const reg = async (name: string, ip: string) => {
     const c = new Client(app, ip);
     ok(await c.post('/api/auth/register', { username: name, password: PASSWORD }), 201);

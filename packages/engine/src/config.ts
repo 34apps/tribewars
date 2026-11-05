@@ -499,8 +499,14 @@ export const STRIKE_LOCK_HOURS = 24;
 /** Chieftains needed to Strike a player village: 1 + floor(points / this), at most HEARTH_MAX_CHIEFTAINS (abandoned: always 1). */
 export const HEARTH_POINTS_PER_CHIEFTAIN = 4000;
 export const HEARTH_MAX_CHIEFTAINS = 3;
-/** Striking player villages is built (and tested) but switched on only in step 4. */
-export const HEARTH_PLAYERS_ENABLED = false;
+/** Striking player villages (switched on in step 4, 2026-11-05). */
+export const HEARTH_PLAYERS_ENABLED = true;
+/**
+ * Pair cap: one attacker may take at most PAIR_CONQUEST_CAP villages from the same victim within PAIR_CONQUEST_WINDOW_DAYS
+ * (divided by world speed). Counted when a village changes owner; checked again at send, at the Strike and at the end of the hold.
+ */
+export const PAIR_CONQUEST_CAP = 2;
+export const PAIR_CONQUEST_WINDOW_DAYS = 7;
 /** Share of each resource a village keeps when it changes owner. */
 export const TAKE_KEEP_RESOURCE_SHARE = 0.5;
 /** A founded village starts with this stock (levels are the new-player start levels) and is safe from attacks for this long. */

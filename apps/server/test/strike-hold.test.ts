@@ -293,6 +293,7 @@ test('a Chieftain alone dies; a village that is locked or protected is only foug
 
 test('Chieftains cannot strike player villages while that is switched off, and the army checks hold', async () => {
   const { app, clock, p, homeId } = await setup();
+  app.ctx.game.strikePlayers = false; // since step 4 the default is on; the switch stays for operators and tests
   const other = await player(app, 'bystander');
   const v = homeOf(app, other);
   errorOf(await p.c.post(`/api/villages/${homeId}/send`, { x: v.x, y: v.y, units: { raider: 100, chieftain: 1 }, mission: 'attack' }), 400, 'invalid_target');

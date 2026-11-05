@@ -5,11 +5,14 @@ import {
   HOLD_HOURS,
   HOLD_HOURS_ABANDONED,
   HOLD_MIN_POPULATION,
+  PAIR_CONQUEST_CAP,
+  PAIR_CONQUEST_WINDOW_DAYS,
   STRIKE_LOCK_HOURS,
   TAKE_KEEP_RESOURCE_SHARE,
   applyOwnerChange,
   applyStrike,
   applyTrain,
+  checkBuild,
   checkStrike,
   checkTrain,
   chieftainsNeeded,
@@ -19,6 +22,8 @@ import {
   isStrikeBlocked,
   normalizeVillage,
   occupierPopulation,
+  pairCapReached,
+  pairConquestWindowMs,
   populationCap,
   populationUsage,
   settleVillage,
@@ -69,11 +74,12 @@ describe('checkStrike', () => {
     assert.ok(!isStrikeBlocked({}, T));
   });
 
-  it('players: need = 1 + floor(points / 4000), at most 3 (off unless enabled)', () => {
+  it('players: need = 1 + floor(points / 4000), at most 3 (on by default since step 4, can be switched off)', () => {
     assert.deepEqual([0, 3999, 4000, 7999, 8000, 12000, 30000].map((p) => chieftainsNeeded(false, p)), [1, 1, 2, 2, 3, 3, 3]);
     assert.equal(chieftainsNeeded(true, 50000), 1);
     const target = { abandoned: false, points: 4000, now: T };
-    const off = checkStrike(WON, units({ chieftain: 3 }), target);
+    assert.ok(checkStrike(WON, units({ chieftain: 3 }), target).ok, 'player villages can be struck by default');
+    const off = checkStrike(WON, units({ chieftain: 3 }), target, { playersEnabled: false });
     assert.ok(!off.ok && off.reason === 'players_disabled');
     const opts = { playersEnabled: true };
     const one = checkStrike(WON, units({ chieftain: 1 }), target, opts);
@@ -300,5 +306,23 @@ describe('a cold village (hearth out)', () => {
     const t = checkTrain(cold, 'pikeman', 1, HOUR, S1);
     assert.ok(!t.ok && t.reason === 'requirements_not_met');
     assert.ok(checkTrain(p, 'pikeman', 1, HOUR, S1).ok, 'a lit village still can');
+  });
+
+  it('nothing new can be built in a cold village either (step 4); a lit one still can', () => {
+    const p = village({ resources: { wood: 5000, food: 5000, iron: 5000, gold: 0 } });
+    const cold = applyStrike(p, { claimBy: 2, now: HOUR / 2, settings: S1 });
+    const refused = checkBuild(cold, 'lumber', HOUR, S1);
+    assert.ok(!refused.ok && refused.reason === 'requirements_not_met');
+    assert.ok(checkBuild(p, 'lumber', HOUR, S1).ok);
+  });
+});
+
+describe('pair cap', () => {
+  it('the window is PAIR_CONQUEST_WINDOW_DAYS divided by speed; the cap counts takes in it', () => {
+    assert.equal(pairConquestWindowMs(S1), PAIR_CONQUEST_WINDOW_DAYS * 24 * HOUR);
+    assert.equal(pairConquestWindowMs(S10), (PAIR_CONQUEST_WINDOW_DAYS * 24 * HOUR) / 10);
+    assert.ok(!pairCapReached(PAIR_CONQUEST_CAP - 1));
+    assert.ok(pairCapReached(PAIR_CONQUEST_CAP));
+    assert.ok(pairCapReached(PAIR_CONQUEST_CAP + 3));
   });
 });

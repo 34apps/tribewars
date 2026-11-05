@@ -5,12 +5,17 @@ import { test } from 'node:test';
 import { CHIEFTAIN_MAX_BATCH, HOLD_MIN_POPULATION, emptyUnits, villageRenownCost, villageRenownPrice } from '@clanfire/engine';
 import type { HearthInfoDto, MapVillageDto, RenownInfo, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
 import {
+  SEND_MODE_BUTTON,
+  SEND_MODE_HINT,
+  alertCount,
+  canStrike,
   chieftainBatchPrice,
   chieftainRenownNote,
   chieftainsAffordable,
   foundProblem,
   holdText,
   holdView,
+  isReliefTarget,
   missionsFor,
   myOccupierPopulation,
   nextChieftainPrice,
@@ -20,6 +25,9 @@ import {
   renameProblem,
   selectableUnits,
   sendMode,
+  sortHolds,
+  strikeHint,
+  strikeNeed,
   strikeWarning,
   villageBadges,
   villageReportText,
@@ -185,10 +193,34 @@ test('missionsFor: free tile founds, own villages support, my claim occupies, ot
   assert.deepEqual(missionsFor(mapVillage({ id: 4, kind: 'player', relation: 'tribe' }), ctx), ['support']);
 });
 
-test('sendMode: an attack with Chieftains on an abandoned village is a Strike', () => {
+test('relief: a cold own, tribe-mate or ally village offers an attack next to Support; never to the claimant', () => {
+  const ctx = { playerId: 7, currentVillageId: 1 };
+  const cold = hearth({ claimById: 8 });
+  assert.deepEqual(missionsFor(mapVillage({ id: 2, kind: 'own', hearth: cold }), ctx), ['support', 'attack'], 'another village of mine');
+  assert.deepEqual(missionsFor(mapVillage({ id: 1, kind: 'own', hearth: cold }), ctx), [], 'the village I am in');
+  assert.deepEqual(missionsFor(mapVillage({ id: 4, kind: 'player', relation: 'tribe', hearth: cold }), ctx), ['support', 'attack']);
+  assert.deepEqual(missionsFor(mapVillage({ id: 5, kind: 'player', relation: 'ally', hearth: cold }), ctx), ['support', 'attack']);
+  assert.deepEqual(missionsFor(mapVillage({ id: 4, kind: 'player', relation: 'tribe' }), ctx), ['support'], 'lit hearth: support only');
+  assert.deepEqual(missionsFor(mapVillage({ id: 6, kind: 'player', relation: 'nap', hearth: cold }), ctx), [], 'a pact partner is not helped');
+  assert.deepEqual(missionsFor(mapVillage({ id: 7, kind: 'player', relation: 'enemy', hearth: cold }), ctx), ['attack', 'scout'], 'enemies: plain attack');
+  assert.equal(isReliefTarget(mapVillage({ id: 4, kind: 'player', relation: 'tribe', hearth: hearth({ claimById: 7 }) }), ctx), false, 'I hold it myself');
+  assert.equal(isReliefTarget(mapVillage({ id: 3, kind: 'abandoned', hearth: cold }), ctx), false);
+  assert.equal(isReliefTarget(null, ctx), false);
+  assert.equal(sendMode('attack', { pikeman: 5 }, 'player', true), 'relieve');
+  assert.equal(sendMode('attack', { chieftain: 1 }, 'player', true), 'relieve', 'never a Strike');
+  assert.equal(sendMode('support', { pikeman: 5 }, 'player', true), 'support');
+  assert.equal(SEND_MODE_BUTTON.relieve, 'Relieve');
+  assert.match(SEND_MODE_HINT.relieve ?? '', /Fights only the occupiers holding this village\. No loot\. If they all fall the hearth relights\./);
+  const home = units({ pikeman: 10, raider: 4, chieftain: 1, logram: 2, boulder: 2 });
+  assert.deepEqual(selectableUnits('relieve', home), ['pikeman', 'raider'], 'no Chieftains, no siege');
+});
+
+test('sendMode: an attack with Chieftains on an abandoned or player village is a Strike', () => {
   assert.equal(sendMode('attack', { pikeman: 50 }, 'abandoned'), 'attack');
   assert.equal(sendMode('attack', { pikeman: 50, chieftain: 1 }, 'abandoned'), 'strike');
-  assert.equal(sendMode('attack', { chieftain: 1 }, 'player'), 'attack', 'players are not struck in step 2');
+  assert.equal(sendMode('attack', { chieftain: 1 }, 'player'), 'strike', 'player villages can be struck (step 4)');
+  assert.equal(sendMode('attack', { raider: 20 }, 'player'), 'attack');
+  assert.equal(sendMode('attack', { chieftain: 1 }, 'own'), 'attack');
   assert.equal(sendMode('found', { chieftain: 1 }, null), 'found');
   assert.equal(sendMode('occupy', { pikeman: 5 }, 'abandoned'), 'occupy');
   assert.equal(sendMode('scout', { pathfinder: 3 }, 'abandoned'), 'scout');
@@ -199,7 +231,34 @@ test('strikeWarning asks for an escort and enough Chieftains', () => {
   assert.match(strikeWarning({ chieftain: 1 }) ?? '', /No escort/);
   assert.match(strikeWarning({ raider: 100 }) ?? '', /needs 1 Chieftain/);
   assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
-  assert.equal(strikeWarning({ chieftain: 3, raider: 100 }, false, 9000), null);
+  // A player's village always carries the strong-escort advice once the count and escort are fine.
+  assert.match(strikeWarning({ chieftain: 3, raider: 100 }, false, 9000) ?? '', /player defends/);
+});
+
+test('Strike on a player village: Chieftains needed, hint and escort warning', () => {
+  assert.equal(canStrike('player'), true);
+  assert.equal(canStrike('abandoned'), true);
+  assert.equal(canStrike('own'), false);
+  assert.equal(canStrike(null), false);
+  assert.equal(strikeNeed('abandoned', 99_999), 1);
+  assert.equal(strikeNeed('player', 0), 1);
+  assert.equal(strikeNeed('player', 9000), 3);
+  assert.match(strikeHint('player'), /12-hour hold/);
+  assert.match(strikeHint('player'), /Tribe-mates and allies cannot be struck/);
+  assert.equal(strikeHint('abandoned').includes('Tribe-mates'), false);
+  assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 100) ?? '', /strong|defends/);
+  assert.match(strikeWarning({ raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
+});
+
+test('hearth alerts: held villages sort by the soonest hand-over, badge counts both lists', () => {
+  const h = (endsAt: number | null, holdMsLeft: number): { hearth: HearthInfoDto } => ({ hearth: hearth({ running: endsAt !== null, endsAt, holdMsLeft }) });
+  const late = h(NOW + 5 * H, 5 * H);
+  const soon = h(NOW + H, H);
+  const paused = h(null, 2 * H);
+  assert.deepEqual(sortHolds([paused, late, soon]), [soon, late, paused]);
+  assert.equal(alertCount(null, []), 0);
+  assert.equal(alertCount([1, 2], [1]), 3);
+  assert.equal(alertCount(null, [1]), 1);
 });
 
 test('occupyWarning compares the new group plus those already there with the minimum', () => {
@@ -236,4 +295,5 @@ test('villageReportText has plain words for every kind', () => {
   assert.match(villageReportText({ kind: 'hearth_out', village: ref, claimBy: 'Rhea' }, NOW).lines[0]!, /Rhea put out the hearth/);
   assert.match(villageReportText({ kind: 'found_failed', village: ref, reason: 'village_limit' }, NOW).lines[0]!, /as many villages as the world allows/);
   assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'time', units: units({ pikeman: 4 }) }, NOW).lines.join(' '), /on their way home/);
+  assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'pair_cap' }, NOW).lines.join(' '), /took as many villages from this player/);
 });

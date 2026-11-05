@@ -20,6 +20,8 @@ import {
   holdDueAt,
   isAttackBlocked,
   occupierPopulation,
+  pairCapReached,
+  pairConquestWindowMs,
   underVillageLimit,
   updateHold,
   villageRenownCost,
@@ -110,6 +112,7 @@ import {
   type SendShipmentResponse,
   type StationedDto,
   type TribeAlertsResponse,
+  type TribeHoldDto,
   type Units,
   type VillageRefDto,
   type WorldSettings,
@@ -206,8 +209,8 @@ export class GameService {
   private readonly renown: RenownService;
 
   /**
-   * May a Strike put out the hearth of a PLAYER village? Off in step 2 (HEARTH_PLAYERS_ENABLED); public so tests can switch
-   * it on to exercise the player path (taking, restart) that step 4 will open.
+   * May a Strike put out the hearth of a PLAYER village? On since step 4 (HEARTH_PLAYERS_ENABLED); public so tests can switch
+   * it off to check the abandoned-only behaviour.
    */
   strikePlayers: boolean = HEARTH_PLAYERS_ENABLED;
 
@@ -299,6 +302,10 @@ export class GameService {
     const v = this.store.getVillage(villageId);
     if (!v || v.ownerId === null) return 0;
     const stepMs = botStepMs(s);
+    if (v.state.hearth) {
+      this.store.setBotNextAt(v.id, now + stepMs); // a cold village cannot build; look again later
+      return 0;
+    }
     let state = settleVillage(v.state, now, s);
     let queued = 0;
     for (let i = 0; i < BOT_MAX_STEPS_PER_RUN; i++) {
@@ -420,6 +427,8 @@ export class GameService {
       return null;
     }
     const at = m.arriveAt;
+    // The owner, a tribe-mate or an ally attacking a cold village: a fight against the occupiers only.
+    if (origin.ownerId !== null && target.state.hearth && this.isRelief(origin.ownerId, target, at)) return this.resolveRelief(m, origin, target);
     // Relations may have changed while the troops marched: an alliance, NAP or shared tribe calls the attack off.
     if (origin.ownerId !== null && target.ownerId !== null) {
       const rel = relationBetweenPlayers(this.store.tribes, origin.ownerId, target.ownerId, at);
@@ -562,13 +571,15 @@ export class GameService {
           points: villagePoints(targetState),
           now: at,
           lockUntil: targetState.lockUntil,
-          protectedUntil: targetState.protectedUntil,
+          // The village's own protection and the owner's beginner / restart protection both stop a Strike.
+          protectedUntil: Math.max(targetState.protectedUntil ?? 0, target.ownerId !== null ? target.ownerProtectedUntil : 0),
         },
         { playersEnabled: this.strikePlayers },
       );
-      // Same connection as the owner: no Strike (the battle itself stands).
+      // Same connection as the owner, or the pair cap is used up: no Strike (the battle itself stands).
       const household = target.ownerId !== null && this.store.shareAnIp(origin.ownerId, target.ownerId);
-      if (check.ok && !household) {
+      const capped = target.ownerId !== null && this.pairCapHit(origin.ownerId, target.ownerId, at);
+      if (check.ok && !household && !capped) {
         this.strike(origin, target, newTarget, targetState.hearth, result.attackerSurvivors, m, at);
         struck = true;
       }
@@ -592,6 +603,130 @@ export class GameService {
     }
     this.store.deleteMovement(m.id);
     const sent = this.takeSpawn(); // returns the hold update sent walking (occupiers going home)
+    return spawned === null ? sent : sent === null ? spawned : Math.min(spawned, sent);
+  }
+
+  /**
+   * Does `senderId` stand on the owner's side of a cold village (hearth out)? True for the owner (from another village), a
+   * tribe-mate or an ally of the owner, as long as the sender is not tied to the claimant by tribe, alliance or pact.
+   */
+  private isRelief(senderId: number, target: VillageRecord, t: number): boolean {
+    const h = target.state.hearth;
+    if (!h || target.ownerId === null || h.claimBy === senderId) return false;
+    if (isAttackForbidden(relationBetweenPlayers(this.store.tribes, senderId, h.claimBy, t).relation)) return false;
+    if (target.ownerId === senderId) return true;
+    return isSupportAllowed(relationBetweenPlayers(this.store.tribes, senderId, target.ownerId, t).relation);
+  }
+
+  /**
+   * A relief attack arrives at a cold village (docs/GAME_DESIGN.md 18.2, "How the owner fights back"). The defenders are the
+   * claimant's occupiers only: the village's own troops take no part, its Wall does not shelter an occupier, nothing is looted,
+   * no Chieftain strikes and no siege lowers a building. Losses follow the normal rules. The hold clock then follows the occupiers
+   * that are left: all dead = the hearth relights at once, under the minimum = the clock stops. No combat Renown is paid.
+   */
+  private resolveRelief(m: MovementRow, origin: VillageRecord, target: VillageRecord): number | null {
+    const s = this.settings;
+    const at = m.arriveAt;
+    const h = target.state.hearth as HearthState;
+    const occupiers = this.store.stationedAt(target.id).filter((c) => c.ownerPlayerId === h.claimBy);
+    const originState = settleVillage(origin.state, at, s);
+    const { ranks: _ranks, ...rest } = settleVillage(target.state, at, s);
+    const bare: VillageState = { ...rest, troops: emptyUnits(), buildings: { ...rest.buildings, wall: 0 } };
+    const result = resolveBattle({
+      attackerUnits: m.units,
+      defender: bare,
+      support: occupiers.map((c) => c.units),
+      attackerRanks: m.ranks ?? undefined,
+      supportRanks: occupiers.map((c) => c.ranks ?? undefined),
+      seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
+      lootFactor: 0,
+      siegeTarget: null,
+    });
+    const supportLosses = occupiers.map((_, i) => normalizeUnits(result.supportLosses[i]));
+    const chiefLosses: Array<[number | null, number]> = [
+      [origin.ownerId, result.attackerLosses.chieftain],
+      ...occupiers.map((c, i): [number, number] => [c.ownerPlayerId, supportLosses[i]?.chieftain ?? 0]),
+    ];
+    const shares = chiefLosses.some(([, n]) => n > 0) ? this.sharesBefore(chiefLosses.map(([id]) => id), at) : null;
+    const newOrigin = applyAttackerLosses(originState, result.attackerLosses);
+    this.store.saveVillage(origin.id, newOrigin, villagePoints(newOrigin));
+    this.applyContingentLosses(occupiers, supportLosses, at);
+    if (shares) for (const [id, n] of chiefLosses) if (id !== null) this.loseChieftains(id, n, shares);
+
+    const killed = supportLosses.reduce((n, l) => n + totalUnits(l), 0);
+    const lost = totalUnits(result.attackerLosses);
+    this.store.addStats(origin.ownerId, { troopsKilled: killed, troopsLost: lost, attacksWon: result.attackerWon ? 1 : 0, attacksLost: result.attackerWon ? 0 : 1 });
+    this.store.addStats(h.claimBy, { troopsKilled: lost, troopsLost: killed, defencesWon: result.attackerWon ? 0 : 1, defencesLost: result.attackerWon ? 1 : 0 });
+
+    const survived = totalUnits(result.attackerSurvivors) > 0;
+    const full: BattleReportData = {
+      outcome: 'battle',
+      attacker: refOf(origin),
+      defender: refOf(target),
+      attackerWon: result.attackerWon,
+      luck: result.luck,
+      attackPower: result.attackPower,
+      defensePower: result.defensePower,
+      attackerUnits: m.units,
+      attackerLosses: result.attackerLosses,
+      defenderUnits: result.defenderUnits,
+      defenderLosses: result.defenderLosses,
+      supportUnits: sumUnits(occupiers.map((c) => c.units)),
+      supportLosses: sumUnits(supportLosses),
+      wallLevel: null,
+      loot: emptyResources(),
+    };
+    const blind: BattleReportData = { ...full, defenderUnits: null, defenderLosses: null, supportUnits: null, supportLosses: null };
+    if (origin.ownerId !== null) {
+      this.store.insertReport({
+        playerId: origin.ownerId,
+        side: 'attack',
+        won: result.attackerWon,
+        title: `Relief attack at ${target.name} ${coords(target)}`,
+        createdAt: at,
+        type: 'battle',
+        battle: survived ? full : blind,
+      });
+    }
+    if (target.ownerId !== null && target.ownerId !== origin.ownerId) {
+      this.store.insertReport({
+        playerId: target.ownerId,
+        side: 'defense',
+        won: result.attackerWon,
+        title: `Relief attack at ${target.name} ${coords(target)} from ${origin.ownerName ?? 'a friend'}`,
+        createdAt: at,
+        type: 'battle',
+        battle: full,
+      });
+    }
+    this.store.insertReport({
+      playerId: h.claimBy,
+      side: 'support',
+      won: !result.attackerWon,
+      title: `Your troops at ${target.name} ${coords(target)} were attacked`,
+      createdAt: at,
+      type: 'battle',
+      battle: full,
+    });
+
+    // The occupiers changed: the hold clock follows (all dead = relit at once).
+    this.refreshHold(target.id, at);
+    let spawned: number | null = null;
+    if (survived) {
+      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
+      spawned = at + back;
+      this.store.insertMovement({
+        kind: 'return',
+        originVillageId: origin.id,
+        targetVillageId: target.id,
+        units: result.attackerSurvivors,
+        loot: emptyResources(),
+        departAt: at,
+        arriveAt: spawned,
+      });
+    }
+    this.store.deleteMovement(m.id);
+    const sent = this.takeSpawn();
     return spawned === null ? sent : sent === null ? spawned : Math.min(spawned, sent);
   }
 
@@ -641,6 +776,12 @@ export class GameService {
       });
     }
     if (previous && previous.claimBy !== claimant) this.reportClaimFailed(previous.claimBy, target, 'replaced', at, undefined);
+    this.store.emitHearth(target.ownerId, claimant); // live hint: hearth out (owner, claimant, owner's tribe alert list)
+  }
+
+  /** Has `takerId` already taken the maximum number of villages from `victimId` in the pair-cap window ending at `at`? */
+  private pairCapHit(takerId: number, victimId: number, at: number): boolean {
+    return pairCapReached(this.store.countConquests(takerId, victimId, at - pairConquestWindowMs(this.settings), at));
   }
 
   /**
@@ -664,10 +805,11 @@ export class GameService {
     const state = { ...v.state, hearth: up.hearth };
     this.store.saveVillage(v.id, state, v.points);
     this.store.setHoldDue(v.id, holdDueAt(up.hearth, this.settings));
+    this.store.emitHearth(v.ownerId, h.claimBy); // the clock may have started, paused or resumed
   }
 
   /** The claim ended without taking the village: the hearth burns again and the claimant's occupiers walk home. */
-  private endClaim(v: VillageRecord, h: HearthState, reason: 'time' | 'relit' | 'no_room', at: number): void {
+  private endClaim(v: VillageRecord, h: HearthState, reason: 'time' | 'relit' | 'no_room' | 'pair_cap', at: number): void {
     const settled = settleVillage(v.state, at, this.settings); // the village was frozen; production resumes from `at`
     delete settled.hearth;
     this.store.saveVillage(v.id, settled, villagePoints(settled));
@@ -686,6 +828,7 @@ export class GameService {
         village: { kind: 'relit', village: refOf(v) },
       });
     }
+    this.store.emitHearth(v.ownerId, h.claimBy); // live hint: hold broken or ended
   }
 
   private reportClaimFailed(claimant: number, v: VillageRecord, reason: NonNullable<VillageReportData['reason']>, at: number, units: Units | undefined): void {
@@ -710,8 +853,11 @@ export class GameService {
     const claimant = this.store.getPlayer(h.claimBy);
     const owned = claimant ? this.store.villagesOfPlayer(claimant.id).length : 0;
     if (!claimant || !underVillageLimit(owned)) return this.endClaim(v, h, 'no_room', at);
+    // The pair cap is re-checked here: two holds on the same victim can run at once, and only the first ones get through.
+    if (v.ownerId !== null && this.pairCapHit(claimant.id, v.ownerId, at)) return this.endClaim(v, h, 'pair_cap', at);
 
     const oldOwnerId = v.ownerId;
+    if (oldOwnerId !== null) this.store.recordConquest(claimant.id, oldOwnerId, v.id, at, at - pairConquestWindowMs(s));
     const shares = this.sharesBefore([claimant.id, oldOwnerId], at);
     const rows = this.store.stationedAt(v.id);
     const occ = rows.filter((c) => c.ownerPlayerId === claimant.id);
@@ -782,6 +928,7 @@ export class GameService {
       this.store.emit({ kind: 'player', playerId: oldOwnerId, topics: ['game'] });
     }
     this.store.emit({ kind: 'player', playerId: claimant.id, topics: ['game'] });
+    this.store.emitHearth(oldOwnerId, claimant.id); // live hint: village taken (the old owner's tribe list loses the hold)
   }
 
   /** Does the player have no village? Then a fresh start village is created at the next request (AuthService.ensureStartingVillage). */
@@ -1397,7 +1544,7 @@ export class GameService {
   }
 
   /** Incoming attacks on villages of the player's tribe members, soonest first. Members only. */
-  tribeAlerts(player: PlayerRow): TribeAlertsResponse {
+  tribeAlerts(player: PlayerRow, t: number): TribeAlertsResponse {
     const tribe = this.store.tribes.playerTribe(player.id);
     if (!tribe) throw new GameError('not_in_tribe', 'You are not in a tribe.');
     return {
@@ -1409,6 +1556,13 @@ export class GameService {
         departAt: a.departAt,
         arriveAt: a.arriveAt,
       })),
+      holds: this.store.tribeColdVillages(tribe.id, ALERT_LIST_LIMIT).flatMap((v): TribeHoldDto[] => {
+        const h = v.state.hearth;
+        if (!h) return [];
+        // Same clock everybody sees on the map; the occupiers' numbers only for the owner of the village.
+        const pop = v.ownerId === player.id ? occupierPopulation(sumUnits(this.store.stationedAt(v.id).filter((c) => c.ownerPlayerId === h.claimBy).map((c) => c.units))) : undefined;
+        return [{ village: refOf(v), hearth: hearthDto(h, t, this.settings, this.store.getPlayer(h.claimBy)?.username ?? '?', pop) }];
+      }),
     };
   }
 
@@ -1580,6 +1734,7 @@ export class GameService {
       const army = normalizeUnits(units);
       // A found mission walks to a free tile; every other mission needs a village on the target tile.
       let target: VillageRecord | null = null;
+      let relief = false;
       if (mission === 'found') {
         const tile = checkFoundTarget({ x, y }, s, (px, py) => this.store.villageExistsAt(px, py));
         if (!tile.ok) throw new GameError(tile.reason, tile.message);
@@ -1590,7 +1745,9 @@ export class GameService {
         target = this.store.getVillageAt(x, y);
         if (!target) throw new GameError('invalid_target', 'There is no village at those coordinates.');
         const own = target.ownerId === player.id;
-        if (target.id === v.id || (own && mission !== 'support')) {
+        // A cold village (hearth out) may be attacked by its owner, tribe-mates and allies: the attack fights the occupiers only.
+        relief = mission === 'attack' && target.id !== v.id && this.isRelief(player.id, target, t);
+        if (target.id === v.id || (own && mission !== 'support' && !relief)) {
           const what = mission === 'support' ? 'send support to' : mission === 'scout' ? 'scout' : mission === 'occupy' ? 'occupy' : 'attack';
           throw new GameError('invalid_target', `You cannot ${what} your own village.`);
         }
@@ -1600,6 +1757,9 @@ export class GameService {
         } else if (mission === 'occupy') {
           // Occupiers only go to the cold village of your own claim.
           if (target.state.hearth?.claimBy !== player.id) throw new GameError('invalid_target', 'You hold no claim on that village.');
+        } else if (relief) {
+          if (army.chieftain > 0) throw new GameError('invalid_target', 'Chieftains cannot help win a village back: send fighters.');
+          if (hasSiegeUnits(army)) throw new GameError('invalid_target', 'Siege units cannot be used to win a village back.');
         } else {
           if (target.ownerId !== null) this.refuseProtectedByTribe(player.id, target.ownerId, t, mission);
           if (target.ownerId !== null && target.ownerProtectedUntil > t) {
@@ -1609,8 +1769,12 @@ export class GameService {
           if (mission === 'attack' && target.state.hearth?.claimBy === player.id) {
             throw new GameError('invalid_target', 'That is the village you are holding: send occupiers, not an attack.');
           }
-          if (army.chieftain > 0 && target.ownerId !== null && !this.strikePlayers) {
-            throw new GameError('invalid_target', 'Chieftains can only strike abandoned villages for now.');
+          if (army.chieftain > 0 && target.ownerId !== null) {
+            if (!this.strikePlayers) throw new GameError('invalid_target', 'Chieftains can only strike abandoned villages for now.');
+            // Only says something about the sender's own past takings, never about the target.
+            if (this.pairCapHit(player.id, target.ownerId, t)) {
+              throw new GameError('invalid_target', `You have already taken as many villages from ${target.ownerName ?? 'this player'} as allowed for now.`);
+            }
           }
         }
       }
@@ -1639,7 +1803,7 @@ export class GameService {
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support, found and occupy never do.
-      if ((mission === 'attack' || mission === 'scout') && target && target.ownerId !== null) this.store.setProtectedUntil(player.id, 0);
+      if ((mission === 'attack' || mission === 'scout') && target && target.ownerId !== null && !relief) this.store.setProtectedUntil(player.id, 0);
 
       const view = this.store.getMovementView(movementId);
       if (!view) throw new Error('movement vanished after insert');

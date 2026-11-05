@@ -41,7 +41,12 @@ export function HoldCard({
         </span>
       </div>
       <p>{holdText(hearth, now, viewpoint === 'claimant')}</p>
-      {!compact && viewpoint === 'owner' && <p>Your village makes nothing and eats nothing while the hearth is out. Win it back with troops before the clock runs out.</p>}
+      {!compact && viewpoint === 'owner' && (
+        <p>
+          Your village makes nothing and eats nothing while the hearth is out, and nothing new can be built or trained. Win it back with troops before the clock runs out.
+        </p>
+      )}
+      {compact && viewpoint === 'owner' && <p>No building or training while the hearth is out.</p>}
       {!compact && !view.running && <p>Clock left once it runs again: {formatDuration(view.leftMs)}.</p>}
       {gap && (
         <p>
