@@ -5,8 +5,8 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`71afea4`): rest hours DROPPED by the owner (docs only); test mode: Max grants Renown for 3 villages, Warp covers returns; UI fixes (top bar, map panel, legend, profile sheet, small items), reasoned from CSS, NOT viewed in a browser. Raid Renown verified OK (paid at battle time). Checks passed (check, build, build:preview).
-Left: owner views 360/1440 px (top bar, map side panel sticky/scroll, map key on a phone, profile sheet); siege balance questions; flaky `found-village.test.ts` "nobody else can act..." (failed once).
+2026-11-05 (`6df079a`): fixes from the owner's real browser check. Top bar overlap (cause: flex-shrink + min-width:0 on nav/resources; now flex:none, icons below 1600 px); map page scroll (cause: html/.app/.main/.wm all clipped to the viewport; map tab >=1024 px now lets the document scroll, sticky bar + stage); test mode Max fits the pop cap (room for 3 Chieftains) + Clear army; Found panel texts; founding-site reasons (forest is buildable, "too close" now told apart); raid Renown test. Checks passed (check, build, build:preview). Still NOT viewed in a browser.
+Left: owner re-checks 360/1440 px (top bar, map scroll); flaky `found-village.test.ts` (a helper's check failed once with an unreadable strictEqual, passed on rerun).
 Very next step: step 4, taking player villages (`HEARTH_PLAYERS_ENABLED`, alerts, pair cap).
 Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects); `npm test -w <pkg>` runs the whole workspace. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
 Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, and the empty `scripts/sim/_debug.ts` (stage with explicit paths, not `git add -A`).
