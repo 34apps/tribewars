@@ -1,4 +1,4 @@
-// Taking PLAYER villages (docs/GAME_DESIGN.md 18.2, step 4): the pair cap, breaking a hold (relief attacks by the owner, a
+// Taking PLAYER villages (docs/GAME_DESIGN.md 18.2, step 4): no pair cap (2026-11-05), breaking a hold (relief attacks by the owner, a
 // tribe-mate or an ally), alerts and live hints for the owner's tribe, build and train blocked in a cold village, and who may
 // act on a claim. The world runs at speed 10 (hold 72 min). Custom walking times need sandbox accounts.
 
@@ -6,9 +6,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   HOLD_HOURS,
-  PAIR_CONQUEST_CAP,
   createPlayerVillage,
-  pairConquestWindowMs,
   villagePoints,
   type Mission,
   type SendResponse,
@@ -37,9 +35,10 @@ function extraVillage(app: App, p: P, nowMs: number, slot: number) {
   return app.ctx.store.getVillage(id)!;
 }
 
-test('pair cap: a third take from the same victim in the window is refused, also when three holds run at once', async () => {
+test('no pair cap: three villages are taken from the same victim in a row, three holds at once', async () => {
   const { app, clock } = await makeApp({ sandboxUsers: ['claimer'] });
   const store = app.ctx.store;
+  assert.equal(HOLD_MS, (8 * HOUR) / SPEED, 'a player village is held for 8 h (÷ speed)');
   const claimer = await player(app, 'claimer');
   const victim = await player(app, 'victim');
   const home = strongHome(app, clock, claimer, { raider: 1200, chieftain: 3 });
@@ -54,33 +53,16 @@ test('pair cap: a third take from the same victim in the window is refused, also
   const m3 = await go(claimer, home, c, 'attack', { raider: 300, chieftain: 1 }, 62);
   runTo(app, clock, m3.arriveAt);
   for (const v of [a, b, c]) assert.ok(store.getVillage(v.id)?.state.hearth, 'every hearth is out');
-  assert.equal(store.countConquests(claimer.id, victim.id, 0, clock.now()), 0);
 
-  // The clocks end in order: the first two villages are taken, the third claim fails on the pair cap.
+  // The clocks end in order: all three villages are taken, there is no limit per victim any more.
   runTo(app, clock, m3.arriveAt + HOLD_MS + MINUTE);
-  assert.equal(store.getVillage(a.id)?.ownerId, claimer.id);
-  assert.equal(store.getVillage(b.id)?.ownerId, claimer.id);
-  assert.equal(store.getVillage(c.id)?.ownerId, victim.id, 'the third village stays with the victim');
-  assert.equal(store.getVillage(c.id)?.state.hearth, undefined);
-  assert.equal(store.countConquests(claimer.id, victim.id, 0, clock.now()), PAIR_CONQUEST_CAP);
-  assert.deepEqual((await villageReports(claimer)).filter((r) => r.village.kind === 'claim_failed').map((r) => r.village.reason), ['pair_cap']);
-  assert.ok((await villageReports(victim)).some((r) => r.village.kind === 'relit'));
-  assert.equal(store.villagesOfPlayer(victim.id).length, 1, 'the victim keeps what is left');
-  assert.equal(store.stationedAt(c.id).length, 0, 'the occupiers walked home');
-
-  // Now the send itself is refused (it says nothing about the target, only about your own takings so far).
-  const ids = villagesOf(app, claimer).map((v) => v.id);
-  assert.ok(ids.includes(home));
-  const refused = await claimer.c.post(`/api/villages/${home}/send`, { x: c.x, y: c.y, units: { raider: 300, chieftain: 1 }, mission: 'attack' });
-  errorOf(refused, 400, 'invalid_target');
-  assert.match(refused.json<{ message: string }>().message, /already taken/);
-  // A plain raid is still fine.
-  ok(await claimer.c.post(`/api/villages/${home}/send`, { x: c.x, y: c.y, units: { raider: 50 }, mission: 'attack' }), 201);
-
-  // After the window the cap is open again.
-  runTo(app, clock, clock.now() + pairConquestWindowMs(app.ctx.settings) + MINUTE); // the third Chieftain is back home by then
-  const again = await claimer.c.post(`/api/villages/${home}/send`, { x: c.x, y: c.y, units: { raider: 300, chieftain: 1 }, mission: 'attack', travelSeconds: 60 });
-  ok(again, 201);
+  for (const v of [a, b, c]) assert.equal(store.getVillage(v.id)?.ownerId, claimer.id, 'taken');
+  assert.deepEqual((await villageReports(claimer)).filter((r) => r.village.kind === 'claim_failed'), []);
+  // The victim lost their last village; a fresh one is made at their next request (rule from step 2).
+  await victim.c.state();
+  const left = store.villagesOfPlayer(victim.id);
+  assert.equal(left.length, 1);
+  assert.ok(![a.id, b.id, c.id].includes(left[0]!.id));
   await app.close();
 });
 
@@ -105,7 +87,7 @@ test('the owner, a tribe-mate and an ally break the hold by beating the occupier
   const s1 = await go(claimer, claimHome, amyVillage, 'attack', { raider: 250, chieftain: 1 });
   runTo(app, clock, s1.arriveAt);
   assert.equal(store.getVillage(amyVillage.id)?.state.hearth?.claimBy, claimer.id);
-  // While it is cold: no new building or training; the caretaker skips it.
+  // While it is cold: only the Wall can be built, no training; the caretaker skips it.
   errorOf(await amy.c.post(`/api/villages/${amyVillage.id}/build`, { building: 'lumber' }), 409, 'requirements_not_met');
   errorOf(await amy.c.post(`/api/villages/${amyVillage.id}/train`, { unit: 'pikeman', count: 1 }), 409, 'requirements_not_met');
   const before = ledger(app, claimer);

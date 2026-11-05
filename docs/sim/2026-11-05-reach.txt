@@ -1,0 +1,22 @@
+# Support reach against the hold (speed 1, real terrain of the default world)
+
+Hold: **8 h** player villages, **2 h** abandoned; a claim fails after 2 h under the minimum; Chieftain chain window 2 h.
+
+Hours for a column to walk the distance (average of eight directions from (0,0), terrain included; flat = no terrain). `ok` = the worst direction is still inside the player hold.
+
+| column (speed tiles/h) | 10 tiles | 20 tiles | 30 tiles | 40 tiles | 50 tiles | 60 tiles | 80 tiles | 100 tiles |
+|---|---|---|---|---|---|---|---|---|
+| Outriders (cavalry) (14) | 0.7 h (flat 0.7, worst 0.8) ok | 1.6 h (flat 1.4, worst 2.2) ok | 2.6 h (flat 2.1, worst 3.6) ok | 3.5 h (flat 2.9, worst 4.7) ok | 4.3 h (flat 3.6, worst 5.5) ok | 5.2 h (flat 4.3, worst 6.2) ok | 7.1 h (flat 5.7, worst 7.8) ok | 9.1 h (flat 7.1, worst 10.3) late |
+| Pikemen (6) | 1.7 h (flat 1.7, worst 1.8) ok | 3.6 h (flat 3.3, worst 4.3) ok | 5.5 h (flat 5.0, worst 6.8) ok | 7.3 h (flat 6.7, worst 8.8) late | 9.1 h (flat 8.3, worst 10.6) late | 10.9 h (flat 10.0, worst 12.2) no | 14.8 h (flat 13.3, worst 16.1) no | 18.9 h (flat 16.7, worst 20.2) no |
+| Guards (slowest fighter) (5) | 2.0 h (flat 2.0, worst 2.1) ok | 4.3 h (flat 4.0, worst 5.1) ok | 6.6 h (flat 6.0, worst 8.1) late | 8.7 h (flat 8.0, worst 10.6) late | 10.9 h (flat 10.0, worst 12.7) no | 13.1 h (flat 12.0, worst 14.7) no | 17.8 h (flat 16.0, worst 19.3) no | 22.7 h (flat 20.0, worst 24.2) no |
+| Mixed: Pikemen + Guards + Knights (5) | 2.0 h (flat 2.0, worst 2.1) ok | 4.3 h (flat 4.0, worst 5.1) ok | 6.6 h (flat 6.0, worst 8.1) late | 8.7 h (flat 8.0, worst 10.6) late | 10.9 h (flat 10.0, worst 12.7) no | 13.1 h (flat 12.0, worst 14.7) no | 17.8 h (flat 16.0, worst 19.3) no | 22.7 h (flat 20.0, worst 24.2) no |
+| Chieftain with escort (5) | 2.0 h (flat 2.0, worst 2.1) ok | 4.3 h (flat 4.0, worst 5.1) ok | 6.6 h (flat 6.0, worst 8.1) late | 8.7 h (flat 8.0, worst 10.6) late | 10.9 h (flat 10.0, worst 12.7) no | 13.1 h (flat 12.0, worst 14.7) no | 17.8 h (flat 16.0, worst 19.3) no | 22.7 h (flat 20.0, worst 24.2) no |
+
+Farthest tested distance (tiles) whose worst direction is still inside the player hold:
+- Outriders (cavalry): 80
+- Pikemen: 30
+- Guards (slowest fighter): 20
+- Mixed: Pikemen + Guards + Knights: 20
+- Chieftain with escort: 20
+
+Chieftain chain: Chieftains walk 5 tiles/h, so two attacks sent at the same moment from two of the attacker's villages arrive inside the 2 h window when their distances to the target differ by at most 10 tiles (flat ground); sent at different moments, the later one only has to arrive within 2 h of the earlier one's arrival and while that Chieftain is still walking home.

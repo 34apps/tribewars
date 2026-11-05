@@ -799,14 +799,17 @@ A village changes owner in two steps:
    out, if at least `need` Chieftains survive. `need` is 1 for a village under 4,000 points, 2 from 4,000, 3
    from 8,000 (a fully built village is about 10,000). The surviving Chieftains do not go home: they stay
    at the cold hearth as the first occupiers. Losses from the battle follow the normal rules (§7). The Chieftain
-   is a weak fighter (attack 0, defence 10), so he needs an escort.
+   is a weak fighter (attack 0, defence 10), so he needs an escort. **The Chieftains may come in separate attacks
+   ("Chieftain chain", owner 2026-11-05):** see the box "Conquest changes 2026-11-05" below.
 2. **Hold.** From the moment the hearth is out, the attacker must keep **occupiers** (their own troops stationed
    at the village, same rule as support, arriving as a new mission `occupy`) of at least `HOLD_MIN_POPULATION`
-   (150 population) in the village. The **hold clock** starts at 12 hours (6 for abandoned villages) and runs
+   (150 population) in the village. The **hold clock** starts at 8 hours (2 for abandoned villages; was 12 / 6 until
+   2026-11-05) and runs
    only while enough occupiers are there. When it reaches zero the village changes owner.
 
 While the hearth is out, the owner can still fight and can still send support. What changes in the cold village:
-**nothing is produced, nothing new can be trained, and the village is not shown as safe on the map** (a cold
+**nothing is produced, nothing new can be trained, the only thing that can be built is the Wall (owner 2026-11-05), and the
+village is not shown as safe on the map** (a cold
 village has a grey ring and a thin line of smoke). Orders already in the queues carry on.
 
 **How the owner (and friends) fight back**
@@ -829,7 +832,7 @@ village has a grey ring and a thin line of smoke). Orders already in the queues 
 - The old owner's troops and the support of others that were still inside are sent home.
 - Points move to the new owner at once (the ranking already adds up all of a player's villages).
 
-**Abandoned villages**: the same two steps but the hold is only 6 hours and needs 1 Chieftain at any tier. This
+**Abandoned villages**: the same two steps but the hold is only 2 hours (was 6) and needs 1 Chieftain at any tier. This
 is the safest way to get a second village and gives the abandoned villages a new purpose. (They start at the
 state a new player village has; their growth is kept.)
 
@@ -860,7 +863,7 @@ A builder or a defender who is never attacked still reaches the second village; 
 
 **Step 4 — taking PLAYER villages (owner decisions 2026-11-05, built the same day; these override older text where they differ)**
 - **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 4,000) Chieftains (max 3); hold
-  `HOLD_HOURS` (12 h ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
+  `HOLD_HOURS` (12 h until 2026-11-05, now 8 h; ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
   outer edge with restart protection (rule from step 2). **Captured villages keep all buildings** (levels only drop through siege, §18.9).
 - **Cold village, what 18.2 decides (kept):** it produces nothing and eats nothing; **nothing new can be built or trained** (the build block is new in step 4,
   the training block was there); jobs already queued carry on. The caretaker bot skips a cold village.
@@ -878,11 +881,29 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **On change of owner** (as already built): all buildings stay, stock × `TAKE_KEEP_RESOURCE_SHARE`, old queues cleared, the old owner's troops there are gone, the old
   owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers move in (up to the population cap). Points move at once (rankings add up villages).
 - **Anti-abuse (server, deterministic, in order of arrival):** no Strike on same-IP accounts, tribe-mates or allies (refused at send and again at arrival); none on
-  players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; **pair cap**: one attacker may take at most
-  `PAIR_CONQUEST_CAP` (2) villages from the same victim within `PAIR_CONQUEST_WINDOW_DAYS` (7 days ÷ speed): the send is refused once the cap is used, a Strike at arrival is
-  only a battle, and a hold that ends over the cap fails with the report reason `pair_cap` (several holds can run at once, only the first ones get through). Takes are
-  recorded in the `conquests` table (schema v7). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
+  players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; ~~**pair cap**~~ (2 takes per victim per 7 days: **removed 2026-11-05**, see the box below). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
 - **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
+
+**Conquest changes 2026-11-05 (owner; these override everything above where they differ)**
+1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). Sim target: the 2nd village around
+   **day 21-28 for active players**, about a week later for builders and defenders (`BALANCE.md` 7.8). With the base alone the pure defender needed day 47.8, so
+   `DEFENDER_RENOWN_DAILY_CAP` went 22 -> 36 (the defender trickle is what a player with a home army lives on; builders gain too). Sim: balanced 19.8, builder 27.5, defender 35.9, pure raider
+   13.9 (too early, caused by the always-full loot rule of 2026-11-05, not by this change; open for the owner).
+2. **Chieftain chain.** The Chieftains a village needs (1-3 by its size, unchanged) may arrive in **separate attacks**. Every won attack that reaches a village that can be struck
+   (not locked, not protected, not same-IP, not own tribe or ally) and brings at least one surviving Chieftain, but fewer than `need` together with the earlier ones, is written down as a **chain
+   entry** (village, attacker, surviving Chieftains, arrival time, the return movement that takes them home). An attack's survivors add up with the entries of the **same attacker on the
+   same village** that are not older than `STRIKE_CHAIN_WINDOW_HOURS` (2 h, divided by world speed; exactly the window still counts, one millisecond more does not) and whose Chieftains are
+   **still on their way home** (their return movement has not arrived yet). A Chieftain who is home again is a fresh Chieftain and cannot be counted twice, so one Chieftain can never
+   stand for two. When survivors + entries reach `need`, the hearth goes out at once and the hold starts, and the entries are used up. The occupiers are the survivors of
+   the attack that completed the chain; the earlier Chieftains walk home as before. A dead Chieftain counts for nothing: his Renown comes back by half (existing rule), train a new one.
+   Order is the usual one (SECURITY_ROADMAP §2): attacks arrive and are resolved by arrival time, then movement id; entries are written when an attack resolves, so the
+   result never depends on anything but the stored arrival times.
+3. **Hold time.** 8 h for player villages (`HOLD_HOURS`), 2 h for abandoned villages (`HOLD_HOURS_ABANDONED`), both divided by world speed. `HOLD_FAIL_HOURS` (the claim fails after 2 h
+   under the minimum) is unchanged. `BALANCE.md` 7.8 checks that typical tribe support can arrive within the player hold.
+4. **No pair cap.** A player may take any number of villages from the same player (`PAIR_CONQUEST_CAP`, `PAIR_CONQUEST_WINDOW_DAYS`, the `conquests` table, `pairCapReached` and the
+   report reason `pair_cap` are gone). Kept: no taking from the same IP group, own tribe, allies or players under beginner / restart protection; the 24 h lock after a take.
+5. **A cold village builds ONLY its Wall.** While the hearth is out the village cannot start any other building (the Wall can be queued and upgraded normally; queued jobs carry on) and still cannot train
+   or research. Error `hearth_out` for other buildings, the same refusal as before for training.
 
 *Rules*
 - Renown is **earned, never bought, never lost, only spent**. A player has `renownTotal` (all earned, used for the Renown
@@ -941,9 +962,9 @@ Building and Feast Renown are never reduced by these rules (the Feast has its ow
 
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
-minimum battle value 300; village base price 500 (then 800, 1,280, 2,048 ...); Feast 600/600/600 for 10 Renown, 3 per
+minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 600/600/600 for 10 Renown, 3 per
 Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
-22 per village per day** (a defence of about 3,700 points reaches the cap). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the pair cap limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
+36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
 
@@ -984,7 +1005,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
 | `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
 | `STRIKE_LOCK_HOURS` | 24 | No new Strike after a change of owner |
-| `DEFENDER_RENOWN_PER_DEFENCE` / `DEFENDER_RENOWN_DAILY_CAP` | 0.006 / 22 | Defender trickle: Renown per day per defence point at home, and the cap per village per day |
+| `DEFENDER_RENOWN_PER_DEFENCE` / `DEFENDER_RENOWN_DAILY_CAP` | 0.006 / 36 (22 until 2026-11-05) | Defender trickle: Renown per day per defence point at home, and the cap per village per day |
 | `RENOWN_VILLAGE_BASE` | see `config.ts` | Renown price of the 2nd village; each further one x1.6 (replaces `VILLAGE_LIMIT_BASE`, owner 2026-11-04) |
 | `PAIR_CONQUEST_CAP` / `PAIR_CONQUEST_WINDOW_DAYS` | 2 / 7 | Villages one attacker may take from the same victim per window (÷ speed); built 2026-11-05 (replaces "per season") |
 | `TAKE_KEEP_RESOURCE_SHARE` | 0.5 | Share of each resource a village keeps when it changes owner (built 2026-11-05, engine `hearth.ts`) |

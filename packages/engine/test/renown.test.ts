@@ -90,10 +90,10 @@ describe('cost of a new village', () => {
     assert.equal(villageRenownCost(2), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH));
     assert.equal(villageRenownCost(3), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH ** 2));
     assert.equal(villageRenownCost(5), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH ** 4));
-    assert.equal(villageRenownCost(1), 500);
-    assert.equal(villageRenownCost(2), 800);
-    assert.equal(villageRenownCost(3), 1280);
-    assert.equal(villageRenownCost(5), 3277);
+    assert.equal(villageRenownCost(1), 1000);
+    assert.equal(villageRenownCost(2), 1600);
+    assert.equal(villageRenownCost(3), 2560);
+    assert.equal(villageRenownCost(5), 6554);
   });
 
   it('treats nonsense counts as one village', () => {
@@ -108,7 +108,7 @@ describe('cost of a new village', () => {
   });
 
   it('shows floored numbers in RenownInfo', () => {
-    assert.deepEqual(makeRenownInfo(100.9, 40.2, 2), { total: 100, spent: 40, balance: 60, nextVillageCost: 800, villages: 2 });
+    assert.deepEqual(makeRenownInfo(100.9, 40.2, 2), { total: 100, spent: 40, balance: 60, nextVillageCost: 1600, villages: 2 });
     assert.equal(makeRenownInfo(10, 10, 1).balance, 0);
   });
 });

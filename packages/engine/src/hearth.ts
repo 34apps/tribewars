@@ -3,7 +3,7 @@
 // Flow: a winning attack with Chieftains puts the hearth out (`checkStrike`, `applyStrike`). The claimant's occupiers are
 // stationed at the village; `updateHold` runs the hold clock from the occupiers' population; when it ends the village
 // changes owner (`applyOwnerChange`). While the hearth is out `settleVillage` freezes production and growth.
-// Player villages can be struck since step 4 (HEARTH_PLAYERS_ENABLED); the pair cap (`pairCapReached`) limits repeat takes.
+// Player villages can be struck since step 4 (HEARTH_PLAYERS_ENABLED); Chieftains may arrive in separate attacks (`chainedChieftains`, 2026-11-05).
 
 import {
   HEARTH_MAX_CHIEFTAINS,
@@ -13,9 +13,8 @@ import {
   HOLD_HOURS,
   HOLD_HOURS_ABANDONED,
   HOLD_MIN_POPULATION,
-  PAIR_CONQUEST_CAP,
-  PAIR_CONQUEST_WINDOW_DAYS,
   POP_PER_UNIT,
+  STRIKE_CHAIN_WINDOW_HOURS,
   STRIKE_LOCK_HOURS,
   TAKE_KEEP_RESOURCE_SHARE,
 } from './config.ts';
@@ -55,30 +54,57 @@ export interface StrikeTarget {
 
 export type StrikeFailReason = 'lost' | 'players_disabled' | 'protected' | 'locked' | 'too_few_chieftains';
 
+/** `chieftains` = survivors of this attack; `banked` = Chieftains of earlier attacks counted with them (Chieftain chain). */
 export type StrikeCheck =
-  | { ok: true; need: number; chieftains: number }
-  | { ok: false; reason: StrikeFailReason; need: number; chieftains: number };
+  | { ok: true; need: number; chieftains: number; banked: number }
+  | { ok: false; reason: StrikeFailReason; need: number; chieftains: number; banked: number };
+
+/** Length of the Chieftain-chain window in ms (STRIKE_CHAIN_WINDOW_HOURS divided by world speed). */
+export function strikeChainWindowMs(s: WorldSettings): number {
+  return hoursMs(STRIKE_CHAIN_WINDOW_HOURS, s);
+}
+
+/**
+ * Chieftain chain: how many Chieftains of earlier attacks still count at `now`. `entries` = earlier attacks of the same
+ * attacker on the same village (surviving Chieftains + arrival time). An entry counts when `now - at` is within the window
+ * (exactly the window still counts, one millisecond more does not). Never negative, never NaN; bad entries count 0.
+ * The caller must pass only entries whose Chieftains are still on their way home (a Chieftain who is home is fresh).
+ */
+export function chainedChieftains(entries: ReadonlyArray<{ chieftains: number; at: number }>, now: number, s: WorldSettings): number {
+  const window = strikeChainWindowMs(s);
+  let total = 0;
+  for (const e of entries) {
+    if (!Number.isFinite(e.chieftains) || !Number.isFinite(e.at) || !Number.isFinite(now)) continue;
+    const age = now - e.at;
+    if (age < 0 || age > window) continue;
+    total += Math.max(0, Math.floor(e.chieftains));
+  }
+  return total;
+}
 
 /**
  * Does this finished battle put the hearth out? Needs a won battle (every defender dead), a village that is not locked or
- * protected at `target.now`, and at least `need` surviving Chieftains. `survivors` is the attacking army after the battle
- * (`result.attackerSurvivors`). Player villages only when `HEARTH_PLAYERS_ENABLED` (or `opts.playersEnabled`). Never throws.
+ * protected at `target.now`, and at least `need` Chieftains: the survivors plus `banked` Chieftains of earlier attacks
+ * (Chieftain chain, `chainedChieftains`), with at least one survivor in this attack. `survivors` is the attacking army after
+ * the battle (`result.attackerSurvivors`). Player villages only when `HEARTH_PLAYERS_ENABLED` (or `opts.playersEnabled`). Never throws.
  */
 export function checkStrike(
   result: Pick<BattleResult, 'attackerWon'>,
   survivors: Partial<Units>,
   target: StrikeTarget,
   opts: { playersEnabled?: boolean } = {},
+  banked = 0,
 ): StrikeCheck {
   const need = chieftainsNeeded(target.abandoned, target.points);
   const chieftains = normalizeUnits(survivors).chieftain;
-  const no = (reason: StrikeFailReason): StrikeCheck => ({ ok: false, reason, need, chieftains });
+  const bank = Number.isFinite(banked) ? Math.max(0, Math.floor(banked)) : 0;
+  const no = (reason: StrikeFailReason): StrikeCheck => ({ ok: false, reason, need, chieftains, banked: bank });
   if (!result.attackerWon) return no('lost');
   if (!target.abandoned && !(opts.playersEnabled ?? HEARTH_PLAYERS_ENABLED)) return no('players_disabled');
   if (target.protectedUntil !== undefined && target.now < target.protectedUntil) return no('protected');
   if (target.lockUntil !== undefined && target.now < target.lockUntil) return no('locked');
-  if (chieftains < need) return no('too_few_chieftains');
-  return { ok: true, need, chieftains };
+  if (chieftains < 1 || chieftains + bank < need) return no('too_few_chieftains');
+  return { ok: true, need, chieftains, banked: bank };
 }
 
 /**
@@ -204,16 +230,6 @@ export function applyOwnerChange(
   const chieftainUsed = moved.overflow.chieftain >= 1 ? 1 : 0;
   moved.overflow.chieftain -= chieftainUsed;
   return { state: v, overflow: moved.overflow, chieftainUsed };
-}
-
-/** Length of the pair-cap window in ms (PAIR_CONQUEST_WINDOW_DAYS divided by world speed). */
-export function pairConquestWindowMs(s: WorldSettings): number {
-  return hoursMs(PAIR_CONQUEST_WINDOW_DAYS * 24, s);
-}
-
-/** May the attacker take one more village from this victim? `takenInWindow` = villages already taken from them in the window. */
-export function pairCapReached(takenInWindow: number): boolean {
-  return takenInWindow >= PAIR_CONQUEST_CAP;
 }
 
 /** True while `v` may not be struck at `now` (locked after a change of owner, or protected). Raids are not affected by `lockUntil`. */

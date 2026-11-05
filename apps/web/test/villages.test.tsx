@@ -2,9 +2,11 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CHIEFTAIN_MAX_BATCH, HOLD_MIN_POPULATION, emptyUnits, villageRenownCost, villageRenownPrice } from '@clanfire/engine';
+import { CHIEFTAIN_MAX_BATCH, HOLD_HOURS, HOLD_HOURS_ABANDONED, HOLD_MIN_POPULATION, STRIKE_CHAIN_WINDOW_HOURS, emptyUnits, villageRenownCost, villageRenownPrice } from '@clanfire/engine';
 import type { HearthInfoDto, MapVillageDto, RenownInfo, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
 import {
+  HEARTH_OUT_BUILD_REASON,
+  HEARTH_OUT_REASON,
   SEND_MODE_BUTTON,
   SEND_MODE_HINT,
   alertCount,
@@ -13,6 +15,7 @@ import {
   chieftainRenownNote,
   chieftainsAffordable,
   foundProblem,
+  hearthBuildReason,
   holdText,
   holdView,
   isReliefTarget,
@@ -243,9 +246,13 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
   assert.equal(strikeNeed('abandoned', 99_999), 1);
   assert.equal(strikeNeed('player', 0), 1);
   assert.equal(strikeNeed('player', 9000), 3);
-  assert.match(strikeHint('player'), /12-hour hold/);
+  assert.ok(strikeHint('player').includes(`${HOLD_HOURS}-hour hold`));
   assert.match(strikeHint('player'), /Tribe-mates and allies cannot be struck/);
   assert.equal(strikeHint('abandoned').includes('Tribe-mates'), false);
+  assert.ok(strikeHint('abandoned').includes(`${HOLD_HOURS_ABANDONED}-hour hold`));
+  for (const kind of ['player', 'abandoned'] as const) {
+    assert.ok(strikeHint(kind).includes(`separate attacks, as long as they arrive within ${STRIKE_CHAIN_WINDOW_HOURS} hours of each other and are still on their way home`), kind);
+  }
   assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 100) ?? '', /strong|defends/);
   assert.match(strikeWarning({ raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
 });
@@ -295,5 +302,13 @@ test('villageReportText has plain words for every kind', () => {
   assert.match(villageReportText({ kind: 'hearth_out', village: ref, claimBy: 'Rhea' }, NOW).lines[0]!, /Rhea put out the hearth/);
   assert.match(villageReportText({ kind: 'found_failed', village: ref, reason: 'village_limit' }, NOW).lines[0]!, /as many villages as the world allows/);
   assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'time', units: units({ pikeman: 4 }) }, NOW).lines.join(' '), /on their way home/);
-  assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'pair_cap' }, NOW).lines.join(' '), /took as many villages from this player/);
+});
+
+test('a cold village builds only the Wall; training keeps the plain reason', () => {
+  assert.equal(hearthBuildReason(false, 'wall'), null);
+  assert.equal(hearthBuildReason(false, 'barracks'), null, 'lit hearth: nothing blocked here');
+  assert.equal(hearthBuildReason(true, 'wall'), null, 'the Wall stays buildable');
+  for (const id of ['hall', 'barracks', 'woodcutter', 'banner'] as const) assert.equal(hearthBuildReason(true, id), 'The hearth is out: only the Wall can be built', id);
+  assert.equal(HEARTH_OUT_BUILD_REASON, 'The hearth is out: only the Wall can be built');
+  assert.equal(HEARTH_OUT_REASON, 'The hearth is out');
 });

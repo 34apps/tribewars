@@ -72,6 +72,7 @@ test('Strike, hold, change of owner: buildings kept, occupiers move in, the Chie
   assert.equal(cold.state.hearth.claimBy, p.id);
   assert.equal(cold.ownerId, null);
   assert.equal(cold.holdDueAt, m.arriveAt + HOLD_MS, 'due event stored at the exact end of the clock');
+  assert.equal(HOLD_MS, (2 * HOUR) / SPEED, 'an abandoned village is held for 2 h (÷ speed)');
   const rows = store.stationedAt(target.id);
   assert.equal(rows.length, 1);
   const stood = rows[0]!.units;

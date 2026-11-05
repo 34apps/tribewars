@@ -796,16 +796,37 @@ export class Store extends SqlBase {
     }));
   }
 
-  /** A village of `victimId` was taken by `takerId` at `at`; rows older than `keepSince` are dropped. */
-  recordConquest(takerId: number, victimId: number, villageId: number, at: number, keepSince: number): void {
-    this.run('DELETE FROM conquests WHERE at <= ?', keepSince);
-    this.run('INSERT INTO conquests (taker_id, victim_id, village_id, at) VALUES (?, ?, ?, ?)', takerId, victimId, villageId, at);
+  /**
+   * Chieftain chain: write down the surviving Chieftains of a won attack that were too few for the village. Entries older than
+   * `keepSince` (any village, any player) are dropped first.
+   */
+  addStrikeChain(villageId: number, playerId: number, chieftains: number, at: number, returnMovementId: number, keepSince: number): void {
+    this.run('DELETE FROM strike_chain WHERE at < ?', keepSince);
+    this.run(
+      'INSERT INTO strike_chain (village_id, player_id, chieftains, at, return_movement_id) VALUES (?, ?, ?, ?, ?)',
+      villageId,
+      playerId,
+      chieftains,
+      at,
+      returnMovementId,
+    );
   }
 
-  /** Villages `takerId` took from `victimId` in (since, until]. */
-  countConquests(takerId: number, victimId: number, since: number, until: number): number {
-    const r = this.get('SELECT COUNT(*) AS n FROM conquests WHERE taker_id = ? AND victim_id = ? AND at > ? AND at <= ?', takerId, victimId, since, until);
-    return r ? Number(r.n) : 0;
+  /**
+   * Chain entries of one player on one village whose return movement still exists, oldest first (the caller applies the window).
+   * A return movement that is gone means the Chieftains are home again (or dead); they are fresh and must not count twice.
+   */
+  strikeChainOf(villageId: number, playerId: number): Array<{ chieftains: number; at: number }> {
+    return this.all(
+      'SELECT c.chieftains, c.at FROM strike_chain c JOIN movements m ON m.id = c.return_movement_id WHERE c.village_id = ? AND c.player_id = ? ORDER BY c.at, c.id',
+      villageId,
+      playerId,
+    ).map((r) => ({ chieftains: Number(r.chieftains), at: Number(r.at) }));
+  }
+
+  /** The chain of one player on one village was used up (the Strike happened). */
+  clearStrikeChain(villageId: number, playerId: number): void {
+    this.run('DELETE FROM strike_chain WHERE village_id = ? AND player_id = ?', villageId, playerId);
   }
 
   /** Cold villages (hearth out) of the tribe's members, the ones that end soonest first. */

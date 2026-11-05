@@ -1385,6 +1385,11 @@ export function formatReport(rep: SimReport, full = false): string {
 
 function main(): void {
   const args = process.argv.slice(2);
+  if (args.includes('--reach')) {
+    // Can tribe support arrive inside the hold? (scripts/sim/reach.ts)
+    void import('./reach.ts').then((m) => m.main());
+    return;
+  }
   if (args.includes('--conquest')) {
     // Player-vs-player conquest, 20 computer players (scripts/sim/conquest.ts; same command, other mode).
     void import('./conquest.ts').then((m) => m.main());

@@ -21,8 +21,8 @@ import {
   isAttackBlocked,
   isNearSite,
   occupierPopulation,
-  pairCapReached,
-  pairConquestWindowMs,
+  chainedChieftains,
+  strikeChainWindowMs,
   underVillageLimit,
   updateHold,
   villageRenownCost,
@@ -594,7 +594,14 @@ export class GameService {
 
     // Strike: a won battle with enough surviving Chieftains puts the hearth out; the survivors stay as the first occupiers.
     let struck = false;
+    let bankChieftains = 0;
     if (strikeTry && survived && origin.ownerId !== null) {
+      // Same connection as the owner: no Strike and nothing is banked (the battle itself stands).
+      const household = target.ownerId !== null && this.store.shareAnIp(origin.ownerId, target.ownerId);
+      // Chieftain chain: Chieftains of this attacker's earlier attacks on this village that are still inside the window and
+      // still on their way home count with the survivors. Entries are written in arrival order (movements resolve by
+      // arrival time, then id), so this sum depends only on stored times and ids.
+      const banked = household ? 0 : chainedChieftains(this.store.strikeChainOf(target.id, origin.ownerId), at, s);
       const check = checkStrike(
         result,
         result.attackerSurvivors,
@@ -607,13 +614,14 @@ export class GameService {
           protectedUntil: Math.max(targetState.protectedUntil ?? 0, target.ownerId !== null ? target.ownerProtectedUntil : 0),
         },
         { playersEnabled: this.strikePlayers },
+        banked,
       );
-      // Same connection as the owner, or the pair cap is used up: no Strike (the battle itself stands).
-      const household = target.ownerId !== null && this.store.shareAnIp(origin.ownerId, target.ownerId);
-      const capped = target.ownerId !== null && this.pairCapHit(origin.ownerId, target.ownerId, at);
-      if (check.ok && !household && !capped) {
+      if (check.ok && !household) {
         this.strike(origin, target, newTarget, targetState.hearth, result.attackerSurvivors, m, at);
+        this.store.clearStrikeChain(target.id, origin.ownerId); // the chain is used up
         struck = true;
+      } else if (!check.ok && !household && check.reason === 'too_few_chieftains' && check.chieftains >= 1) {
+        bankChieftains = check.chieftains; // only the Chieftain count was missing: write a chain entry below
       }
     }
     // Any other battle at a cold village changes who stands there: the hold clock follows.
@@ -623,7 +631,7 @@ export class GameService {
     if (survived && !struck) {
       const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
       spawned = at + back;
-      this.store.insertMovement({
+      const returnId = this.store.insertMovement({
         kind: 'return',
         originVillageId: origin.id,
         targetVillageId: target.id,
@@ -632,6 +640,11 @@ export class GameService {
         departAt: at,
         arriveAt: spawned,
       });
+      // Chieftain chain entry. It counts only while THIS return movement exists: once the survivors are home the movement row is
+      // deleted, those Chieftains are fresh Chieftains that can be sent again, and they must never be counted twice.
+      if (bankChieftains > 0 && origin.ownerId !== null) {
+        this.store.addStrikeChain(target.id, origin.ownerId, bankChieftains, at, returnId, at - strikeChainWindowMs(s));
+      }
     }
     this.store.deleteMovement(m.id);
     const sent = this.takeSpawn(); // returns the hold update sent walking (occupiers going home)
@@ -811,11 +824,6 @@ export class GameService {
     this.store.emitHearth(target.ownerId, claimant); // live hint: hearth out (owner, claimant, owner's tribe alert list)
   }
 
-  /** Has `takerId` already taken the maximum number of villages from `victimId` in the pair-cap window ending at `at`? */
-  private pairCapHit(takerId: number, victimId: number, at: number): boolean {
-    return pairCapReached(this.store.countConquests(takerId, victimId, at - pairConquestWindowMs(this.settings), at));
-  }
-
   /**
    * Bring the hold clock of a cold village to `at` with the occupiers it has now (the claimant's contingents standing there), and
    * act on the outcome: keep running or paused, village taken, claim failed or hearth relit. Call it at every event that changes
@@ -841,7 +849,7 @@ export class GameService {
   }
 
   /** The claim ended without taking the village: the hearth burns again and the claimant's occupiers walk home. */
-  private endClaim(v: VillageRecord, h: HearthState, reason: 'time' | 'relit' | 'no_room' | 'pair_cap', at: number): void {
+  private endClaim(v: VillageRecord, h: HearthState, reason: 'time' | 'relit' | 'no_room', at: number): void {
     const settled = settleVillage(v.state, at, this.settings); // the village was frozen; production resumes from `at`
     delete settled.hearth;
     this.store.saveVillage(v.id, settled, villagePoints(settled));
@@ -885,11 +893,7 @@ export class GameService {
     const claimant = this.store.getPlayer(h.claimBy);
     const owned = claimant ? this.store.villagesOfPlayer(claimant.id).length : 0;
     if (!claimant || !underVillageLimit(owned)) return this.endClaim(v, h, 'no_room', at);
-    // The pair cap is re-checked here: two holds on the same victim can run at once, and only the first ones get through.
-    if (v.ownerId !== null && this.pairCapHit(claimant.id, v.ownerId, at)) return this.endClaim(v, h, 'pair_cap', at);
-
     const oldOwnerId = v.ownerId;
-    if (oldOwnerId !== null) this.store.recordConquest(claimant.id, oldOwnerId, v.id, at, at - pairConquestWindowMs(s));
     const shares = this.sharesBefore([claimant.id, oldOwnerId], at);
     const rows = this.store.stationedAt(v.id);
     const occ = rows.filter((c) => c.ownerPlayerId === claimant.id);
@@ -1810,10 +1814,6 @@ export class GameService {
           }
           if (army.chieftain > 0 && target.ownerId !== null) {
             if (!this.strikePlayers) throw new GameError('invalid_target', 'Chieftains can only strike abandoned villages for now.');
-            // Only says something about the sender's own past takings, never about the target.
-            if (this.pairCapHit(player.id, target.ownerId, t)) {
-              throw new GameError('invalid_target', `You have already taken as many villages from ${target.ownerName ?? 'this player'} as allowed for now.`);
-            }
           }
         }
       }

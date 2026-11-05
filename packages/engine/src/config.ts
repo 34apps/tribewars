@@ -495,7 +495,7 @@ export const RENOWN_PAIR_WINDOW_HOURS = 24;
 export const RENOWN_SMALL_RATIO = 0.5;
 export const RENOWN_SMALL_FLOOR = 0.05;
 /** Renown price of the 2nd village; each further village costs RENOWN_VILLAGE_GROWTH times more. */
-export const RENOWN_VILLAGE_BASE = 500;
+export const RENOWN_VILLAGE_BASE = 1000;
 export const RENOWN_VILLAGE_GROWTH = 1.6;
 /** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
 export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
@@ -508,8 +508,8 @@ export const MAX_VILLAGES_PER_PLAYER = 20;
 // ---- Hearth: Strike and Hold, founding, restart (docs/GAME_DESIGN.md 18.2). Times in hours at speed 1, divided by world speed. ----
 
 /** Hold clock after a Strike: players' villages / abandoned villages. */
-export const HOLD_HOURS = 12;
-export const HOLD_HOURS_ABANDONED = 6;
+export const HOLD_HOURS = 8;
+export const HOLD_HOURS_ABANDONED = 2;
 /** Occupier population that keeps the hold clock running. */
 export const HOLD_MIN_POPULATION = 150;
 /** Occupiers may stay under HOLD_MIN_POPULATION this long before the claim fails. */
@@ -522,11 +522,10 @@ export const HEARTH_MAX_CHIEFTAINS = 3;
 /** Striking player villages (switched on in step 4, 2026-11-05). */
 export const HEARTH_PLAYERS_ENABLED = true;
 /**
- * Pair cap: one attacker may take at most PAIR_CONQUEST_CAP villages from the same victim within PAIR_CONQUEST_WINDOW_DAYS
- * (divided by world speed). Counted when a village changes owner; checked again at send, at the Strike and at the end of the hold.
+ * Chieftain chain (2026-11-05): Chieftains that survive a won attack but are too few for the village add up with earlier ones of
+ * the same attacker on the same village that arrived at most this long ago and are still on their way home (divided by world speed).
  */
-export const PAIR_CONQUEST_CAP = 2;
-export const PAIR_CONQUEST_WINDOW_DAYS = 7;
+export const STRIKE_CHAIN_WINDOW_HOURS = 2;
 /** Share of each resource a village keeps when it changes owner. */
 export const TAKE_KEEP_RESOURCE_SHARE = 0.5;
 /** A founded village starts with this stock (levels are the new-player start levels) and is safe from attacks for this long. */
@@ -549,7 +548,7 @@ export const FEAST_WINDOW_HOURS = 24;
  * speed) = min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE), nothing during beginner protection.
  */
 export const DEFENDER_RENOWN_PER_DEFENCE = 0.006;
-export const DEFENDER_RENOWN_DAILY_CAP = 22;
+export const DEFENDER_RENOWN_DAILY_CAP = 36;
 
 // ---- Drillyard: research and ranks (docs/GAME_DESIGN.md sections 4 and 15) -----------------------------
 

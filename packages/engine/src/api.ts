@@ -606,7 +606,7 @@ export interface VillageReportData {
   village: VillageRefDto;
   holdEndsAt?: number | null;
   claimBy?: string;
-  reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim' | 'pair_cap';
+  reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim';
   units?: Units;
   overflow?: Units;
 }

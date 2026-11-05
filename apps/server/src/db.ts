@@ -170,16 +170,19 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, id);
 CREATE INDEX IF NOT EXISTS idx_notifications_movement ON notifications(movement_id);
 
--- ---- Villages taken from players (section 18.2, step 4): the pair cap counts rows of one taker and one victim in a window.
--- Old rows are pruned when new ones are written.
-CREATE TABLE IF NOT EXISTS conquests (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  taker_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  victim_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  village_id INTEGER NOT NULL,
-  at         INTEGER NOT NULL
+-- ---- Chieftain chain (section 18.2, 2026-11-05): Chieftains that survived a won attack but were too few for the village.
+-- Counted at the next Strike of the same player on the same village while they are inside the window AND their return
+-- movement still exists. Old rows are pruned when new ones are written. (The old conquests table of the pair cap was removed
+-- 2026-11-05; older databases keep an unused copy.)
+CREATE TABLE IF NOT EXISTS strike_chain (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  village_id         INTEGER NOT NULL,
+  player_id          INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  chieftains         INTEGER NOT NULL,
+  at                 INTEGER NOT NULL,
+  return_movement_id INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_conquests_pair ON conquests(taker_id, victim_id, at);
+CREATE INDEX IF NOT EXISTS idx_strike_chain_pair ON strike_chain(village_id, player_id, at);
 
 -- ---- Combat Renown (section 18.2): what one earner has already counted against one opponent in the open 24 h window.
 -- opponent is 'p:<playerId>' or 'v:<abandonedVillageId>'. value is raw Renown (engine rawRenown), window_start in ms.
@@ -518,9 +521,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 10; // 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 11; // 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '709f7d543081d0a6';
+export const SCHEMA_FINGERPRINT = '4c1626b5c10dfb8d';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

@@ -5,13 +5,14 @@ import {
   HOLD_HOURS,
   HOLD_HOURS_ABANDONED,
   HOLD_MIN_POPULATION,
-  PAIR_CONQUEST_CAP,
-  PAIR_CONQUEST_WINDOW_DAYS,
+  STRIKE_CHAIN_WINDOW_HOURS,
   STRIKE_LOCK_HOURS,
   TAKE_KEEP_RESOURCE_SHARE,
+  applyBuild,
   applyOwnerChange,
   applyStrike,
   applyTrain,
+  chainedChieftains,
   checkBuild,
   checkStrike,
   checkTrain,
@@ -22,12 +23,11 @@ import {
   isStrikeBlocked,
   normalizeVillage,
   occupierPopulation,
-  pairCapReached,
-  pairConquestWindowMs,
   populationCap,
   populationUsage,
   settleVillage,
   storageCap,
+  strikeChainWindowMs,
   updateHold,
 } from '../src/index.ts';
 import type { HearthState, VillageState } from '../src/index.ts';
@@ -51,7 +51,7 @@ const out = (over: Partial<HearthState> = {}): HearthState => ({
 describe('checkStrike', () => {
   it('abandoned village: one surviving Chieftain after a won battle', () => {
     const c = checkStrike(WON, units({ chieftain: 1, raider: 5 }), abandonedTarget);
-    assert.deepEqual(c, { ok: true, need: 1, chieftains: 1 });
+    assert.deepEqual(c, { ok: true, need: 1, chieftains: 1, banked: 0 });
   });
 
   it('no Strike after a lost battle, or without a surviving Chieftain', () => {
@@ -84,7 +84,7 @@ describe('checkStrike', () => {
     const opts = { playersEnabled: true };
     const one = checkStrike(WON, units({ chieftain: 1 }), target, opts);
     assert.ok(!one.ok && one.reason === 'too_few_chieftains' && one.need === 2);
-    assert.deepEqual(checkStrike(WON, units({ chieftain: 2 }), target, opts), { ok: true, need: 2, chieftains: 2 });
+    assert.deepEqual(checkStrike(WON, units({ chieftain: 2 }), target, opts), { ok: true, need: 2, chieftains: 2, banked: 0 });
     const big = { ...target, points: 9000 };
     assert.ok(!checkStrike(WON, units({ chieftain: 2 }), big, opts).ok);
     assert.ok(checkStrike(WON, units({ chieftain: 3 }), big, opts).ok);
@@ -112,10 +112,11 @@ describe('applyStrike', () => {
     assert.equal(struck(units({ raider: 150 })).hearth?.runningSince, T);
   });
 
-  it('player villages hold 12 h; a second claimant replaces the first; the input is not changed', () => {
+  it('player villages hold 8 h (abandoned 2 h); a second claimant replaces the first; the input is not changed', () => {
     const p = deepFreeze(village());
     const v = applyStrike(p, { claimBy: 3, now: 5, settings: S1 });
     assert.equal(v.hearth?.holdMs, HOLD_HOURS * HOUR);
+    assert.equal([HOLD_HOURS, HOLD_HOURS_ABANDONED].join('/'), '8/2');
     const again = applyStrike(v, { claimBy: 8, now: 10, settings: S1 });
     assert.equal(again.hearth?.claimBy, 8);
     assert.equal(v.hearth?.claimBy, 3);
@@ -308,21 +309,64 @@ describe('a cold village (hearth out)', () => {
     assert.ok(checkTrain(p, 'pikeman', 1, HOUR, S1).ok, 'a lit village still can');
   });
 
-  it('nothing new can be built in a cold village either (step 4); a lit one still can', () => {
-    const p = village({ resources: { wood: 5000, food: 5000, iron: 5000, gold: 0 } });
+  it('a cold village can build ONLY its Wall (2026-11-05); a lit one builds anything', () => {
+    const p = village({ buildings: { barracks: 1 }, resources: { wood: 5000, food: 5000, iron: 5000, gold: 0 } });
     const cold = applyStrike(p, { claimBy: 2, now: HOUR / 2, settings: S1 });
     const refused = checkBuild(cold, 'lumber', HOUR, S1);
     assert.ok(!refused.ok && refused.reason === 'requirements_not_met');
+    const wall = checkBuild(cold, 'wall', HOUR, S1);
+    assert.ok(wall.ok, 'the wall can be queued');
+    const queued = applyBuild(cold, 'wall', HOUR, S1);
+    assert.equal(queued.buildQueue.at(-1)?.building, 'wall');
+    const upgrade = checkBuild(queued, 'wall', HOUR, S1);
+    assert.ok(upgrade.ok, 'and upgraded again');
     assert.ok(checkBuild(p, 'lumber', HOUR, S1).ok);
   });
 });
 
-describe('pair cap', () => {
-  it('the window is PAIR_CONQUEST_WINDOW_DAYS divided by speed; the cap counts takes in it', () => {
-    assert.equal(pairConquestWindowMs(S1), PAIR_CONQUEST_WINDOW_DAYS * 24 * HOUR);
-    assert.equal(pairConquestWindowMs(S10), (PAIR_CONQUEST_WINDOW_DAYS * 24 * HOUR) / 10);
-    assert.ok(!pairCapReached(PAIR_CONQUEST_CAP - 1));
-    assert.ok(pairCapReached(PAIR_CONQUEST_CAP));
-    assert.ok(pairCapReached(PAIR_CONQUEST_CAP + 3));
+describe('Chieftain chain', () => {
+  const entry = (chieftains: number, at: number) => ({ chieftains, at });
+  const WINDOW = STRIKE_CHAIN_WINDOW_HOURS * HOUR;
+
+  it('the window is STRIKE_CHAIN_WINDOW_HOURS divided by world speed', () => {
+    assert.equal(strikeChainWindowMs(S1), WINDOW);
+    assert.equal(strikeChainWindowMs(S10), WINDOW / 10);
+  });
+
+  it('an entry exactly one window old still counts, one millisecond more does not', () => {
+    assert.equal(chainedChieftains([entry(1, T)], T + WINDOW, S1), 1);
+    assert.equal(chainedChieftains([entry(1, T)], T + WINDOW + 1, S1), 0);
+    assert.equal(chainedChieftains([entry(1, T)], T, S1), 1, 'same instant');
+    const w10 = WINDOW / 10;
+    assert.equal(chainedChieftains([entry(2, T)], T + w10, S10), 2, 'speed 10 scales the window');
+    assert.equal(chainedChieftains([entry(2, T)], T + w10 + 1, S10), 0);
+    assert.equal(chainedChieftains([entry(2, T)], T + WINDOW, S10), 0, 'a speed 1 window is far too long at speed 10');
+  });
+
+  it('adds up the entries in the window; never negative, never NaN', () => {
+    const list = [entry(1, T), entry(2, T + HOUR), entry(1, T - 5 * HOUR)];
+    assert.equal(chainedChieftains(list, T + HOUR, S1), 3);
+    assert.equal(chainedChieftains([], T, S1), 0);
+    assert.equal(chainedChieftains([entry(1, T + 10)], T, S1), 0, 'an entry from the future counts nothing');
+    assert.equal(chainedChieftains([entry(-3, T), entry(NaN, T), entry(1, NaN)], T, S1), 0);
+    assert.equal(chainedChieftains([entry(1, T)], NaN, S1), 0);
+  });
+
+  it('checkStrike: survivors plus banked Chieftains reach need, but at least one must survive this attack', () => {
+    const target = { abandoned: false, points: 4000, now: T }; // need 2
+    const one = units({ chieftain: 1 });
+    assert.deepEqual(checkStrike(WON, one, target, {}, 1), { ok: true, need: 2, chieftains: 1, banked: 1 });
+    const few = checkStrike(WON, one, target, {}, 0);
+    assert.ok(!few.ok && few.reason === 'too_few_chieftains' && few.banked === 0);
+    const none = checkStrike(WON, units({ raider: 10 }), target, {}, 5);
+    assert.ok(!none.ok && none.reason === 'too_few_chieftains' && none.chieftains === 0 && none.banked === 5, 'banked alone is never enough');
+    const big = { ...target, points: 9000 }; // need 3
+    assert.ok(!checkStrike(WON, one, big, {}, 1).ok);
+    assert.ok(checkStrike(WON, one, big, {}, 2).ok);
+    assert.ok(checkStrike(WON, units({ chieftain: 2 }), big, {}, 1).ok);
+    const lost = checkStrike({ attackerWon: false }, one, target, {}, 3);
+    assert.ok(!lost.ok && lost.reason === 'lost', 'a lost battle never strikes');
+    assert.ok(!checkStrike(WON, one, { ...target, lockUntil: T + 1 }, {}, 3).ok, 'a lock still blocks');
+    assert.ok(checkStrike(WON, one, target, {}, NaN).ok === false, 'bad banked count counts as 0');
   });
 });

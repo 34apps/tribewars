@@ -8,14 +8,13 @@
 //   npm run sim -- --conquest --out docs/sim/<file>.txt          write the report to a file
 // (`npm run sim:conquest` is the same; the agent runner's allow list only knows `npm run sim ...`, so use the first form there.)
 // Levers (change only the SIM's rule, never config.ts; for "what would fix it" runs):
-//   --pair-cap N       takes per attacker/victim pair per window (default PAIR_CONQUEST_CAP)
 //   --hold-hours H     hold clock after a Strike (default HOLD_HOURS)
 //   --chief-points P   points per extra Chieftain needed (default HEARTH_POINTS_PER_CHIEFTAIN)
 //   --lock-hours H     lock after a change of owner (default STRIKE_LOCK_HOURS)
 //
 // Each player plays its balance.ts style script (build list, army, research, raids on its OWN ring of 8 abandoned villages, Feast,
 // Renown from buildings / defender trickle / raids). New here: players are targets of each other (raids with loot, Strikes with
-// Chieftains), owners counter-attack the occupiers, the last village can be taken (restart), pair cap, 24 h lock, protection.
+// Chieftains), owners counter-attack the occupiers, the last village can be taken (restart), no pair cap, 24 h lock, protection.
 // Assumptions are listed at the end of the report ("Model").
 
 import { writeFileSync } from 'node:fs';
@@ -28,8 +27,6 @@ import {
   HEARTH_POINTS_PER_CHIEFTAIN,
   HOLD_HOURS,
   HOLD_MIN_POPULATION,
-  PAIR_CONQUEST_CAP,
-  PAIR_CONQUEST_WINDOW_DAYS,
   POP_PER_UNIT,
   RESOURCE_IDS,
   STRIKE_LOCK_HOURS,
@@ -69,8 +66,6 @@ import {
   isAttackBlocked,
   isStrikeBlocked,
   occupierPopulation,
-  pairCapReached,
-  pairConquestWindowMs,
   protectionEndsAt,
   renownPairWindowMs,
   resolveBattle,
@@ -119,7 +114,6 @@ export interface ConquestOptions {
   days: number;
   seed: number;
   players: number;
-  pairCap?: number;
   holdHours?: number;
   chiefPoints?: number;
   lockHours?: number;
@@ -182,7 +176,6 @@ interface Player {
   renownSpent: number;
   reserved: number;
   pairs: Map<string, { start: number; raw: number }>;
-  takes: Array<{ victim: number; at: number }>;
   plan: Plan | null;
   saving: Plan | null;
   readySince: number;
@@ -288,7 +281,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
 
   const needFor = (points: number): number =>
     opt.chiefPoints ? Math.min(HEARTH_MAX_CHIEFTAINS, 1 + Math.floor(Math.max(0, points) / opt.chiefPoints)) : chieftainsNeeded(false, points);
-  const capReached = (taken: number): boolean => (opt.pairCap !== undefined ? taken >= opt.pairCap : pairCapReached(taken));
 
   // ---- Players ----
   const players: Player[] = [];
@@ -320,7 +312,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       renownSpent: 0,
       reserved: 0,
       pairs: new Map(),
-      takes: [],
       plan: null,
       saving: null,
       readySince: -1,
@@ -420,13 +411,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     sortEvents();
   };
   const settleOf = (vil: Vil, t: number): VillageState => settleVillage(vil.state, t, s);
-  /** Takes of `victim`'s villages by `p` in the pair window ending at `now`, plus holds `p` has running on them. */
-  const takesOf = (p: Player, victim: number, now: number): number => {
-    const w = pairConquestWindowMs(s);
-    let n = p.takes.filter((x) => x.victim === victim && x.at > now - w).length;
-    for (const [vid, c] of claims) if (c.by === p.id && (world.get(vid) as Vil).owner === victim) n++;
-    return n;
-  };
   const fail = (p: Player, reason: string): void => {
     p.stats.failReasons[reason] = (p.stats.failReasons[reason] ?? 0) + 1;
   };
@@ -496,7 +480,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const nv = newVil(att.id, oc.state, v.pos);
     att.vils.push(nv);
     att.stats.taken++;
-    att.takes.push({ victim: old.id, at });
     const last = old.vils.length === 0;
     conquests.push({ at, attacker: att.id, victim: old.id, points: oldPoints, last });
     if (last) restart(old, at);
@@ -806,7 +789,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     for (const tv of world.values()) {
       if (!tv.alive || tv.owner === p.id || tv.state.hearth) continue;
       if (dist(vil.pos, tv.pos) > REACH) continue;
-      if (capReached(takesOf(p, tv.owner, t))) continue;
       const base: Units = { ...vil.state.troops, pathfinder: 0, logram: 0, boulder: 0, chieftain: 0 };
       // The first preview only needs a rough Chieftain count: points at "now"; the real need is re-checked with arrival points.
       const rough = needFor(villagePoints(tv.state));
@@ -1071,7 +1053,7 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
   const days = o.days;
   const out: string[] = [];
   const levers = [
-    `pair cap ${o.pairCap ?? PAIR_CONQUEST_CAP} per ${PAIR_CONQUEST_WINDOW_DAYS} days`,
+    'no pair cap',
     `hold ${o.holdHours ?? HOLD_HOURS} h`,
     `1 Chieftain per ${o.chiefPoints ?? HEARTH_POINTS_PER_CHIEFTAIN} points (max ${HEARTH_MAX_CHIEFTAINS})`,
     `lock ${o.lockHours ?? STRIKE_LOCK_HOURS} h`,
@@ -1143,7 +1125,7 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
     `- ${o.players} players on a grid (${COLUMNS} columns, ${SPACING} tiles apart, shuffled styles), one shared world, 10-minute decision steps, free-player queues. Real engine calls only; no server. Each player has its OWN ring of 8 abandoned villages (3-14 tiles) for raids and Renown (as in balance.ts); abandoned villages are not taken and not shared.`,
     '- Style scripts are the ones in balance.ts (build list, army, research, raids). New behaviour: raids and Strikes also go to player villages within ' + REACH + ' tiles. No assumed enemy raids (players are the enemy now). Feast only to empty a full storehouse.',
     '- Raid on a player: preview with the target state at arrival (as if scouted), attack >= 1.25 x defence, net loot minus lost troops > 0, best net per travel time; target needs >= 30% of the attacker\'s average village points; neither side protected. Loot comes from the real stock (vault protects). Renown through battleRenown for both sides (pair windows, size factor).',
-    '- Strike plan: once Renown >= price and a Banner Hall exists, a player picks the village with most points that its home army (all troops but Pathfinders + the needed Chieftains) beats by 1.25x, with >= 1 surviving Chieftain per `need` and >= HOLD_MIN_POPULATION survivors, on a village with >= 50% of its own best village\'s points, not protected / locked / cold, pair cap not reached (takes in the window + holds running). It reserves Renown for all needed Chieftains (villageRenownPrice, summed), saves and trains them as one batch (max 3), then strikes with all home troops. Found-style players (builder, turtle) found a village when no Strike target exists; take-style players (raider, balanced) stop raiding to build an escort and found after 72 h.',
+    '- Strike plan: once Renown >= price and a Banner Hall exists, a player picks the village with most points that its home army (all troops but Pathfinders + the needed Chieftains) beats by 1.25x, with >= 1 surviving Chieftain per `need` and >= HOLD_MIN_POPULATION survivors, on a village with >= 50% of its own best village\'s points, not protected / locked / cold (no pair cap since 2026-11-05; the Chieftain chain of separate attacks is not modelled: every Strike brings all its Chieftains at once). It reserves Renown for all needed Chieftains (villageRenownPrice, summed), saves and trains them as one batch (max 3), then strikes with all home troops. Found-style players (builder, turtle) found a village when no Strike target exists; take-style players (raider, balanced) stop raiding to build an escort and found after 72 h.',
     '- Strike, hold, take: checkStrike, applyStrike (hearth out, village frozen), updateHold (hold clock, as a due event), applyOwnerChange (all buildings, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison / queues gone, occupiers move in, STRIKE_LOCK_HOURS lock). The old owner\'s Chieftains in that village are lost (half the Renown back); armies it had stationed elsewhere are disbanded and their holds end.',
     '- Defence: the owner fights the Strike with whatever is at home (the real battle). During the hold it attacks the occupiers (they defend with the village\'s Wall) with the best army from any of its villages that arrives before the clock ends and beats them by 1.1x (one army at a time). Occupiers dead = hearth relit; under HOLD_MIN_POPULATION for HOLD_FAIL_HOURS = claim fails. Not modelled: tribe-mates\' support, third players, scouting errors, Chieftain escorts arriving late (second wave), the owner recalling raids.',
     '- Restart: a player who loses the LAST village gets a fresh starting village on a ring far outside the grid, RESTART_PROTECTION_HOURS protection, a new ring of abandoned villages; Renown is kept, its Chieftains are gone.',
@@ -1168,7 +1150,6 @@ export function main(): void {
   set('days', '--days');
   set('seed', '--seed');
   set('players', '--players');
-  set('pairCap', '--pair-cap');
   set('holdHours', '--hold-hours');
   set('chiefPoints', '--chief-points');
   set('lockHours', '--lock-hours');

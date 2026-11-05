@@ -90,10 +90,11 @@ describe('Chieftain unit', () => {
 describe('Chieftain Renown price', () => {
   it('villageRenownPrice = base x 1.6^(villages + outstanding - 1), rounded', () => {
     assert.equal(villageRenownPrice(1, 0), RENOWN_VILLAGE_BASE);
-    assert.equal(villageRenownPrice(1, 1), 800);
-    assert.equal(villageRenownPrice(2, 0), 800);
-    assert.equal(villageRenownPrice(1, 2), 1280);
-    assert.equal(villageRenownPrice(3, 1), 2048);
+    assert.equal(villageRenownPrice(1, 0), 1000, 'the 2nd village costs 1,000 since 2026-11-05');
+    assert.equal(villageRenownPrice(1, 1), 1600);
+    assert.equal(villageRenownPrice(2, 0), 1600);
+    assert.equal(villageRenownPrice(1, 2), 2560);
+    assert.equal(villageRenownPrice(3, 1), 4096);
     assert.equal(villageRenownPrice(3, 1), villageRenownCost(4));
   });
 

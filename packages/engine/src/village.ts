@@ -266,7 +266,8 @@ interface BuildPlan {
 /** Rule check on an already settled village. */
 function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: number): CheckResult<BuildPlan> {
   if (!isBuildingId(b)) return fail('invalid_input', 'Unknown building.');
-  if (v.hearth) return fail('requirements_not_met', 'The hearth is out: nothing new can be built until it is relit.');
+  // A cold village (hearth out) may build only its Wall (docs/GAME_DESIGN.md 18.2, 2026-11-05).
+  if (v.hearth && b !== 'wall') return fail('requirements_not_met', 'The hearth is out: only the Wall can be built until it is relit.');
   const def = BUILDINGS[b];
   let queued = 0;
   for (const job of v.buildQueue) if (job.building === b) queued++;

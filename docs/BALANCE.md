@@ -288,6 +288,52 @@ with the bonus on and off). Until it runs, treat +30% as a guess: the levers are
 leading tribe also win the sites (snowball), does anybody actually keep 3,000 population standing around for +1%, and whether the Great Fire (+3% dormant) is a
 prize worth its 1,500 militia. The server rules are covered by `apps/server/test/sites.test.ts`, the pure rules by the engine tests.
 
+### 7.8 Owner conquest changes 2026-11-05: Renown base 1,000, hold 8 h / 2 h, no pair cap, Chieftain chain, cold village builds the Wall only
+
+Rules: `GAME_DESIGN.md` §18.2 box "Conquest changes 2026-11-05". Commands: `npm run sim -- --days 70 --out <file>` (seed 20261104, same as §9),
+`npm run sim -- --conquest --seeds 5 --out <file>`, `npm run sim -- --reach` (new, `scripts/sim/reach.ts`). Files in `docs/sim/`:
+`2026-11-05-rules.txt` (**before**, 30 days, rules of §9), `2026-11-05-expansion-45days.txt` and `-expansion-70days.txt` (base 1,000, cap still 22), `-expansion-cap32-70days.txt`,
+`-expansion-cap44-70days.txt` (tuning tries), `-expansion-cap36-70days.txt` (**after, final**), `-conquest.txt` (before), `-conquest-after-changes.txt` (after), `-reach.txt`.
+
+**(1) Pace of the 2nd village (day it is really in hand), 70-day run.** Targets: active players about day 21-28, builder / defender about a week later.
+
+| | builder | raider | pure defender | balanced |
+|---|---|---|---|---|
+| before (base 500, cap 22; `-rules.txt`) | 15.2 founded | 10.7 taken | 26.8 founded | 14.8 taken |
+| base 1,000 only (cap 22) | 30.6 founded | 13.9 taken (tier 3) | **47.8** founded | 22.4 taken |
+| base 1,000, trickle cap 32 | 28.8 | 13.9 | 38.3 | 20.5 |
+| base 1,000, trickle cap 44 | 25.8 | 13.9 | 32.7 | 18.8 |
+| **base 1,000, trickle cap 36 (built)** | **27.5** founded | **13.9** taken | **35.9** founded | **19.8** taken (tier 1) |
+| 3rd village (built) | 38.2 | 25.1 | 60.7 | 35.5 |
+
+- The price doubling alone is fine for builder (30.6) and balanced (22.4) but pushes the **pure defender to day 47.8**: its only Renown source is the trickle, which is
+  capped per village per day (22), so a doubled price meant twice the wait. The cap is the one extra number I changed (`DEFENDER_RENOWN_DAILY_CAP` 22 -> 36, a defence
+  of about 6,000 reaches it): defender 35.9, builder 27.5, balanced 19.8. The builder (which also lives on the trickle) gains about 3 days from the cap, the defender 12.
+- **Not met: the pure raider at day 13.9** (target 21-28). Cause: the full-loot rule of §9 (an abandoned village is an unlimited tap, the raider's building Renown comes from
+  loot), unchanged by this task; Renown is 1,000 on day 13.4. Levers if the owner wants it later: the Banner Hall requirements (the Chieftain needs the Hall, day 8.9 for the raider), a
+  higher Chieftain price, or re-introducing a loot limit. **Owner to decide**; I did not touch them. Balanced is just under the 21-day line (19.8), 3rd villages follow every ~16 days.
+
+**(2) Conquest sim, 20 players, 30 days, 5 seeds** (before = `-conquest.txt`, the run made before the no-upkeep / full-loot rules, so the two columns also differ by those rules; after = new rules, no pair cap, hold 8 h, base 1,000):
+
+| | before | after |
+|---|---|---|
+| villages taken per 30 days (5 seeds) | 7, 10, 9, 12, 18 | 6, 5, 4, 3, 2 |
+| restarts (last village taken) | 6, 5, 4, 3, 4 | 5, 3, 3, 2, 2 |
+| biggest vs second (points) | 1.11, 1.03, 1.64, 1.34, 1.84 | 1.38, 1.06, 1.02, 1.50, 1.06 |
+| average villages per player on day 30 (main seed) | 2.00 | 1.40 |
+
+Taking slows down (price) and nobody snowballs: worst ratio 1.50 (target <= 2x met), removing the pair cap did not make a runaway because every take needs a Chieftain (1,000 Renown, rising x1.6) and a 24 h lock
+protects the village for a day. The sim does not model the chain (its players send all Chieftains in one attack), tribe support or third players.
+
+**(3) Can typical tribe support arrive inside the hold? (`-reach.txt`, speed 1, real terrain)** The hold is 8 h, so support must be sent within the first hours.
+Outriders (14 tiles/h) arrive within 8 h from up to **80 tiles**; Pikemen (6) up to **30 tiles**; Guards and any army with Guards or a Chieftain (5) up to **20 tiles** (worst direction; the old 12 h hold
+gave every column about 1.5x that reach). So: **tribe-mates within about 20-30 tiles can answer on foot, farther ones only with cavalry or by pre-stationing support**, which defends the village before the
+Strike. Abandoned villages (2 h hold) cannot be saved by anyone but the neighbours; that is intended (they have no owner). Verdict: 8 h works for tribes that live close together (the usual case), is tight
+for foot support across half a world; if it proves too short, 10 h is the next lever (`HOLD_HOURS`). The Chieftain chain window (2 h) matches Chieftain speed 5 tiles/h: two villages whose distance to the
+target differs by up to 10 tiles can send at the same moment and arrive inside the window.
+
+**(4) Not simulated:** the chain itself, the wall-only rule (a cold village stops building, the owner may add Wall levels), Relief by tribes.
+
 ## 8. Siege units (GAME_DESIGN §18.9), 2026-11-05
 
 **Tools.** `npm run sim -- --siege` (`scripts/sim/siege.ts` + a flag in `scripts/sim/balance.ts`; reports `docs/sim/2026-11-05-siege.txt`, 30 days, and

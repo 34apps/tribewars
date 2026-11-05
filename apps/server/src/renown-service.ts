@@ -68,7 +68,7 @@ export class RenownService {
     };
     const defenderParty: RenownParty = {
       eligible: defenderId !== null && attackerId !== null && this.mayEarn(defenderId, attackerId, at),
-      // Abandoned villages are small by design and already limited by the repeat-raid loot rule and the pair cap:
+      // Abandoned villages are small by design and already limited by the repeat-raid loot rule:
       // they are exempt from the size factor (the attacker's own points as the opponent's make it 1).
       points: defenderId === null ? attackerParty.points : villagePoints(b.targetState),
     };

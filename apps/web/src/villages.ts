@@ -9,6 +9,8 @@ import {
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
   HOLD_HOURS,
+  HOLD_HOURS_ABANDONED,
+  STRIKE_CHAIN_WINDOW_HOURS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
@@ -227,8 +229,9 @@ export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
 
 /** The Strike hint for the send dialog; a player's village adds the hold length, who is safe and the escort advice. */
 export function strikeHint(targetKind: MapVillageDto['kind'] | null): string {
-  const base = SEND_MODE_HINT.strike ?? '';
-  if (targetKind !== 'player') return base;
+  const chain = `The Chieftains can come in separate attacks, as long as they arrive within ${STRIKE_CHAIN_WINDOW_HOURS} hours of each other and are still on their way home.`;
+  const base = `${SEND_MODE_HINT.strike ?? ''} ${chain}`;
+  if (targetKind !== 'player') return `${base} An abandoned village changes owner after a ${HOLD_HOURS_ABANDONED}-hour hold.`;
   return `${base} A player's village changes owner after a ${HOLD_HOURS}-hour hold if the occupiers stay strong enough. Tribe-mates and allies cannot be struck. Its owner can fight back, so bring a strong escort.`;
 }
 
@@ -317,11 +320,18 @@ const REASON_TEXT: Record<NonNullable<VillageReportData['reason']>, string> = {
   replaced: 'another player took over the claim',
   no_room: 'there was no room for the troops',
   no_claim: 'you no longer held the claim',
-  pair_cap: 'you already took as many villages from this player as the world allows for now',
 };
 
 /** Shown instead of a build or train button while the hearth of the current village is out. */
 export const HEARTH_OUT_REASON = 'The hearth is out';
+
+/** Shown instead of a build button while the hearth is out; only the Wall can still be built (owner 2026-11-05). */
+export const HEARTH_OUT_BUILD_REASON = 'The hearth is out: only the Wall can be built';
+
+/** Why a building cannot be started because the hearth of this village is out, or null (lit hearth, or the Wall). */
+export function hearthBuildReason(hearthOut: boolean, id: BuildingId): string | null {
+  return hearthOut && id !== 'wall' ? HEARTH_OUT_BUILD_REASON : null;
+}
 
 export interface VillageReportText {
   title: string;

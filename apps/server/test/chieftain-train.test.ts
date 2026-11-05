@@ -15,18 +15,18 @@ test('training a Chieftain reserves Renown together with the resources, and the 
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 2000);
   const before = await p.c.state();
-  assert.equal(before.renown.chieftainPrice, 500, 'first Chieftain costs the base village price');
+  assert.equal(before.renown.chieftainPrice, 1000, 'first Chieftain costs the base village price');
   assert.equal(before.renown.chieftains, 0);
   assert.equal(before.renown.reserved, 0);
 
   ok(await train(p.c, vid, 1));
   const after = await p.c.state();
-  assert.equal(after.renown.reserved, 500);
-  assert.equal(after.renown.spent, before.renown.spent + 500, 'the reservation is part of spent');
-  assert.equal(after.renown.balance, before.renown.balance - 500);
+  assert.equal(after.renown.reserved, 1000);
+  assert.equal(after.renown.spent, before.renown.spent + 1000, 'the reservation is part of spent');
+  assert.equal(after.renown.balance, before.renown.balance - 1000);
   assert.equal(after.renown.total, before.renown.total, 'nothing earned or lost');
   assert.equal(after.renown.chieftains, 1);
-  assert.equal(after.renown.chieftainPrice, 800, 'the next one costs what the village after this one would');
+  assert.equal(after.renown.chieftainPrice, 1600, 'the next one costs what the village after this one would');
   const wood0 = before.villages[0]?.state.resources.wood ?? 0;
   assert.ok((after.villages[0]?.state.resources.wood ?? 0) <= wood0 - UNITS.chieftain.cost.wood + 1, 'the resources were paid too');
   assert.equal(after.villages[0]?.state.trainQueues.bannerhall.length, 1);
@@ -38,7 +38,7 @@ test('a batch of two prices each Chieftain separately; a short balance refuses t
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
-  app.ctx.store.addRenown(p.id, 1299); // one short of 500 + 800
+  app.ctx.store.addRenown(p.id, 2599); // one short of 1000 + 1600
   const state0 = await p.c.state();
   const res = await train(p.c, vid, 2);
   errorOf(res, 409, 'not_enough_resources');
@@ -51,9 +51,9 @@ test('a batch of two prices each Chieftain separately; a short balance refuses t
   app.ctx.store.addRenown(p.id, 1);
   ok(await train(p.c, vid, 2));
   const after = await p.c.state();
-  assert.equal(after.renown.reserved, 1300);
+  assert.equal(after.renown.reserved, 2600);
   assert.equal(after.renown.chieftains, 2);
-  assert.equal(after.renown.chieftainPrice, 1280, 'the third village price');
+  assert.equal(after.renown.chieftainPrice, 2560, 'the third village price');
   // One batch at a time per village.
   errorOf(await train(p.c, vid, 1),409, 'queue_full');
   await app.close();
@@ -63,7 +63,7 @@ test('training needs the Banner Hall, and only the owner can train or cancel in 
   const { app, clock } = await makeApp();
   const alice = await player(app, 'alice');
   const bob = await player(app, 'bob');
-  app.ctx.store.addRenown(alice.id, 2000);
+  app.ctx.store.addRenown(alice.id, 4000);
   const plainId = homeOf(app, alice).id;
   errorOf(await train(alice.c, plainId, 1),409, 'requirements_not_met');
   assert.equal(ledger(app, alice).reserved, 0);
@@ -73,7 +73,7 @@ test('training needs the Banner Hall, and only the owner can train or cancel in 
   ok(await train(alice.c, vid, 1));
   errorOf(await bob.c.post(`/api/villages/${vid}/cancel-train`, { building: 'bannerhall', index: 0 }), 403, 'forbidden');
   errorOf(await alice.c.post(`/api/villages/${vid}/cancel-train`, { building: 'castle', index: 0 }), 400, 'invalid_input');
-  assert.equal(ledger(app, alice).reserved, 500, 'a stranger cannot touch the reservation');
+  assert.equal(ledger(app, alice).reserved, 1000, 'a stranger cannot touch the reservation');
   await app.close();
 });
 
@@ -81,15 +81,15 @@ test('cancelling a queued Chieftain batch gives the resources (80%) and the Reno
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
-  app.ctx.store.addRenown(p.id, 2000);
+  app.ctx.store.addRenown(p.id, 4000);
   const base = ledger(app, p);
   ok(await train(p.c, vid, 2));
-  assert.equal(ledger(app, p).reserved, 1300);
+  assert.equal(ledger(app, p).reserved, 2600);
 
   const res = await p.c.post(`/api/villages/${vid}/cancel-train`, { building: 'bannerhall', index: 0 });
   ok(res);
   const body = res.json<CancelResponse>();
-  assert.equal(body.renownRefund, 1300);
+  assert.equal(body.renownRefund, 2600);
   assert.equal(body.refund.wood, Math.floor((UNITS.chieftain.cost.wood * 2 * 80) / 100));
   assert.equal(body.village.state.trainQueues.bannerhall.length, 0);
   const l = ledger(app, p);
