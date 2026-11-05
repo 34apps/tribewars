@@ -1,72 +1,111 @@
 # Genre comparison: Clanfire vs Tribal Wars (2026-11-05)
 
-Purpose: find balance problems and missing mechanics by comparing **how things work**. Rule (AGENTS.md):
-never copy another game's names, numbers, formulas, texts or layouts. Their values below are context only;
-our numbers come from our own simulator (`npm run sim`, `docs/BALANCE.md`).
+Purpose: understand the genre leader completely, then decide what Clanfire keeps, adds, does differently or
+avoids. **Rule (AGENTS.md): never copy another game's names, numbers, formulas, texts or screen layouts.**
+Their mechanics are described for understanding; our numbers come only from our simulator.
 
-Sources: Tribal Wars public world settings of one live world (en158: `interface.php?func=get_config`,
-`get_unit_info`, `get_building_info`, read 2026-11-05), general genre knowledge (marked *genre*), and our
-`packages/engine/src/config.ts` at `2af2d99`. The Tribal Wars help wiki refused automated access, so some
-of their mechanics are from general knowledge, not a fetched page.
+Sources (2026-11-05): Tribal Wars world 158 settings page and public config files; InnoGames support
+knowledge base (TW articles on buildings, units, nobles, morale, night bonus, scavenging, sitting, premium,
+script library); Wikipedia; community guides (tw-pocket-bible, theroadtotribalwars guides); Trustpilot and
+App Store reviews; forum.tribalwars.net search results. The TW help wiki and Reddit refused automated
+access, so player sentiment is thinner than ideal. Our side: `packages/engine/src/config.ts` and
+`docs/GAME_DESIGN.md` at `2af2d99`.
 
-## 1. Per-world settings (biggest structural gap)
+## 1. How Tribal Wars works (short)
 
-Tribal Wars publishes ~100 settings per world and many differ per world: world speed and a separate unit
-speed, morale on/off, night bonus, beginner protection days, noble system (coins vs packets, distance limit),
-optional units and buildings (archers, knight, church, watchtower), barbarian growth rate and max points,
-haul limits, scavenging on/off, premium features on/off, win condition (domination %, world age, hold days,
-other win modes), tribe size, account sitting, attack/support gaps, map size.
+- **Economy:** 3 resources (wood, clay, iron) from mines, a warehouse cap, a hiding place against loot, a
+  farm that caps population. No troop upkeep. Market trades between players; a premium exchange sells
+  resources for paid points.
+- **Buildings:** HQ (build speed), barracks, stable, workshop (siege), smithy (research), statue (paladin),
+  academy (nobles), rally point, market, wall, hiding place, warehouse, farm, 3 mines, watchtower (some
+  worlds), church (some worlds).
+- **Units:** infantry (spear vs cavalry, sword vs infantry, axe attack, archers on some worlds), scouts,
+  light/heavy cavalry, rams (wall), catapults (buildings), a **paladin** hero with skill trees and items,
+  the **nobleman**, and militia (farm-based emergency defence).
+- **Battle:** attack vs defence by unit class, wall, luck, **morale** (big attackers fight weaker vs small
+  players), **night bonus** (defence doubled in an 8 h window, players may pick it on newer worlds),
+  church, flags, tribe skills. A simulator in the rally point.
+- **Conquest:** loyalty 100; each successful noble cuts a random amount; 4-5 nobles usually needed; loyalty
+  regrows per hour; nobles bought with coins whose price rises per noble; max noble distance. The core
+  skill is the **noble train**: several noble attacks landing within milliseconds; defenders **snipe**
+  (time support between nobles) and **backtime** (hit armies as they come home); **fakes** hide the real
+  attack.
+- **Farming:** the main early income. Light cavalry in alternating groups raid barbarian villages; a paid
+  **Loot/Farm Assistant** sends template raids from a list. **Scavenging** sends idle troops to collect
+  resources with no target.
+- **Barbarians:** abandoned villages that grow up to a cap; bonus villages give special production.
+- **Tribes:** size per world, diplomacy labels, tribe forum, **tribe levels and weekly prestige** that buy
+  tribe-wide skills (faster support, faster looting, production, build and recruit speed, attack/defence).
+- **Protection and help:** beginner protection (days per world), **account sitting** (limited days),
+  quests and achievements, shared-connection accounts cannot attack/support each other, multi-accounts
+  banned, an **official script library** of approved scripts (since 2026).
+- **Worlds:** every world has its own settings (speed, unit speed, morale, night, paladin, archers, church,
+  tribe size, win mode). Types: normal, speed rounds, casual (start village can't be lost), classic.
+  Wins: domination, rune/special villages held for days, or older rules.
+- **Money:** premium account (bigger map, notifications, quick bar), account manager (automation), loot
+  assistant, build/recruit speed-ups, premium exchange, paladin respec. Over EUR 180m lifetime revenue;
+  growing in 2020.
 
-**Ours:** per-world today: speed, seed, radius, layout, id, name, domination settings. Everything else
-(costs, unit stats, protection, NPC growth, hold times, Renown, siege, terrain, tribe size, sites) is the
-same in every world (`config.ts`).
+## 2. What players love and hate (genre-wide)
 
-**Recommendation:** one `WorldConfig` per world, written into the world's database at creation (defaults
-from `config.ts`, operator can set them with `lobby:admin` before the world opens), read everywhere
-instead of the constants, and published read-only at `GET /w/<id>/api/world/config` (players and fan tools
-can see the rules). Groups: pace (world speed, unit speed), protection, feature flags (siege, shrines,
-scavenging, paid speed-ups, morale), NPC villages (density, growth rate, max level, stock), conquest (Renown
-base and growth, chain window, hold times, lock), win condition, tribe limit. This also makes the planned
-"special short world" a config, not code.
+**Love:** strategy depth that beats money; tribe friendships and coordination; politics and diplomacy;
+team conquest operations; long-term planning; a clear world goal.
 
-## 2. Mechanic by mechanic
+**Hate (ranked):**
+1. **Pay-to-win** (in every source; Trustpilot 1.6/5; "a game of cash").
+2. **Time demand and waking up at night** to defend.
+3. **Unexplained bans** and slow support; rules differ per server.
+4. **Being farmed** by much stronger players, attacks right after protection.
+5. **Bots, scripts, multi-accounts.**
+6. **Dying worlds**, merges, stagnant barbarian villages.
+7. Bugs, laggy mobile app, delayed reports.
 
-| Area | Tribal Wars | Ours now | Verdict |
+## 3. Side by side
+
+| Area | Tribal Wars | Clanfire now | Verdict for us |
 |---|---|---|---|
-| Speed | world speed + separate unit speed | one speed for everything | Add unit speed per world. |
-| Resources | 3 resources, per-level mines, warehouse, hiding place | 4 (gold extra), same model | OK. Gold makes us different. |
-| Upkeep | none, farm = population | none (owner 2026-11-05), Farm = population | Same. **Food now has no sink** (piles up in every sim style): put more food into unit and Banner Hall costs. |
-| Build levels | most buildings 20-30 | most 20, some 10-15 | OK (slower late game is fine). |
-| Premium speed | build-time reduction, instant build, more (per world) | removed; owner plans a paid ~20% faster queue later | Make it a per-world flag; keep it modest (fair play is a selling point). |
-| Units | ~10-12 classic units, optional archers/knight | 9 (incl. Chieftain, 2 siege) | OK. Sim: **nobody trains siege**; check costs. |
-| Battle | attack vs weighted defence, wall bonus, luck, **morale**, **night bonus** (per world) | same core, luck ±10%, no morale, no night bonus (rest hours dropped) | Add **morale as a per-world option** (protects small players from big ones); night bonus stays out (owner). |
-| Scouting | scouts, watchtower sees incoming troop types nearby | Pathfinders with 5 intel tiers | Ours is richer. Consider a **Watchtower**: shows what kind of army approaches (fits owner's "see Chieftains coming"). |
-| Incoming attacks | shown at send, arrival time, slowest-unit speed tells the type | being built (Run A, 2026-11-05) | Same idea; good. |
-| Barbarian / abandoned villages | grow points slowly, max points per world, no troop growth | grow buildings to level 10, start with 50% stock, no troop refill | **Too rich**: sim raider makes 38x the builder's loot and takes a 2nd village on day 10.7. Lower start stock and production of abandoned villages (per world), keep full loot (owner rule). |
-| Loot | carry per unit; some worlds cap hauls | carry per unit, always full | OK; a per-world haul cap is an option if raiding stays too strong. |
-| Resource gathering without a target | **scavenging**: send idle troops to collect resources | none | Likely what the owner meant by "resource gathering". Candidate feature, per-world flag. |
-| Conquest | nobles lower loyalty per hit, several nobles in a fast train, loyalty regrows, coins/packets with rising cost | Chieftains (1-3 by size), Strike puts hearth out, **Hold** 6/12 h, Renown price x1.6 | Ours is different on purpose (hold gives defenders time). Chains of separate Chieftain attacks are in Run B. Hold times should depend on typical support travel time (Run B). |
-| Siege | rams lower wall before battle; catapults hit a building after; min levels per building | Log Ram during battle, Boulder Sling after, Hall min 1 | Same idea, own numbers. Add **min level 1 for Farm and Storehouse** too (a village must keep working). |
-| Protection | beginner days per world; vacation/sitting | 72 h beginner, 24 h found, 48 h restart, caretaker bot | Ours has the caretaker bot. **Account sitting / vacation mode** missing (players travel; a tribe-mate looks after the account). |
-| Command ordering | minimum gap between attacks/supports, cancel window | deterministic order by arrival ms + id; 2 min cancel | OK (server-side, fair). |
-| Market | player offers + premium exchange | shipments to own villages and friends only | **Player-to-player trading** missing (offers with ratios). |
-| Tribes | size per world, wars, diplomacy | 30 members, allies/NAP/enemy, forum, chat | OK; make size per world. |
-| World end | domination % + world age + hold days (per world), other win modes | domination 75% / 14 days / 6 months / min players (per world) | Same family, good. |
-| Map objectives | some worlds add bonus villages or special win villages | Fire Shrines + Great Fire as bonus sites | Ours is distinctive. |
+| Resources | 3 + population | 4 (gold) + population | Keep; gold is ours. |
+| Troop upkeep | none | none (owner) | Same. **Food needs a use**: more food in costs. |
+| Per-world settings | ~100, many vary | speed, map, domination only | **Gap**: per-world WorldConfig (planned run). |
+| Hero | paladin with skills and items | Chieftain figure (cosmetic) | Optional later; don't copy the paladin. |
+| Battle modifiers | luck, wall, morale, night, church, flags, tribe skills | luck, wall, troop ranks | Keep lean. Morale and night bonus out (owner). |
+| Scouting | scouts, watchtower | 5 intel tiers | Ours richer. Add **Lookouts** (our watchtower idea). |
+| Incoming attacks | visible at send, types guessed from travel time | being built (Run A) | Same idea. Add a **minimum attack size** so fake spam can't flood notifications. |
+| Conquest | loyalty hits, noble trains, ms timing, snipes | Chieftains + **hold** (hours) + Renown | **Ours is different and fairer** (less ms timing, defenders get hours). Keep. |
+| Siege | rams (wall), catapults (buildings) | Log Ram, Boulder Sling | Same idea; add Farm/Storehouse min level 1. |
+| Farming | core early loop; paid Farm Assistant | full loot by carry; manual sends | Add **free Raid lists** (templates), a clear win over their paid tool. |
+| Scavenging | yes | no | Our twist: **Foraging on terrain tiles**. |
+| Abandoned villages | grow to a cap | buildings grow on a timer | Owner: they build with their own stock (planned run). |
+| Bonus villages | special production | Fire Shrines and Great Fire | Ours is distinctive; could add a few "rich" abandoned villages. |
+| Market | player offers + premium exchange | shipments to own/friends | Add **player offers**; never sell resources for money. |
+| Tribes | levels, prestige, tribe skills | diplomacy, forum, chat, alerts | Add **tribe projects** (planned) as our version of tribe progression. |
+| Sitting | account sitting | caretaker bot | Add **Steward** (a tribe-mate looks after you, limited). |
+| Onboarding | quests | none yet | Add **first-steps quests** (retention). |
+| Scripts | official library | none allowed, none offered | Publish a clear rule; free raid lists remove most reasons for scripts. |
+| World types | normal, speed, casual, classic | one type | With WorldConfig: **speed** and **casual** worlds become settings. |
+| Premium | big convenience and speed advantages | none yet; owner plans ~20% faster queue | **Biggest risk** (complaint #1). Keep it small, or cosmetics plus convenience only. |
+| World end | domination / held villages / % | 75% points for 14 days after 6 months, min players | Same family; ours is fair. |
 
-## 3. Balance problems found (from our sim, docs/BALANCE.md §9)
+## 4. What makes Clanfire different (keep and promote)
 
-1. **Raiding too strong**: raider 2.57M loot vs builder 66k in 30 days; 2nd village day 10.7 (target 21-28
-   after the owner's "harder expansion" decision). Fix: poorer abandoned villages (start stock, production),
-   Renown base 1000 (Run B), check per-loot Renown (now 1/4000).
-2. **Food has no use** since upkeep was removed: shift unit and Banner Hall costs toward food.
-3. **Siege never trained** in any sim style: check cost and research gates; add siege to one sim style.
-4. **Expansion too fast** overall vs the owner's wish: Run B (base 1000, chains, hold times).
+Renown (expansion earned by playing), conquest with a **hold** instead of millisecond trains, founding with
+an ember, Fire Shrines and the Great Fire, gold as a 4th resource, troop ranks, 5-tier scouting, terrain
+travel, the caretaker bot, toy-diorama art, a multi-world lobby, and (if the owner agrees) a fair shop.
 
-## 4. Suggested order
+## 5. Recommendations (ranked)
 
-1. Run B (conquest changes, already written).
-2. Per-world `WorldConfig` (section 1).
-3. Balance pass (section 3) with the sim, numbers into the per-world defaults.
-4. New features, each a per-world flag, owner to pick: morale, Watchtower, scavenging, account sitting /
-   vacation, player trading, siege min levels for Farm/Storehouse.
+1. **Decide the shop now**: complaint #1 everywhere is pay-to-win. Recommendation: cosmetics plus small
+   conveniences; if the paid faster queue stays, cap it (one building at a time, ~20%, per-world flag) and
+   never sell resources, troops or Renown.
+2. **Per-world settings** (WorldConfig) - enables speed and casual worlds and the special short world.
+3. **Abandoned villages build with their own stock** + balance pass (raiding too strong, food unused,
+   siege unused).
+4. **Free Raid lists** (saved raid templates sent from the map) - our answer to their paid assistant.
+5. **First-steps quests** for new players.
+6. **Steward** (limited account sitting by a tribe-mate).
+7. **Minimum attack size** (no 1-unit fake spam; protects notifications).
+8. **Tribe projects** as tribe progression.
+9. **Lookouts** and **Foraging** (our twists on watchtower and scavenging).
+10. **Player market offers.**
+11. Open questions for the owner: night-time defence is complaint #2 - with rest hours dropped, the hold,
+    notifications, Steward and the caretaker bot are our answer; is that enough?
