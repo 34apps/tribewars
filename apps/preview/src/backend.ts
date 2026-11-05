@@ -17,6 +17,7 @@ import { ForumService } from '../../server/src/forum-service.ts';
 import { MailService } from '../../server/src/mail-service.ts';
 import { forumRoutes } from '../../server/src/routes/forum.ts';
 import { mailRoutes } from '../../server/src/routes/mail.ts';
+import { notificationRoutes } from '../../server/src/routes/notifications.ts';
 import { rankingRoutes } from '../../server/src/routes/rankings.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
@@ -139,6 +140,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   reportRoutes(fastifyLike, ctx);
   tribeRoutes(fastifyLike, ctx);
   mailRoutes(fastifyLike, ctx);
+  notificationRoutes(fastifyLike, ctx);
   forumRoutes(fastifyLike, ctx);
   rankingRoutes(fastifyLike, ctx);
 

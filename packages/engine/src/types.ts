@@ -75,8 +75,6 @@ export interface UnitDef {
   speed: number;
   /** Resources one unit can carry home from a raid. */
   carry: number;
-  /** Food eaten per hour at world speed 1 (counted while queued, at home and away). */
-  upkeep: number;
   cost: Resources;
   /** Training time per unit in seconds at speed 1 with the training building at level 1. */
   trainTimeSec: number;
@@ -109,7 +107,7 @@ export interface ResearchJob {
 export interface WorldSettings {
   /** Seed for terrain and abandoned-village placement. */
   seed: number;
-  /** Multiplies production/upkeep and divides all durations. 1 = normal pace. */
+  /** Multiplies production and divides all durations. 1 = normal pace. */
   speed: number;
   /** World spans x and y from -radius to +radius (inclusive). */
   radius: number;
@@ -285,7 +283,6 @@ export type GameErrorCode =
   | 'exceeds_storage'
   | 'queue_full'
   | 'too_late'
-  | 'not_enough_food'
   | 'population_full'
   | 'not_enough_troops'
   | 'no_troops'
@@ -329,8 +326,8 @@ export interface BattleInput {
   supportRanks?: Array<VillageRanks | undefined>;
   /** Deterministic luck: same seed, same result. The server mixes in a secret (see battleSeed), so nobody can predict it. */
   seed: number;
-  /** 0..1, default 1: share of the survivors' carrying capacity that can be taken (repeat raids on abandoned villages). */
-  lootFactor?: number;
+  /** True: nothing is looted even on a win (Strike attempts, relief attacks, map sites). Default false: loot is always full. */
+  noLoot?: boolean;
   /**
    * Building the Boulder Slings were told to hit (a BuildingId, picked by the sender). Absent = random among the buildings that
    * can still drop, drawn from `seed`. Never checked against the village: the server must not reveal what a village has.
@@ -363,8 +360,13 @@ export interface BattleResult {
   supportLosses: Units[];
   /** Resources taken from the defender (0s when the attacker lost). */
   loot: Resources;
-  /** Buildings lowered by the surviving siege units, in order (Log Ram first); [] when nobody sieged or the attacker lost. Applied by applyBattleToDefender. */
+  /**
+   * Buildings lowered by siege units, in order (Log Ram first); [] when nobody sieged. The Log Ram hit runs from the pre-battle Wall
+   * to the Wall after both steps (during + after); applies on a win and on a loss. Applied by applyBattleToDefender.
+   */
   siege?: SiegeHit[];
+  /** The Wall level the defence used in this battle (after the Log Rams' during-the-battle hit). */
+  wallDuring: number;
 }
 
 export interface ScoutInput {

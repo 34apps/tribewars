@@ -73,8 +73,6 @@ import {
   pairConquestWindowMs,
   protectionEndsAt,
   renownPairWindowMs,
-  repeatRaidLootFactor,
-  repeatRaidWindowMs,
   resolveBattle,
   restartProtectionMs,
   settleVillage,
@@ -141,7 +139,6 @@ interface Npc {
   state: VillageState;
   tier: number;
   pos: Pos;
-  hits: number[];
 }
 interface Claim {
   by: number;
@@ -301,7 +298,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   // Deterministic shuffle of the styles over the grid places.
   const place = styleOrder.map((st, i) => ({ st, key: hashSeed(opt.seed, 1000 + i) })).sort((a, b) => a.key - b.key).map((x) => x.st);
 
-  const makeNpcs = (home: Pos): Npc[] => TARGET_LAYOUT.map(([tier, d], i) => ({ state: createNpcVillage(tier, 0), tier, pos: npcPos(home, i, d), hits: [] }));
+  const makeNpcs = (home: Pos): Npc[] => TARGET_LAYOUT.map(([tier, d], i) => ({ state: createNpcVillage(tier, 0), tier, pos: npcPos(home, i, d) }));
   const newVil = (owner: number, state: VillageState, pos: Pos): Vil => {
     const v: Vil = { id: nextVilId++, owner, state, pos, trainCursor: 0, alive: true };
     world.set(v.id, v);
@@ -423,10 +420,6 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     sortEvents();
   };
   const settleOf = (vil: Vil, t: number): VillageState => settleVillage(vil.state, t, s);
-  const lootFactorAt = (npc: Npc, at: number): number => {
-    const w = repeatRaidWindowMs(s);
-    return repeatRaidLootFactor(npc.hits.filter((h) => h > at - w && h <= at).length);
-  };
   /** Takes of `victim`'s villages by `p` in the pair window ending at `now`, plus holds `p` has running on them. */
   const takesOf = (p: Player, victim: number, now: number): number => {
     const w = pairConquestWindowMs(s);
@@ -574,8 +567,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       const npc = att.npcs[e.npc] as Npc;
       if (e.owner !== att.id) return;
       npc.state = settleVillage(npc.state, e.at, s);
-      const r = resolveBattle({ attackerUnits: e.units, defender: npc.state, seed: e.seed, lootFactor: lootFactorAt(npc, e.at) });
-      if (r.attackerWon) npc.hits.push(e.at);
+      const r = resolveBattle({ attackerUnits: e.units, defender: npc.state, seed: e.seed });
       npc.state = applyBattleToDefender(npc.state, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       award(r, att, null, `t${e.npc}`, e.at);
@@ -609,7 +601,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         return;
       }
       const def0 = settleOf(tv, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: 0 });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
       const n0 = outstanding(att);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       tv.state = applyBattleToDefender(def0, r);
@@ -650,7 +642,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     }
     const cold = settleOf(tv, e.at);
     const def0: VillageState = { ...cold, troops: { ...claim.occupiers } };
-    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: 0 });
+    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
     o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
     const claimant = P(claim.by);
     award(r, att, claimant, '', e.at);
@@ -686,7 +678,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const need = chiefNeed(p);
     if (RESOURCE_IDS.some((id) => need[id] > cap)) return 'storehouse';
     const c = checkTrain(vil.state, 'chieftain', p.saving?.k ?? 1, t, s);
-    if (!c.ok && (c.reason === 'population_full' || c.reason === 'not_enough_food')) return 'farm';
+    if (!c.ok && c.reason === 'population_full') return 'farm';
     return undefined;
   };
 
@@ -770,7 +762,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
           vil.trainCursor++;
           return;
         }
-        if (c.reason !== 'population_full' && c.reason !== 'not_enough_food') break;
+        if (c.reason !== 'population_full') break;
         n = Math.floor(n / 2);
       }
       return;
@@ -829,7 +821,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       travel = travelTimeMs(vil.pos, tv.pos, send, s);
       if (isStrikeBlocked(arrival, t + travel)) continue;
       if (pts < ownBest * STRIKE_MIN_RATIO) continue;
-      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(p.seed, 555, p.strikeSeq), lootFactor: 0 });
+      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(p.seed, 555, p.strikeSeq), noLoot: true });
       if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
       if (pre.attackerSurvivors.chieftain < kNeed || occupierPopulation(pre.attackerSurvivors) < HOLD_MIN_POPULATION) continue;
       if (pts > bestPoints) {
@@ -881,8 +873,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     type Pick = { kind: 'npc'; i: number; travel: number } | { kind: 'vil'; v: Vil; travel: number };
     let best: Pick | undefined;
     let bestScore = 0;
-    const consider = (travel: number, arrivalState: VillageState, lootFactor: number, make: Pick): void => {
-      const pre = resolveBattle({ attackerUnits: send, defender: arrivalState, seed: hashSeed(p.seed, 999, p.raidSeq), lootFactor });
+    const consider = (travel: number, arrivalState: VillageState, make: Pick): void => {
+      const pre = resolveBattle({ attackerUnits: send, defender: arrivalState, seed: hashSeed(p.seed, 999, p.raidSeq) });
       if (!(pre.attackPower > pre.defensePower * 1.25)) return; // a thin win loses most of the army
       let lossVal = 0;
       for (const u of UNIT_IDS) lossVal += pre.attackerLosses[u] * value(UNITS[u].cost);
@@ -897,7 +889,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       const n = p.npcs[i] as Npc;
       const travel = travelTimeMs(vil.pos, n.pos, send, s);
       n.state = settleVillage(n.state, t, s);
-      consider(travel, settleVillage(n.state, t + travel, s), lootFactorAt(n, t + travel), { kind: 'npc', i, travel });
+      consider(travel, settleVillage(n.state, t + travel, s), { kind: 'npc', i, travel });
     }
     if (!isAttackBlocked(vil.state, t)) {
       for (const tv of world.values()) {
@@ -907,7 +899,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         if (isAttackBlocked(tv.state, t + travel)) continue;
         const arrival = settleVillage(tv.state, t + travel, s);
         if (villagePoints(arrival) < p.points * RAID_MIN_RATIO / Math.max(1, p.vils.length)) continue;
-        consider(travel, arrival, 1, { kind: 'vil', v: tv, travel });
+        consider(travel, arrival, { kind: 'vil', v: tv, travel });
       }
     }
     const pick = best as Pick | undefined;
@@ -990,7 +982,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         if (totalUnits(army) < 1) continue;
         const travel = src === cold ? 0 : travelTimeMs(src.pos, cold.pos, army, s);
         if (t + travel >= due) continue;
-        const pre = resolveBattle({ attackerUnits: army, defender, seed: hashSeed(p.seed, 888, t), lootFactor: 0 });
+        const pre = resolveBattle({ attackerUnits: army, defender, seed: hashSeed(p.seed, 888, t), noLoot: true });
         if (!(pre.attackPower > pre.defensePower * 1.1)) continue;
         if (!best || travel < best.travel) best = { src, army, travel };
       }

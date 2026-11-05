@@ -30,6 +30,8 @@ import type {
   MeResponse,
   MovementResponse,
   MyTribeResponse,
+  NotificationsReadRequest,
+  NotificationsResponse,
   OwnVillageDto,
   ReportDto,
   RecallRequest,
@@ -268,6 +270,11 @@ export const api = {
   cancelMovement: (movementId: number) => request<MovementResponse>('POST', `/api/movements/${movementId}/cancel`, {}),
   sendBack: (stationedId: number) => request<MovementResponse>('POST', `/api/stationed/${stationedId}/send-back`, {}),
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
+  /** Incoming attack / support / resources warnings for my villages, newest first (GAME_DESIGN 18.10). Never carries units. */
+  getNotifications: () => request<NotificationsResponse>('GET', '/api/notifications'),
+  /** Mark the given notifications read, or all of them when `ids` is left out. */
+  markNotificationsRead: (ids?: number[]) =>
+    request<NotificationsResponse>('POST', '/api/notifications/read', (ids ? { ids } : {}) satisfies NotificationsReadRequest),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
   mailList: (box: MailBox, before?: number) =>

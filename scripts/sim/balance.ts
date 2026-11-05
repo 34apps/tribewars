@@ -60,8 +60,6 @@ import {
   occupierPopulation,
   protectionEndsAt,
   renownPairWindowMs,
-  repeatRaidLootFactor,
-  repeatRaidWindowMs,
   resolveBattle,
   settleVillage,
   storageCap,
@@ -368,8 +366,6 @@ interface Target {
   distance: number;
   /** Map position (the player's village is at HOME): terrain on the way decides the travel time. */
   pos: { x: number; y: number };
-  /** Arrival times of won raids (the repeat-raid rule looks at the last day). */
-  hits: number[];
   /** False once the village was taken (it is then one of the player's villages). */
   alive: boolean;
 }
@@ -431,7 +427,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   const vils: Vil[] = [{ id: 0, state: createPlayerVillage(0), pos: opt.home, trainCursor: 0, how: 'home' }];
-  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance], i) => ({ state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), hits: [], alive: true }));
+  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance], i) => ({ state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), alive: true }));
   const events: Event[] = [];
   const errors: string[] = [];
   const firstBuilding: StyleResult['firstBuilding'] = {};
@@ -528,12 +524,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     return tg.state;
   };
 
-  /** Loot share a raid arriving at `at` gets from target i (same rule as the server). */
-  const lootFactorAt = (i: number, at: number): number => {
-    const w = repeatRaidWindowMs(s);
-    return repeatRaidLootFactor((targets[i] as Target).hits.filter((h) => h > at - w && h <= at).length);
-  };
-
   /** Units walk back from tile `from` to village `to` and arrive after the real travel time. */
   const homeTrip = (to: Vil, from: { x: number; y: number }, at: number, units: Units, loot: Resources = emptyResources()): void => {
     if (totalUnits(units) <= 0 && value(loot) <= 0) return;
@@ -584,8 +574,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       }
       const def0 = targetAt(e.target, e.at);
       const withSiege = e.units.logram + e.units.boulder > 0;
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: lootFactorAt(e.target, e.at), ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
-      if (r.attackerWon) tg.hits.push(e.at);
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
       tg.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       raidRenown(r, o.state, `t${e.target}`, e.at);
@@ -622,7 +611,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         return;
       }
       const def0 = targetAt(e.target, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, lootFactor: 0 });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       tg.state = applyBattleToDefender(def0, r);
       raidRenown(r, o.state, `t${e.target}`, e.at);
@@ -700,7 +689,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const cap = storageCap(vil.state);
     if (RESOURCE_IDS.some((id) => CHIEF_COST[id] > cap)) return 'storehouse';
     const c = checkTrain(vil.state, 'chieftain', 1, t, s);
-    if (!c.ok && (c.reason === 'population_full' || c.reason === 'not_enough_food')) return 'farm';
+    if (!c.ok && c.reason === 'population_full') return 'farm';
     return undefined;
   };
 
@@ -805,7 +794,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           vil.trainCursor++;
           return;
         }
-        if (c.reason !== 'population_full' && c.reason !== 'not_enough_food') break;
+        if (c.reason !== 'population_full') break;
         n = Math.floor(n / 2);
       }
       return; // saving up for the picked unit
@@ -851,7 +840,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           attackerUnits: army,
           defender: arrival,
           seed: hashSeed(styleSeed, 999, raidSeq),
-          lootFactor: lootFactorAt(i, t + travel),
           ...(siegeArmy ? { siegeTarget: 'wall' as BuildingId } : {}),
         });
         // A won battle costs the winner (defence / attack)^1.5 of the army, so a thin win loses most of it. A sensible
@@ -968,7 +956,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (!tg.alive || tg.state.hearth || isStrikeBlocked(tg.state, t)) continue;
         const travel = travelTimeMs(holder.pos, tg.pos, send, s);
         const arrival = settleVillage(targetAt(i, t), t + travel, s);
-        const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 555, strikeSeq), lootFactor: 0 });
+        const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 555, strikeSeq), noLoot: true });
         // Needs the usual margin, a surviving Chieftain and enough survivors to keep the hold clock running.
         if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
         if (pre.attackerSurvivors.chieftain < 1 || occupierPopulation(pre.attackerSurvivors) < HOLD_MIN_POPULATION) continue;
@@ -1360,11 +1348,11 @@ export function formatReport(rep: SimReport, full = false): string {
   out.push(`| item | ${rep.results.map((r) => r.style).join(' | ')} |`, `|---|${rep.results.map(() => '---').join('|')}|`);
   for (const b of BUILDING_IDS) out.push(`| building ${b} (next level) | ${rep.results.map((r) => fmtHour(r.firstBuilding[b])).join(' | ')} |`);
   for (const u of UNIT_IDS) out.push(`| unit ${u} | ${rep.results.map((r) => fmtHour(r.firstUnit[u])).join(' | ')} |`);
-  out.push('', '## Unit value (static)', '', '| unit | attack/cost | defense/cost (avg) | carry/cost | upkeep | pop |', '|---|---|---|---|---|---|');
+  out.push('', '## Unit value (static)', '', '| unit | attack/cost | defense/cost (avg) | carry/cost | pop | building |', '|---|---|---|---|---|---|');
   for (const u of UNIT_IDS) {
     const d = UNITS[u];
     const c = d.cost.wood + d.cost.food + d.cost.iron + d.cost.gold * 10;
-    out.push(`| ${u} | ${(d.attack / c).toFixed(3)} | ${(((d.defenseInfantry + d.defenseCavalry) / 2) / c).toFixed(3)} | ${(d.carry / c).toFixed(3)} | ${d.upkeep} | ${d.requires.stables ? 'stables' : 'barracks'} |`);
+    out.push(`| ${u} | ${(d.attack / c).toFixed(3)} | ${(((d.defenseInfantry + d.defenseCavalry) / 2) / c).toFixed(3)} | ${(d.carry / c).toFixed(3)} | ${POP_PER_UNIT[u]} | ${d.requires.stables ? 'stables' : 'barracks'} |`);
   }
   out.push('', '## Flags', '');
   if (rep.flags.length === 0) out.push('None.');
@@ -1374,15 +1362,15 @@ export function formatReport(rep: SimReport, full = false): string {
     '## Model',
     '',
     '- 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.',
-    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; garrisons refill 20% of full per 6 h step and repeat raids by the same player within 24 h carry 50% less each (engine rules since step 0).',
-    '- Loot and losses valued wood+food+iron+10xgold. Troop upkeep, travel idle time and Drillyard ranks are not valued.',
+    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; the garrison never refills (what a raid kills stays dead; only buildings grow) and loot is always full: min(what the survivors carry, the stock above the Vault), however often the same village is raided (rules of 2026-11-05).',
+    '- Loot and losses valued wood+food+iron+10xgold. Troops eat no food (no upkeep); travel idle time and Drillyard ranks are not valued.',
     '- Enemy raiders hit every village that is not inside founding protection on days 7, 14, 21, 28 (4 x day raiders each) to give defence something to do; the turtle is never attacked (pure defender).',
     '- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).',
     '- Renown (engine renown.ts): building levels pay once per village and level after each settle (collectBuildRenown; a taken village pays nothing for the levels it came with); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.',
     '- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step for EVERY village from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection of the account (the sim player never attacks a player).',
     '- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed. Try `--home` for other starts.',
     '- SEVERAL VILLAGES (step 2): Renown is reserved when a Chieftain is queued (villageRenownPrice; 500, 800, 1,280 ...; he costs 4,000/3,000/5,000 + 150 gold and 6 h) and half comes back if he dies in a strike (chieftainRefund). One Chieftain at a time. The first village with a Banner Hall trains him. Take styles first build an escort of 1.05 x HOLD_MIN_POPULATION fighters (they stop raiding and train as usual; only once the Banner Hall exists). Then, while the Renown is there, the village saves up: it only builds what leaves his cost untouched (plus the storehouse / farm he needs) and trains nothing.',
-    '- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, occupiers move in up to the population cap, the rest walks home). The strike army carries no loot (lootFactor 0). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.',
+    '- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, occupiers move in up to the population cap, the rest walks home). The strike army carries no loot (noLoot: a Strike attempt is not a raid). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.',
     '- FOUND (builder, turtle): the Chieftain + up to 30 defenders walk to the nearest free buildable tile (checkFoundTarget); createFoundedVillage (start levels, 300/300/150, 24 h protection, the escort is the garrison).',
     '- Extra villages play the same style script (build list, army, research, raids against the shared abandoned villages from their own tile, Feast), starting from their own levels; a taken village starts with all its buildings. Chieftains are only trained in the first village with a Banner Hall. Not modeled: sending resources or troops between the player\'s villages, a second hold wave (occupiers who arrive late), the Banner Hall of an extra village training Chieftains, enemy attacks on a village while it is struck, players as targets.',
     `- IDLE STRETCH ("dead period"): after the player did everything the style wants at a step, the longest time until the next step at which something useful was still possible in ANY village (a building, a batch of 10 units, a research, a Feast, a Chieftain with Renown to pay him). Target under 8 h. Reported for the whole run and for gaps that start on or after day ${LATE_DAY}. "Pile-up" = resource at >= 90% storage (first village).`,

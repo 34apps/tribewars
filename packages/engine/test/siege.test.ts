@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  BATTLE_LOSS_EXPONENT,
   BUILDING_IDS,
   SIEGE_BASE_POINTS,
+  SIEGE_DURING_SHARE,
+  SIEGE_LOST_SHARE,
   SIEGE_MIN_LEVEL,
   SIEGE_POINTS_PER_LEVEL,
   UNITS,
@@ -19,7 +22,9 @@ import {
   normalizeUnits,
   resolveBattle,
   resolveSiege,
+  resolveSiegeDuring,
   siegeFloor,
+  siegeLostSurvivors,
   siegePointsNeeded,
 } from '../src/index.ts';
 import type { BuildingId, BuildingLevels, UnitId } from '../src/index.ts';
@@ -285,6 +290,41 @@ describe('resolveSiege: hand-computed (base 6, 2 per level, ram 1 x3, sling 0.8 
   });
 });
 
+describe('siege during the battle and on a loss (helpers)', () => {
+  it('resolveSiegeDuring: rams fire SIEGE_DURING_SHARE of their points at the Wall; others and unsent kinds do not', () => {
+    const wall = 10;
+    const full = Math.ceil(costOf(wall, 2) / RAM.power);
+    const half = resolveSiegeDuring(units({ logram: full }), wall);
+    assert.ok(half.wall > wall - 2, 'half the points do not drop two levels');
+    const twice = resolveSiegeDuring(units({ logram: Math.ceil(full / SIEGE_DURING_SHARE) }), wall);
+    assert.equal(twice.wall, wall - 2);
+    assert.equal(twice.dropped.logram, 2);
+    assert.equal(twice.from.logram, wall);
+    assert.deepEqual(resolveSiegeDuring(units({ boulder: 5000, raider: 100 }), wall), { wall, dropped: {}, from: {} });
+    assert.equal(resolveSiegeDuring(units({ logram: 1e6 }), 0).wall, 0);
+  });
+
+  it('resolveSiege with `sent`: the hit runs from the pre-battle level; the maxLevels cap is shared; no survivors still shows the during hit', () => {
+    const b = levels({ wall: 12 });
+    const dur = resolveSiegeDuring(units({ logram: 300 }), 12);
+    assert.ok(dur.dropped.logram! >= 1);
+    const none = resolveSiege(emptyUnits(), b, null, 1, units({ logram: 300 }));
+    assert.deepEqual(none, [{ unit: 'logram', building: 'wall', from: 12, to: dur.wall }]);
+    const all = resolveSiege(units({ logram: 300 }), b, null, 1, units({ logram: 300 }));
+    assert.equal(all[0]!.from, 12);
+    assert.equal(all[0]!.to, 12 - RAM.maxLevels);
+  });
+
+  it('siegeLostSurvivors: floor(count * ratio * SIEGE_LOST_SHARE) for siege kinds only', () => {
+    const s = siegeLostSurvivors(units({ logram: 101, boulder: 40, raider: 500 }), 0.5);
+    assert.equal(s.logram, Math.floor(101 * 0.5 * SIEGE_LOST_SHARE));
+    assert.equal(s.boulder, Math.floor(40 * 0.5 * SIEGE_LOST_SHARE));
+    assert.equal(s.raider, 0);
+    assert.equal(siegeLostSurvivors(units({ logram: 10 }), 0).logram, 0);
+    assert.equal(siegeLostSurvivors(units({ logram: 10 }), 7).logram, Math.floor(10 * SIEGE_LOST_SHARE)); // ratio is clamped to 1
+  });
+});
+
 describe('applySiegeHits', () => {
   it('lowers levels and aims queued upgrades of that building lower by the same amount', () => {
     const v = village({ buildings: { wall: 8, barracks: 6, farm: 5 } });
@@ -343,11 +383,11 @@ describe('resolveBattle with siege', () => {
   const wallDefence = (wall: number): number => (WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall);
   const target = (over: Partial<BuildingLevels> = {}) => village({ buildings: { wall: 10, hall: 3, market: 4, ...over }, troops: emptyUnits() });
 
-  it('siege happens only when the attacker wins; a lost attack leaves buildings untouched', () => {
+  it('a hopeless lost attack does nothing to buildings (3 rams: no points, no survivors counted)', () => {
     const d = target();
     const lost = resolveBattle({ attackerUnits: units({ logram: 3 }), defender: d, seed: 5, siegeTarget: 'market' });
     assert.equal(lost.attackerWon, false);
-    assert.deepEqual(lost.siege, []);
+    assert.ok(lost.siege!.every((h) => h.from === h.to));
     assert.deepEqual(applyBattleToDefender(d, lost).buildings, d.buildings);
   });
 
@@ -364,30 +404,92 @@ describe('resolveBattle with siege', () => {
     assert.deepEqual(frozen, d);
   });
 
-  it('the Wall counts at its pre-battle level: defensePower ignores the rams and equals the formula for the old Wall', () => {
+  it('the Wall the rams leave counts in the same battle: defensePower uses wallDuring, the report keeps both ends', () => {
     const d = target({ wall: 10 });
     const plain = resolveBattle({ attackerUnits: units({ raider: 600 }), defender: d, seed: 8 });
     const rams = resolveBattle({ attackerUnits: units({ raider: 600, logram: 200 }), defender: d, seed: 8 });
+    assert.equal(plain.wallDuring, 10);
     assert.ok(Math.abs(plain.defensePower - wallDefence(10)) < 1e-9);
-    assert.ok(Math.abs(rams.defensePower - wallDefence(10)) < 1e-9);
-    assert.equal(plain.attackerWon, true);
+    assert.ok(rams.wallDuring < 10);
+    assert.ok(Math.abs(rams.defensePower - wallDefence(rams.wallDuring)) < 1e-9);
+    assert.ok(rams.defensePower < plain.defensePower);
     assert.equal(rams.attackerWon, true);
-    assert.ok(rams.siege!.some((h) => h.building === 'wall' && h.to < h.from));
+    // The Wall line runs from the pre-battle level to the level after both steps, never above what the defence used.
+    const wallHit = rams.siege!.find((h) => h.building === 'wall')!;
+    assert.equal(wallHit.from, 10);
+    assert.ok(wallHit.to <= rams.wallDuring && wallHit.to < wallHit.from);
     // The next battle against the lowered village meets the lowered Wall.
     const after = applyBattleToDefender(d, rams);
+    assert.equal(after.buildings.wall, wallHit.to);
     const next = resolveBattle({ attackerUnits: units({ raider: 600 }), defender: after, seed: 8 });
-    assert.ok(next.defensePower < rams.defensePower);
+    assert.ok(next.defensePower < rams.defensePower + 1e-9);
     assert.ok(Math.abs(next.defensePower - wallDefence(after.buildings.wall)) < 1e-9);
   });
 
-  it('rams add attack but the outcome of the same battle still used the pre-battle Wall', () => {
+  it('rams help win: the same attack power against the same village wins more easily with the during hit', () => {
     // Same attack power: 10 raiders (40 each) are replaced by 100 rams (4 each) -> equal attackRaw, equal luck for the seed.
     const d = target({ wall: 6 });
     const a = resolveBattle({ attackerUnits: units({ raider: 20 }), defender: d, seed: 21 });
     const b = resolveBattle({ attackerUnits: units({ logram: 20 * (UNITS.raider.attack / UNITS.logram.attack) }), defender: d, seed: 21 });
     assert.ok(Math.abs(a.attackPower - b.attackPower) < 1e-9);
-    assert.equal(a.defensePower, b.defensePower);
-    assert.equal(a.attackerWon, b.attackerWon);
+    assert.equal(a.wallDuring, 6);
+    assert.ok(b.wallDuring < 6);
+    assert.ok(b.defensePower < a.defensePower);
+  });
+
+  it('a close LOSS still lowers the Wall: during hit plus a share of the rams as after-survivors; every unit still dies; no loot', () => {
+    const d = village({ buildings: { wall: 10, hall: 3 }, troops: { pikeman: 400, guard: 200 }, resources: { wood: 5000, food: 5000, iron: 5000, gold: 500 } });
+    const army = units({ raider: 100, logram: 200 });
+    let lossCase: ReturnType<typeof resolveBattle> | null = null;
+    let sentArmy = army;
+    for (let raiders = 100; raiders < 3000 && !lossCase; raiders += 10) {
+      const a = units({ raider: raiders, logram: 200 });
+      const r = resolveBattle({ attackerUnits: a, defender: d, seed: 7 });
+      if (!r.attackerWon && r.attackPower / r.defensePower > 0.8) {
+        lossCase = r;
+        sentArmy = a;
+      }
+    }
+    assert.ok(lossCase, 'a close loss exists');
+    const r = lossCase!;
+    assert.equal(r.attackerWon, false);
+    assert.deepEqual(r.attackerLosses, sentArmy);
+    assert.deepEqual(r.attackerSurvivors, units({}));
+    assert.deepEqual(r.loot, { wood: 0, food: 0, iron: 0, gold: 0 });
+    const hit = r.siege!.find((h) => h.unit === 'logram')!;
+    assert.equal(hit.from, 10);
+    assert.ok(hit.to < 10, 'the Wall went down');
+    assert.ok(r.wallDuring <= 10 && hit.to <= r.wallDuring);
+    // applyBattleToDefender applies the hit on a loss.
+    assert.equal(applyBattleToDefender(d, r).buildings.wall, hit.to);
+  });
+
+  it('a lost attack counts floor(count * (A/D)^exp * SIEGE_LOST_SHARE) of each siege kind for the after step (slings too)', () => {
+    const d = village({ buildings: { wall: 0, market: 8, hall: 3 }, troops: { pikeman: 300 } });
+    const army = units({ boulder: 400 });
+    const r = resolveBattle({ attackerUnits: army, defender: d, seed: 4, siegeTarget: 'market' });
+    if (r.attackerWon) return; // not the case with these numbers; guard keeps the test honest if tuned
+    const ratio = Math.pow(r.attackPower / r.defensePower, BATTLE_LOSS_EXPONENT);
+    const counted = Math.floor(400 * ratio * SIEGE_LOST_SHARE);
+    assert.deepEqual(r.siege, resolveSiege(units({ boulder: counted }), d.buildings, 'market', 4, army));
+  });
+
+  it('the cap on levels is shared by the during and after steps (rams never drop more than maxLevels in all)', () => {
+    const d = target({ wall: 20 });
+    const r = resolveBattle({ attackerUnits: units({ raider: 100_000, logram: 100_000 }), defender: d, seed: 3 });
+    assert.equal(r.attackerWon, true);
+    const hit = r.siege!.find((h) => h.building === 'wall')!;
+    assert.equal(hit.from, 20);
+    assert.equal(hit.to, 20 - RAM.maxLevels);
+    assert.ok(r.wallDuring >= hit.to && r.wallDuring < 20);
+  });
+
+  it('the Town Hall never drops below 1 even on a loss', () => {
+    const d = village({ buildings: { wall: 0, hall: 2 }, troops: { pikeman: 100 } });
+    for (let seed = 0; seed < 20; seed++) {
+      const r = resolveBattle({ attackerUnits: units({ boulder: 100_000 }), defender: d, seed, siegeTarget: 'hall' });
+      assert.ok(applyBattleToDefender(d, r).buildings.hall >= 1);
+    }
   });
 
   it('survivors, not the sent count, drive the damage', () => {
@@ -405,10 +507,11 @@ describe('resolveBattle with siege', () => {
     assert.ok(found, 'a close win with ram losses exists');
     const r = found!;
     assert.ok(r.attackerSurvivors.logram < sent);
-    assert.deepEqual(r.siege, resolveSiege(r.attackerSurvivors, d.buildings, undefined, 33));
-    // The survivors' points are what counts: if all sent rams were counted the result may differ, never the other way.
+    const sentArmy = units({ raider: r.attackerLosses.raider + r.attackerSurvivors.raider, logram: sent });
+    assert.deepEqual(r.siege, resolveSiege(r.attackerSurvivors, d.buildings, undefined, 33, sentArmy));
+    // The survivors' points are what counts after the battle: counting all sent rams would never drop fewer levels.
     const fromSurvivors = r.siege![0]!;
-    const fromSent = resolveSiege(units({ logram: sent }), d.buildings, undefined, 33)[0]!;
+    const fromSent = resolveSiege(units({ logram: sent }), d.buildings, undefined, 33, sentArmy)[0]!;
     assert.ok(fromSurvivors.from - fromSurvivors.to <= fromSent.from - fromSent.to);
   });
 

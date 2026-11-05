@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   BATTLE_LUCK,
-  NPC_REPEAT_LOOT_FACTOR,
   battleSeed,
   hashSeed,
   mulberry32,
+  settleVillage,
+  totalUnits,
   type ReportDto,
   type ReportListResponse,
   type SendResponse,
@@ -36,7 +37,7 @@ async function raid(c: Client, clock: { set(t: number): void }, vid: number, npc
   return { battle, sent: n, movement };
 }
 
-test('repeat raids by the same player on one abandoned village carry less inside the window; others and later raids are not affected', async () => {
+test('loot is always full (owner 2026-11-05): repeat raids on one abandoned village carry the same load, no reduction and no table', async () => {
   const { app, clock } = await makeApp();
   const farmer = await register(app, 'farmer', '10.0.0.1');
   const other = await register(app, 'other', '10.0.0.2');
@@ -44,37 +45,45 @@ test('repeat raids by the same player on one abandoned village carry less inside
   const vo = await trainRaiders(other, clock, 14);
   const npc = await weakestAbandoned(farmer, 12);
 
-  const first = await raid(farmer, clock, vf, npc);
-  assert.ok(first.battle.attackerWon);
-  assert.equal(first.battle.lootShare, undefined, 'the first raid carries the full load');
-  const cap1 = (first.sent - first.battle.attackerLosses.raider) * 30;
-  assert.equal(sum(first.battle.loot), cap1);
-
-  const second = await raid(farmer, clock, vf, npc);
-  assert.ok(second.battle.attackerWon);
-  assert.equal(second.battle.lootShare, Math.round(NPC_REPEAT_LOOT_FACTOR * 100));
-  const survivors2 = second.sent - second.battle.attackerLosses.raider;
-  assert.equal(sum(second.battle.loot), Math.floor(survivors2 * 30 * NPC_REPEAT_LOOT_FACTOR));
-
-  const third = await raid(farmer, clock, vf, npc);
-  assert.equal(third.battle.lootShare, Math.round(NPC_REPEAT_LOOT_FACTOR ** 2 * 100));
-  const survivors3 = third.sent - third.battle.attackerLosses.raider;
-  assert.equal(sum(third.battle.loot), Math.floor(survivors3 * 30 * NPC_REPEAT_LOOT_FACTOR ** 2));
-
-  // Another player raiding the same village is not penalised for the farmer's raids.
+  for (const who of ['first', 'second', 'third'] as const) {
+    const r = await raid(farmer, clock, vf, npc);
+    assert.ok(r.battle.attackerWon, `${who} raid won`);
+    assert.equal((r.battle as unknown as Record<string, unknown>).lootShare, undefined, 'reports no longer carry a loot share');
+    assert.equal(sum(r.battle.loot), (r.sent - r.battle.attackerLosses.raider) * 30, `${who} raid carries the full load`);
+  }
+  // Another player gets the same treatment, and so does the farmer after any wait.
   const mine = await raid(other, clock, vo, npc);
-  assert.ok(mine.battle.attackerWon);
-  assert.equal(mine.battle.lootShare, undefined);
-
-  // The farmer's raids fall out of the window (24 h / world speed 10 = 2.4 h): the full load is back.
+  assert.equal(sum(mine.battle.loot), (mine.sent - mine.battle.attackerLosses.raider) * 30);
   clock.set(clock.t + 3 * HOUR);
   const later = await raid(farmer, clock, vf, npc);
-  assert.equal(later.battle.lootShare, undefined);
   assert.equal(sum(later.battle.loot), (later.sent - later.battle.attackerLosses.raider) * 30);
 
-  // Only won raids are written down, one row each, and only for this pair.
-  const rows = app.ctx.store.db.prepare('SELECT player_id, COUNT(*) AS n FROM npc_raids GROUP BY player_id').all() as Array<{ n: number }>;
-  assert.equal(rows.length, 2);
+  // The repeat-raid table is gone from the schema.
+  const t = app.ctx.store.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'npc_raids'").all();
+  assert.equal(t.length, 0);
+  await app.close();
+});
+
+test('an abandoned village never regains the troops a raid killed, however long it waits; its buildings still grow', async () => {
+  const { app, clock } = await makeApp({ world: { npcGrowthHours: 6 } });
+  const c = await register(app, 'clearer');
+  const vid = await trainRaiders(c, clock, 14);
+  const npc = await weakestAbandoned(c, 12);
+  const row = (): { troops: number; levels: number } => {
+    const v = app.ctx.store.getVillageAt(npc.x, npc.y)!;
+    const settled = settleVillage(v.state, clock.t, app.ctx.settings);
+    return { troops: totalUnits(settled.troops), levels: Object.values(settled.buildings).reduce((a, b) => a + b, 0) };
+  };
+  const before = row();
+  assert.ok(before.troops > 0);
+  const { battle } = await raid(c, clock, vid, npc);
+  assert.ok(battle.attackerWon);
+  assert.equal(row().troops, 0, 'the whole garrison died in the raid');
+  const levels = row().levels;
+  clock.set(clock.t + 40 * HOUR);
+  const after = row();
+  assert.equal(after.troops, 0, 'nobody comes back');
+  assert.ok(after.levels > levels, 'only the buildings grow');
   await app.close();
 });
 

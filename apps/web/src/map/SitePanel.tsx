@@ -29,7 +29,7 @@ interface Props {
 }
 
 const SITE_HINTS: Partial<Record<Mission, string>> = {
-  attack: 'Beat the troops standing on the site to take it. If your army wins, the survivors stay as the new garrison and your tribe holds the site. Troops there still cost their home village food.',
+  attack: 'Beat the troops standing on the site to take it. If your army wins, the survivors stay as the new garrison and your tribe holds the site.',
   support: 'Your troops stay at the site as part of its garrison. A tribe holds a site while at least one of its members has troops there.',
 };
 

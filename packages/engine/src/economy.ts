@@ -1,4 +1,4 @@
-// Costs, times, production, upkeep, storage. Pure formulas from docs/GAME_DESIGN.md sections 2-4.
+// Costs, times, production, population, storage. Pure formulas from docs/GAME_DESIGN.md sections 2-4.
 
 import {
   BUILDINGS,
@@ -16,7 +16,6 @@ import {
   STORAGE_BASE,
   STORAGE_GROWTH,
   STORAGE_LEVEL0,
-  UNITS,
   VAULT_BASE,
   VAULT_GROWTH,
 } from './config.ts';
@@ -54,22 +53,9 @@ export function productionFromLevels(levels: BuildingLevels, speed: number): Res
   return out;
 }
 
-/** Gross production per hour (before food upkeep), speed applied. */
+/** Production per hour, speed applied. Troops eat nothing (owner, 2026-11-05), so this is also the net rate. */
 export function productionPerHour(state: VillageState, s: WorldSettings): Resources {
   return productionFromLevels(state.buildings, s.speed);
-}
-
-/**
- * Food eaten per hour by every unit at home, away or still queued for training (speed applied).
- * Units of a queued batch count from the moment they are queued, so this stays constant while they train.
- * Abandoned villages pay nothing.
- */
-export function upkeepPerHour(state: VillageState, s: WorldSettings): number {
-  if (state.npc) return 0;
-  let food = 0;
-  for (const u of UNIT_IDS) food += ((state.troops[u] || 0) + (state.away[u] || 0)) * UNITS[u].upkeep;
-  for (const job of allTrainJobs(state)) food += (job.count - job.done) * UNITS[job.unit].upkeep;
-  return food * s.speed;
 }
 
 /** Population taken by `b` at `level`. */
@@ -99,13 +85,6 @@ export function populationUsage(state: VillageState): { buildings: number; troop
   for (const u of UNIT_IDS) troops += ((state.troops[u] || 0) + (state.away[u] || 0)) * POP_PER_UNIT[u];
   for (const job of allTrainJobs(state)) troops += (job.count - job.done) * POP_PER_UNIT[job.unit];
   return { buildings, troops, total: buildings + troops };
-}
-
-/** Production per hour with food upkeep subtracted (food may be negative). */
-export function netProductionPerHour(state: VillageState, s: WorldSettings): Resources {
-  const out = productionPerHour(state, s);
-  out.food -= upkeepPerHour(state, s);
-  return out;
 }
 
 /** Storage cap per resource for a storehouse level. */

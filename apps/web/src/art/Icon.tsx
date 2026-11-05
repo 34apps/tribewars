@@ -80,6 +80,23 @@ const ICONS = {
       </>
     ),
   },
+  bell: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path
+          d="M16 4.5c-4.4 0-7.6 3.2-7.6 7.6v4.8c0 2-1.1 3.4-2.7 4.6c-0.6 0.6-0.2 1.6 0.6 1.6h19.4c0.8 0 1.2-1 0.6-1.6C24.7 20.3 23.6 18.9 23.6 16.9v-4.8c0-4.4-3.2-7.6-7.6-7.6z"
+          fill="#F2B33D"
+          stroke="#2B211C"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path d="M10.4 12.4c0-2.8 2-5 4.6-5.4c-2.6 0.8-3.8 2.8-3.8 5.4v4.2c0 1-0.4 1.8-0.8 2.4z" fill="#FFDC7A" />
+        <path d="M12.4 25.4a3.7 3.7 0 0 0 7.2 0z" fill="#C4623A" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <circle cx="16" cy="3.6" r="1.6" fill="#2B211C" />
+      </>
+    ),
+  },
   village: {
     vb: '0 0 32 32',
     draw: () => (

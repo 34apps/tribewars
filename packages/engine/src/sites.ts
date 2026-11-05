@@ -204,7 +204,7 @@ export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
     attackerRanks: input.attackerRanks,
     supportRanks: input.supportRanks,
     seed: input.seed,
-    lootFactor: 0,
+    noLoot: true,
     siegeTarget: null,
   });
   return { ...result, siege: [] };

@@ -1,6 +1,7 @@
 # Balance review (2026-11-03) — pace, economy, and a conquest unit
 
-Status (2026-11-04): §1–§4 were hand-computed from `config.ts`. **Upkeep 0.25 is applied** (§3.1, §7); the conquest
+Status (2026-11-05): troop upkeep, the garrison refill and the repeat-raid loot limit were **removed** on 2026-11-05 (§9); the
+sections below that mention them are history. §1–§4 were hand-computed from `config.ts`. **Upkeep 0.25 was applied** (§3.1, §7); the conquest
 proposal in §4 is superseded by `GAME_DESIGN.md` §18 (Banner Hall with lower requirements, Chieftain, hold instead of
 loyalty, owner approved 2026-11-04). The pacing tuning that needs the simulator is open: §7.3.
 
@@ -400,3 +401,65 @@ as slowly as raiders (3.5 h vs 7.2 h over 20 tiles), and a defender repairs the 
 **Recommendations.** Keep the numbers as they are for now. Re-check after the first world with players: the number of Banner Hall / Drillyard levels
 lowered per week, and the number of Rams built. Pace for players: **no effect on speed to game start**; siege itself is slower than raiding by
 design (speed 3-4, 2 x the Raiders' trip) and a late-game investment (Barracks 5-8 + Drillyard 3-5).
+
+(History note, 2026-11-05: §8 describes siege as it was built first, after a WON battle only and with the Wall counting in full. Since the same day Log Rams
+also fire half their points during the battle and a lost attack counts a share of its siege units, see §9 and GAME_DESIGN 18.9. The `--siege` experiments
+in `scripts/sim/siege.ts` were adapted so their invariants hold, but their tables were not re-run for this section.)
+
+## 9. Rule changes 2026-11-05 (no upkeep, no refill, full loot, siege during battle)
+
+Owner decisions, all in `GAME_DESIGN.md` (§2, §4, §8, §18.9): (1) **troops eat no food** (the Farm only sets the population cap); (2) **abandoned
+villages never train or regain troops** (only their buildings grow); (3) **loot is always full** (`min(survivors' carry, stock above the Vault)`, no
+repeat-raid reduction, no `npc_raids` table, no `lootShare`); (4) siege: Log Rams fire half their points during the battle (the lowered Wall counts),
+a lost attack still lowers buildings with a share of its siege units. Notifications (18.10) are not a balance change. Before = `docs/sim/2026-11-05-after-step2.txt`,
+after = `docs/sim/2026-11-05-rules.txt` (`npm run sim -- --days 30 --out ...`, same seed 20261104, home -30|-10).
+
+### 9.1 What changed in the sim
+
+`scripts/sim/balance.ts` (and `conquest.ts`, `siege.ts`) lost the upkeep, refill and repeat-raid model (`lootFactorAt`, `hits`, `not_enough_food`); a Strike
+attempt, relief attack and map-site battle now pass `noLoot: true` instead of `lootFactor: 0`. Everything else is the real engine.
+
+### 9.2 Before / after, 30 days at speed 1
+
+| | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| Renown earned reaches 500 (days), before -> after | 14.5 -> 14.5 | 14.5 -> **9.8** | 25.4 -> 25.4 | 13.6 -> 13.9 |
+| **2nd village in hand** (day), before -> after | 15.2 -> 15.2 (founded) | not within 30 d -> **10.7** (taken, tier 4) | 26.8 -> 26.8 (founded) | 20.7 -> **14.8** (taken) |
+| 3rd village (day) | 34.9 (45-day run) -> 29.4 | - -> **17.9** | - -> - | 27.8 -> 23.2 |
+| villages / points on day 30 (all villages) | 2 / 8,423 -> 3 / 8,578 | 1 / 1,067 -> **4 / 20,369** | 2 / 2,547 -> 2 / 2,242 | 3 / 7,957 -> 3 / 13,251 |
+| raids (30 days) / raid loot value | 0 / 0 | 32 / 66k -> **1,625 / 2.57M** | 0 / 0 | 29 / 61k -> 478 / 0.92M |
+| Renown earned: buildings / raids (total) | 746 / 0 (1,521) -> 756 / 0 (1,454) | 104 / 538 (933) -> 1,125 / 911 (2,957) | 246 / 0 (685) -> 219 / 0 (648) | 424 / 478 (1,738) -> 775 / 439 (2,322) |
+| longest idle stretch, whole run (target < 8 h) | 7.3 -> 7.3 h | 1.3 -> 3.0 h | 6.0 -> 6.0 h | 5.2 -> 3.7 h |
+| longest idle stretch after day 20 | 2.0 -> 4.3 h | 0.8 -> 0.2 h | 2.2 -> 1.0 h | 1.3 -> 0.2 h |
+| score (points + 2 x Renown + troops/100 + net raid/100) | 13,504 -> 14,106 | 3,389 -> **53,539** | 4,912 -> 4,706 | 12,035 -> 26,507 |
+
+Flags after: PILE-UP food for all four styles (builder 472 h, raider 587 h, turtle 563 h, balanced 524 h of 720 h; before 189 / 608 / 400 / 498 h; food has no sink
+left but buildings), balanced also gold 189 h; **RAIDING IS FREE** (raider keeps up with the builder on buildings while earning loot: new); Log Ram and Boulder
+Sling trained by nobody. **LOSING RAIDS: none** (before: balanced lost 61k in units for 61k loot).
+
+### 9.3 What it means
+
+- **Builder and turtle: unchanged** (no raids, no fights; the food they now keep only adds to the existing food pile-up). Pace targets met as before:
+  founded village day 15.2 (builder), 26.8 (turtle, still about 1 day over its 24-26 target; the cheapest lever stays the Chieftain cost).
+- **Raiders: a different game.** Without refill and without the repeat-raid limit the eight abandoned villages are an infinite tap: the garrison dies in the
+  first raid, then every raid carries a full load (T1 village: 656 raids, 654 won, loot 690k, losses 203k). The raider style collects **38x the loot**
+  (2.57M vs 66k), builds about 8x the building levels (461 vs 59), takes a village on day 10.7 (was: not within 30 days) and ends with 20k points (was 1k). Balanced is 2.2x richer
+  and takes its second village 5.9 days earlier. **The pace target for the active raider (2nd village about day 19-20) is now beaten by about 9 days**,
+  and raiding is clearly the strongest style in the 30-day score (53.5k against the builder's 14.1k, before it was the weakest). This is the direct result of
+  the three owner rules together, not of a number I could tune with only `RENOWN_PER_LOOT_VALUE`.
+- **Renown retune (the one number I changed): `RENOWN_PER_LOOT_VALUE` 1/16 -> 1/4000.** At 1/16 the first run gave the raider 6,985 raid Renown of 8,762
+  (raids 80%), a second village on day 9.8 and a Renown pace the pair cap (60 per pair per day, 8 pairs) did not hold, because every raid now carries a
+  full load. At 1/4000 raid Renown is 911 for the raider and 439 for balanced, **below building Renown for both** (1,125 and 775), like the 7.3 target ("raiding
+  stays clearly below building"). More than that does not help: the raider's Renown 500 on day 9.8 comes from building Renown (1,125; loot pays for buildings),
+  not from raids.
+- **Levers if the owner wants the raider back at day 19-20 (not changed, owner decides):** lower unit `carry` (raider 30, outrider 70), a per-village limit on
+  how much stock a raid can take (e.g. a share of the stock above the Vault, which also makes the Vault matter), a growing cost per extra Chieftain,
+  or a bigger `HOLD_MIN_POPULATION`. Production on abandoned villages is the real limit now: a village that is raided empty produces only its
+  `productionPerHour`, so the sim's 1,625 raids are mostly small loads from the same eight villages (average load about 1,600 value per raid).
+- **Players in a real world** will also lose the old limit "one village, once a day": expect farming of the nearest abandoned villages to be the standard
+  opening. Watch raid loot per player per day in the first live world.
+- **Speed for players: faster** (no upkeep: bigger armies; full loot: richer raiders; siege: Rams help to win).
+- **Siege (not simulated here):** engine tests cover the new order (during hit, lowered Wall counts, shared level cap, loss share, Town Hall floor); the §8
+  numbers were for the old rule and the Rams' real power is now a little higher (the lowered Wall lowers the defence in the same battle).
+- **Not modeled:** the simulator still sends raiders at a village only when attack >= 1.25 x defence in a preview, so with the garrison dead after one raid it
+  sends everything at once at the same small group of villages; nobody trained siege units (affordable from hour 194, never picked by the training wheel).

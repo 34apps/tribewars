@@ -190,7 +190,7 @@ test('siege units cannot scout, support, found or occupy', async () => {
   reserveFor(c.app, c.p, 2, 500);
   const store = c.app.ctx.store;
   const fresh = createPlayerVillage(c.clock.now());
-  const second = store.insertVillage(c.p.id, 'Second', homeOf(c.app, c.p).x + 10, homeOf(c.app, c.p).y, villagePoints(fresh), fresh);
+  const second = store.insertVillage(c.p.id, 'Second', homeOf(c.app, c.p).x - 1, homeOf(c.app, c.p).y, villagePoints(fresh), fresh);
   const own = store.getVillage(second)!;
   const tile = freeTileNear(c.app, c.p);
 
@@ -234,7 +234,6 @@ test('a won attack with Log Rams lowers the Wall; both reports say so, the Wall 
     defenderRanks: settled.ranks,
     supportRanks: [],
     seed,
-    lootFactor: 1,
   };
   const exp = resolveBattle(input);
   assert.equal(exp.attackerWon, true);
@@ -248,18 +247,19 @@ test('a won attack with Log Rams lowers the Wall; both reports say so, the Wall 
   assert.equal(buildingsOf(c.app, vid).wall, wallHit.to, 'the Wall is lower now');
   for (const b of [mine, theirs]) {
     assert.deepEqual(b.siege, exp.siege, 'the report lists the engine hits');
-    assert.equal(b.wallLevel, 10, 'wallLevel stays the pre-battle level');
+    assert.equal(b.wallLevel, exp.wallDuring, 'wallLevel is the Wall as it counted in the battle (after the rams fired)');
+    assert.ok(exp.wallDuring < 10, 'the rams already lowered it during the battle');
     assert.equal(b.attackerWon, true);
-    // The same battle as the engine plays it with the Wall as it stood: siege changes nothing about who died or what was taken.
+    // The same battle as the engine plays it, wall-hit and all.
     assert.equal(b.attackPower, exp.attackPower);
     assert.equal(b.defensePower, exp.defensePower);
     assert.equal(b.luck, exp.luck);
     assert.deepEqual(b.attackerLosses, exp.attackerLosses);
     assert.deepEqual(b.loot, exp.loot);
   }
-  // With the lowered Wall the defence would have been another number: it really was counted before the drop.
-  const lowered = resolveBattle({ ...input, defender: { ...settled, buildings: { ...settled.buildings, wall: wallHit.to } } });
-  assert.notEqual(lowered.defensePower, theirs.defensePower);
+  // The defence used the lowered Wall, not the full one.
+  const full = resolveBattle({ ...input, attackerUnits: { ...input.attackerUnits, logram: 0 } });
+  assert.ok(theirs.defensePower < full.defensePower, 'a lower Wall defends less');
 
   // The units walking home carry no pick.
   const back = store.movementsFrom(c.homeId).filter((x) => x.kind === 'return');
@@ -324,7 +324,7 @@ test('the Town Hall never drops below 1, every other building never below 0', as
   assert.equal(buildingsOf(c.app, c.target.id).wall, 0);
 });
 
-test('a lost attack lowers nothing; the defender sees an empty siege list, a wiped-out attacker sees none', async () => {
+test('a hopeless lost attack lowers nothing: the few rams cannot lower a level, no survivors count; the wiped-out attacker sees only the (missed) Wall line', async () => {
   const c = await setup({}, ['victim']);
   const victim = await player(c.app, 'victim');
   const vid = strongHome(c.app, c.clock, victim, { pikeman: 4000 });
@@ -336,9 +336,35 @@ test('a lost attack lowers nothing; the defender sees an empty siege list, a wip
   const theirs = await lastBattle(victim);
   assert.equal(mine.attackerWon, false);
   assert.deepEqual(buildingsOf(c.app, vid), before, 'not a level lost');
-  assert.deepEqual(theirs.siege, []);
-  assert.equal('siege' in mine, false, 'an army wiped out learns nothing about the village');
+  assert.ok((theirs.siege ?? []).every((h) => h.from === h.to), 'the defender sees only misses');
+  assert.ok((mine.siege ?? []).every((h) => h.unit === 'logram'), 'a wiped-out army sees nothing of the picked building');
   assert.equal(mine.wallLevel, null);
+  assert.equal(mine.defenderUnits, null);
+});
+
+test('a LOST attack with many Log Rams still lowers the Wall (during hit); the defender sees the lowered Wall in the report, the wiped-out attacker only the Wall hit', async () => {
+  const c = await setup({}, ['victim']);
+  const victim = await player(c.app, 'victim');
+  const vid = strongHome(c.app, c.clock, victim, { pikeman: 4000 });
+  setBuildings(c.app, vid, { wall: 10, market: 6, hall: 5, storehouse: 5, farm: 5 });
+  const target = c.app.ctx.store.getVillage(vid)!;
+
+  await attack(c, { raider: 20, logram: 100, boulder: 10 }, 'market', target);
+  const mine = await lastBattle(c.p);
+  const theirs = await lastBattle(victim);
+  assert.equal(mine.attackerWon, false);
+  // 100 rams fire half their points during the battle: 50 points drop two Wall levels (26 + 24); the defence used Wall 8.
+  const after = buildingsOf(c.app, vid);
+  assert.equal(after.wall, 8, 'two levels gone although the attack was lost');
+  assert.equal(after.market, 6, 'the Boulder Slings did nothing: no survivors counted at this ratio');
+  assert.equal(theirs.wallLevel, 8, 'wallLevel is the Wall as it counted in the battle');
+  const hit = (theirs.siege ?? []).find((h) => h.unit === 'logram');
+  assert.deepEqual(hit && [hit.building, hit.from, hit.to], ['wall', 10, 8]);
+  assert.deepEqual(mine.siege, [hit], 'the attacker sees the Wall hit and nothing else');
+  assert.equal(mine.wallLevel, null, 'but not the defence');
+  assert.equal(mine.defenderUnits, null);
+  assert.equal(mine.defenderLosses, null);
+  assert.deepEqual(mine.loot, { wood: 0, food: 0, iron: 0, gold: 0 });
 });
 
 test('a queued upgrade of a lowered building is aimed lower too', async () => {

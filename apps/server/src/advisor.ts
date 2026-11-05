@@ -12,7 +12,7 @@ import {
   type MovementDto,
   type Units,
 } from '@clanfire/engine';
-import { productionPerHour, netProductionPerHour, storageCap } from '@clanfire/engine';
+import { productionPerHour, storageCap } from '@clanfire/engine';
 import type { GameService } from './game.ts';
 import type { PlayerRow, Store } from './store.ts';
 
@@ -93,7 +93,6 @@ export function buildSnapshot(state: GameStateResponse): string {
     villages: state.villages.map((v) => {
       const s = v.state;
       const prod = productionPerHour(s, state.settings);
-      const net = netProductionPerHour(s, state.settings);
       return {
         name: v.name,
         x: v.x,
@@ -101,7 +100,6 @@ export function buildSnapshot(state: GameStateResponse): string {
         resources: Object.fromEntries(RESOURCE_IDS.map((r) => [r, Math.floor(s.resources[r])])),
         storage_capacity: storageCap(s),
         production_per_hour: Object.fromEntries(RESOURCE_IDS.map((r) => [r, Math.round(prod[r])])),
-        net_food_per_hour: Math.round(net.food),
         buildings: s.buildings,
         build_queue: s.buildQueue.map((j) => ({ building: j.building, to_level: j.targetLevel, done: minutes(j.finishAt - t) })),
         troops_home: nonZero(s.troops),

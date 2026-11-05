@@ -58,7 +58,7 @@ function village(buildings: Partial<Record<BuildingId, number>>, troops: Partial
 const army = (spec: Partial<Units>): Units => ({ ...emptyUnits(), ...spec });
 
 function fight(def: VillageState, units: Units, seed: number, target?: BuildingId): BattleResult {
-  return resolveBattle({ attackerUnits: units, defender: def, seed, lootFactor: 0, ...(target ? { siegeTarget: target } : {}) });
+  return resolveBattle({ attackerUnits: units, defender: def, seed, noLoot: true, ...(target ? { siegeTarget: target } : {}) });
 }
 
 /** The defence the engine computes against an all-infantry attack (every siege unit and the Raider is infantry). */
@@ -269,7 +269,7 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
 
   // (d) Siege must not make defending pointless -----------------------------------------------------
   lines.push('## (d) Does siege make defending pointless?', '');
-  lines.push('### (d1) Siege acts only after a WON battle: the same attack at different strengths', '');
+  lines.push('### (d1) The same attack at different strengths: a hold still costs the attacker, a lost attack lowers little', '');
   const fort = village({ wall: 10, market: 5, bannerhall: 3 }, { pikeman: 250, guard: 150 });
   const fortRams = 60;
   lines.push(`Attacker: ${fortRams} Log Rams + 20 Boulder Slings (picking the Banner Hall) + enough Raiders for the ratio. Defender: Wall 10, Banner Hall 3, Market 5, 250 Pikemen + 150 Shieldbearers. ${SEEDS.length} seeds per row (luck +-10%).`, '');
@@ -294,10 +294,10 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
         wonLevels += changed;
       } else {
         lostBattles += 1;
-        if (changed > 0 || (r.siege ?? []).length > 0) {
-          changedWhenLost += 1;
-          lostBattleChanged += 1;
-        }
+        // Rules of 2026-11-05: the rams' during-the-battle hit and a share of the siege units still count on a loss, but the
+        // total can never pass what the two siege kinds may lower in one attack.
+        if (changed > 0) changedWhenLost += 1;
+        if (changed > (UNITS.logram.siege?.maxLevels ?? 0) + (UNITS.boulder.siege?.maxLevels ?? 0)) lostBattleChanged += 1;
       }
       for (const id of Object.keys(UNITS) as UnitId[]) {
         lossValue += r.attackerLosses[id] * unitValue(id);
@@ -307,8 +307,8 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     const nLost = SEEDS.length - won;
     lines.push(`| ${ratio.toFixed(2)} | ${won} / ${SEEDS.length} | ${nLost === 0 ? '-' : `${changedWhenLost} of ${nLost}`} | ${won === 0 ? '-' : (wonLevels / won).toFixed(1)} | ${n0(lossValue / SEEDS.length)} | ${n0(defLost / SEEDS.length)} |`);
   }
-  lines.push('', 'A defence that holds loses no building level, ever. Even a narrow win does almost nothing: the winner loses (defence/attack)^1.5 of its army, siege units included, so too few survive to lower a level; the engine only gets to "levels lowered" with a clear win.', '');
-  check('a lost battle never lowers a building', lostBattles > 0 && lostBattleChanged === 0);
+  lines.push('', 'Since 2026-11-05 a defence that holds can still lose a Wall level or two: the Log Rams fire half their points during the battle, and a share of every siege kind counts as a survivor on a loss. The attacker lost the whole army for it, and a hopeless attack (ratio 0.6) lowers the Wall only by the during hit. A clear win lowers the most.', '');
+  check('a lost battle never lowers more than the siege kinds may lower in one attack', lostBattles > 0 && lostBattleChanged === 0);
 
   lines.push('### (d2) The army needed to win AND take one Wall level, by how well the village is defended', '');
   lines.push(`Each row: Log Rams sized so one level survives a decisive win (attack ${DECISIVE} x defence), Raiders sized for the ratio. Defence = the engine's number for the village as it stands.`, '');

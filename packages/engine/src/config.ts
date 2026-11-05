@@ -102,10 +102,8 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   vault: 2,
 };
 export const POP_BUILDING_GROWTH = 1.1;
-/** Population per troop type (separate from food upkeep). */
+/** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
 export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, logram: 3, boulder: 2 };
-/** Food a troop eats per hour for each population point it takes (owner decision 2026-11-04: 0.25; was 1 per unit). Unit upkeep = POP_PER_UNIT * this. */
-export const FOOD_UPKEEP_PER_POP = 0.25;
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 150;
@@ -133,18 +131,6 @@ export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
 export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'goldmine'];
 /** Full garrison = per-unit count * Town Hall level. */
 export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
-/**
- * Abandoned villages slowly recruit again: every growth step (npcGrowthHours) brings back this share of the full
- * garrison (rounded up, at least one unit of each missing type) until it is full.
- */
-export const NPC_GARRISON_REFILL_SHARE = 0.2;
-/**
- * Repeat raids on one abandoned village by the same player: within NPC_REPEAT_WINDOW_HOURS (divided by world speed)
- * each earlier won raid multiplies what the next army can carry off by NPC_REPEAT_LOOT_FACTOR, never below NPC_REPEAT_LOOT_FLOOR.
- */
-export const NPC_REPEAT_WINDOW_HOURS = 24;
-export const NPC_REPEAT_LOOT_FACTOR = 0.5;
-export const NPC_REPEAT_LOOT_FLOOR = 0.1;
 /** Growth steps applied per settle call at most; older steps are skipped (village is maxed by then anyway). */
 export const NPC_MAX_STEPS_PER_SETTLE = 500;
 
@@ -324,7 +310,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 45,
     speed: 6,
     carry: 15,
-    upkeep: POP_PER_UNIT.pikeman * FOOD_UPKEEP_PER_POP,
     cost: res(35, 30, 40),
     trainTimeSec: 270,
     building: 'barracks',
@@ -340,7 +325,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 25,
     speed: 5,
     carry: 10,
-    upkeep: POP_PER_UNIT.guard * FOOD_UPKEEP_PER_POP,
     cost: res(30, 40, 75),
     trainTimeSec: 330,
     building: 'barracks',
@@ -357,7 +341,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 5,
     speed: 6,
     carry: 30,
-    upkeep: POP_PER_UNIT.raider * FOOD_UPKEEP_PER_POP,
     cost: res(50, 40, 70),
     trainTimeSec: 300,
     building: 'barracks',
@@ -373,7 +356,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 15,
     speed: 14,
     carry: 70,
-    upkeep: POP_PER_UNIT.outrider * FOOD_UPKEEP_PER_POP,
     cost: res(80, 100, 180),
     trainTimeSec: 600,
     building: 'stables',
@@ -390,7 +372,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 50,
     speed: 10,
     carry: 40,
-    upkeep: POP_PER_UNIT.knight * FOOD_UPKEEP_PER_POP,
     cost: res(130, 150, 320, 30),
     trainTimeSec: 1320,
     building: 'stables',
@@ -407,7 +388,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 1,
     speed: 18,
     carry: 0,
-    upkeep: POP_PER_UNIT.pathfinder * FOOD_UPKEEP_PER_POP,
     cost: res(20, 30, 40),
     trainTimeSec: 180,
     building: 'barracks',
@@ -423,7 +403,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 10,
     speed: 5,
     carry: 0,
-    upkeep: POP_PER_UNIT.chieftain * FOOD_UPKEEP_PER_POP,
     cost: res(4000, 3000, 5000, 150),
     trainTimeSec: 6 * 3600,
     building: 'bannerhall',
@@ -441,7 +420,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 4,
     speed: 3,
     carry: 0,
-    upkeep: POP_PER_UNIT.logram * FOOD_UPKEEP_PER_POP,
     cost: res(220, 120, 240, 4),
     trainTimeSec: 1200,
     building: 'barracks',
@@ -459,7 +437,6 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 3,
     speed: 4,
     carry: 0,
-    upkeep: POP_PER_UNIT.boulder * FOOD_UPKEEP_PER_POP,
     cost: res(180, 140, 280, 12),
     trainTimeSec: 1500,
     building: 'barracks',
@@ -472,12 +449,22 @@ export const UNITS: Record<UnitId, UnitDef> = {
 // ---- Siege (docs/GAME_DESIGN.md 18.9). Building levels only ever drop through siege. ----
 
 /**
- * After a battle the attacker won, each siege kind (Log Ram, then Boulder Sling) lowers its target building. It has
- * `survivors * power` siege points; lowering a building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L
- * points, so high levels are harder to knock down. A kind lowers at most `maxLevels` levels per attack (its UnitDef.siege).
+ * Each siege kind (Log Ram, then Boulder Sling) lowers its target building. It has `count * power` siege points; lowering a
+ * building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock
+ * down. A kind lowers at most `maxLevels` levels per attack (its UnitDef.siege), both steps together.
+ * Log Rams first fire DURING the battle with SIEGE_DURING_SHARE of the points they were sent with (the lowered Wall counts in
+ * that battle); after it the survivors spend their full points. On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT *
+ * SIEGE_LOST_SHARE) of each siege kind count as survivors for the after step.
  */
 export const SIEGE_BASE_POINTS = 6;
 export const SIEGE_POINTS_PER_LEVEL = 2;
+export const SIEGE_DURING_SHARE = 0.5;
+export const SIEGE_LOST_SHARE = 0.5;
+
+// ---- Notifications (docs/GAME_DESIGN.md 18.10) ----
+export const NOTIFICATIONS_KEEP = 100; // per player
+export const NOTIFICATION_MAX_AGE_DAYS = 7; // real days, not scaled by world speed
+export const NOTIFICATION_READ_MAX_IDS = 200; // ids per POST /api/notifications/read
 /** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall never drops below 1. */
 export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1 };
 
@@ -488,8 +475,11 @@ export const RENOWN_VALUE_WEIGHT: Resources = { wood: 1, food: 1, iron: 1, gold:
 /** Building Renown for finishing level L: round(RENOWN_BUILD_SCALE * L ^ RENOWN_BUILD_EXP), once per village and level. */
 export const RENOWN_BUILD_SCALE = 0.25;
 export const RENOWN_BUILD_EXP = 1.25;
-/** Renown per point of loot value taken in a raid. */
-export const RENOWN_PER_LOOT_VALUE = 1 / 16;
+/**
+ * Renown per point of loot value taken in a raid. Retuned 2026-11-05 from 1/16 to 1/4000: with full loot and no garrison refill the
+ * same abandoned village pays its whole stock to every raid, so the loot value taken per month is ~35x what it was (BALANCE 9).
+ */
+export const RENOWN_PER_LOOT_VALUE = 1 / 4000;
 /** Renown per point of enemy troop value destroyed (attacking and defending). */
 export const RENOWN_PER_KILL_VALUE = 1 / 16;
 /** A battle worth less than this (loot + kills, in value) earns nothing and does not count in the pair window. */

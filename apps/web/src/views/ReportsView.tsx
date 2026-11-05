@@ -202,7 +202,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             <dd className={b.luck >= 0 ? 'gain' : 'loss'}>{formatSignedPercent(b.luck)}</dd>
           </div>
           <div>
-            <dt>Wall before the battle</dt>
+            <dt>Wall in battle</dt>
             <dd>{b.wallLevel === null ? <span className="muted">Unknown</span> : b.wallLevel}</dd>
           </div>
           <div>
@@ -227,11 +227,6 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
           </ul>
         ) : (
           <p className="muted">Nothing was taken.</p>
-        )}
-        {b.lootShare !== undefined && (
-          <p className="muted">
-            This village was raided recently, so your troops could only carry off {b.lootShare}% of the usual load. Wait a day or try another target.
-          </p>
         )}
         {b.renownGained !== undefined && b.renownGained > 0 && (
           <p className="report-renown">

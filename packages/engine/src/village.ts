@@ -9,7 +9,6 @@ import {
   MAX_TRAIN_BATCH,
   MAX_TRAIN_QUEUE,
   NPC_GARRISON_PER_HALL,
-  NPC_GARRISON_REFILL_SHARE,
   NPC_GROWTH_ORDER,
   NPC_MAX_LEVEL,
   NPC_MAX_STEPS_PER_SETTLE,
@@ -28,13 +27,11 @@ import {
   buildingCost,
   canAfford,
   buildingPop,
-  netProductionPerHour,
   populationCap,
   populationUsage,
   productionFromLevels,
   storageCap,
   storageCapForLevel,
-  upkeepPerHour,
 } from './economy.ts';
 import { BUILDING_IDS, GameError, RESOURCE_IDS, TRAINING_BUILDING_IDS, UNIT_IDS } from './types.ts';
 import type {
@@ -49,7 +46,7 @@ import type {
   VillageState,
   WorldSettings,
 } from './types.ts';
-import { EPSILON, MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId, normalizeUnits } from './util.ts';
+import { MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId, normalizeUnits } from './util.ts';
 
 // ---- Creation -----------------------------------------------------------------------------------
 
@@ -155,29 +152,20 @@ function growthOrder(seed: number | undefined): readonly BuildingId[] {
 
 // ---- Settlement ---------------------------------------------------------------------------------
 
-/** One abandoned-village growth step n: raise one building, refill part of the garrison. Returns whether anything changed. */
+/**
+ * One abandoned-village growth step n: raise one building. Only buildings grow; the garrison never refills or grows
+ * (owner, 2026-11-05). Returns whether anything changed.
+ */
 function applyNpcStep(v: VillageState, n: number): boolean {
-  let changed = false;
   const order = growthOrder(v.npc?.growthSeed);
   for (let k = 0; k < order.length; k++) {
     const b = order[(n + k) % order.length] as BuildingId;
     if (v.buildings[b] < Math.min(NPC_MAX_LEVEL, BUILDINGS[b].maxLevel)) {
       v.buildings[b] += 1;
-      changed = true;
-      break;
+      return true;
     }
   }
-  // Abandoned villages recruit slowly (owner, 2026-11-04; before that the garrison never refilled): each step brings back a
-  // share of the full garrison for the current Town Hall level, at least one unit of each missing type.
-  const full = fullGarrison(v.buildings.hall);
-  for (const u of UNIT_IDS) {
-    const missing = full[u] - v.troops[u];
-    if (missing > 0) {
-      v.troops[u] += Math.min(missing, Math.max(1, Math.ceil(full[u] * NPC_GARRISON_REFILL_SHARE)));
-      changed = true;
-    }
-  }
-  return changed;
+  return false;
 }
 
 /**
@@ -188,8 +176,6 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
   const v = cloneVillage(state);
   if (!Number.isFinite(t) || t <= v.lastUpdate) return v;
 
-  // Food upkeep is constant over the whole span: training moves units between queue and troops only.
-  const upkeep = upkeepPerHour(v, s);
   let cur = v.lastUpdate;
   // While the hearth is out (hearth.ts) the village produces nothing and eats nothing, and an abandoned village's growth
   // clock stands still. Build jobs and training batches that were already queued carry on (docs/GAME_DESIGN.md 18.2).
@@ -206,10 +192,7 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
     const hours = (to - cur) / MS_PER_HOUR;
     const gross = productionFromLevels(v.buildings, s.speed);
     const cap = storageCapForLevel(v.buildings.storehouse);
-    for (const r of RESOURCE_IDS) {
-      const rate = r === 'food' ? gross.food - upkeep : gross[r];
-      v.resources[r] = accrueResource(v.resources[r], rate, hours, cap);
-    }
+    for (const r of RESOURCE_IDS) v.resources[r] = accrueResource(v.resources[r], gross[r], hours, cap);
     cur = to;
   };
 
@@ -389,12 +372,8 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
   const cost = emptyResources();
   for (const r of RESOURCE_IDS) cost[r] = def.cost[r] * count;
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
-  if (!v.npc) {
-    if (populationUsage(v).total + count * POP_PER_UNIT[u] > populationCap(v)) {
-      return fail('population_full', 'Not enough population room. Upgrade the Farm to train more troops.');
-    }
-    const netAfter = netProductionPerHour(v, s).food - count * def.upkeep * s.speed;
-    if (netAfter < -EPSILON) return fail('not_enough_food', 'Your farms cannot feed that many troops. Upgrade the Farm.');
+  if (!v.npc && populationUsage(v).total + count * POP_PER_UNIT[u] > populationCap(v)) {
+    return fail('population_full', 'Not enough population room. Upgrade the Farm to train more troops.');
   }
   return { ok: true, unit: u, count, cost, perUnitMs: trainTimeMs(u, v, s) };
 }

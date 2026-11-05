@@ -344,6 +344,7 @@ function result(over: Partial<BattleResult> = {}): BattleResult {
     defenderLosses: units({}),
     supportLosses: [],
     loot: res(),
+    wallDuring: 0,
     ...over,
   };
 }

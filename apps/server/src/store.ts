@@ -4,6 +4,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import {
   BUILDING_IDS,
   DEFAULT_CHIEFTAIN,
+  NOTIFICATIONS_KEEP,
+  NOTIFICATION_MAX_AGE_DAYS,
   STAT_KEYS,
   collectBuildRenown,
   collectDefenderRenown,
@@ -35,6 +37,7 @@ import { SqlBase, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
+import { NotificationStore } from './notification-store.ts';
 import { ReportStore } from './report-store.ts';
 import { StaffStore, type NewAudit } from './staff-store.ts';
 import { DominationStore } from './domination-store.ts';
@@ -464,6 +467,7 @@ export class Store extends SqlBase {
   renownBonusOf: ((playerId: number) => number) | null = null;
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
+  readonly notifications: NotificationStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
   readonly staff: StaffStore;
@@ -485,8 +489,9 @@ export class Store extends SqlBase {
     this.staff = new StaffStore(db);
     this.support = new SupportStore(db);
     this.msgReports = new ReportStore(db);
+    this.notifications = new NotificationStore(db);
     this.emit = (event) => this.queueLive(event);
-    for (const s of [this.tribes, this.domination, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+    for (const s of [this.tribes, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
   }
 
   /** True once the world has ended (a tribe won, or the operator ended it): the world is frozen. */
@@ -604,18 +609,21 @@ export class Store extends SqlBase {
     }
   }
 
-  // ---- raids on abandoned villages -------------------------------------------------------------
-
-  /** Won raids by `playerId` on abandoned village `villageId` that arrived in (since, until]. */
-  countNpcRaids(playerId: number, villageId: number, since: number, until: number): number {
-    const r = this.get('SELECT COUNT(*) AS n FROM npc_raids WHERE player_id = ? AND village_id = ? AND at > ? AND at <= ?', playerId, villageId, since, until);
-    return r ? Number(r.n) : 0;
+  /**
+   * The owner of the target village is told when an attack, support or shipment toward it is SENT (docs/GAME_DESIGN.md 18.10), in the
+   * same transaction as the movement. Never for scouts, returns, found/occupy, the sender's own villages or abandoned targets.
+   */
+  private notifyTarget(id: number, m: Omit<MovementRow, 'id'>): void {
+    const kind = m.kind === 'attack' ? 'incoming_attack' : m.kind === 'support' ? 'incoming_support' : m.kind === 'shipment' ? 'incoming_resources' : null;
+    if (kind === null) return;
+    const [from, to] = this.ownersOf(m.originVillageId, m.targetVillageId);
+    if (to === null || to === from) return;
+    this.notifications.insert(to, kind, id, m.originVillageId, m.targetVillageId, m.departAt, m.arriveAt, m.departAt, NOTIFICATIONS_KEEP, NOTIFICATION_MAX_AGE_DAYS * 86_400_000);
   }
 
-  /** Remember a won raid and drop this pair's rows older than `keepSince`. */
-  recordNpcRaid(playerId: number, villageId: number, at: number, keepSince: number): void {
-    this.run('DELETE FROM npc_raids WHERE player_id = ? AND village_id = ? AND at <= ?', playerId, villageId, keepSince);
-    this.run('INSERT INTO npc_raids (player_id, village_id, at) VALUES (?, ?, ?)', playerId, villageId, at);
+  /** The sender called a movement back within the cancel window: the target's notification goes with it. */
+  cancelNotifications(movementId: number): void {
+    this.notifications.deleteForMovement(movementId);
   }
 
   // ---- meta ------------------------------------------------------------------------------------
@@ -1215,6 +1223,7 @@ export class Store extends SqlBase {
       m.siegeTarget ?? null,
     ).id;
     this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, true);
+    this.notifyTarget(id, m);
     return id;
   }
 

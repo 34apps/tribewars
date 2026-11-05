@@ -25,7 +25,6 @@ export function statusFor(code: GameErrorCode): number {
     case 'exceeds_storage':
     case 'queue_full':
     case 'too_late':
-    case 'not_enough_food':
     case 'population_full':
     case 'not_enough_troops':
     case 'target_protected':

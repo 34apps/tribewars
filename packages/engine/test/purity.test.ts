@@ -13,7 +13,6 @@ import {
   cloneVillage,
   checkTrain,
   createNpcVillage,
-  netProductionPerHour,
   normalizeUnits,
   normalizeVillage,
   productionPerHour,
@@ -21,7 +20,6 @@ import {
   resolveScouting,
   settleVillage,
   trainTimeMs,
-  upkeepPerHour,
   villagePoints,
 } from '../src/index.ts';
 import { HOUR, S1, deepFreeze, units, village } from './helpers.ts';
@@ -43,8 +41,6 @@ describe('inputs are never mutated', () => {
       checkTrain(v, 'pikeman', 2, t, S1);
       trainTimeMs('pikeman', v, S1);
       productionPerHour(v, S1);
-      netProductionPerHour(v, S1);
-      upkeepPerHour(v, S1);
       villagePoints(v);
     }
     applyBuild(v, 'farm', 200_000, S1);

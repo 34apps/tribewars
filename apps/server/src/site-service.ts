@@ -323,7 +323,7 @@ export class SiteService {
     return back;
   }
 
-  /** Take the dead off each contingent and off their owners' home villages `away` count (settled first, so upkeep drops from now). */
+  /** Take the dead off each contingent and off their owners' home villages `away` count (settled first). */
   private applyGarrisonLosses(garrison: readonly GarrisonRow[], losses: readonly Units[], t: number): void {
     garrison.forEach((c, i) => {
       const loss = losses[i];

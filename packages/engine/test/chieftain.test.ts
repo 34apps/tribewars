@@ -17,7 +17,6 @@ import {
   populationUsage,
   settleVillage,
   trainTimeMs,
-  upkeepPerHour,
   villageRenownCost,
   villageRenownPrice,
 } from '../src/index.ts';
@@ -30,7 +29,7 @@ const rich = (bannerhall = 1): VillageState =>
 describe('Chieftain unit', () => {
   it('has the design numbers', () => {
     const c = UNITS.chieftain;
-    assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry, c.upkeep], [0, 10, 10, 5, 0, 2]);
+    assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry], [0, 10, 10, 5, 0]);
     assert.deepEqual(c.cost, { wood: 4000, food: 3000, iron: 5000, gold: 150 });
     assert.equal(c.trainTimeSec, 6 * 3600);
     assert.equal(c.building, 'bannerhall');
@@ -62,9 +61,8 @@ describe('Chieftain unit', () => {
     assert.ok(!second.ok && second.reason === 'queue_full');
   });
 
-  it('finishes one by one in the Banner Hall queue and eats food and population from the moment it is queued', () => {
+  it('finishes one by one in the Banner Hall queue and takes population (but eats no food) from the moment it is queued', () => {
     const queued = applyTrain(rich(), 'chieftain', 2, 0, S1);
-    assert.equal(upkeepPerHour(queued, S1), 4);
     assert.equal(populationUsage(queued).troops, 16);
     assert.equal(settleVillage(queued, 6 * HOUR - 1, S1).troops.chieftain, 0);
     assert.equal(settleVillage(queued, 6 * HOUR, S1).troops.chieftain, 1);

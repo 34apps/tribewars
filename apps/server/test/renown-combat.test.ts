@@ -91,7 +91,7 @@ test('a support owner earns for the defence they helped with, next to the villag
   await app.close();
 });
 
-test('a raid on an abandoned village pays the attacker only, under the village key (no size factor); a small repeat raid pays nothing', async () => {
+test('a raid on an abandoned village pays the attacker only, under the village key (no size factor); a repeat raid pays less (the pair window)', async () => {
   const { app, clock } = await makeApp();
   const c: Client = await register(app, 'farmer', '10.0.0.1');
   const vid = await trainRaiders(c, clock, 14);
@@ -127,13 +127,16 @@ test('a raid on an abandoned village pays the attacker only, under the village k
   near(row?.value ?? 0, raw1);
   assert.equal(pairRows(app).length, 1, 'the village itself has no owner and earns nothing');
 
-  // The repeat raid carries half the load and the garrison is already dead: under the minimum, it pays nothing and is not counted.
+  // The repeat raid carries the same full load (owner 2026-11-05: loot is always full; the garrison is already dead). What stops
+  // farming is the diminishing pair window: it pays pairRenown(raw1, raw2), less than the first raid did.
   const t1 = total();
   const second = await raid();
-  assert.ok(resourceValue(second.battle.loot) + troopValue(second.battle.defenderLosses as never) < RENOWN_MIN_BATTLE_VALUE);
-  assert.equal(total(), t1);
-  assert.equal(second.battle.renownGained, undefined);
-  near(pairRows(app, player.id)[0]?.value ?? 0, raw1);
+  const raw2 = attackerRaw(second.battle);
+  assert.ok(resourceValue(second.battle.loot) >= RENOWN_MIN_BATTLE_VALUE, 'a full load is worth a payout');
+  const paid2 = total() - t1;
+  assert.ok(paid2 > 0 && paid2 < t1 - t0, 'the second raid pays something, but less');
+  near(paid2, pairRenown(raw1, raw2) * factor());
+  near(pairRows(app, player.id)[0]?.value ?? 0, raw1 + raw2);
   await app.close();
 });
 
@@ -286,6 +289,7 @@ const BIG: BattleResult = {
   defenderLosses: units({ pikeman: 20 }),
   supportLosses: [],
   loot: { ...emptyResources(), wood: 300, food: 300, iron: 300 },
+  wallDuring: 0,
 };
 
 /** Hand `result` to the service as a battle of `att` against `def` (both players' first villages), at `at`. */

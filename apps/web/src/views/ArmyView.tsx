@@ -14,13 +14,12 @@ import {
   POP_PER_UNIT,
   populationCap,
   populationUsage,
-  productionPerHour,
   trainTimeMs,
-  upkeepPerHour,
 } from '@clanfire/engine';
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
+import { PopulationLine } from '../components/PopulationLine.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -35,11 +34,9 @@ import { HEARTH_OUT_REASON } from '../villages.ts';
 // ---- Troops table -------------------------------------------------------------------------------------
 
 function TroopsTable() {
-  const { live, settings } = useGame();
+  const { live } = useGame();
   const training = emptyUnits();
   for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
-  const upkeep = upkeepPerHour(live, settings);
-  const farm = productionPerHour(live, settings).food;
   return (
     <section className="card" aria-labelledby="troops-title">
       <h2 id="troops-title" className="card-title">Troops</h2>
@@ -70,9 +67,7 @@ function TroopsTable() {
           </tbody>
         </table>
       </div>
-      <p className="muted upkeep">
-        <Icon name={RESOURCE_ICON.food} size={20} className="inline-icon" /> Troops eat {formatInt(upkeep)}/h of the {formatInt(farm)}/h your farms grow. Population {formatInt(populationUsage(live).total)} / {formatInt(populationCap(live))} (buildings and troops; the Farm raises the cap).
-      </p>
+      <PopulationLine used={populationUsage(live).total} cap={populationCap(live)} />
     </section>
   );
 }
@@ -455,7 +450,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   else if (locked) reason = `Needs ${requirementText(unmet)}`;
   else if (!isResearched(live, unit)) reason = 'Research it in the Drillyard';
   else if (queueFull) reason = 'Queue full';
-  else if (count < 1) reason = max < 1 ? 'Not enough resources or food for even one' : 'Enter how many to train';
+  else if (count < 1) reason = max < 1 ? 'Not enough resources or room for even one' : 'Enter how many to train';
   else if (!check.ok) reason = reasonText(check, unmet);
 
   const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * Math.max(1, count)])) as typeof def.cost;
@@ -476,7 +471,6 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   }
 
   const speed = def.speed * settings.speed;
-  const upkeep = def.upkeep * settings.speed;
   return (
     <article className={`card unit${locked ? ' is-locked' : ''}`} aria-labelledby={`u-${unit}`}>
       <header className="unit-head">
@@ -495,7 +489,6 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
         <div><dt>Defence vs cavalry</dt><dd>{def.defenseCavalry}</dd></div>
         <div><dt>Speed</dt><dd>{formatInt(speed)} tiles/h</dd></div>
         <div><dt>Carry</dt><dd>{def.carry}</dd></div>
-        <div><dt>Upkeep</dt><dd>{formatInt(upkeep)} food/h</dd></div>
         <div><dt>Population</dt><dd>{POP_PER_UNIT[unit]}</dd></div>
       </dl>
       {locked ? (

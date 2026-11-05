@@ -13,8 +13,8 @@ import {
   buildingPop,
   checkBuild,
   levelPoints,
-  netProductionPerHour,
   populationCap,
+  productionPerHour,
   populationUsage,
   storageCap,
 } from '@clanfire/engine';
@@ -71,7 +71,7 @@ export function BuildingPanel({
   const unmet = unmetRequirements(live.buildings, def.requires);
   const check = checkBuild(live, id, now, settings, MAX_BUILD_QUEUE);
   const cap = storageCap(live);
-  const net = netProductionPerHour(live, settings);
+  const net = productionPerHour(live, settings);
   const cost = atMax ? null : check.ok ? check.cost : buildingCost(id, target);
   const timeMs = atMax ? null : check.ok ? check.timeMs : buildTimeMs(id, target, live.buildings.hall, settings);
   const effects = atMax ? [] : buildingEffects(id, target - 1, target, settings.speed);
@@ -389,7 +389,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
 
 export function Production() {
   const { live, settings } = useGame();
-  const net = netProductionPerHour(live, settings);
+  const rates = productionPerHour(live, settings);
   return (
     <section className="vv-prod" aria-labelledby="prod-title">
       <h2 id="prod-title" className="eyebrow">
@@ -397,15 +397,12 @@ export function Production() {
       </h2>
       <ul>
         {RESOURCE_IDS.map((r) => (
-          <li key={r} className={r === 'food' && net[r] <= 0 ? 'is-bad' : undefined}>
+          <li key={r}>
             <span className="token" aria-hidden="true">
               <Icon name={RESOURCE_ICON[r]} size={20} />
             </span>
             <span className="vv-prod-name">{RESOURCE_NAME[r]}</span>
-            <span className="vv-prod-rate">
-              {formatRate(net[r])}
-              {r === 'food' ? ' net' : ''}
-            </span>
+            <span className="vv-prod-rate">{formatRate(rates[r])}</span>
           </li>
         ))}
       </ul>

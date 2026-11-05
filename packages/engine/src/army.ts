@@ -5,9 +5,6 @@ import {
   BATTLE_LUCK,
   HEARTH_MAX_CHIEFTAINS,
   MAX_UNIT_COUNT,
-  NPC_REPEAT_LOOT_FACTOR,
-  NPC_REPEAT_LOOT_FLOOR,
-  NPC_REPEAT_WINDOW_HOURS,
   SCOUT_DEFENSE_FACTOR,
   SCOUT_LOSS_EXPONENT,
   SCOUT_UNIT,
@@ -20,7 +17,7 @@ import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
 import { buildSiteProblem } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
-import { applySiegeHits, hasSiegeUnits, resolveSiege } from './siege.ts';
+import { applySiegeHits, hasSiegeUnits, resolveSiege, resolveSiegeDuring, siegeLostSurvivors } from './siege.ts';
 import { GameError, MISSIONS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type {
   BattleInput,
@@ -223,21 +220,10 @@ export function waterFillLoot(capacity: number, stock: Resources): Resources {
   return loot;
 }
 
-/** How far back (ms) earlier raids by the same player on one abandoned village still count; shorter on a fast world. */
-export function repeatRaidWindowMs(s: WorldSettings): number {
-  return (NPC_REPEAT_WINDOW_HOURS * MS_PER_HOUR) / s.speed;
-}
-
 /**
- * Loot share for the next raid on an abandoned village after `earlierHits` won raids by the same player inside
- * NPC_REPEAT_WINDOW_HOURS: NPC_REPEAT_LOOT_FACTOR ^ hits, never below NPC_REPEAT_LOOT_FLOOR.
+ * Deterministic battle for a seed. Does not change any village; see applyBattleToDefender.
+ * Log Rams fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
  */
-export function repeatRaidLootFactor(earlierHits: number): number {
-  const hits = Number.isFinite(earlierHits) && earlierHits > 0 ? Math.floor(earlierHits) : 0;
-  return Math.max(NPC_REPEAT_LOOT_FLOOR, Math.pow(NPC_REPEAT_LOOT_FACTOR, hits));
-}
-
-/** Deterministic battle for a seed. Does not change any village; see applyBattleToDefender. */
 export function resolveBattle(input: BattleInput): BattleResult {
   const { defender } = input;
   const attackerUnits = normalizeUnits(input.attackerUnits);
@@ -269,7 +255,8 @@ export function resolveBattle(input: BattleInput): BattleResult {
     });
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
-  const wall = defender.buildings.wall;
+  // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
+  const wall = resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall;
   const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall);
 
   const attackerWon = attackPower > defensePower;
@@ -290,16 +277,18 @@ export function resolveBattle(input: BattleInput): BattleResult {
         (supportLosses[i] as Units)[u] = contingent[u];
       });
     }
+    // Loot is always full: everything the survivors can carry, up to what the village holds above its Vault.
+    // (A Strike attempt or relief attack is not a raid and takes nothing: `noLoot`.)
     let capacity = 0;
     for (const u of UNIT_IDS) capacity += attackerSurvivors[u] * UNITS[u].carry;
-    const lootFactor = input.lootFactor === undefined ? 1 : Math.min(1, Math.max(0, input.lootFactor));
-    capacity = Math.floor(capacity * lootFactor);
-    const hidden = vaultProtection(defender);
-    const lootable = emptyResources();
-    for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden);
-    loot = waterFillLoot(capacity, lootable);
-    // Siege acts on the village as it stood BEFORE the battle (the Wall above counted in full); the drop applies afterwards.
-    siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed);
+    if (!input.noLoot) {
+      const hidden = vaultProtection(defender);
+      const lootable = emptyResources();
+      for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden);
+      loot = waterFillLoot(Math.floor(capacity), lootable);
+    }
+    // The survivors shoot after the battle (Log Rams: full points, sharing their level cap with the during step).
+    siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed, attackerUnits);
   } else {
     const ratio = Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT);
     for (const u of UNIT_IDS) {
@@ -309,6 +298,8 @@ export function resolveBattle(input: BattleInput): BattleResult {
         (supportLosses[i] as Units)[u] = Math.min(contingent[u], Math.round(contingent[u] * ratio));
       });
     }
+    // A lost attack still does reduced damage: a share of each siege kind counts as a survivor for the after step.
+    siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, input.seed, attackerUnits);
   }
 
   return {
@@ -323,6 +314,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
     supportLosses,
     loot,
     siege,
+    wallDuring: wall,
   };
 }
 
@@ -366,7 +358,7 @@ export function applyBattleToDefender(defender: VillageState, r: BattleResult): 
 
 /**
  * Remove units that died in battle from the origin's `away`. The caller must have settled `origin`
- * to the battle time first, so the lower food upkeep only applies from then on.
+ * to the battle time first.
  */
 export function applyAttackerLosses(origin: VillageState, losses: Units): VillageState {
   const v = cloneVillage(origin);

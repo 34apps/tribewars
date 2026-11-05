@@ -152,15 +152,23 @@ ${reportsTable('reports')}
 CREATE INDEX IF NOT EXISTS idx_reports_player ON reports(player_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_unread ON reports(player_id) WHERE read = 0;
 
--- ---- Won raids on abandoned villages: the loot of repeat raids by the same player shrinks (docs/GAME_DESIGN.md section 5).
--- Old rows are pruned when new ones are written.
-CREATE TABLE IF NOT EXISTS npc_raids (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-  village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
-  at         INTEGER NOT NULL
+-- ---- Notifications (docs/GAME_DESIGN.md 18.10): one row for the target's owner when an attack / support / shipment toward one of
+-- their villages is SENT. Never the unit list. Created and deleted together with the movement (cancel); kept to 100 per player
+-- and 7 real days. (The old npc_raids table of repeat-raid loot was removed 2026-11-05; older databases keep an unused copy.)
+CREATE TABLE IF NOT EXISTS notifications (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  kind        TEXT    NOT NULL CHECK (kind IN ('incoming_attack', 'incoming_support', 'incoming_resources')),
+  movement_id INTEGER NOT NULL,
+  origin_village_id INTEGER NOT NULL,
+  target_village_id INTEGER NOT NULL,
+  depart_at   INTEGER NOT NULL,
+  arrive_at   INTEGER NOT NULL,
+  created_at  INTEGER NOT NULL,
+  read        INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_npc_raids_pair ON npc_raids(player_id, village_id, at);
+CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, id);
+CREATE INDEX IF NOT EXISTS idx_notifications_movement ON notifications(movement_id);
 
 -- ---- Villages taken from players (section 18.2, step 4): the pair cap counts rows of one taker and one victim in a window.
 -- Old rows are pruned when new ones are written.
@@ -510,9 +518,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 9; // 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 10; // 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '05c80a5adac410e4';
+export const SCHEMA_FINGERPRINT = '709f7d543081d0a6';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

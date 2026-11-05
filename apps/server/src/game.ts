@@ -83,10 +83,9 @@ import {
   hasSiegeUnits,
   isBuildingId,
   battleSeed,
-  repeatRaidLootFactor,
-  repeatRaidWindowMs,
   isAttackForbidden,
   isSupportAllowed,
+  UNITS,
   normalizeUnits,
   resolveBattle,
   resolveScouting,
@@ -480,14 +479,6 @@ export class GameService {
     // An attack with Chieftains is a Strike attempt, not a raid: it carries no loot.
     const strikeTry = m.units.chieftain > 0 && origin.ownerId !== null;
 
-    // Repeat raids on an abandoned village by the same player carry less each time (docs/GAME_DESIGN.md section 5).
-    const raidWindow = repeatRaidWindowMs(s);
-    const lootFactor = strikeTry
-      ? 0
-      : target.ownerId === null && origin.ownerId !== null
-        ? repeatRaidLootFactor(this.store.countNpcRaids(origin.ownerId, target.id, at - raidWindow, at))
-        : 1;
-
     const result = resolveBattle({
       attackerUnits: m.units,
       defender: targetState,
@@ -497,12 +488,9 @@ export class GameService {
       defenderRanks: targetState.ranks,
       supportRanks: contingents.map((c) => c.ranks ?? undefined),
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
-      lootFactor,
+      noLoot: strikeTry,
       siegeTarget: m.siegeTarget ?? null,
     });
-    if (result.attackerWon && target.ownerId === null && origin.ownerId !== null && !strikeTry) {
-      this.store.recordNpcRaid(origin.ownerId, target.id, at, at - raidWindow);
-    }
     // Chieftain ledger: each owner's average reservation is read BEFORE any village is changed (the dead still count).
     const supportLosses = contingents.map((_, i) => normalizeUnits(result.supportLosses[i]));
     const chiefLosses: Array<[number | null, number]> = [
@@ -551,17 +539,25 @@ export class GameService {
       defenderLosses: result.defenderLosses,
       supportUnits: contingents.length > 0 ? sumUnits(contingents.map((c) => c.units)) : null,
       supportLosses: contingents.length > 0 ? sumUnits(supportLosses) : null,
-      wallLevel: targetState.buildings.wall,
+      // The Wall as it counted in the battle (after the Log Rams' during hit); the Wall siege line below runs from before to after.
+      wallLevel: result.wallDuring,
       loot: result.loot,
-      ...(lootFactor < 1 ? { lootShare: Math.round(lootFactor * 100) } : {}),
       ...(hasSiegeUnits(m.units) ? { siege: result.siege ?? [] } : {}),
     };
     if (origin.ownerId !== null) {
-      // An army wiped out sees nothing of the defence (nor of any siege).
-      const { siege: _siege, ...withoutSiege } = full;
+      // An army wiped out sees nothing of the defence, except the Wall hit of a close loss (it shot during the battle).
+      const wallHits = (result.siege ?? []).filter((h) => UNITS[h.unit].siege?.target === 'wall');
       const battle: BattleReportData = survived
         ? full
-        : { ...withoutSiege, defenderUnits: null, defenderLosses: null, supportUnits: null, supportLosses: null, wallLevel: null };
+        : {
+            ...full,
+            defenderUnits: null,
+            defenderLosses: null,
+            supportUnits: null,
+            supportLosses: null,
+            wallLevel: null,
+            ...(hasSiegeUnits(m.units) ? { siege: wallHits } : {}),
+          };
       this.store.insertReport({
         playerId: origin.ownerId,
         side: 'attack',
@@ -675,7 +671,7 @@ export class GameService {
       attackerRanks: m.ranks ?? undefined,
       supportRanks: occupiers.map((c) => c.ranks ?? undefined),
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
-      lootFactor: 0,
+      noLoot: true,
       siegeTarget: null,
     });
     const supportLosses = occupiers.map((_, i) => normalizeUnits(result.supportLosses[i]));
@@ -1407,7 +1403,7 @@ export class GameService {
 
   /**
    * Stationed troops died: take the dead off each contingent (an empty one is deleted) and off their owner's home
-   * village `away` count, settling that village first so the lower food upkeep only starts now.
+   * village `away` count, settling that village first.
    */
   private applyContingentLosses(contingents: readonly StationedRow[], losses: readonly Units[], t: number): void {
     contingents.forEach((c, i) => {
@@ -1978,6 +1974,7 @@ export class GameService {
         ...(m.targetX != null && m.targetY != null ? { targetX: m.targetX, targetY: m.targetY } : {}),
       });
       this.store.deleteMovement(m.id);
+      this.store.cancelNotifications(m.id); // the target's "incoming" notification goes with the order
       const view = this.store.getMovementView(id);
       if (!view) throw new Error('movement vanished after insert');
       return { movement: movementDto(view, player.id, t) };
@@ -2077,7 +2074,7 @@ export class GameService {
       }
       for (const v of this.store.villagesOfPlayer(player.id)) {
         if (action === 'max') {
-          const next = maxOutVillage(settleVillage(v.state, t, this.settings), t, this.settings);
+          const next = maxOutVillage(settleVillage(v.state, t, this.settings), t);
           this.store.saveVillage(v.id, next, villagePoints(next));
         } else {
           this.store.clearVillageActivity(v.id);

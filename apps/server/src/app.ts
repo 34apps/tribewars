@@ -22,6 +22,7 @@ import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
 import { forumRoutes } from './routes/forum.ts';
 import { mailRoutes } from './routes/mail.ts';
+import { notificationRoutes } from './routes/notifications.ts';
 import { dominationRoutes } from './routes/domination.ts';
 import { siteRoutes } from './routes/sites.ts';
 import { rankingRoutes } from './routes/rankings.ts';
@@ -303,6 +304,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   reportRoutes(app, ctx);
   tribeRoutes(app, ctx);
   mailRoutes(app, ctx);
+  notificationRoutes(app, ctx);
   forumRoutes(app, ctx);
   supportRoutes(app, ctx);
   staffRoutes(app, ctx);

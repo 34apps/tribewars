@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
-import { RESOURCE_IDS, netProductionPerHour, populationCap, populationUsage, storageCap } from '@clanfire/engine';
+import { RESOURCE_IDS, populationCap, populationUsage, productionPerHour, storageCap } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
@@ -10,7 +10,9 @@ import { useGame, TABS } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+import { useNotifications } from '../hooks/useNotifications.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
+import NotificationsDialog, { NotificationBell } from './Notifications.tsx';
 import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
@@ -31,7 +33,7 @@ const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 
 function Resources({ compact }: { compact?: boolean }) {
   const { live, settings } = useGame();
   const cap = storageCap(live);
-  const net = netProductionPerHour(live, settings);
+  const net = productionPerHour(live, settings);
   const pop = populationUsage(live);
   const popCap = populationCap(live);
   const popRatio = popCap > 0 ? pop.total / popCap : 0;
@@ -44,12 +46,10 @@ function Resources({ compact }: { compact?: boolean }) {
         const nearFull = ratio >= 0.9;
         const full = ratio >= 0.999;
         const rate = net[r];
-        const bad = r === 'food' && rate <= 0;
         const cls = [
           'res',
           nearFull ? 'is-near-full' : '',
           full ? 'is-full' : '',
-          bad ? 'is-bad' : '',
           Math.round(rate) === 0 ? 'is-zero' : '',
         ]
           .filter(Boolean)
@@ -76,7 +76,6 @@ function Resources({ compact }: { compact?: boolean }) {
                 </span>
                 <span className="res-rate">
                   {compact ? compactRate(rate) : formatRate(rate)}
-                  {r === 'food' && !compact ? ' net' : ''}
                 </span>
               </span>
             </span>
@@ -334,6 +333,11 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
   const { tab, worldEnd, toast } = useGame();
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const notifications = useNotifications();
+  const bell = (compact?: boolean) => (
+    <NotificationBell unread={notifications.unread} danger={notifications.unreadAttacks > 0} onClick={() => setBellOpen(true)} compact={compact} />
+  );
   // After the world ended the server refuses every order. On the order screens (village, army, map) the main buttons say so
   // up front instead of waiting for the 403; reading, mail, chat and forum are untouched.
   const guardOrders =
@@ -359,11 +363,13 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
           ))}
         </nav>
         <Resources />
+        {bell()}
         <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} />
       </header>
       <div className="resstrip">
         <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} compact />
         <Resources compact />
+        {bell(true)}
       </div>
       <Strip />
       <VillageBar />
@@ -375,6 +381,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
           <TabButton key={t} tab={t} variant="bottom" />
         ))}
       </nav>
+      {bellOpen && <NotificationsDialog store={notifications} onClose={() => setBellOpen(false)} />}
       {settings && (
         <Suspense fallback={null}>
           <SettingsDialog onClose={() => setSettings(false)} />

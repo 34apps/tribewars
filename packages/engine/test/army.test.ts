@@ -3,11 +3,6 @@ import { describe, it } from 'node:test';
 import {
   BATTLE_LUCK,
   GameError,
-  NPC_REPEAT_LOOT_FACTOR,
-  NPC_REPEAT_LOOT_FLOOR,
-  NPC_REPEAT_WINDOW_HOURS,
-  repeatRaidLootFactor,
-  repeatRaidWindowMs,
   applyAttackerLosses,
   applyBattleToDefender,
   applyReturn,
@@ -231,40 +226,28 @@ describe('resolveBattle', () => {
     assert.deepEqual(r.loot, { wood: 150, food: 150, iron: 150, gold: 150 });
   });
 
-  it('lootFactor scales what the survivors can carry (default 1), clamped to 0..1', () => {
+  it('loot is always full: min(survivors carry, lootable stock), the same for every raid (owner 2026-11-05)', () => {
+    const rich = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
+    const total = (r: BattleResult): number => r.loot.wood + r.loot.food + r.loot.iron + r.loot.gold;
+    assert.equal(total(resolveBattle({ attackerUnits: units({ raider: 20 }), defender: rich, seed: 4 })), 600);
+    // Mixed army: each unit type carries its own amount.
+    const mixed = resolveBattle({ attackerUnits: units({ raider: 10, outrider: 10 }), defender: rich, seed: 4 });
+    assert.equal(total(mixed), Math.floor(mixed.attackerSurvivors.raider * 30 + mixed.attackerSurvivors.outrider * 70));
+    // A poor village gives only what it has.
+    const poor = defenderOf({ resources: { wood: 10, food: 0, iron: 5, gold: 0 } });
+    assert.deepEqual(resolveBattle({ attackerUnits: units({ raider: 20 }), defender: poor, seed: 4 }).loot, { wood: 10, food: 0, iron: 5, gold: 0 });
+    // Raiding the same village again changes nothing about the rule: same army, same stock, same load.
+    const again = resolveBattle({ attackerUnits: units({ raider: 20 }), defender: rich, seed: 4 });
+    assert.deepEqual(again.loot, { wood: 150, food: 150, iron: 150, gold: 150 });
+  });
+
+  it('noLoot (Strike attempts, relief, sites) takes nothing and changes nothing about the fight', () => {
     const defender = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
-    const run = (lootFactor?: number): number => {
-      const r = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4, lootFactor });
-      return r.loot.wood + r.loot.food + r.loot.iron + r.loot.gold;
-    };
-    assert.equal(run(undefined), 600);
-    assert.equal(run(1), 600);
-    assert.equal(run(0.5), 300);
-    assert.equal(run(0.25), 150);
-    assert.equal(run(0), 0);
-    assert.equal(run(7), 600); // above 1 cannot raise the load
-    assert.equal(run(-1), 0);
-    // Only the carry changes, not the fight.
-    const a = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4, lootFactor: 0.1 });
+    const a = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4, noLoot: true });
     const b = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4 });
+    assert.deepEqual(a.loot, emptyResources());
     assert.equal(a.attackerWon, b.attackerWon);
     assert.deepEqual(a.attackerLosses, b.attackerLosses);
-  });
-});
-
-describe('repeat raids on abandoned villages', () => {
-  it('each earlier raid in the window halves the load, never below the floor', () => {
-    assert.equal(repeatRaidLootFactor(0), 1);
-    assert.equal(repeatRaidLootFactor(1), NPC_REPEAT_LOOT_FACTOR);
-    assert.equal(repeatRaidLootFactor(2), NPC_REPEAT_LOOT_FACTOR ** 2);
-    assert.equal(repeatRaidLootFactor(50), NPC_REPEAT_LOOT_FLOOR);
-    for (const bad of [-3, Number.NaN, Infinity * -1]) assert.equal(repeatRaidLootFactor(bad), 1);
-    for (let n = 1; n < 12; n++) assert.ok(repeatRaidLootFactor(n) <= repeatRaidLootFactor(n - 1));
-  });
-
-  it('the window is a day at real pace and shrinks with world speed', () => {
-    assert.equal(repeatRaidWindowMs(S1), NPC_REPEAT_WINDOW_HOURS * HOUR);
-    assert.equal(repeatRaidWindowMs(S10), (NPC_REPEAT_WINDOW_HOURS * HOUR) / 10);
   });
 });
 
@@ -292,6 +275,7 @@ describe('applying battle results', () => {
     defenderLosses: units({}),
     supportLosses: [],
     loot: emptyResources(),
+    wallDuring: 0,
     ...over,
   });
 
@@ -322,7 +306,7 @@ describe('applying battle results', () => {
     assert.equal(out.troops.raider, 10);
     assert.equal(storageCap(out), 1000);
     assert.equal(out.resources.wood, 1000); // 930 produced + 500 loot, clamped
-    assert.ok(out.resources.food > 100 + 200 - 1e-6 && out.resources.food < 1000); // production minus upkeep, plus loot
+    assert.ok(out.resources.food > 100 + 200 - 1e-6 && out.resources.food < 1000); // production, plus loot
     assert.equal(out.resources.gold, 1500); // above the cap already: left alone
   });
 

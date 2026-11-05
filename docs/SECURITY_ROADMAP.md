@@ -106,6 +106,17 @@ Gate note, taking player villages (2026-11-05, step 4; full gate in `CHANGELOG.m
 existing owner-only `send` route (and its rate bucket); the pair cap, protection, lock, household / tribe / ally refusals and the hold clock are all
 decided by the server in arrival order (§2); an incoming attack alert never reveals its units; the tribe alert list shows only what the map shows.
 
+Gate note, notifications (2026-11-05; `docs/GAME_DESIGN.md` 18.10, `apps/server/src/routes/notifications.ts`, `notification-store.ts`, tests in
+`apps/server/test/notifications.test.ts`). (1) Ownership: both routes need sign-in; every SQL statement is keyed on the caller's player id, so a player never
+lists or marks another's row (a foreign id in `read` changes nothing and is not echoed). (2) Input schema: `read` takes only `ids?`, an array of at most 200
+positive integers (Fastify schema, anything else 400 `invalid_input`). (3) Rate and caps: own bucket `notifications` (60 per minute per account, `security.ts`),
+at most 100 rows per player and none older than 7 real days, pruned on every insert and filtered on read; rows are created only by the server inside the send
+transaction. (4) No leaks: a row holds the sender's village (public on the map), send and arrival time and the kind, never units, loot or the resources of a shipment;
+scouts, returns and abandoned targets create none (the scout stays invisible); the `notifications` live hint carries no data. (5) Timing: created and deleted together
+with the movement (cancel inside the window deletes it), so it cannot be used to see more than the movement list already shows. (6) Multi-account: nothing new to
+exploit (read-only information the target is entitled to; no resources or troops move). (7) Audit: the new routes are in the bucket test of `security-headers.test.ts`.
+Not done: a browser/push delivery path (client only, no server change).
+
 ## 5. Game-rules audit, 2026-11-04
 
 Every probe is a server test in `apps/server/test/security-audit.test.ts` and also asserts that the village state did not change.
@@ -130,7 +141,7 @@ Every probe is a server test in `apps/server/test/security-audit.test.ts` and al
 | Two accounts on one IP: ship to each other | Refused (already) |
 | **Two accounts on one IP: ship to an abandoned village, partner raids it** | **HOLE, fixed**: the cargo was credited to the abandoned village's stock. Accounts that share a connection with any other account now get `invalid_target`; a solo player may still feed abandoned villages (owner decision, 2026-11-03) |
 | **Predictable battle luck** (seed was `hashSeed(movement id, arrival time)`, computable by the sender, who could cancel and re-send until luck was good) | **HOLE, fixed 2026-11-04**: the seed now mixes in a 128-bit server-only salt (`meta.battle_salt`); tested that luck matches the salted seed, differs from the old recipe, and the salt is in no API body (`npc-raids.test.ts`) |
-| Farming one abandoned village over and over with a few raiders (no counter-play) | Fixed 2026-11-04: repeat raids by the same player within a day carry 50%, 25% ... of the load; garrisons refill (GAME_DESIGN §8) |
+| Farming one abandoned village over and over with a few raiders (no counter-play) | Fixed 2026-11-04: repeat raids by the same player within a day carry 50%, 25% ... of the load; garrisons refill (GAME_DESIGN §8). **Replaced 2026-11-05 (owner):** both limits were removed; loot is always full, the garrison never refills, and only the diminishing Renown per pair limits farming (`BALANCE.md` §9) |
 
 Not changed, follow-ups: no per-player cap on movements in flight (bounded today by units owned and the 60 per minute send limit; rule 6 asks for a cap);
 `rank` / `respec` have no per-route limit bucket; two households on different IPs cannot be detected (accepted, handled by staff tooling).

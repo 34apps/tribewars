@@ -15,13 +15,12 @@ import {
   cloneVillage,
   createNpcVillage,
   isSupportAllowed,
-  netProductionPerHour,
   normalizeUnits,
+  productionPerHour,
   normalizeVillage,
   resolveBattle,
   resolveScouting,
   settleVillage,
-  upkeepPerHour,
 } from '../src/index.ts';
 import type { BattleResult, Mission, PlayerRelation, Units, VillageState } from '../src/index.ts';
 import { HOUR, S1, deepFreeze, near, units, village } from './helpers.ts';
@@ -107,10 +106,10 @@ describe('normalizeVillage / old saved states', () => {
     }
   });
 
-  it('upkeep and net production are finite for an old state', () => {
+  it('production is finite and unchanged for an old state', () => {
     const old = oldSave(modern());
-    assert.equal(upkeepPerHour(old, S1), upkeepPerHour(modern(), S1));
-    assert.ok(Object.values(netProductionPerHour(old, S1)).every(Number.isFinite));
+    assert.deepEqual(productionPerHour(old, S1), productionPerHour(modern(), S1));
+    assert.ok(Object.values(productionPerHour(old, S1)).every(Number.isFinite));
   });
 
   it('can train and then use Pathfinders on an old state', () => {

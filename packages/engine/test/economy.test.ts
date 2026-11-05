@@ -4,13 +4,10 @@ import {
   buildTimeMs,
   buildingCost,
   canAfford,
-  netProductionPerHour,
   productionPerHour,
   storageCap,
   storageCapForLevel,
-  upkeepPerHour,
   vaultProtection,
-  createNpcVillage,
 } from '../src/index.ts';
 import { S1, S10, village } from './helpers.ts';
 
@@ -29,7 +26,7 @@ describe('building cost and time', () => {
   });
 });
 
-describe('production, upkeep, storage, vault', () => {
+describe('production, storage, vault', () => {
   it('production follows level 0 trickle, level formula and speed', () => {
     const v = village();
     assert.deepEqual(productionPerHour(v, S1), { wood: 30, food: 40, iron: 30, gold: 0 });
@@ -40,14 +37,12 @@ describe('production, upkeep, storage, vault', () => {
     assert.equal(productionPerHour(zero, S1).gold, 0);
   });
 
-  it('upkeep counts troops, away units and queued units; abandoned villages pay none', () => {
+  it('troops, away units and queued units never change the food rate (no upkeep)', () => {
     const v = village({ troops: { pikeman: 10, outrider: 2 }, away: { knight: 1 } });
     v.trainQueues.barracks.push({ unit: 'raider', count: 5, done: 2, perUnitMs: 1000, startAt: 0 });
-    // 0.25 food per population point: 10*0.25 + 2*0.5 + 1*1 + (5-2)*0.25
-    assert.equal(upkeepPerHour(v, S1), 5.25);
-    assert.equal(upkeepPerHour(v, S10), 52.5);
-    assert.equal(netProductionPerHour(v, S1).food, 40 - 5.25);
-    assert.equal(upkeepPerHour(createNpcVillage(2, 0), S1), 0);
+    assert.deepEqual(productionPerHour(v, S1), productionPerHour(village(), S1));
+    assert.equal(productionPerHour(v, S1).food, 40);
+    assert.equal(productionPerHour(v, S10).food, 400);
   });
 
   it('storage cap and vault follow their level formulas', () => {

@@ -18,7 +18,6 @@ import {
   checkTrain,
   isAttackForbidden,
   isSupportAllowed,
-  netProductionPerHour,
   populationCap,
   populationUsage,
   productionFromLevels,
@@ -174,7 +173,7 @@ export function timeToAfford(have: Resources, net: Resources, cost: Resources, c
   return worst;
 }
 
-/** Largest batch the village can pay for and feed, 0 when none. Verified with the engine check. */
+/** Largest batch the village can pay for and house, 0 when none. Verified with the engine check. */
 export function maxTrainable(live: VillageState, u: UnitId, now: number, s: WorldSettings): number {
   const def = UNITS[u];
   let n = MAX_TRAIN_BATCH;
@@ -182,8 +181,6 @@ export function maxTrainable(live: VillageState, u: UnitId, now: number, s: Worl
     const c = def.cost[r];
     if (c > 0) n = Math.min(n, Math.floor(live.resources[r] / c));
   }
-  const upkeep = def.upkeep * s.speed;
-  if (upkeep > 0) n = Math.min(n, Math.floor(netProductionPerHour(live, s).food / upkeep + 1e-9));
   const popLeft = populationCap(live) - populationUsage(live).total;
   if (POP_PER_UNIT[u] > 0) n = Math.min(n, Math.floor(popLeft / POP_PER_UNIT[u]));
   n = Math.max(0, n);

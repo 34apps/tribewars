@@ -8,8 +8,8 @@ import {
   UNITS,
   UNIT_IDS,
   WALL_BONUS_PER_LEVEL,
-  netProductionPerHour,
-  productionPerHour,
+  populationCap,
+  populationUsage,
   storageCap,
   vaultForLevel,
 } from '@clanfire/engine';
@@ -42,12 +42,9 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
     case 'lumber':
       return 'Wood goes into nearly everything. Keep the Lumber Camp a step ahead of the other pits and fields.';
     case 'farm': {
-      const net = netProductionPerHour(v, s).food;
-      const gross = productionPerHour(v, s).food;
-      if (net <= 0) return 'Your troops eat more than the Farm grows. Upgrade it now, or the barracks will refuse new recruits.';
-      if (net < gross * 0.25)
-        return `Only ${formatInt(net)} food an hour is left after the army eats. Upgrade the Farm before you train more.`;
-      return 'Your Farm feeds the army. Upgrade it before you train a lot more troops.';
+      const room = populationCap(v) - populationUsage(v).total;
+      if (room <= 0) return 'Your village is full: no room for more buildings or troops. Upgrade the Farm to raise the population cap.';
+      return 'Each Farm level raises the population cap and grows more food. Upgrade it before you train a lot more troops.';
     }
     case 'mine':
       return 'Iron goes into weapons and the heavier buildings. Raiders and the Wall eat plenty of it.';

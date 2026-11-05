@@ -58,6 +58,7 @@ export const ROUTE_LIMITS = {
   search: 60, // tribe search / list, player profiles
   rankings: 30, // player and Renown rankings
   world: 30, // domination status (a few ranking queries) and the world end screen
+  notifications: 60, // incoming-attack notifications: list and mark read
 } as const;
 export type RouteBucket = keyof typeof ROUTE_LIMITS;
 
@@ -70,6 +71,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'feast', test: /^\/api\/villages\/:id\/feast$/ },
   { bucket: 'village', test: /^\/api\/villages(\/:id\/rename)?$/ },
   { bucket: 'mail', test: /^\/api\/mail(\/|$)/ },
+  { bucket: 'notifications', test: /^\/api\/notifications(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
   { bucket: 'world', test: /^\/api\/(domination|world-end|sites)$/ },

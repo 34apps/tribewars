@@ -519,19 +519,20 @@ export interface BattleReportData {
   /** Totals of all stationed support that fought (null when none, or hidden like defenderUnits). */
   supportUnits: Units | null;
   supportLosses: Units | null;
+  /** The Wall as it counted in the battle (after the Log Rams' during-the-battle hit); null when hidden from a wiped-out attacker. */
   wallLevel: number | null;
+  /** Loot is always full: what the surviving units carry, up to the stock above the Vault. */
   loot: Resources;
-  /** Only set below 100: a repeat raid on an abandoned village could carry off just this percent of what the survivors can carry. */
-  lootShare?: number;
   /**
    * Renown the report owner earned from this battle (attacker, defender or support owner; absent or 0 when none, e.g. forbidden
    * pair, under RENOWN_MIN_BATTLE_VALUE, or nothing left in the daily pair window). Floored for display.
    */
   renownGained?: number;
   /**
-   * Buildings the attacker's surviving siege units lowered (docs/GAME_DESIGN.md 18.9), Log Ram first. Absent on reports saved before
-   * siege and when no siege unit was sent. `wallLevel` above is the Wall BEFORE the battle (it counted in full); the drop applies after.
-   * Hidden (absent) from the attacker when the army was wiped out; empty when the attacker lost.
+   * Buildings the attacker's siege units lowered (docs/GAME_DESIGN.md 18.9), Log Ram first; on a win and on a (close) loss. Absent on
+   * reports saved before siege and when no siege unit was sent. The Wall line runs from the level BEFORE the battle to the level after
+   * the during-the-battle and after-the-battle steps; `wallLevel` above is the Wall as it counted in the battle (after the during hit).
+   * An attacker whose army was wiped out only sees the Wall hits (nothing else of the defence).
    */
   siege?: SiegeHit[];
 }
@@ -1477,8 +1478,40 @@ export interface SitesResponse {
  * What changed: game = state/villages/movements/incoming; reports; mail; chat = tribe chat; tribe = tribe info + alerts;
  * world = the world ended (refetch GET /api/world-end), sent to every socket together with `game`.
  */
-export type LiveTopic = 'game' | 'reports' | 'mail' | 'chat' | 'tribe' | 'world';
-export const LIVE_TOPICS: readonly LiveTopic[] = ['game', 'reports', 'mail', 'chat', 'tribe', 'world'];
+export type LiveTopic = 'game' | 'reports' | 'mail' | 'chat' | 'tribe' | 'world' | 'notifications';
+export const LIVE_TOPICS: readonly LiveTopic[] = ['game', 'reports', 'mail', 'chat', 'tribe', 'world', 'notifications'];
+
+// ---- Notifications (GAME_DESIGN 18.10) ---------------------------------------------------------
+// GET  /api/notifications       -> 200 NotificationsResponse (newest first, at most 100)
+// POST /api/notifications/read  body NotificationsReadRequest -> 200 NotificationsResponse (marks those ids, or all when `ids` is absent)
+// A row is created for the target's owner when an attack / support / shipment to one of their villages is SENT; scouts and returns
+// never make one; a cancel inside the cancel window deletes it. Never carries the unit list. Live topic: 'notifications'.
+
+export type NotificationKind = 'incoming_attack' | 'incoming_support' | 'incoming_resources';
+
+export interface NotificationDto {
+  id: number;
+  kind: NotificationKind;
+  movementId: number;
+  /** The sender's village (what the defender sees on an incoming movement). */
+  origin: VillageRefDto;
+  /** My village that is the target. */
+  target: VillageRefDto;
+  /** When it was sent, and when it arrives. */
+  departAt: number;
+  arriveAt: number;
+  createdAt: number;
+  read: boolean;
+}
+
+export interface NotificationsResponse {
+  notifications: NotificationDto[];
+  unread: number;
+}
+
+export interface NotificationsReadRequest {
+  ids?: number[];
+}
 
 /** Server -> client text frames (JSON). */
 export type LiveMessage = { type: 'hello' } | { type: 'hint'; topics: LiveTopic[] } | { type: 'pong' };

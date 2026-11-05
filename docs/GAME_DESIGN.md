@@ -12,7 +12,7 @@ When a rule changes, change it here in the same commit.
 ## 1. Time and world speed
 
 - All times are ms since epoch. Durations in config are at speed 1.
-- `speed` (WorldSettings) multiplies production and upkeep, and divides every duration
+- `speed` (WorldSettings) multiplies production, and divides every duration
   (build, train, travel, protection, abandoned-village growth). Dev servers run fast (e.g. 10).
 - Nothing runs on a timer inside the engine. State is brought up to date lazily with
   `settleVillage(state, t, settings)`; the server also processes troop movements in time order.
@@ -24,13 +24,11 @@ When a rule changes, change it here in the same commit.
 - Production per hour (speed 1) of building level L for lumber→wood, farm→food, mine→iron,
   goldmine→gold: `L == 0 ? PRODUCTION_LEVEL0 (gold: 0) : round(PRODUCTION_BASE[b] * PRODUCTION_GROWTH^(L-1))`.
   Multiply by `speed`.
-- **Food upkeep.** Every unit eats `upkeep * speed` food per hour while queued for training, at home
-  or away. Since 2026-11-04 (owner decision, step 0 of §18.7) a unit's upkeep is **0.25 food per population point**
-  (`FOOD_UPKEEP_PER_POP`; pikeman, shieldbearer, raider, pathfinder 0.25, outrider 0.5, knight 1; it was 1 / 1 / 1 / 1 / 3 / 4).
-  Armies can be four times bigger for the same Farm, so the population cap, not food, is now the usual limit from Farm level 1 up.
-  Net food per hour = farm production − upkeep. Training is refused if it would make net
-  food negative (`not_enough_food`). Net food can only go negative through rule changes; settlement
-  then clamps food at 0 (no starvation in v1). Abandoned villages pay no upkeep.
+- **No troop food upkeep** (owner, 2026-11-05; before that troops ate 0.25 food per population point, and 1 per unit before
+  2026-11-04). Troops, at home, away or queued, cost no food at all: `FOOD_UPKEEP_PER_POP`, `UnitDef.upkeep`, `upkeepPerHour`,
+  `netProductionPerHour` and the `not_enough_food` refusal are gone, and food is simply the farm's production. The Farm still
+  sets the **population cap** (below), which is now the only limit on army size besides cost and time. Food is spent on
+  buildings, troop costs and Feasts.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
   (queued levels are reserved when queued; the Farm takes 0). Each troop takes `POP_PER_UNIT[u]`
@@ -58,7 +56,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
   using the Town Hall level when the job is queued.
-- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2, food upkeep 0.5), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
+- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
 - **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village, the same for everyone (the premium queue was removed
   on 2026-11-04, owner decision; the `premium` database column is unused). Cost paid when queued. A job starts at
@@ -95,8 +93,8 @@ Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, co
   queued; jobs run one after another; the same unit can't be queued twice (full queue is `queue_full`);
   time is divided by world speed. Pikeman, Raider and Pathfinder need none. Villages saved before the Drillyard
   keep every unit they already have (home, away or queued count as researched; abandoned villages never train).
-- Upkeep for the whole batch counts from the moment it is queued (so training never changes the
-  food rate later — this keeps settlement simple).
+- Troops never eat (see §2), so training does not change the food rate. Queued units count against the population cap from the
+  moment they are queued.
 
 ## 5. Settlement — `settleVillage(state, t, settings)`
 
@@ -145,13 +143,18 @@ Tests and the simulator pass their own seeds.
    unit; every defender unit dies.
    Else defender wins: defender loses `round(count × (A/D)^BATTLE_LOSS_EXPONENT)` of each unit;
    every attacker unit dies.
-6. Loot (attacker won only): capacity = `floor(Σ survivors × carry × lootFactor)` (`lootFactor` is 1 unless a repeat-raid
-   limit applies, see §8). Lootable per resource =
+6. Loot (attacker won only; owner 2026-11-05: **always full**): the army takes
+   `min(total carry capacity of the surviving units, resources in the target)`, capacity = `floor(Σ survivors × carry)`;
+   each unit type has its own `carry` in `config.ts` (the repeat-raid loot reduction and `lootFactor` are gone). Lootable per resource =
    `max(0, floor(amount) − vaultProtection)`. Fill evenly ("water-filling"): split remaining capacity
    equally over resources that still have lootable stock; repeat until capacity or stock runs out.
-   Loot values are integers.
+   Loot values are integers. A Strike attempt (an attack with a Chieftain), a relief attack and a map-site battle take no loot at all
+   (`BattleInput.noLoot`, what `lootFactor: 0` did before).
+7. Siege (18.9): before step 4 the Log Rams that were sent fire half their points at the Wall (`resolveSiegeDuring`); the defence uses that
+   lowered Wall (`BattleResult.wallDuring`). After the battle `resolveSiege` lets the surviving rams (full points, same level cap) and slings
+   hit; on a loss `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE)` of each siege kind count as survivors.
 
-`applyBattleToDefender(defender, result)` removes defender losses and the loot.
+`applyBattleToDefender(defender, result)` removes defender losses and the loot and applies the siege hits (win or loss).
 
 ## 8. Abandoned villages
 
@@ -162,20 +165,17 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Start levels for tier T: hall T; lumber, farm, mine, storehouse 2T; wall, vault and gold mine T−1;
   others 0. Wood, food and iron start at half the cap; gold at `NPC_START_GOLD_PER_TIER × T` (their
   gold mine adds more over time, so stronger abandoned villages are the gold source). Garrison starts full.
-- Full garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit.
+- Starting garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit (owner 2026-11-05: **an abandoned village never trains or regains
+  troops**; what a raid kills stays dead, so a cleared village is open for loot until a player takes it).
 - **Growth:** every `npcGrowthHours / speed` hours since `createdAt` is one step. Step n raises
   `NPC_GROWTH_ORDER[n % length]` by one level (skip buildings at `NPC_MAX_LEVEL`; if all are maxed,
-  nothing grows). **Garrisons slowly refill** (owner, 2026-11-04; they never recruited before): every step also
-  brings back `NPC_GARRISON_REFILL_SHARE` (20%) of the full garrison for the current Town Hall level, rounded up, at least one
-  unit of each missing type, never above full. A village whose garrison was wiped out is full again after five steps (30 h at
-  speed 1) and keeps refilling after a raid even when all its buildings are maxed. Apply at most `NPC_MAX_STEPS_PER_SETTLE`
-  steps per settle; production between steps uses the levels at that time (accuracy within one step is fine).
-- They produce resources like player villages (no upkeep), which is what raiders take.
-- **Repeat raids carry less** (owner, 2026-11-04): each won raid by a player on an abandoned village is written down
-  (`npc_raids`, one row, old rows of that pair pruned). A later raid by the **same player on the same village** within
-  `NPC_REPEAT_WINDOW_HOURS / speed` (24 h at speed 1) can carry `NPC_REPEAT_LOOT_FACTOR ^ earlierHits` of the usual load
-  (50%, 25%, 12.5%, never below `NPC_REPEAT_LOOT_FLOOR` 10%). Other players are not affected, and after the window the full
-  load is back. The report shows "lootShare" (percent) whenever it is below 100. The fight itself is unchanged.
+  nothing grows). **Only the buildings grow.** The garrison does not refill (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is
+  removed). Apply at most `NPC_MAX_STEPS_PER_SETTLE` steps per settle; production between steps uses the levels at that time
+  (accuracy within one step is fine).
+- They produce resources like player villages, which is what raiders take.
+- **Raid loot is always full** (owner 2026-11-05; the 2026-11-04 repeat-raid reduction, `npc_raids`, `NPC_REPEAT_*` and the report's
+  "lootShare" are removed). Farming is limited instead by: the garrison dying once, the stock being finite (production is slow), and the
+  **diminishing Renown per attacker-target pair** (§18.2, `RENOWN_PAIR_CAP`: Renown, not loot, is what repeat raids stop paying).
 
 ## 9. Players, spawn, protection
 
@@ -219,8 +219,7 @@ emptyUnits(): Units; emptyResources(): Resources; totalUnits(u: Units): number
 buildingCost(b: BuildingId, level: number): Resources
 buildTimeMs(b: BuildingId, level: number, hallLevel: number, s: WorldSettings): number
 productionPerHour(state: VillageState, s: WorldSettings): Resources   // gross, speed applied
-upkeepPerHour(state: VillageState, s: WorldSettings): number          // 0 for npc
-netProductionPerHour(state: VillageState, s: WorldSettings): Resources // food minus upkeep
+// (upkeepPerHour / netProductionPerHour were removed 2026-11-05: troops eat no food; use productionPerHour)
 storageCap(state: VillageState): number
 vaultProtection(state: VillageState): number
 canAfford(r: Resources, cost: Resources): boolean
@@ -470,13 +469,13 @@ nobody) may call `POST /api/sandbox/max` and `POST /api/sandbox/reset`; everyone
 `PlayerDto.sandbox` tells the client to show Settings > Test mode. **Max**: every building of every village of the
 player at max level, each store full, `SANDBOX_ARMY_PER_UNIT` (500) of every unit at home (troops already away
 stay), build/train queues cleared. The army is fitted to the population room left (buildings, troops at home and away
-count) and the food upkeep (the farms must still feed it plus 3 Chieftains), and keeps room for `SANDBOX_CHIEFTAIN_ROOM` (3) Chieftains, so conquest can be tested right after Max. **Clear army**
+count; troops eat no food, so population is the only limit), and keeps room for `SANDBOX_CHIEFTAIN_ROOM` (3) Chieftains, so conquest can be tested right after Max. **Clear army**
 (`POST /api/sandbox/clear-army`, no body): my own troops at home in every village of mine are removed (away troops and
 stationed contingents stay). **Reset**: each village becomes a fresh starting village (`createPlayerVillage`),
 with its own outgoing movements and own stationed support removed; works at any time. World speed is never
 changed. **Warp** (`POST /api/sandbox/warp {seconds}`, 0–3600): every movement sent from, returning to or heading for
 the player's villages that is due later arrives in `seconds` from now (0 = immediately resolved). **Empty abandoned villages** (`POST /api/sandbox/clear-abandoned`, no body): every
-abandoned village is settled to now and its troops set to zero (garrisons then slowly refill, §8). **Own timing**: `POST /api/villages/:id/send` also
+abandoned village is settled to now and its troops set to zero (they never refill, §8). **Own timing**: `POST /api/villages/:id/send` also
 takes `travelSeconds` and `returnSeconds` (integers 0–86400, test-mode accounts only, others get `forbidden`): the way out takes exactly that long, and
 the way home after the battle or scout (stored on the movement as `return_secs`). Calls are logged (`sandbox action`). Code: `engine/src/sandbox.ts`, `GameService.sandbox`, web
 `components/SettingsDialog.tsx` (opened from the account menu).
@@ -661,8 +660,9 @@ holding sites reuses the troop-stationing rules; tribe projects make a tribe tou
 
 Prerequisites from `GENRE_REVIEW.md` Part C that should land **before** conquest, because conquest raises the
 stakes: secret battle seed (#6), tame abandoned-village farming and upkeep rebalance (#3, #4), cap on stationed
-support (part of #9; 18.4 adds the cap for sites). **Status 2026-11-04 (step 0, part 1):** seed, refill, repeat-raid limit and
-upkeep 0.25 are built (§2, §7, §8); the pacing numbers (item 4 of step 0) wait for a simulator run, see `BALANCE.md` §7.
+support (part of #9; 18.4 adds the cap for sites). **Status 2026-11-04 (step 0, part 1; history, the refill, repeat-raid limit and upkeep were
+replaced on 2026-11-05, see §2 and §8):** seed, refill, repeat-raid limit and
+upkeep 0.25 were built (§2, §7, §8); the pacing numbers (item 4 of step 0) wait for a simulator run, see `BALANCE.md` §7.
 
 ---
 
@@ -940,10 +940,10 @@ and Renown is reduced:
 Building and Feast Renown are never reduced by these rules (the Feast has its own daily limit).
 
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
-`max(1, round(0.25 x level^1.25))`; loot 1 Renown per 16 value, troops destroyed 1 per 16 value; pair cap 60 per 24 h;
+`max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 500 (then 800, 1,280, 2,048 ...); Feast 600/600/600 for 10 Renown, 3 per
 Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
-22 per village per day** (a defence of about 3,700 points reaches the cap). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the repeat-raid loot limit, the minimum battle value and the pair cap limit farming them). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
+22 per village per day** (a defence of about 3,700 points reaches the cap). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the pair cap limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
 
@@ -978,7 +978,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | Name | Value | Meaning |
 |---|---|---|
 | `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,500 of each of wood/food/iron + 100 gold, ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
-| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; upkeep 2; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
@@ -1354,8 +1354,11 @@ Terrain slowing an average trip by about 12% was not answered; it stays as propo
 Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.logram`,
 `UNITS.boulder`, `SIEGE_*`); the rules live in `packages/engine/src/siege.ts`.
 
-**Rule.** A building level never drops by itself: not on capture, not with time. It drops only when siege units **survive a battle
-their side won**. A lost attack, a called-off attack and a scouting mission never lower anything.
+**Rule (revised 2026-11-05, genre-standard behaviour with our own numbers).** A building level never drops by itself: not on capture, not
+with time. It drops only through siege units in an attack. **Log Rams hit the Wall already during the battle** (the lowered Wall counts
+in that battle); **Boulder Slings hit the building the sender picked after the battle**. A **lost attack can still do reduced damage**
+(below). A called-off attack and a scouting mission never lower anything. (Before 2026-11-05: only after a won battle, Wall counted in
+full.)
 
 **Two units**, both trained in the **Barracks** (simplest fit: no new building, no new queue; they simply sit behind high Barracks
 levels) and both **researched at the Drillyard** first, like the other advanced units:
@@ -1369,16 +1372,25 @@ Both walk over rough ground like heavy carriers (`UNIT_TERRAIN_FAMILY` = carrier
 found or occupy; `checkMission` refuses them). They fight, but badly: they add a little attack and a little defence, and die in the
 battle like everyone else (loss ratio is the same for every unit of the army).
 
-**Damage (deterministic, `resolveSiege`).** After the battle, in this order: Log Rams on the Wall, then Boulder Slings on their building.
-Each kind has `survivors x power` **siege points** (Log Ram power 1, Boulder Sling 0.8). Lowering a building from level L to L-1 costs
-`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16).
-A kind lowers **at most `maxLevels`** levels in one attack (Log Ram 3, Boulder Sling 2) and **stops at the floor**: a building never goes below
-level 0, the **Town Hall never below 1** (`SIEGE_MIN_LEVEL`). The points of a kind that is not used up are lost; there is no carry-over.
+**Damage (deterministic, `resolveSiege`).** Each unit kind has `count x power` **siege points** (Log Ram power 1, Boulder Sling 0.8).
+Lowering a building from level L to L-1 costs `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to
+knock down (level 10: 26 points, level 5: 16). A kind lowers **at most `maxLevels`** levels in one attack (Log Ram 3, Boulder Sling 2, both
+phases together) and **stops at the floor**: a building never goes below level 0, the **Town Hall never below 1** (`SIEGE_MIN_LEVEL`).
+Points that are not used up are lost; there is no carry-over between attacks.
 
-**Order of events.** The battle uses the Wall level as it stood **before** the battle (it counts in full, siege units do not shoot first).
-The drop applies **after** the battle, together with the losses and the loot. A queued upgrade of the lowered building aims the same number
-of levels lower (its cost is not refunded); levels that already paid Renown stay paid, so rebuilding them earns none. Population, storage and
-production simply follow the new levels.
+**Order of events.**
+1. **During the battle (Log Rams, Wall).** Before the defence is added up, the rams that were sent (all of them are standing when the
+   battle starts) fire with `SIEGE_DURING_SHARE` (0.5) of their points. The Wall level they leave is the Wall the defence **uses in this
+   battle** (a lower Wall means less defence).
+2. **After the battle (survivors).** The **surviving** Log Rams spend their points (full) on the Wall again, and the **surviving** Boulder
+   Slings spend theirs on the picked building. Damage is scaled by how many survive: a battle that kills most of the siege army leaves little.
+3. **A lost attack** still does reduced damage if siege units got a hit in. Every attacker unit still dies on a lost attack, but a close
+   fight is not a wipe-out: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` of each siege kind count as the
+   survivors for the **after** step (a hopeless attack, A much smaller than D, does nothing). Log Rams' during-the-battle hit counts as
+   always.
+The drop applies together with the losses and the loot. A queued upgrade of the lowered building aims the same number of levels lower
+(its cost is not refunded); levels that already paid Renown stay paid, so rebuilding them earns none. Population, storage and production
+simply follow the new levels. Units of a siege kind that was sent on its own (no escort) and wins nothing still shoot as above.
 
 **Picking the building (Boulder Sling).** The send form lists the building **names** (public knowledge) without levels. Levels are only known
 from a scouting report with Keen 4 (`SCOUT_INTEL_KEEN.buildings`). The server **never checks the pick against the target village**: it only
@@ -1386,10 +1398,32 @@ accepts a known building id on an attack that carries Boulder Slings, so the sen
 that turns out to be level 0 (or at its floor) is a miss, and the report says so. With **no pick** the engine draws one from the battle
 seed among the buildings that can still drop (the draw is part of the secret seed, so nobody can predict it).
 
-**Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`). `wallLevel`
-stays the Wall before the battle. An attacker whose army was wiped out sees nothing of it, like the rest of the defence.
+**Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`); the Wall
+line runs from the level before the battle to the level after both steps, and `wallLevel` is the Wall **as it counted in the battle**
+(after the during-the-battle hit). An attacker whose army was wiped out still sees the Wall hit of a close loss, nothing else of the defence.
 
-**Balance (`BALANCE.md` section 8).** Siege only acts after the attacker has already won, so a defence that holds loses nothing, and the
-defender can rebuild. The siege army is far more expensive than rebuilding what it lowers (Wall levels cost little), is the slowest thing
+**Balance (`BALANCE.md` section 8).** Rams now also help win the battle (the Wall is lower), and a close loss is not a total waste, but
+rams are slow, so the defender sees them coming and can rebuild. The siege army is far more expensive than rebuilding what it lowers (Wall levels cost little), is the slowest thing
 on the map (a defender sees it coming a long way off and can recall, reinforce or counter), and is capped per attack. So siege makes the
 next attack easier; it does not make defending pointless.
+
+### 18.10 Incoming warnings and notifications (owner, 2026-11-05)
+
+**Visible as soon as it is sent.** The defender sees every incoming attack the moment it is sent: **attacker village** (name, coordinates,
+owner), **send time** (`departAt`) and **arrival time** (`arriveAt`); **never the unit list** (`units: null`). Scouting missions stay
+hidden. Incoming support and incoming resources (shipments) are visible too. Every unit type keeps its own `speed` in `config.ts` and an
+army moves at its **slowest unit**, so a slow Chieftain or a Log Ram shows up in the travel time (and defenders can guess what is coming from it).
+
+**Notifications at send time** (server table `notifications`, schema v10): one row for the target's owner when an **incoming attack**,
+**incoming support** or **incoming resources** movement is created (nobody for the sender's own villages, scouts or returns). A cancel
+within the 2-minute window removes it again. API: `GET /api/notifications` (newest first, at most 100, unread count) and
+`POST /api/notifications/read` (all, or the given ids). The live hub sends the `notifications` topic. The notification carries the same
+fields as the movement above and never the units. The web client shows an in-game list (bell in the shell) and, **only after the
+player presses a button** ("Turn on browser alerts" in the notification list), a browser `Notification` for each new one while the page
+is open (it never asks for permission automatically). Native push comes with the mobile app, later.
+
+### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
+
+Per building, a queue slot can be made **about 20% faster with bought coins** (a cosmetics-shop-style premium currency, see §18.6). Not
+built and not designed in detail: it must never be required to compete, only a convenience; the world speed setting stays the main way
+to change pace.
