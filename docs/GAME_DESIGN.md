@@ -668,6 +668,8 @@ upkeep 0.25 are built (§2, §7, §8); the pacing numbers (item 4 of step 0) wai
 
 ### 18.1 Seasons (about nine weeks), won by tribes holding Fire Shrines; badges kept
 
+> **Owner 2026-11-05: short seasons rejected for normal worlds.** Normal worlds run long (end rule to be chosen: domination, endless, or long fixed length). Keep this nine-week season design as an idea for a **special limited-time world** that can be opened later next to the normal worlds (`docs/MULTI_WORLD.md`: one more world with its own settings).
+
 **How it works**
 - One season = one world (the multi-world setup already gives each world its own server and database; the
   lobby lists "Season 3 · week 4 of 9"). At the end the world turns **read-only** (a Hall of Fame page: final
