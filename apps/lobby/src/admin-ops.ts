@@ -20,8 +20,8 @@ export const ADMIN_USAGE = [
   '  keygen                                   print a new LOBBY_SIGNING_KEY / LOBBY_PUBLIC_KEY pair',
   '  public-key                               print the public key of the LOBBY_SIGNING_KEY in the environment',
   '  worlds                                   list the worlds',
-  '  world-add <id> <name...> [--path=/w/<id>/] [--status=open|full|closed]',
-  '  world-status <id> <open|full|closed>',
+  '  world-add <id> <name...> [--path=/w/<id>/] [--status=open|full|closed|finished]',
+  '  world-status <id> <open|full|closed|finished>',
   '  world-rename <id> <name...>',
   '  world-remove <id>',
   '  shared-ips                               IPs used by two or more accounts',
@@ -96,12 +96,12 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
       case 'worlds': {
         const worlds = store.listWorlds();
         if (worlds.length === 0) out('No worlds yet. Add one with: world-add <id> <name>');
-        for (const w of worlds) out(`${w.id}  ${w.status.padEnd(6)}  ${w.path}  ${w.name}`);
+        for (const w of worlds) out(`${w.id}  ${w.status.padEnd(8)}  ${w.path}  ${w.name}`);
         return 0;
       }
       case 'world-add': {
         const [rawId, ...nameParts] = positional;
-        if (!rawId) throw new CliError('Usage: world-add <id> <name...> [--path=/w/<id>/] [--status=open|full|closed]');
+        if (!rawId) throw new CliError('Usage: world-add <id> <name...> [--path=/w/<id>/] [--status=open|full|closed|finished]');
         for (const f of flags.keys()) if (f !== 'path' && f !== 'status') throw new CliError(`Unknown flag --${f}.`);
         const id = checkWorldId(rawId);
         const name = checkWorldName(nameParts.join(' '));

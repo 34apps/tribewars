@@ -6,12 +6,18 @@
 //   npm run admin -w @clanfire/server -- revoke <username>
 //   npm run admin -w @clanfire/server -- mute <username> <minutes> [reason...]
 //   npm run admin -w @clanfire/server -- unmute <username>
+//   npm run admin -w @clanfire/server -- domination                          (status of the win condition)
+//   npm run admin -w @clanfire/server -- domination-set <key> <value>        (minAgeDays, minActivePlayers, minPeakShare, winShare, streakDays, activeDays)
+//   npm run admin -w @clanfire/server -- world-end [tribeTag|-] [reason...]  (end the world by hand; optional winner)
+//   npm run admin -w @clanfire/server -- world-extend <days>                 (postpone domination by adding days to minAgeDays)
 // Reads DATABASE_PATH like the server. Banning ends the account's sessions and blocks sign-in.
 // Staff roles can only be granted here, never over HTTP. Every change is written to the audit log (actor: the CLI).
+// The domination and world-end commands live in domination-admin.ts; a running server picks their changes up without a restart.
 
 import { MUTE_MAX_MINUTES, STAFF_ROLES, isStaffRole } from '@clanfire/engine';
 import { loadDotEnv, loadEnv } from './env.ts';
 import { openDatabase } from './db.ts';
+import { DOMINATION_USAGE, isDominationCommand, runDominationCommand } from './domination-admin.ts';
 import { Store } from './store.ts';
 
 loadDotEnv();
@@ -81,8 +87,15 @@ if (cmd === 'shared-ips') {
   store.staff.clearMute(p.id);
   log('unmute', p.id);
   console.log(`Unmuted ${p.username}.`);
+} else if (isDominationCommand(cmd)) {
+  store.sandboxUsers = new Set(env.sandboxUsers.map((u) => u.toLowerCase())); // test accounts do not count as active players
+  const result = runDominationCommand(store, cmd, [name, ...rest].filter((w): w is string => w !== undefined), Date.now());
+  for (const line of result.lines) (result.ok ? console.log : console.error)(line);
+  if (!result.ok) process.exitCode = 1;
 } else {
-  console.error('Usage: admin shared-ips | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username>');
+  console.error(
+    `Usage: admin shared-ips | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | ${DOMINATION_USAGE}`,
+  );
   process.exitCode = 1;
 }
 db.close();

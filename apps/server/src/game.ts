@@ -19,6 +19,7 @@ import {
   foundedVillageName,
   holdDueAt,
   isAttackBlocked,
+  isNearSite,
   occupierPopulation,
   pairCapReached,
   pairConquestWindowMs,
@@ -122,6 +123,8 @@ import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import { RenownService } from './renown-service.ts';
+import { SiteService } from './site-service.ts';
+import { sitesFor } from './site-layout.ts';
 import { NEW_VILLAGE_NAME, hasUnpaidBuildRenown, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
 import { addUnits, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
 
@@ -217,12 +220,17 @@ export class GameService {
   /** Earliest arrival of any return created since it was last reset (hold events report what they spawned through it). */
   private spawnMin: number | null = null;
 
+  /** Map sites (Fire Shrines): sending, holding and the Renown bonus (site-service.ts). */
+  readonly sites: SiteService;
+
   constructor(
     private readonly store: Store,
     readonly settings: WorldSettings,
     private readonly log: GameLogger = { error: () => {} },
+    now: () => number = Date.now,
   ) {
     this.renown = new RenownService(store, settings);
+    this.sites = new SiteService(store, settings, now);
   }
 
   // ---- caretaker bot (docs/GAME_DESIGN.md section 17) ----------------------------------------------
@@ -238,6 +246,8 @@ export class GameService {
     // Every movement due by `now` must be resolved before any village is settled to `now`: settling past an
     // arrival would make the later battle see the village in the wrong (future) state.
     this.processDue(now);
+    // The world has ended: it is frozen. Movements in flight still resolve (above), but nobody builds or loses a village any more.
+    if (this.store.isWorldEnded()) return 0;
     this.abandonIdleVillages(now);
     const due = this.store.botDueVillages(now, now - botIdleMs(s), BOT_BATCH_VILLAGES);
     let queued = 0;
@@ -326,6 +336,31 @@ export class GameService {
    * Returns how many were handled.
    */
   processDue(now: number): number {
+    const handled = this.resolveDue(now);
+    // Sites: troops of players who left the tribe or were banned go home, a site nobody holds any more turns neutral. A frozen world keeps its sites.
+    if (!this.store.isWorldEnded()) {
+      try {
+        this.sites.reconcileAll(now);
+      } catch (err) {
+        this.log.error({ err }, 'site upkeep failed');
+      }
+    }
+    // After the arrivals: the domination win condition is settled lazily from stored timestamps (domination-service.ts).
+    // A failure here must never break the request or the tick that happened to trigger it.
+    if (this.afterProcess) {
+      try {
+        this.afterProcess(now);
+      } catch (err) {
+        this.log.error({ err }, 'domination evaluation failed');
+      }
+    }
+    return handled;
+  }
+
+  /** Called at the end of every processDue (set by the DominationService). */
+  afterProcess: ((now: number) => void) | null = null;
+
+  private resolveDue(now: number): number {
     let handled = 0;
     const failed = new Set<number>();
     const failedHolds = new Set<number>();
@@ -402,11 +437,12 @@ export class GameService {
     this.takeSpawn(); // forget returns noted by earlier (possibly rolled back) work
     switch (m.kind) {
       case 'attack':
-        return this.resolveAttack(m);
+        // A tile target (not a village) is a map site (see send).
+        return m.targetX != null ? this.sites.resolveAttack(m) : this.resolveAttack(m);
       case 'scout':
         return this.resolveScout(m);
       case 'support':
-        return this.resolveSupport(m);
+        return m.targetX != null ? this.sites.resolveSupport(m) : this.resolveSupport(m);
       case 'shipment':
         return this.resolveShipment(m);
       case 'return':
@@ -1418,7 +1454,8 @@ export class GameService {
       player: dto,
       villages,
       renown: {
-        ...makeRenownInfo(fresh.renownTotal + pending, fresh.renownSpent, villages.length),
+        // The pending trickle shows with the Fire Shrine bonus the save will add (Store.addRenown), so the number on screen matches.
+        ...makeRenownInfo(fresh.renownTotal + pending * (1 + (pending > 0 ? this.sites.renownBonusOf(player.id, t) : 0)), fresh.renownSpent, villages.length),
         reserved: Math.floor(fresh.renownReserved + 1e-9),
         chieftainPrice: villageRenownPrice(Math.max(1, villages.length), chieftains),
         chieftains,
@@ -1706,10 +1743,10 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const { state, renown } = applyFeast(v.state, count, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
-      this.store.addRenown(player.id, renown);
+      const gained = this.store.addRenown(player.id, renown); // includes the Fire Shrine bonus of the player's tribe, if any
       const fresh = this.store.getPlayer(player.id) ?? player;
       const owned = this.store.villagesOfPlayer(player.id).length;
-      return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned), gained: renown };
+      return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned), gained };
     });
   }
 
@@ -1738,12 +1775,18 @@ export class GameService {
       if (mission === 'found') {
         const tile = checkFoundTarget({ x, y }, s, (px, py) => this.store.villageExistsAt(px, py));
         if (!tile.ok) throw new GameError(tile.reason, tile.message);
+        // No village near a map site (docs/GAME_DESIGN.md 18.4b).
+        if (isNearSite(x, y, sitesFor(s))) throw new GameError('invalid_target', 'That tile is too close to a Fire Shrine for a village.');
         if (!underVillageLimit(this.store.villagesOfPlayer(player.id).length)) {
           throw new GameError('invalid_target', 'You own as many villages as the world allows.');
         }
+      } else if (!this.store.getVillageAt(x, y)) {
+        // No village there: a map site (attack / support, like a found mission it walks to a tile), or nothing.
+        const site = this.sites.at(x, y);
+        if (!site) throw new GameError('invalid_target', 'There is no village at those coordinates.');
+        this.sites.checkSend(player, site, mission, army, t);
       } else {
-        target = this.store.getVillageAt(x, y);
-        if (!target) throw new GameError('invalid_target', 'There is no village at those coordinates.');
+        target = this.store.getVillageAt(x, y) as VillageRecord;
         const own = target.ownerId === player.id;
         // A cold village (hearth out) may be attacked by its owner, tribe-mates and allies: the attack fights the occupiers only.
         relief = mission === 'attack' && target.id !== v.id && this.isRelief(player.id, target, t);
@@ -1931,6 +1974,8 @@ export class GameService {
         loot: m.kind === 'shipment' ? (m.loot ?? emptyResources()) : emptyResources(),
         departAt: t,
         arriveAt: t + cancelReturnMs(m.departAt, t),
+        // A march to a tile (a map site) walks back from that tile, not from the placeholder village.
+        ...(m.targetX != null && m.targetY != null ? { targetX: m.targetX, targetY: m.targetY } : {}),
       });
       this.store.deleteMovement(m.id);
       const view = this.store.getMovementView(id);
@@ -1961,6 +2006,11 @@ export class GameService {
       }
       return { movement: movementDto(this.dispatchHome(row, row.units, t), player.id, t, true) };
     });
+  }
+
+  /** The owner of troops standing at a map site brings all or some of one village's troops home (POST /api/sites/:id/recall). */
+  recallSite(player: PlayerRow, siteId: number, villageId: number, units: Partial<Units> | undefined, t: number): MovementResponse {
+    return this.store.tx(() => ({ movement: movementDto(this.sites.recall(player, siteId, villageId, units, t), player.id, t) }));
   }
 
   // ---- helpers -----------------------------------------------------------------------------------
@@ -2023,7 +2073,7 @@ export class GameService {
         for (let i = 0; i < 3; i++) need += villageRenownCost(owned + i);
         const p = this.store.getPlayer(player.id) ?? player;
         const short = need - (p.renownTotal - p.renownSpent);
-        if (short > 0) this.store.addRenown(player.id, short);
+        if (short > 0) this.store.addRenown(player.id, short, true); // a top-up, not an earning: no site bonus
       }
       for (const v of this.store.villagesOfPlayer(player.id)) {
         if (action === 'max') {

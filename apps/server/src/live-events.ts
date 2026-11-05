@@ -9,6 +9,8 @@ export type LiveEvent =
   | { kind: 'player'; playerId: number; topics: readonly LiveTopic[] }
   /** Tell every socket of one tribe (its members) that these topics changed. */
   | { kind: 'tribe'; tribeId: number; topics: readonly LiveTopic[] }
+  /** Tell every open socket of the world (the world ended). */
+  | { kind: 'all'; topics: readonly LiveTopic[] }
   /** A session ended (logout): close its sockets. */
   | { kind: 'session-ended'; tokenHash: string }
   /** The account was banned: close all its sockets. */

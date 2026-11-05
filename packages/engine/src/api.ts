@@ -2,6 +2,7 @@
 // JSON over HTTPS, session in an HttpOnly cookie. Errors: non-2xx with ApiError body.
 
 import type { AchievementProgress, PlayerStatsDto } from './achievements.ts';
+import type { SiteKind } from './config.ts';
 import type {
   BuildingLevels,
   Coords,
@@ -1316,13 +1317,168 @@ export interface TemplateRequest {
 
 export type UpdateTemplateRequest = Partial<Omit<TemplateRequest, 'key'>>;
 
+// ---- Domination win condition and world end (docs/GAME_DESIGN.md, "Winning the world") -------------------------------------
+// GET /api/domination -> 200 DominationStatusDto (signed in; read-only: the stored streak and peak only change in the server's own
+//   lazy evaluation, at most every DOMINATION_EVAL_INTERVAL_MINUTES / speed)
+// GET /api/world-end  -> 200 { ended: WorldEndDto | null } (signed in)
+// Once the world has ended, every POST/PUT/PATCH/DELETE under /api is refused with 403 `forbidden` ("This world has ended.") except
+// sign-in/out, mail, support tickets and message reports, staff tools, tribe chat and the tribe forum. Troops already marching still arrive.
+
+/** The world's domination rule in real days (already divided by the world speed). */
+export interface DominationSettingsDto {
+  minAgeDays: number;
+  winShare: number;
+  streakDays: number;
+  activeDays: number;
+  /** The configured minimum; the effective one (also counting a share of the peak) is DominationStatusDto.minActivePlayers. */
+  minActivePlayers: number;
+}
+
+export interface DominationTribeDto {
+  tribeId: number;
+  name: string;
+  tag: string;
+  /** Points of all villages owned by the tribe's members. */
+  points: number;
+  /** points / totalPoints, 0..1. */
+  share: number;
+}
+
+export type WorldEndKind = 'domination' | 'manual';
+
+export interface FinalTribeDto {
+  rank: number;
+  tribeId: number;
+  name: string;
+  tag: string;
+  points: number;
+  members: number;
+  villages: number;
+}
+
+export interface FinalPlayerDto {
+  rank: number;
+  playerId: number;
+  name: string;
+  points: number;
+  villages: number;
+  tribeTag: string | null;
+}
+
+export interface WorldEndDto {
+  endedAt: number;
+  kind: WorldEndKind;
+  /** The winning tribe (null for a manual end without winner). Name and tag as they were when the world ended. */
+  winner: { tribeId: number; name: string; tag: string } | null;
+  reason: string;
+  /** Final rankings, frozen at the end (top WORLD_END_DTO_ROWS of each; the database keeps WORLD_END_STORED_ROWS). */
+  finalTribes: FinalTribeDto[];
+  finalPlayers: FinalPlayerDto[];
+}
+
+export interface WorldEndResponse {
+  ended: WorldEndDto | null;
+}
+
+export interface DominationStatusDto {
+  settings: DominationSettingsDto;
+  now: number;
+  /** Real days since the world was created. */
+  worldAgeDays: number;
+  /** Real days the world must be old (settings.minAgeDays). */
+  minAgeDays: number;
+  ageOk: boolean;
+  /** Players active within settings.activeDays, not banned, not test accounts; accounts sharing an IP count once. */
+  activePlayers: number;
+  /** Highest activePlayers seen so far (only grows). */
+  peakActivePlayers: number;
+  /** Effective minimum: max(settings.minActivePlayers, ceil(minPeakShare x peak)). */
+  minActivePlayers: number;
+  playersOk: boolean;
+  /** The tribe with the most village points (null when no player owns a village). */
+  leader: DominationTribeDto | null;
+  topTribes: DominationTribeDto[];
+  /** Points of all villages owned by players (abandoned villages do not count). */
+  totalPoints: number;
+  /** Share (0..1) the leader needs. */
+  winShare: number;
+  /** All three conditions hold right now. */
+  qualifies: boolean;
+  /** When the running streak began (server clock, ms), else null. */
+  streakStartedAt: number | null;
+  /** Real days the streak has run (1 decimal; 0 when none). */
+  streakDays: number;
+  /** Real days the streak must run to win. */
+  streakDaysNeeded: number;
+  /** Plain-language reasons why the world does not count yet (empty when it does). */
+  reasons: string[];
+  ended: WorldEndDto | null;
+}
+
+// ---- Map sites: Great Fire and Fire Shrines (docs/GAME_DESIGN.md 18.4b "Step 5") -------------------------------------
+// GET /api/sites -> 200 SitesResponse (signed in). Sites are targeted with the normal send routes (attack / support to the site's tile).
+
+export interface SiteHolderDto {
+  tribeId: number;
+  name: string;
+  tag: string;
+}
+
+export interface SiteDto {
+  /** Stable id: 1 = Great Fire, 2-9 Fire Shrines. */
+  id: number;
+  kind: SiteKind;
+  x: number;
+  y: number;
+  /** Awake once the world is old enough (SHRINE_WAKE_DAYS / speed): bigger bonus and a doubled militia. */
+  awake: boolean;
+  holder: SiteHolderDto | null;
+  /** Population standing on the site now: the holder's stationed troops, or the militia of a neutral site. */
+  garrison: number;
+  /** Most population that can be stationed there. */
+  maxPopulation: number;
+  /** The site cannot be attacked before this time (server clock, ms) after a capture, else null. */
+  calmUntil: number | null;
+  /** Renown bonus (0.04 = +4%) this site gives every member of its holder now. */
+  bonus: number;
+  /** The signed-in player's own population stationed there. */
+  mine: number;
+  /** The signed-in player's contingents standing there, one per home village (for the recall buttons). Absent = none. */
+  myContingents?: SiteContingentDto[];
+}
+
+/** Troops of one of the player's villages standing at a site. */
+export interface SiteContingentDto {
+  villageId: number;
+  villageName: string;
+  units: Units;
+  arrivedAt: number;
+}
+
+/** POST /api/sites/:id/recall (signed in, owner of the troops): brings the village's troops at that site home; `units` omitted = all. -> 201 MovementResponse. */
+export interface SiteRecallRequest {
+  villageId: number;
+  units?: Partial<Units>;
+}
+
+export interface SitesResponse {
+  sites: SiteDto[];
+  /** When the dormant shrines wake (server clock, ms); in the past when they already did. */
+  wakesAt: number;
+  /** The Renown bonus (0.1 = +10%, capped) the signed-in player's tribe gets from all sites it holds; 0 without a tribe. */
+  myBonus: number;
+}
+
 // ---- live updates (WebSocket GET /api/live) -----------------------------------------------------------------------
 // Push-only "something changed" hints. The client never sends game commands over the socket; on a hint it refetches
 // through the normal GET endpoints. Hints carry no data.
 
-/** What changed: game = state/villages/movements/incoming; reports; mail; chat = tribe chat; tribe = tribe info + alerts. */
-export type LiveTopic = 'game' | 'reports' | 'mail' | 'chat' | 'tribe';
-export const LIVE_TOPICS: readonly LiveTopic[] = ['game', 'reports', 'mail', 'chat', 'tribe'];
+/**
+ * What changed: game = state/villages/movements/incoming; reports; mail; chat = tribe chat; tribe = tribe info + alerts;
+ * world = the world ended (refetch GET /api/world-end), sent to every socket together with `game`.
+ */
+export type LiveTopic = 'game' | 'reports' | 'mail' | 'chat' | 'tribe' | 'world';
+export const LIVE_TOPICS: readonly LiveTopic[] = ['game', 'reports', 'mail', 'chat', 'tribe', 'world'];
 
 /** Server -> client text frames (JSON). */
 export type LiveMessage = { type: 'hello' } | { type: 'hint'; topics: LiveTopic[] } | { type: 'pong' };
@@ -1359,6 +1515,8 @@ export interface WorldInfoResponse {
   startedAt: string;
   /** True when the world only accepts entry passes from the lobby (LOBBY_PUBLIC_KEY set): its own register/login are off. */
   lobby: boolean;
+  /** True once the world has ended (a tribe won or the operator ended it): the world is frozen, see GET /api/world-end. Absent on older servers. */
+  ended?: boolean;
 }
 
 // ---- lobby: one account, many worlds (docs/MULTI_WORLD.md) ---------------------------------------------------------
@@ -1387,10 +1545,10 @@ export function isLobbyPath(pathname: string): boolean {
   return pathname === LOBBY_PREFIX || pathname.startsWith(`${LOBBY_PREFIX}/`);
 }
 
-export type WorldStatus = 'open' | 'full' | 'closed';
-export const WORLD_STATUSES: readonly WorldStatus[] = ['open', 'full', 'closed'];
+export type WorldStatus = 'open' | 'full' | 'closed' | 'finished';
+export const WORLD_STATUSES: readonly WorldStatus[] = ['open', 'full', 'closed', 'finished'];
 export function isWorldStatus(v: unknown): v is WorldStatus {
-  return v === 'open' || v === 'full' || v === 'closed';
+  return v === 'open' || v === 'full' || v === 'closed' || v === 'finished';
 }
 
 /** Change the password (also the way out of `password_change_required`). The current password is checked like at sign-in. */
@@ -1424,7 +1582,7 @@ export interface LobbyMeResponse {
 export interface LobbyWorldDto {
   id: string;
   name: string;
-  /** 'full' = no new players (returning ones can still enter); 'closed' = nobody enters. */
+  /** 'full' = no new players (returning ones can still enter); 'closed' = nobody enters; 'finished' = the world ended (read-only, still enterable to see the results). */
   status: WorldStatus;
   /** Public URL path of the world's page, always "/..../" (e.g. "/w/w1/"). The world's API is `${path}api/...`. */
   path: string;

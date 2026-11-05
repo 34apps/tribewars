@@ -53,18 +53,24 @@ interface Props {
  * `target` is null for a free tile (Found a village). One form for every mission: the army list follows the mission, and the
  * mode (Strike, Found, Occupy...) picks the wording, the hint and the warnings. The server re-checks everything.
  */
-function SendForm({
+export function SendForm({
   tile,
   target,
   missions,
   preferred,
+  hints,
+  targetLabel,
 }: {
   tile: Coords;
   target: MapVillageDto | null;
   missions: Mission[];
   preferred: Mission | null;
+  /** Site panel: wording per mission that replaces the generic hint (a site is a tile, not a village). */
+  hints?: Partial<Record<Mission, string>>;
+  /** Name for the toast after sending (a site's name); defaults to the village name or the coordinates. */
+  targetLabel?: string;
 }) {
-  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate } = useGame();
+  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd } = useGame();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
   // A Found send starts with the Chieftain already chosen.
@@ -111,7 +117,8 @@ function SendForm({
   const strikeNeeds = strikeNeed(target?.kind ?? null, target?.points ?? 0);
 
   let reason: string | null = null;
-  if (targetProtected) reason = 'This player is under beginner protection';
+  if (worldEnd) reason = 'This world has ended';
+  else if (targetProtected) reason = 'This player is under beginner protection';
   else if (total < 1) {
     if (mission === 'found') reason = chieftainHome ? 'Choose your Chieftain' : 'No Chieftain at home. Train one in the Army tab (Banner Hall)';
     else if (visible.length > 0) reason = scouting ? 'Choose how many Pathfinders to send' : 'Choose troops to send';
@@ -161,7 +168,7 @@ function SendForm({
       applySend(res);
       setCounts({});
       setSiegePick('');
-      toast(`${SEND_MODE_SENT[mode]} ${target?.name ?? formatCoords(tile.x, tile.y)}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
+      toast(`${SEND_MODE_SENT[mode]} ${targetLabel ?? target?.name ?? formatCoords(tile.x, tile.y)}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
     } catch (e) {
@@ -197,7 +204,7 @@ function SendForm({
         />
       )}
       <p className="wm-muted">
-        {mode === 'strike' ? strikeHint(target?.kind ?? null) : (SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
+        {mode === 'strike' ? strikeHint(target?.kind ?? null) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
         {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
       </p>
       {offerStrike && (

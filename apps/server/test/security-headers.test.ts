@@ -46,6 +46,8 @@ test('route patterns map to the intended limit buckets', () => {
     ['GET', '/api/mail', 'mail'],
     ['POST', '/api/mail', 'mail'],
     ['GET', '/api/rankings/players', 'rankings'],
+    ['GET', '/api/domination', 'world'],
+    ['GET', '/api/world-end', 'world'],
     ['GET', '/api/state', null],
     ['GET', '/api/map', null],
     ['GET', '/api/villages', 'village'],
@@ -67,6 +69,7 @@ const CALLS: Record<RouteBucket, (c: Client, vid: number) => ReturnType<Client['
   mail: (c) => c.get('/api/mail'),
   search: (c) => c.get('/api/tribes'),
   rankings: (c) => c.get('/api/rankings/players'),
+  world: (c) => c.get('/api/domination'),
 };
 
 for (const bucket of Object.keys(ROUTE_LIMITS) as RouteBucket[]) {

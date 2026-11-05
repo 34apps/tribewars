@@ -24,6 +24,7 @@ import {
 import { verifyEntryPass, type EntryKey } from './entry-pass.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
+import { awayFromSites, sitesFor, withoutSiteTiles } from './site-layout.ts';
 
 /** The "your villages were abandoned" news for the player DTO, or null when there is none. */
 export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings): AbandonedNoticeDto | null {
@@ -152,6 +153,7 @@ export class AuthService {
     const hash = await hashPassword(password);
     try {
       return this.store.tx(() => {
+        if (this.store.isWorldEnded()) throw new GameError('forbidden', 'This world has ended.');
         if (this.store.getPlayerByLowerName(username.toLowerCase())) {
           throw new GameError('username_taken', 'That username is already taken.');
         }
@@ -219,7 +221,9 @@ export class AuthService {
       let player = this.store.getPlayerByAccountId(claims.aid);
       let created = false;
       if (!player) {
-        const clash = this.store.getPlayerByLowerName(claims.name.toLowerCase());
+        // A frozen world takes nobody new (known players may still sign in to read the end screen).
+        if (this.store.isWorldEnded()) throw new GameError('forbidden', 'This world has ended.');
+        const clash =this.store.getPlayerByLowerName(claims.name.toLowerCase());
         if (clash) {
           this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'enter_blocked_unlinked_name', targetPlayer: clash.id, detail: `account ${claims.aid}` });
           return new GameError(
@@ -271,12 +275,18 @@ export class AuthService {
    */
   ensureStartingVillage(player: PlayerRow): void {
     if (this.store.hasVillage(player.id)) return;
+    if (this.store.isWorldEnded()) return; // frozen: no new villages, not even a restart
     try {
       this.store.tx(() => {
         if (this.store.hasVillage(player.id)) return;
         const t = this.now();
         const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
-        const { spot, protectionMs } = restartPlacement(this.settings, this.store.playerVillageCount(), randomInt(0, 0xffffffff), occupied);
+        // No village within SITE_NO_VILLAGE_RADIUS of a map site: draw again until the spot is clear.
+        const { x, y, protectionMs } = awayFromSites(sitesFor(this.settings), () => {
+          const r = restartPlacement(this.settings, this.store.playerVillageCount(), randomInt(0, 0xffffffff), occupied);
+          return { ...r.spot, protectionMs: r.protectionMs };
+        });
+        const spot = { x, y };
         this.spawnVillage(player.id, `${player.username}'s village`, t, spot);
         this.store.setProtectedUntil(player.id, t + protectionMs);
       });
@@ -299,15 +309,17 @@ export class AuthService {
     const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
     const rng = mulberry32(randomInt(0, 0xffffffff));
     const expanding = this.settings.layout === 'expanding';
+    const sites = sitesFor(this.settings);
+    // No village within SITE_NO_VILLAGE_RADIUS of a map site (docs/GAME_DESIGN.md 18.4b): draw again until the spot is clear.
     const spot =
       at ??
-      (expanding
-        ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount())
-        : findSpawnLocation(occupied, rng, this.settings));
+      awayFromSites(sites, () =>
+        expanding ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount()) : findSpawnLocation(occupied, rng, this.settings),
+      );
     const state = createPlayerVillage(t);
     this.store.insertVillage(playerId, name, spot.x, spot.y, villagePoints(state), state);
     if (!expanding) return;
-    for (const p of generateNpcsForSpawn(spot, occupied, rng, this.settings)) {
+    for (const p of withoutSiteTiles(sites, generateNpcsForSpawn(spot, occupied, rng, this.settings))) {
       const npc = createNpcVillage(p.tier, t, randomInt(0, 0xffffffff));
       this.store.insertVillage(null, NPC_VILLAGE_NAME, p.x, p.y, villagePoints(npc), npc);
     }

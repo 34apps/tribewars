@@ -1,7 +1,7 @@
 // Game balance data. Formulas that use these numbers are described in docs/GAME_DESIGN.md.
 // Change numbers here (not in logic files) when tuning the game.
 
-import type { BuildingDef, BuildingId, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
+import type { BuildingDef, BuildingId, DominationSettings, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
 
 const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
 
@@ -13,6 +13,36 @@ export const DEFAULT_WORLD: WorldSettings = {
   protectionHours: 72,
   npcGrowthHours: 6,
 };
+
+/**
+ * Domination win condition (owner, 2026-11-05: normal worlds are long, no seasons; a tribe wins by holding most of the
+ * world). Values are days at speed 1; every duration is divided by the world speed. Stored per world at creation
+ * (WorldSettings.domination) and changeable by the operator (admin `domination-set`).
+ */
+export const DOMINATION_DEFAULTS: DominationSettings = {
+  minAgeDays: 180,
+  minActivePlayers: 50,
+  minPeakShare: 0.3,
+  winShare: 0.75,
+  streakDays: 14,
+  activeDays: 7,
+};
+/** Allowed range per setting (inclusive), checked by the operator tool and when reading stored settings. */
+export const DOMINATION_LIMITS: Record<keyof DominationSettings, { min: number; max: number; integer: boolean }> = {
+  minAgeDays: { min: 0, max: 3650, integer: false },
+  minActivePlayers: { min: 1, max: 100_000, integer: true },
+  minPeakShare: { min: 0, max: 1, integer: false },
+  winShare: { min: 0.5, max: 1, integer: false },
+  streakDays: { min: 0, max: 3650, integer: false },
+  activeDays: { min: 0, max: 3650, integer: false },
+};
+/** The world is evaluated lazily at most this often (minutes at speed 1, divided by the speed). */
+export const DOMINATION_EVAL_INTERVAL_MINUTES = 15;
+/** Ranking rows kept in the stored final result, and rows sent in the API (the rest stays in the database). */
+export const WORLD_END_STORED_ROWS = 200;
+export const WORLD_END_DTO_ROWS = 50;
+/** Tribes listed in the domination status. */
+export const DOMINATION_TOP_TRIBES = 5;
 
 export const START_RESOURCES: Resources = res(600, 600, 600, 100);
 
@@ -907,3 +937,33 @@ export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
   drillyard: 0,
   bannerhall: 0,
 };
+
+// ---- Map sites: Great Fire and Fire Shrines (docs/GAME_DESIGN.md 18.4b "Step 5") ------------------
+/** Kinds of neutral map sites a tribe can hold (Waymarks and Lookouts are not built yet). */
+export const SITE_KINDS = ['great_fire', 'fire_shrine'] as const;
+export type SiteKind = (typeof SITE_KINDS)[number];
+/** Ring radii (tiles from the world centre) of the Fire Shrines: inner ring, then outer ring. The Great Fire stands near (0,0). */
+export const SHRINE_RING_RADII = [35, 85] as const;
+/** Fire Shrines per ring, spaced evenly (90 degrees for 4) with a seeded rotation per ring. */
+export const SHRINE_COUNT_PER_RING = 4;
+/** Every site is at least this far (Euclidean tiles) from every other site. */
+export const SITE_MIN_SPACING = 15;
+/** No village is placed within this distance (Chebyshev, tiles: a square) of a site; abandoned-village generation and landing check it. */
+export const SITE_NO_VILLAGE_RADIUS = 4;
+/** Militia of an unheld site, in population (mixed pikemen and shieldbearers). */
+export const SITE_MILITIA: Record<SiteKind, number> = { fire_shrine: 600, great_fire: 1500 };
+/** An awake site's militia is this many times larger (the Great Fire wakes on the same clock as the shrines). */
+export const SHRINE_AWAKE_MILITIA_FACTOR = 2;
+/** Most population that can be stationed at a site. */
+export const SITE_MAX_POPULATION: Record<SiteKind, number> = { fire_shrine: 3000, great_fire: 5000 };
+/** After a capture the site cannot be attacked for this many hours (divided by world speed). */
+export const SITE_CALM_HOURS = 2;
+/** Fire Shrines sleep for this many days from world creation (divided by world speed), then wake with a stronger bonus. */
+export const SHRINE_WAKE_DAYS = 120;
+/** Extra Renown share for every member of the holding tribe, per held site (0.01 = +1%). The Great Fire wakes on the same clock as the shrines. */
+export const SITE_RENOWN_BONUS: { dormant: Record<SiteKind, number>; awake: Record<SiteKind, number> } = {
+  dormant: { fire_shrine: 0.01, great_fire: 0.03 },
+  awake: { fire_shrine: 0.04, great_fire: 0.1 },
+};
+/** The sum of the Renown bonuses of all held sites never exceeds this (+30%). */
+export const SITE_RENOWN_BONUS_CAP = 0.3;

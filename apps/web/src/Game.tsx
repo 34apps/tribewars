@@ -11,6 +11,8 @@ import type { GameApi, MailDraft, MapFocus, Tab, ToastOptions, TribeTarget } fro
 import { useGameState } from './hooks/useGameState.ts';
 import { LiveProvider } from './hooks/useLive.tsx';
 import { useNow } from './hooks/useNow.ts';
+import { useWorldEnd } from './hooks/useWorldEnd.ts';
+import { WorldEndView } from './views/WorldEndView.tsx';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
@@ -72,6 +74,17 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const store = useGameState(onSignedOut);
   const now = useNow(store.serverOffset);
   const [tab, navigate] = useTab();
+  const { end: worldEnd, fresh: worldEndFresh } = useWorldEnd();
+  // The first time the end becomes known (start-up or a live hint), land on the results; a refused order only shows the banner.
+  // Someone who deliberately opened another screen (a deep link, the map) is left where they are.
+  const resultsShown = useRef(false);
+  const tabNow = useRef(tab);
+  tabNow.current = tab;
+  useEffect(() => {
+    if (!worldEnd || !worldEndFresh || resultsShown.current) return;
+    resultsShown.current = true;
+    if (tabNow.current === 'village') navigate('results');
+  }, [worldEnd, worldEndFresh, navigate]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   const [highlightMovementId, setHighlight] = useState<number | null>(null);
@@ -211,6 +224,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       clearTribeFocus,
       viewTribe,
       tribeChanged,
+      worldEnd,
       connectionError: store.error,
       tab,
       navigate,
@@ -223,7 +237,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       applySend: store.applySend,
       toast,
     };
-  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, worldEnd]);
 
   if (!ctx) {
     return (
@@ -251,6 +265,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'tribe' && <TribeView />}
         {tab === 'ranks' && <RankingsView />}
         {tab === 'support' && <SupportView />}
+        {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted page">The world is still running.</p>)}
         {tab === 'staff' && (
           <Suspense fallback={<p className="muted page">Loading…</p>}>
             <StaffView />

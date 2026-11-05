@@ -5,7 +5,41 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+
+/**
+ * The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
+ * Status 'finished' (v3) = the world ended by a win: read-only, still enterable to see the results.
+ * v1/v2 databases have a CHECK without 'finished': migrateWorldsTable() rebuilds the table in place.
+ */
+function worldsTableSql(table: string): string {
+  return `CREATE TABLE IF NOT EXISTS ${table} (
+  id         TEXT    PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 32),
+  name       TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
+  status     TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'full', 'closed', 'finished')),
+  path       TEXT    NOT NULL,
+  created_at INTEGER NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);`;
+}
+
+/** v3: widen the status CHECK of an older worlds table (SQLite cannot alter a CHECK): copy into a new table, swap. */
+function migrateWorldsTable(db: DatabaseSync): void {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'worlds'").get() as { sql?: string } | undefined;
+  if (!row?.sql || row.sql.includes("'finished'")) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec('DROP TABLE IF EXISTS worlds_new');
+    db.exec(worldsTableSql('worlds_new'));
+    db.exec('INSERT INTO worlds_new (id, name, status, path, created_at, sort_order) SELECT id, name, status, path, created_at, sort_order FROM worlds');
+    db.exec('DROP TABLE worlds');
+    db.exec('ALTER TABLE worlds_new RENAME TO worlds');
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -52,15 +86,7 @@ CREATE TABLE IF NOT EXISTS account_ips (
 );
 CREATE INDEX IF NOT EXISTS idx_account_ips_ip ON account_ips(ip);
 
--- The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
-CREATE TABLE IF NOT EXISTS worlds (
-  id         TEXT    PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 32),
-  name       TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
-  status     TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'full', 'closed')),
-  path       TEXT    NOT NULL,
-  created_at INTEGER NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0
-);
+${worldsTableSql('worlds')}
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,6 +117,7 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec('PRAGMA foreign_keys = ON');
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
+  migrateWorldsTable(db); // before SCHEMA: an old worlds table is replaced, a missing one is created by SCHEMA
   db.exec(SCHEMA);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;

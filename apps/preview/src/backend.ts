@@ -9,6 +9,7 @@ import { storageCap, villagePoints, type WorldSettings } from '@clanfire/engine'
 import { AuthService, RateLimiter, SESSION_COOKIE } from '../../server/src/auth.ts';
 import type { AppContext } from '../../server/src/context.ts';
 import { openDatabase } from '../../server/src/db.ts';
+import { DominationService } from '../../server/src/domination-service.ts';
 import { GameService } from '../../server/src/game.ts';
 import { authRoutes } from '../../server/src/routes/auth.ts';
 import { gameRoutes } from '../../server/src/routes/game.ts';
@@ -110,6 +111,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   // Staff services are wired so the context is complete; the preview mounts no staff or support routes.
   const forum = new ForumService(store);
   const support = new SupportService(store);
+  const game = new GameService(store, settings, { error: (obj, msg) => console.error(msg ?? 'game error', obj) }, now);
   const ctx: AppContext = {
     store,
     settings,
@@ -119,7 +121,8 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     worldName: 'Preview',
     limiter: new RateLimiter(30, 60_000),
     auth: new AuthService(store, settings, now),
-    game: new GameService(store, settings, { error: (obj, msg) => console.error(msg ?? 'game error', obj) }),
+    game,
+    domination: new DominationService(store, settings, game),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
     forum,

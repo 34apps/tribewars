@@ -95,6 +95,13 @@ Gate note, stats/achievements and caretaker bot (2026-11-03): no new input and n
 counters written by the server inside the event's transaction). The bot only queues builds on the idle owner's own
 village via the normal build check; it cannot train, send troops, shipments or support. `last_active` writes are throttled.
 
+Gate note, map sites (2026-11-05, step 5): new `GET /api/sites` (signed in, reads only, bucket `world`) and `POST /api/sites/:id/recall` (owner of the
+troops only, bucket `send`; strangers and foreign villages answer 404; strict body schema; world-ended 403). Sending to a site reuses the owner-only `send` route.
+Timing is the server's: arrival = now + travel time, resolved in arrival order and re-checked on arrival (calm time, relation, connection, world end); no client
+time, no oracle (a refusal only says things about the sender's own tribe or the public site state). Garrison size is public on purpose (it is on the map);
+other players' troops per village are not. Multi-account: the same-connection guard on attacks, the tribe-only rule, and the population cap stop a household
+stacking a site. Tests: `apps/server/test/sites.test.ts`.
+
 Gate note, taking player villages (2026-11-05, step 4; full gate in `CHANGELOG.md`): no new route. Strikes, relief attacks and occupiers use the
 existing owner-only `send` route (and its rate bucket); the pair cap, protection, lock, household / tribe / ally refusals and the hold clock are all
 decided by the server in arrival order (§2); an incoming attack alert never reveals its units; the tribe alert list shows only what the map shows.

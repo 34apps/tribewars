@@ -113,8 +113,8 @@ export class RenownService {
       }
       counted.set(k, earlier + a.counted);
       store.addRenownPair(w.playerId, w.key, a.counted, at, windowMs);
-      store.addRenown(w.playerId, renown);
-      gains.set(w.playerId, (gains.get(w.playerId) ?? 0) + renown);
+      const credited = store.addRenown(w.playerId, renown); // includes the Fire Shrine bonus, so the report shows what was really paid
+      gains.set(w.playerId, (gains.get(w.playerId) ?? 0) + credited);
     }
     const whole = new Map<number, number>();
     for (const [id, g] of gains) whole.set(id, Math.floor(g + 1e-9));

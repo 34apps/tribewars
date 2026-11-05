@@ -108,6 +108,24 @@ test('admin: world-add, worlds, world-status, world-rename, world-remove', () =>
   ]);
 });
 
+test('admin: a world can be added as finished or set to finished, and worlds lists it', () => {
+  const store = memoryStore();
+  const { run, out, err } = cli(store);
+  assert.equal(run('world-add', 'old', 'Old', 'Hill', '--status=finished'), 0, err.join('\n'));
+  assert.equal(store.getWorld('old')?.status, 'finished');
+  assert.equal(run('world-add', 'w2', 'Second'), 0, err.join('\n'));
+  assert.equal(run('world-status', 'w2', 'finished'), 0, err.join('\n'));
+  assert.equal(store.getWorld('w2')?.status, 'finished');
+  assert.equal(run('world-status', 'w2', 'open'), 0, 'a finished world can be reopened by the operator');
+  assert.equal(store.getWorld('w2')?.status, 'open');
+  out.length = 0;
+  assert.equal(run('worlds'), 0);
+  assert.match(out[0] ?? '', /old +finished +\/w\/old\/ +Old Hill/);
+  assert.match(out[1] ?? '', /w2 +open +\/w\/w2\/ +Second/);
+  assert.equal(run(), 1);
+  assert.ok(err.join('\n').includes('open|full|closed|finished'), 'usage text names the new status');
+});
+
 test('admin: world-add refuses bad input and changes nothing', () => {
   const store = memoryStore();
   const { run, err } = cli(store);

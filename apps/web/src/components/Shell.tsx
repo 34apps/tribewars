@@ -1,10 +1,11 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { RESOURCE_IDS, netProductionPerHour, populationCap, populationUsage, storageCap } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
+import { WORLD_ENDED_NOTICE, bannerText } from '../domination.ts';
 import { useGame, TABS } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
@@ -104,12 +105,23 @@ function Resources({ compact }: { compact?: boolean }) {
 }
 
 function Strip() {
-  const { player, now, movements, navigate, connectionError } = useGame();
+  const { player, now, movements, navigate, connectionError, worldEnd, tab } = useGame();
   const protectedLeft = player.protectedUntil - now;
   const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
   return (
     <>
+      {worldEnd && (
+        <div className="strip strip-ended" role="status">
+          <Icon name="flame" size={22} />
+          <span>{bannerText(worldEnd)} Orders are closed.</span>
+          {tab !== 'results' && (
+            <button type="button" className="btn btn-small strip-ended-btn" onClick={() => navigate('results')}>
+              See results
+            </button>
+          )}
+        </div>
+      )}
       {connectionError && (
         <div className="strip strip-warn" role="status">
           <span>Connection problem. Retrying…</span>
@@ -319,11 +331,23 @@ function Who({
 }
 
 export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: ReactNode; onSignOut: () => void; onSignOutEverywhere: () => void }) {
-  const { tab } = useGame();
+  const { tab, worldEnd, toast } = useGame();
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
+  // After the world ended the server refuses every order. On the order screens (village, army, map) the main buttons say so
+  // up front instead of waiting for the 403; reading, mail, chat and forum are untouched.
+  const guardOrders =
+    worldEnd && (tab === 'village' || tab === 'army' || tab === 'map')
+      ? (e: MouseEvent<HTMLElement>) => {
+          const button = (e.target as HTMLElement).closest('button');
+          if (!button || button.closest('.wm-toolbar') || !(button.classList.contains('btn-primary') || button.type === 'submit')) return;
+          e.preventDefault();
+          e.stopPropagation();
+          toast(WORLD_ENDED_NOTICE, { kind: 'error' });
+        }
+      : undefined;
   return (
-    <div className={`app app-${tab}`}>
+    <div className={`app app-${tab}${worldEnd ? ' is-ended' : ''}`}>
       <header className="topbar">
         <div className="brand">
           <Icon name="flame" size={32} />
@@ -343,7 +367,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
       </div>
       <Strip />
       <VillageBar />
-      <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main">
+      <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main" onClickCapture={guardOrders}>
         {children}
       </main>
       <nav className="bottomnav" aria-label="Main">

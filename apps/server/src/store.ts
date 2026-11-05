@@ -37,6 +37,8 @@ import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
 import { ReportStore } from './report-store.ts';
 import { StaffStore, type NewAudit } from './staff-store.ts';
+import { DominationStore } from './domination-store.ts';
+import { SiteStore } from './site-store.ts';
 import { SupportStore } from './support-store.ts';
 import { TribeStore } from './tribe-store.ts';
 import { addUnits } from './units.ts';
@@ -245,6 +247,7 @@ LEFT JOIN players tp ON tp.id = t.owner_id`;
 /** Attacks (not scouts, not support) heading for a village owned by a member of tribe ?. Index-friendly: target village ids come from a subquery. */
 const TRIBE_ATTACKS_WHERE = `
 m.kind = 'attack'
+AND m.target_x IS NULL
 AND m.target_village_id IN (
   SELECT v.id FROM villages v JOIN tribe_members tm ON tm.player_id = v.owner_id WHERE tm.tribe_id = ?
 )`;
@@ -301,9 +304,11 @@ function toMovement(r: Raw): MovementRow {
   };
 }
 
-function toMovementView(r: Raw): MovementView {
+function toMovementView(r: Raw, siteName: ((x: number, y: number) => string | null) | null = null): MovementView {
   // A mission to a free tile (found, or the way back from one) shows the tile as its target, not the placeholder village.
+  // The tile of a map site (attack / support / the way home) carries the site's name.
   const tile = r.target_x !== null && r.target_x !== undefined && r.target_y !== null && r.target_y !== undefined;
+  const tileName = tile ? (siteName?.(r.target_x as number, r.target_y as number) ?? NEW_VILLAGE_NAME) : NEW_VILLAGE_NAME;
   return {
     ...toMovement(r),
     origin: {
@@ -315,7 +320,7 @@ function toMovementView(r: Raw): MovementView {
       ownerName: (r.o_owner_name as string | null) ?? null,
     },
     target: tile
-      ? { villageId: 0, name: NEW_VILLAGE_NAME, x: r.target_x as number, y: r.target_y as number, ownerId: null, ownerName: null }
+      ? { villageId: 0, name: tileName, x: r.target_x as number, y: r.target_y as number, ownerId: null, ownerName: null }
       : {
           villageId: r.target_village_id as number,
           name: r.t_name as string,
@@ -447,6 +452,16 @@ export class Store extends SqlBase {
   private depth = 0;
   /** Tribe tables. Shares this connection, so it takes part in `tx`. */
   readonly tribes: TribeStore;
+  /** Domination win condition and the world end (domination-service.ts). */
+  readonly domination: DominationStore;
+  /** Map sites: holders and the troops standing at them (site-service.ts). */
+  readonly sites: SiteStore;
+  /**
+   * Set by the SiteService: the name of the site standing on a tile, or null. Movements to a tile show it as their target.
+   * Also the Renown bonus (0.04 = +4%) the player's tribe earns from the sites it holds; 0 when there is none.
+   */
+  siteNameAt: ((x: number, y: number) => string | null) | null = null;
+  renownBonusOf: ((playerId: number) => number) | null = null;
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
   readonly forum: ForumStore;
@@ -463,13 +478,20 @@ export class Store extends SqlBase {
   constructor(db: DatabaseSync) {
     super(db);
     this.tribes = new TribeStore(db);
+    this.domination = new DominationStore(db);
+    this.sites = new SiteStore(db);
     this.mail = new MailStore(db);
     this.forum = new ForumStore(db);
     this.staff = new StaffStore(db);
     this.support = new SupportStore(db);
     this.msgReports = new ReportStore(db);
     this.emit = (event) => this.queueLive(event);
-    for (const s of [this.tribes, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+    for (const s of [this.tribes, this.domination, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+  }
+
+  /** True once the world has ended (a tribe won, or the operator ended it): the world is frozen. */
+  isWorldEnded(): boolean {
+    return this.domination.getWorldEnd() !== null;
   }
 
   /** Append a row to the audit log (never put secrets in `detail`). */
@@ -485,6 +507,7 @@ export class Store extends SqlBase {
   clearVillageActivity(villageId: number): void {
     this.run('DELETE FROM movements WHERE origin_village_id = ?', villageId);
     this.run('DELETE FROM stationed WHERE home_village_id = ?', villageId);
+    this.run('DELETE FROM site_garrison WHERE home_village_id = ?', villageId);
   }
 
   /**
@@ -1041,10 +1064,17 @@ export class Store extends SqlBase {
 
   // ---- Renown (docs/GAME_DESIGN.md section 18.2) --------------------------------------------------
 
-  /** Add earned Renown to a player's total. Never negative: Renown is never taken away. */
-  addRenown(playerId: number, amount: number): void {
-    if (!(amount > 0)) return;
-    this.run('UPDATE players SET renown_total = renown_total + ? WHERE id = ?', amount, playerId);
+  /**
+   * Add earned Renown to a player's total and return what was really credited. Never negative: Renown is never taken away.
+   * Every earning path ends here, so the Fire Shrine bonus (docs/GAME_DESIGN.md 18.4b: +x% for every member of a tribe that holds
+   * sites) is applied in exactly this one place and can never count twice. `plain` skips it (test-mode top-ups are not earnings).
+   */
+  addRenown(playerId: number, amount: number, plain = false): number {
+    if (!(amount > 0)) return 0;
+    const bonus = plain ? 0 : (this.renownBonusOf?.(playerId) ?? 0);
+    const credited = bonus > 0 ? amount * (1 + bonus) : amount;
+    this.run('UPDATE players SET renown_total = renown_total + ? WHERE id = ?', credited, playerId);
+    return credited;
   }
 
   /** Raw Renown already counted for (earner, opponent) in the window that is open at `at`; 0 when there is none. */
@@ -1212,7 +1242,7 @@ export class Store extends SqlBase {
 
   getMovementView(id: number): MovementView | null {
     const r = this.get(`${MOVEMENT_VIEW_SQL} WHERE m.id = ?`, id);
-    return r ? toMovementView(r) : null;
+    return r ? toMovementView(r, this.siteNameAt) : null;
   }
 
   /**
@@ -1228,7 +1258,7 @@ export class Store extends SqlBase {
        ORDER BY m.arrive_at, m.id`,
       playerId,
       playerId,
-    ).map(toMovementView);
+    ).map((r) => toMovementView(r, this.siteNameAt));
   }
 
   // ---- stationed support -------------------------------------------------------------------------------

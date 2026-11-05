@@ -890,6 +890,11 @@ a.btn {
   color: var(--danger);
 }
 
+.world-status-finished {
+  background: var(--panel-2);
+  color: var(--ink-soft);
+}
+
 @media (min-width: 640px) {
   .lobby {
     padding: calc(22px + env(safe-area-inset-top)) 22px calc(32px + env(safe-area-inset-bottom));
@@ -4221,5 +4226,316 @@ button.strip {
 @media (max-width: 599px) {
   .subtab:last-child:nth-child(3n + 1) {
     grid-column: 1 / -1;
+  }
+}
+
+/* ---- World end banner and results ---------------------------------------------------------------------- */
+
+.strip-ended {
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: var(--c-sun-hi);
+  color: var(--c-ink);
+}
+
+.strip-ended-btn {
+  min-height: 44px;
+}
+
+.end-stage {
+  min-width: 0;
+}
+
+.end-winner,
+.rk-stage .dom {
+  max-width: 920px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.rk-stage .card-title,
+.rk-stage .end-winner .end-reason {
+  color: var(--c-ink);
+}
+
+.end-winner-title {
+  font-size: 1.5rem;
+}
+
+.end-reason {
+  margin: 0;
+  font-weight: 600;
+}
+
+.end-winner-tag {
+  margin: 0;
+}
+
+.end-facts {
+  margin-top: 0;
+}
+
+.end-sub {
+  display: block;
+  font-weight: 400;
+}
+
+.end-back {
+  margin: 0 auto 8px;
+  text-align: center;
+}
+
+.rk-stage .end-back .btn {
+  color: var(--c-ink);
+}
+
+/* ---- Domination bar ------------------------------------------------------------------------------------- */
+
+.dom {
+  display: grid;
+  gap: 8px;
+}
+
+.dom .card-title {
+  margin-bottom: 0;
+}
+
+.dom-headline {
+  margin: 0;
+  font-weight: 700;
+}
+
+.dom-leader {
+  margin: 0;
+}
+
+/* The bar leaves room above for the label of the win line. */
+.dom-bar {
+  position: relative;
+  height: 22px;
+  margin-top: 20px;
+  border-radius: 11px;
+  background: var(--c-ink-deep);
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.dom-fill {
+  height: 100%;
+  min-width: 4px;
+  border-radius: 11px;
+  background: var(--c-sun);
+  transition: width 1s linear;
+}
+
+.dom-close .dom-fill,
+.dom-counting .dom-fill,
+.dom-ended .dom-fill {
+  background: var(--c-terra);
+}
+
+.dom-line {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 0;
+  border-left: 3px solid var(--c-cream);
+  border-radius: 2px;
+}
+
+.dom-line-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--c-cream);
+  color: var(--c-ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.4;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dom-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dom-toggle {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.dom-conds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 16px;
+  margin: 4px 0 0;
+}
+
+.dom-cond dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.dom-cond dd {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dom-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.2em;
+  color: var(--c-sun);
+  font-weight: 800;
+}
+
+.dom-cond.is-ok .dom-mark {
+  color: var(--c-leaf);
+}
+
+.dom-mini {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--c-ink-deep);
+  overflow: hidden;
+}
+
+.dom-mini > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--c-sun);
+}
+
+.dom-cond.is-ok .dom-mini > span {
+  background: var(--c-leaf);
+}
+
+.dom-why ul,
+.dom-top ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dom-why li {
+  padding: 6px 10px;
+  border-left: 3px solid var(--c-sun);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dom-top li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+
+.dom-top-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.dom-top-rank {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-right: 4px;
+  opacity: 0.7;
+}
+
+.dom-top-share {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.dom-top-bar {
+  grid-column: 1 / -1;
+}
+
+.dom-compact .dom-leader {
+  display: none;
+}
+
+/* On the parchment pages (Rankings, results) the bar is a paper card like its neighbours. */
+.rk-stage .dom {
+  border: 2px solid var(--c-wood-line);
+  background: rgba(255, 248, 232, 0.94);
+  color: var(--c-ink);
+}
+
+.rk-stage .dom .muted {
+  color: var(--c-ink-3);
+}
+
+.rk-stage .dom .dom-bar,
+.rk-stage .dom .dom-mini {
+  background: var(--c-bone-shade);
+  box-shadow: none;
+}
+
+.rk-stage .dom .dom-why li {
+  background: var(--c-bone);
+}
+
+.rk-stage .dom .dom-mark {
+  color: var(--c-sun-lo);
+}
+
+.rk-stage .dom .dom-cond.is-ok .dom-mark {
+  color: #3f6b22;
+}
+
+.rk-stage .dom .dom-line {
+  border-left-color: var(--c-ink);
+}
+
+.rk-stage .dom .dom-line-label {
+  background: var(--c-ink);
+  color: var(--c-cream);
+}
+
+.site-bonus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 1px dashed var(--c-sun);
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+@media (min-width: 900px) {
+  .dom-bar {
+    height: 26px;
+    border-radius: 13px;
+  }
+
+  .dom-fill {
+    border-radius: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dom-fill {
+    transition: none;
   }
 }

@@ -11,7 +11,8 @@
 //    cross-site hijacking otherwise;
 //  - caps: sockets per session, per IP and in total; incoming frames max LIVE_MAX_MESSAGE_BYTES and LIVE_MSG_PER_WINDOW
 //    per window, anything but ping closes the socket;
-//  - a player only ever receives hints addressed to their own player channel or their tribe's channel;
+//  - a player only ever receives hints addressed to their own player channel or their tribe's channel (plus the one
+//    world-wide hint "the world ended", which carries no data);
 //  - heartbeat: dead sockets are dropped, the session is re-checked and the tribe channel refreshed every beat;
 //  - logout, ban or a vanished session close the sockets at once.
 // Hints are published by the Store after the database transaction commits (see Store.tx / live-events.ts).
@@ -171,6 +172,9 @@ export class LiveHub {
           break;
         case 'tribe':
           queue(this.byTribe.get(e.tribeId), e.topics);
+          break;
+        case 'all':
+          queue(this.conns, e.topics);
           break;
         case 'membership':
           for (const c of this.byPlayer.get(e.playerId) ?? []) this.retribe(c);

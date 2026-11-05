@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
+import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { ProfileExtras } from './ProfileExtras.tsx';
@@ -675,6 +676,7 @@ export function RankingsView() {
           <span>Sample data</span>
         </label>
       </div>
+      <DominationCard compact />
       <div className="subtabs" role="tablist" aria-label="Rankings">
         {sections.map((s) => (
           <button

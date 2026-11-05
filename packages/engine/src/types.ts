@@ -125,6 +125,27 @@ export interface WorldSettings {
    * abandoned villages around them.
    */
   layout?: 'scattered' | 'expanding';
+  /**
+   * Domination win condition of this world (docs/GAME_DESIGN.md, "Winning the world"). Written whole at world creation;
+   * databases created before it have none and use DOMINATION_DEFAULTS. Always read through `mergeDominationSettings`.
+   */
+  domination?: Partial<DominationSettings>;
+}
+
+/** Per-world domination rule. Durations are in days at speed 1 and are divided by the world speed like every other duration. */
+export interface DominationSettings {
+  /** The world must be this old before a tribe can win. */
+  minAgeDays: number;
+  /** Fewest active players needed (the effective minimum is also at least `minPeakShare` of the peak). */
+  minActivePlayers: number;
+  /** The effective player minimum is at least this share (0..1) of the peak number of active players. */
+  minPeakShare: number;
+  /** Share (0.5..1) of all player-owned village points a tribe must hold. */
+  winShare: number;
+  /** The tribe must keep the share (with every other condition) for this many days. */
+  streakDays: number;
+  /** A player counts as active when they played within this many days. */
+  activeDays: number;
 }
 
 export interface BuildJob {

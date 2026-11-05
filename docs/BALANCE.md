@@ -270,6 +270,23 @@ restart). Rules: pair cap 2 per 7 days, hold 12 h, 1 Chieftain per 4,000 points,
   is close to the 2x line: the levers if a real world snowballs are `PAIR_CONQUEST_CAP` (2 -> 1), `HOLD_HOURS` (12 -> 18) and the Chieftain price.
 - **Nothing in `config.ts` was changed for this run** (only `HEARTH_PLAYERS_ENABLED` is now `true` and `PAIR_CONQUEST_*` were added with step 4).
 
+### 7.7 Sites: the Fire Shrine Renown bonus (step 5, 2026-11-05) - NOT simulated yet
+
+What is built (`config.ts` `SITE_*`, `SHRINE_*`; server `site-service.ts`): a tribe that holds sites earns more Renown for every member.
+Dormant (first `SHRINE_WAKE_DAYS` = 120 days at speed 1): Fire Shrine +1% each, Great Fire +3%. Awake: Fire Shrine +4% each, Great Fire +10%.
+The sum is capped at +30% (`SITE_RENOWN_BONUS_CAP`). It multiplies every Renown a member earns (buildings, the defender trickle, battles, Feasts) in
+one place (`Store.addRenown`), never a battle result, never resources. Players without a tribe, and tribes without a held site, get exactly the old numbers.
+
+What is known by arithmetic only (no simulation): all nine sites awake would be +42%, cut to +30% by the cap; all nine dormant +11%. +30% Renown makes
+the next village affordable in 1/1.3 = 77% of the time, so a tribe that holds the whole map settles about a quarter faster than one that holds nothing.
+Holding costs real troops: up to 3,000 population per Shrine and 5,000 at the Great Fire (food upkeep, risk of losing them), and every capture can be
+retaken after the 2 hour calm time.
+
+**Not done:** `npm run sim -- --sites` (computer tribes fighting for the sites over 30+ days, then comparing Renown and villages of holders and non-holders
+with the bonus on and off). Until it runs, treat +30% as a guess: the levers are the numbers above in `config.ts`. Things the run should answer: does a
+leading tribe also win the sites (snowball), does anybody actually keep 3,000 population standing around for +1%, and whether the Great Fire (+3% dormant) is a
+prize worth its 1,500 militia. The server rules are covered by `apps/server/test/sites.test.ts`, the pure rules by the engine tests.
+
 ## 8. Siege units (GAME_DESIGN §18.9), 2026-11-05
 
 **Tools.** `npm run sim -- --siege` (`scripts/sim/siege.ts` + a flag in `scripts/sim/balance.ts`; reports `docs/sim/2026-11-05-siege.txt`, 30 days, and

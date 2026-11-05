@@ -9,16 +9,17 @@ import type {
   StationedDto,
   VillageListItemDto,
   VillageState,
+  WorldEndDto,
   WorldSettings,
 } from '@clanfire/engine';
 
 /** Tabs shown in the main navigation. */
 export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu (not in the navigation bar). */
-export type MenuPage = 'support' | 'staff';
+export type MenuPage = 'support' | 'staff' | 'results';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
-export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {
@@ -88,6 +89,8 @@ export interface GameApi {
   viewTribe: (target: TribeTarget) => void;
   /** Call after any tribe change: refreshes /api/state and invalidates map data. */
   tribeChanged: () => void;
+  /** The frozen result once the world has ended (orders are closed, reading still works); null while it runs. */
+  worldEnd: WorldEndDto | null;
   /** Last polling error, null when connected. */
   connectionError: string | null;
   tab: Tab;

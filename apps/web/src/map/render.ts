@@ -2,8 +2,9 @@
 // decides when to redraw. Near zoom blits cached terrain/sprite bitmaps tile by tile in painter's order;
 // far zoom blits pre-composited multi-tile blocks (blocks.ts) so thousands of tiles stay cheap.
 
-import type { Coords, MapVillageDto, MovementDto, Route, Terrain } from '@clanfire/engine';
+import type { Coords, MapVillageDto, MovementDto, Route, SiteDto, Terrain } from '@clanfire/engine';
 import { mapStage, ruinStage, travelRoute } from '@clanfire/engine';
+import { siteName } from '../sites.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, villageSprite } from './allegiance.ts';
 import { CHUNK } from './chunks.ts';
 import type { MapChunks } from './chunks.ts';
@@ -33,6 +34,10 @@ export interface Scene {
   hover: Coords | null;
   own: Coords | null;
   movements: readonly MovementDto[];
+  /** Great Fire and Fire Shrines (GET /api/sites); empty when the server has none or does not answer. */
+  sites: readonly SiteDto[];
+  /** My tribe's id (the holder ring of my own tribe's sites is green), or null. */
+  myTribeId: number | null;
   /** Server-corrected time (ms) for marching markers. */
   now: number;
   /** Mid-gesture: reuse cached bitmaps from another zoom level instead of rasterising a new one. */
@@ -56,10 +61,19 @@ export interface DrawnVillage {
   scale: number;
 }
 
+/** A drawn site, kept for picking: tile-centre position and the tile scale (hitsSiteBox in ../sites.ts). */
+export interface DrawnSite {
+  site: SiteDto;
+  x: number;
+  y: number;
+  scale: number;
+}
+
 export interface FrameResult {
   /** Some bitmaps came from another zoom level; redraw once the gesture ends. */
   stale: boolean;
   villages: DrawnVillage[];
+  sites: DrawnSite[];
   /** Fastest on-screen marker speed (CSS px per second); -1 when no marker is visible. */
   markerSpeed: number;
 }
@@ -239,6 +253,9 @@ export function drawMap(sc: Scene): FrameResult {
   const vMax = Math.min(2 * R, Math.ceil(cv + H / 2 / hh + 7));
 
   const drawn: DrawnVillage[] = [];
+  const drawnSites: DrawnSite[] = [];
+  const siteTiles = new Map<number, SiteDto>();
+  for (const st of sc.sites) siteTiles.set(vkey(st.x, st.y), st);
   const sel = sc.selected;
   let pointerAt: { x: number; y: number } | null = null;
   let selFrame: { x: number; y: number } | null = null;
@@ -256,7 +273,7 @@ export function drawMap(sc: Scene): FrameResult {
         const y = (v - u) >> 1;
         const p = sxy(u, v);
         const code = terrain.get(x, y);
-        const name = villages.has(vkey(x, y)) ? CLEARED_TILE[code]! : tileArt(code, x, y);
+        const name = villages.has(vkey(x, y)) || siteTiles.has(vkey(x, y)) ? CLEARED_TILE[code]! : tileArt(code, x, y);
         if (!painter.draw(name, p.x, p.y)) drawFlatTile(ctx, code, p.x, p.y, s);
       }
     }
@@ -265,12 +282,13 @@ export function drawMap(sc: Scene): FrameResult {
       const x = (u + v) >> 1;
       const y = (v - u) >> 1;
       const vil = villages.get(vkey(x, y));
+      const site = vil ? undefined : siteTiles.get(vkey(x, y));
       const isSel = !!sel && sel.x === x && sel.y === y;
       const isHover = !!sc.hover && sc.hover.x === x && sc.hover.y === y;
-      if (!vil && !isSel && !isHover) continue;
+      if (!vil && !site && !isSel && !isHover) continue;
       const p = sxy(u, v);
       const code = terrain.get(x, y);
-      const lift = (vil ? (code === HILLS ? 12 : 0) : (TILE_LIFT[code] ?? 0)) * s;
+      const lift = (vil || site ? (code === HILLS ? 12 : 0) : (TILE_LIFT[code] ?? 0)) * s;
       const gx = p.x;
       const gy = p.y - lift;
       if (isHover && !isSel) {
@@ -291,6 +309,9 @@ export function drawMap(sc: Scene): FrameResult {
           const top = vil.kind === 'abandoned' ? RUIN_TOP[ruinStage(vil.points) - 1] : STAGE_TOP[mapStage(vil.points) - 1];
           pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : VILLAGE_DRAW_SCALE) - 16) * s };
         }
+      } else if (site) {
+        drawnSites.push(drawSite(ctx, site, gx, gy, s, sc.myTribeId));
+        if (isSel) pointerAt = { x: gx, y: gy - (site.kind === 'great_fire' ? 104 : 88) * s };
       } else if (isSel) {
         pointerAt = { x: gx, y: gy - 34 * s };
       }
@@ -311,6 +332,14 @@ export function drawMap(sc: Scene): FrameResult {
     const ly = d.y + 30 * s + fs * 0.6;
     if (own) pill(ctx, t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, fs, SUN, INK);
     else pill(ctx, coords, d.x, ly, fs, INK, BONE, vil.tribeTag ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined);
+  }
+  // Sites: name and holder tag (always a tag when held, so a far-out map still shows who owns what).
+  for (const d of drawnSites) {
+    const st = d.site;
+    const ly = d.y + 30 * s + fs * 0.6;
+    const chip = st.holder ? { text: `[${st.holder.tag}]`, color: siteRingColor(st, sc.myTribeId) } : undefined;
+    if (t >= LABEL_TILE) pill(ctx, siteName(st), d.x, ly, fs, INK, BONE, chip);
+    else if (chip) pill(ctx, chip.text, d.x, ly, fs, INK, BONE);
   }
 
   if (pointerAt) {
@@ -333,7 +362,7 @@ export function drawMap(sc: Scene): FrameResult {
   // map while panning. The centre coordinates are shown in the map's status line instead.
   void rimShown;
 
-  return { stale: painter.stale, villages: drawn, markerSpeed };
+  return { stale: painter.stale, villages: drawn, sites: drawnSites, markerSpeed };
 }
 
 /** Sunflower selection frame around a tile, split at the tile's centre line so the sprite sits inside it. */
@@ -481,6 +510,167 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
   }
 
   return { village: v, sprite, x, y, scale: s * k };
+}
+
+// ---- Sites: Great Fire and Fire Shrines (stone plinth, standing stones, a brazier: lit when awake, ash when dormant) ----
+
+const STONE = '#BDB5A6';
+const STONE_HI = '#D8D1C2';
+const STONE_LO = '#8E8678';
+const SITE_MINE = '#5E8C3A';
+const SITE_OTHER = '#C4623A';
+const SITE_NEUTRAL = '#A39E94';
+
+/** Ring and tag colour of a site: green for my tribe's, terracotta for another tribe's, grey for nobody's. */
+export function siteRingColor(site: Pick<SiteDto, 'holder'>, myTribeId: number | null): string {
+  if (!site.holder) return SITE_NEUTRAL;
+  return myTribeId !== null && site.holder.tribeId === myTribeId ? SITE_MINE : SITE_OTHER;
+}
+
+/** A tapering standing stone with a rounded top, base centre at (x, y) in tile-centre px. */
+function standingStone(ctx: CanvasRenderingContext2D, x: number, y: number, h: number): void {
+  const p = new Path2D();
+  p.moveTo(x - 6, y);
+  p.lineTo(x - 4.5, y - h + 6);
+  p.quadraticCurveTo(x, y - h - 4, x + 4.5, y - h + 6);
+  p.lineTo(x + 6, y);
+  p.closePath();
+  ctx.fillStyle = STONE;
+  ctx.fill(p);
+  ctx.stroke(p);
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y - 2);
+  ctx.lineTo(x + 2.2, y - h + 8);
+  ctx.strokeStyle = STONE_HI;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+}
+
+function drawSite(ctx: CanvasRenderingContext2D, site: SiteDto, x: number, y: number, s: number, myTribeId: number | null): DrawnSite {
+  const great = site.kind === 'great_fire';
+  const k = great ? 1.25 : 1;
+  const ring = siteRingColor(site, myTribeId);
+  // Ownership ring on the ground, like a village's.
+  withTile(ctx, x, y, s, () => {
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(site.holder ? [] : [6, 6]);
+    ctx.lineWidth = 6.5;
+    ctx.strokeStyle = 'rgba(255, 248, 232, 0.95)';
+    ctx.stroke(RING);
+    ctx.lineWidth = 3.6;
+    ctx.strokeStyle = ring;
+    ctx.stroke(RING);
+  });
+  withTile(ctx, x, y, s * k, () => {
+    ctx.setLineDash([]);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK;
+    // Contact shadow.
+    ctx.beginPath();
+    ctx.ellipse(3, 4, 34, 17, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(43, 33, 28, 0.28)';
+    ctx.fill();
+    // Back standing stone, then the round plinth (a drum with a stone top).
+    standingStone(ctx, 0, -14, 30);
+    const drum = new Path2D();
+    drum.moveTo(-32, -12);
+    drum.lineTo(-32, 0);
+    drum.ellipse(0, 0, 32, 16, 0, Math.PI, 0, true);
+    drum.lineTo(32, -12);
+    drum.ellipse(0, -12, 32, 16, 0, 0, Math.PI, false);
+    drum.closePath();
+    ctx.fillStyle = STONE_LO;
+    ctx.fill(drum);
+    ctx.stroke(drum);
+    ctx.beginPath();
+    ctx.ellipse(0, -12, 32, 16, 0, 0, Math.PI * 2);
+    ctx.fillStyle = STONE_HI;
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(0, -12, 20, 10, 0, 0, Math.PI * 2);
+    ctx.fillStyle = STONE;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    // Brazier bowl.
+    const bowl = new Path2D('M-13 -19Q-12 -4 0 -3Q12 -4 13 -19Z');
+    ctx.fillStyle = '#5A4A40';
+    ctx.fill(bowl);
+    ctx.stroke(bowl);
+    ctx.beginPath();
+    ctx.ellipse(0, -19, 13, 5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#3E3028';
+    ctx.fill();
+    ctx.stroke();
+    if (site.awake) {
+      // Soft glow, then a three-layer flame.
+      ctx.beginPath();
+      ctx.ellipse(0, -36, 28, 32, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(242, 179, 61, 0.26)';
+      ctx.fill();
+      const f = great ? 1.35 : 1;
+      drawFlame(ctx, f, '#E0703F', SUN, '#FFF1B8');
+    } else {
+      // Dormant: ash in the bowl, one dull ember, a thin smoke line.
+      ctx.beginPath();
+      ctx.ellipse(0, -19, 10, 3.6, 0, 0, Math.PI * 2);
+      ctx.fillStyle = STONE_LO;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(2, -19.5, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#843A23';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -23);
+      ctx.bezierCurveTo(-6, -30, 6, -36, 0, -44);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(214, 210, 202, 0.9)';
+      ctx.stroke();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 3;
+    }
+    // Side stones in front of the bowl; the Great Fire has four, with a gold band on the plinth.
+    standingStone(ctx, -27, -4, 24);
+    standingStone(ctx, 27, -4, 24);
+    if (great) {
+      standingStone(ctx, -14, 9, 18);
+      standingStone(ctx, 14, 9, 18);
+      ctx.beginPath();
+      ctx.ellipse(0, -12, 32, 16, 0, 0, Math.PI);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = SUN;
+      ctx.stroke();
+    }
+  });
+  return { site, x, y, scale: s };
+}
+
+/** Three nested flame shapes (outer, middle, core) rising from the bowl at (0, -19). */
+function drawFlame(ctx: CanvasRenderingContext2D, f: number, outer: string, mid: string, core: string): void {
+  const layers: Array<[number, string, number]> = [
+    [1, outer, 3],
+    [0.72, mid, 0],
+    [0.4, core, 0],
+  ];
+  for (const [k, color, stroke] of layers) {
+    ctx.save();
+    ctx.translate(0, -19);
+    ctx.scale(f * k, f * k);
+    const flame = new Path2D('M0 -2C-14 -14 -8 -34 0 -50C8 -34 14 -14 0 -2Z');
+    ctx.fillStyle = color;
+    ctx.fill(flame);
+    if (stroke > 0) {
+      ctx.lineWidth = stroke / (f * k);
+      ctx.stroke(flame);
+    }
+    ctx.restore();
+  }
 }
 
 function drawFlatTile(ctx: CanvasRenderingContext2D, code: number, x: number, y: number, s: number): void {

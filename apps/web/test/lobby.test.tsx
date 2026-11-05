@@ -2,10 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { isLobbyPath } from '@clanfire/engine';
+import { WORLD_STATUSES, isLobbyPath } from '@clanfire/engine';
 import type { LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, lobbyApiBase, safeWorldPath, withApiBase } from '../src/api.ts';
-import { WORLD_STATUS_LABEL, enterWorld } from '../src/lobby.ts';
+import { WORLD_STATUS_LABEL, enterWorld, sortWorlds, worldButtonLabel } from '../src/lobby.ts';
 import { isLobbyWorld, loadWorldInfo, resetWorldInfoCache } from '../src/hooks/useWorldInfo.ts';
 
 interface Call {
@@ -186,4 +186,15 @@ test('world status labels cover every status', () => {
   assert.equal(WORLD_STATUS_LABEL.open, 'Open');
   assert.match(WORLD_STATUS_LABEL.full, /returning players only/);
   assert.equal(WORLD_STATUS_LABEL.closed, 'Closed');
+  assert.equal(WORLD_STATUS_LABEL.finished, 'Finished');
+  for (const s of WORLD_STATUSES) assert.ok(WORLD_STATUS_LABEL[s], s);
+});
+
+test('finished worlds say "View results" and sort below running ones, keeping the lobby order otherwise', () => {
+  assert.equal(worldButtonLabel('finished'), 'View results');
+  for (const s of ['open', 'full', 'closed'] as const) assert.equal(worldButtonLabel(s), 'Play');
+  const w = (id: string, status: LobbyWorldDto['status']): LobbyWorldDto => ({ id, name: id, status, path: `/w/${id}/` });
+  const list = [w('a', 'finished'), w('b', 'open'), w('c', 'finished'), w('d', 'closed'), w('e', 'full')];
+  assert.deepEqual(sortWorlds(list).map((x) => x.id), ['b', 'd', 'e', 'a', 'c']);
+  assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e'], 'the input is not changed');
 });

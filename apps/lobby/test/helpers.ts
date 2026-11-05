@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
-import { LOBBY_SESSION_COOKIE } from '@clanfire/engine';
+import { LOBBY_SESSION_COOKIE, type WorldStatus } from '@clanfire/engine';
 import { buildApp, type BuildAppOptions } from '../src/app.ts';
 import { generateKeyPair, publicKeyBase64, type GeneratedKeyPair } from '../src/pass.ts';
 
@@ -78,6 +78,6 @@ export function errorOf(res: LightMyRequestResponse, status: number, code: strin
 }
 
 /** Add a world straight into the database (the CLI is tested separately). */
-export function addWorld(app: FastifyInstance, id: string, name = `World ${id}`, status: 'open' | 'full' | 'closed' = 'open', path = `/w/${id}/`): void {
+export function addWorld(app: FastifyInstance, id: string, name = `World ${id}`, status: WorldStatus = 'open', path = `/w/${id}/`): void {
   app.ctx.store.insertWorld({ id, name, status, path, createdAt: 0 });
 }

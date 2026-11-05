@@ -7,7 +7,19 @@ export const WORLD_STATUS_LABEL: Record<WorldStatus, string> = {
   open: 'Open',
   full: 'Full: returning players only',
   closed: 'Closed',
+  finished: 'Finished',
 };
+
+/** Card button text: a finished world is only for looking at the results. */
+export function worldButtonLabel(status: WorldStatus): string {
+  return status === 'finished' ? 'View results' : 'Play';
+}
+
+/** Running worlds first, finished ones below; the lobby's own order is kept inside each group (stable sort). */
+export function sortWorlds(worlds: readonly LobbyWorldDto[]): LobbyWorldDto[] {
+  const rank = (w: LobbyWorldDto): number => (w.status === 'finished' ? 1 : 0);
+  return [...worlds].sort((a, b) => rank(a) - rank(b));
+}
 
 const MANUAL_SIGN_OUT_KEY = 'clanfire.manualSignOut';
 const LAST_REENTRY_KEY = 'clanfire.lastReentry';

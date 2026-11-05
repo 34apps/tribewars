@@ -644,20 +644,20 @@ Sizes: **S** = a day or less, **M** = a few days, **L** = about a week or more (
 
 ### 18.0 The big picture
 
-Clanfire's promise in one sentence: **a season is a story with an ending, and the land, the clock and the tribe
-all matter.**
+Clanfire's promise in one sentence: **a world is a story with an ending (one tribe takes the land), and the land, the clock and the
+tribe all matter.** (Revised 2026-11-05: no short seasons for normal worlds.)
 
 | Pillar | What the player feels | Part |
 |---|---|---|
-| A season with a finish line | "We are playing for something, and in nine weeks everyone starts fresh." | 18.1 |
+| A world that ends by domination | "A tribe that owns three quarters of the land for two weeks wins; everyone can see the bar." | 18.1 |
 | Villages are won by holding, not by one click | "They put our fire out, we have twelve hours to answer." | 18.2 |
 | ~~The game respects sleep~~ (dropped 2026-11-05) | ~~"I can sleep without waking up poorer."~~ | 18.3 |
 | The land matters | "The mountain is between us, so the real road goes round." | 18.4 |
 | A tribe builds together | "Our shipments built the watchtower." | 18.5 |
 | Money buys looks, never strength | "I support the game and nobody is stronger for it." | 18.6 |
 
-How they connect: seasons give the goal (Fire Shrines); shrines are sites on the map (18.4); taking and holding
-sites reuses the troop-stationing rules; tribe projects make a tribe tougher at holding them; badges and cosmetics are what players keep when the season ends.
+How they connect: domination gives the goal (taking and holding villages, 18.2); Fire Shrines are bonus sites on the map (18.4b); taking and
+holding sites reuses the troop-stationing rules; tribe projects make a tribe tougher; badges and cosmetics are what players keep when a world ends.
 
 Prerequisites from `GENRE_REVIEW.md` Part C that should land **before** conquest, because conquest raises the
 stakes: secret battle seed (#6), tame abandoned-village farming and upkeep rebalance (#3, #4), cap on stationed
@@ -666,9 +666,52 @@ upkeep 0.25 are built (§2, §7, §8); the pacing numbers (item 4 of step 0) wai
 
 ---
 
-### 18.1 Seasons (about nine weeks), won by tribes holding Fire Shrines; badges kept
+### 18.1 How a world ends: domination by one tribe (owner, 2026-11-05; built 2026-11-05, step 5)
 
-> **Owner 2026-11-05: short seasons rejected for normal worlds.** Normal worlds run long (end rule to be chosen: domination, endless, or long fixed length). Keep this nine-week season design as an idea for a **special limited-time world** that can be opened later next to the normal worlds (`docs/MULTI_WORLD.md`: one more world with its own settings).
+**Owner 2026-11-05: short seasons are rejected for normal worlds.** A normal world is long and ends by **domination**: one tribe
+owns almost all the land for two weeks in a row. The nine-week season with scoring Fire Shrines is kept only as an idea for a
+possible **special limited-time world** (further down in this section; nothing of it is built or planned for normal worlds).
+
+**The rule** (per-world settings, stored in the world's settings at creation; defaults in `config.ts` `DOMINATION_DEFAULTS`; the operator
+changes them with `npm run admin -w @clanfire/server -- domination-set <key> <value>`; every duration is divided by the world speed like all
+other durations):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `minAgeDays` | 180 | Domination does not count before the world is 6 months old (÷ speed). |
+| `minActivePlayers` | 50 | Fewest active players for the streak to run. |
+| `minPeakShare` | 0.30 | The minimum is `max(minActivePlayers, ceil(0.30 × the world's peak active players))`. The peak is stored and only grows, so a world that once had 400 active players needs 120, and a dying world cannot be "won" by a handful. |
+| `winShare` | 0.75 | One tribe must own at least this share of all **village points owned by players**. Abandoned villages do not count. Allies do **not** add up: only the one tribe counts. Exactly 75.00% counts; 74.99% does not. |
+| `streakDays` | 14 | The share must hold for this many days **in a row** (÷ speed). |
+| `activeDays` | 7 | "Active" = played in the last 7 days (÷ speed), not banned, not a test-mode account; accounts that share a connection count **once**. |
+
+- **Streak.** The start of the current streak is stored (`domination_streak`). It starts at the first check where all three conditions hold
+  (world old enough, enough active players, a tribe at or above `winShare`), stays while they keep holding for the same tribe, and is
+  cleared the moment any of them fails. The tribe wins when `now − start ≥ streakDays`. It is settled from the stored start time, never by a
+  timer loop: the server checks at the end of its normal movement processing (every request and the 1 s tick), at most once per
+  `DOMINATION_EVAL_INTERVAL`, so downtime loses nothing. The recorded end time is `start + streak length`.
+- **Tribe size.** `TRIBE_MAX_MEMBERS` is 30 (§11); it is enforced on every way into a tribe and tested.
+- **World end.** When a tribe wins (or the operator ends the world by hand) the world **freezes**: no new orders of any kind (sends, builds,
+  training, tribe changes ... all state-changing requests answer 403 "This world has ended."), except sign-in/out, mail, support tickets, forum
+  and tribe chat. New accounts cannot register. Movements already in flight still arrive and resolve. The caretaker and the idle-abandon
+  pass stop. The **final tribe ranking and the final player ranking are stored once** in `world_end` at the end moment and never change
+  afterwards. The web client switches to a **world-end screen** (the winning tribe, the final tables), and the lobby marks the world
+  **Finished** (`world-status <id> finished`, `docs/MULTI_WORLD.md`).
+- **Operator tools** (all logged in the audit log): `domination` (status), `domination-set`, `world-end [tribeTag|-] [reason]`, `world-extend <days>`
+  (postpones domination by raising `minAgeDays`, clears the streak; refuses on an ended world; reopening a finished world is not built).
+- **Domination bar** (everyone, in the Tribe area and on the world-end screen): the leading tribe, its share, the 75% line, the streak in
+  days, the world age against the minimum, the active players against the minimum, and a plain list of why it does not count yet.
+- **Why it is fair.** Nobody can win by a surprise: it takes six months, a healthy world, three quarters of everything players own and two
+  weeks of holding it, and every one of those moments shows on the public bar, so other tribes can join forces against the leader (allies do
+  not add up for the *leader*, but any number of tribes can fight it). Raising or lowering the numbers is an operator decision per world.
+
+**Sites and Fire Shrines are not the win condition any more.** They stay on the map as **objectives with bonuses** for the tribe that holds
+them (§18.4b).
+
+#### Idea kept: a special limited-time world (nine-week season, Fire Shrine score)
+
+> Not built, not planned for normal worlds. It could be opened later next to the normal worlds (`docs/MULTI_WORLD.md`: one more world with its
+> own settings) if the owner wants a short competitive round. The text below is the old proposal, unchanged.
 
 **How it works**
 - One season = one world (the multi-world setup already gives each world its own server and database; the
@@ -1077,7 +1120,7 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
 
 | Site | Count | Effect for the holding tribe |
 |---|---|---|
-| **Fire Shrine** | 8 (+ the Great Fire) in a season | Season score (18.1). No other effect. |
+| **Fire Shrine** | 8 (+ the Great Fire) | **Bonus for the holding tribe** (see "Step 5" below). Not the win condition (18.1 is domination). |
 | **Waymark** | 6 | Terrain penalty is **halved** within 12 tiles of the Waymark for the holding tribe's own troops and shipments (their trips through that area are faster). Never for enemies. |
 | **Lookout** | 6 | The holders see every enemy **army march that passes within 20 tiles** of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. |
 
@@ -1085,6 +1128,50 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
   least 15 tiles. They persist all season.
 - The holder's side can use a Waymark's help only inside its radius, and only on movements that **start after**
   the capture (movements in flight keep the times they were sent with, like everything else).
+
+**Step 5 (owner, 2026-11-05; built 2026-11-05): Fire Shrines as objectives with bonuses, not the win condition.**
+- **Built:** the Great Fire and eight Fire Shrines (kinds `great_fire`, `fire_shrine`). Waymarks and Lookouts are **not built yet** (follow-up).
+- **Placement** (pure function of the world seed, same for everyone): the Great Fire near the centre (0,0), four shrines on an inner ring
+  (radius `SHRINE_RING_RADII[0]` 35) and four on an outer ring (85), at 90° spacing with a seeded rotation; each ideal spot moves to the nearest
+  tile that is not mountain or lake and has no site within `SITE_MIN_SPACING`. No village is placed within `SITE_NO_VILLAGE_RADIUS` (4) of a site
+  (abandoned-village generation and new-player landing both check it).
+- **Holding** is by stationing troops, with the existing support rules (§12): an unheld site has a militia (`SITE_MILITIA` population, pikemen and
+  shieldbearers); **attack** it to take it (normal battle rules; if the attackers win, the militia and nothing else dies and the survivors stay as
+  the garrison); after a capture it cannot be attacked for `SITE_CALM_HOURS` (2, ÷ speed). Support to a held site only from the holding tribe's
+  members and its allies; at most `SITE_MAX_POPULATION` stationed (3,000; Great Fire 5,000). The holder is the tribe of the troops that took it; it
+  stays the holder while at least one of its members has troops there; when the last leaves or dies, allies' troops there go home and the site is
+  neutral again (militia restored). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
+  have no resources, no loot, no points, and cannot be struck.
+- **Wake-up:** shrines are **dormant** for the first `SHRINE_WAKE_DAYS` (120 = about four months, ÷ speed) of the world and then **awake** with a stronger
+  bonus and a doubled militia.
+- **Bonus** (our own number, one effect so it is easy to read and to test): every member of the holding tribe earns **extra Renown**
+  (§18.2, the currency for more villages): dormant shrine +1%, awake shrine +4%, dormant Great Fire +3%, awake Great Fire +10%; the sum is capped at
+  `SITE_RENOWN_BONUS_CAP` (+30%). It speeds up settling and taking, never a battle, and no site gives resources. `npm run sim -- --sites` checks it is
+  real but not decisive (`BALANCE.md` §7.7).
+- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
+  size, calm time and the send buttons; `GET /api/sites`.
+- **Server as built (2026-11-05), where it differs from or adds to the text above:**
+  - Attack and support go through the normal send route (`POST /api/villages/:id/send`) with the site's tile; the march is stored with the tile (like a
+    Chieftain's found mission). Scouts, occupiers, shipments and Chieftains are refused at a site. **Only tribe members** can attack or support a site
+    (a holder is a tribe), so a tribeless player gets a clear refusal.
+  - The garrison has its own table (`site_garrison`, one contingent per home village) instead of the `stationed` table; troops stay in the home village's
+    `away` count like support. They are recalled with **`POST /api/sites/:id/recall`** (`{ villageId, units? }`, added to the contract as `SiteRecallRequest`;
+    `SiteDto.myContingents` lists what the player has there), not `/api/stationed/:id/recall`.
+  - Tribe-mates, allies and NAP partners of the holder cannot attack its site (the same protection as for villages). The same-connection guard is applied to
+    attacks on a held site (refused when any garrison owner shares the attacker's connection); support is not blocked by it.
+  - The cap counts what stands there. At send a support that would not fit is refused; supports already on the road can overshoot, so at arrival only
+    what fits stays and the rest walks home (nothing fits = the whole army turns back and is told).
+  - **Holder housekeeping runs with every request and the 1 s tick**, not at the very instant a player leaves or is banned: troops of players who left the
+    tribe, were banned, lost their village, or belong to a tribe that is no longer the holder or an ally walk home from the site; with no troop of the holding
+    tribe left the site turns neutral (militia back) and the allies go home. A deleted holder tribe frees the site the same way.
+  - An arrival at a site whose conditions changed while marching (calm time, a relation, a shared connection, the world has ended) turns back and the sender
+    gets a "called off" / "turned back" report with the reason in its title. Reports reuse the battle and support report kinds; battles at sites pay **no combat
+    Renown** and count no battle statistics.
+  - A frozen (ended) world keeps its sites as they were: no new orders, arrivals at a site turn back, no housekeeping.
+  - The Renown bonus is applied in one place (`Store.addRenown`), so it covers building Renown, the defender trickle, battle Renown and Feasts exactly once;
+    test-mode top-ups are not earnings and get no bonus. The GET state shows the pending trickle with the bonus.
+  - Existing worlds: a village that already stands near a site stays (the no-village rule only applies to new placements); a village standing exactly on a
+    site's tile hides that site from attacks.
 
 **Why it is fair**
 - A site is won only by beating the troops on it. Nothing is given for free: the holders pay food for
@@ -1227,15 +1314,15 @@ every step can be undone alone.
 | 2 | **Several villages: Banner Hall, Chieftain, Strike and Hold on abandoned villages only** (18.2, first half) | M | The genre's biggest hole, with only computer-run targets, so no one can be hurt while we learn it. A second village changes the whole game. |
 | 3 | ~~**Rest hours** (18.3)~~ — dropped by the owner 2026-11-05 | – | – |
 | 4 | **Taking player villages** (18.2, second half: alerts, last-village rule, pair cap, lock, move-in) — **built 2026-11-05** | M | The payoff for tribes and the reason to defend. |
-| 5 | **Sites and Fire Shrines, season clock and score** (18.4b + 18.1 engine/server) | L | The goal of the game. Uses the stationed-troops and battle rules from step 4. |
-| 6 | **Badges + Hall of Fame + lobby season list** (18.1 rest) | M | Needed before the first real season ends, not before it starts. |
+| 5 | **Domination win + world end, Fire Shrines as bonus sites** (18.1 + 18.4b) — **revised by the owner 2026-11-05, built 2026-11-05**: no season clock or score | L | The goal of the game. Uses the stationed-troops and battle rules from step 4. |
+| 6 | **Badges + Hall of Fame + lobby world list** (the badge part of the old 18.1: winners of a finished world) | M | Needed before the first real world ends. The lobby already marks finished worlds. |
 | 7 | **Tribe projects** (18.5) | M | Needs shipments, terrain (roads), sites (wards): last of the rules. |
 | 8 | **Cosmetics shop** (18.6) | M | Independent of the rules; do it when the first season is live and has players to look at it. |
 
 Quick check of the order against the two risks:
 - ~~*"Conquest ships without sleep protection."* No: step 3 is before step 4.~~ Rest hours were dropped by the owner
   2026-11-05, so step 4 relies on the hold period, alerts, restart protection and the pair cap (18.2).
-- *"Seasons without anyone able to fight for shrines."* No: sites reuse step 4's rules and need step 2's village growth.
+- *"A world that cannot end."* Domination (18.1) needs only villages, tribes and taking villages (steps 2 and 4); shrines are optional bonuses on top.
 
 Every step follows the usual protocol: config numbers first, engine with tests, server routes with tests, security
 gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move up from §18 into the normal sections).
@@ -1245,7 +1332,7 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 **Owner decisions, 2026-11-04** (these are now rules to build; §18.1–18.7 text still says "proposal" in places, read it with these in mind):
 
 1. **All six parts approved** (seasons + shrines, taking villages by hold, rest hours, terrain + sites, tribe projects, cosmetics shop).
-2. **Season: 63 days with a fixed end. No early win and no shared win for allies.**
+2. ~~**Season: 63 days with a fixed end. No early win and no shared win for allies.**~~ **Replaced 2026-11-05 (decision 12):** worlds end by domination; allies still do not win together.
 3. ~~A player's last village is safe from Strikes.~~ **Replaced 2026-11-04 (decision 9).**
 4. **Banner Hall: use the lower requirements** from §18.2. They still have to be checked with `npm run sim` (first second village around day 14–20 for a focused player) before step 2 is built.
 5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (Removed from the code 2026-11-04; do not sell or advertise anything that speeds up play.)
@@ -1255,6 +1342,8 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 9. **Taking and founding (owner, 2026-11-04, step 2):** taking developed villages is the main way ahead, founding on empty land the slow safe path; a taken village keeps ALL buildings (no automatic level loss; only siege units, later, damage buildings); a player's LAST village CAN be taken and they restart at the outer edge of the world circle (account, tribe and Renown kept) with a short restart protection. Details: §18.2 "Owner decisions 2026-11-04 for step 2".
 
 11. **Taking player villages (owner, 2026-11-05, step 4):** no rest hours; a player's last village CAN be taken (restart with protection); captured villages keep all buildings; hold 12 h with relief by battle for the owner, tribe-mates and allies; alerts never reveal Chieftains; pair cap 2 takes per 7 days. Details: §18.2 "Step 4".
+
+12. **World end (owner, 2026-11-05, REVISES decision 2):** **no short seasons for normal worlds.** Normal worlds are long and end by **domination**: one tribe with at least 75% of all player-owned village points (abandoned villages excluded, allies not added up) for 14 days in a row, only when the world is at least 6 months old and has at least `max(50, 30% of the peak)` active players. All of it is per-world, stored at creation, changeable by the operator (18.1). The world then freezes, final rankings are stored once, a world-end screen shows the winner, the lobby marks it Finished. Fire Shrines and sites stay as bonus objectives, not the win condition (18.4b). The nine-week season stays only as an idea for a special limited-time world. The old open question "world end rule" is answered.
 
 10. **Siege (owner, 2026-11-04):** building levels only drop through siege, never automatically (no loss on capture, none from time). Our own design, details in §18.9.
 

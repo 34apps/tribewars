@@ -12,6 +12,7 @@ import type { AppContext } from './context.ts';
 import { parsePublicKeys } from './entry-pass.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
+import { DominationService } from './domination-service.ts';
 import { GameService } from './game.ts';
 import { ForumService } from './forum-service.ts';
 import { MailService } from './mail-service.ts';
@@ -21,6 +22,8 @@ import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
 import { forumRoutes } from './routes/forum.ts';
 import { mailRoutes } from './routes/mail.ts';
+import { dominationRoutes } from './routes/domination.ts';
+import { siteRoutes } from './routes/sites.ts';
 import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
 import { staffRoutes } from './routes/staff.ts';
@@ -83,6 +86,30 @@ function isApiPath(url: string): boolean {
   return path === '/api' || path.startsWith('/api/');
 }
 
+export const WORLD_ENDED_MESSAGE = 'This world has ended.';
+
+/**
+ * Write routes that still work after the world ended: signing in and out (also the lobby pass; creating a NEW player with a
+ * pass is refused inside AuthService), mail, support tickets and message reports, the staff tools, tribe chat and the tribe forum.
+ * Everything else that writes (build, train, send, tribes, registration, ...) answers 403.
+ */
+export const FROZEN_ALLOWED: readonly string[] = [
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/enter',
+  '/api/mail',
+  '/api/tickets',
+  '/api/reports',
+  '/api/staff',
+  '/api/tribe/chat',
+  '/api/tribe/forum',
+];
+
+function frozenAllows(url: string): boolean {
+  const path = url.split('?', 1)[0] ?? '';
+  return FROZEN_ALLOWED.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
 function errorBody(error: GameErrorCode, message: string): ApiError {
   return { error, message };
 }
@@ -117,6 +144,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   store.world = settings; // lets every village save settle the defender Renown trickle
   const forum = new ForumService(store);
   const support = new SupportService(store);
+  const game = new GameService(store, settings, app.log, now);
   // Live updates: the store hands over events after each commit; the hub pushes them to the right sockets.
   const live = new LiveHub(store, now, app.log, { heartbeatMs: opts.liveHeartbeatMs });
   store.onLive = (events) => live.publish(events);
@@ -135,7 +163,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     limiter: new RateLimiter(10, 60_000),
     live,
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
-    game: new GameService(store, settings, app.log),
+    game,
+    domination: new DominationService(store, settings, game),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
     forum,
@@ -180,6 +209,14 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
         req.log.error({ err }, 'processDue failed');
       }
     }
+  });
+
+  // A world that has ended is frozen: ONE central check refuses every state-changing call except talking (see FROZEN_ALLOWED).
+  // Runs after processDue above, so the request that settles the winning streak is already refused.
+  app.addHook('onRequest', async (req) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || !isApiPath(req.url)) return;
+    if (!store.isWorldEnded() || frozenAllows(req.url)) return;
+    throw new GameError('forbidden', WORLD_ENDED_MESSAGE);
   });
 
   app.addHook('onSend', async (req, reply) => {
@@ -259,7 +296,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // Public and private-data-free: id, name, speed, start date. Nothing about players, villages or the database.
   app.get('/api/world/info', async (): Promise<WorldInfoResponse> => {
     const created = Number(store.getMeta('world_created_at'));
-    return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString(), lobby: Boolean(ctx.lobby) };
+    return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString(), lobby: Boolean(ctx.lobby), ended: store.isWorldEnded() };
   });
   authRoutes(app, ctx);
   gameRoutes(app, ctx);
@@ -270,6 +307,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   supportRoutes(app, ctx);
   staffRoutes(app, ctx);
   rankingRoutes(app, ctx);
+  dominationRoutes(app, ctx);
+  siteRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 

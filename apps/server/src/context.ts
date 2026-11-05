@@ -1,5 +1,6 @@
 import type { WorldSettings } from '@clanfire/engine';
 import type { AuthService, RateLimiter } from './auth.ts';
+import type { DominationService } from './domination-service.ts';
 import type { EntryKey } from './entry-pass.ts';
 import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
@@ -22,6 +23,8 @@ export interface AppContext {
   support: SupportService;
   staff: StaffService;
   msgReports: ReportService;
+  /** Domination win condition and world end (domination-service.ts). */
+  domination: DominationService;
   settings: WorldSettings;
   limiter: RateLimiter;
   /** This process's world id and display name (docs/MULTI_WORLD.md). The id also scopes the session cookie path. */

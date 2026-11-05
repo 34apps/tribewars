@@ -38,12 +38,14 @@ A world never sees a password once it uses the lobby.
   `/lobby/api/...` (contract at the end of `packages/engine/src/api.ts`); the page `/lobby/` is the same web build.
 - The multi-account guard (IPs per account, `MAX_ACCOUNTS_PER_IP`, shared-IP report) moved from the worlds into the
   lobby: one person, one account across all worlds. Origin check and rate limits work as in a world.
-- The **world list** (id, name, status `open` / `full` / `closed`, page path such as `/w/w1/`) is a table in the lobby
+- The **world list** (id, name, status `open` / `full` / `closed` / `finished`, page path such as `/w/w1/`) is a table in the lobby
   database. `full` = returning players still enter, nobody new; `closed` = nobody enters (403). The operator manages
   it, and everything else, with the CLI: `docker compose exec lobby node admin.js <command>` (dev:
   `npm run lobby:admin -- <command>`): `keygen`, `public-key`, `worlds`, `world-add <id> <name...> [--path=/w/<id>/]
-  [--status=open]`, `world-status <id> <open|full|closed>`, `world-rename`, `world-remove`, `shared-ips`,
+  [--status=open]`, `world-status <id> <open|full|closed|finished>`, `world-rename`, `world-remove`, `shared-ips`,
   `ban <username> [reason...]`, `unban`, `grant <username> <support|moderator|admin>`, `revoke`.
+  When a world ends by domination, run `lobby:admin -- world-status <id> finished`: it stays enterable for viewing the
+  results (the lobby list marks it "Finished", button "View results"); new accounts are not routed to it.
 
 **Entry pass.** `POST /lobby/api/worlds/:id/enter` (signed in, status not `closed`, not banned) returns a pass:
 `base64url(JSON claims) + "." + base64url(Ed25519 signature)`. The signature covers the UTF-8 bytes of

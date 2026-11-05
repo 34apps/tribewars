@@ -453,6 +453,45 @@ CREATE TABLE IF NOT EXISTS player_stats (
   player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
 ${STAT_KEYS.map((k) => `  ${statColumn(k)} INTEGER NOT NULL DEFAULT 0`).join(',\n')}
 );
+
+-- ---- World end (docs/GAME_DESIGN.md, "Winning the world"): one row, written once when a tribe wins by domination or the
+-- operator ends the world. The final rankings are frozen in final_json; the row can never be changed or removed.
+CREATE TABLE IF NOT EXISTS world_end (
+  id              INTEGER PRIMARY KEY CHECK (id = 1),
+  ended_at        INTEGER NOT NULL,
+  kind            TEXT    NOT NULL CHECK (kind IN ('domination', 'manual')),
+  winner_tribe_id INTEGER,
+  winner_name     TEXT,
+  winner_tag      TEXT,
+  reason          TEXT    NOT NULL DEFAULT '',
+  final_json      TEXT    NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS world_end_no_delete BEFORE DELETE ON world_end
+BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
+CREATE TRIGGER IF NOT EXISTS world_end_no_update BEFORE UPDATE ON world_end
+BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
+
+-- ---- Map sites (docs/GAME_DESIGN.md 18.4b "Step 5"). Positions are not stored: they are a pure function of the world seed (engine
+-- generateSites). A row exists once a site has been held; holder_tribe_id null = neutral (militia). calm_until: no attack before it.
+CREATE TABLE IF NOT EXISTS sites (
+  id              INTEGER PRIMARY KEY,
+  holder_tribe_id INTEGER REFERENCES tribes(id) ON DELETE SET NULL,
+  calm_until      INTEGER NOT NULL DEFAULT 0
+);
+-- Troops standing at a site: one contingent per (site, home village). Like 'stationed', the units stay in the home village's "away" count.
+CREATE TABLE IF NOT EXISTS site_garrison (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  site_id         INTEGER NOT NULL,
+  owner_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  home_village_id INTEGER NOT NULL REFERENCES villages(id) ON DELETE CASCADE,
+  units_json      TEXT    NOT NULL,
+  arrived_at      INTEGER NOT NULL,
+  ranks_json      TEXT,
+  UNIQUE (site_id, home_village_id)
+);
+CREATE INDEX IF NOT EXISTS idx_site_garrison_home ON site_garrison(home_village_id);
+CREATE INDEX IF NOT EXISTS idx_site_garrison_owner ON site_garrison(owner_player_id);
+CREATE INDEX IF NOT EXISTS idx_sites_holder ON sites(holder_tribe_id);
 `;
 
 /**
@@ -471,9 +510,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 7; // 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 9; // 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = 'b8e3f3ebe169dc92';
+export const SCHEMA_FINGERPRINT = '05c80a5adac410e4';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

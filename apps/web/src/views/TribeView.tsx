@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
+import { Icon } from '../art/Icon.tsx';
+import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
+import { useSites } from '../hooks/useSites.ts';
+import { tribeBonusLine } from '../sites.ts';
 import { useGame } from '../game.ts';
 import type { TribeTarget } from '../game.ts';
 import { ROLE_NAME } from '../relations.ts';
@@ -35,6 +39,22 @@ const SECTION_LABEL: Record<Section, string> = {
   forum: 'Forum',
   log: 'Log',
 };
+
+/** For everyone: the public Domination bar (compact) and, when the tribe holds Fire sites, the Renown bonus they give. */
+function WorldGoal() {
+  const { myBonus } = useSites();
+  const line = tribeBonusLine(myBonus);
+  return (
+    <>
+      <DominationCard compact />
+      {line && (
+        <p className="site-bonus" role="status">
+          <Icon name="flame" size={18} className="inline-icon" /> {line}
+        </p>
+      )}
+    </>
+  );
+}
 
 /** Remembered while the player moves between tabs; null until a section was picked. */
 let lastSection: Section | null = null;
@@ -163,6 +183,7 @@ export function TribeView() {
 
   return (
     <div className="page tribe-page">
+      {!viewing && <WorldGoal />}
       {body}
       {dialog}
     </div>

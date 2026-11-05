@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { LobbyAccountDto, LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
-import { WORLD_STATUS_LABEL, enterWorld } from '../lobby.ts';
+import { WORLD_STATUS_LABEL, enterWorld, sortWorlds, worldButtonLabel } from '../lobby.ts';
 
 type WorldList = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; worlds: LobbyWorldDto[] };
 
@@ -10,6 +10,7 @@ const STATUS_NOTE = {
   open: 'Anyone can join.',
   full: 'No new players. If you already play here, you can still enter.',
   closed: 'Nobody can enter right now.',
+  finished: 'This world has ended. You can still enter to see the final results.',
 } as const;
 
 /** Lobby home for a signed-in account: header with sign-out, and one card per world. */
@@ -121,7 +122,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
       {list.state === 'ready' && list.worlds.length === 0 && <p className="lobby-note dark">No worlds are open yet.</p>}
       {list.state === 'ready' && list.worlds.length > 0 && (
         <ul className="lobby-grid">
-          {list.worlds.map((w) => {
+          {sortWorlds(list.worlds).map((w) => {
             const busy = busyId === w.id;
             const error = errors[w.id];
             return (
@@ -138,10 +139,10 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
                   type="button"
                   className="btn btn-primary btn-block"
                   disabled={w.status === 'closed' || busyId !== null}
-                  aria-label={busy ? undefined : `Play ${w.name}`}
+                  aria-label={busy ? undefined : `${worldButtonLabel(w.status)} ${w.name}`}
                   onClick={() => void play(w)}
                 >
-                  {busy ? 'Opening…' : 'Play'}
+                  {busy ? 'Opening…' : worldButtonLabel(w.status)}
                 </button>
               </li>
             );

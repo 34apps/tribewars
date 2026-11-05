@@ -29,6 +29,28 @@ test('worlds: needs sign-in, then lists in sort order with status and path', asy
   });
 });
 
+test('worlds: a finished world is listed with its status', async () => {
+  const { app } = await makeApp();
+  addWorld(app, 'w1', 'Running');
+  addWorld(app, 'w0', 'Ended', 'finished');
+  const c = await register(app, 'Alice');
+  assert.deepEqual((await c.get(WORLDS)).json<LobbyWorldsResponse>().worlds.map((w) => [w.id, w.status]), [
+    ['w1', 'open'],
+    ['w0', 'finished'],
+  ]);
+});
+
+test('enter: a finished world still gives a pass (read-only world, the results can be looked at)', async () => {
+  const { app, clock } = await makeApp();
+  addWorld(app, 'w0', 'Ended', 'finished');
+  const c = await register(app, 'Alice');
+  const res = await c.post(enter('w0'), {});
+  ok(res);
+  const entry = res.json<EnterWorldResponse>();
+  assert.equal(entry.path, '/w/w0/');
+  assert.equal(verifyPass(entry.pass, [PUBLIC_KEY], clock.now()).wid, 'w0');
+});
+
 test('worlds: sort_order wins, ties are broken by id; an empty list is fine', async () => {
   const { app } = await makeApp();
   const c = await register(app, 'Alice');

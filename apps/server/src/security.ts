@@ -57,11 +57,12 @@ export const ROUTE_LIMITS = {
   mail: 60, // all mail calls (sending has its own gaps in mail-service)
   search: 60, // tribe search / list, player profiles
   rankings: 30, // player and Renown rankings
+  world: 30, // domination status (a few ranking queries) and the world end screen
 } as const;
 export type RouteBucket = keyof typeof ROUTE_LIMITS;
 
 const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[] = [
-  { bucket: 'send', test: /^\/api\/(villages\/:id\/send|movements\/:id\/cancel|stationed\/:id\/(recall|send-back))$/ },
+  { bucket: 'send', test: /^\/api\/(villages\/:id\/send|movements\/:id\/cancel|stationed\/:id\/(recall|send-back)|sites\/:id\/recall)$/ },
   { bucket: 'build', test: /^\/api\/villages\/:id\/(build|cancel-build)$/ },
   { bucket: 'train', test: /^\/api\/villages\/:id\/(train|cancel-train)$/ },
   { bucket: 'research', test: /^\/api\/villages\/:id\/(research|cancel-research)$/ },
@@ -71,6 +72,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'mail', test: /^\/api\/mail(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
+  { bucket: 'world', test: /^\/api\/(domination|world-end|sites)$/ },
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },
 ];
 

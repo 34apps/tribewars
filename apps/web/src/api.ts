@@ -16,6 +16,9 @@ import type {
   ChatResponse,
   CreateTribeRequest,
   DiplomacyKind,
+  DominationStatusDto,
+  SitesResponse,
+  WorldEndResponse,
   DiplomacyRequest,
   GameErrorCode,
   GameStateResponse,
@@ -105,6 +108,7 @@ import type {
 } from '@clanfire/engine';
 
 import { LOBBY_PREFIX, worldPrefixOf } from '@clanfire/engine';
+import { WORLD_ENDED_EVENT, WORLD_ENDED_NOTE, isWorldEndedError } from './domination.ts';
 
 export type ClientErrorCode = GameErrorCode | 'network' | 'server_error';
 
@@ -190,7 +194,13 @@ async function send<T>(method: Method, url: string, body?: unknown): Promise<T> 
   if (!res.ok) {
     const err = (payload ?? {}) as Partial<ApiError>;
     const fallback = res.status >= 500 ? 'The server had a problem. Try again in a moment.' : `Request failed (${res.status}).`;
-    throw new ApiRequestError(err.error ?? 'server_error', err.message ?? fallback, res.status);
+    const message = err.message ?? fallback;
+    // The world is over: tell the app (it asks for the results) and give the player a friendly line, not a raw error.
+    if (method !== 'GET' && isWorldEndedError(res.status, message)) {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event(WORLD_ENDED_EVENT));
+      throw new ApiRequestError('forbidden', WORLD_ENDED_NOTE, res.status);
+    }
+    throw new ApiRequestError(err.error ?? 'server_error', message, res.status);
   }
   return payload as T;
 }
@@ -262,6 +272,12 @@ export const api = {
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
   mailList: (box: MailBox, before?: number) =>
     request<MailListResponse>('GET', `/api/mail?box=${box}${before === undefined ? '' : `&before=${before}`}`),
+  /** The public domination bar data (leader, share, streak, why it does not count yet). */
+  domination: () => request<DominationStatusDto>('GET', '/api/domination'),
+  /** { ended: null } while the world runs; the frozen results once it ended. */
+  worldEnd: () => request<WorldEndResponse>('GET', '/api/world-end'),
+  /** Great Fire and Fire Shrines. May answer 404 on an older server: callers treat a failure as "no sites". */
+  sites: () => request<SitesResponse>('GET', '/api/sites'),
   mail: (id: number) => request<MailDto>('GET', `/api/mail/${id}`),
   sendMail: (body: SendMailRequest) => request<MailDto>('POST', '/api/mail', body),
   deleteMail: (id: number) => request<void>('DELETE', `/api/mail/${id}`),

@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import {
   checkFoundTarget,
   emptyUnits,
+  generateSites,
+  isNearSite,
   markRenownPaid,
   maxOutVillage,
   settleVillage,
@@ -71,11 +73,14 @@ export function freeTileNear(app: App, p: P): { x: number; y: number } {
   const store = app.ctx.store;
   const s = app.ctx.settings;
   const home = homeOf(app, p);
+  const sites = generateSites(s.seed, s.radius);
   let best: { x: number; y: number } | null = null;
   let bestD = Infinity;
   for (let x = -s.radius; x <= s.radius; x++) {
     for (let y = -s.radius; y <= s.radius; y++) {
       if (!checkFoundTarget({ x, y }, s, (px, py) => store.villageExistsAt(px, py)).ok) continue;
+      if (isNearSite(x, y, sites)) continue; // no village near a map site
+
       const d = Math.hypot(x - home.x, y - home.y);
       if (d < bestD) {
         best = { x, y };

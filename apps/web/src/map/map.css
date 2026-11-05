@@ -866,3 +866,17 @@
   outline: 3px solid var(--wm-sky);
   outline-offset: 1px;
 }
+
+/* Fire sites: state word in the panel head, glyphs in the map key */
+.wm-site-state {
+  color: #cdba98;
+  filter: none;
+}
+
+.wm-site-state.is-awake {
+  color: #f2b33d;
+}
+
+.wm-legend-sites svg {
+  flex: none;
+}

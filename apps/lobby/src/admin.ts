@@ -1,5 +1,6 @@
 // Operator tool (run on the server machine, not exposed over HTTP):
 //   npm run lobby:admin -- keygen | public-key | worlds | world-add <id> <name...> | world-status <id> <status> | ...
+// Status is open | full | closed | finished (finished = the world ended by domination: set it with world-status).
 // See ADMIN_USAGE in admin-ops.ts. Reads DATABASE_PATH like the lobby; needs no LOBBY_SIGNING_KEY except for `public-key`.
 
 import type { DatabaseSync } from 'node:sqlite';

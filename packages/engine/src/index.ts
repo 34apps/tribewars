@@ -22,3 +22,5 @@ export * from './tribes.ts';
 export * from './achievements.ts';
 export * from './bot.ts';
 export * from './staff.ts';
+export * from './domination.ts';
+export * from './sites.ts';

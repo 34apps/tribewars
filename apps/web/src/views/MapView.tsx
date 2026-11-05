@@ -8,7 +8,10 @@ import { MapChunks } from '../map/chunks.ts';
 import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
 import type { View } from '../map/iso.ts';
 import { drawMap, pickTile, pickVillage } from '../map/render.ts';
-import type { DrawnVillage } from '../map/render.ts';
+import type { DrawnSite, DrawnVillage } from '../map/render.ts';
+import { useSites } from '../hooks/useSites.ts';
+import { hitsSiteBox, holderText, siteAt, siteName, stateText } from '../sites.ts';
+import { SitePanel } from '../map/SitePanel.tsx';
 import { loadMapArt } from '../map/sprites.ts';
 import { TERRAIN_NAME, TerrainCache } from '../map/terrain.ts';
 import { Legend } from '../map/Legend.tsx';
@@ -58,6 +61,11 @@ export function MapView({ active }: { active: boolean }) {
   /** Server time minus local time, so markers move smoothly between the 1 s game ticks. */
   const clockOffset = useRef(now - Date.now());
   const drawnRef = useRef<DrawnVillage[]>([]);
+  const drawnSitesRef = useRef<DrawnSite[]>([]);
+  /** Fire sites for the canvas (GET /api/sites); a failing call just leaves the map without them. */
+  const { sites, wakesAt } = useSites(active);
+  const sitesRef = useRef(sites);
+  const siteTribeRef = useRef<number | null>(player.tribe?.id ?? null);
   /** The view as last drawn (zoom snapped to device pixels), for picking. */
   const drawnViewRef = useRef<View>(viewRef.current);
   const zoomedAt = useRef(0);
@@ -132,6 +140,8 @@ export function MapView({ active }: { active: boolean }) {
       hover: hoverRef.current,
       own: ownRef.current,
       movements: movementsRef.current,
+      sites: sitesRef.current,
+      myTribeId: siteTribeRef.current,
       now: Date.now() + clockOffset.current,
       quick,
     });
@@ -141,6 +151,7 @@ export function MapView({ active }: { active: boolean }) {
       if (list.length > 600) list.splice(0, list.length - 600);
     }
     drawnRef.current = res.villages;
+    drawnSitesRef.current = res.sites;
     if (res.stale || quick) {
       window.clearTimeout(settleTimer.current);
       settleTimer.current = window.setTimeout(() => scheduleRef.current(), ZOOM_SETTLE_MS);
@@ -232,6 +243,13 @@ export function MapView({ active }: { active: boolean }) {
   useEffect(() => {
     if (active) schedule();
   }, [active, schedule, movements]);
+
+  // New site data (holders, awake state) or a tribe change: redraw the markers.
+  useEffect(() => {
+    sitesRef.current = sites;
+    siteTribeRef.current = player.tribe?.id ?? null;
+    schedule();
+  }, [sites, player.tribe?.id, schedule]);
 
   // My tribe or a diplomatic relation changed: villages change banners and tags, so refetch the visible chunks.
   const tribeId = player.tribe?.id ?? 0;
@@ -335,26 +353,42 @@ export function MapView({ active }: { active: boolean }) {
   /** Village sprite under the point first (tall castles cover tiles behind them), else the tile. */
   const tileAt = (x: number, y: number): Coords => {
     const v = pickVillage(drawnRef.current, x, y);
-    return v ? { x: v.x, y: v.y } : pickTile(drawnViewRef.current, size(), terrain, x, y);
+    if (v) return { x: v.x, y: v.y };
+    // Sites are tall (the flame): the drawn box wins over the tile behind it, front-most last.
+    const list = drawnSitesRef.current;
+    for (let i = list.length - 1; i >= 0; i--) if (hitsSiteBox(x, y, list[i]!)) return { x: list[i]!.site.x, y: list[i]!.site.y };
+    return pickTile(drawnViewRef.current, size(), terrain, x, y);
   };
 
   /** Hover card next to the mouse for the village under it (name, coordinates, points, owner). */
   function showTip(tile: Coords, px: number, py: number) {
     const el = tipRef.current;
     if (!el) return;
-    const v = Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius ? chunks.villageAt(tile.x, tile.y) : null;
-    if (!v) {
+    const inBoard = Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius;
+    const v = inBoard ? chunks.villageAt(tile.x, tile.y) : null;
+    const site = inBoard && !v ? siteAt(sitesRef.current, tile.x, tile.y) : undefined;
+    if (!v && !site) {
       el.hidden = true;
       return;
     }
-    const abandoned = v.kind === 'abandoned';
-    const rows: [string, string][] = [['Points', String(v.points)]];
-    if (!abandoned && v.ownerName) rows.push(['Owner', v.tribeTag ? `${v.ownerName} [${v.tribeTag}]` : v.ownerName]);
-    if (v.hearth) rows.push(['Hearth', `out, held by ${v.hearth.claimBy}`]);
+    let title: string;
+    const rows: [string, string][] = [];
+    if (site) {
+      title = `${siteName(site)} (${site.x}|${site.y})`;
+      rows.push(['State', stateText(site, wakesAt, Date.now() + clockOffset.current)], ['Held by', holderText(site)]);
+    } else if (v) {
+      const abandoned = v.kind === 'abandoned';
+      title = `${abandoned ? 'Abandoned village' : v.name} (${v.x}|${v.y})`;
+      rows.push(['Points', String(v.points)]);
+      if (!abandoned && v.ownerName) rows.push(['Owner', v.tribeTag ? `${v.ownerName} [${v.tribeTag}]` : v.ownerName]);
+      if (v.hearth) rows.push(['Hearth', `out, held by ${v.hearth.claimBy}`]);
+    } else {
+      return;
+    }
     el.replaceChildren();
     const head = document.createElement('div');
     head.className = 'wm-tip-head';
-    head.textContent = `${abandoned ? 'Abandoned village' : v.name} (${v.x}|${v.y})`;
+    head.textContent = title;
     el.append(head);
     for (const [k, val] of rows) {
       const row = document.createElement('div');
@@ -553,6 +587,8 @@ export function MapView({ active }: { active: boolean }) {
     [selected, chunks, version],
   );
   const selectedLoaded = selected ? chunks.isLoaded(selected.x, selected.y) : false;
+  const selectedSite = selected ? siteAt(sites, selected.x, selected.y) : undefined;
+  const selectedPreferred = preferred && selected && preferred.x === selected.x && preferred.y === selected.y ? preferred : null;
 
   return (
     <div className={`wm${selected ? ' wm-has-panel' : ''}`} hidden={!active}>
@@ -611,13 +647,16 @@ export function MapView({ active }: { active: boolean }) {
           </button>
         </div>
       </div>
-      {selected && (
+      {selected && selectedSite && (
+        <SitePanel site={selectedSite} wakesAt={wakesAt} terrain={terrain} preferred={selectedPreferred} onClose={() => select(null)} />
+      )}
+      {selected && !selectedSite && (
         <TilePanel
           tile={selected}
           village={selectedVillage}
           loaded={selectedLoaded}
           terrain={terrain}
-          preferred={preferred && preferred.x === selected.x && preferred.y === selected.y ? preferred : null}
+          preferred={selectedPreferred}
           occupied={(x, y) => chunks.villageAt(x, y) !== undefined}
           onClose={() => select(null)}
         />

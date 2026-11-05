@@ -28,7 +28,8 @@ export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
     const world = ctx.store.getWorld(worldId);
     if (!world) throw new GameError('not_found', 'No such world.');
     if (world.status === 'closed') throw new GameError('forbidden', 'This world is closed.');
-    // 'full' still gets a pass: the world decides about newcomers, returning players may always enter.
+    // 'full' and 'finished' still get a pass: the world decides about newcomers (a finished world refuses them),
+    // returning players may always enter (a finished world is read-only, to look at the results).
     const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole }, ctx.signingKey, req.nowMs);
     ctx.store.audit({ at: req.nowMs, actorId: account.id, actorIp: req.ip, action: 'enter', targetAccount: account.id, detail: world.id });
     return { pass, path: world.path, expiresAt: claims.exp };
