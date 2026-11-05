@@ -5,11 +5,11 @@ Written 2026-11-04 (HEAD `be53d22`+). Read this first, then `docs/AI-WORKFLOW.md
 
 ## Last run
 
-2026-11-05 (`2b5ace7`): **step 4 built, taking player villages** (on by default). New: pair cap 2 per 7 days (`conquests` table, schema v7), relief attack ("Win it back": owner/tribe-mate/ally fight only the occupiers), cold village cannot build, tribe alert list `holds` + live hints, web Alerts rows/relief button, sim `npm run sim -- --conquest` (biggest <= 1.84x second on 5 seeds, `BALANCE.md` 7.6). Checks passed (check, build, build:preview; engine 417, lobby 82, server 409, web 58).
-Left: owner looks at 360/1440 px (Alerts rows, "Win it back", hold card, strike hints; never viewed in a browser); relief pays no Renown; no alert for the owner tribe's allies; flaky `found-village.test.ts`.
-Very next step: step 5 (Sites, Fire Shrines, season clock/score, `GAME_DESIGN.md` 18.4b + 18.1) once the owner has judged step 4.
-Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects, no `npm run sim:conquest`; use `npm run sim -- --conquest`). `npm test -w <pkg>` runs the whole workspace; to read failures without the 40 KB cut-off edit the package `test` script temporarily (e.g. `--test-reporter=dot`) and restore it. Delete the empty scratch files `packages/engine/test/probe.test.ts` and `scripts/sim/_debug.ts` (runner cannot).
-Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, and the empty `scripts/sim/_debug.ts` (stage with explicit paths, not `git add -A`).
+2026-11-05 (`42824c7`): **step 5 built: domination win + world end + sites** (rule 180 d / max(50, 30% peak) / 75% / 14 d, world freeze, final rankings once, operator CLI, lobby Finished, web bar + end screen, Great Fire + 8 Fire Shrines with Renown bonus, schema v9). The failing "lazy evaluation" test was a test-setup bug (`GET /api/state` recomputes village points and wiped the 75% the test wrote); code was right. Checks passed (check, build, build:preview; engine 445, lobby 87, server 450, web 80).
+Left: owner looks at 360/1440 px (bar, end banner/results, site markers and panel; never viewed in a browser); web has no recall buttons for site contingents; sites not simulated (`BALANCE.md` 7.7); Waymarks/Lookouts not built; flaky server test "everything per village is owner-only ..." (failed once, passed on rerun).
+Very next step: owner judges step 5 in a browser, then step 6 (badges, Hall of Fame) or step 7 (tribe projects).
+Notes: Bash is an allow list (no python, no `rm`, no `node`, no pipes/redirects/chains). `npm test -w <pkg>` runs the whole workspace; to run one test edit the package `test` script temporarily and restore it. Delete the empty `scripts/sim/_debug.ts` (runner cannot).
+Uncommitted owner files left alone: `.claude/launch.json`, `Pasted ... textClipping`, `scripts/sim/_debug.ts` (stage with pathspec excludes, not plain `git add -A`).
 
 Earlier (`bed1ea1`): Security Phase 1A (CSP, Permissions-Policy, HSTS in prod, per-account route limits; CSP allows Google Fonts).
 
