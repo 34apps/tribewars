@@ -1448,3 +1448,43 @@ is open (it never asks for permission automatically). Native push comes with the
 Per building, a queue slot can be made **about 20% faster with bought coins** (a cosmetics-shop-style premium currency, see §18.6). Not
 built and not designed in detail: it must never be required to compete, only a convenience; the world speed setting stays the main way
 to change pace.
+
+## 19. Per-world settings (`WorldConfig`; owner request 2026-11-05, built 2026-11-05)
+
+Worlds can differ in their rules (`docs/GENRE_COMPARISON.md` §1). **One `WorldConfig` per world**
+(`packages/engine/src/world-config.ts`), written into the world's database when the world is created (meta `world_config`; defaults =
+the constants in `config.ts`, so a default world plays exactly as before), read by the engine with `worldRules(settings)`, published read-only
+at `GET /w/<id>/api/world/config` (also `/api/world/config`, public, no sign-in, no secrets: no seed, keys, paths or players), and shown to
+players on the **World rules** page (account menu, `#rules`). Durations are written in hours or days **at speed 1** and divided by `pace.speed`
+like every other duration.
+
+| Group | Settings (default) |
+|---|---|
+| `pace` | `speed` (1: production and every waiting time), `unitSpeed` (1: extra speed for marching troops and shipments only; time = distance / (speed x unitSpeed)) |
+| `protection` | `beginnerHours` 72, `foundHours` 24, `restartHours` 48 |
+| `npc` (abandoned villages) | `density` 0.02 (creation only), `growthHours` 6, `maxLevel` 10, `startStockShare` 0.5, `startGoldPerTier` 40 |
+| `conquest` | `playersCanBeConquered` true, `renownBase` 1000, `renownGrowth` 1.6, `chainWindowHours` 2, `holdHours` 8, `holdHoursAbandoned` 2, `holdFailHours` 2, `lockHours` 24 |
+| `domination` | the six win-condition settings of §18.1 (moved into this object; `world_settings.domination` mirrors it) |
+| `tribe` | `maxMembers` 30 |
+| `features` | `siege` true, `sites` true, `morale` false, `scavenging` false, `paidSpeedups` false |
+| `queues` | `build` 2, `research` 2, `train` 5 |
+
+- **Flags.** `siege` off: Log Rams and Boulder Slings cannot be trained or researched and battles never lower buildings (the web hides them).
+  `sites` off: no Fire Shrines or Great Fire are created, the sites list is empty. `morale`, `scavenging` and `paidSpeedups` are **reserved**:
+  the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11).
+- **Ranges.** Every value has a range (`WORLD_CONFIG_FIELDS`); out-of-range or wrong-type values are refused when set and replaced by the default
+  when a stored config is read (so a config written by an older version gets today's value for settings added later).
+- **Old worlds.** A database with no stored config runs on `worldConfigFromSettings` (defaults plus what the flat settings already said, e.g. its
+  speed). **Nothing is written to it**, behaviour is unchanged.
+- **Who changes it.** Only the operator with the world's admin tool (`npm run admin -w @clanfire/server -- config`, `config-set <path> <value>`,
+  `world-open`); never over HTTP. **Before the world opens** every setting can be changed. The world is **open** from `world-open`, or from the
+  first player (a world that already has players counts as open). **After opening** only a short safe list can change: `domination.*`,
+  `tribe.maxMembers`, `features.scavenging`, `features.paidSpeedups`. Every change is audit-logged (`world_config_set`, `world_open`). A
+  change reaches a running server on its next request, no restart. A new world can also be created with the `WORLD_CONFIG` environment variable (a
+  JSON object with only the settings to change; bad values stop the start).
+- **Engine rule.** The flat `WorldSettings` fields `speed`, `npcDensity`, `protectionHours`, `npcGrowthHours`, `domination` always equal the config;
+  everything else is read through `worldRules(s)`; settings built without a config (tests, simulator) run on the defaults.
+- **The client** gets `settings.config` with every game state and the same object from the endpoint; queue sizes, tribe limit, Renown prices, hold
+  and chain texts, march times and the siege/sites screens use it instead of constants.
+- **Still constants** (not per world yet): unit stats and costs, building costs, terrain, `HOLD_MIN_POPULATION`, Chieftain limits, Renown formulas other
+  than the village price, rate limits. Next candidates are in `NEXT_STEPS.md`.

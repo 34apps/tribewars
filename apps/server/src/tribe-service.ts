@@ -12,7 +12,6 @@ import {
   TRIBE_FOUND_HALL_LEVEL,
   TRIBE_INVITE_TTL_HOURS,
   TRIBE_MAX_ALLIES,
-  TRIBE_MAX_MEMBERS,
   TRIBE_MAX_NAPS,
   ONLINE_WINDOW_MS,
   TRIBE_MAX_OPEN_INVITES,
@@ -28,6 +27,7 @@ import {
   seesLeadershipBoards,
   settleVillage,
   villagePoints,
+  worldRules,
   type ChatMessageDto,
   type ChatResponse,
   type CreateTribeRequest,
@@ -614,8 +614,9 @@ export class TribeService {
   }
 
   private requireRoom(tribeId: number): void {
-    if (this.ts.memberCount(tribeId) >= TRIBE_MAX_MEMBERS) {
-      throw new GameError('tribe_full', `This tribe is full (${TRIBE_MAX_MEMBERS} members).`);
+    const max = worldRules(this.settings).tribe.maxMembers; // per world
+    if (this.ts.memberCount(tribeId) >= max) {
+      throw new GameError('tribe_full', `This tribe is full (${max} members).`);
     }
   }
 

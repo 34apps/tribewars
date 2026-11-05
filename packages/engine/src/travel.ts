@@ -77,7 +77,10 @@ export function effectiveDistance(route: Route, family: TerrainFamily): number {
   return Math.min(route.length * TERRAIN_MAX_SLOWDOWN, Math.max(route.length, sum));
 }
 
-/** Travel time in ms for a walker of `family` at `speed` tiles per hour (before world speed) over `route`. */
+/**
+ * Travel time in ms for a walker of `family` at `speed` tiles per hour (before world speed) over `route`.
+ * `worldSpeed` is the MOVEMENT speed: callers pass `moveSpeed(settings)` (world speed times the world's unit speed).
+ */
 export function routeTimeMs(route: Route, family: TerrainFamily, speed: number, worldSpeed: number): number {
   if (!(speed > 0)) return Infinity;
   // Multiply before dividing so exact results (e.g. 5 tiles at 6 tiles/h) don't pick up float noise.
@@ -86,7 +89,7 @@ export function routeTimeMs(route: Route, family: TerrainFamily, speed: number, 
 
 /**
  * Slowest unit's time over the route: each unit's family walks the terrain at its own pace, the army arrives with the
- * last one. `Infinity` for an empty army.
+ * last one. `Infinity` for an empty army. `worldSpeed`: pass `moveSpeed(settings)`, not `settings.speed`.
  */
 export function armyRouteTimeMs(route: Route, units: Units, worldSpeed: number): number {
   let slowest = 0;

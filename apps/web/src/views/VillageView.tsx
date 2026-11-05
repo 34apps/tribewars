@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BUILDINGS, MAX_BUILD_QUEUE } from '@clanfire/engine';
+import { BUILDINGS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { formatCoords, formatDuration } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
 import { MovementsSummary } from './village/MovementsSummary.tsx';
@@ -86,7 +86,7 @@ function DesktopVillage() {
 
 function PhoneVillage() {
   const { village, live, now, player } = useGame();
-  const maxQueue = MAX_BUILD_QUEUE;
+  const maxQueue = useRules().queues.build;
   const dp = useDesignPreview();
   const preview = player.sandbox && dp.on;
   const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | null>(null);

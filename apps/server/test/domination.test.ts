@@ -146,13 +146,14 @@ test('the streak starts at the first qualifying evaluation, is kept, and resets 
   assert.deepEqual(readStreak(store), { tribeId: w.alice.tribeId, startedAt: T3 });
 
   // age condition: the world becomes "too young" again (a longer minimum written straight into the settings, streak untouched)
-  const raw = JSON.parse(store.getMeta('world_settings') ?? '{}') as { domination: Record<string, number> };
+  // (the rule lives in world_config; written straight there so the streak stays untouched)
+  const raw = JSON.parse(store.getMeta('world_config') ?? '{}') as { domination: Record<string, number> };
   raw.domination.minAgeDays = 1000;
-  store.setMeta('world_settings', JSON.stringify(raw));
+  store.setMeta('world_config', JSON.stringify(raw));
   assert.equal(ev(w, T3 + 1000).ageOk, false);
   assert.equal(readStreak(store), null);
   raw.domination.minAgeDays = RULE.minAgeDays;
-  store.setMeta('world_settings', JSON.stringify(raw));
+  store.setMeta('world_config', JSON.stringify(raw));
   const T4 = T3 + 2000;
   ev(w, T4);
   assert.deepEqual(readStreak(store), { tribeId: w.alice.tribeId, startedAt: T4 });

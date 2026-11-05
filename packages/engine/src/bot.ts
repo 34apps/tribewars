@@ -1,7 +1,7 @@
 // Caretaker bot for idle owners (docs/GAME_DESIGN.md section 17). Pure and deterministic given the rng.
 // It only ever chooses a building to queue through the normal build check. It never trains, researches, or sends anything.
 
-import { ABANDON_IDLE_DAYS, BOT_BUILD_WEIGHTS, BOT_IDLE_DAYS, BOT_STEP_HOURS, MAX_BUILD_QUEUE } from './config.ts';
+import { ABANDON_IDLE_DAYS, BOT_BUILD_WEIGHTS, BOT_IDLE_DAYS, BOT_STEP_HOURS } from './config.ts';
 import { checkBuild, settleVillage } from './village.ts';
 import { BUILDING_IDS } from './types.ts';
 import type { BuildingId, VillageState, WorldSettings } from './types.ts';
@@ -28,7 +28,7 @@ export function botBuildChoice(
   now: number,
   settings: WorldSettings,
   rng: () => number,
-  maxQueue: number = MAX_BUILD_QUEUE,
+  maxQueue?: number, // default: the world's build queue (`queues.build`)
 ): BuildingId | null {
   const settled = settleVillage(state, now, settings);
   const options: Array<{ id: BuildingId; weight: number }> = [];

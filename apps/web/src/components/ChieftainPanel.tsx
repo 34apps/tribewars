@@ -67,12 +67,12 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
     );
   }
 
-  const price = nextChieftainPrice(renown);
-  const batchPrice = chieftainBatchPrice(renown, count);
+  const price = nextChieftainPrice(renown, settings);
+  const batchPrice = chieftainBatchPrice(renown, count, settings);
   const reserved = renown.reserved ?? 0;
   const perUnit = trainTimeMs('chieftain', live, settings);
   const maxByResources = Math.min(CHIEFTAIN_MAX_BATCH, maxTrainable(live, 'chieftain', now, settings));
-  const maxByRenown = chieftainsAffordable(renown, CHIEFTAIN_MAX_BATCH);
+  const maxByRenown = chieftainsAffordable(renown, CHIEFTAIN_MAX_BATCH, settings);
   const cap = Math.min(maxByResources, maxByRenown);
   const check = checkTrain(live, 'chieftain', count, now, settings);
   const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * count])) as Resources;

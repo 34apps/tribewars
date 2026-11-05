@@ -1,14 +1,13 @@
 // Tribe tab: find/found a tribe when tribeless, or the member area (overview, members, diplomacy, recruit, chat, log).
 
 import { useEffect, useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
 import { useSites } from '../hooks/useSites.ts';
 import { tribeBonusLine } from '../sites.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import type { TribeTarget } from '../game.ts';
 import { ROLE_NAME } from '../relations.ts';
 import { RoleBadge, TribeLabel } from '../tribe/bits.tsx';
@@ -42,7 +41,7 @@ const SECTION_LABEL: Record<Section, string> = {
 
 /** For everyone: the public Domination bar (compact) and, when the tribe holds Fire sites, the Renown bonus they give. */
 function WorldGoal() {
-  const { myBonus } = useSites();
+  const { myBonus } = useSites(useRules().features.sites);
   const line = tribeBonusLine(myBonus);
   return (
     <>
@@ -61,6 +60,7 @@ let lastSection: Section | null = null;
 
 function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; data: MyTribeResponse }) {
   const { tribeAlerts } = useGame();
+  const maxMembers = useRules().tribe.maxMembers;
   // First visit with attacks incoming lands on the alerts.
   const [chosen, setChosen] = useState<Section>(lastSection ?? (tribeAlerts > 0 ? 'alerts' : 'overview'));
   const canRecruit = data.rights.includes('invite') || data.rights.includes('handle_applications');
@@ -88,7 +88,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
         <dl className="facts tribe-stats">
           <div><dt>Rank</dt><dd>#{tribe.rank}</dd></div>
           <div><dt>Points</dt><dd>{formatInt(tribe.points)}</dd></div>
-          <div><dt>Members</dt><dd>{tribe.members}/{TRIBE_MAX_MEMBERS}</dd></div>
+          <div><dt>Members</dt><dd>{tribe.members}/{maxMembers}</dd></div>
           <div><dt>Your role</dt><dd><RoleBadge role={role} /><span className="visually-hidden"> {ROLE_NAME[role]}</span></dd></div>
         </dl>
       </header>

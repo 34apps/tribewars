@@ -3,7 +3,6 @@
 import {
   DRILLYARD_POINTS_PER_LEVEL,
   KEEN_BONUS,
-  MAX_RESEARCH_QUEUE,
   RANK_BONUS,
   RANK_COST,
   RANK_MAX,
@@ -28,7 +27,9 @@ import type {
   WorldSettings,
 } from './types.ts';
 import { emptyResources, fail, isUnitId } from './util.ts';
+import { SIEGE_OFF_MESSAGE, siegeEnabled } from './siege.ts';
 import { addRefund, refundOf, settleVillage } from './village.ts';
+import { worldRules } from './world-config.ts';
 
 const isTrack = (x: unknown): x is RankTrack => typeof x === 'string' && (RANK_TRACKS as readonly string[]).includes(x);
 
@@ -55,6 +56,7 @@ function planResearch(v: VillageState, u: unknown, s: WorldSettings, queueLimit:
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   const rule = UNITS[u].research;
   if (!rule) return fail('invalid_input', `${UNITS[u].name} needs no research.`);
+  if (UNITS[u].siege !== undefined && !siegeEnabled(s)) return fail('requirements_not_met', SIEGE_OFF_MESSAGE);
   if (isResearched(v, u)) return fail('invalid_input', `${UNITS[u].name} is already researched.`);
   const queue = v.researchQueue ?? [];
   if (queue.some((j) => j.unit === u)) return fail('invalid_input', `${UNITS[u].name} is already being researched.`);
@@ -76,7 +78,7 @@ export function checkResearch(
   u: UnitId | (string & {}),
   t: number,
   s: WorldSettings,
-  queueLimit: number = MAX_RESEARCH_QUEUE,
+  queueLimit: number = worldRules(s).queues.research,
 ): CheckResult<{ cost: Resources; timeMs: number }> {
   if (!Number.isFinite(t)) return fail('invalid_input', 'Invalid time.');
   const plan = planResearch(settleVillage(state, t, s), u, s, queueLimit);
@@ -90,7 +92,7 @@ export function applyResearch(
   u: UnitId | (string & {}),
   t: number,
   s: WorldSettings,
-  queueLimit: number = MAX_RESEARCH_QUEUE,
+  queueLimit: number = worldRules(s).queues.research,
 ): VillageState {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);

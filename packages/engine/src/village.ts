@@ -5,16 +5,11 @@ import {
   CANCEL_REFUND_PERCENT,
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_MAX_QUEUED_BATCHES,
-  MAX_BUILD_QUEUE,
   MAX_TRAIN_BATCH,
-  MAX_TRAIN_QUEUE,
   NPC_GARRISON_PER_HALL,
   NPC_GROWTH_ORDER,
-  NPC_MAX_LEVEL,
   NPC_MAX_STEPS_PER_SETTLE,
   NPC_START_LEVELS,
-  NPC_START_GOLD_PER_TIER,
-  NPC_START_RESOURCE_SHARE,
   NPC_TIER_WEIGHTS,
   POP_PER_UNIT,
   START_RESOURCES,
@@ -47,6 +42,8 @@ import type {
   WorldSettings,
 } from './types.ts';
 import { MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId, normalizeUnits } from './util.ts';
+import { SIEGE_OFF_MESSAGE, siegeEnabled } from './siege.ts';
+import { worldRules } from './world-config.ts';
 
 // ---- Creation -----------------------------------------------------------------------------------
 
@@ -107,8 +104,10 @@ export function fullGarrison(hallLevel: number): Units {
  * An abandoned (computer-run) village of tier 1..5 created at time t.
  * With `growthSeed` (expanding layout) it starts exactly like a new player village and grows in its own
  * random building order; without, it starts at its tier's levels and grows in the fixed order.
+ * `s` (optional) = the world's rules: top level, start stock share and start gold (`npc.*`); without it the defaults.
  */
-export function createNpcVillage(tier: number, t: number, growthSeed?: number): VillageState {
+export function createNpcVillage(tier: number, t: number, growthSeed?: number, s?: Pick<WorldSettings, 'config'>): VillageState {
+  const npc = worldRules(s).npc;
   if (!Number.isInteger(tier) || tier < 1 || tier > NPC_TIER_WEIGHTS.length) {
     throw new GameError('invalid_input', `Tier must be an integer from 1 to ${NPC_TIER_WEIGHTS.length}.`);
   }
@@ -117,10 +116,10 @@ export function createNpcVillage(tier: number, t: number, growthSeed?: number): 
     for (const b of BUILDING_IDS) {
       const rule = NPC_START_LEVELS[b];
       const level = rule ? rule.perTier * tier + rule.offset : 0;
-      v.buildings[b] = Math.max(0, Math.min(level, NPC_MAX_LEVEL, BUILDINGS[b].maxLevel));
+      v.buildings[b] = Math.max(0, Math.min(level, npc.maxLevel, BUILDINGS[b].maxLevel));
     }
-    const half = Math.floor(storageCap(v) * NPC_START_RESOURCE_SHARE);
-    for (const r of RESOURCE_IDS) v.resources[r] = r === 'gold' ? NPC_START_GOLD_PER_TIER * tier : half;
+    const half = Math.floor(storageCap(v) * npc.startStockShare);
+    for (const r of RESOURCE_IDS) v.resources[r] = r === 'gold' ? npc.startGoldPerTier * tier : half;
   } else {
     for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
     v.resources = { ...START_RESOURCES };
@@ -156,11 +155,11 @@ function growthOrder(seed: number | undefined): readonly BuildingId[] {
  * One abandoned-village growth step n: raise one building. Only buildings grow; the garrison never refills or grows
  * (owner, 2026-11-05). Returns whether anything changed.
  */
-function applyNpcStep(v: VillageState, n: number): boolean {
+function applyNpcStep(v: VillageState, n: number, maxLevel: number): boolean {
   const order = growthOrder(v.npc?.growthSeed);
   for (let k = 0; k < order.length; k++) {
     const b = order[(n + k) % order.length] as BuildingId;
-    if (v.buildings[b] < Math.min(NPC_MAX_LEVEL, BUILDINGS[b].maxLevel)) {
+    if (v.buildings[b] < Math.min(maxLevel, BUILDINGS[b].maxLevel)) {
       v.buildings[b] += 1;
       return true;
     }
@@ -215,7 +214,7 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
         for (let n = first; n < due; n++) {
           advance(Math.min(t, v.npc.createdAt + (n + 1) * stepMs));
           // A step that changes nothing means the village is fully grown: every later step is a no-op too.
-          if (!applyNpcStep(v, n)) break;
+          if (!applyNpcStep(v, n, worldRules(s).npc.maxLevel)) break;
         }
         v.npc.growthSteps = due;
       }
@@ -301,7 +300,7 @@ export function checkBuild(
   b: BuildingId | (string & {}),
   t: number,
   s: WorldSettings,
-  maxQueue: number = MAX_BUILD_QUEUE,
+  maxQueue: number = worldRules(s).queues.build,
 ): CheckResult<{ targetLevel: number; cost: Resources; timeMs: number }> {
   if (!Number.isFinite(t)) return fail('invalid_input', 'Invalid time.');
   const plan = planBuild(settleVillage(state, t, s), b, s, maxQueue);
@@ -315,7 +314,7 @@ export function applyBuild(
   b: BuildingId | (string & {}),
   t: number,
   s: WorldSettings,
-  maxQueue: number = MAX_BUILD_QUEUE,
+  maxQueue: number = worldRules(s).queues.build,
 ): VillageState {
   if (!Number.isFinite(t)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, t, s);
@@ -351,13 +350,14 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
     return fail('invalid_input', `Count must be a whole number from 1 to ${MAX_TRAIN_BATCH}.`);
   }
   const def = UNITS[u];
+  if (def.siege !== undefined && !siegeEnabled(s)) return fail('requirements_not_met', SIEGE_OFF_MESSAGE);
   for (const req of Object.keys(def.requires) as BuildingId[]) {
     const need = def.requires[req] ?? 0;
     if (v.buildings[req] < need) {
       return fail('requirements_not_met', `Requires ${BUILDINGS[req].name} level ${need}.`);
     }
   }
-  if (def.research && !(v.researched ?? []).includes(u)) {
+  if (def.research &&!(v.researched ?? []).includes(u)) {
     return fail('requirements_not_met', `${def.name} must be researched in the Drillyard first.`);
   }
   if (v.hearth) return fail('requirements_not_met', 'The hearth is out: nothing new can be trained until it is relit.');
@@ -367,7 +367,7 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
       return fail('queue_full', 'A batch of Chieftains is already in training in this village.');
     }
   }
-  if (v.trainQueues[def.building].length >= MAX_TRAIN_QUEUE) {
+  if (v.trainQueues[def.building].length >= worldRules(s).queues.train) {
     return fail('queue_full', `The ${BUILDINGS[def.building].name} queue is full.`);
   }
   const cost = emptyResources();

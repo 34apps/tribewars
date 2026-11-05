@@ -109,3 +109,19 @@ commands: `deploy/README.md` ("Lobby").
 - A lobby ban does not end live world sessions (ban in the world too).
 - One pass key for all worlds: a stolen signing key forges any pass. Keep it in the lobby container's env only and
   rotate on suspicion.
+
+## Per-world rules (part 3, 2026-11-05)
+
+Each world's rules are one `WorldConfig` in its own database (`world_config`), so two worlds can differ in speed, unit speed, protection,
+abandoned villages, conquest, win condition, tribe size, optional features and queue sizes. Full list, ranges and rules: `docs/GAME_DESIGN.md` §19.
+- **Creation:** defaults from `config.ts` (a default world plays as before); optional `WORLD_CONFIG` environment variable (JSON, only used when the
+  database is created; invalid values stop the start). The old `WORLD_SPEED`, `WORLD_SEED`, `WORLD_RADIUS`, `WORLD_LAYOUT` still work the same way.
+- **Old worlds** without a stored config run on today's values and are not rewritten.
+- **Public:** `GET /w/<id>/api/world/config` (and `/api/world/config`): the rules, whether the world is open, when it opened, and which settings can
+  still change. No secrets. `GET /w/<id>/api/world/info` is unchanged.
+- **Operator:** `npm run admin -w @clanfire/server -- config | config-set <path> <value> | world-open` (Docker:
+  `docker compose exec game-<id> node admin.js ...`). All settings can change until the world opens (`world-open`, or the first player); after that only
+  `domination.*`, `tribe.maxMembers`, `features.scavenging` and `features.paidSpeedups`. Changes are audit-logged and reach a running world on its
+  next request. The lobby CLI (`lobby:admin`) has its own database and cannot reach a world's settings; it only manages the world list and status.
+- **Client:** reads `settings.config` from the game state and the endpoint above; the **World rules** page (`#rules`) shows it in real time.
+- **Security:** the endpoint is read-only and public by design (rules are not secret); writes exist only in the operator tool on the server machine.

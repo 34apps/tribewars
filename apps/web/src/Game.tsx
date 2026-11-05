@@ -13,6 +13,7 @@ import { LiveProvider } from './hooks/useLive.tsx';
 import { useNow } from './hooks/useNow.ts';
 import { useWorldEnd } from './hooks/useWorldEnd.ts';
 import { WorldEndView } from './views/WorldEndView.tsx';
+import { WorldRulesView } from './views/WorldRulesView.tsx';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
@@ -204,7 +205,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     return {
       settings,
       player: data.player,
-      renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length),
+      renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length, settings),
       village,
       villages: data.villages,
       selectVillage,
@@ -265,6 +266,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'tribe' && <TribeView />}
         {tab === 'ranks' && <RankingsView />}
         {tab === 'support' && <SupportView />}
+        {tab === 'rules' && <WorldRulesView />}
         {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted page">The world is still running.</p>)}
         {tab === 'staff' && (
           <Suspense fallback={<p className="muted page">Loading…</p>}>

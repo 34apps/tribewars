@@ -5,8 +5,17 @@
 import { SIEGE_BASE_POINTS, SIEGE_DURING_SHARE, SIEGE_LOST_SHARE, SIEGE_MIN_LEVEL, SIEGE_POINTS_PER_LEVEL, UNITS } from './config.ts';
 import { mulberry32 } from './random.ts';
 import { BUILDING_IDS, UNIT_IDS } from './types.ts';
-import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageState } from './types.ts';
+import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageState, WorldSettings } from './types.ts';
 import { isBuildingId, normalizeUnits } from './util.ts';
+import { worldRules } from './world-config.ts';
+
+/** Message of the refusal when a world has siege switched off. */
+export const SIEGE_OFF_MESSAGE = 'Siege is off in this world.';
+
+/** Is siege on in this world (`features.siege`)? Off: siege units cannot be trained or researched and battles never lower buildings. */
+export function siegeEnabled(s: Pick<WorldSettings, 'config'> | undefined | null): boolean {
+  return worldRules(s).features.siege;
+}
 
 /** The lowest level siege can bring a building to: 0, and 1 for the Town Hall (SIEGE_MIN_LEVEL). */
 export function siegeFloor(building: BuildingId): number {

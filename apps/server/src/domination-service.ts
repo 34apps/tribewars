@@ -34,16 +34,21 @@ const DAY_MS = 86_400_000;
 
 // ---- helpers that work on a Store alone (the operator tool uses them too) ---------------------------------------------
 
-/** The world's domination rule, read fresh from the stored world settings (so an operator change needs no restart). */
+/**
+ * The world's domination rule, read fresh from the database (so an operator change needs no restart): `config.domination` of the
+ * stored `world_config`; a world without one (made before per-world settings) uses the legacy `world_settings.domination`.
+ */
 export function readDominationSettings(store: Store): DominationSettings {
+  if (store.getWorldConfigRaw() !== null) return mergeDominationSettings(store.effectiveWorldConfig().domination);
   return mergeDominationSettings(store.getSettings()?.domination);
 }
 
-/** Write the complete rule into the stored world settings (every other stored setting is kept) and clear the streak. */
+/**
+ * Write the complete rule into `world_config` and mirror it into `world_settings.domination` (every other stored setting is kept),
+ * and clear the streak. A world without a stored config gets one now (from its flat settings).
+ */
 export function writeDominationSettings(store: Store, next: DominationSettings): void {
-  const raw = store.getMeta('world_settings');
-  const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-  store.setMeta('world_settings', JSON.stringify({ ...stored, domination: next }));
+  store.setWorldConfig({ ...store.effectiveWorldConfig(), domination: next });
   clearStreak(store);
 }
 

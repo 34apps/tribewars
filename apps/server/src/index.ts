@@ -12,6 +12,7 @@ const app = await buildApp({
   worldId: env.worldId,
   worldName: env.worldName,
   settings: env.worldOverrides,
+  worldConfig: env.worldConfig,
   secureCookies: env.isProduction,
   trustProxy: env.trustProxy,
   allowedOrigins: env.allowedOrigins,
@@ -35,6 +36,7 @@ try {
 // Arrivals are also processed at the start of every API request; the tick covers idle periods.
 const tick = setInterval(() => {
   try {
+    app.ctx.refreshSettings?.();
     app.ctx.game.processDue(Date.now());
   } catch (err) {
     app.log.error({ err }, 'tick failed');

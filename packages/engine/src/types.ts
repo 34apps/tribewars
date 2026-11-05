@@ -128,6 +128,12 @@ export interface WorldSettings {
    * databases created before it have none and use DOMINATION_DEFAULTS. Always read through `mergeDominationSettings`.
    */
   domination?: Partial<DominationSettings>;
+  /**
+   * The world's complete rules (world-config.ts): set by the server from the stored per-world config. The flat fields above
+   * (speed, npcDensity, protectionHours, npcGrowthHours, domination) always equal the matching config values. Absent in tests
+   * and old callers: `worldRules(settings)` then returns the defaults.
+   */
+  config?: import('./world-config.ts').WorldConfig;
 }
 
 /** Per-world domination rule. Durations are in days at speed 1 and are divided by the world speed like every other duration. */

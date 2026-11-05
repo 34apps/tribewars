@@ -1,20 +1,14 @@
 // Founding a village, giving up a village, restarting a player (docs/GAME_DESIGN.md 18.2, "Owner decisions 2026-11-04").
 // Pure; the server owns the rows, the Renown ledger and the choice of tile.
 
-import {
-  FOUND_PROTECTION_HOURS,
-  FOUND_START_RESOURCES,
-  MAX_VILLAGES_PER_PLAYER,
-  NPC_TIER_WEIGHTS,
-  RESTART_EDGE_BAND,
-  RESTART_PROTECTION_HOURS,
-} from './config.ts';
+import { FOUND_START_RESOURCES, MAX_VILLAGES_PER_PLAYER, NPC_TIER_WEIGHTS, RESTART_EDGE_BAND } from './config.ts';
 import { storageCap } from './economy.ts';
 import { mulberry32 } from './random.ts';
 import { RESOURCE_IDS } from './types.ts';
 import type { Coords, Units, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR, cloneVillage, emptyUnits } from './util.ts';
 import { admitTroops, createPlayerVillage, fullGarrison, settleVillage } from './village.ts';
+import { worldRules } from './world-config.ts';
 import { expandingRadius, findExpandingSpawn, findSpawnLocation } from './world.ts';
 
 const hoursMs = (hours: number, s: WorldSettings): number => Math.round((hours * MS_PER_HOUR) / s.speed);
@@ -31,14 +25,14 @@ export function underVillageLimit(villagesOwned: number): boolean {
 
 /**
  * The village a found mission creates when the Chieftain arrives at `t`: new-player start levels, FOUND_START_RESOURCES, no
- * Renown for those levels, and a protection time (`protectedUntil` = t + FOUND_PROTECTION_HOURS / speed) in which it cannot be
+ * Renown for those levels, and a protection time (`protectedUntil` = t + the world's `protection.foundHours` / speed) in which it cannot be
  * attacked. The escort (the army without the Chieftain, who is used up) becomes the garrison up to the population cap;
  * `overflow` is what did not fit (the server sends it home). Chieftains in `escort` are ignored.
  */
 export function createFoundedVillage(t: number, s: WorldSettings, escort: Partial<Units> = emptyUnits()): { state: VillageState; overflow: Units } {
   const base = createPlayerVillage(t, FOUND_START_RESOURCES);
   const moved = admitTroops(base, { ...escort, chieftain: 0 });
-  moved.state.protectedUntil = t + hoursMs(FOUND_PROTECTION_HOURS, s);
+  moved.state.protectedUntil = t + hoursMs(worldRules(s).protection.foundHours, s);
   moved.overflow.chieftain = 0;
   return moved;
 }
@@ -75,7 +69,7 @@ export function abandonVillageKeepBuildings(state: VillageState, now: number, s:
 
 /** Protection time of a restarted player (ms, speed applied). */
 export function restartProtectionMs(s: WorldSettings): number {
-  return hoursMs(RESTART_PROTECTION_HOURS, s);
+  return hoursMs(worldRules(s).protection.restartHours, s);
 }
 
 /**
@@ -84,7 +78,7 @@ export function restartProtectionMs(s: WorldSettings): number {
  * edge a newcomer gets; the server then adds the ring of abandoned villages with `generateNpcsForSpawn`. 'scattered' layout:
  * a random free tile. `isOccupied(x, y)` reports a village on that exact tile. `seed` makes the choice deterministic (the server
  * mixes in a secret). Throws GameError('not_found') only if the world is full. `protectionMs` is how long the new village is
- * safe from attacks (RESTART_PROTECTION_HOURS / speed): the server sets `protectedUntil` = now + protectionMs.
+ * safe from attacks (`protection.restartHours` / speed): the server sets `protectedUntil` = now + protectionMs.
  */
 export function restartPlacement(
   s: WorldSettings,

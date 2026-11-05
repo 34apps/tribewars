@@ -66,7 +66,7 @@ team conquest operations; long-term planning; a clear world goal.
 |---|---|---|---|
 | Resources | 3 + population | 4 (gold) + population | Keep; gold is ours. |
 | Troop upkeep | none | none (owner) | Same. **Food needs a use**: more food in costs. |
-| Per-world settings | ~100, many vary | speed, map, domination only | **Gap**: per-world WorldConfig (planned run). |
+| Per-world settings | ~100, many vary | **WorldConfig built 2026-11-05** (pace, protection, abandoned villages, conquest, domination, tribe size, feature flags, queues): `GAME_DESIGN` §19 | Done. Still constants: unit and building numbers, terrain. Reserved flags (morale, scavenging, paid speed-ups) have no feature yet. |
 | Hero | paladin with skills and items | Chieftain figure (cosmetic) | Optional later; don't copy the paladin. |
 | Battle modifiers | luck, wall, morale, night, church, flags, tribe skills | luck, wall, troop ranks | Keep lean. Morale and night bonus out (owner). |
 | Scouting | scouts, watchtower | 5 intel tiers | Ours richer. Add **Lookouts** (our watchtower idea). |
@@ -97,7 +97,7 @@ travel, the caretaker bot, toy-diorama art, a multi-world lobby, and (if the own
 1. **Decide the shop now**: complaint #1 everywhere is pay-to-win. Recommendation: cosmetics plus small
    conveniences; if the paid faster queue stays, cap it (one building at a time, ~20%, per-world flag) and
    never sell resources, troops or Renown.
-2. **Per-world settings** (WorldConfig) - enables speed and casual worlds and the special short world.
+2. **Per-world settings** (WorldConfig; **built 2026-11-05**) - enables speed and casual worlds and the special short world.
 3. **Abandoned villages build with their own stock** + balance pass (raiding too strong, food unused,
    siege unused).
 4. **Free Raid lists** (saved raid templates sent from the map) - our answer to their paid assistant.

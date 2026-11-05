@@ -10,16 +10,18 @@ import type {
   VillageListItemDto,
   VillageState,
   WorldEndDto,
+  WorldConfig,
   WorldSettings,
 } from '@clanfire/engine';
+import { worldRules } from '@clanfire/engine';
 
 /** Tabs shown in the main navigation. */
 export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu (not in the navigation bar). */
-export type MenuPage = 'support' | 'staff' | 'results';
+export type MenuPage = 'support' | 'staff' | 'results' | 'rules';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
-export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {
@@ -111,4 +113,9 @@ export function useGame(): GameApi {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used inside <Game>');
   return ctx;
+}
+
+/** The rules of this world (queue sizes, tribe limit, hold times, ...) from the settings the server sends. Defaults on an old server. */
+export function useRules(): WorldConfig {
+  return worldRules(useGame().settings);
 }

@@ -14,7 +14,7 @@ import { requirementText, unmetRequirements } from '../../rules.ts';
 import { chieftainRenownNote, nextChieftainPrice } from '../../villages.ts';
 
 export function BannerHallPanel() {
-  const { live, now, village, renown, applyVillage, refresh, toast, navigate } = useGame();
+  const { live, now, village, renown, settings, applyVillage, refresh, toast, navigate } = useGame();
   const [want, setWant] = useState(1);
   const [busy, setBusy] = useState(false);
   const [gained, setGained] = useState<number | null>(null);
@@ -137,7 +137,7 @@ export function BannerHallPanel() {
       <h3 className="eyebrow bh-chief-title">Chieftain</h3>
       <p className="bh-text">
         The Chieftain founds a new village on free land or, with an escort, puts out the hearth of an abandoned village or of another player's. The next one costs{' '}
-        {formatInt(nextChieftainPrice(renown))} Renown ({formatInt(renown.balance)} to spend
+        {formatInt(nextChieftainPrice(renown, settings))} Renown ({formatInt(renown.balance)} to spend
         {renown.reserved ? `, ${formatInt(renown.reserved)} reserved` : ''}).
       </p>
       <p className="bh-text muted">{chieftainRenownNote()}</p>

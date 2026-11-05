@@ -4,7 +4,6 @@ import {
   BUILDINGS,
   BUILDING_IDS,
   CANCEL_REFUND_PERCENT,
-  MAX_BUILD_QUEUE,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
@@ -26,7 +25,7 @@ import type { IconName } from '../../art/Icon.tsx';
 import { Mags } from '../../art/Mags.tsx';
 import { ProgressBar } from '../../components/ui.tsx';
 import { formatClock, formatCompact, formatDuration, formatInt, formatRate } from '../../format.ts';
-import { useGame } from '../../game.ts';
+import { useGame, useRules } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
 import { hearthBuildReason } from '../../villages.ts';
@@ -69,7 +68,7 @@ export function BuildingPanel({
   const target = level + queued + 1;
   const atMax = target > def.maxLevel;
   const unmet = unmetRequirements(live.buildings, def.requires);
-  const check = checkBuild(live, id, now, settings, MAX_BUILD_QUEUE);
+  const check = checkBuild(live, id, now, settings, useRules().queues.build);
   const cap = storageCap(live);
   const net = productionPerHour(live, settings);
   const cost = atMax ? null : check.ok ? check.cost : buildingCost(id, target);
@@ -221,7 +220,7 @@ function HallBuildings({
   onPick?: (id: BuildingId) => void;
 }) {
   const { live, now, settings, village } = useGame();
-  const limit = MAX_BUILD_QUEUE;
+  const limit = useRules().queues.build;
   const pop = populationUsage(live);
   const ids = BUILDING_IDS.filter((b) => b !== 'hall');
   const isLocked = (b: BuildingId) => live.buildings[b] === 0 && unmetRequirements(live.buildings, BUILDINGS[b].requires).length > 0;
@@ -298,7 +297,7 @@ function HallBuildings({
 
 export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
   const { live, now, settings } = useGame();
-  const maxQueue = MAX_BUILD_QUEUE;
+  const maxQueue = useRules().queues.build;
   const jobs = live.buildQueue;
   const last = jobs[jobs.length - 1];
   const cancel = useCancelJob();

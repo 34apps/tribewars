@@ -20,10 +20,9 @@ import {
   RENOWN_SMALL_FLOOR,
   RENOWN_SMALL_RATIO,
   RENOWN_VALUE_WEIGHT,
-  RENOWN_VILLAGE_BASE,
-  RENOWN_VILLAGE_GROWTH,
   UNITS,
 } from './config.ts';
+import { worldRules } from './world-config.ts';
 import type { RenownInfo } from './api.ts';
 import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
 import { canAfford } from './economy.ts';
@@ -91,9 +90,10 @@ export function markRenownPaid(state: VillageState): VillageState {
 // ---- Price of a new village -----------------------------------------------------------------------
 
 /** Renown the next village costs for a player who owns `villagesOwned` (>= 1): round(BASE * GROWTH^(owned - 1)). */
-export function villageRenownCost(villagesOwned: number): number {
+export function villageRenownCost(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
   const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
-  return Math.round(RENOWN_VILLAGE_BASE * ipow(RENOWN_VILLAGE_GROWTH, owned - 1));
+  const rules = worldRules(s).conquest; // the world's own price (docs: per-world settings); no `s` = the defaults
+  return Math.round(rules.renownBase * ipow(rules.renownGrowth, owned - 1));
 }
 
 /**
@@ -101,10 +101,10 @@ export function villageRenownCost(villagesOwned: number): number {
  * village after those would cost = villageRenownCost(villagesOwned + outstandingChieftains). `outstandingChieftains` counts
  * the player's other Chieftains (at home, away, queued), not the one being bought. Owned 1, none outstanding = the base price.
  */
-export function villageRenownPrice(villagesOwned: number, outstandingChieftains: number): number {
+export function villageRenownPrice(villagesOwned: number, outstandingChieftains: number, s?: Pick<WorldSettings, 'config'>): number {
   const out = Number.isFinite(outstandingChieftains) ? Math.max(0, Math.floor(outstandingChieftains)) : 0;
   const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
-  return villageRenownCost(owned + out);
+  return villageRenownCost(owned + out, s);
 }
 
 /** Renown that comes back when a Chieftain who reserved `cost` dies on the way (rounded down). */
@@ -113,12 +113,12 @@ export function chieftainRefund(cost: number): number {
 }
 
 /** The numbers a player sees (everything floored). `total` and `spent` may be fractional in the database. */
-export function makeRenownInfo(total: number, spent: number, villagesOwned: number): RenownInfo {
+export function makeRenownInfo(total: number, spent: number, villagesOwned: number, s?: Pick<WorldSettings, 'config'>): RenownInfo {
   return {
     total: Math.floor(total + 1e-9),
     spent: Math.floor(spent + 1e-9),
     balance: Math.max(0, Math.floor(total - spent + 1e-9)),
-    nextVillageCost: villageRenownCost(villagesOwned),
+    nextVillageCost: villageRenownCost(villagesOwned, s),
     villages: villagesOwned,
   };
 }

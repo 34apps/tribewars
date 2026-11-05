@@ -3,13 +3,13 @@ import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
   MAX_TRAIN_BATCH,
-  MAX_TRAIN_QUEUE,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
   checkTrain,
   emptyUnits,
   isResearched,
+  moveSpeed,
   normalizeUnits,
   POP_PER_UNIT,
   populationCap,
@@ -22,7 +22,7 @@ import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
 import { PopulationLine } from '../components/PopulationLine.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
 import { Icon } from '../art/Icon.tsx';
 import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
@@ -443,7 +443,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   const perUnit = trainTimeMs(unit, live, settings);
   const max = locked ? 0 : maxTrainable(live, unit, now, settings);
   const check = checkTrain(live, unit, Math.max(1, count), now, settings);
-  const queueFull = live.trainQueues[building].length >= MAX_TRAIN_QUEUE;
+  const queueFull = live.trainQueues[building].length >= useRules().queues.train;
 
   let reason: string | null = null;
   if (village.hearth) reason = HEARTH_OUT_REASON;
@@ -470,7 +470,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
     }
   }
 
-  const speed = def.speed * settings.speed;
+  const speed = def.speed * moveSpeed(settings);
   return (
     <article className={`card unit${locked ? ' is-locked' : ''}`} aria-labelledby={`u-${unit}`}>
       <header className="unit-head">
@@ -540,12 +540,14 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
 
 function TrainingPanel({ building }: { building: TrainingBuildingId }) {
   const { live, navigate } = useGame();
+  const rules = useRules();
   const [busy, setBusy] = useState(false);
   const cancel = useCancelJob();
   const def = BUILDINGS[building];
   const level = live.buildings[building];
   const queue = live.trainQueues[building];
-  const units = UNIT_IDS.filter((u) => UNITS[u].building === building);
+  // A world without siege (features.siege off) does not offer the siege units for training.
+  const units = UNIT_IDS.filter((u) => UNITS[u].building === building && (rules.features.siege || !UNITS[u].siege));
   const nav = (
     <button className="btn btn-small" onClick={() => navigate('village')}>
       Go to Village
@@ -571,7 +573,7 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
           {queue.length > 0 && (
             <div className="subsection">
               <h3 className="subtitle">
-                Training queue <span className="muted">{queue.length}/{MAX_TRAIN_QUEUE}</span>
+                Training queue <span className="muted">{queue.length}/{rules.queues.train}</span>
               </h3>
               <ol className="job-list">
                 {queue.map((job, i) => (

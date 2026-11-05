@@ -6,7 +6,7 @@ import { ALLEGIANCES, STAGE_FILES, artUrl } from './sprites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
 
 /** "Map key": village growth stages by points, allegiance banners, ruins and protection. Open by default on wide screens. */
-export function Legend() {
+export function Legend({ sites = true }: { sites?: boolean }) {
   const [startOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1100px) and (min-height: 760px)').matches);
   return (
     <details className="wm-legend" open={startOpen}>
@@ -60,21 +60,25 @@ export function Legend() {
             Hearth out: grey ring and smoke. Someone is holding it
           </li>
         </ul>
-        <h3>Fire sites · bonus Renown</h3>
-        <ul className="wm-legend-banners wm-legend-sites">
-          <li>
-            <SiteGlyph kind="fire_shrine" awake size={38} />
-            Fire Shrine, awake
-          </li>
-          <li>
-            <SiteGlyph kind="fire_shrine" awake={false} size={38} />
-            Fire Shrine, dormant (ash)
-          </li>
-          <li className="wm-legend-wide">
-            <SiteGlyph kind="great_fire" awake size={38} />
-            Great Fire: bigger bonus. Ring colour: green = your tribe, red = another tribe, grey = nobody
-          </li>
-        </ul>
+        {sites && (
+          <>
+            <h3>Fire sites · bonus Renown</h3>
+            <ul className="wm-legend-banners wm-legend-sites">
+              <li>
+                <SiteGlyph kind="fire_shrine" awake size={38} />
+                Fire Shrine, awake
+              </li>
+              <li>
+                <SiteGlyph kind="fire_shrine" awake={false} size={38} />
+                Fire Shrine, dormant (ash)
+              </li>
+              <li className="wm-legend-wide">
+                <SiteGlyph kind="great_fire" awake size={38} />
+                Great Fire: bigger bonus. Ring colour: green = your tribe, red = another tribe, grey = nobody
+              </li>
+            </ul>
+          </>
+        )}
         <h3>Route to the selected tile</h3>
         <ul className="wm-legend-banners">
           <li>

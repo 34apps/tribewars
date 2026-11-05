@@ -2,7 +2,7 @@
 
 import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
-import { DEFAULT_WORLD_ID, type WorldSettings } from '@clanfire/engine';
+import { DEFAULT_WORLD_ID, checkWorldConfigInput, type WorldSettings } from '@clanfire/engine';
 import { parsePublicKeys } from './entry-pass.ts';
 import { checkWorldId, checkWorldName } from './world-path.ts';
 
@@ -24,6 +24,8 @@ export interface ServerEnv {
   maxAccountsPerIp: number;
   /** World settings given in the environment. Only used when a new world is created. */
   worldOverrides: Partial<WorldSettings>;
+  /** WORLD_CONFIG: a JSON object with some per-world rules, e.g. {"conquest":{"holdHours":4},"pace":{"unitSpeed":2}}. Only used when a new world is created. */
+  worldConfig?: Record<string, unknown>;
   /** Anthropic key for Mags's advisor; null = advisor off. Only set when ADVISOR_ENABLED=true (owner: no AI spend by default). Secret: never log it. */
   anthropicApiKey: string | null;
   /** Lowercase usernames allowed to use sandbox/test mode (SANDBOX_USERS, comma list; default metinaltinbas outside production, empty in production; empty = nobody). */
@@ -86,6 +88,20 @@ function parseAllowedOrigins(raw: string | undefined): string[] {
   return out;
 }
 
+/** WORLD_CONFIG: JSON object with some per-world rules. Unset/empty = none. Bad JSON or a bad value stops the server from starting. */
+function parseWorldConfigEnv(raw: string | undefined): Record<string, unknown> | undefined {
+  if (raw === undefined || raw.trim() === '') return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('Invalid WORLD_CONFIG: not valid JSON (expected an object such as {"conquest":{"holdHours":4}}).');
+  }
+  const check = checkWorldConfigInput(parsed);
+  if (!check.ok) throw new Error(`Invalid WORLD_CONFIG: ${check.message}`);
+  return parsed as Record<string, unknown>;
+}
+
 /** Load apps/server/.env if it exists (path relative to this package, not the cwd). Real environment variables win. */
 export function loadDotEnv(): void {
   const file = new URL('../.env', import.meta.url);
@@ -108,6 +124,8 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     worldOverrides.layout = layout;
   }
 
+  const worldConfig = parseWorldConfigEnv(env.WORLD_CONFIG);
+
   const worldId = checkWorldId(env.WORLD_ID?.trim() || DEFAULT_WORLD_ID);
   const worldName = checkWorldName(env.WORLD_NAME?.trim() || `World ${worldId}`);
 
@@ -127,6 +145,7 @@ export function loadEnv(env: Env = process.env): ServerEnv {
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     maxAccountsPerIp: num(env, 'MAX_ACCOUNTS_PER_IP', (n) => Number.isInteger(n) && n >= 0 && n <= 1000, 'an integer from 0 to 1000') ?? (nodeEnv === 'production' ? 3 : 0),
     worldOverrides,
+    ...(worldConfig ? { worldConfig } : {}),
     sandboxUsers: (env.SANDBOX_USERS ?? (nodeEnv === 'production' ? '' : 'metinaltinbas'))
       .split(',')
       .map((s) => s.trim().toLowerCase())

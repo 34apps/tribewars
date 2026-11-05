@@ -15,7 +15,6 @@ import {
   pointsSpent,
   pointsTotal,
   rankOf,
-  MAX_RESEARCH_QUEUE,
 } from '@clanfire/engine';
 import type { RankTrack, UnitId } from '@clanfire/engine';
 import { useState } from 'react';
@@ -23,7 +22,7 @@ import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Cost, ProgressBar } from '../../components/ui.tsx';
 import { formatDuration, formatInt } from '../../format.ts';
-import { useGame } from '../../game.ts';
+import { useGame, useRules } from '../../game.ts';
 import { UNIT_ICON } from '../../icons.ts';
 import { reasonText } from '../../rules.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
@@ -76,7 +75,7 @@ export function DrillyardPanel() {
   const total = pointsTotal(live);
   const spent = pointsSpent(live);
   const queue = live.researchQueue ?? [];
-  const limit = MAX_RESEARCH_QUEUE;
+  const limit = useRules().queues.research;
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = UNIT_IDS.filter((u) => isResearched(live, u));
 

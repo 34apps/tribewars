@@ -6,7 +6,6 @@ import {
   PLAYER_MAX_APPLICATIONS,
   TRIBE_DESCRIPTION_MAX,
   TRIBE_FOUND_HALL_LEVEL,
-  TRIBE_MAX_MEMBERS,
   TRIBE_NAME_MAX,
   TRIBE_TAG_MAX,
   checkTribeDescription,
@@ -17,7 +16,7 @@ import {
 import type { Recruitment, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatInt, formatLeft } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { CharCount, PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME, RECRUITMENT_OPTIONS, Segmented, TribeLabel } from './bits.tsx';
 import { useTribe } from './context.ts';
 import { ApplyForm, JoinButton } from './Join.tsx';
@@ -87,6 +86,7 @@ function Applications() {
 
 function TribeList() {
   const { openTribe } = useTribe();
+  const maxMembers = useRules().tribe.maxMembers;
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [tribes, setTribes] = useState<TribeSummaryDto[] | null>(null);
@@ -148,7 +148,7 @@ function TribeList() {
                 <span className="tribe-row-text">
                   <span className="tribe-row-title"><TribeLabel tag={t.tag} name={t.name} /></span>
                   <span className="muted small">
-                    {t.members}/{TRIBE_MAX_MEMBERS} members · {formatInt(t.points)} pts
+                    {t.members}/{maxMembers} members · {formatInt(t.points)} pts
                   </span>
                   <span className="muted small">Recruitment: {RECRUITMENT_NAME[t.recruitment]}</span>
                 </span>

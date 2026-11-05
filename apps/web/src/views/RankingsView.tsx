@@ -3,12 +3,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { ProfileExtras } from './ProfileExtras.tsx';
 import { makeSample } from './rankingsSample.ts';
 
@@ -392,6 +391,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
 
 function Tribes({ real, sample }: { real: TribeSummaryDto[]; sample: TribeSummaryDto[] | null }) {
   const { viewTribe, player } = useGame();
+  const maxMembers = useRules().tribe.maxMembers;
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [picked, setPicked] = useState<number | null>(null);
@@ -416,7 +416,7 @@ function Tribes({ real, sample }: { real: TribeSummaryDto[]; sample: TribeSummar
     facts: [
       ['Rank', `#${pickedRow.rank}`],
       ['Points', formatInt(pickedRow.points)],
-      ['Members', `${pickedRow.members}/${TRIBE_MAX_MEMBERS}`],
+      ['Members', `${pickedRow.members}/${maxMembers}`],
       ['Villages', String(pickedRow.villages)],
       ['Avg. points', pickedRow.members ? formatInt(Math.round(pickedRow.points / pickedRow.members)) : '—'],
     ],
@@ -483,7 +483,7 @@ function Tribes({ real, sample }: { real: TribeSummaryDto[]; sample: TribeSummar
                       <button type="button" className="rk-who" onClick={(e) => { e.stopPropagation(); setPicked(t.id); }}>{t.name}</button>
                       <span className="rk-sub muted small">[{t.tag}]{mine ? ' · your tribe' : ''}</span>
                     </td>
-                    <td className="num">{t.members}<span className="muted small">/{TRIBE_MAX_MEMBERS}</span></td>
+                    <td className="num">{t.members}<span className="muted small">/{maxMembers}</span></td>
                     <td className="num">{t.villages}</td>
                     <td className="rk-c-vill num">{t.members ? formatInt(Math.round(t.points / t.members)) : '—'}</td>
                     <td className="num rk-pts">{formatInt(t.points)}</td>

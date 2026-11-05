@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { TRIBE_DESCRIPTION_MAX, TRIBE_MAX_MEMBERS, canTribe, checkTribeDescription } from '@clanfire/engine';
+import { TRIBE_DESCRIPTION_MAX, canTribe, checkTribeDescription } from '@clanfire/engine';
 import type { Recruitment } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatDate, formatInt } from '../format.ts';
+import { useRules } from '../game.ts';
 import { CharCount, PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME, RECRUITMENT_OPTIONS, Segmented } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
@@ -74,6 +75,7 @@ function SettingsForm({ tribe }: MemberProps) {
 }
 
 export function Overview({ tribe, role }: MemberProps) {
+  const maxMembers = useRules().tribe.maxMembers;
   return (
     <>
       <section className="card" aria-labelledby="ov-title">
@@ -81,7 +83,7 @@ export function Overview({ tribe, role }: MemberProps) {
         {tribe.description ? <PlainText text={tribe.description} /> : <p className="muted">No description yet.</p>}
         <dl className="facts">
           <div><dt>Recruitment</dt><dd>{RECRUITMENT_NAME[tribe.recruitment]}</dd></div>
-          <div><dt>Members</dt><dd>{tribe.members}/{TRIBE_MAX_MEMBERS}</dd></div>
+          <div><dt>Members</dt><dd>{tribe.members}/{maxMembers}</dd></div>
           <div><dt>Points</dt><dd>{formatInt(tribe.points)}</dd></div>
           <div><dt>Founded</dt><dd>{formatDate(tribe.createdAt)}</dd></div>
         </dl>

@@ -26,6 +26,11 @@ export interface AppContext {
   /** Domination win condition and world end (domination-service.ts). */
   domination: DominationService;
   settings: WorldSettings;
+  /**
+   * Copy an operator change of the stored world config into `settings` in place (cheap when nothing changed). Run at the start of every
+   * API request and on the 1 s tick. Absent in the in-browser preview (nobody changes its config).
+   */
+  refreshSettings?: () => void;
   limiter: RateLimiter;
   /** This process's world id and display name (docs/MULTI_WORLD.md). The id also scopes the session cookie path. */
   worldId: string;

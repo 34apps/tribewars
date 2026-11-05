@@ -8,9 +8,6 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
-  HOLD_HOURS,
-  HOLD_HOURS_ABANDONED,
-  STRIKE_CHAIN_WINDOW_HOURS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
@@ -18,8 +15,20 @@ import {
   normalizeUnits,
   occupierPopulation,
   villageRenownPrice,
+  worldRules,
 } from '@clanfire/engine';
-import type { BuildingId, HearthInfoDto, MapVillageDto, Mission, RenownInfo, SiegeHit, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
+import type {
+  BuildingId,
+  HearthInfoDto,
+  MapVillageDto,
+  Mission,
+  RenownInfo,
+  SiegeHit,
+  Units,
+  VillageListItemDto,
+  VillageReportData,
+  WorldSettings,
+} from '@clanfire/engine';
 import { formatInt, formatLeft } from './format.ts';
 import { allowedMissions } from './rules.ts';
 
@@ -118,22 +127,22 @@ export function renameProblem(raw: string): string | null {
 // ---- Chieftain ------------------------------------------------------------------------------------------
 
 /** Renown the next Chieftain reserves: the server's number, or the engine rule when an older server did not send it. */
-export function nextChieftainPrice(r: RenownInfo): number {
-  return r.chieftainPrice ?? villageRenownPrice(r.villages, r.chieftains ?? 0);
+export function nextChieftainPrice(r: RenownInfo, s?: Pick<WorldSettings, 'config'>): number {
+  return r.chieftainPrice ?? villageRenownPrice(r.villages, r.chieftains ?? 0, s);
 }
 
-/** Renown a batch of `count` Chieftains reserves (each one is priced as a village after those before it). */
-export function chieftainBatchPrice(r: RenownInfo, count: number): number {
+/** Renown a batch of `count` Chieftains reserves (each one is priced as a village after those before it). `s`: this world's rules. */
+export function chieftainBatchPrice(r: RenownInfo, count: number, s?: Pick<WorldSettings, 'config'>): number {
   const n = Math.max(0, Math.floor(count));
   let sum = 0;
-  for (let i = 0; i < n; i++) sum += villageRenownPrice(r.villages, (r.chieftains ?? 0) + i);
+  for (let i = 0; i < n; i++) sum += villageRenownPrice(r.villages, (r.chieftains ?? 0) + i, s);
   return sum;
 }
 
 /** Most Chieftains the Renown balance can reserve, at most `limit`. */
-export function chieftainsAffordable(r: RenownInfo, limit = CHIEFTAIN_MAX_BATCH): number {
+export function chieftainsAffordable(r: RenownInfo, limit = CHIEFTAIN_MAX_BATCH, s?: Pick<WorldSettings, 'config'>): number {
   let n = 0;
-  while (n < limit && chieftainBatchPrice(r, n + 1) <= r.balance) n += 1;
+  while (n < limit && chieftainBatchPrice(r, n + 1, s) <= r.balance) n += 1;
   return n;
 }
 
@@ -228,11 +237,22 @@ export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
 };
 
 /** The Strike hint for the send dialog; a player's village adds the hold length, who is safe and the escort advice. */
-export function strikeHint(targetKind: MapVillageDto['kind'] | null): string {
-  const chain = `The Chieftains can come in separate attacks, as long as they arrive within ${STRIKE_CHAIN_WINDOW_HOURS} hours of each other and are still on their way home.`;
+export function strikeHint(targetKind: MapVillageDto['kind'] | null, s?: Pick<WorldSettings, 'speed' | 'config'>): string {
+  const rules = worldRules(s).conquest;
+  const speed = s?.speed ?? 1;
+  const chain = `The Chieftains can come in separate attacks, as long as they arrive within ${hoursText(rules.chainWindowHours / speed)} of each other and are still on their way home.`;
   const base = `${SEND_MODE_HINT.strike ?? ''} ${chain}`;
-  if (targetKind !== 'player') return `${base} An abandoned village changes owner after a ${HOLD_HOURS_ABANDONED}-hour hold.`;
-  return `${base} A player's village changes owner after a ${HOLD_HOURS}-hour hold if the occupiers stay strong enough. Tribe-mates and allies cannot be struck. Its owner can fight back, so bring a strong escort.`;
+  if (targetKind !== 'player') return `${base} An abandoned village changes owner after a ${hoursText(rules.holdHoursAbandoned / speed, true)} hold.`;
+  if (!rules.playersCanBeConquered) return `${base} In this world only abandoned villages can be taken: a player's village cannot change owner.`;
+  return `${base} A player's village changes owner after a ${hoursText(rules.holdHours / speed, true)} hold if the occupiers stay strong enough. Tribe-mates and allies cannot be struck. Its owner can fight back, so bring a strong escort.`;
+}
+
+/** Real hours as plain words: "8 hours", "1 hour", "45 minutes"; `adjective` gives "8-hour", "45-minute". Rounded to the minute. */
+export function hoursText(hours: number, adjective = false): string {
+  if (!Number.isFinite(hours) || hours < 0) return adjective ? '0-hour' : '0 hours';
+  const minutes = Math.round(hours * 60);
+  const [n, unit] = hours < 1 && minutes >= 1 ? [minutes, 'minute'] : [Math.round(hours * 100) / 100, 'hour'];
+  return adjective ? `${n}-${unit}` : `${n} ${unit}${n === 1 ? '' : 's'}`;
 }
 
 /** A reason the Strike cannot work as chosen, or null. Not blocking in the engine (a lone Chieftain just dies), but we say so. */
@@ -259,12 +279,14 @@ export function occupyWarning(chosen: Partial<Units>, alreadyThere: number, minP
  * Units at home that make sense for this mode (scouts: Pathfinders only; support and occupy: no Chieftains). Siege units
  * (Log Ram, Boulder Sling) only join an attack, as in checkMission.
  */
-export function selectableUnits(mode: SendMode, atHome: Units): Array<(typeof UNIT_IDS)[number]> {
+export function selectableUnits(mode: SendMode, atHome: Units, siegeOn = true): Array<(typeof UNIT_IDS)[number]> {
   const home = normalizeUnits(atHome);
   const attacks = mode === 'attack' || mode === 'strike';
   // Siege units stay in the list at 0 (so the player sees they exist) once there is any other army to send with them.
   const anyOther = UNIT_IDS.some((u) => !UNITS[u].siege && home[u] > 0);
   return UNIT_IDS.filter((u) => {
+    // A world without siege (features.siege off) never shows the units, even if some were trained earlier.
+    if (UNITS[u].siege && !siegeOn) return false;
     // A relief attack fights the occupiers only: no Chieftains, no siege units (the server refuses them).
     if (mode === 'relieve') return home[u] > 0 && u !== 'chieftain' && !UNITS[u].siege;
     if (UNITS[u].siege && attacks && anyOther) return true;
@@ -279,8 +301,8 @@ export function selectableUnits(mode: SendMode, atHome: Units): Array<(typeof UN
 // ---- Siege (docs/GAME_DESIGN.md 18.9) -------------------------------------------------------------------
 
 /** The building picker shows only on an attack that carries Boulder Slings (the units that take a chosen building). */
-export function showsSiegePicker(mission: Mission, chosen: Partial<Units>): boolean {
-  return mission === 'attack' && hasChosenSiege(chosen);
+export function showsSiegePicker(mission: Mission, chosen: Partial<Units>, siegeOn = true): boolean {
+  return siegeOn && mission === 'attack' && hasChosenSiege(chosen);
 }
 
 /** Buildings a Boulder Sling can be told to hit. Names only: levels are known from a scouting report, never here. */

@@ -5,7 +5,18 @@ import { resolve } from 'node:path';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import { DEFAULT_WORLD_ID, GameError, type ApiError, type GameErrorCode, type WorldInfoResponse, type WorldSettings } from '@clanfire/engine';
+import {
+  DEFAULT_WORLD_ID,
+  GameError,
+  WORLD_CONFIG_PATHS,
+  applyWorldConfig,
+  isSafeAfterOpen,
+  type ApiError,
+  type GameErrorCode,
+  type WorldConfigResponse,
+  type WorldInfoResponse,
+  type WorldSettings,
+} from '@clanfire/engine';
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
@@ -52,6 +63,8 @@ export interface BuildAppOptions {
   now?: () => number;
   /** World settings used only if the database has no world yet (stored settings win). */
   settings?: Partial<WorldSettings>;
+  /** Per-world rules (a partial WorldConfig object) used only if the database has no world yet; a bad value throws. Same as the WORLD_CONFIG env. */
+  worldConfig?: unknown;
   /** Built web client to serve. Default: ../web/dist next to this app. */
   webDistDir?: string;
   /** Fastify logger (true = JSON logs on stdout). Default off. */
@@ -141,8 +154,17 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   });
   const store = new Store(db);
   store.sandboxUsers = new Set((opts.sandboxUsers ?? []).map((u) => u.toLowerCase()));
-  const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg));
+  const settings = initWorld(store, opts.settings ?? {}, now(), (msg) => app.log.warn(msg), opts.worldConfig);
   store.world = settings; // lets every village save settle the defender Renown trickle
+  // Every service holds this one `settings` object. An operator change to the stored config (admin tool, maybe another process) is
+  // copied into it IN PLACE the next time this runs (every API request and the 1 s tick), so no restart is needed.
+  let seenConfig = store.getWorldConfigRaw();
+  const refreshSettings = (): void => {
+    const raw = store.getWorldConfigRaw();
+    if (raw === seenConfig) return;
+    seenConfig = raw;
+    if (raw !== null) Object.assign(settings, applyWorldConfig(settings, store.effectiveWorldConfig()));
+  };
   const forum = new ForumService(store);
   const support = new SupportService(store);
   const game = new GameService(store, settings, app.log, now);
@@ -156,6 +178,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const ctx: AppContext = {
     store,
     settings,
+    refreshSettings,
     now,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     worldId,
@@ -202,9 +225,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       }
     }
 
-    // Bring the world up to date (arrived troops) before the handler reads or changes anything.
+    // Bring the world up to date (new rules from the operator, arrived troops) before the handler reads or changes anything.
     if (isApiPath(req.url)) {
       try {
+        refreshSettings();
         ctx.game.processDue(req.nowMs);
       } catch (err) {
         req.log.error({ err }, 'processDue failed');
@@ -298,6 +322,19 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   app.get('/api/world/info', async (): Promise<WorldInfoResponse> => {
     const created = Number(store.getMeta('world_created_at'));
     return { id: worldId, name: worldName, speed: settings.speed, startedAt: new Date(Number.isFinite(created) && created > 0 ? created : now()).toISOString(), lobby: Boolean(ctx.lobby), ended: store.isWorldEnded() };
+  });
+  // Public, read-only, no secrets: the rules of this world (never the seed, keys, paths or players). GET only: changes go through the admin tool.
+  app.get('/api/world/config', async (): Promise<WorldConfigResponse> => {
+    const opened = store.worldOpenedAt();
+    return {
+      id: worldId,
+      name: worldName,
+      open: store.isWorldOpen(),
+      openedAt: opened === null ? null : new Date(opened).toISOString(),
+      map: { radius: settings.radius, layout: settings.layout ?? 'scattered' },
+      config: structuredClone(settings.config ?? store.effectiveWorldConfig()),
+      editableAfterOpen: WORLD_CONFIG_PATHS.filter(isSafeAfterOpen),
+    };
   });
   authRoutes(app, ctx);
   gameRoutes(app, ctx);

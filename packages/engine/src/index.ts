@@ -24,3 +24,4 @@ export * from './bot.ts';
 export * from './staff.ts';
 export * from './domination.ts';
 export * from './sites.ts';
+export * from './world-config.ts';

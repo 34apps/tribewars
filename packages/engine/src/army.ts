@@ -17,7 +17,7 @@ import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
 import { buildSiteProblem } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
-import { applySiegeHits, hasSiegeUnits, resolveSiege, resolveSiegeDuring, siegeLostSurvivors } from './siege.ts';
+import { applySiegeHits, hasSiegeUnits, resolveSiege, resolveSiegeDuring, siegeEnabled, siegeLostSurvivors } from './siege.ts';
 import { GameError, MISSIONS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type {
   BattleInput,
@@ -38,6 +38,7 @@ import { MS_PER_HOUR, cloneVillage, distance, emptyResources, emptyUnits, fail, 
 import { armyRouteTimeMs, travelRoute } from './travel.ts';
 import type { TravelPreview } from './travel.ts';
 import { settleVillage } from './village.ts';
+import { moveSpeed } from './world-config.ts';
 
 // ---- Travel -------------------------------------------------------------------------------------
 
@@ -50,13 +51,13 @@ export function armySpeed(units: Units): number {
 
 /**
  * Travel time on flat ground in ms: ceil(distance / (slowest speed * world speed) hours). `Infinity` for an empty army.
- * Terrain is ignored: this is the "without terrain" time of the send preview.
+ * Terrain is ignored: this is the "without terrain" time of the send preview. Troops walk at `moveSpeed(s)` (world speed times unit speed).
  */
 export function flatTravelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
   const speed = armySpeed(units);
   if (speed <= 0) return Infinity;
   // Multiply before dividing so exact results (e.g. 5 tiles at 6 tiles/h) don't pick up float noise.
-  return Math.ceil((distance(from, to) * MS_PER_HOUR) / (speed * s.speed));
+  return Math.ceil((distance(from, to) * MS_PER_HOUR) / (speed * moveSpeed(s)));
 }
 
 /**
@@ -67,13 +68,13 @@ export function flatTravelTimeMs(from: Coords, to: Coords, units: Units, s: Worl
  * Every rule that needs a travel time goes through this function, on the server, from the server's own settings.
  */
 export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
-  return armyRouteTimeMs(travelRoute(from, to, s.seed), units, s.speed);
+  return armyRouteTimeMs(travelRoute(from, to, s.seed), units, moveSpeed(s));
 }
 
 /** The send preview: time on flat ground, time with terrain, and the route (for the map). */
 export function travelPreview(from: Coords, to: Coords, units: Units, s: WorldSettings): TravelPreview {
   const route = travelRoute(from, to, s.seed);
-  return { flatMs: flatTravelTimeMs(from, to, units, s), ms: armyRouteTimeMs(route, units, s.speed), route };
+  return { flatMs: flatTravelTimeMs(from, to, units, s), ms: armyRouteTimeMs(route, units, moveSpeed(s)), route };
 }
 
 // ---- Sending ------------------------------------------------------------------------------------
@@ -223,9 +224,12 @@ export function waterFillLoot(capacity: number, stock: Resources): Resources {
 /**
  * Deterministic battle for a seed. Does not change any village; see applyBattleToDefender.
  * Log Rams fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
+ * With `s` of a world that has siege off (`features.siege` false) no siege step runs at all: the Wall stays as it is and
+ * `siege` is []. Without `s` siege is on.
  */
-export function resolveBattle(input: BattleInput): BattleResult {
+export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'config'>): BattleResult {
   const { defender } = input;
+  const siegeOn = siegeEnabled(s);
   const attackerUnits = normalizeUnits(input.attackerUnits);
   const defenderUnits = normalizeUnits(defender.troops);
   const support = (input.support ?? []).map((c) => normalizeUnits(c));
@@ -256,7 +260,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
   // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
-  const wall = resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall;
+  const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
   const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall);
 
   const attackerWon = attackPower > defensePower;
@@ -288,7 +292,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
       loot = waterFillLoot(Math.floor(capacity), lootable);
     }
     // The survivors shoot after the battle (Log Rams: full points, sharing their level cap with the during step).
-    siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed, attackerUnits);
+    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed, attackerUnits);
   } else {
     const ratio = Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT);
     for (const u of UNIT_IDS) {
@@ -299,7 +303,7 @@ export function resolveBattle(input: BattleInput): BattleResult {
       });
     }
     // A lost attack still does reduced damage: a share of each siege kind counts as a survivor for the after step.
-    siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, input.seed, attackerUnits);
+    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, input.seed, attackerUnits);
   }
 
   return {

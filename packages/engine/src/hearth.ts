@@ -7,15 +7,9 @@
 
 import {
   HEARTH_MAX_CHIEFTAINS,
-  HEARTH_PLAYERS_ENABLED,
   HEARTH_POINTS_PER_CHIEFTAIN,
-  HOLD_FAIL_HOURS,
-  HOLD_HOURS,
-  HOLD_HOURS_ABANDONED,
   HOLD_MIN_POPULATION,
   POP_PER_UNIT,
-  STRIKE_CHAIN_WINDOW_HOURS,
-  STRIKE_LOCK_HOURS,
   TAKE_KEEP_RESOURCE_SHARE,
 } from './config.ts';
 import { storageCap } from './economy.ts';
@@ -23,6 +17,7 @@ import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type { BattleResult, HearthState, Units, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR, cloneVillage, emptyUnits, normalizeUnits } from './util.ts';
 import { admitTroops, settleVillage } from './village.ts';
+import { worldRules } from './world-config.ts';
 
 const hoursMs = (hours: number, s: WorldSettings): number => Math.round((hours * MS_PER_HOUR) / s.speed);
 
@@ -59,9 +54,9 @@ export type StrikeCheck =
   | { ok: true; need: number; chieftains: number; banked: number }
   | { ok: false; reason: StrikeFailReason; need: number; chieftains: number; banked: number };
 
-/** Length of the Chieftain-chain window in ms (STRIKE_CHAIN_WINDOW_HOURS divided by world speed). */
+/** Length of the Chieftain-chain window in ms (the world's `conquest.chainWindowHours` divided by world speed). */
 export function strikeChainWindowMs(s: WorldSettings): number {
-  return hoursMs(STRIKE_CHAIN_WINDOW_HOURS, s);
+  return hoursMs(worldRules(s).conquest.chainWindowHours, s);
 }
 
 /**
@@ -86,7 +81,8 @@ export function chainedChieftains(entries: ReadonlyArray<{ chieftains: number; a
  * Does this finished battle put the hearth out? Needs a won battle (every defender dead), a village that is not locked or
  * protected at `target.now`, and at least `need` Chieftains: the survivors plus `banked` Chieftains of earlier attacks
  * (Chieftain chain, `chainedChieftains`), with at least one survivor in this attack. `survivors` is the attacking army after
- * the battle (`result.attackerSurvivors`). Player villages only when `HEARTH_PLAYERS_ENABLED` (or `opts.playersEnabled`). Never throws.
+ * the battle (`result.attackerSurvivors`). Player villages only when the world allows it (`conquest.playersCanBeConquered` of `s`,
+ * or `opts.playersEnabled` which wins). Never throws.
  */
 export function checkStrike(
   result: Pick<BattleResult, 'attackerWon'>,
@@ -94,13 +90,14 @@ export function checkStrike(
   target: StrikeTarget,
   opts: { playersEnabled?: boolean } = {},
   banked = 0,
+  s?: Pick<WorldSettings, 'config'>,
 ): StrikeCheck {
   const need = chieftainsNeeded(target.abandoned, target.points);
   const chieftains = normalizeUnits(survivors).chieftain;
   const bank = Number.isFinite(banked) ? Math.max(0, Math.floor(banked)) : 0;
   const no = (reason: StrikeFailReason): StrikeCheck => ({ ok: false, reason, need, chieftains, banked: bank });
   if (!result.attackerWon) return no('lost');
-  if (!target.abandoned && !(opts.playersEnabled ?? HEARTH_PLAYERS_ENABLED)) return no('players_disabled');
+  if (!target.abandoned && !(opts.playersEnabled ?? worldRules(s).conquest.playersCanBeConquered)) return no('players_disabled');
   if (target.protectedUntil !== undefined && target.now < target.protectedUntil) return no('protected');
   if (target.lockUntil !== undefined && target.now < target.lockUntil) return no('locked');
   if (chieftains < 1 || chieftains + bank < need) return no('too_few_chieftains');
@@ -119,12 +116,13 @@ export function applyStrike(
   args: { claimBy: number; now: number; settings: WorldSettings; occupiers?: Partial<Units> },
 ): VillageState {
   const v = settleVillage(state, args.now, args.settings);
+  const conquest = worldRules(args.settings).conquest;
   const enough = occupierPopulation(args.occupiers ?? emptyUnits()) >= HOLD_MIN_POPULATION;
   v.hearth = {
     status: 'out',
     claimBy: args.claimBy,
     outAt: args.now,
-    holdMs: hoursMs(v.npc ? HOLD_HOURS_ABANDONED : HOLD_HOURS, args.settings),
+    holdMs: hoursMs(v.npc ? conquest.holdHoursAbandoned : conquest.holdHours, args.settings),
     runningSince: enough ? args.now : null,
     underSince: enough ? null : args.now,
   };
@@ -162,7 +160,7 @@ export function updateHold(hearth: HearthState, occupierPop: number, now: number
     holdMs = end - Math.max(now, hearth.runningSince);
   } else {
     underSince = underSince ?? now;
-    const end = underSince + hoursMs(HOLD_FAIL_HOURS, s);
+    const end = underSince + hoursMs(worldRules(s).conquest.holdFailHours, s);
     if (end <= now) return { hearth: null, outcome: 'failed', at: end };
   }
   const pop = Number.isFinite(occupierPop) ? occupierPop : 0;
@@ -184,7 +182,7 @@ export function updateHold(hearth: HearthState, occupierPop: number, now: number
  */
 export function holdDueAt(hearth: HearthState, s: WorldSettings): number {
   if (hearth.runningSince !== null) return hearth.runningSince + hearth.holdMs;
-  return (hearth.underSince ?? hearth.outAt) + hoursMs(HOLD_FAIL_HOURS, s);
+  return (hearth.underSince ?? hearth.outAt) + hoursMs(worldRules(s).conquest.holdFailHours, s);
 }
 
 // ---- Change of owner ----------------------------------------------------------------------------
@@ -223,7 +221,7 @@ export function applyOwnerChange(
   const cap = storageCap(v);
   for (const r of RESOURCE_IDS) v.resources[r] = Math.min(cap, Math.floor(v.resources[r] * TAKE_KEEP_RESOURCE_SHARE));
   v.lastUpdate = now;
-  v.lockUntil = now + hoursMs(STRIKE_LOCK_HOURS, settings);
+  v.lockUntil = now + hoursMs(worldRules(settings).conquest.lockHours, settings);
   v.defenceMark = { at: now, strength: 0 };
   const moved = admitTroops(cloneVillage(v), args.newOwnerOccupiers);
   v = moved.state;

@@ -7,20 +7,21 @@ import type { CheckResult, Coords, Resources, VillageState, WorldSettings } from
 import { routeTimeMs, travelRoute } from './travel.ts';
 import { MS_PER_HOUR, cloneVillage, distance, emptyResources, fail } from './util.ts';
 import { settleVillage } from './village.ts';
+import { moveSpeed } from './world-config.ts';
 
 /** Most a village can put on one shipment. */
 export function shipmentCapacity(marketLevel: number): number {
   return SHIPMENT_BASE_CAPACITY + SHIPMENT_CAPACITY_PER_MARKET_LEVEL * Math.max(0, Math.floor(marketLevel));
 }
 
-/** Travel time in ms on flat ground: ceil(distance / (carrier speed * world speed) hours). */
+/** Travel time in ms on flat ground: ceil(distance / (carrier speed * world speed * unit speed) hours). */
 export function flatShipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
-  return Math.ceil((distance(from, to) * MS_PER_HOUR) / (SHIPMENT_SPEED * s.speed));
+  return Math.ceil((distance(from, to) * MS_PER_HOUR) / (SHIPMENT_SPEED * moveSpeed(s)));
 }
 
 /** Travel time in ms with terrain (carrier row of TERRAIN_SPEED, docs/GAME_DESIGN.md 18.4a); equals the flat time over grass. */
 export function shipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
-  return routeTimeMs(travelRoute(from, to, s.seed), 'carrier', SHIPMENT_SPEED, s.speed);
+  return routeTimeMs(travelRoute(from, to, s.seed), 'carrier', SHIPMENT_SPEED, moveSpeed(s));
 }
 
 /** Strict parse: an object with only known resource ids, each a non-negative whole number. */

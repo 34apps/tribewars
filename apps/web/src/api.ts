@@ -106,6 +106,7 @@ import type {
   LobbyChangePasswordRequest,
   LobbyMeResponse,
   LobbyWorldsResponse,
+  WorldConfigResponse,
   WorldInfoResponse,
 } from '@clanfire/engine';
 
@@ -226,6 +227,8 @@ export const api = {
   },
   /** Public facts about this world, including whether it only accepts lobby entry passes. */
   worldInfo: () => request<WorldInfoResponse>('GET', '/api/world/info'),
+  /** The rules of this world (public, read-only): speeds, protection, conquest, queues, features. */
+  worldConfig: () => request<WorldConfigResponse>('GET', '/api/world/config'),
   me: () => request<MeResponse>('GET', '/api/auth/me'),
   login: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/login', body),
   register: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/register', body),

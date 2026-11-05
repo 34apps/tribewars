@@ -10,15 +10,22 @@
 //   npm run admin -w @clanfire/server -- domination-set <key> <value>        (minAgeDays, minActivePlayers, minPeakShare, winShare, streakDays, activeDays)
 //   npm run admin -w @clanfire/server -- world-end [tribeTag|-] [reason...]  (end the world by hand; optional winner)
 //   npm run admin -w @clanfire/server -- world-extend <days>                 (postpone domination by adding days to minAgeDays)
+//   npm run admin -w @clanfire/server -- config                              (list every per-world setting and whether the world is open)
+//   npm run admin -w @clanfire/server -- config-set <path> <value>           (e.g. conquest.holdHours 4; after opening only tribe.maxMembers, features.scavenging, features.paidSpeedups, domination.*)
+//   npm run admin -w @clanfire/server -- world-open                          (mark the world open by hand; it also opens with the first player)
 // Reads DATABASE_PATH like the server. Banning ends the account's sessions and blocks sign-in.
 // Staff roles can only be granted here, never over HTTP. Every change is written to the audit log (actor: the CLI).
-// The domination and world-end commands live in domination-admin.ts; a running server picks their changes up without a restart.
+// The domination and world-end commands live in domination-admin.ts, the config commands in world-config-admin.ts; a running server
+// picks their changes up without a restart (the config on its next request or 1 s tick).
+// This is the WORLD's operator tool: it works on the database named by DATABASE_PATH (one world). `npm run lobby:admin` is the
+// lobby's own CLI with a separate database (accounts, world list) and cannot reach any world database, so per-world settings are changed here.
 
 import { MUTE_MAX_MINUTES, STAFF_ROLES, isStaffRole } from '@clanfire/engine';
 import { loadDotEnv, loadEnv } from './env.ts';
 import { openDatabase } from './db.ts';
 import { DOMINATION_USAGE, isDominationCommand, runDominationCommand } from './domination-admin.ts';
 import { Store } from './store.ts';
+import { WORLD_CONFIG_USAGE, isWorldConfigCommand, runWorldConfigCommand } from './world-config-admin.ts';
 
 loadDotEnv();
 const env = loadEnv();
@@ -92,9 +99,13 @@ if (cmd === 'shared-ips') {
   const result = runDominationCommand(store, cmd, [name, ...rest].filter((w): w is string => w !== undefined), Date.now());
   for (const line of result.lines) (result.ok ? console.log : console.error)(line);
   if (!result.ok) process.exitCode = 1;
+} else if (isWorldConfigCommand(cmd)) {
+  const result = runWorldConfigCommand(store, cmd, [name, ...rest].filter((w): w is string => w !== undefined), Date.now());
+  for (const line of result.lines) (result.ok ? console.log : console.error)(line);
+  if (!result.ok) process.exitCode = 1;
 } else {
   console.error(
-    `Usage: admin shared-ips | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | ${DOMINATION_USAGE}`,
+    `Usage: admin shared-ips | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | ${DOMINATION_USAGE} | ${WORLD_CONFIG_USAGE}`,
   );
   process.exitCode = 1;
 }

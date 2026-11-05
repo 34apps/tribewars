@@ -6,7 +6,6 @@ import {
   BOT_BATCH_VILLAGES,
   BOT_MAX_STEPS_PER_RUN,
   GameError,
-  HEARTH_PLAYERS_ENABLED,
   HOLD_MIN_POPULATION,
   UNIT_IDS,
   abandonVillageKeepBuildings,
@@ -33,7 +32,6 @@ import {
   type VillageReportData,
   type VillageState,
   MAP_MAX_SPAN,
-  MAX_BUILD_QUEUE,
   botBuildChoice,
   abandonIdleMs,
   botIdleMs,
@@ -47,7 +45,6 @@ import {
   applyCancelResearch,
   applyCancelTrain,
   type CancelResponse,
-  MAX_RESEARCH_QUEUE,
   applyFeast,
   collectDefenderRenown,
   defenderEligibleFrom,
@@ -117,6 +114,7 @@ import {
   type VillageRefDto,
   type WorldSettings,
   seesLeadershipBoards,
+  worldRules,
 } from '@clanfire/engine';
 import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
@@ -211,10 +209,15 @@ export class GameService {
   private readonly renown: RenownService;
 
   /**
-   * May a Strike put out the hearth of a PLAYER village? On since step 4 (HEARTH_PLAYERS_ENABLED); public so tests can switch
-   * it off to check the abandoned-only behaviour.
+   * May a Strike put out the hearth of a PLAYER village? Undefined = the world's rule (`conquest.playersCanBeConquered`); public so
+   * tests can force it on or off.
    */
-  strikePlayers: boolean = HEARTH_PLAYERS_ENABLED;
+  strikePlayers: boolean | undefined = undefined;
+
+  /** The effective answer: a test override, else this world's rule. */
+  private playersConquerable(): boolean {
+    return this.strikePlayers ?? worldRules(this.settings).conquest.playersCanBeConquered;
+  }
 
   /** Earliest arrival of any return created since it was last reset (hold events report what they spawned through it). */
   private spawnMin: number | null = null;
@@ -318,9 +321,9 @@ export class GameService {
     let state = settleVillage(v.state, now, s);
     let queued = 0;
     for (let i = 0; i < BOT_MAX_STEPS_PER_RUN; i++) {
-      const choice = botBuildChoice(state, now, s, mulberry32(hashSeed(v.id, Math.floor(now / stepMs), i)), MAX_BUILD_QUEUE);
+      const choice = botBuildChoice(state, now, s, mulberry32(hashSeed(v.id, Math.floor(now / stepMs), i)));
       if (!choice) break;
-      state = applyBuild(state, choice, now, s, MAX_BUILD_QUEUE);
+      state = applyBuild(state, choice, now, s);
       queued++;
     }
     if (queued > 0) this.store.saveVillage(v.id, state, villagePoints(state));
@@ -490,7 +493,7 @@ export class GameService {
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
       noLoot: strikeTry,
       siegeTarget: m.siegeTarget ?? null,
-    });
+    }, s);
     // Chieftain ledger: each owner's average reservation is read BEFORE any village is changed (the dead still count).
     const supportLosses = contingents.map((_, i) => normalizeUnits(result.supportLosses[i]));
     const chiefLosses: Array<[number | null, number]> = [
@@ -613,8 +616,9 @@ export class GameService {
           // The village's own protection and the owner's beginner / restart protection both stop a Strike.
           protectedUntil: Math.max(targetState.protectedUntil ?? 0, target.ownerId !== null ? target.ownerProtectedUntil : 0),
         },
-        { playersEnabled: this.strikePlayers },
+        { playersEnabled: this.playersConquerable() },
         banked,
+        s,
       );
       if (check.ok && !household) {
         this.strike(origin, target, newTarget, targetState.hearth, result.attackerSurvivors, m, at);
@@ -686,7 +690,7 @@ export class GameService {
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
       noLoot: true,
       siegeTarget: null,
-    });
+    }, s);
     const supportLosses = occupiers.map((_, i) => normalizeUnits(result.supportLosses[i]));
     const chiefLosses: Array<[number | null, number]> = [
       [origin.ownerId, result.attackerLosses.chieftain],
@@ -1455,9 +1459,9 @@ export class GameService {
       villages,
       renown: {
         // The pending trickle shows with the Fire Shrine bonus the save will add (Store.addRenown), so the number on screen matches.
-        ...makeRenownInfo(fresh.renownTotal + pending * (1 + (pending > 0 ? this.sites.renownBonusOf(player.id, t) : 0)), fresh.renownSpent, villages.length),
+        ...makeRenownInfo(fresh.renownTotal + pending * (1 + (pending > 0 ? this.sites.renownBonusOf(player.id, t) : 0)), fresh.renownSpent, villages.length, this.settings),
         reserved: Math.floor(fresh.renownReserved + 1e-9),
-        chieftainPrice: villageRenownPrice(Math.max(1, villages.length), chieftains),
+        chieftainPrice: villageRenownPrice(Math.max(1, villages.length), chieftains, this.settings),
         chieftains,
       },
       movements: this.store.movementViewsForPlayer(player.id).map((m) => movementDto(m, player.id, t)),
@@ -1632,7 +1636,7 @@ export class GameService {
   build(player: PlayerRow, villageId: number, building: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyBuild(v.state, building, t, this.settings, MAX_BUILD_QUEUE);
+      const next = applyBuild(v.state, building, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { buildingLevelsBuilt: 1 });
       return this.ownDto(v, next, t);
@@ -1653,7 +1657,7 @@ export class GameService {
       if (unit === 'chieftain') {
         const owned = this.store.villagesOfPlayer(player.id).length;
         let price = 0;
-        for (let i = 0; i < count; i++) price += villageRenownPrice(owned, others + i);
+        for (let i = 0; i < count; i++) price += villageRenownPrice(owned, others + i, this.settings);
         const fresh = this.store.getPlayer(player.id) ?? player;
         const balance = fresh.renownTotal - fresh.renownSpent;
         if (balance + 1e-9 < price) {
@@ -1709,7 +1713,7 @@ export class GameService {
   research(player: PlayerRow, villageId: number, unit: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyResearch(v.state, unit, t, this.settings, MAX_RESEARCH_QUEUE);
+      const next = applyResearch(v.state, unit, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next));
       return this.ownDto(v, next, t);
     });
@@ -1746,7 +1750,7 @@ export class GameService {
       const gained = this.store.addRenown(player.id, renown); // includes the Fire Shrine bonus of the player's tribe, if any
       const fresh = this.store.getPlayer(player.id) ?? player;
       const owned = this.store.villagesOfPlayer(player.id).length;
-      return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned), gained };
+      return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned, this.settings), gained };
     });
   }
 
@@ -1813,7 +1817,7 @@ export class GameService {
             throw new GameError('invalid_target', 'That is the village you are holding: send occupiers, not an attack.');
           }
           if (army.chieftain > 0 && target.ownerId !== null) {
-            if (!this.strikePlayers) throw new GameError('invalid_target', 'Chieftains can only strike abandoned villages for now.');
+            if (!this.playersConquerable()) throw new GameError('invalid_target', 'Chieftains can only strike abandoned villages for now.');
           }
         }
       }
@@ -2067,7 +2071,7 @@ export class GameService {
       if (action === 'max') {
         // Renown balance for the next 3 villages (founding or Chieftains), topped up only when short.
         let need = 0;
-        for (let i = 0; i < 3; i++) need += villageRenownCost(owned + i);
+        for (let i = 0; i < 3; i++) need += villageRenownCost(owned + i, this.settings);
         const p = this.store.getPlayer(player.id) ?? player;
         const short = need - (p.renownTotal - p.renownSpent);
         if (short > 0) this.store.addRenown(player.id, short, true); // a top-up, not an earning: no site bonus

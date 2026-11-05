@@ -1,12 +1,11 @@
 // Public page of any tribe: description, members, relations, and join controls for tribeless viewers.
 
 import { useEffect, useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS } from '@clanfire/engine';
 import type { TribeDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatCoords, formatDate, formatInt } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import type { TribeTarget } from '../game.ts';
 import { KindBadge, PlainText, RECRUITMENT_NAME, RoleBadge, TribeLabel } from './bits.tsx';
 import { useTribe } from './context.ts';
@@ -15,6 +14,7 @@ import { ApplyForm, JoinButton } from './Join.tsx';
 export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: () => void }) {
   const { data, openTribe } = useTribe();
   const { showOnMap } = useGame();
+  const maxMembers = useRules().tribe.maxMembers;
   const [tribe, setTribe] = useState<TribeDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
@@ -62,7 +62,7 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
             <dl className="facts">
               <div><dt>Rank</dt><dd>#{tribe.rank}</dd></div>
               <div><dt>Points</dt><dd>{formatInt(tribe.points)}</dd></div>
-              <div><dt>Members</dt><dd>{tribe.members}/{TRIBE_MAX_MEMBERS}</dd></div>
+              <div><dt>Members</dt><dd>{tribe.members}/{maxMembers}</dd></div>
               <div><dt>Recruitment</dt><dd>{RECRUITMENT_NAME[tribe.recruitment]}</dd></div>
               <div><dt>Founded</dt><dd>{formatDate(tribe.createdAt)}</dd></div>
             </dl>

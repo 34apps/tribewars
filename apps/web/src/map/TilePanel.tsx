@@ -6,7 +6,7 @@ import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { Segmented } from '../tribe/bits.tsx';
@@ -71,6 +71,7 @@ export function SendForm({
   targetLabel?: string;
 }) {
   const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd } = useGame();
+  const rules = useRules();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
   // A Found send starts with the Chieftain already chosen.
@@ -93,7 +94,7 @@ export function SendForm({
 
   // Attack on a cold own / tribe-mate / ally village = relief attack (occupiers only; no Chieftains, no siege, no loot).
   const relief = mission === 'attack' && isReliefTarget(target, { playerId: player.id, currentVillageId: village.id });
-  const visible = selectableUnits(relief ? 'relieve' : mission, live.troops);
+  const visible = selectableUnits(relief ? 'relieve' : mission, live.troops, rules.features.siege);
   const chosen: Units = emptyUnits();
   for (const u of visible) {
     const n = Number(counts[u] ?? '');
@@ -163,7 +164,7 @@ export function SendForm({
         if (Number.isInteger(o) && o >= 0 && o <= 86400) timing.travelSeconds = o;
         if (fights && Number.isInteger(b) && b >= 0 && b <= 86400) timing.returnSeconds = b;
       }
-      const targetBuilding = siegeTargetFor(mission, partial, siegePick);
+      const targetBuilding = rules.features.siege ? siegeTargetFor(mission, partial, siegePick) : undefined;
       const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...(targetBuilding ? { targetBuilding } : {}), ...timing });
       applySend(res);
       setCounts({});
@@ -204,7 +205,7 @@ export function SendForm({
         />
       )}
       <p className="wm-muted">
-        {mode === 'strike' ? strikeHint(target?.kind ?? null) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
+        {mode === 'strike' ? strikeHint(target?.kind ?? null, settings) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
         {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
       </p>
       {offerStrike && (
@@ -247,7 +248,7 @@ export function SendForm({
           ))}
         </ul>
       )}
-      {showsSiegePicker(mission, chosen) && <SiegePicker value={siegePick} onChange={setSiegePick} />}
+      {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} />}
 
       {total > 0 && Number.isFinite(travel) && (
         <dl className="wm-facts wm-facts-send">
@@ -278,7 +279,7 @@ export function SendForm({
             <div>
               <dt>Price</dt>
               <dd>
-                {chosen.chieftain > 0 ? 'Renown already paid' : `${formatInt(nextChieftainPrice(renown))} Renown`}
+                {chosen.chieftain > 0 ? 'Renown already paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}
               </dd>
             </div>
           )}

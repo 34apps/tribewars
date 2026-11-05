@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
 import type { Coords, Mission, MovementDto } from '@clanfire/engine';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { formatCoords } from '../format.ts';
 import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
@@ -63,7 +63,8 @@ export function MapView({ active }: { active: boolean }) {
   const drawnRef = useRef<DrawnVillage[]>([]);
   const drawnSitesRef = useRef<DrawnSite[]>([]);
   /** Fire sites for the canvas (GET /api/sites); a failing call just leaves the map without them. */
-  const { sites, wakesAt } = useSites(active);
+  const sitesOn = useRules().features.sites;
+  const { sites, wakesAt } = useSites(active && sitesOn);
   const sitesRef = useRef(sites);
   const siteTribeRef = useRef<number | null>(player.tribe?.id ?? null);
   /** The view as last drawn (zoom snapped to device pixels), for picking. */
@@ -628,7 +629,7 @@ export function MapView({ active }: { active: boolean }) {
               </span>
             )}
           </form>
-          <Legend />
+          <Legend sites={sitesOn} />
         </div>
         <div className="wm-readout" ref={readoutRef} aria-live="off" />
         <div className="wm-tip" ref={tipRef} hidden aria-hidden="true" />

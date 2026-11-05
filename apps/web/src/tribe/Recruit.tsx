@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { TRIBE_INVITE_TTL_HOURS, TRIBE_MAX_MEMBERS, TRIBE_MAX_OPEN_INVITES, canTribe } from '@clanfire/engine';
+import { TRIBE_INVITE_TTL_HOURS, TRIBE_MAX_OPEN_INVITES, canTribe } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { formatAgo, formatInt, formatLeft } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
@@ -62,15 +62,16 @@ function InviteForm() {
 export function Recruit({ tribe, role }: MemberProps) {
   const { data, busy, run } = useTribe();
   const { now } = useGame();
+  const maxMembers = useRules().tribe.maxMembers;
   const canInvite = canTribe(role, 'invite');
   const canApps = canTribe(role, 'handle_applications');
-  const isFull = tribe.members >= TRIBE_MAX_MEMBERS;
+  const isFull = tribe.members >= maxMembers;
   return (
     <>
       <section className="card" aria-labelledby="rec-mode">
         <h2 id="rec-mode" className="card-title">Recruitment: {RECRUITMENT_NAME[tribe.recruitment]}</h2>
         <p className="muted">
-          {RECRUITMENT_HINT[tribe.recruitment]} {tribe.members}/{TRIBE_MAX_MEMBERS} members{isFull ? ' (full)' : ''}. Change the mode in Overview.
+          {RECRUITMENT_HINT[tribe.recruitment]} {tribe.members}/{maxMembers} members{isFull ? ' (full)' : ''}. Change the mode in Overview.
         </p>
       </section>
 

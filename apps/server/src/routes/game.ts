@@ -14,9 +14,7 @@ import {
   type CancelResponse,
   type CancelResearchRequest,
   type CancelTrainRequest,
-  MAX_RESEARCH_QUEUE,
-  MAX_TRAIN_QUEUE,
-  MAX_BUILD_QUEUE,
+  worldConfigField,
   type FeastRequest,
   type FeastResponse,
   type GameStateResponse,
@@ -63,18 +61,22 @@ const trainBody = {
   },
 } as const;
 
+// The queue length is a per-world rule: the schema allows up to the largest value a world may be given, the engine checks the
+// index against this world's own queue.
+const queueIndexMax = (path: string): number => worldConfigField(path)?.max ?? 20;
+
 const cancelBuildBody = {
   type: 'object',
   required: ['index'],
   additionalProperties: false,
-  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_BUILD_QUEUE } },
+  properties: { index: { type: 'integer', minimum: 0, maximum: queueIndexMax('queues.build') } },
 } as const;
 
 const cancelResearchBody = {
   type: 'object',
   required: ['index'],
   additionalProperties: false,
-  properties: { index: { type: 'integer', minimum: 0, maximum: MAX_RESEARCH_QUEUE } },
+  properties: { index: { type: 'integer', minimum: 0, maximum: queueIndexMax('queues.research') } },
 } as const;
 
 // The pattern is re-checked (after trimming) in GameService.rename.
@@ -100,7 +102,7 @@ const cancelTrainBody = {
   additionalProperties: false,
   properties: {
     building: { type: 'string', enum: ['barracks', 'stables', 'bannerhall'] },
-    index: { type: 'integer', minimum: 0, maximum: MAX_TRAIN_QUEUE },
+    index: { type: 'integer', minimum: 0, maximum: queueIndexMax('queues.train') },
   },
 } as const;
 

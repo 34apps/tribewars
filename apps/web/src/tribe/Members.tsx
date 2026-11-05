@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { TRIBE_MAX_MEMBERS, canKick, canTribe } from '@clanfire/engine';
+import { canKick, canTribe } from '@clanfire/engine';
 import type { TribeAction, TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
-import { useGame } from '../game.ts';
+import { useGame, useRules } from '../game.ts';
 import { RoleBadge } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
@@ -120,6 +120,7 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
 
 export function Members({ tribe, role }: MemberProps) {
   const { busy, run, confirm } = useTribe();
+  const maxMembers = useRules().tribe.maxMembers;
   const sorted = useMemo(
     () => [...tribe.memberList].sort((a, b) => b.points - a.points || a.username.localeCompare(b.username)),
     [tribe.memberList],
@@ -162,7 +163,7 @@ export function Members({ tribe, role }: MemberProps) {
     <>
       <section className="card" aria-labelledby="mem-title">
         <h2 id="mem-title" className="card-title">
-          Members <span className="muted">{tribe.members}/{TRIBE_MAX_MEMBERS}</span>
+          Members <span className="muted">{tribe.members}/{maxMembers}</span>
         </h2>
         <ul className="member-list">
           {sorted.map((m) => (

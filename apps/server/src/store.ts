@@ -4,6 +4,12 @@ import type { DatabaseSync } from 'node:sqlite';
 import {
   BUILDING_IDS,
   DEFAULT_CHIEFTAIN,
+  DEFAULT_WORLD,
+  applyWorldConfig,
+  flatSettings,
+  resolveWorldConfig,
+  worldConfigFromSettings,
+  type WorldConfig,
   NOTIFICATIONS_KEEP,
   NOTIFICATION_MAX_AGE_DAYS,
   STAT_KEYS,
@@ -650,6 +656,58 @@ export class Store extends SqlBase {
   getSettings(): WorldSettings | null {
     const raw = this.getMeta('world_settings');
     return raw ? (JSON.parse(raw) as WorldSettings) : null;
+  }
+
+  // ---- per-world rules (docs/GAME_DESIGN.md "Per-world settings") --------------------------------
+
+  /** The stored `world_config` text (cheap: used to notice that the operator changed it). Null on a world created before per-world settings. */
+  getWorldConfigRaw(): string | null {
+    return this.getMeta('world_config');
+  }
+
+  /**
+   * The rules of this world: the stored config (missing or damaged values fall back to what the flat settings say), or, on a
+   * world that has none stored, the config derived from the flat settings. Reads only; nothing is written.
+   */
+  effectiveWorldConfig(): WorldConfig {
+    const flat = { ...DEFAULT_WORLD, ...(this.getSettings() ?? {}) };
+    const raw = this.getWorldConfigRaw();
+    let parsed: unknown = null;
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = null; // damaged: the flat settings still say what the world runs on
+      }
+    }
+    const base = worldConfigFromSettings(flat);
+    return parsed === null ? base : resolveWorldConfig(parsed, base);
+  }
+
+  /** Store the complete config AND rewrite `world_settings` with the flat fields from it, so the two never disagree. */
+  setWorldConfig(config: WorldConfig): void {
+    const flat = { ...DEFAULT_WORLD, ...(this.getSettings() ?? {}) };
+    this.setMeta('world_config', JSON.stringify(config));
+    this.setMeta('world_settings', JSON.stringify(flatSettings(applyWorldConfig(flat, config))));
+  }
+
+  /** When the world was opened by the operator (`world-open`), else when the first player registered, else null. */
+  worldOpenedAt(): number | null {
+    const set = Number(this.getMeta('world_opened_at'));
+    if (Number.isFinite(set) && set > 0) return set;
+    const first = this.get('SELECT MIN(created_at) AS t FROM players');
+    return first && typeof first.t === 'number' ? first.t : null;
+  }
+
+  /** Open once the operator said so or the first player exists. After that only the settings that are safe to change can change. */
+  isWorldOpen(): boolean {
+    if (this.getMeta('world_opened_at') !== null) return true;
+    return this.get('SELECT 1 AS x FROM players LIMIT 1') !== undefined;
+  }
+
+  /** Mark the world open (keeps the first time). */
+  openWorld(now: number): void {
+    if (this.getMeta('world_opened_at') === null) this.setMeta('world_opened_at', String(now));
   }
 
   // ---- players & sessions ----------------------------------------------------------------------

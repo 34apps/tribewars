@@ -265,6 +265,15 @@ function Who({
             className="btn btn-block"
             onClick={() => {
               setOpen(false);
+              navigate('rules');
+            }}
+          >
+            World rules
+          </button>
+          <button
+            className="btn btn-block"
+            onClick={() => {
+              setOpen(false);
               navigate('support');
             }}
           >

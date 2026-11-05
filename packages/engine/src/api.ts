@@ -3,6 +3,7 @@
 
 import type { AchievementProgress, PlayerStatsDto } from './achievements.ts';
 import type { SiteKind } from './config.ts';
+import type { WorldConfig } from './world-config.ts';
 import type {
   BuildingLevels,
   Coords,
@@ -1550,6 +1551,24 @@ export interface WorldInfoResponse {
   lobby: boolean;
   /** True once the world has ended (a tribe won or the operator ended it): the world is frozen, see GET /api/world-end. Absent on older servers. */
   ended?: boolean;
+}
+
+// GET /w/<id>/api/world/config (and /api/world/config) -> 200 WorldConfigResponse. Public, read-only, no sign-in: the rules of this
+// world (docs/GAME_DESIGN.md "Per-world settings"). Contains no secrets: no seed, keys, paths or player data. Changes are made only with the
+// operator's admin tool (`config-set`), never over HTTP.
+export interface WorldConfigResponse {
+  id: string;
+  name: string;
+  /** True once the world has opened (first player or `world-open`): then only `editableAfterOpen` settings can still change. */
+  open: boolean;
+  /** When it opened, ISO 8601 UTC; null while it has not. */
+  openedAt: string | null;
+  /** Map size and layout, fixed when the world is created. */
+  map: { radius: number; layout: 'scattered' | 'expanding' };
+  /** Every rule of this world. Durations in hours/days are at speed 1: divide by `config.pace.speed` for real time. */
+  config: WorldConfig;
+  /** Settings the operator may still change after the world has opened. */
+  editableAfterOpen: string[];
 }
 
 // ---- lobby: one account, many worlds (docs/MULTI_WORLD.md) ---------------------------------------------------------

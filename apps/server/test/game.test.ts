@@ -58,7 +58,9 @@ test('the world has abandoned villages and is stored once', async () => {
   const rows = app.ctx.store.db.prepare("SELECT COUNT(*) AS n FROM villages WHERE owner_id IS NULL").get() as { n: number };
   assert.ok(rows.n >= 5, `expected several abandoned villages, got ${rows.n}`);
   const stored = app.ctx.store.getSettings();
-  assert.deepEqual(stored, app.ctx.settings);
+  const { config, ...flat } = app.ctx.settings; // the stored flat settings; the full config is stored separately (world_config)
+  assert.deepEqual(stored, flat);
+  assert.ok(config, 'the running settings carry the per-world config');
   await app.close();
 });
 
