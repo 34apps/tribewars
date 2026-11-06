@@ -173,8 +173,8 @@ test('conquest.renownBase: the price of the 2nd village, the Chieftain reservati
 });
 
 /** Send with a fixed walk (sandbox account) so the arrival time is exact. */
-async function go(p: P, vid: number, to: { x: number; y: number }, mission: Mission, u: Partial<Units>, travelSeconds = 60) {
-  const res = await p.c.post(`/api/villages/${vid}/send`, { x: to.x, y: to.y, units: u, mission, travelSeconds });
+async function go(p: P, vid: number, to: { x: number; y: number }, mission: Mission, u: Partial<Units>, travelSeconds = 60, returnSeconds?: number) {
+  const res = await p.c.post(`/api/villages/${vid}/send`, { x: to.x, y: to.y, units: u, mission, travelSeconds, returnSeconds });
   ok(res, 201);
   return res.json<SendResponse>().movement;
 }
@@ -227,8 +227,10 @@ test('conquest.chainWindowHours: two Chieftains arriving 300 s apart chain in th
     const home = strongHome(w.app, w.clock, claimer, { raider: 9000, chieftain: 2 });
     reserveFor(w.app, claimer, 2, 500);
     const army = { raider: 3000, chieftain: 1 };
-    const m1 = await go(claimer, home, target, 'attack', army, 60);
-    const m2 = await go(claimer, home, target, 'attack', army, 360);
+    // The way home is fixed (1000 s, longer than the 300 s gap) so the first Chieftain is still on the road when the second
+    // arrives whatever the random distance between the two villages; otherwise it is home and no longer chains.
+    const m1 = await go(claimer, home, target, 'attack', army, 60, 1000);
+    const m2 = await go(claimer, home, target, 'attack', army, 360, 1000);
     runTo(w.app, w.clock, m1.arriveAt);
     runTo(w.app, w.clock, m2.arriveAt);
     struck.push(Boolean(w.app.ctx.store.getVillage(target.id)?.state.hearth));

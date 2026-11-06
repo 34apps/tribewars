@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import type { OwnVillageDto } from '@clanfire/engine';
+import { emptyUnits, villagePoints, type OwnVillageDto } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { SCHEMA_FINGERPRINT, SCHEMA_VERSION, schemaFingerprintInput } from '../src/db.ts';
 import { Clock, HOUR, MINUTE, TEST_WORLD, ok, trainRaiders, weakestAbandoned, TEST_WORLD_CONFIG } from './helpers.ts';
@@ -46,6 +46,10 @@ test('restart: queued recruits, a raid in flight and its return all complete aft
     unprotect(app, a);
     const vid = await trainRaiders(a.c, clock, 5);
     const target = await weakestAbandoned(a.c, TEST_WORLD.radius as number);
+    // No garrison: the raid must always win (battle luck is random per database), so the return trip always exists.
+    const tv = app.ctx.store.getVillage(target.id)!;
+    tv.state.troops = emptyUnits();
+    app.ctx.store.saveVillage(tv.id, tv.state, villagePoints(tv.state));
     // Queue more recruits (not finished) and send 5 raiders out.
     const trained = await a.c.post(`/api/villages/${vid}/train`, { unit: 'raider', count: 3 });
     ok(trained);
