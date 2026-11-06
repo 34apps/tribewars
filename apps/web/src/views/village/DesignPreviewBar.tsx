@@ -52,7 +52,7 @@ const PICKER_ORDER: readonly BuildingId[] = [
   ...BUILDING_IDS.filter((id) => !['hall', 'lumber', 'farm', 'mine', 'goldmine', 'wall'].includes(id)),
 ];
 
-/** The picture a building shows at a level (the wall has a fourth, grand look). 0 = not built. */
+/** The picture a building shows at a level (the wall's fourth, grand look is drawn in code). 0 = not built. */
 const look = (id: BuildingId, level: number): number => (id === 'wall' ? wallLook(level) : buildingStage(id, level));
 
 /** Levels (1..max) whose picture differs from the level before. */

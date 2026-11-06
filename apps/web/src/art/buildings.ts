@@ -37,8 +37,11 @@ const FILE: Record<BuildingId, string> = {
   bannerhall: 'banner-hall',
 };
 
-/** Last level of stage 1 and stage 2; stage 3 runs to max level (design/style-directions/renders/E-building-stages.webp). */
-const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
+/**
+ * Last level of stage 1 and stage 2. Stage 3 runs from the next level up to one below the max level; stage 4 is the
+ * max level only (owner, 2026-11-06: four looks per building, the fourth only at the very last level).
+ */
+export const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
   hall: [5, 12],
   lumber: [5, 12],
   farm: [5, 12],
@@ -54,35 +57,40 @@ const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
   bannerhall: [1, 2],
 };
 
-export type Stage = 0 | 1 | 2 | 3;
+export type Stage = 0 | 1 | 2 | 3 | 4;
 
-/** 0 = not built, then the three looks. */
+/** 0 = not built, then the four looks (the fourth only at the building's max level). */
 export function buildingStage(id: BuildingId, level: number): Stage {
   if (level <= 0) return 0;
   const [a, b] = STAGE_TOPS[id];
+  if (level >= BUILDINGS[id].maxLevel) return 4;
   return level <= a ? 1 : level <= b ? 2 : 3;
 }
 
-/** First wall level with the grand look (gold trim, taller towers, crest on the gate); levels below keep stage 3. */
-export const WALL_GRAND_FROM = 18;
-
-/** The ring wall's look: the three building stages plus a fourth, grand one for the last levels. */
-export type WallLook = Stage | 4;
+/** The ring wall's look: same as its building stage (its grand look, drawn in code, is stage 4 = max level). */
+export type WallLook = Stage;
 
 export function wallLook(level: number): WallLook {
-  const s = buildingStage('wall', level);
-  return s === 3 && level >= WALL_GRAND_FROM ? 4 : s;
+  return buildingStage('wall', level);
 }
 
-/** "Lv 6–12" style range for a stage, for captions. */
+/** "6–12" style level range of a stage, for captions ("20" for a single level). */
 export function stageRange(id: BuildingId, stage: Exclude<Stage, 0>): string {
   const [a, b] = STAGE_TOPS[id];
   const max = BUILDINGS[id].maxLevel;
-  return stage === 1 ? `1–${a}` : stage === 2 ? `${a + 1}–${b}` : `${b + 1}–${max}`;
+  const [lo, hi] = stage === 1 ? [1, a] : stage === 2 ? [a + 1, b] : stage === 3 ? [b + 1, max - 1] : [max, max];
+  return lo === hi ? `${lo}` : `${lo}–${hi}`;
+}
+
+/** True when the building has its own drawing for this stage (stage 4 falls back to stage 3 until it is drawn). */
+export function hasOwnStageArt(id: BuildingId, stage: Exclude<Stage, 0>): boolean {
+  return `./buildings/${FILE[id]}-${stage}.svg` in FILES;
 }
 
 export function spriteUrl(id: BuildingId, stage: Stage): string {
-  return stage === 0 ? EMPTY_PLOT_URL : fileUrl(`${FILE[id]}-${stage}`);
+  if (stage === 0) return EMPTY_PLOT_URL;
+  const s = stage === 4 && !hasOwnStageArt(id, 4) ? 3 : stage;
+  return fileUrl(`${FILE[id]}-${s}`);
 }
 
 export const EMPTY_PLOT_URL = fileUrl('empty-plot');
@@ -95,7 +103,7 @@ export const SCAFFOLD_URL = fileUrl('scaffold');
 // the same 2:1 projection the sprites use. The ground plate is the square |u|, |v| <= WALL_RING.plate and the ring wall
 // runs along its very edge. The Town Hall stands in the middle on a small paved square; the core buildings form a ring
 // around it, joined by dirt roads radiating from the hall; the resource sites sit out in the four corners (forest, rocks,
-// fields). Every plot was checked pixel by pixel at all three stages: no two drawings touch.
+// fields). Every plot was checked pixel by pixel at every stage: no two drawings touch.
 
 /** Ring centre in scene units. */
 const C = { x: 474, y: 330 } as const;
@@ -116,7 +124,7 @@ export const SCENE_FOCUS = { x: C.x, y: C.y - 30 } as const;
 
 /**
  * Scene coordinate space: the ground plate plus its edge, with the same empty headroom above it at EVERY wall level.
- * The tallest thing is the grand (wall level 18+) back corner tower: plate corner 216 above the centre (234 - 18) +
+ * The tallest thing is the grand (max wall level) back corner tower: plate corner 216 above the centre (234 - 18) +
  * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 353 units, plus pen width. 376 leaves ~20 units spare.
  * One fixed box (not one per wall look) means the village never changes size or position when the wall is upgraded,
  * and nothing is clipped at any level. The Town Hall stands in the middle, so its label stays well below the top.
@@ -172,7 +180,7 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
 };
 
 /**
- * Where each drawing's roof or tower ends, in sprite units (y, up is negative), per stage 1..3. Flag poles, flags, weather
+ * Where each drawing's roof or tower ends, in sprite units (y, up is negative), per stage 1..3 (stage 4 uses the stage 3 value). Flag poles, flags, weather
  * vanes and smoke are left out on purpose: the label and its pointer sit on the building itself, not on a thin pole far
  * above it (the Town Hall's flag reaches 108 units up, its dome only 82). Measured from the art with a ruler.
  */
@@ -191,10 +199,10 @@ const ROOF_TOP: Record<Exclude<BuildingId, 'wall'>, readonly [number, number, nu
   bannerhall: [-22, -34, -36],
 };
 
-/** Scene point just on top of a built building (stage 1..3): where its label badge and pointer attach. */
+/** Scene point just on top of a built building (stage 1..4): where its label badge and pointer attach. */
 export function labelAnchor(id: Exclude<BuildingId, 'wall'>, stage: Exclude<Stage, 0>): { x: number; y: number } {
   const { x, y, scale } = PLACEMENT[id];
-  return { x, y: y + ROOF_TOP[id][stage - 1]! * scale };
+  return { x, y: y + ROOF_TOP[id][Math.min(stage, 3) - 1]! * scale };
 }
 
 /** Painter's order: things further down the screen are drawn later. */

@@ -11,6 +11,8 @@ import { botTick, seedBots } from './bots.ts';
 import { installFetchShim } from './fetch-shim.ts';
 import { loadSave, wipeSave, writeSave } from './persist.ts';
 import { mountPill } from './pill.ts';
+import { applyShowcase } from './showcase-apply.ts';
+import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
 
 const SAVE_DEBOUNCE_MS = 2000;
 
@@ -52,6 +54,18 @@ async function boot(): Promise<void> {
   let dirty = true;
   const pill = mountPill({
     storage: { ok: true },
+    onShowcase: (stage) => {
+      try {
+        applyShowcase(backend.ctx, backend.getToken(), stage, STAGE_TOPS);
+      } catch (err) {
+        console.error('building showcase failed', err);
+        return;
+      }
+      // Save right away, then reload so the village view redraws from the changed state.
+      dirty = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void flush().finally(() => window.location.reload());
+    },
     onReset: () => {
       resetting = true;
       if (timer !== undefined) window.clearTimeout(timer);

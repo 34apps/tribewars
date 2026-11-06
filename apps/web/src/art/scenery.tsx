@@ -563,7 +563,7 @@ export function fireItem(cold: boolean): DepthItem {
 
 // ---- Ring wall ------------------------------------------------------------------------------------------------
 // Drawn in code (not a sprite) because it wraps the whole village, split into pieces for the painter's sort.
-// Stage 4 (wall levels 18+): the stage-3 wall made grand: gold tile caps, buttresses, taller gold-ringed towers, a crest on the gate.
+// Stage 4 (the wall's max level only): the stage-3 wall made grand: gold tile caps, buttresses, taller gold-ringed towers, a crest on the gate.
 // Stage 1: wooden palisade with timber watchtowers; stage 2: low stone wall with square towers; stage 3: tall stone
 // wall with round towers, terracotta roofs and sunflower flags (as the approved building-stages artboard).
 
@@ -1187,7 +1187,7 @@ export function wallItems(stage: Exclude<WallLook, 0>): DepthItem[] {
             flag: true,
           });
     // The back tower stands BEHIND the first wall pieces on both sides (they run out in front of its inner faces), so it
-    // is sorted by its centre; by its front corner it tied with them (level 13-17) or was drawn over them (level 18+),
+    // is sorted by its centre; by its front corner it tied with them (level 13-17) or was drawn over them (max level),
     // which made the walls look like they slid behind the tower's base.
     items.push({ key: `c${i}`, depth: i === 0 ? iso(u, v)[1] : iso(u + corner, v + corner)[1], node });
   });

@@ -5,6 +5,8 @@ export interface PillOptions {
   onReset: () => void;
   /** Called by the pill owner to show whether the world is being saved. */
   storage: { ok: boolean };
+  /** "Show all buildings": set every building of the test village to a look (1 = first, 2 = middle, 3 = last). */
+  onShowcase: (stage: 1 | 2 | 3 | 4) => void;
 }
 
 const CSS = `
@@ -19,6 +21,10 @@ const CSS = `
 .pv-menu .pv-warn{color:#8a2a12;font-size:12px;font-weight:600}
 .pv-btn{appearance:none;border:1px solid #8a2a12;background:#fff;color:#8a2a12;font:600 13px/1 system-ui,sans-serif;border-radius:8px;padding:10px 12px;min-height:40px;width:100%;cursor:pointer}
 .pv-btn:hover{background:#f6e3dc}
+.pv-sec{margin:10px 0 0;padding-top:8px;border-top:1px solid #e0d3b0}
+.pv-sec b{display:block;margin-bottom:6px;font-size:13px}
+.pv-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.pv-row .pv-btn{min-width:0;min-height:44px;padding:10px 4px}
 .pv-btn-yes{background:#8a2a12;color:#fff;margin-top:6px}
 .pv-btn-yes:hover{background:#6f2210}
 @media (min-width:768px){
@@ -72,7 +78,29 @@ export function mountPill(opts: PillOptions): Pill {
   confirmNote.hidden = true;
   confirmNote.textContent = 'This deletes your village and starts a new world.';
 
-  menu.append(about, warn, reset, confirmNote, confirmBtn);
+  const sec = document.createElement('div');
+  sec.className = 'pv-sec';
+  const secTitle = document.createElement('b');
+  secTitle.textContent = 'Show all buildings';
+  const row = document.createElement('div');
+  row.className = 'pv-row';
+  for (const stage of [1, 2, 3, 4] as const) {
+    const b = document.createElement('button');
+    b.className = 'pv-btn';
+    b.type = 'button';
+    b.textContent = `Stage ${stage}`;
+    b.addEventListener('click', () => {
+      for (const x of row.querySelectorAll('button')) x.disabled = true;
+      opts.onShowcase(stage);
+    });
+    row.append(b);
+  }
+  const secNote = document.createElement('p');
+  secNote.className = 'pv-note';
+  secNote.textContent = 'Preview only \u2014 changes your test village';
+  sec.append(secTitle, row, secNote);
+
+  menu.append(about, warn, sec, reset, confirmNote, confirmBtn);
   root.append(chip, menu);
 
   const setOpen = (open: boolean): void => {

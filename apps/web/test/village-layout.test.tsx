@@ -28,7 +28,7 @@ let PATHS: PathDef[];
 let STREET_W: number;
 let PLACEMENT: Record<BuildingId, Place>;
 let WALL_RING: { cx: number; cy: number; plate: number; gateU: number };
-let labelAnchor: (id: BuildingId, stage: 1 | 2 | 3) => { x: number; y: number };
+let labelAnchor: (id: BuildingId, stage: 1 | 2 | 3 | 4) => { x: number; y: number };
 let Ground: (p: { built: string }) => unknown;
 
 before(async () => {
@@ -91,7 +91,7 @@ test('every building except the wall and the Town Hall has a branch that ends in
 test('label anchors sit on the roof, centred on the plot and clear of the ground', () => {
   for (const id of BUILDING_IDS) {
     if (id === 'wall') continue;
-    for (const stage of [1, 2, 3] as const) {
+    for (const stage of [1, 2, 3, 4] as const) {
       const a = labelAnchor(id, stage);
       const p = PLACEMENT[id];
       assert.equal(a.x, p.x, `${id} ${stage}`);
