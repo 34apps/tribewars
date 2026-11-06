@@ -4,8 +4,6 @@ import {
   EXPAND_CORE_RADIUS,
   EXPAND_START_RINGS,
   EXPAND_TILES_PER_PLAYER,
-  NPC_RING_BASE,
-  NPC_RING_EXTRA_CHANCE,
   NPC_RING_EXTRA_MAX,
   NPC_RING_MAX_RADIUS,
   NPC_RING_MIN_RADIUS,
@@ -24,6 +22,7 @@ import {
   TERRAIN,
 } from './config.ts';
 import { hashSeed, mulberry32 } from './random.ts';
+import { worldRules } from './world-config.ts';
 import { BUILDING_IDS, GameError } from './types.ts';
 import type { BuildingId, Coords, Terrain, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR } from './util.ts';
@@ -59,15 +58,32 @@ function field(x: number, y: number, seed: number, salt: number, scale: number):
 }
 
 /** Terrain of a tile; deterministic from (x, y, seed) so the client can draw it without the server. */
-export function terrainAt(x: number, y: number, seed: number): Terrain {
+export function terrainAt(x: number, y: number, seed: number, amount = 1): Terrain {
+  const t = amount === 1 ? TERRAIN : terrainThresholds(amount);
   const elevation = field(x, y, seed, SEED_SALT.elevation, TERRAIN.elevationScale);
-  if (elevation >= TERRAIN.mountain) return 'mountain';
-  if (elevation >= TERRAIN.hills) return 'hills';
+  if (elevation >= t.mountain) return 'mountain';
+  if (elevation >= t.hills) return 'hills';
   const wetness = field(x, y, seed, SEED_SALT.wetness, TERRAIN.wetnessScale);
-  if (wetness >= TERRAIN.lake) return 'lake';
-  if (wetness >= TERRAIN.forest) return 'forest';
+  if (wetness >= t.lake) return 'lake';
+  if (wetness >= t.forest) return 'forest';
   return 'grass';
 }
+
+/**
+ * The noise thresholds for a terrain `amount` (WorldConfig terrain.amount): the share of the noise above each threshold, (1 - t),
+ * is multiplied by `amount`. 1 = the thresholds in config.ts exactly (same seed, same map); 0 = nothing above them, all grass.
+ */
+export function terrainThresholds(amount: number): { mountain: number; hills: number; lake: number; forest: number } {
+  const a = Number.isFinite(amount) ? Math.max(0, amount) : 1;
+  const shift = (t: number): number => (a === 1 ? t : Math.max(0, 1 - (1 - t) * a));
+  return { mountain: shift(TERRAIN.mountain), hills: shift(TERRAIN.hills), lake: shift(TERRAIN.lake), forest: shift(TERRAIN.forest) };
+}
+
+/** The terrain amount of this world (1 for settings without a config). */
+export const terrainAmountOf = (s: Pick<WorldSettings, 'config'>): number => worldRules(s).terrain.amount;
+
+/** Terrain of a tile in this world. */
+export const worldTerrainAt = (x: number, y: number, s: Pick<WorldSettings, 'seed' | 'config'>): Terrain => terrainAt(x, y, s.seed, terrainAmountOf(s));
 
 /** Villages can stand on everything except mountains and lakes. */
 export function isBuildableTerrain(t: Terrain): boolean {
@@ -109,7 +125,7 @@ export function buildSiteProblem(
   if (!Number.isInteger(x) || !Number.isInteger(y)) return 'outside';
   const radius = Math.max(0, Math.floor(s.radius));
   if (Math.abs(x) > radius || Math.abs(y) > radius) return 'outside';
-  if (!isBuildableTerrain(terrainAt(x, y, s.seed))) return 'terrain';
+  if (!isBuildableTerrain(worldTerrainAt(x, y, s))) return 'terrain';
   return villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied) ? 'near' : null;
 }
 
@@ -145,28 +161,102 @@ export function generateNpcPlacements(s: WorldSettings): Array<Coords & { tier: 
     const x = randomCoord(rng, radius);
     const y = randomCoord(rng, radius);
     if (villageNearby(x, y, NPC_MIN_SPACING, radius, isTaken)) continue;
-    if (!isBuildableTerrain(terrainAt(x, y, s.seed))) continue;
+    if (!isBuildableTerrain(worldTerrainAt(x, y, s))) continue;
     taken.add(key(x, y));
     out.push({ x, y, tier: pickTier(rng()) });
   }
   return out;
 }
 
+/** Ground around a start spot (docs/GAME_DESIGN.md 8, fair start): shares of the tiles within `radius` (a square, inside the world). */
+export interface StartGround {
+  /** Share of tiles that are buildable (not mountain or lake). */
+  open: number;
+  /** Share of tiles that are slow ground (forest, hills, mountain, lake). */
+  slow: number;
+  /** True when both limits of the world's `start` rules hold. */
+  fair: boolean;
+  /** How far short of the limits (0 = fair); used to pick the best of several spots. */
+  shortfall: number;
+}
+
+/** The open and slow share of the ground around (x, y), and whether it passes the world's fair-start rule. */
+export function startGround(x: number, y: number, s: WorldSettings): StartGround {
+  const rules = worldRules(s).start;
+  const world = Math.max(0, Math.floor(s.radius));
+  const amount = terrainAmountOf(s);
+  const reach = Math.max(0, Math.floor(rules.radius));
+  let total = 0;
+  let open = 0;
+  let slow = 0;
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      const px = x + dx;
+      const py = y + dy;
+      if (Math.abs(px) > world || Math.abs(py) > world) continue;
+      total++;
+      const t = terrainAt(px, py, s.seed, amount);
+      if (isBuildableTerrain(t)) open++;
+      if (t !== 'grass') slow++;
+    }
+  }
+  const openShare = total > 0 ? open / total : 1;
+  const slowShare = total > 0 ? slow / total : 0;
+  const shortfall = Math.max(0, rules.minOpenShare - openShare) + Math.max(0, slowShare - rules.maxSlowShare);
+  return { open: openShare, slow: slowShare, fair: shortfall <= 1e-9, shortfall };
+}
+
+/**
+ * Collects candidate start spots and applies the fair-start rule: `consider` returns the spot as soon as one passes, or the best of the
+ * `start.tries` spots seen (least shortfall, the earliest on a tie). `finish` returns the best seen so far (or null: none yet).
+ */
+function fairPicker(s: WorldSettings): { consider: (c: Coords) => Coords | null; finish: () => Coords | null } {
+  const tries = Math.max(1, Math.floor(worldRules(s).start.tries));
+  let seen = 0;
+  let best: Coords | null = null;
+  let bestShortfall = Infinity;
+  return {
+    consider(c) {
+      const g = startGround(c.x, c.y, s);
+      if (g.fair) return c;
+      seen++;
+      if (g.shortfall < bestShortfall) {
+        best = c;
+        bestShortfall = g.shortfall;
+      }
+      return seen >= tries ? best : null;
+    },
+    finish: () => best,
+  };
+}
+
 /**
  * A free tile for a new player village: buildable and at least SPAWN_MIN_SPACING (Chebyshev) from every
- * village. Random tries first, then a scan outward from a random tile. `isOccupied(x, y)` reports a
+ * village, with fair open ground around it (`startGround`; after start.tries spots the best one is taken). Random tries first, then a scan outward from a random tile. `isOccupied(x, y)` reports a
  * village standing exactly on that tile. Throws GameError('not_found') if the whole world is full.
  */
-export function findSpawnLocation(isOccupied: (x: number, y: number) => boolean, rng: () => number, s: WorldSettings): Coords {
+export function findSpawnLocation(
+  isOccupied: (x: number, y: number) => boolean,
+  rng: () => number,
+  s: WorldSettings,
+  /** Extra rule a tile must pass (the server keeps spots away from map sites); searched with, so a rule never starves the fair-start search. */
+  allowed?: (x: number, y: number) => boolean,
+): Coords {
   const radius = Math.max(0, Math.floor(s.radius));
   const fits = (x: number, y: number): boolean =>
-    isBuildableTerrain(terrainAt(x, y, s.seed)) && !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied);
+    isBuildableTerrain(worldTerrainAt(x, y, s)) && !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied) && (allowed?.(x, y) ?? true);
 
+  const picker = fairPicker(s);
   for (let i = 0; i < SPAWN_RANDOM_TRIES; i++) {
     const x = randomCoord(rng, radius);
     const y = randomCoord(rng, radius);
-    if (fits(x, y)) return { x, y };
+    if (fits(x, y)) {
+      const chosen = picker.consider({ x, y });
+      if (chosen) return chosen;
+    }
   }
+  const bestRandom = picker.finish();
+  if (bestRandom) return bestRandom;
 
   const cx = randomCoord(rng, radius);
   const cy = randomCoord(rng, radius);
@@ -209,13 +299,17 @@ export function findExpandingSpawn(
   playerVillages: number,
   /** Land within `edgeBand` tiles inside the edge of the disc instead of anywhere in it (restart placement). */
   edgeBand?: number,
+  /** As in findSpawnLocation. */
+  allowed?: (x: number, y: number) => boolean,
 ): Coords {
   const radius = Math.max(0, Math.floor(s.radius));
   const fits = (x: number, y: number): boolean =>
     Math.abs(x) <= radius &&
     Math.abs(y) <= radius &&
-    isBuildableTerrain(terrainAt(x, y, s.seed)) &&
-    !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied);
+    isBuildableTerrain(worldTerrainAt(x, y, s)) &&
+    !villageNearby(x, y, SPAWN_MIN_SPACING, radius, isOccupied) &&
+    (allowed?.(x, y) ?? true);
+  const picker = fairPicker(s);
   let reach = Math.min(expandingRadius(playerVillages), radius);
   for (let round = 0; round < 8; round++) {
     for (let i = 0; i < 300; i++) {
@@ -223,16 +317,19 @@ export function findExpandingSpawn(
       const r = edgeBand === undefined ? Math.sqrt(rng()) * reach : Math.max(0, reach - rng() * edgeBand);
       const x = Math.round(Math.cos(angle) * r);
       const y = Math.round(Math.sin(angle) * r);
-      if (fits(x, y)) return { x, y };
+      if (fits(x, y)) {
+        const chosen = picker.consider({ x, y });
+        if (chosen) return chosen;
+      }
     }
     reach = Math.min(reach * 1.3, radius);
   }
-  return findSpawnLocation(isOccupied, rng, s);
+  return picker.finish() ?? findSpawnLocation(isOccupied, rng, s, allowed);
 }
 
 /**
  * Abandoned villages in a ring around `center`: `count` at evenly spaced angles (random phase, jittered) plus, when
- * `extras` is set, up to NPC_RING_EXTRA_MAX more each with chance NPC_RING_EXTRA_CHANCE. Skips unbuildable or crowded tiles.
+ * `extraChance` > 0, up to NPC_RING_EXTRA_MAX more, rolled one after the other, each with that chance. Skips unbuildable or crowded tiles.
  * Tiers use the normal weights, so they match the abandoned villages of a classic world.
  */
 export function generateNpcRing(
@@ -240,7 +337,7 @@ export function generateNpcRing(
   count: number,
   minRadius: number,
   maxRadius: number,
-  extras: boolean,
+  extraChance: number,
   isOccupied: (x: number, y: number) => boolean,
   rng: () => number,
   s: WorldSettings,
@@ -256,7 +353,7 @@ export function generateNpcRing(
       const y = Math.round(center.y + Math.sin(angle) * r + (rng() * 2 - 1) * jitter);
       if (Math.abs(x) > radius || Math.abs(y) > radius) continue;
       if (villageNearby(x, y, NPC_MIN_SPACING, radius, taken)) continue;
-      if (!isBuildableTerrain(terrainAt(x, y, s.seed))) continue;
+      if (!isBuildableTerrain(worldTerrainAt(x, y, s))) continue;
       chosen.add(`${x},${y}`);
       out.push({ x, y, tier: pickTier(rng()) });
       return;
@@ -267,8 +364,8 @@ export function generateNpcRing(
   for (let i = 0; i < n; i++) {
     place(phase + (i * 2 * Math.PI) / n + (rng() - 0.5) * 0.7, minRadius + rng() * (maxRadius - minRadius));
   }
-  if (extras) {
-    for (let e = 0; e < NPC_RING_EXTRA_MAX && rng() < NPC_RING_EXTRA_CHANCE; e++) {
+  if (extraChance > 0) {
+    for (let e = 0; e < NPC_RING_EXTRA_MAX && rng() < extraChance; e++) {
       place(rng() * 2 * Math.PI, minRadius + rng() * (maxRadius - minRadius));
     }
   }
@@ -282,7 +379,8 @@ export function generateNpcsForSpawn(
   rng: () => number,
   s: WorldSettings,
 ): Array<Coords & { tier: number }> {
-  return generateNpcRing(spot, NPC_RING_BASE, NPC_RING_MIN_RADIUS, NPC_RING_MAX_RADIUS, true, isOccupied, rng, s);
+  const npc = worldRules(s).npc;
+  return generateNpcRing(spot, npc.perNewcomer, NPC_RING_MIN_RADIUS, NPC_RING_MAX_RADIUS, npc.extraChance, isOccupied, rng, s);
 }
 
 /** Abandoned villages at the creation of an 'expanding' world: rings around the empty centre. */
@@ -290,8 +388,10 @@ export function generateExpandingStartNpcs(s: WorldSettings): Array<Coords & { t
   const rng = mulberry32(hashSeed(s.seed, SEED_SALT.npcPlacement));
   const out: Array<Coords & { tier: number }> = [];
   const has = new Set<string>();
-  for (const [count, minR, maxR] of EXPAND_START_RINGS) {
-    for (const p of generateNpcRing({ x: 0, y: 0 }, count, minR, maxR, true, (x, y) => has.has(`${x},${y}`), rng, s)) {
+  const { startRingScale, extraChance } = worldRules(s).npc;
+  for (const [base, minR, maxR] of EXPAND_START_RINGS) {
+    const count = Math.round(base * startRingScale);
+    for (const p of generateNpcRing({ x: 0, y: 0 }, count, minR, maxR, extraChance, (x, y) => has.has(`${x},${y}`), rng, s)) {
       has.add(`${p.x},${p.y}`);
       out.push(p);
     }

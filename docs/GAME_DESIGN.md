@@ -132,6 +132,11 @@ reduce an amount that is already above the cap (only stop it growing).
   draws it without asking the server. Villages are never placed on mountain or lake tiles. Use smooth value noise so
   terrain forms patches, not static. Since 2026-11-04 terrain also changes travel speed (18.4a); there are no rivers in
   `terrainAt`, "water" on the road is the lake terrain.
+- **Terrain amount per world (owner 2026-11-06, `terrain.amount`, default 1).** `terrainAt(x, y, seed, amount = 1)` moves the four noise thresholds
+  so the share of noise above each is multiplied by `amount`: 0 = flat grass only, 1 = **today's map exactly** (same seed, same map: the thresholds in
+  `config.ts` are used untouched, a test pins the map of three seeds), up to 1.5 = wilder (more forest, hills, mountains, lakes). Everything that reads
+  terrain takes the world's amount (`terrainAmountOf(settings)`: villages, sites, routes, the map the client draws). Fixed when the world is created;
+  worlds without the stored setting read 1. Villages and sites avoid mountain and lake at any amount.
 
 ## 7. Battle — `resolveBattle({ attackerUnits, defender, seed })`
 
@@ -166,8 +171,13 @@ Tests and the simulator pass their own seeds.
 
 Computer-run villages for players to raid. They have `npc` info and no owner.
 
-- Created at world start: `round((2r+1)² × npcDensity)` villages at random free tiles (seeded),
+- Created at world start ('scattered' layout): `round((2r+1)² × npcDensity)` villages at random free tiles (seeded),
   at least `NPC_MIN_SPACING` (Chebyshev) from each other. Tier from `NPC_TIER_WEIGHTS`.
+- **Fewer abandoned villages (owner 2026-11-06, BALANCE.md §11).** A new world has **about 2 per new player** instead of about 4: `npc.perNewcomer` 2 and
+  `npc.extraChance` 0 (the older numbers were 3 and 0.4, about 3.6 on average), the start rings around the empty centre scale with `npc.startRingScale`
+  0.6 (8 + 14 become 5 + 8), and the scattered layout's `npc.density` is 0.01 (was 0.02). All are WorldConfig settings. **Worlds that already exist keep
+  what they were created with** (only new placement changes): a stored config without these settings reads 3 / 0.4 / 1, and the flat density stays
+  whatever the world stored. More abandoned villages still appear over time when inactive owners lose theirs (§18.2, existing rule).
 - Start levels for tier T: hall T; lumber, farm, mine, storehouse 2T; wall, vault and gold mine T−1;
   others 0. Wood, food and iron start at `npc.startStockShare` (80%) of the cap; gold at `NPC_START_GOLD_PER_TIER × T` (the gold
   mine they start with keeps producing; they do not build more). Garrison starts full.
@@ -218,6 +228,13 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   (`npc.growthSeed`, a seeded shuffle of `NPC_GROWTH_ORDER`), so they develop in different directions.
   The default layout is `'scattered'` (everything above, random anywhere).
 - Terrain shares are tuned so mountains, lakes and forest leave room for many players (mountain+lake < 15% of tiles).
+- **Fair start (owner 2026-11-06, `start.*`).** A start spot (registration) and a restart spot (edge of the disc) must have open ground around
+  it: within `start.radius` (4) tiles, a square of up to 9 x 9, **at least `start.minOpenShare` (70%) of the tiles are buildable** (not mountain or lake)
+  and **at most `start.maxSlowShare` (40%) are slow ground** (forest, hills, mountain, lake). The placement draws candidate spots exactly as before
+  (random free buildable tile; disc or edge band in the expanding layout; away from map sites) and takes the first that passes; after
+  `start.tries` (40) candidates without a pass it takes **the best one found** (least shortfall), so **a registration never fails** for this rule.
+  Deterministic from the random stream (the server's is secret, tests seed it). Of random buildable tiles about 65% pass; of chosen spots 100% did
+  (900 spots on 300 seeds, `packages/engine/test/fair-start.test.ts`). Applies to every world (new placements only); the rule is about the start spot, not about villages founded or taken.
 - Beginner protection: nobody can attack the player's villages until
   `createdAt + protectionHours / speed`. It ends early when the player attacks another *player*
   (raiding abandoned villages keeps it).
@@ -260,7 +277,7 @@ armySpeed(units: Units): number                    // slowest unit's tiles/hour,
 travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number   // with terrain (s.seed); same both ways
 flatTravelTimeMs(from, to, units, s): number                                    // ignores terrain (send preview "without terrain")
 travelPreview(from, to, units, s): { flatMs, ms, route }                         // route = travelRoute(from, to, s.seed)
-travelRoute(from, to, seed): Route                                              // straight line sampled every tile: terrain per sample
+travelRoute(from, to, seed, terrainAmount = 1): Route                                              // straight line sampled every tile: terrain per sample
 shipmentTravelMs(from, to, s) / flatShipmentTravelMs(from, to, s)               // carriers, same terrain rule
 checkSend(state, units: Partial<Units>): CheckResult<{ units: Units }>   // normalises to full Units
 applySend(state, units, t, s): VillageState        // troops -> away
@@ -274,7 +291,7 @@ applyBattleToDefender(defender: VillageState, r: BattleResult): VillageState
 applyAttackerLosses(origin: VillageState, losses: Units): VillageState    // away -= losses
 applyReturn(origin: VillageState, survivors: Units, loot: Resources, t, s): VillageState
 // world
-terrainAt(x: number, y: number, seed: number): Terrain
+terrainAt(x: number, y: number, seed: number, amount = 1): Terrain   // worldTerrainAt(x, y, settings) uses the world's amount
 isBuildableTerrain(t: Terrain): boolean
 generateNpcPlacements(s: WorldSettings): Array<Coords & { tier: number }>
 findSpawnLocation(isOccupied: (x: number, y: number) => boolean, rng: () => number, s: WorldSettings): Coords
@@ -1104,6 +1121,8 @@ proposed; a trip over grass only is exactly as before. The send dialog and the s
 forest and hills and orange dots on mountain and water (key in the map legend). Tests: `packages/engine/test/travel.test.ts`,
 `apps/server/test/terrain-travel.test.ts`, `apps/web/test/travel.test.tsx`.
 
+**Per world (2026-11-06):** how much of this ground a world has is `terrain.amount` (§6; 0 flat, 1 today's map, 1.5 wilder). Routes, travel times, the send preview and the map all use the world's amount, so on a flat world every trip takes the flat time. New start spots need open ground around them (§9, fair start).
+
 **How it works**
 - Terrain stops being decoration (§6). The engine's `terrainAt(x, y, seed)` already gives grass, forest, hills,
   mountain and lake, and the client already draws it. Travel time is now the **sum of the time spent on each
@@ -1645,6 +1664,8 @@ proposed; a trip over grass only is exactly as before. The send dialog and the s
 forest and hills and orange dots on mountain and water (key in the map legend). Tests: `packages/engine/test/travel.test.ts`,
 `apps/server/test/terrain-travel.test.ts`, `apps/web/test/travel.test.tsx`.
 
+**Per world (2026-11-06):** how much of this ground a world has is `terrain.amount` (§6; 0 flat, 1 today's map, 1.5 wilder). Routes, travel times, the send preview and the map all use the world's amount, so on a flat world every trip takes the flat time. New start spots need open ground around them (§9, fair start).
+
 **How it works**
 - Terrain stops being decoration (§6). The engine's `terrainAt(x, y, seed)` already gives grass, forest, hills,
   mountain and lake, and the client already draws it. Travel time is now the **sum of the time spent on each
@@ -2026,7 +2047,9 @@ like every other duration.
 |---|---|
 | `pace` | `speed` (1: production and every waiting time), `unitSpeed` (1: extra speed for marching troops and shipments only; time = distance / (speed x unitSpeed)) |
 | `protection` | `beginnerHours` 72, `foundHours` 24, `restartHours` 48 |
-| `npc` (abandoned villages) | `density` 0.02 (creation only), `selfBuild` true (they build from their own stock, §8), `keepShare` 0.25 (reserve they keep when building), `maxLevel` 7, `startStockShare` 0.8, `startGoldPerTier` 40 |
+| `npc` (abandoned villages) | `density` 0.01 (creation only; 0.02 before 2026-11-06), `perNewcomer` 2 (3 in older worlds), `extraChance` 0 (0.4 in older worlds), `startRingScale` 0.6 (1 in older worlds), `selfBuild` true (they build from their own stock, §8), `keepShare` 0.25 (reserve they keep when building), `maxLevel` 7, `startStockShare` 0.8, `startGoldPerTier` 40 |
+| `terrain` | `amount` 1 (0 flat grass, 1 today's map, up to 1.5 wilder; creation only, §6) |
+| `start` (fair start) | `radius` 4, `minOpenShare` 0.7, `maxSlowShare` 0.4, `tries` 40 (§9) |
 | `conquest` | `playersCanBeConquered` true, `renownBase` 1000, `renownGrowth` 1.6, `chainWindowHours` 2, `holdHours` 8, `holdHoursAbandoned` 2, `holdFailHours` 2, `lockHours` 24 |
 | `domination` | the six win-condition settings of §18.1 (moved into this object; `world_settings.domination` mirrors it) |
 | `tribe` | `maxMembers` 30 |

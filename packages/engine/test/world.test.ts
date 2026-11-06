@@ -4,7 +4,6 @@ import {
   DEFAULT_WORLD,
   GameError,
   NPC_MIN_SPACING,
-  NPC_RING_BASE,
   NPC_RING_EXTRA_MAX,
   NPC_TIER_WEIGHTS,
   SPAWN_MIN_SPACING,
@@ -21,6 +20,7 @@ import {
   mulberry32,
   protectionEndsAt,
   terrainAt,
+  worldRules,
   villagePoints,
 } from '../src/index.ts';
 import type { Terrain, WorldSettings } from '../src/index.ts';
@@ -80,7 +80,7 @@ describe('expanding layout', () => {
   it('start rings are deterministic, spaced, buildable and near the centre', () => {
     const a = generateExpandingStartNpcs(world);
     assert.deepEqual(a, generateExpandingStartNpcs({ ...world }));
-    assert.ok(a.length >= 15, `got ${a.length}`);
+    assert.ok(a.length >= 10 && a.length <= 14, `got ${a.length}`);
     for (const p of a) {
       assert.ok(isBuildableTerrain(terrainAt(p.x, p.y, world.seed)));
       assert.ok(Math.hypot(p.x, p.y) <= 30);
@@ -108,8 +108,8 @@ describe('expanding layout', () => {
         occupied.add(`${p.x},${p.y}`);
       }
     }
-    assert.ok(ringTotal >= 60 * 2, `about three abandoned villages per newcomer, got ${ringTotal} for 60`);
-    assert.ok(ringTotal <= 60 * (NPC_RING_BASE + NPC_RING_EXTRA_MAX));
+    assert.ok(ringTotal >= 60 * 1.5, `about two abandoned villages per newcomer, got ${ringTotal} for 60`);
+    assert.ok(ringTotal <= 60 * (worldRules(world).npc.perNewcomer + NPC_RING_EXTRA_MAX));
     const far = Math.max(...spots.map((s) => Math.hypot(s.x, s.y)));
     assert.ok(far < 80, `60 players stay within a small disc, farthest ${far.toFixed(1)}`);
   });
@@ -127,7 +127,7 @@ describe('abandoned village placement', () => {
     const placements = generateNpcPlacements(DEFAULT_WORLD);
     const elapsed = performance.now() - start;
     assert.equal(placements.length, Math.round(201 * 201 * DEFAULT_WORLD.npcDensity));
-    assert.equal(placements.length, 808);
+    assert.equal(placements.length, 404); // owner 2026-11-06: half the old density (0.02 -> 0.01)
     assert.ok(elapsed < 500, `took ${elapsed} ms`);
   });
 

@@ -97,6 +97,9 @@ describe('DEFAULT_WORLD_CONFIG', () => {
       maxLevel: NPC_MAX_LEVEL,
       startStockShare: NPC_START_RESOURCE_SHARE,
       startGoldPerTier: NPC_START_GOLD_PER_TIER,
+      perNewcomer: 2,
+      extraChance: 0,
+      startRingScale: 0.6,
     });
     assert.deepEqual(c.conquest, {
       playersCanBeConquered: HEARTH_PLAYERS_ENABLED,

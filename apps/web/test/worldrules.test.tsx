@@ -110,7 +110,7 @@ test('value words', () => {
   assert.ok(share);
   assert.equal(ruleValueText(share, 1.5, 4).value, '1.5×');
   const groups = ruleGroups(config(1), []);
-  assert.deepEqual(groups.map((g) => g.id), ['pace', 'protection', 'npc', 'conquest', 'domination', 'tribe', 'features', 'queues']);
+  assert.deepEqual(groups.map((g) => g.id), ['pace', 'protection', 'npc', 'terrain', 'start', 'conquest', 'domination', 'tribe', 'features', 'queues']);
 });
 
 // ---- the hook and its fallback ---------------------------------------------------------------------------

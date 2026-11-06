@@ -6,6 +6,7 @@
 //   npm run sim -- --days 5 --seed 7 --json
 //   npm run sim -- --out docs/sim/<file>.txt       write the report to a file
 //   npm run sim -- --home -10,-10                  other start tile (terrain on the raid routes)
+//   npm run sim -- --targets 8                     how many of the 8 abandoned villages around the village exist (default: share left by npc.perNewcomer)
 //   npm run sim -- --siege                         siege units (GAME_DESIGN 18.9): focused experiments (scripts/sim/siege.ts) + the
 //                                                  computer players with and without siege. Without --siege nothing about siege runs.
 //
@@ -50,6 +51,9 @@ import {
   createFoundedVillage,
   createNpcVillage,
   createPlayerVillage,
+  DEFAULT_WORLD_CONFIG,
+  NPC_RING_BASE,
+  NPC_RING_EXTRA_CHANCE,
   emptyResources,
   emptyUnits,
   feastAllowance,
@@ -313,6 +317,11 @@ export interface SimOptions {
   /** Map position of the simulated village (`--home x,y`); the terrain around it sets the raid travel times. */
   home: { x: number; y: number };
   /**
+   * How many of the eight abandoned villages around the simulated village exist (`--targets N`, 1..8). Default: the share of the
+   * old eight that the world's per-newcomer setting leaves (`defaultTargetCount`, BALANCE 11), evenly spread over the tiers and distances.
+   */
+  targets?: number;
+  /**
    * Siege units in play (`--siege`, default OFF so every older result stays valid): the attacking styles (raider, balanced) build
    * what Log Rams / Boulder Slings need, research and train a few, and send them with the raiders against fortified targets.
    */
@@ -398,6 +407,20 @@ const TARGET_LAYOUT: Array<[number, number]> = [[1, 3], [1, 5], [2, 5], [2, 7], 
  * below slow a foot army down by about 9% (the world-wide average for foot units is 9%, GAME_DESIGN 18.4a).
  */
 export const DEFAULT_HOME = { x: -30, y: -10 };
+/** Expected abandoned villages a newcomer brings: `perNewcomer` plus the chain of extra rolls (at most 3). */
+const expectedPerNewcomer = (base: number, chance: number): number => base + chance + chance ** 2 + chance ** 3;
+/** The 8 targets of the sim stand for the legacy ~3.6 per newcomer; a world that brings fewer leaves proportionally fewer. */
+export function defaultTargetCount(): number {
+  const now = expectedPerNewcomer(DEFAULT_WORLD_CONFIG.npc.perNewcomer, DEFAULT_WORLD_CONFIG.npc.extraChance);
+  const legacy = expectedPerNewcomer(NPC_RING_BASE, NPC_RING_EXTRA_CHANCE);
+  return Math.max(1, Math.min(TARGET_LAYOUT.length, Math.round((TARGET_LAYOUT.length * now) / legacy)));
+}
+/** Indices of the layout kept for `count` targets: evenly spread, so the tier mix and the distances stay representative. */
+function keptTargets(count: number): number[] {
+  const n = TARGET_LAYOUT.length;
+  const k = Math.max(1, Math.min(n, Math.round(count)));
+  return Array.from({ length: k }, (_, j) => Math.floor(((j + 0.5) * n) / k));
+}
 /** Target i lies at its layout distance in its own direction (eight directions around home), so the terrain on the way varies. */
 function targetPos(home: { x: number; y: number }, i: number, distance: number): { x: number; y: number } {
   const angle = 0.4 + (i * 2 * Math.PI) / TARGET_LAYOUT.length;
@@ -433,7 +456,11 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   const vils: Vil[] = [{ id: 0, state: createPlayerVillage(0), pos: opt.home, trainCursor: 0, how: 'home' }];
-  const targets: Target[] = TARGET_LAYOUT.map(([tier, distance], i) => ({ state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), alive: true }));
+  const kept = keptTargets(opt.targets ?? defaultTargetCount());
+  const targets: Target[] = kept.map((i) => {
+    const [tier, distance] = TARGET_LAYOUT[i] as [number, number];
+    return { state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), alive: true };
+  });
   const events: Event[] = [];
   const errors: string[] = [];
   const firstBuilding: StyleResult['firstBuilding'] = {};
@@ -1409,7 +1436,8 @@ function main(): void {
   const homeAt = args.indexOf('--home');
   const homeParts = homeAt >= 0 ? String(args[homeAt + 1]).split(',').map(Number) : [];
   const home = homeParts.length === 2 && homeParts.every((n) => Number.isInteger(n)) ? { x: homeParts[0] as number, y: homeParts[1] as number } : DEFAULT_HOME;
-  const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home };
+  const targetsAt = args.indexOf('--targets');
+  const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home, ...(targetsAt >= 0 ? { targets: get('--targets', 8) } : {}) };
   const siege = args.includes('--siege');
   const rep = runSimulation(siege ? { ...base, siege: true } : base);
   let text: string;

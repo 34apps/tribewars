@@ -15,7 +15,11 @@ const BLOCK = 32;
 /** terrainAt() results cached in 32x32 blocks so redraws never recompute noise. */
 export class TerrainCache {
   private readonly blocks = new Map<number, Uint8Array>();
-  constructor(private readonly seed: number) {}
+  constructor(
+    private readonly seed: number,
+    /** The world's terrain amount (WorldConfig terrain.amount). */
+    private readonly amount = 1,
+  ) {}
 
   get(x: number, y: number): number {
     const bx = Math.floor(x / BLOCK);
@@ -25,7 +29,7 @@ export class TerrainCache {
     if (!block) {
       block = new Uint8Array(BLOCK * BLOCK);
       for (let j = 0; j < BLOCK; j++) {
-        for (let i = 0; i < BLOCK; i++) block[j * BLOCK + i] = CODE[terrainAt(bx * BLOCK + i, by * BLOCK + j, this.seed)];
+        for (let i = 0; i < BLOCK; i++) block[j * BLOCK + i] = CODE[terrainAt(bx * BLOCK + i, by * BLOCK + j, this.seed, this.amount)];
       }
       this.blocks.set(key, block);
     }

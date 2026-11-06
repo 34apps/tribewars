@@ -8,6 +8,7 @@ import {
   applyWorldConfig,
   flatSettings,
   resolveWorldConfig,
+  withLegacyPlacement,
   worldConfigFromSettings,
   type WorldConfig,
   NOTIFICATIONS_KEEP,
@@ -680,7 +681,8 @@ export class Store extends SqlBase {
         parsed = null; // damaged: the flat settings still say what the world runs on
       }
     }
-    const base = worldConfigFromSettings(flat);
+    // Worlds from before 2026-11-06 keep their abandoned-village numbers and map: the settings they never stored read as the old values.
+    const base = withLegacyPlacement(worldConfigFromSettings(flat));
     return parsed === null ? base : resolveWorldConfig(parsed, base);
   }
 

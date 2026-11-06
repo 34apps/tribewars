@@ -63,13 +63,13 @@ function spiralOffsets(): Array<[number, number]> {
 }
 
 /** Nearest legal tile to the ideal spot, or null when none lies within reach: inside the world, no mountain or lake, spaced from placed sites. */
-function nearestLegalTile(ideal: { x: number; y: number }, seed: number, radius: number, placed: readonly SiteDef[]): { x: number; y: number } | null {
+function nearestLegalTile(ideal: { x: number; y: number }, seed: number, amount: number, radius: number, placed: readonly SiteDef[]): { x: number; y: number } | null {
   const minSq = SITE_MIN_SPACING * SITE_MIN_SPACING;
   for (const [dx, dy] of spiralOffsets()) {
     const x = ideal.x + dx;
     const y = ideal.y + dy;
     if (Math.abs(x) > radius || Math.abs(y) > radius) continue;
-    if (!isBuildableTerrain(terrainAt(x, y, seed))) continue;
+    if (!isBuildableTerrain(terrainAt(x, y, seed, amount))) continue;
     if (placed.some((p) => (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y) < minSq)) continue;
     return { x, y };
   }
@@ -82,12 +82,12 @@ function nearestLegalTile(ideal: { x: number; y: number }, seed: number, radius:
  * tile (spiral search) inside the world, not mountain or lake, and at least SITE_MIN_SPACING (Euclid) from every site placed before it.
  * Order and ids are fixed (1 = Great Fire); a site that finds no tile (tiny world) is left out, the others keep their ids.
  */
-export function generateSites(seed: number, radius: number): SiteDef[] {
+export function generateSites(seed: number, radius: number, terrainAmount = 1): SiteDef[] {
   const r = Math.max(0, Math.floor(radius));
   const sites: SiteDef[] = [];
   const place = (id: number, kind: SiteKind, ideal: { x: number; y: number }): void => {
     const clamped = { x: Math.max(-r, Math.min(r, ideal.x)), y: Math.max(-r, Math.min(r, ideal.y)) };
-    const spot = nearestLegalTile(clamped, seed, r, sites);
+    const spot = nearestLegalTile(clamped, seed, terrainAmount, r, sites);
     if (spot) sites.push({ id, kind, x: spot.x, y: spot.y });
   };
   place(1, 'great_fire', { x: 0, y: 0 });

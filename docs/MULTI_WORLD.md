@@ -117,6 +117,10 @@ abandoned villages, conquest, win condition, tribe size, optional features and q
 - **Creation:** defaults from `config.ts` (a default world plays as before); optional `WORLD_CONFIG` environment variable (JSON, only used when the
   database is created; invalid values stop the start). The old `WORLD_SPEED`, `WORLD_SEED`, `WORLD_RADIUS`, `WORLD_LAYOUT` still work the same way.
 - **Old worlds** without a stored config run on today's values and are not rewritten.
+- **Placement settings (2026-11-06):** `npc.perNewcomer`, `npc.extraChance`, `npc.startRingScale` (abandoned villages per new player and around the empty centre), `terrain.amount`
+  (0 flat grass, 1 the usual map, 1.5 wilder) and `start.radius / minOpenShare / maxSlowShare / tries` (fair start spot) are WorldConfig settings, fixed when the world opens.
+  **Existing worlds keep their old numbers and map:** a stored config without them reads 3 / 0.4 / 1 and terrain amount 1 (`withLegacyPlacement`); new worlds store the new defaults
+  (2 / 0 / 0.6, 1). The same seed with amount 1 gives the same map as before. Example: `WORLD_CONFIG='{"terrain":{"amount":0.6},"npc":{"perNewcomer":3}}'`.
 - **Public:** `GET /w/<id>/api/world/config` (and `/api/world/config`): the rules, whether the world is open, when it opened, and which settings can
   still change. No secrets. `GET /w/<id>/api/world/info` is unchanged.
 - **Operator:** `npm run admin -w @clanfire/server -- config | config-set <path> <value> | world-open` (Docker:

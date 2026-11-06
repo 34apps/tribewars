@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
 import type { Coords, Mission, MovementDto } from '@clanfire/engine';
+import { terrainAmountOf } from '@clanfire/engine';
 import { useGame, useRules } from '../game.ts';
 import { formatCoords } from '../format.ts';
 import { TerrainBlocks } from '../map/blocks.ts';
@@ -40,7 +41,8 @@ export function MapView({ active }: { active: boolean }) {
   const { settings, village, mapFocus, tribeVersion, player, movements, now } = useGame();
   const radius = settings.radius;
 
-  const terrain = useMemo(() => new TerrainCache(settings.seed), [settings.seed]);
+  const terrainAmount = terrainAmountOf(settings);
+  const terrain = useMemo(() => new TerrainCache(settings.seed, terrainAmount), [settings.seed, terrainAmount]);
   const blocks = useMemo(() => new TerrainBlocks(terrain, radius), [terrain, radius]);
   const chunks = useMemo(() => new MapChunks(radius), [radius]);
   const own = useMemo<Coords>(() => ({ x: village.x, y: village.y }), [village.x, village.y]);
@@ -134,6 +136,7 @@ export function MapView({ active }: { active: boolean }) {
       view,
       radius,
       seed: settings.seed,
+      terrainAmount,
       terrain,
       blocks,
       chunks,
@@ -176,7 +179,7 @@ export function MapView({ active }: { active: boolean }) {
         el.textContent = text;
       }
     }
-  }, [blocks, chunks, ensureChunks, radius, settings.seed, terrain]);
+  }, [blocks, chunks, ensureChunks, radius, settings.seed, terrain, terrainAmount]);
 
   const schedule = useCallback(() => {
     if (dirtyRef.current) return;

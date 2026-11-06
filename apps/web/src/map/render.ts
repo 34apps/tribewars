@@ -26,6 +26,8 @@ export interface Scene {
   radius: number;
   /** World seed: the route preview colours slow ground (travelRoute) from it. */
   seed: number;
+  /** The world's terrain amount, for the same route. */
+  terrainAmount: number;
   terrain: TerrainCache;
   /** Far-zoom terrain block cache (one per map). */
   blocks: TerrainBlocks;
@@ -870,9 +872,9 @@ export const ROUTE_DOT_COLOR: Record<Terrain, string> = { grass: BONE, forest: S
 
 let routeMemo: { key: string; route: Route } | null = null;
 /** The route is a pure function of its ends and the world seed: keep the last one so redraws don't recompute it. */
-function routeFor(a: Coords, b: Coords, seed: number): Route {
-  const key = `${a.x}|${a.y}|${b.x}|${b.y}|${seed}`;
-  if (routeMemo?.key !== key) routeMemo = { key, route: travelRoute(a, b, seed) };
+function routeFor(a: Coords, b: Coords, seed: number, amount: number): Route {
+  const key = `${a.x}|${a.y}|${b.x}|${b.y}|${seed}|${amount}`;
+  if (routeMemo?.key !== key) routeMemo = { key, route: travelRoute(a, b, seed, amount) };
   return routeMemo.route;
 }
 
@@ -882,7 +884,7 @@ function drawRoutePreview(sc: Scene): void {
   if (!own || !selected || (own.x === selected.x && own.y === selected.y)) return;
   const a = toScreen(view, { w: W, h: H }, own.x, own.y);
   const b = toScreen(view, { w: W, h: H }, selected.x, selected.y);
-  const { samples } = routeFor(own, selected, sc.seed);
+  const { samples } = routeFor(own, selected, sc.seed, sc.terrainAmount);
   ctx.save();
   ctx.globalAlpha = 0.85;
   dots(ctx, a.x, a.y, b.x, b.y, view.tile, BONE, (f) => {

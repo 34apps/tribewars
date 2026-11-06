@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RESOURCE_IDS, checkShipment, flatShipmentTravelMs, shipmentCapacity, shipmentTravelMs, travelRoute } from '@clanfire/engine';
+import { RESOURCE_IDS, checkShipment, flatShipmentTravelMs, shipmentCapacity, shipmentTravelMs, terrainAmountOf, travelRoute } from '@clanfire/engine';
 import type { Coords, MapVillageDto, ResourceId, Resources } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -30,7 +30,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   const travel = shipmentTravelMs(village, tile, settings);
   const flat = flatShipmentTravelMs(village, tile, settings);
   const slowdown = slowdownText(flat, travel);
-  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed)) : '';
+  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings))) : '';
   const reason = total < 1 ? 'Choose what to send' : !check.ok ? check.message : null;
 
   function set(r: ResourceId, value: string) {

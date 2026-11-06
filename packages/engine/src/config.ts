@@ -9,7 +9,7 @@ export const DEFAULT_WORLD: WorldSettings = {
   seed: 20261102,
   speed: 1,
   radius: 100,
-  npcDensity: 0.02,
+  npcDensity: 0.01,
   protectionHours: 72,
 };
 
@@ -619,11 +619,27 @@ export const SPAWN_RANDOM_TRIES = 2000;
  */
 export const EXPAND_CORE_RADIUS = 8;
 export const EXPAND_TILES_PER_PLAYER = 150;
-export const NPC_RING_BASE = 3;
+export const NPC_RING_BASE = 3; // LEGACY number: worlds created before 2026-11-06 (WorldConfig npc.perNewcomer; see NPC_PER_NEWCOMER)
 export const NPC_RING_MIN_RADIUS = 3.5;
 export const NPC_RING_MAX_RADIUS = 7;
-export const NPC_RING_EXTRA_CHANCE = 0.4;
+export const NPC_RING_EXTRA_CHANCE = 0.4; // LEGACY (npc.extraChance; see NPC_EXTRA_CHANCE)
 export const NPC_RING_EXTRA_MAX = 3;
+/**
+ * Owner 2026-11-06: fewer abandoned villages, about 2 per new player (BALANCE 11). These are the defaults of a NEW world (WorldConfig
+ * npc.perNewcomer / extraChance / startRingScale); worlds that already exist keep the legacy numbers above and EXPAND_START_RINGS x 1.
+ */
+export const NPC_PER_NEWCOMER = 2;
+export const NPC_EXTRA_CHANCE = 0;
+/** Share of the start-ring counts a new world gets (8 and 14 become 5 and 8). */
+export const NPC_START_RING_SCALE = 0.6;
+/** Terrain amount of a world (WorldConfig terrain.amount): 0 = flat grass only, 1 = the map the generator always made, 1.5 = wilder. */
+export const TERRAIN_AMOUNT_DEFAULT = 1;
+/**
+ * Fair start (owner 2026-11-06; WorldConfig start.*): a new player's spot, and a restart spot, needs enough open ground around it.
+ * Within `radius` tiles (Chebyshev square) at least `minOpenShare` of the tiles are buildable (not mountain or lake) and at most
+ * `maxSlowShare` are slow (forest, hills, mountain, lake). After `tries` candidate spots without a pass, the best one found is taken.
+ */
+export const FAIR_START = { radius: 4, minOpenShare: 0.7, maxSlowShare: 0.4, tries: 40 } as const;
 /** Abandoned villages around the empty centre at world creation: [count, minRadius, maxRadius] per ring. */
 export const EXPAND_START_RINGS: ReadonlyArray<readonly [number, number, number]> = [
   [8, 4, 11],

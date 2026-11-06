@@ -1,6 +1,6 @@
 # Balance review (2026-11-03) — pace, economy, and a conquest unit
 
-Status (2026-11-05, §10: abandoned villages build from their own stock): troop upkeep, the garrison refill and the repeat-raid loot limit were **removed** on 2026-11-05 (§9); the
+Status (2026-11-06, §11: about 2 abandoned villages per new player; 2026-11-05, §10: abandoned villages build from their own stock): troop upkeep, the garrison refill and the repeat-raid loot limit were **removed** on 2026-11-05 (§9); the
 sections below that mention them are history. §1–§4 were hand-computed from `config.ts`. **Upkeep 0.25 was applied** (§3.1, §7); the conquest
 proposal in §4 is superseded by `GAME_DESIGN.md` §18 (Banner Hall with lower requirements, Chieftain, hold instead of
 loyalty, owner approved 2026-11-04). The pacing tuning that needs the simulator is open: §7.3.
@@ -571,3 +571,33 @@ behaviour the new rule rewards. Everything else in the sim is the real engine.
   in the rule-only column; runs that differ in one number can differ by 30,000 score. Compare columns, not single digits.
 - **Speed for players:** raiding is **slower** than §9 (loot 2.9M -> 1.3M for the raider); building is **faster** (food-heavy costs use the food that piled up).
 - **Not done / owner decisions:** the 1.5x raider target, the raider's 2nd village before day 21, and a Wall-based siege incentive.
+
+## 11. Fewer abandoned villages: about 2 per new player (owner 2026-11-06)
+
+Owner decision: a new player brings about 2 abandoned villages, not about 4 (`GAME_DESIGN` §8). `WorldConfig` settings, defaults of **new** worlds only
+(existing worlds keep 3 / 0.4 / 1 through `withLegacyPlacement`): `npc.perNewcomer` 3 -> **2**, `npc.extraChance` 0.4 -> **0**, `npc.startRingScale` 1 -> **0.6**
+(start rings 8 + 14 -> 5 + 8), scattered `npc.density` 0.02 -> **0.01**. Expected per newcomer 3.62 (3 + 0.4 + 0.4² + 0.4³) -> 2.0. A first try with
+`extraChance` 0.1 (2.1 per newcomer) left the raider at 2.3x, so the extra chance default is 0.
+
+**Sim change** (`scripts/sim/balance.ts`): the sim has 8 fixed abandoned villages around the player (tiers 1-5 at 3-14 tiles), which stand for the old ~3.6 per newcomer
+plus rings. New option `--targets N`; default `defaultTargetCount()` = 8 x (new expected per newcomer / old) = **4** with the new defaults (kept evenly spread over tiers
+and distances: tiers 1, 2, 3, 5). Same seed 20261104, 30 days, speed 1, home -30|-10. Raw: `docs/sim/2026-11-06-npc-count-before.txt` (`--targets 8`, equals §10),
+`docs/sim/2026-11-06-npc-count-after.txt` (default, 4 targets).
+
+| | before (8 targets, §10) | after (4 targets) |
+|---|---|---|
+| score builder / raider / turtle / balanced | 12,094 / 36,393 / 5,581 / 38,659 | 12,094 / 25,084 / 5,581 / 29,312 |
+| **raider / builder score** | 3.0x | **2.07x** (target about 1.5-2x: just above; the sim is chaotic, compare columns) |
+| 2nd village (day), builder / raider / balanced | 23.1 / 15.7 / 16.4 | **23.1** / 18.9 / 16.5 |
+| 3rd village (day), raider / balanced | 29.2 / 25.1 | never / 29.8 |
+| points at the end (30 d), builder / raider / balanced | 5,895 / 14,862 / - | 5,895 / 11,275 / 12,850 |
+
+Other target counts (same seed, `--targets N`; N = 3 / 2 stand for about 1.4 / 1.0 per newcomer): raider / builder 1.68x / 1.33x, raider 2nd village day 20.5 / 24.9. 5 targets (2.1
+per newcomer): 2.31x, day 18.2.
+
+Reading it: the active builder's 2nd village stays on day 23 (target 21-28); the raider's moves from 15.7 to 18.9 (earlier than 21 still: a tier-5 village taken by the
+sim raider after its Banner Hall). Raiding stays the faster way up, with fewer targets to harvest. A player with fewer than 2 abandoned villages in reach (a crowded
+world) will raid less than the sim raider; abandoned villages still appear when inactive owners lose their villages (existing rule). **Speed for players:** raiding
+is slower (about -30% score for the raider); building is unchanged. Not done: the 1.5x raider target needs about 3 reachable targets (owner's call).
+
+Fair start and terrain amount (same day) do not touch these numbers; fair start is measured in `GAME_DESIGN` §9: 100% of 900 chosen spots pass, 65% of random buildable tiles.

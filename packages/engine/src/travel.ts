@@ -38,7 +38,7 @@ function emptyTiles(): Record<Terrain, number> {
  * order (lower x, then lower y first), so the route back is exactly the same stretches reversed: a return trip takes
  * as long as the way out.
  */
-export function travelRoute(from: Coords, to: Coords, seed: number): Route {
+export function travelRoute(from: Coords, to: Coords, seed: number, terrainAmount = 1): Route {
   const swap = from.x > to.x || (from.x === to.x && from.y > to.y);
   const a = swap ? to : from;
   const b = swap ? from : to;
@@ -52,7 +52,7 @@ export function travelRoute(from: Coords, to: Coords, seed: number): Route {
     const f = (i + 0.5) / n;
     const x = a.x + (b.x - a.x) * f;
     const y = a.y + (b.y - a.y) * f;
-    const terrain = terrainAt(Math.round(x), Math.round(y), seed);
+    const terrain = terrainAt(Math.round(x), Math.round(y), seed, terrainAmount);
     samples.push({ x, y, terrain });
     tiles[terrain] += step;
   }

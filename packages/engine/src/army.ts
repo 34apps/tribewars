@@ -14,7 +14,7 @@ import {
   WALL_DEFENSE_PER_LEVEL,
 } from './config.ts';
 import { bulwarkMultiplier, mightMultiplier } from './drillyard.ts';
-import { buildSiteProblem } from './world.ts';
+import { buildSiteProblem, terrainAmountOf } from './world.ts';
 import { addClamped, storageCap, vaultProtection } from './economy.ts';
 import { mulberry32 } from './random.ts';
 import { applySiegeHits, hasSiegeUnits, resolveSiege, resolveSiegeDuring, siegeEnabled, siegeLostSurvivors } from './siege.ts';
@@ -68,12 +68,12 @@ export function flatTravelTimeMs(from: Coords, to: Coords, units: Units, s: Worl
  * Every rule that needs a travel time goes through this function, on the server, from the server's own settings.
  */
 export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
-  return armyRouteTimeMs(travelRoute(from, to, s.seed), units, moveSpeed(s));
+  return armyRouteTimeMs(travelRoute(from, to, s.seed, terrainAmountOf(s)), units, moveSpeed(s));
 }
 
 /** The send preview: time on flat ground, time with terrain, and the route (for the map). */
 export function travelPreview(from: Coords, to: Coords, units: Units, s: WorldSettings): TravelPreview {
-  const route = travelRoute(from, to, s.seed);
+  const route = travelRoute(from, to, s.seed, terrainAmountOf(s));
   return { flatMs: flatTravelTimeMs(from, to, units, s), ms: armyRouteTimeMs(route, units, moveSpeed(s)), route };
 }
 

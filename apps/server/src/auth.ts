@@ -12,6 +12,7 @@ import {
   findExpandingSpawn,
   findSpawnLocation,
   generateNpcsForSpawn,
+  isNearSite,
   mulberry32,
   protectionEndsAt,
   restartPlacement,
@@ -281,9 +282,11 @@ export class AuthService {
         if (this.store.hasVillage(player.id)) return;
         const t = this.now();
         const occupied = (x: number, y: number): boolean => this.store.villageExistsAt(x, y);
+        const siteList = sitesFor(this.settings);
+        const clearOfSites = (x: number, y: number): boolean => !isNearSite(x, y, siteList);
         // No village within SITE_NO_VILLAGE_RADIUS of a map site: draw again until the spot is clear.
         const { x, y, protectionMs } = awayFromSites(sitesFor(this.settings), () => {
-          const r = restartPlacement(this.settings, this.store.playerVillageCount(), randomInt(0, 0xffffffff), occupied);
+          const r = restartPlacement(this.settings, this.store.playerVillageCount(), randomInt(0, 0xffffffff), occupied, clearOfSites);
           return { ...r.spot, protectionMs: r.protectionMs };
         });
         const spot = { x, y };
@@ -310,11 +313,12 @@ export class AuthService {
     const rng = mulberry32(randomInt(0, 0xffffffff));
     const expanding = this.settings.layout === 'expanding';
     const sites = sitesFor(this.settings);
+    const clearOfSites = (x: number, y: number): boolean => !isNearSite(x, y, sites);
     // No village within SITE_NO_VILLAGE_RADIUS of a map site (docs/GAME_DESIGN.md 18.4b): draw again until the spot is clear.
     const spot =
       at ??
       awayFromSites(sites, () =>
-        expanding ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount()) : findSpawnLocation(occupied, rng, this.settings),
+        expanding ? findExpandingSpawn(occupied, rng, this.settings, this.store.playerVillageCount(), undefined, clearOfSites) : findSpawnLocation(occupied, rng, this.settings, clearOfSites),
       );
     const state = createPlayerVillage(t);
     this.store.insertVillage(playerId, name, spot.x, spot.y, villagePoints(state), state);

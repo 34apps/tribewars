@@ -1,17 +1,18 @@
 // Where the map sites stand and the "no village near a site" rule (docs/GAME_DESIGN.md 18.4b). The positions are a pure function of
 // the world seed and radius (engine generateSites); they are computed once per world and kept.
 
-import { GameError, generateSites, isNearSite, worldRules, type SiteDef, type WorldSettings } from '@clanfire/engine';
+import { GameError, generateSites, isNearSite, terrainAmountOf, worldRules, type SiteDef, type WorldSettings } from '@clanfire/engine';
 
 const cache = new Map<string, readonly SiteDef[]>();
 
 /** The world's sites (same for every call with the same seed and radius). A world with `features.sites` off has none. */
 export function sitesFor(settings: Pick<WorldSettings, 'seed' | 'radius' | 'config'>): readonly SiteDef[] {
   if (!worldRules(settings).features.sites) return [];
-  const key = `${settings.seed}:${settings.radius}`;
+  const amount = terrainAmountOf(settings);
+  const key = `${settings.seed}:${settings.radius}:${amount}`;
   let sites = cache.get(key);
   if (!sites) {
-    sites = generateSites(settings.seed, settings.radius);
+    sites = generateSites(settings.seed, settings.radius, amount);
     cache.set(key, sites);
   }
   return sites;

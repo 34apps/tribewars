@@ -15,11 +15,17 @@ import {
   HEARTH_PLAYERS_ENABLED,
   HOLD_FAIL_HOURS,
   HOLD_HOURS,
+  FAIR_START,
   HOLD_HOURS_ABANDONED,
   MAX_BUILD_QUEUE,
   MAX_RESEARCH_QUEUE,
   MAX_TRAIN_QUEUE,
   NPC_BUILD_KEEP_SHARE,
+  NPC_EXTRA_CHANCE,
+  NPC_PER_NEWCOMER,
+  NPC_RING_BASE,
+  NPC_RING_EXTRA_CHANCE,
+  NPC_START_RING_SCALE,
   NPC_MAX_LEVEL,
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
@@ -28,6 +34,7 @@ import {
   RESTART_PROTECTION_HOURS,
   STRIKE_CHAIN_WINDOW_HOURS,
   STRIKE_LOCK_HOURS,
+  TERRAIN_AMOUNT_DEFAULT,
   TRIBE_MAX_MEMBERS,
 } from './config.ts';
 import { mergeDominationSettings } from './domination.ts';
@@ -68,6 +75,27 @@ export interface WorldConfig {
     startStockShare: number;
     /** Starting gold per tier. */
     startGoldPerTier: number;
+    /** 'expanding' layout: abandoned villages every newcomer brings (0..8). Owner 2026-11-06: 2 on average. */
+    perNewcomer: number;
+    /** 'expanding' layout: chance (0..1) of one more per newcomer, rolled up to 3 times in a row. */
+    extraChance: number;
+    /** 'expanding' layout: scale (0..2) of the abandoned villages around the empty centre at world creation (1 = 8 + 14). */
+    startRingScale: number;
+  };
+  terrain: {
+    /** How much non-grass ground the map generator makes: 0 = flat grass only, 1 = the usual map, 1.5 = wilder. Fixed when the world is created. */
+    amount: number;
+  };
+  /** Fair start: the open ground a new player's start spot (and a restart spot) needs. */
+  start: {
+    /** Radius in tiles of the square checked around the spot. */
+    radius: number;
+    /** At least this share of those tiles is buildable (not mountain or lake). */
+    minOpenShare: number;
+    /** At most this share is slow ground (forest, hills, mountain, lake). */
+    maxSlowShare: number;
+    /** Candidate spots tried before the best one found is taken (a registration never fails). */
+    tries: number;
   };
   conquest: {
     /** Can player villages be struck and taken (abandoned villages always can). */
@@ -121,7 +149,12 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
     maxLevel: NPC_MAX_LEVEL,
     startStockShare: NPC_START_RESOURCE_SHARE,
     startGoldPerTier: NPC_START_GOLD_PER_TIER,
+    perNewcomer: NPC_PER_NEWCOMER,
+    extraChance: NPC_EXTRA_CHANCE,
+    startRingScale: NPC_START_RING_SCALE,
   },
+  terrain: { amount: TERRAIN_AMOUNT_DEFAULT },
+  start: { radius: FAIR_START.radius, minOpenShare: FAIR_START.minOpenShare, maxSlowShare: FAIR_START.maxSlowShare, tries: FAIR_START.tries },
   conquest: {
     playersCanBeConquered: HEARTH_PLAYERS_ENABLED,
     renownBase: RENOWN_VILLAGE_BASE,
@@ -143,7 +176,7 @@ export type ConfigUnit = 'x' | 'hours' | 'days' | 'tiles' | 'count' | 'share' | 
 /** One editable setting: its dotted path, range, and the words the "World rules" page and the admin tool use. */
 export interface WorldConfigField {
   path: string;
-  group: 'pace' | 'protection' | 'npc' | 'conquest' | 'domination' | 'tribe' | 'features' | 'queues';
+  group: 'pace' | 'protection' | 'npc' | 'terrain' | 'start' | 'conquest' | 'domination' | 'tribe' | 'features' | 'queues';
   label: string;
   unit: ConfigUnit;
   kind: 'number' | 'boolean';
@@ -182,6 +215,14 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   num('npc.maxLevel', 'npc', 'Abandoned-village top level', 'level', 1, 30, true, 'The highest building level abandoned villages grow to.'),
   num('npc.startStockShare', 'npc', 'Abandoned-village start stock', 'share', 0, 1, false, 'Share of the storage cap that wood, food and iron start at.'),
   num('npc.startGoldPerTier', 'npc', 'Abandoned-village start gold', 'count', 0, 10_000, true, 'Gold per tier at the start.'),
+  num('npc.perNewcomer', 'npc', 'Abandoned villages per new player', 'count', 0, 8, true, 'How many abandoned villages every new player brings to the map (expanding worlds).'),
+  num('npc.extraChance', 'npc', 'Chance of an extra abandoned village', 'share', 0, 1, false, 'Chance that a new player brings one more (rolled up to three times).'),
+  num('npc.startRingScale', 'npc', 'Abandoned villages at the start', 'x', 0, 2, false, 'Scale of the abandoned villages around the empty centre when the world is created (1 = 22).'),
+  num('terrain.amount', 'terrain', 'Amount of rough terrain', 'x', 0, 1.5, false, '0 = flat grass only, 1 = the usual map, 1.5 = wilder (more forest, hills, mountains and lakes).'),
+  num('start.radius', 'start', 'Fair start: radius', 'tiles', 1, 8, true, 'A new player\'s start spot is judged on the ground within this many tiles.'),
+  num('start.minOpenShare', 'start', 'Fair start: open ground', 'share', 0, 1, false, 'At least this share of the ground around the start spot can be built on (not mountain or lake).'),
+  num('start.maxSlowShare', 'start', 'Fair start: slow ground', 'share', 0, 1, false, 'At most this share around the start spot is forest, hills, mountain or lake.'),
+  num('start.tries', 'start', 'Fair start: tries', 'count', 1, 500, true, 'Spots tried before the best one found is taken.'),
   flag('conquest.playersCanBeConquered', 'Player villages can be taken', 'Off: only abandoned villages can be conquered.', 'conquest'),
   num('conquest.renownBase', 'conquest', 'Renown for the 2nd village', 'renown', 1, 1_000_000, true, 'Every further village costs more (see growth).'),
   num('conquest.renownGrowth', 'conquest', 'Renown price growth per village', 'x', 1, 5, false, 'Each further village costs this many times more Renown.'),
@@ -310,6 +351,19 @@ export function worldConfigFromSettings(s: Partial<WorldSettings>): WorldConfig 
   if (typeof s.npcDensity === 'number') c.npc.density = s.npcDensity;
   if (typeof s.protectionHours === 'number') c.protection.beginnerHours = s.protectionHours;
   c.domination = mergeDominationSettings(s.domination);
+  return c;
+}
+
+/**
+ * Worlds that already exist keep the abandoned-village numbers and the map they were created with (owner 2026-11-06): a stored
+ * config without these settings (or no stored config) reads them as below instead of the new defaults. New worlds store every value.
+ */
+export function withLegacyPlacement(config: WorldConfig): WorldConfig {
+  const c = structuredClone(config);
+  c.npc.perNewcomer = NPC_RING_BASE;
+  c.npc.extraChance = NPC_RING_EXTRA_CHANCE;
+  c.npc.startRingScale = 1;
+  c.terrain.amount = 1;
   return c;
 }
 

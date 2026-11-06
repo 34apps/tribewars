@@ -8,6 +8,8 @@ export const RULE_GROUP_TITLE: Record<WorldConfigField['group'], string> = {
   pace: 'Pace',
   protection: 'Protection',
   npc: 'Abandoned villages',
+  terrain: 'Terrain',
+  start: 'Fair start',
   conquest: 'Conquest',
   domination: 'Winning the world',
   tribe: 'Tribes',

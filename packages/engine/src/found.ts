@@ -85,12 +85,14 @@ export function restartPlacement(
   playerVillages: number,
   seed: number,
   isOccupied: (x: number, y: number) => boolean,
+  /** Extra rule a tile must pass (the server: away from map sites). */
+  allowed?: (x: number, y: number) => boolean,
 ): { spot: Coords; protectionMs: number } {
   const rng = mulberry32(seed >>> 0);
   const spot =
     s.layout === 'expanding'
-      ? findExpandingSpawn(isOccupied, rng, s, playerVillages, RESTART_EDGE_BAND)
-      : findSpawnLocation(isOccupied, rng, s);
+      ? findExpandingSpawn(isOccupied, rng, s, playerVillages, RESTART_EDGE_BAND, allowed)
+      : findSpawnLocation(isOccupied, rng, s, allowed);
   return { spot, protectionMs: restartProtectionMs(s) };
 }
 

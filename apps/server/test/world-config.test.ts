@@ -13,6 +13,7 @@ import {
   WORLD_CONFIG_SAFE_AFTER_OPEN,
   getWorldConfigValue,
   isSafeAfterOpen,
+  withLegacyPlacement,
   worldConfigFromSettings,
   worldRules,
   type WorldConfig,
@@ -124,7 +125,7 @@ test('an old world with only world_settings runs on a config derived in memory a
     const flat = store.getSettings();
     assert.ok(flat);
     assert.equal(flat.speed, 7);
-    assert.deepEqual(app.ctx.settings.config, worldConfigFromSettings(flat));
+    assert.deepEqual(app.ctx.settings.config, withLegacyPlacement(worldConfigFromSettings(flat)), "an old world keeps the old abandoned-village numbers and map");
     assert.equal(app.ctx.settings.config?.pace.speed, 7, 'the stored speed is kept');
     assert.equal(app.ctx.settings.speed, 7);
     assert.equal(store.getMeta('world_config'), null, 'starting wrote nothing');
