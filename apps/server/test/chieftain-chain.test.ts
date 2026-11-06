@@ -26,6 +26,7 @@ import {
   type P,
 } from './village-helpers.ts';
 import type { Clock } from './helpers.ts';
+import type { MapResponse } from '@clanfire/engine';
 
 const SPEED = 10;
 const WINDOW_S = (STRIKE_CHAIN_WINDOW_HOURS * 3600) / SPEED; // 720 s
@@ -243,5 +244,22 @@ test('hold time of a player village is 8 h divided by world speed (the abandoned
   const m = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
   runTo(app, clock, m.arriveAt);
   assert.equal(store.getVillage(target.id)?.holdDueAt, m.arriveAt + (8 * HOUR) / SPEED);
+  await app.close();
+});
+
+test('map: the attacker sees chain progress "have of need" on the village while the Chieftain walks home; nobody else does; it ends with the window', async () => {
+  const { app, clock, claimer, victim, target, home } = await setup(2);
+  const m1 = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  const mapOf = async (p: P) => {
+    const res = await p.c.get(`/api/map?x=${target.x - 2}&y=${target.y - 2}&w=5&h=5`);
+    ok(res);
+    return res.json<MapResponse>().villages.find((v) => v.id === target.id);
+  };
+  assert.equal((await mapOf(claimer))?.chain, undefined, 'nothing banked yet');
+  runTo(app, clock, m1.arriveAt);
+  assert.deepEqual((await mapOf(claimer))?.chain, { have: 1, need: 2, endsAt: m1.arriveAt + WINDOW_S * 1000 });
+  assert.equal((await mapOf(victim))?.chain, undefined, "the defender never sees the attacker's chain");
+  runTo(app, clock, m1.arriveAt + WINDOW_S * 1000 + 1);
+  assert.equal((await mapOf(claimer))?.chain, undefined, 'out of the window it no longer counts');
   await app.close();
 });

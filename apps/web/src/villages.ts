@@ -8,12 +8,16 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
+  NPC_TIER_WEIGHTS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
+  createNpcVillage,
   hasChosenSiege,
   normalizeUnits,
   occupierPopulation,
+  totalUnits,
+  villagePoints,
   villageRenownPrice,
   worldRules,
 } from '@clanfire/engine';
@@ -328,6 +332,48 @@ export function showsSiegePicker(mission: Mission, chosen: Partial<Units>, siege
 /** Buildings a Boulder Sling can be told to hit. Names only: levels are known from a scouting report, never here. */
 export function siegeTargetOptions(): Array<{ id: BuildingId; name: string }> {
   return BUILDING_IDS.map((id) => ({ id, name: BUILDINGS[id].name }));
+}
+
+/** Level shown next to a building name in the picker: "Wall 7 · scouted 3h ago", or just the name without a scout report. */
+export function siegeOptionLabel(name: string, level: number | undefined, ageText: string | null): string {
+  return level === undefined || ageText === null ? name : `${name} ${level} · scouted ${ageText}`;
+}
+
+/** Chain progress line for a village tile: "Chieftain chain: 1 of 2 (counts for 8m 20s more)". Null when nothing is banked. */
+export function chainText(chain: MapVillageDto['chain'], now: number): string | null {
+  if (!chain || chain.have < 1) return null;
+  const left = chain.endsAt - now;
+  if (left <= 0) return null;
+  return `${chain.have} of ${chain.need} Chieftains (counts ${formatLeft(left)} more)`;
+}
+
+export type StrengthBand = 'weak' | 'medium' | 'strong';
+/** Display thresholds only (not balance): units a founding garrison can have at most, by band. */
+const WEAK_UP_TO_TROOPS = 12;
+const MEDIUM_UP_TO_TROOPS = 24;
+
+let tierStarts: Array<{ points: number; troops: number }> | null = null;
+/** Points and garrison an abandoned village has the day it is created, per tier (from the engine's own generator). */
+function npcTierStarts(): Array<{ points: number; troops: number }> {
+  if (!tierStarts) {
+    tierStarts = NPC_TIER_WEIGHTS.map((_, i) => {
+      const v = createNpcVillage(i + 1, 0);
+      return { points: villagePoints(v), troops: totalUnits(v.troops) };
+    });
+  }
+  return tierStarts;
+}
+
+/**
+ * Rough strength of an abandoned village from what the map shows (its points). It was created with a tier whose starting points are
+ * a floor for its points (buildings only grow), and its garrison never refills (GAME_DESIGN 8), so it cannot hold more troops than the
+ * start garrison of the highest tier its points allow. Raids may have thinned it, so this is an upper bound, not a count.
+ */
+export function abandonedStrength(points: number): { band: StrengthBand; maxTroops: number } {
+  const p = Number.isFinite(points) ? points : 0;
+  let maxTroops = 0;
+  for (const t of npcTierStarts()) if (t.points <= p || maxTroops === 0) maxTroops = t.troops;
+  return { band: maxTroops <= WEAK_UP_TO_TROOPS ? 'weak' : maxTroops <= MEDIUM_UP_TO_TROOPS ? 'medium' : 'strong', maxTroops };
 }
 
 /** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = random = leave it out). */

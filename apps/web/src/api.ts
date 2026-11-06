@@ -17,6 +17,8 @@ import type {
   CreateTribeRequest,
   DiplomacyKind,
   DominationStatusDto,
+  ScoutedResponse,
+  SiteRecallRequest,
   SitesResponse,
   WorldEndResponse,
   DiplomacyRequest,
@@ -276,6 +278,9 @@ export const api = {
     request<MovementResponse>('POST', `/api/stationed/${stationedId}/recall`, (units ? { units } : {}) satisfies RecallRequest),
   /** Send someone else's support troops home (the owner of the host village). */
   cancelMovement: (movementId: number) => request<MovementResponse>('POST', `/api/movements/${movementId}/cancel`, {}),
+  /** Bring my troops home from a map site (the owner of the troops); omit `units` for all of them. */
+  siteRecall: (siteId: number, villageId: number, units?: Partial<Units>) =>
+    request<MovementResponse>('POST', `/api/sites/${siteId}/recall`, { villageId, ...(units ? { units } : {}) } satisfies SiteRecallRequest),
   sendBack: (stationedId: number) => request<MovementResponse>('POST', `/api/stationed/${stationedId}/send-back`, {}),
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
   /** Command post: villages by village or player name (max 10). `fromVillageId` (one of mine) sorts nearest first. */
@@ -301,6 +306,8 @@ export const api = {
   worldEnd: () => request<WorldEndResponse>('GET', '/api/world-end'),
   /** Great Fire and Fire Shrines. May answer 404 on an older server: callers treat a failure as "no sites". */
   sites: () => request<SitesResponse>('GET', '/api/sites'),
+  /** My own newest scout report with building levels on a village (Boulder Sling picker); both fields null when none. */
+  scouted: (villageId: number) => request<ScoutedResponse>('GET', `/api/scouted/${villageId}`),
   mail: (id: number) => request<MailDto>('GET', `/api/mail/${id}`),
   sendMail: (body: SendMailRequest) => request<MailDto>('POST', '/api/mail', body),
   deleteMail: (id: number) => request<void>('DELETE', `/api/mail/${id}`),

@@ -66,7 +66,7 @@ export function MapView({ active }: { active: boolean }) {
   const drawnSitesRef = useRef<DrawnSite[]>([]);
   /** Fire sites for the canvas (GET /api/sites); a failing call just leaves the map without them. */
   const sitesOn = useRules().features.sites;
-  const { sites, wakesAt } = useSites(active && sitesOn);
+  const { sites, wakesAt, reload: reloadSites } = useSites(active && sitesOn);
   const sitesRef = useRef(sites);
   const siteTribeRef = useRef<number | null>(player.tribe?.id ?? null);
   /** The view as last drawn (zoom snapped to device pixels), for picking. */
@@ -654,7 +654,7 @@ export function MapView({ active }: { active: boolean }) {
         </div>
       </div>
       {selected && selectedSite && (
-        <SitePanel site={selectedSite} wakesAt={wakesAt} terrain={terrain} preferred={selectedPreferred} onClose={() => select(null)} />
+        <SitePanel site={selectedSite} wakesAt={wakesAt} terrain={terrain} preferred={selectedPreferred} onChanged={reloadSites} onClose={() => select(null)} />
       )}
       {selected && !selectedSite && (
         <TilePanel

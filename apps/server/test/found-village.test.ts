@@ -171,8 +171,9 @@ test('the village limit: refused at send, and re-checked on arrival', async () =
 });
 
 test('nobody else can act on my found mission, my Chieftain or my village', async () => {
-  const { app, clock, p, homeId, tile } = await setup();
+  const { app, clock, p, homeId } = await setup();
   const bob = await player(app, 'bob');
+  const tile = freeTileNear(app, p); // after bob joins: his random home spot must not take the tile
   const { movement } = (await found(p, homeId, tile, { pikeman: 40, chieftain: 1 })).json<SendResponse>();
   assert.equal((await bob.c.state()).movements.length, 0, 'bob does not see it');
   errorOf(await bob.c.post(`/api/movements/${movement.id}/cancel`), 404, 'not_found');

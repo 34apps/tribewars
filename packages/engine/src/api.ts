@@ -449,6 +449,16 @@ export const MAP_MAX_SPAN = 61;
 
 export type MapVillageKind = 'own' | 'player' | 'abandoned';
 
+/** Chieftain chain progress of the VIEWER on one village (their own attacks only; never anyone else's). */
+export interface ChainProgressDto {
+  /** Chieftains of the viewer's earlier attacks that still count (they are still walking home, inside the window). */
+  have: number;
+  /** Chieftains the village needs (1 for abandoned villages, 1-3 by size otherwise). */
+  need: number;
+  /** When the oldest counted entry stops counting (server clock, ms). */
+  endsAt: number;
+}
+
 export interface MapVillageDto extends Coords {
   id: number;
   name: string;
@@ -471,6 +481,8 @@ export interface MapVillageDto extends Coords {
   ownerChieftain: string | null;
   /** Owner's relation to the viewer; null for abandoned villages. Drives map colours and the Send button. */
   relation: PlayerRelation | null;
+  /** Present only when the viewer has banked Chieftains on this village (Chieftain chain, GAME_DESIGN 18.2); the viewer's own data. */
+  chain?: ChainProgressDto;
 }
 
 export interface MapResponse {
@@ -511,6 +523,14 @@ export interface ReportSummaryDto {
   read: boolean;
   /** Same meaning as `BattleReportData.outcome`; lets the list tell a called-off attack from a lost battle. */
   outcome: 'battle' | 'called_off';
+}
+
+// GET /api/scouted/:id -> 200 ScoutedResponse (signed in). The caller's OWN newest successful scout report on village :id that carries
+// building levels (Keen rank 4+). Others' reports are never read. Unknown village 404; none found -> both fields null.
+export interface ScoutedResponse {
+  buildings: BuildingLevels | null;
+  /** When the scouts arrived (server clock, ms); null when there is no such report. */
+  scoutedAt: number | null;
 }
 
 export interface BattleReportData {

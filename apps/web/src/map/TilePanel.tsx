@@ -33,6 +33,8 @@ import {
   strikeHint,
   strikeNeed,
   strikeWarning,
+  abandonedStrength,
+  chainText,
   UNIT_COLUMN_NAME,
   unitColumns,
 } from '../villages.ts';
@@ -328,7 +330,7 @@ export function SendForm({
         )}
         </>
       )}
-      {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} />}
+      {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />}
       {mission === 'attack' && total > 0 && (
         <p className="wm-muted">
           <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial))}>
@@ -426,7 +428,7 @@ export function SendForm({
 }
 
 export function TilePanel({ tile, village, loaded, terrain, preferred, occupied, onClose }: Props) {
-  const { village: mine, villages, selectVillage, player, navigate, viewTribe, settings, stationed } = useGame();
+  const { village: mine, villages, selectVillage, player, navigate, viewTribe, settings, stationed, now } = useGame();
   // One of my villages stands here (the map may still be loading, then my own list answers).
   const ownHere = villages.find((v) => v.id === village?.id || (v.x === tile.x && v.y === tile.y));
   const isOwn = village?.kind === 'own' || !!ownHere;
@@ -452,6 +454,9 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const stageCount = village?.kind === 'abandoned' ? RUIN_NAMES.length : MAP_STAGE_NAMES.length;
   // Hold clock of a cold village: my own village shows the owner's numbers (occupiers), my claim shows my stationed troops.
   const hearth = ownHere?.hearth ?? village?.hearth;
+  // Rough strength of an abandoned village from its public points; my own banked Chieftains on this village (server sends only mine).
+  const strength = village?.kind === 'abandoned' ? abandonedStrength(village.points) : null;
+  const chain = village ? chainText(village.chain, now) : null;
   const claimant = !!hearth && hearth.claimById === player.id;
   const viewpoint = isOwn ? 'owner' : claimant ? 'claimant' : 'other';
   const occupiers = hearth && claimant && village ? myOccupierPopulation(stationed.abroad, village.id) : undefined;
@@ -523,6 +528,21 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           <dt>Terrain</dt>
           <dd>{terrainName}</dd>
         </div>
+        {village?.kind === 'abandoned' && !hearth && strength && (
+          <div className="wm-fact-wide">
+            <dt>Strength</dt>
+            <dd className={`wm-strength is-${strength.band}`}>
+              {strength.band[0]!.toUpperCase() + strength.band.slice(1)}
+              <span className="wm-fact-sub">up to {strength.maxTroops} troops (raids may have thinned it)</span>
+            </dd>
+          </div>
+        )}
+        {chain && (
+          <div className="wm-fact-wide">
+            <dt>Chieftain chain</dt>
+            <dd>{chain}</dd>
+          </div>
+        )}
         {village?.protected && village.kind !== 'abandoned' && (
           <div>
             <dt>Status</dt>

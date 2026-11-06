@@ -26,6 +26,7 @@ import {
   isStaffRole,
   type BattleReportData,
   type BuildingId,
+  type BuildingLevels,
   type Mission,
   type PlayerStatsDto,
   type Resources,
@@ -916,6 +917,14 @@ export class Store extends SqlBase {
     ).map((r) => ({ chieftains: Number(r.chieftains), at: Number(r.at) }));
   }
 
+  /** All chain entries of one player whose return movement still exists (for the map: the viewer's own chains). Bounded: entries expire. */
+  strikeChainsOfPlayer(playerId: number): Array<{ villageId: number; chieftains: number; at: number }> {
+    return this.all(
+      'SELECT c.village_id, c.chieftains, c.at FROM strike_chain c JOIN movements m ON m.id = c.return_movement_id WHERE c.player_id = ? ORDER BY c.at, c.id LIMIT 200',
+      playerId,
+    ).map((r) => ({ villageId: Number(r.village_id), chieftains: Number(r.chieftains), at: Number(r.at) }));
+  }
+
   /** The chain of one player on one village was used up (the Strike happened). */
   clearStrikeChain(villageId: number, playerId: number): void {
     this.run('DELETE FROM strike_chain WHERE village_id = ? AND player_id = ?', villageId, playerId);
@@ -1546,6 +1555,26 @@ export class Store extends SqlBase {
       shipment: body.type === 'shipment' ? body.shipment : null,
       village: body.type === 'village' ? body.village : null,
     };
+  }
+
+  /**
+   * The newest scout report of THIS player (side 'attack') on one village that carries building levels, or null. Reads only the
+   * caller's own reports (at most REPORTS_KEEP rows), so it never shows what another player scouted.
+   */
+  latestScoutBuildings(playerId: number, villageId: number): { createdAt: number; buildings: BuildingLevels } | null {
+    const r = this.get(
+      `SELECT created_at, json_extract(battle_json, '$.intel.buildings') AS buildings FROM reports
+       WHERE player_id = ? AND side = 'attack' AND json_extract(battle_json, '$.type') = 'scout'
+         AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel.buildings') IS NOT NULL
+       ORDER BY created_at DESC, id DESC LIMIT 1`,
+      playerId,
+      villageId,
+    );
+    if (!r || typeof r.buildings !== 'string') return null;
+    const raw = JSON.parse(r.buildings) as Record<string, unknown>;
+    const buildings = {} as BuildingLevels;
+    for (const b of BUILDING_IDS) buildings[b] = Math.max(0, Math.floor(Number(raw[b]) || 0));
+    return { createdAt: r.created_at as number, buildings };
   }
 
   markReportRead(playerId: number, id: number): void {

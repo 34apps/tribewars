@@ -21,6 +21,7 @@ import {
   isNearSite,
   occupierPopulation,
   chainedChieftains,
+  chieftainsNeeded,
   strikeChainWindowMs,
   underVillageLimit,
   updateHold,
@@ -95,6 +96,8 @@ import {
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
+  type ChainProgressDto,
+  type ScoutedResponse,
   type MapVillageDto,
   type Mission,
   type MovementDto,
@@ -1520,23 +1523,43 @@ export class GameService {
   private mapDtos(player: PlayerRow, rows: MapRow[], t: number): MapVillageDto[] {
     // The viewer's tribe and relations are read once; the owner's tribe comes with each map row.
     const viewer = loadRelationViewer(this.store.tribes, player.id, t);
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      x: r.x,
-      y: r.y,
-      kind: r.ownerId === null ? 'abandoned' : r.ownerId === player.id ? 'own' : 'player',
-      ownerName: r.ownerName,
-      // Abandoned villages grow lazily and their stored points only refresh when raided: settle in memory (no write on GET).
-      points: r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points,
-      // A cold village (hearth out) is never shown as safe.
-      protected: r.ownerId !== null && !r.coldState && (r.ownerProtectedUntil > t || r.protectedUntil > t),
-      tribeTag: r.ownerId === null ? null : r.ownerTribeTag,
-      tribeId: r.ownerId === null ? null : r.ownerTribeId,
-      ownerChieftain: r.ownerId === null ? null : r.ownerChieftain,
-      relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
-      ...(r.coldState?.hearth ? { hearth: hearthDto(r.coldState.hearth, t, this.settings, this.store.getPlayer(r.coldState.hearth.claimBy)?.username ?? '?') } : {}),
-    }));
+    // The viewer's OWN Chieftain chains (their Chieftains still walking home), per village; nobody else's.
+    const chainEntries = new Map<number, Array<{ chieftains: number; at: number }>>();
+    for (const e of this.store.strikeChainsOfPlayer(player.id)) {
+      const list = chainEntries.get(e.villageId);
+      if (list) list.push(e);
+      else chainEntries.set(e.villageId, [e]);
+    }
+    const windowMs = strikeChainWindowMs(this.settings);
+    const chainOf = (villageId: number, abandoned: boolean, points: number): { chain?: ChainProgressDto } => {
+      const entries = chainEntries.get(villageId);
+      if (!entries) return {};
+      const counted = entries.filter((e) => t - e.at >= 0 && t - e.at <= windowMs);
+      const have = chainedChieftains(counted, t, this.settings);
+      if (have < 1) return {};
+      return { chain: { have, need: chieftainsNeeded(abandoned, points), endsAt: Math.min(...counted.map((e) => e.at)) + windowMs } };
+    };
+    return rows.map((r): MapVillageDto => {
+      const points = r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points;
+      return {
+        id: r.id,
+        name: r.name,
+        x: r.x,
+        y: r.y,
+        kind: r.ownerId === null ? 'abandoned' : r.ownerId === player.id ? 'own' : 'player',
+        ownerName: r.ownerName,
+        // Abandoned villages grow lazily and their stored points only refresh when raided: settle in memory (no write on GET).
+        points,
+        // A cold village (hearth out) is never shown as safe.
+        protected: r.ownerId !== null && !r.coldState && (r.ownerProtectedUntil > t || r.protectedUntil > t),
+        tribeTag: r.ownerId === null ? null : r.ownerTribeTag,
+        tribeId: r.ownerId === null ? null : r.ownerTribeId,
+        ownerChieftain: r.ownerId === null ? null : r.ownerChieftain,
+        relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
+        ...(r.coldState?.hearth ? { hearth: hearthDto(r.coldState.hearth, t, this.settings, this.store.getPlayer(r.coldState.hearth.claimBy)?.username ?? '?') } : {}),
+        ...chainOf(r.id, r.ownerId === null, points),
+      };
+    });
   }
 
   /** The player's own villages, light (GET /api/villages): hearth status, stock, incoming attacks. */
@@ -1608,6 +1631,13 @@ export class GameService {
         outcome: r.outcome,
       })),
     };
+  }
+
+  /** The caller's own latest scout report on a village with building levels (Boulder Sling picker); nothing else. Unknown village: 404. */
+  scoutedBuildings(player: PlayerRow, villageId: number): ScoutedResponse {
+    if (!this.store.getVillage(villageId)) throw new GameError('not_found', 'Village not found.');
+    const r = this.store.latestScoutBuildings(player.id, villageId);
+    return r ? { buildings: r.buildings, scoutedAt: r.createdAt } : { buildings: null, scoutedAt: null };
   }
 
   /** Incoming attacks on villages of the player's tribe members, soonest first. Members only. */

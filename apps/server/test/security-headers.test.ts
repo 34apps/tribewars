@@ -52,6 +52,7 @@ test('route patterns map to the intended limit buckets', () => {
     ['POST', '/api/troop-groups/:id', 'groups'],
     ['POST', '/api/troop-groups/:id/delete', 'groups'],
     ['GET', '/api/search/villages', 'lookup'],
+    ['GET', '/api/scouted/:id', 'lookup'],
     ['GET', '/api/rankings/players', 'rankings'],
     ['GET', '/api/domination', 'world'],
     ['GET', '/api/world-end', 'world'],

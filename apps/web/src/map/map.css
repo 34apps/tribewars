@@ -598,6 +598,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
+  grid-auto-flow: row dense; /* a short fact fills the gap a wide one leaves */
   margin: 0;
 }
 
@@ -994,4 +995,57 @@
 
 .wm-legend-sites svg {
   flex: none;
+}
+
+/* Site panel: my troops standing at the site, one row per home village with a Call back button. */
+.wm-contingents {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.wm-contingent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 12px;
+  background: var(--wm-paper);
+}
+
+.wm-contingent-info {
+  display: grid;
+  min-width: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.wm-contingent .wm-btn {
+  flex: none;
+  min-height: 44px;
+}
+
+/* Abandoned village strength hint. */
+.wm-strength.is-weak { color: var(--wm-moss); }
+.wm-strength.is-medium { color: #8a5a00; }
+.wm-strength.is-strong { color: var(--wm-terra); }
+
+/* A fact that needs the whole row (long values: holder, calm, strength hint, chain). */
+.wm-facts > .wm-fact-wide {
+  grid-column: 1 / -1;
+}
+
+.wm-fact-sub {
+  display: block;
+  color: var(--wm-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.wm-contingent-units {
+  color: var(--wm-soft);
 }

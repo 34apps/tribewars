@@ -56,7 +56,7 @@ export const ROUTE_LIMITS = {
   tribe: 60, // every tribe write: create, join, invites, members, diplomacy, ...
   mail: 60, // all mail calls (sending has its own gaps in mail-service)
   search: 60, // tribe search / list, player profiles
-  lookup: 30, // command post village / player name search
+  lookup: 30, // command post village / player name search, own scout intel on a village
   rankings: 30, // player and Renown rankings
   world: 30, // domination status (a few ranking queries) and the world end screen
   notifications: 60, // incoming-attack notifications: list and mark read
@@ -76,7 +76,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'groups', test: /^\/api\/troop-groups(\/|$)/ },
   { bucket: 'notifications', test: /^\/api\/notifications(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
-  { bucket: 'lookup', test: /^\/api\/search\/villages$/, methods: ['GET', 'HEAD'] },
+  { bucket: 'lookup', test: /^\/api\/(search\/villages|scouted\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
   { bucket: 'world', test: /^\/api\/(domination|world-end|sites)$/ },
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },

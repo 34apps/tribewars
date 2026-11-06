@@ -5,6 +5,9 @@ import { test } from 'node:test';
 import { CHIEFTAIN_MAX_BATCH, HOLD_HOURS, HOLD_HOURS_ABANDONED, HOLD_MIN_POPULATION, STRIKE_CHAIN_WINDOW_HOURS, emptyUnits, villageRenownCost, villageRenownPrice } from '@clanfire/engine';
 import type { HearthInfoDto, MapVillageDto, RenownInfo, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
 import {
+  abandonedStrength,
+  chainText,
+  siegeOptionLabel,
   HEARTH_OUT_BUILD_REASON,
   HEARTH_OUT_REASON,
   SEND_MODE_BUTTON,
@@ -311,4 +314,27 @@ test('a cold village builds only the Wall; training keeps the plain reason', () 
   for (const id of ['hall', 'barracks', 'woodcutter', 'banner'] as const) assert.equal(hearthBuildReason(true, id), 'The hearth is out: only the Wall can be built', id);
   assert.equal(HEARTH_OUT_BUILD_REASON, 'The hearth is out: only the Wall can be built');
   assert.equal(HEARTH_OUT_REASON, 'The hearth is out');
+});
+
+test('abandoned strength: a band from the points, never more troops than the start garrison of the highest tier its points allow', () => {
+  assert.equal(abandonedStrength(0).band, 'weak');
+  assert.ok(abandonedStrength(0).maxTroops > 0);
+  const small = abandonedStrength(50);
+  const big = abandonedStrength(100_000);
+  assert.ok(small.maxTroops <= big.maxTroops);
+  assert.equal(big.band, 'strong');
+  assert.equal(abandonedStrength(Number.NaN).band, 'weak');
+  for (const p of [0, 10, 50, 200, 1000, 5000]) assert.ok(abandonedStrength(p).maxTroops <= abandonedStrength(p + 500).maxTroops, `monotonic at ${p}`);
+});
+
+test('chain text: "1 of 2 Chieftains" with the time left; nothing without a chain or after it ends', () => {
+  assert.equal(chainText(undefined, 1000), null);
+  assert.equal(chainText({ have: 1, need: 2, endsAt: 500 }, 1000), null);
+  assert.match(chainText({ have: 1, need: 2, endsAt: 1000 + 5 * 60_000 }, 1000)!, /^1 of 2 Chieftains \(counts 5m/);
+});
+
+test('siege option label: level and age only with a scout report', () => {
+  assert.equal(siegeOptionLabel('Wall', undefined, null), 'Wall');
+  assert.equal(siegeOptionLabel('Wall', 7, null), 'Wall');
+  assert.equal(siegeOptionLabel('Wall', 7, '3h ago'), 'Wall 7 · scouted 3h ago');
 });
