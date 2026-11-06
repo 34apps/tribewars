@@ -15,19 +15,21 @@
   .card{background:var(--ink);border-radius:18px;box-shadow:0 5px 0 #120c09;padding:14px}
   .card h2{font-family:'Bagel Fat One',system-ui;font-weight:400;color:var(--sun);margin:0 0 2px;font-size:1.25rem}
   .card .max{font-size:.8rem;color:var(--bone);margin:0 0 10px}
-  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
   .st{background:var(--ink2);border-radius:12px;padding:6px 4px 8px;text-align:center}
   .st img{width:100%;aspect-ratio:140/190;object-fit:contain;display:block}
   .st b{display:block;font-size:.85rem}
   .st span{font-size:.75rem;color:var(--bone)}
   .extras{max-width:1200px;margin:24px auto 0}
   .extras .row{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+  .st.nodraw img{opacity:.35}
+  .st small{display:block;font-size:.65rem;color:var(--sun)}
   @media (max-width:400px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <h1>Building stages</h1>
-<p class="lead">Each building has 3 looks. The level ranges show when the picture changes.</p>
+<p class="lead">Each building has 4 looks; the 4th shows only at the max level. The level ranges show when the picture changes. A dimmed picture means the stage-4 drawing is not made yet.</p>
 <div class="grid" id="grid"></div>
 <div class="extras card"><h2>Other pictures</h2><p class="max">Used for empty plots and while building</p><div class="row" id="extras"></div></div>
 <script>
@@ -41,12 +43,20 @@ const B = [
 ];
 const src = f => `../../../apps/web/src/art/buildings/${f}.svg`;
 const range = (a,b) => a===b ? `Level ${a}` : `Levels ${a}–${b}`;
+const stage = (n,f,i,r) => `<div class="st"><img src="${src(f+'-'+i)}" alt="${n} stage ${i}" data-f="${f}"${i===4?' data-s4="1"':''}><b>Stage ${i}</b><span>${r}</span></div>`;
 document.getElementById('grid').innerHTML = B.map(([n,f,max,t1,t2]) => `
   <div class="card"><h2>${n}</h2><p class="max">Max level ${max}</p><div class="row">
-    <div class="st"><img src="${src(f+'-1')}" alt="${n} stage 1"><b>Stage 1</b><span>${range(1,t1)}</span></div>
-    <div class="st"><img src="${src(f+'-2')}" alt="${n} stage 2"><b>Stage 2</b><span>${range(t1+1,t2)}</span></div>
-    <div class="st"><img src="${src(f+'-3')}" alt="${n} stage 3"><b>Stage 3</b><span>${range(t2+1,max)}</span></div>
+    ${stage(n,f,1,range(1,t1))}${stage(n,f,2,range(t1+1,t2))}${stage(n,f,3,range(t2+1,max-1))}${stage(n,f,4,range(max,max))}
   </div></div>`).join('');
+// No stage-4 file yet: show the stage-3 picture dimmed with a small label.
+document.querySelectorAll('img[data-s4]').forEach(img => {
+  img.addEventListener('error', () => {
+    img.src = src(img.dataset.f + '-3');
+    const st = img.closest('.st');
+    st.classList.add('nodraw');
+    st.insertAdjacentHTML('beforeend', '<small>not drawn yet</small>');
+  }, { once: true });
+});
 document.getElementById('extras').innerHTML = [['Empty plot','empty-plot'],['Under construction','under-construction'],['Scaffold','scaffold']]
   .map(([n,f]) => `<div class="st"><img src="${src(f)}" alt="${n}"><b>${n}</b></div>`).join('');
 </script>

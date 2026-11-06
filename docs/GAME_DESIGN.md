@@ -242,6 +242,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   `round(BUILDING_POINTS_BASE[b] × 1.2^(L-1))` points, so high levels are worth far more (a new village starts at 40;
   a maxed village is ~10,000). Map stages start at 0 / 100 / 300 / 800 / 1800 / 3500 points. The building panel and
   the construction queue show the points the next level adds.
+- Building looks (owner, 2026-11-06): every building has 4 pictures in the village view; the 4th shows only at its max level. The ring wall's grand look also starts at its max level (it was level 18). Looks only, no rule changes.
 
 ## 10. Engine public API (`packages/engine/src/index.ts`)
 

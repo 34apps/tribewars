@@ -51,6 +51,7 @@ Source files: `design/style-directions/` (artboards + renders).
 ## Status
 - Village view (row E) — **approved** 2026-11-02; being built into the game. Owner may still change or
   improve designs later: keep art swappable (one sprite map module, sprites in `design/sprites/`).
+- **Four looks per building (owner, 2026-11-06):** every building has 4 looks; the 4th shows only at the building's max level (stage 3 runs from the level after stage 2's top to max-1). The ring wall's grand look (drawn in code) now also starts at its max level instead of level 18. Buildings without a `<name>-4.svg` yet show their stage-3 drawing at max level.
 - Map growth stages (row F) and chieftain portraits (row G) — **approved** 2026-11-02; being built in.
   Map stage = `mapStage(points)` (0/15/35/65/100/150), abandoned villages = `ruinStage(points)` (same 6 steps; sprites `abandoned-stage-1..6`, approved 2026-11-04); chieftains in `CHIEFTAINS`
   (config.ts), chosen at sign-up and changeable. Note: map stage follows total points while the village

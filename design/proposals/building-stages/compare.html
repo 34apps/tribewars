@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building looks compared</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik:wght@400;600;700&display=swap">
+<style>
+  :root{--ink:#2b211c;--ink2:#3e3028;--cream:#fff8e8;--wood:#b98a56;--sun:#f2b33d;--bone:#f1e1c2}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wood);font-family:Rubik,system-ui,sans-serif;color:var(--cream);padding:24px}
+  h1{font-family:'Bagel Fat One',system-ui;font-weight:400;text-align:center;margin:0 0 18px;font-size:2.2rem;text-shadow:0 3px 0 var(--ink)}
+  .b{background:var(--ink);border-radius:18px;box-shadow:0 5px 0 #120c09;padding:12px 16px 14px;margin:0 auto 16px;max-width:1240px;
+     display:grid;grid-template-columns:170px repeat(4,1fr);gap:12px;align-items:center}
+  .name{font-family:'Bagel Fat One',system-ui;color:var(--sun);font-size:1.35rem;line-height:1.15}
+  .name small{display:block;font-family:Rubik;font-size:.85rem;color:var(--bone);margin-top:4px}
+  .name em{display:inline-block;margin-top:6px;font-style:normal;font-size:.75rem;font-weight:700;background:var(--sun);color:var(--ink);padding:2px 8px;border-radius:99px}
+  .st{background:var(--ink2);border-radius:14px;padding:6px 6px 10px;text-align:center}
+  .st img{width:100%;height:250px;object-fit:contain;display:block}
+  .st b{display:block;font-size:1rem}
+  .st span{font-size:.85rem;color:var(--bone)}
+  .st.nodraw img{opacity:.3}
+  .st.nodraw span::after{content:" · not drawn yet";color:var(--sun)}
+</style>
+</head>
+<body>
+<h1>Building looks, stage 1 → 4</h1>
+<div id="list"></div>
+<script>
+// [name, file, maxLevel, stage1Top, stage2Top, redrawn]
+const B = [
+  ['Town Hall','town-hall',20,5,12,1],['Iron Mine','iron-mine',20,5,12,1],
+  ['Lumber Camp','lumber-camp',20,5,12],['Farm','farm',20,5,12],['Storehouse','storehouse',20,5,12],
+  ['Barracks','barracks',20,5,12],['Wall','wall',20,5,12],['Gold Mine','gold-mine',15,5,10],
+  ['Stables','stables',15,5,10],['Hidden Vault','hidden-vault',10,3,7],['Market','market',10,3,6],
+  ['Drillyard','drillyard',10,3,6],['Banner Hall','banner-hall',4,1,2],
+];
+const v = Date.now();
+const src = f => `../../../apps/web/src/art/buildings/${f}.svg?v=${v}`;
+const r = (a,b) => a===b ? `Level ${a}` : `Levels ${a}–${b}`;
+document.getElementById('list').innerHTML = B.map(([n,f,max,t1,t2,nw]) => {
+  const ranges = [r(1,t1), r(t1+1,t2), r(t2+1,max-1), r(max,max)];
+  return `<div class="b"><div class="name">${n}<small>Max level ${max}</small></div>` +
+    ranges.map((rg,i) => `<div class="st"><img src="${src(f+'-'+(i+1))}" data-f="${f}" data-s="${i+1}" alt="${n} stage ${i+1}"><b>Stage ${i+1}</b><span>${rg}</span></div>`).join('') +
+    `</div>`;
+}).join('');
+document.querySelectorAll('img[data-s="4"]').forEach(img => img.addEventListener('error', () => {
+  img.src = src(img.dataset.f + '-3'); img.closest('.st').classList.add('nodraw');
+}, { once: true }));
+</script>
+</body>
+</html>
