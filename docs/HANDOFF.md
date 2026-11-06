@@ -1,19 +1,21 @@
 # Handoff — Clanfire
 
-Written 2026-11-06 (HEAD `9a47a21`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-06 (HEAD `5731174`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-06, village layout session)
+## Last run (2026-11-06, finish-the-web-game session)
 
-- **Bigger village ring** (`1671bad`): plate 234 -> 273, the ORIGINAL arrangement kept (owner rejected resource sites outside the wall and a 4-gate plan: "too small, too empty"), no two drawings touch at any look (painted-shape masks: `node scripts/measure-sprites.mjs` -> `apps/web/test/sprite-boxes.json`; re-run after ANY building SVG change or the layout test fails). Earth ramp at the main gate. Wall code now in `apps/web/src/art/wall.tsx` (`GATES` can add gates on any wall).
-- **Selection**: ink + gold outline (SVG filter `#vv-sel`; CSS drop-shadow does not show in Safari) + glowing ring on the lot; marker arrow removed.
-- **Build animations**: pressing Upgrade raises the scaffold; toy builders (`apps/web/src/art/workers.tsx`, unit-figure style, owner: "much better") hammer while the job runs; finish = look-change moment or scaffold fade. Remembered per village (plays on return, never on page load).
-- **Test tools**: preview PREVIEW menu → "Try look animations" opens the design-preview bar for anyone (All buildings / one building, Look 1–4, Replay, "Building work" switch). Headless scene renders: `node design/proposals/village-layout/render.mjs <prefix> 2 4` (env `SEL=<id>`, `WORK=1`), serve the repo root over http.
-- Checks: all green (web 127+ incl. 13 layout tests); build + build:preview pass.
+Plan (NEXT_STEPS top entry, owner-approved order): 1 Command post, 2 soldier figures + unit info card, 3 troop groups,
+4 battle simulator, 6 map finishes DONE; 5 foraging CUT by the owner. Owner changes on the way: no separate Scout mission
+(Pathfinders in an attack scout first, `aa0fed3`); compact map send panel, his pick "A" (`09ddc5b`, mockups in
+`design/proposals/send-panel/`). Screenshots: headless Chrome scripts in the old session scratchpad are gone; re-create a
+CDP script (fixed 1440×900 and 360×900 viewport, `?demo` preview) when needed.
 
 ## Very next step
 
-Owner looks at the builders/animations in Safari and on a phone (not viewed there). Open items in NEXT_STEPS top entry: design-preview landscapes Current/A/B/C not refitted to plate 273; stage-4 `ROOF_TOP`. Then homepage or the earlier open items (balance, World rules page).
+Plan step 7: Waymarks + Lookouts (GAME_DESIGN ~1188-1260, designed, not built). Explain to the owner in 3 plain lines and
+get a yes before building. Then 8 tribe projects, 9 Hall of Fame, 10 morale (design first), 11 homepage + quests,
+12 safety pass, 13 desktop check of every screen, 14 phone pass.
 
 ## How the owner works (important)
 
@@ -27,6 +29,7 @@ Owner looks at the builders/animations in Safari and on a phone (not viewed ther
 - Original game, never copy Tribal Wars/Travian (names, numbers, art, layouts). Web first (360 px + 1280–1440 px).
 - Toy Diorama style everywhere, hand-drawn SVG (no AI-painted art). 4 looks per building, 4th at max level.
 - No scrollbars inside desktop side panels; server tests for every new endpoint; security gate per feature.
+- Keep mechanics simple: troops only Attack or Support (no foraging/scavenging trips, no Scout choice). Explain new rules in 3 plain lines, no formulas; when his words are ambiguous ask one A/B question with pictures.
 
 ## Open
 
