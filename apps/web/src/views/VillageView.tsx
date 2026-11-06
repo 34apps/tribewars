@@ -135,7 +135,7 @@ function PhoneVillage() {
           bottomInset={sheetH}
           onPanned={() => setPanned(true)}
         />
-        <div className="vv-namepill">
+        <div className={`vv-namepill${sheet ? ' is-hidden' : ''}`}>
           <Icon name="flame" size={18} />
           <h1 className="vv-namepill-name">{village.name}</h1>
           <span className="vv-namepill-xy">{formatCoords(village.x, village.y)}</span>

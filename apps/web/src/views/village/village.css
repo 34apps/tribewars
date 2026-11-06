@@ -1023,6 +1023,11 @@ th[scope='row'] {
   pointer-events: none;
 }
 
+/* While a building's sheet is open the sheet names it; the pill would cover the selected building's label (owner, iPhone). */
+.vv-namepill.is-hidden {
+  visibility: hidden;
+}
+
 .vv-namepill-name {
   overflow: hidden;
   text-overflow: ellipsis;

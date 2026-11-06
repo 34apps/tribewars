@@ -282,7 +282,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
 
         <ul className="auth-blurb">
           <li><Icon name="food" size={26} /> Grow wood, food, iron and gold in your own village.</li>
-          <li><Icon name="send" size={26} /> Train raiders and cavalry, then plunder abandoned villages.</li>
+          <li><Icon name="army" size={26} /> Train raiders and cavalry, then plunder abandoned villages.</li>
           <li><Icon name="shield" size={26} /> New villages are protected for the first days. Take your time.</li>
         </ul>
       </div>

@@ -268,8 +268,10 @@ export function MapView({ active }: { active: boolean }) {
     const v = viewRef.current;
     const { w, h } = sizeRef.current;
     const p = toScreen(v, { w, h }, c.x, c.y);
-    if (p.y > h * 0.4 || p.y < v.tile) {
-      panBy(v, w / 2 - p.x, h * 0.34 - p.y);
+    // The tile panel covers roughly the lower 60% of the map on a phone (owner 2026-11-06, iPhone: the picked village sat
+    // under it), so the tile goes to the upper quarter, below the search bar.
+    if (p.y > h * 0.3 || p.y < v.tile * 1.6) {
+      panBy(v, w / 2 - p.x, h * 0.24 - p.y);
       clampView(v, radius);
     }
   }, [radius]);

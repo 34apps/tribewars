@@ -127,6 +127,15 @@ async function boot(): Promise<void> {
   // The web client's live-update socket stays off here (no network); polling carries the preview as before.
   (window as unknown as { __CLANFIRE_PREVIEW__?: boolean }).__CLANFIRE_PREVIEW__ = true;
 
+  // Test shortcut (preview build only; this world lives in the page): opening the page with ?demo signs straight into a fresh
+  // account, so a phone or simulator can be checked without typing a name and password.
+  if (new URLSearchParams(window.location.search).has('demo') && !backend.getToken()) {
+    const name = `demo${Math.floor(Math.random() * 1e6)}`;
+    await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: name, password: 'preview-demo-pass' }) }).catch(
+      (err: unknown) => console.warn('demo sign-in failed', err),
+    );
+  }
+
   const root = document.getElementById('root');
   if (!root) throw new Error('Missing #root element');
   createRoot(root).render(

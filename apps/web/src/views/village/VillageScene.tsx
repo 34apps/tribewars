@@ -439,7 +439,8 @@ function BuildingHit({
         </span>
       </button>
       {(upgrading || queuedNotStarted) && (
-        <span className="vv-timer" style={{ left: cx, top: pct(box.y + box.h * 0.6 - vb.y, vb.h) }} aria-hidden="true">
+        // On the ground at the front of the building (owner 2026-11-06: mid-building it hid the builders at work).
+        <span className="vv-timer" style={{ left: cx, top: pct(box.y + box.h - 2 - vb.y, vb.h) }} aria-hidden="true">
           <Icon name="time" size={16} />
           {upgrading ? formatDuration(finishIn) : 'Next'}
         </span>
@@ -588,8 +589,8 @@ export function VillageScene({
   useEffect(() => {
     if (mode !== 'pan' || !selected || view.w === 0) return;
     const b = boxes[selected] ?? defaultBox(selected);
-    // A little above the middle of the drawing, so its label stays clear of the village name at the top.
-    setPan(centreOn(b.x + b.w / 2, b.y + b.h * 0.42));
+    // A little above the drawing's middle, so its label stays in view above the sheet on small phones.
+    setPan(centreOn(b.x + b.w / 2, b.y + b.h * 0.3));
     // Only when the selection, the sheet or the viewport changes, not on every measurement.
   }, [mode, selected, bottomInset, view.w, view.h]);
 
