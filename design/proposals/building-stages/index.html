@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building stages</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik:wght@400;600;700&display=swap">
+<style>
+  :root{--ink:#2b211c;--ink2:#3e3028;--cream:#fff8e8;--wood:#b98a56;--sun:#f2b33d;--bone:#f1e1c2;--grass:#a6c964}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wood);font-family:Rubik,system-ui,sans-serif;color:var(--cream);padding:24px 16px 48px}
+  h1{font-family:'Bagel Fat One',system-ui;font-weight:400;text-align:center;margin:0 0 4px;font-size:2rem;text-shadow:0 3px 0 var(--ink)}
+  .lead{text-align:center;color:var(--ink);font-weight:600;margin:0 0 24px}
+  .grid{max-width:1200px;margin:0 auto;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+  .card{background:var(--ink);border-radius:18px;box-shadow:0 5px 0 #120c09;padding:14px}
+  .card h2{font-family:'Bagel Fat One',system-ui;font-weight:400;color:var(--sun);margin:0 0 2px;font-size:1.25rem}
+  .card .max{font-size:.8rem;color:var(--bone);margin:0 0 10px}
+  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .st{background:var(--ink2);border-radius:12px;padding:6px 4px 8px;text-align:center}
+  .st img{width:100%;aspect-ratio:140/190;object-fit:contain;display:block}
+  .st b{display:block;font-size:.85rem}
+  .st span{font-size:.75rem;color:var(--bone)}
+  .extras{max-width:1200px;margin:24px auto 0}
+  .extras .row{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+  @media (max-width:400px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Building stages</h1>
+<p class="lead">Each building has 3 looks. The level ranges show when the picture changes.</p>
+<div class="grid" id="grid"></div>
+<div class="extras card"><h2>Other pictures</h2><p class="max">Used for empty plots and while building</p><div class="row" id="extras"></div></div>
+<script>
+// [name, file, maxLevel, stage1Top, stage2Top] — from packages/engine/src/config.ts and apps/web/src/art/buildings.ts
+const B = [
+  ['Town Hall','town-hall',20,5,12],['Lumber Camp','lumber-camp',20,5,12],['Farm','farm',20,5,12],
+  ['Iron Mine','iron-mine',20,5,12],['Gold Mine','gold-mine',15,5,10],['Storehouse','storehouse',20,5,12],
+  ['Barracks','barracks',20,5,12],['Stables','stables',15,5,10],['Wall','wall',20,5,12],
+  ['Hidden Vault','hidden-vault',10,3,7],['Market','market',10,3,6],['Drillyard','drillyard',10,3,6],
+  ['Banner Hall (placeholder art)','banner-hall',4,1,2],
+];
+const src = f => `../../../apps/web/src/art/buildings/${f}.svg`;
+const range = (a,b) => a===b ? `Level ${a}` : `Levels ${a}–${b}`;
+document.getElementById('grid').innerHTML = B.map(([n,f,max,t1,t2]) => `
+  <div class="card"><h2>${n}</h2><p class="max">Max level ${max}</p><div class="row">
+    <div class="st"><img src="${src(f+'-1')}" alt="${n} stage 1"><b>Stage 1</b><span>${range(1,t1)}</span></div>
+    <div class="st"><img src="${src(f+'-2')}" alt="${n} stage 2"><b>Stage 2</b><span>${range(t1+1,t2)}</span></div>
+    <div class="st"><img src="${src(f+'-3')}" alt="${n} stage 3"><b>Stage 3</b><span>${range(t2+1,max)}</span></div>
+  </div></div>`).join('');
+document.getElementById('extras').innerHTML = [['Empty plot','empty-plot'],['Under construction','under-construction'],['Scaffold','scaffold']]
+  .map(([n,f]) => `<div class="st"><img src="${src(f)}" alt="${n}"><b>${n}</b></div>`).join('');
+</script>
+</body>
+</html>
