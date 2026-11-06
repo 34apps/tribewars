@@ -19,6 +19,7 @@ import {
   type TransferRequest,
   type TribeDto,
   type TribeMemberDto,
+  type LookoutSightingsResponse,
   type TribeAlertsResponse,
   type TribeListResponse,
   type TribeSettingsRequest,
@@ -116,6 +117,9 @@ const listQuery = {
   additionalProperties: false,
   properties: { q: { type: 'string', maxLength: 64 } },
 } as const;
+
+/** No query keys at all: anything extra is a 400. */
+const noQuery = { type: 'object', additionalProperties: false, properties: {} } as const;
 
 const chatQuery = {
   type: 'object',
@@ -273,6 +277,14 @@ export function tribeRoutes(app: FastifyInstance, ctx: AppContext): void {
   // ---- incoming attacks on members (scouts and support are not shown) ------------------------------------
 
   app.get('/api/tribe/alerts', auth, async (req): Promise<TribeAlertsResponse> => ctx.game.tribeAlerts(playerOf(req), req.nowMs));
+
+  // ---- Lookout sightings: enemy marches passing a Lookout the tribe holds (empty without a tribe) ----------
+
+  app.get(
+    '/api/tribe/sightings',
+    { ...auth, schema: { querystring: noQuery } },
+    async (req): Promise<LookoutSightingsResponse> => ctx.game.sites.sightings(playerOf(req), req.nowMs),
+  );
 
   // ---- chat ----------------------------------------------------------------------------------------
 

@@ -45,7 +45,8 @@ import { ShipmentForm } from './ShipmentForm.tsx';
 import { draftFromSend } from '../simulator.ts';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
-import { slowdownText, slowGroundText } from './travel.ts';
+import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
+import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 import type { TerrainCache } from './terrain.ts';
 
 interface Props {
@@ -124,7 +125,9 @@ export function SendForm({
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
   // The server computes the real time from the same rule and its own seed; this only shows it in advance.
-  const preview = total > 0 ? travelPreview(village, tile, chosen, settings) : null;
+  const waymarks = useTribeWaymarks();
+  const preview = total > 0 ? travelPreview(village, tile, chosen, settings, waymarks) : null;
+  const waymarkHelps = !!preview && waymarks.length > 0 && preview.ms < travelPreview(village, tile, chosen, settings).ms;
   const travel = preview ? preview.ms : 0;
   const slowdown = preview ? slowdownText(preview.flatMs, preview.ms) : null;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
@@ -373,6 +376,7 @@ export function SendForm({
 
       {compact ? (
         <>
+          {total > 0 && waymarkHelps && <p className="wm-muted wm-sum-slow">{WAYMARK_NOTE}</p>}
           {total > 0 && preview && slowdown && (
             <p className="wm-muted wm-sum-slow">
               Without terrain {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span> {slowGroundText(preview.route)}
@@ -385,7 +389,10 @@ export function SendForm({
           <dl className="wm-facts wm-facts-send">
             <div>
               <dt>Travel time</dt>
-              <dd>{formatDuration(travel)}</dd>
+              <dd>
+                {formatDuration(travel)}
+                {waymarkHelps && <small className="wm-muted"> {WAYMARK_NOTE}</small>}
+              </dd>
             </div>
             {preview && slowdown && (
               <div className="wm-terrain-time">

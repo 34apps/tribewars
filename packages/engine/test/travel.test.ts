@@ -7,6 +7,8 @@ import {
   TERRAIN_SPEED,
   UNITS,
   UNIT_TERRAIN_FAMILY,
+  WAYMARK_PENALTY_FACTOR,
+  WAYMARK_RADIUS,
   armySpeed,
   effectiveDistance,
   flatShipmentTravelMs,
@@ -198,5 +200,81 @@ describe('travel time with terrain', () => {
     assert.ok(scouts > 0.01 && scouts < 0.07, `pathfinders ${(scouts * 100).toFixed(1)}%`);
     const mix = 0.7 * foot + 0.25 * mounted + 0.05 * scouts;
     assert.ok(mix > 0.09 && mix < 0.15, `mixed ${(mix * 100).toFixed(1)}%`);
+  });
+});
+
+describe('Waymarks (docs/GAME_DESIGN.md 18.4b)', () => {
+  const midpoint = (a: Coords, b: Coords): Coords => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const slow = (r: Route): boolean => r.length - r.tiles.grass >= r.length * 0.5;
+  const raiders = units({ raider: 10 });
+
+  it('grass is unchanged, with or without a Waymark', () => {
+    const { from, to } = findRoute(S1, allGrass);
+    const wm = [midpoint(from, to)];
+    assert.equal(travelTimeMs(from, to, raiders, S1, wm), travelTimeMs(from, to, raiders, S1));
+    assert.equal(travelTimeMs(from, to, raiders, S1, wm), flatTravelTimeMs(from, to, raiders, S1));
+    assert.equal(shipmentTravelMs(from, to, S1, wm), flatShipmentTravelMs(from, to, S1));
+  });
+
+  it('slow ground near a Waymark costs exactly the halved penalty', () => {
+    const { from, to, route } = findRoute(S1, slow);
+    const wm = [midpoint(from, to)];
+    assert.ok(WAYMARK_RADIUS >= route.length / 2, 'the whole short route lies within the radius');
+    const plain = travelTimeMs(from, to, raiders, S1);
+    const helped = travelTimeMs(from, to, raiders, S1, wm);
+    assert.ok(helped < plain);
+    const flat = flatTravelTimeMs(from, to, raiders, S1);
+    // The penalty is the time over the flat time: it is multiplied by WAYMARK_PENALTY_FACTOR (ms rounding only).
+    assert.ok(Math.abs(helped - flat - (plain - flat) * WAYMARK_PENALTY_FACTOR) <= 2, `${helped} vs ${flat} + (${plain} - ${flat}) / 2`);
+    assert.ok(helped > flat);
+    const planned = travelPreview(from, to, raiders, S1, wm);
+    assert.equal(planned.ms, helped);
+    assert.equal(planned.flatMs, flat);
+    assert.ok(planned.route.samples.every((p) => p.assisted === true));
+  });
+
+  it('outside the radius nothing changes; the route back is helped the same', () => {
+    const { from, to } = findRoute(S1, slow);
+    const far = [{ x: from.x + WAYMARK_RADIUS + 60, y: from.y + 80 }];
+    assert.equal(travelTimeMs(from, to, raiders, S1, far), travelTimeMs(from, to, raiders, S1));
+    assert.equal(travelRoute(from, to, S1.seed, 1, far).assistedTiles, undefined);
+    const wm = [midpoint(from, to)];
+    assert.equal(travelTimeMs(to, from, raiders, S1, wm), travelTimeMs(from, to, raiders, S1, wm));
+  });
+
+  it('only the stretch within the radius is helped', () => {
+    const from = { x: -50, y: 0 };
+    const to = { x: 50, y: 0 };
+    const r = travelRoute(from, to, S1.seed, 1, [{ x: 0, y: 6 }]);
+    const inside = r.samples.filter((p) => p.assisted);
+    assert.ok(inside.length >= 1 && inside.length < r.samples.length);
+    for (const p of r.samples) {
+      const near = Math.hypot(p.x, p.y - 6) <= WAYMARK_RADIUS;
+      assert.equal(p.assisted === true, near);
+    }
+  });
+
+  it('never beats flat time and never exceeds the slowdown cap', () => {
+    const rnd = mulberry32(11);
+    for (let i = 0; i < 300; i++) {
+      const a = { x: Math.floor(rnd() * 160) - 80, y: Math.floor(rnd() * 160) - 80 };
+      const b = { x: a.x + Math.floor(rnd() * 70) - 35, y: a.y + Math.floor(rnd() * 70) - 35 };
+      const wm = [{ x: Math.round((a.x + b.x) / 2), y: Math.round((a.y + b.y) / 2) }];
+      for (const army of [raiders, units({ outrider: 5 }), units({ pathfinder: 3 })]) {
+        const plain = travelTimeMs(a, b, army, S1);
+        const helped = travelTimeMs(a, b, army, S1, wm);
+        const flat = flatTravelTimeMs(a, b, army, S1);
+        if (!Number.isFinite(flat)) continue;
+        assert.ok(helped <= plain && helped >= flat - 1 && helped <= flat * TERRAIN_MAX_SLOWDOWN + 1, `${a.x},${a.y} -> ${b.x},${b.y}`);
+      }
+    }
+  });
+
+  it('the army and the shipment are both helped; with no Waymark the signatures behave as before', () => {
+    const { from, to } = findRoute(S1, slow);
+    const wm = [midpoint(from, to)];
+    assert.ok(shipmentTravelMs(from, to, S1, wm) < shipmentTravelMs(from, to, S1));
+    assert.equal(travelTimeMs(from, to, raiders, S1, []), travelTimeMs(from, to, raiders, S1));
+    assert.deepEqual(travelRoute(from, to, S1.seed, 1, []), travelRoute(from, to, S1.seed));
   });
 });

@@ -1,4 +1,5 @@
 import type { SiteKind } from '@clanfire/engine';
+import { UTILITY_ART } from './siteArt.ts';
 
 const INK = '#2B211C';
 const STONE = '#BDB5A6';
@@ -10,9 +11,21 @@ function Stone({ x, y, h }: { x: number; y: number; h: number }) {
   return <path d={`M${x - 6} ${y}L${x - 4.5} ${y - h + 6}Q${x} ${y - h - 4} ${x + 4.5} ${y - h + 6}L${x + 6} ${y}Z`} fill={STONE} />;
 }
 
-/** The map's site marker as a small SVG (panel header and map key): plinth, stones and a brazier, lit when awake. */
+/** The map's site marker as a small SVG (panel header and map key): plinth, stones and a brazier, lit when awake; a signpost (Waymark) or a watchtower (Lookout). */
 export function SiteGlyph({ kind, awake, size = 72 }: { kind: SiteKind; awake: boolean; size?: number }) {
   const great = kind === 'great_fire';
+  if (kind === 'waymark' || kind === 'lookout') {
+    return (
+      <svg className="wm-glyph-fit" viewBox="-48 -82 96 106" width={size} height={Math.round((size * 106) / 96)} aria-hidden="true" focusable="false">
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" fill="none">
+          <ellipse cx="3" cy="4" rx="34" ry="17" fill="rgba(43,33,28,0.28)" stroke="none" />
+          {UTILITY_ART[kind].map((op, i) => (
+            <path key={i} d={op.d} fill={op.fill ?? 'none'} stroke={op.stroke ?? INK} strokeWidth={op.sw ?? 3} />
+          ))}
+        </g>
+      </svg>
+    );
+  }
   return (
     <svg viewBox="-48 -76 96 100" width={size} height={Math.round((size * 100) / 96)} aria-hidden="true" focusable="false">
       <g stroke={INK} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round">

@@ -3,6 +3,7 @@ import { MAP_STAGE_NAMES } from '@clanfire/engine';
 import { ALLEGIANCE_STYLE, stageRange } from './allegiance.ts';
 import { ROUTE_DOT_COLOR } from './render.ts';
 import { ALLEGIANCES, STAGE_FILES, artUrl } from './sprites.ts';
+import { siteKindLine } from '../sites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
 
 /** "Map key": village growth stages by points, allegiance banners, ruins and protection. Open by default on wide screens. */
@@ -75,6 +76,17 @@ export function Legend({ sites = true }: { sites?: boolean }) {
               <li className="wm-legend-wide">
                 <SiteGlyph kind="great_fire" awake size={38} />
                 Great Fire: bigger bonus. Ring colour: green = your tribe, red = another tribe, grey = nobody
+              </li>
+            </ul>
+            <h3>Tribe sites · taken by attack, held with support</h3>
+            <ul className="wm-legend-banners wm-legend-sites">
+              <li className="wm-legend-wide">
+                <SiteGlyph kind="waymark" awake={false} size={38} />
+                Waymark: {siteKindLine('waymark')}
+              </li>
+              <li className="wm-legend-wide">
+                <SiteGlyph kind="lookout" awake={false} size={38} />
+                Lookout: {siteKindLine('lookout')} Red dashed arrows show them on the map.
               </li>
             </ul>
           </>

@@ -12,6 +12,7 @@ import type { TribeTarget } from '../game.ts';
 import { ROLE_NAME } from '../relations.ts';
 import { RoleBadge, TribeLabel } from '../tribe/bits.tsx';
 import { Alerts } from '../tribe/Alerts.tsx';
+import { LookoutSection } from '../tribe/Lookout.tsx';
 import { Chat } from '../tribe/Chat.tsx';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { TribeContext } from '../tribe/context.ts';
@@ -117,7 +118,12 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
       </div>
 
       <div id="tribe-panel" role="tabpanel" aria-labelledby={`tab-${section}`}>
-        {section === 'alerts' && <Alerts />}
+        {section === 'alerts' && (
+          <>
+            <Alerts />
+            <LookoutSection />
+          </>
+        )}
         {section === 'overview' && <Overview tribe={tribe} role={role} />}
         {section === 'members' && <Members tribe={tribe} role={role} />}
         {section === 'diplomacy' && <Diplomacy tribe={tribe} role={role} />}

@@ -56,6 +56,7 @@ test('route patterns map to the intended limit buckets', () => {
     ['GET', '/api/rankings/players', 'rankings'],
     ['GET', '/api/domination', 'world'],
     ['GET', '/api/world-end', 'world'],
+    ['GET', '/api/tribe/sightings', 'world'],
     ['GET', '/api/state', null],
     ['GET', '/api/map', null],
     ['GET', '/api/villages', 'village'],

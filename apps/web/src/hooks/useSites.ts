@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SiteDto, SitesResponse } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { pollMs } from './live.ts';
+import { publishSites } from './useWaymarks.ts';
 import { useLiveConnected, useLiveTopic } from './useLive.tsx';
 
 const POLL_MS = 30_000; // 60 s while live updates are connected
@@ -31,7 +32,9 @@ export function useSites(enabled = true): SitesStore {
       const res = await api.sites();
       if (my < applied.current) return;
       applied.current = my;
-      setData({ sites: Array.isArray(res.sites) ? (res.sites as SiteDto[]) : [], wakesAt: res.wakesAt ?? 0, myBonus: res.myBonus ?? 0 });
+      const list = Array.isArray(res.sites) ? (res.sites as SiteDto[]) : [];
+      publishSites(list);
+      setData({ sites: list, wakesAt: res.wakesAt ?? 0, myBonus: res.myBonus ?? 0 });
     } catch {
       // No sites route yet, or a hiccup: keep what we have (nothing at first).
     } finally {

@@ -2,9 +2,10 @@
 // decides when to redraw. Near zoom blits cached terrain/sprite bitmaps tile by tile in painter's order;
 // far zoom blits pre-composited multi-tile blocks (blocks.ts) so thousands of tiles stay cheap.
 
-import type { Coords, MapVillageDto, MovementDto, Route, SiteDto, Terrain } from '@clanfire/engine';
-import { mapStage, ruinStage, travelRoute } from '@clanfire/engine';
-import { siteName } from '../sites.ts';
+import type { Coords, LookoutSightingDto, MapVillageDto, MovementDto, Route, SiteDto, Terrain } from '@clanfire/engine';
+import { mapStage, ruinStage, travelRoute, tribeWaymarks } from '@clanfire/engine';
+import { siteName, siteRange } from '../sites.ts';
+import { UTILITY_ART } from './siteArt.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, villageSprite } from './allegiance.ts';
 import { CHUNK } from './chunks.ts';
 import type { MapChunks } from './chunks.ts';
@@ -38,6 +39,8 @@ export interface Scene {
   movements: readonly MovementDto[];
   /** Great Fire and Fire Shrines (GET /api/sites); empty when the server has none or does not answer. */
   sites: readonly SiteDto[];
+  /** Enemy armies my tribe's Lookouts see (GET /api/tribe/sightings): red dashed arrows under my own movements. */
+  sightings?: readonly LookoutSightingDto[];
   /** My tribe's id (the holder ring of my own tribe's sites is green), or null. */
   myTribeId: number | null;
   /** Server-corrected time (ms) for marching markers. */
@@ -322,8 +325,9 @@ export function drawMap(sc: Scene): FrameResult {
 
   // ---- Overlays (always on top) ----
   if (selFrame) drawSelectFrame(ctx, selFrame.x, selFrame.y, s, 'front');
+  drawSiteRange(sc);
   drawRoutePreview(sc);
-  const markerSpeed = drawMovements(sc);
+  const markerSpeed = Math.max(drawSightings(sc), drawMovements(sc));
 
   const fs = Math.max(10, Math.min(14, t * 0.13));
   for (const d of drawn) {
@@ -576,6 +580,10 @@ function drawSite(ctx: CanvasRenderingContext2D, site: SiteDto, x: number, y: nu
     ctx.ellipse(3, 4, 34, 17, 0, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(43, 33, 28, 0.28)';
     ctx.fill();
+    if (site.kind === 'waymark' || site.kind === 'lookout') {
+      drawUtilityArt(ctx, site.kind);
+      return;
+    }
     // Back standing stone, then the round plinth (a drum with a stone top).
     standingStone(ctx, 0, -14, 30);
     const drum = new Path2D();
@@ -651,6 +659,117 @@ function drawSite(ctx: CanvasRenderingContext2D, site: SiteDto, x: number, y: nu
     }
   });
   return { site, x, y, scale: s };
+}
+
+const UTILITY_PATHS = new Map<string, Path2D[]>();
+
+/** Waymark / Lookout art (shared path data in siteArt.ts) at the tile centre, in the current transform. */
+function drawUtilityArt(ctx: CanvasRenderingContext2D, kind: 'waymark' | 'lookout'): void {
+  let paths = UTILITY_PATHS.get(kind);
+  if (!paths) UTILITY_PATHS.set(kind, (paths = UTILITY_ART[kind].map((op) => new Path2D(op.d))));
+  UTILITY_ART[kind].forEach((op, i) => {
+    const p = paths![i]!;
+    if (op.fill) {
+      ctx.fillStyle = op.fill;
+      ctx.fill(p);
+    }
+    if (op.stroke !== 'none') {
+      ctx.strokeStyle = op.stroke ?? INK;
+      ctx.lineWidth = op.sw ?? 3;
+      ctx.stroke(p);
+    }
+  });
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+}
+
+/** The selected Waymark's or Lookout's reach, as a faint dashed circle on the ground (a circle in tiles is a 2:1 ellipse here). */
+function drawSiteRange(sc: Scene): void {
+  const { ctx, selected, view, width: W, height: H } = sc;
+  if (!selected) return;
+  const site = sc.sites.find((st) => st.x === selected.x && st.y === selected.y);
+  const r = site ? siteRange(site.kind) : 0;
+  if (!site || r <= 0) return;
+  const c = toScreen(view, { w: W, h: H }, site.x, site.y);
+  const rx = r * Math.SQRT2 * (view.tile / 2);
+  const ry = r * Math.SQRT2 * (view.tile / 4);
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = site.kind === 'waymark' ? 'rgba(94, 140, 58, 0.09)' : 'rgba(242, 179, 61, 0.09)';
+  ctx.fill();
+  ctx.setLineDash([10, 8]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = site.kind === 'waymark' ? 'rgba(255, 248, 232, 0.8)' : 'rgba(255, 220, 122, 0.85)';
+  ctx.stroke();
+  ctx.restore();
+}
+
+const SIGHTING_RED = '#D2402B';
+
+/** Enemy armies seen by my tribe's Lookouts: a red dashed arrow from where they left to where they are going, a dot where the army is now. Returns the fastest dot speed (px/s) so the map keeps redrawing. */
+function drawSightings(sc: Scene): number {
+  const { ctx, view, width: W, height: H, now } = sc;
+  const list = sc.sightings;
+  if (!list || list.length === 0) return -1;
+  const size = { w: W, h: H };
+  let fastest = -1;
+  const k = Math.max(0.6, Math.min(1.3, view.tile / 96));
+  for (const sg of list) {
+    const span = sg.arriveAt - sg.departAt;
+    if (span <= 0 || now >= sg.arriveAt) continue;
+    const a = toScreen(view, size, sg.from.x, sg.from.y);
+    const b = toScreen(view, size, sg.to.x, sg.to.y);
+    if (Math.max(a.x, b.x) < -20 || Math.min(a.x, b.x) > W + 20 || Math.max(a.y, b.y) < -20 || Math.min(a.y, b.y) > H + 20) continue;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1) continue;
+    const f = Math.max(0, Math.min(1, (now - sg.departAt) / span));
+    const x = a.x + (b.x - a.x) * f;
+    const y = a.y + (b.y - a.y) * f;
+    fastest = Math.max(fastest, (len / span) * 1000);
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    const tip = { x: b.x - ux * 12 * k, y: b.y - uy * 12 * k };
+    ctx.save();
+    ctx.globalAlpha = sg.mission === 'support' ? 0.75 : 1;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // Pale under-stroke so the red reads on dark terrain, then the dashes.
+    ctx.setLineDash([9 * k, 7 * k]);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(tip.x, tip.y);
+    ctx.lineWidth = 5 * k;
+    ctx.strokeStyle = 'rgba(255, 248, 232, 0.75)';
+    ctx.stroke();
+    ctx.lineWidth = 2.6 * k;
+    ctx.strokeStyle = SIGHTING_RED;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Arrowhead at the target.
+    const hl = 13 * k;
+    const hw = 7 * k;
+    ctx.beginPath();
+    ctx.moveTo(tip.x + ux * hl * 0.6, tip.y + uy * hl * 0.6);
+    ctx.lineTo(tip.x - ux * hl * 0.4 - uy * hw, tip.y - uy * hl * 0.4 + ux * hw);
+    ctx.lineTo(tip.x - ux * hl * 0.4 + uy * hw, tip.y - uy * hl * 0.4 - ux * hw);
+    ctx.closePath();
+    ctx.fillStyle = SIGHTING_RED;
+    ctx.fill();
+    ctx.lineWidth = 1.6 * k;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    // The army now.
+    ctx.beginPath();
+    ctx.arc(x, y, 5.5 * k, 0, Math.PI * 2);
+    ctx.fillStyle = SIGHTING_RED;
+    ctx.fill();
+    ctx.lineWidth = 2 * k;
+    ctx.strokeStyle = BONE;
+    ctx.stroke();
+    ctx.restore();
+  }
+  return fastest;
 }
 
 /** Three nested flame shapes (outer, middle, core) rising from the bowl at (0, -19). */
@@ -872,9 +991,9 @@ export const ROUTE_DOT_COLOR: Record<Terrain, string> = { grass: BONE, forest: S
 
 let routeMemo: { key: string; route: Route } | null = null;
 /** The route is a pure function of its ends and the world seed: keep the last one so redraws don't recompute it. */
-function routeFor(a: Coords, b: Coords, seed: number, amount: number): Route {
-  const key = `${a.x}|${a.y}|${b.x}|${b.y}|${seed}|${amount}`;
-  if (routeMemo?.key !== key) routeMemo = { key, route: travelRoute(a, b, seed, amount) };
+function routeFor(a: Coords, b: Coords, seed: number, amount: number, waymarks: readonly Coords[] = []): Route {
+  const key = `${a.x}|${a.y}|${b.x}|${b.y}|${seed}|${amount}|${waymarks.map((w) => `${w.x},${w.y}`).join(';')}`;
+  if (routeMemo?.key !== key) routeMemo = { key, route: travelRoute(a, b, seed, amount, waymarks) };
   return routeMemo.route;
 }
 
@@ -884,7 +1003,7 @@ function drawRoutePreview(sc: Scene): void {
   if (!own || !selected || (own.x === selected.x && own.y === selected.y)) return;
   const a = toScreen(view, { w: W, h: H }, own.x, own.y);
   const b = toScreen(view, { w: W, h: H }, selected.x, selected.y);
-  const { samples } = routeFor(own, selected, sc.seed, sc.terrainAmount);
+  const { samples } = routeFor(own, selected, sc.seed, sc.terrainAmount, tribeWaymarks(sc.sites as SiteDto[], sc.myTribeId));
   ctx.save();
   ctx.globalAlpha = 0.85;
   dots(ctx, a.x, a.y, b.x, b.y, view.tile, BONE, (f) => {

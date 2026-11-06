@@ -957,8 +957,8 @@ export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
 };
 
 // ---- Map sites: Great Fire and Fire Shrines (docs/GAME_DESIGN.md 18.4b "Step 5") ------------------
-/** Kinds of neutral map sites a tribe can hold (Waymarks and Lookouts are not built yet). */
-export const SITE_KINDS = ['great_fire', 'fire_shrine'] as const;
+/** Kinds of neutral map sites a tribe can hold: the Great Fire, Fire Shrines, Waymarks (faster roads) and Lookouts (sight of passing marches). */
+export const SITE_KINDS = ['great_fire', 'fire_shrine', 'waymark', 'lookout'] as const;
 export type SiteKind = (typeof SITE_KINDS)[number];
 /** Ring radii (tiles from the world centre) of the Fire Shrines: inner ring, then outer ring. The Great Fire stands near (0,0). */
 export const SHRINE_RING_RADII = [35, 85] as const;
@@ -969,19 +969,35 @@ export const SITE_MIN_SPACING = 15;
 /** No village is placed within this distance (Chebyshev, tiles: a square) of a site; abandoned-village generation and landing check it. */
 export const SITE_NO_VILLAGE_RADIUS = 4;
 /** Militia of an unheld site, in population (mixed pikemen and shieldbearers). */
-export const SITE_MILITIA: Record<SiteKind, number> = { fire_shrine: 600, great_fire: 1500 };
-/** An awake site's militia is this many times larger (the Great Fire wakes on the same clock as the shrines). */
+export const SITE_MILITIA: Record<SiteKind, number> = { fire_shrine: 600, great_fire: 1500, waymark: 300, lookout: 300 };
+/** An awake site's militia is this many times larger (the Great Fire wakes on the same clock as the shrines). Waymarks and Lookouts never wake. */
 export const SHRINE_AWAKE_MILITIA_FACTOR = 2;
 /** Most population that can be stationed at a site. */
-export const SITE_MAX_POPULATION: Record<SiteKind, number> = { fire_shrine: 3000, great_fire: 5000 };
+export const SITE_MAX_POPULATION: Record<SiteKind, number> = { fire_shrine: 3000, great_fire: 5000, waymark: 3000, lookout: 3000 };
 /** After a capture the site cannot be attacked for this many hours (divided by world speed). */
 export const SITE_CALM_HOURS = 2;
 /** Fire Shrines sleep for this many days from world creation (divided by world speed), then wake with a stronger bonus. */
 export const SHRINE_WAKE_DAYS = 120;
 /** Extra Renown share for every member of the holding tribe, per held site (0.01 = +1%). The Great Fire wakes on the same clock as the shrines. */
 export const SITE_RENOWN_BONUS: { dormant: Record<SiteKind, number>; awake: Record<SiteKind, number> } = {
-  dormant: { fire_shrine: 0.01, great_fire: 0.03 },
-  awake: { fire_shrine: 0.04, great_fire: 0.1 },
+  dormant: { fire_shrine: 0.01, great_fire: 0.03, waymark: 0, lookout: 0 },
+  awake: { fire_shrine: 0.04, great_fire: 0.1, waymark: 0, lookout: 0 },
 };
 /** The sum of the Renown bonuses of all held sites never exceeds this (+30%). */
 export const SITE_RENOWN_BONUS_CAP = 0.3;
+
+// ---- Waymarks and Lookouts (docs/GAME_DESIGN.md 18.4b "Neutral sites tribes can hold") ----------------
+/** Ground within this distance (Euclidean tiles) of a Waymark held by the mover's tribe has its terrain penalty reduced. */
+export const WAYMARK_RADIUS = 12;
+/** The terrain penalty (extra time over grass) near a held Waymark is multiplied by this (0.5 = halved). Grass is unchanged. */
+export const WAYMARK_PENALTY_FACTOR = 0.5;
+/** A Lookout shows enemy marches whose straight line passes within this many tiles of it. */
+export const LOOKOUT_RADIUS = 20;
+/** Radius (tiles from the world centre) of the one ring that carries the Waymarks and Lookouts, alternating around it. */
+export const SIDE_SITE_RING_RADIUS = 60;
+/** Waymarks and Lookouts on the ring, 30 degrees apart (6 of each, alternating). */
+export const SIDE_SITE_COUNT = 12;
+/** A sighted march is shown as a size band, never unit counts: population below `smallBelow` is small, below `mediumBelow` medium, else large. */
+export const LOOKOUT_SIZE_BANDS = { smallBelow: 100, mediumBelow: 1000 } as const;
+/** At most this many sightings are listed (soonest arrival first). */
+export const LOOKOUT_LIST_LIMIT = 100;

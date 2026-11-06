@@ -2,7 +2,7 @@
 // TERRAIN_SAMPLE_STEP tiles; each sample is a stretch of ground with its terrain. Pure and deterministic from
 // (from, to, seed): the client previews exactly what the server will compute. Nothing here reads a client time or choice.
 
-import { TERRAIN_MAX_SLOWDOWN, TERRAIN_SAMPLE_STEP, TERRAIN_SPEED, UNITS, UNIT_TERRAIN_FAMILY } from './config.ts';
+import { TERRAIN_MAX_SLOWDOWN, TERRAIN_SAMPLE_STEP, TERRAIN_SPEED, UNITS, UNIT_TERRAIN_FAMILY, WAYMARK_PENALTY_FACTOR, WAYMARK_RADIUS } from './config.ts';
 import type { TerrainFamily } from './config.ts';
 import { TERRAINS } from './types.ts';
 import type { Coords, Terrain, Units, WorldSettings } from './types.ts';
@@ -14,6 +14,8 @@ export interface RouteSample {
   x: number;
   y: number;
   terrain: Terrain;
+  /** True when the sample lies within WAYMARK_RADIUS of a Waymark the mover's tribe holds (its terrain penalty is reduced). */
+  assisted?: boolean;
 }
 
 export interface Route {
@@ -25,6 +27,8 @@ export interface Route {
   samples: RouteSample[];
   /** Tiles of each terrain along the route (sums to `length`, up to float rounding). */
   tiles: Record<Terrain, number>;
+  /** Of `tiles`, how many of each terrain lie near a held Waymark (reduced penalty). Absent = none. */
+  assistedTiles?: Record<Terrain, number>;
 }
 
 function emptyTiles(): Record<Terrain, number> {
@@ -36,9 +40,10 @@ function emptyTiles(): Record<Terrain, number> {
 /**
  * The terrain along the straight line from `from` to `to`. The sample points are computed from the endpoints in a fixed
  * order (lower x, then lower y first), so the route back is exactly the same stretches reversed: a return trip takes
- * as long as the way out.
+ * as long as the way out. `waymarks` are the Waymarks the mover's tribe holds: a sample within WAYMARK_RADIUS (Euclid) of one is
+ * marked `assisted` (docs/GAME_DESIGN.md 18.4b); the caller passes only the mover's own tribe's Waymarks.
  */
-export function travelRoute(from: Coords, to: Coords, seed: number, terrainAmount = 1): Route {
+export function travelRoute(from: Coords, to: Coords, seed: number, terrainAmount = 1, waymarks: readonly Coords[] = []): Route {
   const swap = from.x > to.x || (from.x === to.x && from.y > to.y);
   const a = swap ? to : from;
   const b = swap ? from : to;
@@ -48,16 +53,24 @@ export function travelRoute(from: Coords, to: Coords, seed: number, terrainAmoun
   const n = Math.max(1, Math.ceil(length / TERRAIN_SAMPLE_STEP));
   const step = length / n;
   const samples: RouteSample[] = [];
+  const assistedTiles = emptyTiles();
+  let anyAssisted = false;
+  const radiusSq = WAYMARK_RADIUS * WAYMARK_RADIUS;
   for (let i = 0; i < n; i++) {
     const f = (i + 0.5) / n;
     const x = a.x + (b.x - a.x) * f;
     const y = a.y + (b.y - a.y) * f;
     const terrain = terrainAt(Math.round(x), Math.round(y), seed, terrainAmount);
-    samples.push({ x, y, terrain });
+    const assisted = waymarks.some((w) => (w.x - x) * (w.x - x) + (w.y - y) * (w.y - y) <= radiusSq);
+    samples.push(assisted ? { x, y, terrain, assisted } : { x, y, terrain });
     tiles[terrain] += step;
+    if (assisted) {
+      assistedTiles[terrain] += step;
+      anyAssisted = true;
+    }
   }
   if (swap) samples.reverse();
-  return { length, step, samples, tiles };
+  return anyAssisted ? { length, step, samples, tiles, assistedTiles } : { length, step, samples, tiles };
 }
 
 /**
@@ -71,7 +84,10 @@ export function effectiveDistance(route: Route, family: TerrainFamily): number {
   let sum = 0;
   for (const t of TERRAINS) {
     if (route.tiles[t] > 0 && t !== 'grass') slowed = true;
-    sum += route.tiles[t] / speed[t];
+    const near = Math.min(route.tiles[t], route.assistedTiles?.[t] ?? 0);
+    // A tile near a held Waymark costs 1 + penalty * WAYMARK_PENALTY_FACTOR, where penalty = 1 / speed - 1 (0 on grass).
+    const perTileNear = 1 + (1 / speed[t] - 1) * WAYMARK_PENALTY_FACTOR;
+    sum += (route.tiles[t] - near) / speed[t] + near * perTileNear;
   }
   if (!slowed) return route.length; // all grass: exactly the old distance, no float noise
   return Math.min(route.length * TERRAIN_MAX_SLOWDOWN, Math.max(route.length, sum));

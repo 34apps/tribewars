@@ -10,8 +10,9 @@ import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBoun
 import type { View } from '../map/iso.ts';
 import { drawMap, pickTile, pickVillage } from '../map/render.ts';
 import type { DrawnSite, DrawnVillage } from '../map/render.ts';
+import { useSightings } from '../hooks/useSightings.ts';
 import { useSites } from '../hooks/useSites.ts';
-import { hitsSiteBox, holderText, siteAt, siteName, stateText } from '../sites.ts';
+import { hitsSiteBox, holderText, isUtilitySite, siteAt, siteName, stateText } from '../sites.ts';
 import { SitePanel } from '../map/SitePanel.tsx';
 import { loadMapArt } from '../map/sprites.ts';
 import { TERRAIN_NAME, TerrainCache } from '../map/terrain.ts';
@@ -68,6 +69,9 @@ export function MapView({ active }: { active: boolean }) {
   const sitesOn = useRules().features.sites;
   const { sites, wakesAt, reload: reloadSites } = useSites(active && sitesOn);
   const sitesRef = useRef(sites);
+  /** Enemy armies seen by my tribe's Lookouts (red dashed arrows); empty without a tribe. */
+  const { sightings } = useSightings(active && sitesOn && !!player.tribe);
+  const sightingsRef = useRef(sightings);
   const siteTribeRef = useRef<number | null>(player.tribe?.id ?? null);
   /** The view as last drawn (zoom snapped to device pixels), for picking. */
   const drawnViewRef = useRef<View>(viewRef.current);
@@ -145,6 +149,7 @@ export function MapView({ active }: { active: boolean }) {
       own: ownRef.current,
       movements: movementsRef.current,
       sites: sitesRef.current,
+      sightings: sightingsRef.current,
       myTribeId: siteTribeRef.current,
       now: Date.now() + clockOffset.current,
       quick,
@@ -252,8 +257,9 @@ export function MapView({ active }: { active: boolean }) {
   useEffect(() => {
     sitesRef.current = sites;
     siteTribeRef.current = player.tribe?.id ?? null;
+    sightingsRef.current = sightings;
     schedule();
-  }, [sites, player.tribe?.id, schedule]);
+  }, [sites, sightings, player.tribe?.id, schedule]);
 
   // My tribe or a diplomatic relation changed: villages change banners and tags, so refetch the visible chunks.
   const tribeId = player.tribe?.id ?? 0;
@@ -381,7 +387,8 @@ export function MapView({ active }: { active: boolean }) {
     const rows: [string, string][] = [];
     if (site) {
       title = `${siteName(site)} (${site.x}|${site.y})`;
-      rows.push(['State', stateText(site, wakesAt, Date.now() + clockOffset.current)], ['Held by', holderText(site)]);
+      if (!isUtilitySite(site.kind)) rows.push(['State', stateText(site, wakesAt, Date.now() + clockOffset.current)]);
+      rows.push(['Held by', holderText(site)]);
     } else if (v) {
       const abandoned = v.kind === 'abandoned';
       title = `${abandoned ? 'Abandoned village' : v.name} (${v.x}|${v.y})`;

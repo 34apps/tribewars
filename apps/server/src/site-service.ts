@@ -6,6 +6,8 @@
 
 import {
   GameError,
+  LOOKOUT_LIST_LIMIT,
+  LOOKOUT_RADIUS,
   POP_PER_UNIT,
   UNIT_IDS,
   applyAttackerLosses,
@@ -13,11 +15,13 @@ import {
   emptyResources,
   emptyUnits,
   isShrineAwake,
+  lookoutSees,
   normalizeUnits,
   occupierPopulation,
   resolveSiteBattle,
   settleVillage,
   shrineWakeMs,
+  sightingSize,
   siteBonus,
   siteCalmMs,
   siteMaxPopulation,
@@ -26,8 +30,12 @@ import {
   totalUnits,
   travelTimeMs,
   tribeRenownBonus,
+  tribeWaymarks,
   villagePoints,
   type BattleReportData,
+  type Coords,
+  type LookoutSightingDto,
+  type LookoutSightingsResponse,
   type Mission,
   type SiteDef,
   type SiteDto,
@@ -40,11 +48,17 @@ import { worldCreatedAt } from './domination-service.ts';
 import { sitesFor } from './site-layout.ts';
 import type { GarrisonRow } from './site-store.ts';
 import type { MovementRow, MovementView, PlayerRow, Store, VillageRecord } from './store.ts';
-import { isWithin, subtractUnits, sumUnits } from './units.ts';
+import { isScoutArmy, isWithin, subtractUnits, sumUnits } from './units.ts';
 
-/** Display name of a site: "Great Fire" or "Fire Shrine 1".."8". */
+/**
+ * Display name of a site: "Great Fire", "Fire Shrine 1".."8", "Waymark 1".."6", "Lookout 1".."6". Waymarks and Lookouts alternate from id 10
+ * (Waymark first), so the number follows from the id and does not shift when a site is left out of a small world.
+ */
 export function siteName(site: SiteDef): string {
-  return site.kind === 'great_fire' ? 'Great Fire' : `Fire Shrine ${site.id - 1}`;
+  if (site.kind === 'great_fire') return 'Great Fire';
+  if (site.kind === 'waymark') return `Waymark ${Math.floor((site.id - 10) / 2) + 1}`;
+  if (site.kind === 'lookout') return `Lookout ${Math.floor((site.id - 11) / 2) + 1}`;
+  return `Fire Shrine ${site.id - 1}`;
 }
 
 const coords = (v: { x: number; y: number }): string => `(${v.x}|${v.y})`;
@@ -63,6 +77,9 @@ function fitUnits(units: Units, room: number): { fit: Units; rest: Units } {
   }
   return { fit, rest: subtractUnits(units, fit) };
 }
+
+/** Most in-flight marches the sightings query reads before the exact line check (a bounding-box prefilter keeps it small). */
+const SIGHTING_SCAN_LIMIT = 2000;
 
 const minutesLeft = (until: number, t: number): number => Math.max(1, Math.ceil((until - t) / 60_000));
 
@@ -91,6 +108,23 @@ export class SiteService {
 
   byId(id: number): SiteDef | null {
     return this.defs.find((s) => s.id === id) ?? null;
+  }
+
+  /**
+   * Tiles of the Waymarks held by the tribe `playerId` belongs to now (empty without a tribe, an owner or a held Waymark). Every movement
+   * that is created passes this to the travel time, so it is fixed for that movement; a movement in flight never changes.
+   */
+  waymarksForPlayer(playerId: number | null): Coords[] {
+    if (playerId === null) return [];
+    const m = this.store.tribes.membership(playerId);
+    if (!m) return [];
+    const held = this.store.sites.heldBy(m.tribeId);
+    if (held.length === 0) return [];
+    const sites = held.flatMap((id) => {
+      const d = this.byId(id);
+      return d ? [{ kind: d.kind, x: d.x, y: d.y, holder: { tribeId: m.tribeId } }] : [];
+    });
+    return tribeWaymarks(sites, m.tribeId);
   }
 
   private createdAt(): number {
@@ -232,7 +266,7 @@ export class SiteService {
   }
 
   private returnFromTile(home: VillageRecord, tile: { x: number; y: number }, units: Units, t: number, travelMs?: number): { id: number; arriveAt: number } {
-    const arriveAt = t + (travelMs ?? travelTimeMs(tile, { x: home.x, y: home.y }, units, this.settings));
+    const arriveAt = t + (travelMs ?? travelTimeMs(tile, { x: home.x, y: home.y }, units, this.settings, this.waymarksForPlayer(home.ownerId)));
     const id = this.store.insertMovement({
       kind: 'return',
       originVillageId: home.id,
@@ -517,6 +551,61 @@ export class SiteService {
     return tribeRenownBonus(kinds);
   }
 
+  /**
+   * GET /api/tribe/sightings: the enemy attack and support marches in flight whose straight line passes within LOOKOUT_RADIUS of a Lookout
+   * the viewer's tribe holds now. Enemy = sender not in the viewer's tribe and not an ally of it. Never returns, shipments, found/occupy,
+   * scouting marches (Pathfinders only) or anything about the army but a size band. A march two Lookouts see is listed once, under the
+   * lower id. Soonest arrival first, at most LOOKOUT_LIST_LIMIT. Reads only; after the world ended it still lists what is in flight.
+   */
+  sightings(player: PlayerRow, t: number): LookoutSightingsResponse {
+    const mine = this.store.tribes.membership(player.id);
+    if (!mine) return { sightings: [], lookouts: 0 };
+    const lookouts = this.store.sites
+      .heldBy(mine.tribeId)
+      .flatMap((id) => {
+        const d = this.byId(id);
+        return d && d.kind === 'lookout' ? [d] : [];
+      })
+      .sort((a, b) => a.id - b.id);
+    if (lookouts.length === 0) return { sightings: [], lookouts: 0 };
+    const enemy = new Map<number | null, boolean>();
+    const isEnemy = (ownerTribe: number | null): boolean => {
+      let r = enemy.get(ownerTribe);
+      if (r === undefined) {
+        r = ownerTribe === null || (ownerTribe !== mine.tribeId && this.store.tribes.relationBetween(mine.tribeId, ownerTribe, t)?.kind !== 'ally');
+        enemy.set(ownerTribe, r);
+      }
+      return r;
+    };
+    const out: LookoutSightingDto[] = [];
+    for (const m of this.store.marchesNear(lookouts, LOOKOUT_RADIUS, t, SIGHTING_SCAN_LIMIT)) {
+      if (m.kind !== 'attack' && m.kind !== 'support') continue;
+      const ownerId = m.origin.ownerId;
+      if (ownerId === null || isScoutArmy(m.units)) continue;
+      const ownerTribe = this.store.tribes.membership(ownerId)?.tribeId ?? null;
+      if (!isEnemy(ownerTribe)) continue;
+      const from = { x: m.origin.x, y: m.origin.y };
+      const to = { x: m.target.x, y: m.target.y };
+      const seen = lookouts.find((l) => lookoutSees(l, from, to));
+      if (!seen) continue;
+      const isSite = m.targetX != null;
+      out.push({
+        movementId: m.id,
+        lookoutId: seen.id,
+        lookoutName: siteName(seen),
+        mission: m.kind,
+        from: { villageId: m.origin.villageId, name: m.origin.name, x: from.x, y: from.y, ownerName: m.origin.ownerName },
+        fromTribeTag: this.tagOf(ownerTribe),
+        to: { x: to.x, y: to.y, name: m.target.name, kind: isSite ? 'site' : 'village' },
+        departAt: m.departAt,
+        arriveAt: m.arriveAt,
+        size: sightingSize(population(m.units)),
+      });
+      if (out.length >= LOOKOUT_LIST_LIMIT) break;
+    }
+    return { sightings: out, lookouts: lookouts.length };
+  }
+
   /** GET /api/sites: every site with its holder, garrison size, calm time and bonus. Reads only. */
   list(player: PlayerRow, t: number): SitesResponse {
     const awake = this.awake(t);
@@ -530,6 +619,7 @@ export class SiteService {
       const held = tribe !== null;
       return {
         id: d.id,
+        name: siteName(d),
         kind: d.kind,
         x: d.x,
         y: d.y,

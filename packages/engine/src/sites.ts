@@ -1,8 +1,12 @@
-// Map sites: the Great Fire and eight Fire Shrines (docs/GAME_DESIGN.md 18.4b "Step 5"). Placement, militia, wake-up, Renown
+// Map sites: the Great Fire, eight Fire Shrines, six Waymarks and six Lookouts (docs/GAME_DESIGN.md 18.4b "Step 5"). Placement, militia, wake-up, Renown
 // bonus and the battle shape. Pure and deterministic from the world seed; ownership and garrisons live on the server.
 
 import {
+  LOOKOUT_RADIUS,
+  LOOKOUT_SIZE_BANDS,
   POP_PER_UNIT,
+  SIDE_SITE_COUNT,
+  SIDE_SITE_RING_RADIUS,
   SHRINE_AWAKE_MILITIA_FACTOR,
   SHRINE_COUNT_PER_RING,
   SHRINE_RING_RADII,
@@ -18,12 +22,13 @@ import {
 import type { SiteKind } from './config.ts';
 import { hashSeed, mulberry32 } from './random.ts';
 import { BUILDING_IDS } from './types.ts';
-import type { BattleResult, BuildingLevels, Units, VillageRanks, VillageState, WorldSettings } from './types.ts';
+import type { SightingSize } from './api.ts';
+import type { BattleResult, BuildingLevels, Coords, Units, VillageRanks, VillageState, WorldSettings } from './types.ts';
 import { MS_PER_HOUR, emptyResources, emptyUnits } from './util.ts';
 import { resolveBattle } from './army.ts';
 import { isBuildableTerrain, terrainAt } from './world.ts';
 
-/** One site on the map. `id` is its stable index: 1 = Great Fire, 2-5 inner ring shrines, 6-9 outer ring shrines. */
+/** One site on the map. `id` is its stable index: 1 = Great Fire, 2-5 inner ring shrines, 6-9 outer ring shrines, 10-21 the ring of Waymarks (even k) and Lookouts. */
 export interface SiteDef {
   id: number;
   kind: SiteKind;
@@ -34,6 +39,8 @@ export interface SiteDef {
 // ---- Placement ----------------------------------------------------------------------------------
 
 const SITE_SEED_SALT = 5151;
+/** Salt of the seeded rotation of the Waymark / Lookout ring (its own, so the rings of the shrines never move). */
+const SIDE_SITE_SEED_SALT = 5152;
 /** How far (tiles, per axis) an ideal spot may move to find a legal tile. Far beyond what any real seed needs. */
 const SEARCH_REACH = 40;
 
@@ -80,6 +87,8 @@ function nearestLegalTile(ideal: { x: number; y: number }, seed: number, amount:
  * The map's sites, a pure function of the world seed and radius: the Great Fire near (0,0), then SHRINE_COUNT_PER_RING Fire Shrines on
  * each ring of SHRINE_RING_RADII at 90 degree spacing (the count is fixed at 4) with a seeded rotation per ring. Each ideal spot moves to the nearest
  * tile (spiral search) inside the world, not mountain or lake, and at least SITE_MIN_SPACING (Euclid) from every site placed before it.
+ * Then, last (so every earlier site keeps its place and id), SIDE_SITE_COUNT Waymarks and Lookouts alternate (waymark, lookout, ...) on
+ * one ring of SIDE_SITE_RING_RADIUS, 30 degrees apart with their own seeded rotation, ids from 10, through the same legal-tile search.
  * Order and ids are fixed (1 = Great Fire); a site that finds no tile (tiny world) is left out, the others keep their ids.
  */
 export function generateSites(seed: number, radius: number, terrainAmount = 1): SiteDef[] {
@@ -103,6 +112,17 @@ export function generateSites(seed: number, radius: number, terrainAmount = 1): 
       place(id++, 'fire_shrine', { x: Math.round(ringRadius * ux), y: Math.round(ringRadius * uy) });
     }
   });
+  // The ring of Waymarks and Lookouts: a seeded start angle in [0, 30 degrees), then turned by 30 degrees (cos = sqrt(3)/2, sin = 1/2).
+  const start = mulberry32(hashSeed(seed, SIDE_SITE_SEED_SALT, 0))() * (Math.PI / 6);
+  const first = sinCos(start);
+  const turnCos = Math.sqrt(3) / 2;
+  const turnSin = 0.5;
+  let ux = first.cos;
+  let uy = first.sin;
+  for (let k = 0; k < SIDE_SITE_COUNT; k++) {
+    place(id++, k % 2 === 0 ? 'waymark' : 'lookout', { x: Math.round(SIDE_SITE_RING_RADIUS * ux), y: Math.round(SIDE_SITE_RING_RADIUS * uy) });
+    [ux, uy] = [ux * turnCos - uy * turnSin, ux * turnSin + uy * turnCos];
+  }
   return sites;
 }
 
@@ -137,7 +157,9 @@ export function isShrineAwake(worldCreatedAt: number, now: number, s: Speed): bo
 
 /** Population of the militia of an unheld site (doubled while awake). */
 export function siteMilitiaPopulation(kind: SiteKind, awake: boolean): number {
-  return SITE_MILITIA[kind] * (awake ? SHRINE_AWAKE_MILITIA_FACTOR : 1);
+  // Waymarks and Lookouts never wake.
+  const wakes = kind === 'fire_shrine' || kind === 'great_fire';
+  return SITE_MILITIA[kind] * (awake && wakes ? SHRINE_AWAKE_MILITIA_FACTOR : 1);
 }
 
 /** Militia of an unheld site: half the population as pikemen, the rest as shieldbearers (POP_PER_UNIT sizes the counts). */
@@ -154,7 +176,7 @@ export function siteMaxPopulation(kind: SiteKind): number {
   return SITE_MAX_POPULATION[kind];
 }
 
-/** Renown bonus (0.04 = +4%) one held site gives every member of the holding tribe. */
+/** Renown bonus (0.04 = +4%) one held site gives every member of the holding tribe. Waymarks and Lookouts give none. */
 export function siteBonus(kind: SiteKind, awake: boolean): number {
   return SITE_RENOWN_BONUS[awake ? 'awake' : 'dormant'][kind];
 }
@@ -164,6 +186,38 @@ export function tribeRenownBonus(heldSites: ReadonlyArray<{ kind: SiteKind; awak
   let sum = 0;
   for (const h of heldSites) sum += siteBonus(h.kind, h.awake);
   return Math.min(SITE_RENOWN_BONUS_CAP, sum);
+}
+
+// ---- Waymarks and Lookouts ----------------------------------------------------------------------
+
+/** Tiles of the Waymarks held by `tribeId` (travel time for that tribe's members: pass the result to travelRoute and friends). Empty without a tribe. */
+export function tribeWaymarks(
+  sites: ReadonlyArray<{ kind: SiteKind; x: number; y: number; holder: { tribeId: number } | null }>,
+  tribeId: number | null,
+): Coords[] {
+  if (tribeId === null) return [];
+  return sites.filter((s) => s.kind === 'waymark' && s.holder !== null && s.holder.tribeId === tribeId).map((s) => ({ x: s.x, y: s.y }));
+}
+
+/** Distance (tiles) from point `p` to the segment a-b. */
+function segmentDistance(p: Coords, a: Coords, b: Coords): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** A Lookout sees a march when the straight line from `from` to `to` passes within LOOKOUT_RADIUS (inclusive) of it. */
+export function lookoutSees(lookout: Coords, from: Coords, to: Coords): boolean {
+  return segmentDistance(lookout, from, to) <= LOOKOUT_RADIUS;
+}
+
+/** The size band a Lookout shows for an army of this population: never the real numbers. */
+export function sightingSize(population: number): SightingSize {
+  if (population < LOOKOUT_SIZE_BANDS.smallBelow) return 'small';
+  if (population < LOOKOUT_SIZE_BANDS.mediumBelow) return 'medium';
+  return 'large';
 }
 
 // ---- Battle -------------------------------------------------------------------------------------

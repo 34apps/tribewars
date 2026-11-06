@@ -17,3 +17,6 @@ export function slowdownText(flatMs: number, ms: number): string | null {
   const pct = Math.max(1, Math.round((ms / flatMs - 1) * 100));
   return `+${pct}%`;
 }
+
+/** Shown in a send summary when a Waymark of my tribe shortens the trip. */
+export const WAYMARK_NOTE = 'Waymark: faster';

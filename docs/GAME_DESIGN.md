@@ -1209,16 +1209,36 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
 | Site | Count | Effect for the holding tribe |
 |---|---|---|
 | **Fire Shrine** | 8 (+ the Great Fire) | **Bonus for the holding tribe** (see "Step 5" below). Not the win condition (18.1 is domination). |
-| **Waymark** | 6 | Terrain penalty is **halved** within 12 tiles of the Waymark for the holding tribe's own troops and shipments (their trips through that area are faster). Never for enemies. |
-| **Lookout** | 6 | The holders see every enemy **army march that passes within 20 tiles** of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. |
+| **Waymark** | 6 (**built**) | Terrain penalty is **halved** (`WAYMARK_PENALTY_FACTOR` 0.5) within 12 tiles (`WAYMARK_RADIUS`, Euclidean) of the Waymark for the holding tribe's **members'** movements: attacks, support, shipments **and returns**. Not for allies, never for enemies. Grass is unchanged; the 2.2x slowdown cap still applies. |
+| **Lookout** | 6 (**built**) | The holders see every enemy **army march that passes within 20 tiles** (`LOOKOUT_RADIUS`) of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. See "Waymarks and Lookouts: built" below. |
 
-  Waymarks and Lookouts are placed outside the shrine rings, between tribes' likely homes, with spacing of at
+  Waymarks and Lookouts stand on their own ring between the two shrine rings (radius 60, see below), with spacing of at
   least 15 tiles. They persist all season.
 - The holder's side can use a Waymark's help only inside its radius, and only on movements that **start after**
   the capture (movements in flight keep the times they were sent with, like everything else).
 
 **Step 5 (owner, 2026-11-05; built 2026-11-05): Fire Shrines as objectives with bonuses, not the win condition.**
-- **Built:** the Great Fire and eight Fire Shrines (kinds `great_fire`, `fire_shrine`). Waymarks and Lookouts are **not built yet** (follow-up).
+- **Built:** the Great Fire, eight Fire Shrines (kinds `great_fire`, `fire_shrine`), and (owner-approved 2026-11-07) six Waymarks and six Lookouts (kinds `waymark`, `lookout`).
+
+**Waymarks and Lookouts: built (2026-11-07).** They are captured, held, supported, calmed, capped (3,000 population) and recalled exactly like Fire Shrines; the militia of
+an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown bonus** (bonus 0, ignored by the tribe total).
+- **Placement:** appended after the shrines, so the first nine sites and their ids never move. One ring of `SIDE_SITE_RING_RADIUS` (60) with `SIDE_SITE_COUNT` (12) spots,
+  30 degrees apart from a seeded rotation (own salt), alternating Waymark, Lookout, Waymark... (ids 10-21, Waymark first). Each spot goes through the same legal-tile search
+  (no mountain or lake, `SITE_MIN_SPACING` 15 from every earlier site); a spot with no legal tile is dropped (small worlds). Under the `features.sites` flag. Existing worlds
+  get them at the next start (positions are computed from the seed, no migration); a village already near or on a new site stays (the existing rule for sites). Names:
+  "Waymark 1".."6", "Lookout 1".."6", numbered by id within the kind (`SiteDto.name`).
+- **Waymark effect:** for the movements of the **members** of the holding tribe (not allies, never enemies), every terrain sample of the route within `WAYMARK_RADIUS` (12 tiles,
+  Euclid) of a Waymark the mover's tribe holds has its terrain penalty (the extra time over grass) multiplied by `WAYMARK_PENALTY_FACTOR` (0.5). Grass is unchanged and the
+  `TERRAIN_MAX_SLOWDOWN` cap still applies. It helps attacks, support, shipments **and returns** (a return created when the army turns round at its target). Each movement
+  uses the Waymarks its owner's tribe holds **at the moment that movement is created**; movements in flight never change, and losing a Waymark never slows one. Computed on the
+  server from its own sites state (engine `travelRoute(..., waymarks)`, `tribeWaymarks`); the client send preview passes the same list.
+- **Lookout effect:** `GET /api/tribe/sightings` lists every **enemy attack or support march in flight** (outgoing only: not returns, shipments, found or occupy) whose straight
+  line from village to target passes within `LOOKOUT_RADIUS` (20 tiles, segment-to-point, edges inclusive) of a Lookout the viewer's tribe holds **now**. Enemy = sender not in the
+  viewer's tribe and not an ally of it (no tribe counts as enemy; pact partners that are not allies too). **Pathfinder-only marches (scouting) are never shown.** Visible for the
+  whole march, from departure to arrival. Shown: sender (village, tribe tag), target (village or site), times, mission and a size band from the population (`small` below 100,
+  `medium` below 1,000, else `large`; `LOOKOUT_SIZE_BANDS`), never unit counts. A march two Lookouts see is listed once (lowest Lookout id); sorted by arrival, at most
+  `LOOKOUT_LIST_LIMIT` (100). No tribe or no held Lookout: an empty list with `lookouts` 0. After the world ended the route still answers with what is in flight (read only).
+  Contract: `LookoutSightingDto`, `LookoutSightingsResponse` in `packages/engine/src/api.ts`.
 - **Placement** (pure function of the world seed, same for everyone): the Great Fire near the centre (0,0), four shrines on an inner ring
   (radius `SHRINE_RING_RADII[0]` 35) and four on an outer ring (85), at 90° spacing with a seeded rotation; each ideal spot moves to the nearest
   tile that is not mountain or lake and has no site within `SITE_MIN_SPACING`. No village is placed within `SITE_NO_VILLAGE_RADIUS` (4) of a site
@@ -1752,16 +1772,36 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
 | Site | Count | Effect for the holding tribe |
 |---|---|---|
 | **Fire Shrine** | 8 (+ the Great Fire) | **Bonus for the holding tribe** (see "Step 5" below). Not the win condition (18.1 is domination). |
-| **Waymark** | 6 | Terrain penalty is **halved** within 12 tiles of the Waymark for the holding tribe's own troops and shipments (their trips through that area are faster). Never for enemies. |
-| **Lookout** | 6 | The holders see every enemy **army march that passes within 20 tiles** of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. |
+| **Waymark** | 6 (**built**) | Terrain penalty is **halved** (`WAYMARK_PENALTY_FACTOR` 0.5) within 12 tiles (`WAYMARK_RADIUS`, Euclidean) of the Waymark for the holding tribe's **members'** movements: attacks, support, shipments **and returns**. Not for allies, never for enemies. Grass is unchanged; the 2.2x slowdown cap still applies. |
+| **Lookout** | 6 (**built**) | The holders see every enemy **army march that passes within 20 tiles** (`LOOKOUT_RADIUS`) of the Lookout (who is going where and when it arrives, the army size in rough bands). They already see attacks aimed at tribe villages; this shows attacks aimed at others. See "Waymarks and Lookouts: built" below. |
 
-  Waymarks and Lookouts are placed outside the shrine rings, between tribes' likely homes, with spacing of at
+  Waymarks and Lookouts stand on their own ring between the two shrine rings (radius 60, see below), with spacing of at
   least 15 tiles. They persist all season.
 - The holder's side can use a Waymark's help only inside its radius, and only on movements that **start after**
   the capture (movements in flight keep the times they were sent with, like everything else).
 
 **Step 5 (owner, 2026-11-05; built 2026-11-05): Fire Shrines as objectives with bonuses, not the win condition.**
-- **Built:** the Great Fire and eight Fire Shrines (kinds `great_fire`, `fire_shrine`). Waymarks and Lookouts are **not built yet** (follow-up).
+- **Built:** the Great Fire, eight Fire Shrines (kinds `great_fire`, `fire_shrine`), and (owner-approved 2026-11-07) six Waymarks and six Lookouts (kinds `waymark`, `lookout`).
+
+**Waymarks and Lookouts: built (2026-11-07).** They are captured, held, supported, calmed, capped (3,000 population) and recalled exactly like Fire Shrines; the militia of
+an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown bonus** (bonus 0, ignored by the tribe total).
+- **Placement:** appended after the shrines, so the first nine sites and their ids never move. One ring of `SIDE_SITE_RING_RADIUS` (60) with `SIDE_SITE_COUNT` (12) spots,
+  30 degrees apart from a seeded rotation (own salt), alternating Waymark, Lookout, Waymark... (ids 10-21, Waymark first). Each spot goes through the same legal-tile search
+  (no mountain or lake, `SITE_MIN_SPACING` 15 from every earlier site); a spot with no legal tile is dropped (small worlds). Under the `features.sites` flag. Existing worlds
+  get them at the next start (positions are computed from the seed, no migration); a village already near or on a new site stays (the existing rule for sites). Names:
+  "Waymark 1".."6", "Lookout 1".."6", numbered by id within the kind (`SiteDto.name`).
+- **Waymark effect:** for the movements of the **members** of the holding tribe (not allies, never enemies), every terrain sample of the route within `WAYMARK_RADIUS` (12 tiles,
+  Euclid) of a Waymark the mover's tribe holds has its terrain penalty (the extra time over grass) multiplied by `WAYMARK_PENALTY_FACTOR` (0.5). Grass is unchanged and the
+  `TERRAIN_MAX_SLOWDOWN` cap still applies. It helps attacks, support, shipments **and returns** (a return created when the army turns round at its target). Each movement
+  uses the Waymarks its owner's tribe holds **at the moment that movement is created**; movements in flight never change, and losing a Waymark never slows one. Computed on the
+  server from its own sites state (engine `travelRoute(..., waymarks)`, `tribeWaymarks`); the client send preview passes the same list.
+- **Lookout effect:** `GET /api/tribe/sightings` lists every **enemy attack or support march in flight** (outgoing only: not returns, shipments, found or occupy) whose straight
+  line from village to target passes within `LOOKOUT_RADIUS` (20 tiles, segment-to-point, edges inclusive) of a Lookout the viewer's tribe holds **now**. Enemy = sender not in the
+  viewer's tribe and not an ally of it (no tribe counts as enemy; pact partners that are not allies too). **Pathfinder-only marches (scouting) are never shown.** Visible for the
+  whole march, from departure to arrival. Shown: sender (village, tribe tag), target (village or site), times, mission and a size band from the population (`small` below 100,
+  `medium` below 1,000, else `large`; `LOOKOUT_SIZE_BANDS`), never unit counts. A march two Lookouts see is listed once (lowest Lookout id); sorted by arrival, at most
+  `LOOKOUT_LIST_LIMIT` (100). No tribe or no held Lookout: an empty list with `lookouts` 0. After the world ended the route still answers with what is in flight (read only).
+  Contract: `LookoutSightingDto`, `LookoutSightingsResponse` in `packages/engine/src/api.ts`.
 - **Placement** (pure function of the world seed, same for everyone): the Great Fire near the centre (0,0), four shrines on an inner ring
   (radius `SHRINE_RING_RADII[0]` 35) and four on an outer ring (85), at 90° spacing with a seeded rotation; each ideal spot moves to the nearest
   tile that is not mountain or lake and has no site within `SITE_MIN_SPACING`. No village is placed within `SITE_NO_VILLAGE_RADIUS` (4) of a site

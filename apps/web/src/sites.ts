@@ -1,14 +1,39 @@
 // Pure helpers for map sites (Great Fire, Fire Shrines): names, state lines, which missions the panel offers.
 // Data comes from GET /api/sites; rules are in packages/engine/src/sites.ts and docs/GAME_DESIGN.md 18.4b.
 
+import { LOOKOUT_RADIUS, WAYMARK_RADIUS } from '@clanfire/engine';
 import type { Mission, SiteDto } from '@clanfire/engine';
 import { formatInt, formatLeft } from './format.ts';
 
-export const SITE_KIND_NAME: Record<SiteDto['kind'], string> = { great_fire: 'Great Fire', fire_shrine: 'Fire Shrine' };
+export const SITE_KIND_NAME: Record<SiteDto['kind'], string> = {
+  great_fire: 'Great Fire',
+  fire_shrine: 'Fire Shrine',
+  waymark: 'Waymark',
+  lookout: 'Lookout',
+};
 
-/** "Great Fire" or "Fire Shrine 3" (ids 2-9 are shrines 1-8). */
-export function siteName(s: Pick<SiteDto, 'id' | 'kind'>): string {
-  return s.kind === 'great_fire' ? SITE_KIND_NAME.great_fire : `${SITE_KIND_NAME.fire_shrine} ${Math.max(1, s.id - 1)}`;
+/** The two utility sites: no Renown bonus, no awake/dormant state. */
+export function isUtilitySite(kind: SiteDto['kind']): boolean {
+  return kind === 'waymark' || kind === 'lookout';
+}
+
+/** One plain line for a Waymark or Lookout (null for the fire sites, which show their Renown bonus instead). */
+export function siteKindLine(kind: SiteDto['kind']): string | null {
+  if (kind === 'waymark') return `Your tribe's troops and carts cross forest, hills and lakes faster within ${WAYMARK_RADIUS} tiles.`;
+  if (kind === 'lookout') return `Your tribe sees enemy armies that pass within ${LOOKOUT_RADIUS} tiles.`;
+  return null;
+}
+
+/** The server names sites ("Waymark 2"); older answers without a name fall back to the kind (and a shrine's number). */
+export function siteName(s: Pick<SiteDto, 'id' | 'kind'> & { name?: string }): string {
+  if (s.name) return s.name;
+  if (s.kind === 'great_fire') return SITE_KIND_NAME.great_fire;
+  return `${SITE_KIND_NAME[s.kind]} ${Math.max(1, s.id - 1)}`;
+}
+
+/** Range in tiles of a Waymark / Lookout, or 0 for other sites (drawn as a faint circle when selected). */
+export function siteRange(kind: SiteDto['kind']): number {
+  return kind === 'waymark' ? WAYMARK_RADIUS : kind === 'lookout' ? LOOKOUT_RADIUS : 0;
 }
 
 /** The site standing on a tile, if any. */

@@ -6,7 +6,8 @@ import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
-import { slowdownText, slowGroundText } from './travel.ts';
+import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
+import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 
 /** "Send resources" for a tribe-mate's or ally's village. The server re-checks everything. */
 export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillageDto }) {
@@ -26,10 +27,12 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
     total += v;
   }
   const check = checkShipment(live, cargo);
-  const travel = shipmentTravelMs(village, tile, settings);
+  const waymarks = useTribeWaymarks();
+  const travel = shipmentTravelMs(village, tile, settings, waymarks);
+  const waymarkHelps = waymarks.length > 0 && travel < shipmentTravelMs(village, tile, settings);
   const flat = flatShipmentTravelMs(village, tile, settings);
   const slowdown = slowdownText(flat, travel);
-  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings))) : '';
+  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings), waymarks)) : '';
   const reason = total < 1 ? 'Choose what to send' : !check.ok ? check.message : null;
 
   function set(r: ResourceId, value: string) {
@@ -110,7 +113,10 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         </div>
         <div>
           <dt>Travel time</dt>
-          <dd>{formatDuration(travel)}</dd>
+          <dd>
+            {formatDuration(travel)}
+            {waymarkHelps && <small className="wm-muted"> {WAYMARK_NOTE}</small>}
+          </dd>
         </div>
         {slowdown && (
           <div className="wm-terrain-time">

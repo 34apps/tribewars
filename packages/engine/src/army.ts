@@ -66,14 +66,15 @@ export function flatTravelTimeMs(from: Coords, to: Coords, units: Units, s: Worl
  * its slowest unit. Over grass it equals `flatTravelTimeMs`; never more than TERRAIN_MAX_SLOWDOWN times that. The same
  * stretch back takes the same time. `Infinity` for an empty army (callers must reject those with checkSend first).
  * Every rule that needs a travel time goes through this function, on the server, from the server's own settings.
+ * `waymarks`: the Waymarks the mover's tribe holds (see `tribeWaymarks`); they halve the terrain penalty near them.
  */
-export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings): number {
-  return armyRouteTimeMs(travelRoute(from, to, s.seed, terrainAmountOf(s)), units, moveSpeed(s));
+export function travelTimeMs(from: Coords, to: Coords, units: Units, s: WorldSettings, waymarks: readonly Coords[] = []): number {
+  return armyRouteTimeMs(travelRoute(from, to, s.seed, terrainAmountOf(s), waymarks), units, moveSpeed(s));
 }
 
 /** The send preview: time on flat ground, time with terrain, and the route (for the map). */
-export function travelPreview(from: Coords, to: Coords, units: Units, s: WorldSettings): TravelPreview {
-  const route = travelRoute(from, to, s.seed, terrainAmountOf(s));
+export function travelPreview(from: Coords, to: Coords, units: Units, s: WorldSettings, waymarks: readonly Coords[] = []): TravelPreview {
+  const route = travelRoute(from, to, s.seed, terrainAmountOf(s), waymarks);
   return { flatMs: flatTravelTimeMs(from, to, units, s), ms: armyRouteTimeMs(route, units, moveSpeed(s)), route };
 }
 

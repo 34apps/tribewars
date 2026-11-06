@@ -652,7 +652,7 @@ export class GameService {
     // Surviving Pathfinders walk home with the army's survivors, or alone when the rest of the army fell (or struck and stayed).
     const walkers = struck || !survived ? scoutSurvivors : addUnits(result.attackerSurvivors, scoutSurvivors);
     if (totalUnits(walkers) > 0) {
-      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, walkers, s);
+      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, walkers, s, this.sites.waymarksForPlayer(origin.ownerId));
       spawned = at + back;
       const returnId = this.store.insertMovement({
         kind: 'return',
@@ -781,7 +781,7 @@ export class GameService {
     this.refreshHold(target.id, at);
     let spawned: number | null = null;
     if (survived) {
-      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
+      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s, this.sites.waymarksForPlayer(origin.ownerId));
       spawned = at + back;
       this.store.insertMovement({
         kind: 'return',
@@ -1133,7 +1133,7 @@ export class GameService {
     const survivors = this.runScouting(m, origin, target, at);
     let spawned: number | null = null;
     if (totalUnits(survivors) > 0) {
-      spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, this.settings));
+      spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, this.settings, this.sites.waymarksForPlayer(origin.ownerId)));
       this.store.insertMovement({
         kind: 'return',
         originVillageId: origin.id,
@@ -1310,8 +1310,8 @@ export class GameService {
   ): { id: number; arriveAt: number } {
     // A turned-back shipment (no units) travels at carrier speed.
     const arriveAt = cargo
-      ? t + shipmentTravelMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, this.settings)
-      : t + travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings);
+      ? t + shipmentTravelMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, this.settings, this.sites.waymarksForPlayer(home.ownerId))
+      : t + travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings, this.sites.waymarksForPlayer(home.ownerId));
     const id = this.store.insertMovement({
       kind: 'return',
       originVillageId: home.id,
@@ -1327,7 +1327,7 @@ export class GameService {
 
   /** A failed found mission walks home from the free tile it was sent to (the tile shows as the return's start). */
   private insertReturnFromTile(home: VillageRecord, tile: { x: number; y: number }, units: Units, t: number): number {
-    const arriveAt = t + travelTimeMs(tile, { x: home.x, y: home.y }, units, this.settings);
+    const arriveAt = t + travelTimeMs(tile, { x: home.x, y: home.y }, units, this.settings, this.sites.waymarksForPlayer(home.ownerId));
     this.store.insertMovement({
       kind: 'return',
       originVillageId: home.id,
@@ -1912,7 +1912,7 @@ export class GameService {
       if (!check.ok) throw new GameError(check.reason, check.message);
       const next = applySend(settled, check.units, t, s);
       const dest = target ?? { x, y };
-      const travel = timing.travelSeconds !== undefined ? timing.travelSeconds * 1000 : travelTimeMs({ x: v.x, y: v.y }, { x: dest.x, y: dest.y }, check.units, s);
+      const travel = timing.travelSeconds !== undefined ? timing.travelSeconds * 1000 : travelTimeMs({ x: v.x, y: v.y }, { x: dest.x, y: dest.y }, check.units, s, this.sites.waymarksForPlayer(player.id));
 
       const movementId = this.store.insertMovement({
         returnSecs: timing.returnSeconds ?? null,
@@ -1961,7 +1961,7 @@ export class GameService {
       const check = checkShipment(settled, cargo);
       if (!check.ok) throw new GameError(check.reason, check.message);
       const next = applyShipmentSend(settled, check.resources, t, s);
-      const travel = shipmentTravelMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, s);
+      const travel = shipmentTravelMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, s, this.sites.waymarksForPlayer(player.id));
       const movementId = this.store.insertMovement({
         kind: 'shipment',
         originVillageId: v.id,

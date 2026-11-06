@@ -11,7 +11,10 @@ import {
   calmLeftMs,
   garrisonText,
   holderText,
+  isUtilitySite,
   siteBonusText,
+  siteKindLine,
+  SITE_KIND_NAME,
   siteMissions,
   siteName,
   stateText,
@@ -43,6 +46,8 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
   const [error, setError] = useState<string | null>(null);
   const tile: Coords = { x: site.x, y: site.y };
   const { missions, note } = siteMissions(site, player.tribe?.id ?? null, now);
+  const utility = isUtilitySite(site.kind);
+  const kindLine = siteKindLine(site.kind);
   const calm = calmLeftMs(site, now);
   const terrainName = TERRAIN_NAME[terrain.get(site.x, site.y)] ?? 'Land';
   const dist = distance(mine, tile);
@@ -83,7 +88,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
             ) : (
               <span className="wm-owner-name wm-dim">Nobody holds it</span>
             )}
-            <span className={`wm-allegiance wm-site-state${site.awake ? ' is-awake' : ''}`}>{site.awake ? 'Awake' : 'Dormant'}</span>
+            {!utility && <span className={`wm-allegiance wm-site-state${site.awake ? ' is-awake' : ''}`}>{site.awake ? 'Awake' : 'Dormant'}</span>}
           </div>
         </div>
         <button type="button" className="wm-btn wm-btn-icon wm-close" onClick={onClose} aria-label="Close panel">
@@ -96,9 +101,9 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
           <SiteGlyph kind={site.kind} awake={site.awake} size={72} />
         </span>
         <div>
-          <div className="wm-stagecard-kicker">{site.kind === 'great_fire' ? 'The centre of the world' : 'Fire site'}</div>
-          <div className="wm-stagecard-name">{siteBonusText(site)}</div>
-          <div className="wm-stagecard-al">{stateText(site, wakesAt, now)}</div>
+          <div className="wm-stagecard-kicker">{utility ? SITE_KIND_NAME[site.kind] : site.kind === 'great_fire' ? 'The centre of the world' : 'Fire site'}</div>
+          <div className="wm-stagecard-name">{utility ? kindLine : siteBonusText(site)}</div>
+          {!utility && <div className="wm-stagecard-al">{stateText(site, wakesAt, now)}</div>}
         </div>
       </div>
 

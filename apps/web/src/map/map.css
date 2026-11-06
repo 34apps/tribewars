@@ -322,6 +322,12 @@
 
 .wm-legend-body {
   padding: 0 16px 14px;
+  /* Taller than the map on a 900 px high screen: scroll inside the key so the last rows (Tribe sites, Route) can be reached. */
+  max-height: max(220px, calc(100dvh - 340px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #6b5846 transparent;
 }
 
 .wm-legend h3 {
@@ -353,6 +359,14 @@
   width: 44px;
   height: 48px;
   overflow: hidden;
+}
+
+.wm-thumb .wm-glyph-fit {
+  /* Waymark and Lookout drawings are taller than the thumb window: show the whole sprite instead of cropping its base. */
+  display: block;
+  width: 46px;
+  height: auto;
+  margin: -1px 0 0 -1px;
 }
 
 .wm-thumb img {

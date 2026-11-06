@@ -21,8 +21,8 @@ export function flatShipmentTravelMs(from: Coords, to: Coords, s: WorldSettings)
 }
 
 /** Travel time in ms with terrain (carrier row of TERRAIN_SPEED, docs/GAME_DESIGN.md 18.4a); equals the flat time over grass. */
-export function shipmentTravelMs(from: Coords, to: Coords, s: WorldSettings): number {
-  return routeTimeMs(travelRoute(from, to, s.seed, terrainAmountOf(s)), 'carrier', SHIPMENT_SPEED, moveSpeed(s));
+export function shipmentTravelMs(from: Coords, to: Coords, s: WorldSettings, waymarks: readonly Coords[] = []): number {
+  return routeTimeMs(travelRoute(from, to, s.seed, terrainAmountOf(s), waymarks), 'carrier', SHIPMENT_SPEED, moveSpeed(s));
 }
 
 /** Strict parse: an object with only known resource ids, each a non-negative whole number. */

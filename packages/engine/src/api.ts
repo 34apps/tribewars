@@ -1460,8 +1460,10 @@ export interface SiteHolderDto {
 }
 
 export interface SiteDto {
-  /** Stable id: 1 = Great Fire, 2-9 Fire Shrines. */
+  /** Stable id: 1 = Great Fire, 2-9 Fire Shrines, 10-21 the Waymarks and Lookouts (alternating, Waymark first). */
   id: number;
+  /** Display name: "Great Fire", "Fire Shrine 1".."8", "Waymark 1".."6", "Lookout 1".."6" (numbered in id order within the kind). */
+  name: string;
   kind: SiteKind;
   x: number;
   y: number;
@@ -1502,6 +1504,31 @@ export interface SitesResponse {
   wakesAt: number;
   /** The Renown bonus (0.1 = +10%, capped) the signed-in player's tribe gets from all sites it holds; 0 without a tribe. */
   myBonus: number;
+}
+
+// ---- Lookout sightings (docs/GAME_DESIGN.md 18.4b) -----------------------------------------------------------------
+
+export type SightingSize = 'small' | 'medium' | 'large';
+
+/** GET /api/tribe/sightings -> 200 LookoutSightingsResponse (signed in). Empty with lookouts 0 when not in a tribe. */
+export interface LookoutSightingDto {
+  movementId: number;
+  lookoutId: number;
+  lookoutName: string;
+  mission: 'attack' | 'support';
+  from: VillageRefDto;
+  fromTribeTag: string | null;
+  to: { x: number; y: number; name: string; kind: 'village' | 'site' };
+  departAt: number;
+  arriveAt: number;
+  size: SightingSize;
+}
+
+export interface LookoutSightingsResponse {
+  /** Enemy attack / support marches in flight whose line passes near a Lookout the viewer's tribe holds, soonest arrival first (at most LOOKOUT_LIST_LIMIT). */
+  sightings: LookoutSightingDto[];
+  /** How many Lookouts the viewer's tribe holds now. */
+  lookouts: number;
 }
 
 // ---- live updates (WebSocket GET /api/live) -----------------------------------------------------------------------

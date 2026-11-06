@@ -1390,6 +1390,30 @@ export class Store extends SqlBase {
     ).map((r) => toMovementView(r, this.siteNameAt));
   }
 
+  /**
+   * Attack and support marches still on the road at `t` whose straight line could pass within `radius` of one of the `points`
+   * (a cheap bounding-box prefilter: the segment's box grown by the radius must contain the point; the caller checks exactly).
+   * Soonest arrival first, at most `limit`. Returns, shipments and every other kind are never listed.
+   */
+  marchesNear(points: ReadonlyArray<{ x: number; y: number }>, radius: number, t: number, limit: number): MovementView[] {
+    if (points.length === 0) return [];
+    const tx = 'COALESCE(m.target_x, t.x)';
+    const ty = 'COALESCE(m.target_y, t.y)';
+    const box = points.map(() => `(MIN(o.x, ${tx}) - ? <= ? AND MAX(o.x, ${tx}) + ? >= ? AND MIN(o.y, ${ty}) - ? <= ? AND MAX(o.y, ${ty}) + ? >= ?)`).join(' OR ');
+    const args: number[] = [];
+    for (const p of points) args.push(radius, p.x, radius, p.x, radius, p.y, radius, p.y);
+    return this.all(
+      `${MOVEMENT_VIEW_SQL}
+       WHERE m.kind IN ('attack', 'support') AND m.arrive_at > ? AND m.depart_at <= ? AND (${box})
+       ORDER BY m.arrive_at, m.id
+       LIMIT ?`,
+      t,
+      t,
+      ...args,
+      limit,
+    ).map((r) => toMovementView(r, this.siteNameAt));
+  }
+
   // ---- stationed support -------------------------------------------------------------------------------
 
   getStationed(id: number): StationedRow | null {
