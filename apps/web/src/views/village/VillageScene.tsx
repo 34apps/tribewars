@@ -27,7 +27,7 @@ import {
 import type { Box, Stage, WallLook } from '../../art/buildings.ts';
 import { villageTier } from '../../art/landscape.tsx';
 import { LandscapeLayer, type LandscapeChoice } from '../../art/landscapes.tsx';
-import { Ground, SceneryDefs, sceneryItems, wallItems } from '../../art/scenery.tsx';
+import { Ground, SceneryDefs, fireItem, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import { formatDuration } from '../../format.ts';
@@ -106,6 +106,7 @@ export const SceneArt = memo(function SceneArt({
   wide,
   landscape,
   selected,
+  hearthOut,
   onBox,
   onPick,
 }: {
@@ -118,11 +119,13 @@ export const SceneArt = memo(function SceneArt({
   /** Which landscape to draw (design preview picks; everyone else gets 'tiles'). */
   landscape: LandscapeChoice;
   selected: BuildingId | null;
+  /** The village's hearth is out: the square's campfire is cold ash (no flames, no smoke). */
+  hearthOut: boolean;
   onBox: (id: BuildingId, box: Box) => void;
   /** Click on a building's drawing (pixel-accurate; the overlay labels are the keyboard targets). */
   onPick: (id: BuildingId) => void;
 }) {
-  const items: DepthItem[] = [...sceneryItems()];
+  const items: DepthItem[] = [...sceneryItems(), fireItem(hearthOut)];
   const wall = arts.wall;
   if (wall.stage > 0) {
     for (const it of wallItems(wall.stage as Exclude<WallLook, 0>)) {
@@ -272,7 +275,7 @@ export function VillageScene({
    */
   levelOverride?: { building: BuildingId | null; level: number; landscape: LandscapeChoice } | null;
 }) {
-  const { live, now } = useGame();
+  const { live, now, village } = useGame();
   const ov = levelOverride ?? null;
   const levels = !ov
     ? live.buildings
@@ -440,7 +443,7 @@ export function VillageScene({
       onPointerCancel={onPointerUp}
     >
       <div className="vv-stage" style={stageStyle}>
-        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} onBox={onBox} onPick={pick} />
+        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} hearthOut={!!village.hearth} onBox={onBox} onPick={pick} />
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);

@@ -517,6 +517,50 @@ export function sceneryItems(): DepthItem[] {
   return propItems;
 }
 
+// ---- Town square campfire ---------------------------------------------------------------------------------------
+// The living fire in front of the Town Hall: hand-drawn flames that flicker and smoke puffs that rise (CSS only, see
+// village.css .vv-fire-*; still when the visitor prefers reduced motion). A village whose hearth is out gets cold ash
+// instead: no flames, no smoke. Decoration only: pointer-events are off, so it never blocks a building.
+
+const FIRE_AT = iso(HALL.u + 34, HALL.v + 34);
+const STONE_GREY = '#A39E94';
+
+/** The campfire as a depth item (drawn in front of the Town Hall). `cold`: the hearth is out. */
+export function fireItem(cold: boolean): DepthItem {
+  const [x, y] = FIRE_AT;
+  return {
+    key: 'fire',
+    depth: y,
+    node: (
+      <g className="vv-life vv-fire" transform={`translate(${f(x)} ${f(y)}) scale(0.5) translate(-35 -58)`} pointerEvents="none">
+        <ellipse cx={35} cy={58} rx={30} ry={9} fill={INK} opacity={0.35} />
+        <g stroke={INK} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
+          <ellipse cx={14} cy={52} rx={7} ry={5} fill={STONE_GREY} />
+          <ellipse cx={56} cy={52} rx={7} ry={5} fill={STONE_GREY} />
+          <ellipse cx={25} cy={58} rx={7} ry={5} fill={STONE_GREY} />
+          <ellipse cx={45} cy={58} rx={7} ry={5} fill={STONE_GREY} />
+          <path d="M16 54 L52 44" strokeWidth={9} />
+          <path d="M16 54 L52 44" strokeWidth={4} stroke={cold ? '#6E5638' : '#B98F56'} />
+          <path d="M54 54 L18 44" strokeWidth={9} />
+          <path d="M54 54 L18 44" strokeWidth={4} stroke={cold ? '#5A4128' : '#8A6030'} />
+        </g>
+        {cold ? (
+          <path d="M22 47 C24 42 46 42 48 47 C46 51 24 51 22 47Z" fill="#6B645C" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
+        ) : (
+          <>
+            <path className="vv-flame" d="M35 8 C44 20 52 28 50 40 C48 50 22 50 20 40 C18 30 28 24 35 8Z" fill="#C4623A" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
+            <path className="vv-flame is-b" d="M35 20 C41 28 45 33 43 41 C41 47 29 47 27 41 C26 35 31 31 35 20Z" fill="#F2B33D" />
+            <path className="vv-flame" d="M35 32 C38 36 40 39 38 43 C36 46 33 46 32 43 C31 40 33 37 35 32Z" fill="#FFDC7A" />
+            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
+            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
+            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
+          </>
+        )}
+      </g>
+    ),
+  };
+}
+
 // ---- Ring wall ------------------------------------------------------------------------------------------------
 // Drawn in code (not a sprite) because it wraps the whole village, split into pieces for the painter's sort.
 // Stage 4 (wall levels 18+): the stage-3 wall made grand: gold tile caps, buttresses, taller gold-ringed towers, a crest on the gate.
