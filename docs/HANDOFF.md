@@ -1,21 +1,22 @@
 # Handoff — Clanfire
 
-Written 2026-11-06 (HEAD `5731174`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-07 (HEAD after `3416e75`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-06, finish-the-web-game session)
+## Last run (2026-11-07, step 7 session)
 
-Plan (NEXT_STEPS top entry, owner-approved order): 1 Command post, 2 soldier figures + unit info card, 3 troop groups,
-4 battle simulator, 6 map finishes DONE; 5 foraging CUT by the owner. Owner changes on the way: no separate Scout mission
-(Pathfinders in an attack scout first, `aa0fed3`); compact map send panel, his pick "A" (`09ddc5b`, mockups in
-`design/proposals/send-panel/`). Screenshots: headless Chrome scripts in the old session scratchpad are gone; re-create a
-CDP script (fixed 1440×900 and 360×900 viewport, `?demo` preview) when needed.
+Plan (NEXT_STEPS top entry, owner-approved order): steps 1-4, 6 and now **7 Waymarks + Lookouts DONE** (`3416e75`);
+5 foraging CUT. Owner said yes to the 3-line explanation and picked "A": Lookout sightings as a Tribe-tab list AND red
+arrows on the map. Screenshots in `design/proposals/waymark-lookout/`. Screenshot tooling: a headless Chrome CDP script
+drives `apps/preview/dist/index.html?demo` and seeds state through the page's `clanfirePreview.ctx` handle (scripts lived
+in the session scratchpad, now gone; re-create when needed).
 
 ## Very next step
 
-Plan step 7: Waymarks + Lookouts (GAME_DESIGN ~1188-1260, designed, not built). Explain to the owner in 3 plain lines and
-get a yes before building. Then 8 tribe projects, 9 Hall of Fame, 10 morale (design first), 11 homepage + quests,
-12 safety pass, 13 desktop check of every screen, 14 phone pass.
+Plan step 8: **Tribe projects** (`GAME_DESIGN` 18.5 "Tribe projects funded by shipments", not built). Explain to the owner
+in 3 plain lines and get a yes before building. Then 9 Hall of Fame + badges, 10 morale (design first), 11 homepage +
+quests, 12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
+Note: `GAME_DESIGN` 18.2-18.6 is duplicated (~857-1399 and ~1400-1935); edit both copies or merge them first.
 
 ## How the owner works (important)
 
