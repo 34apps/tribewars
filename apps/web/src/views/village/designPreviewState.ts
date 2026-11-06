@@ -37,12 +37,13 @@ export const LANDSCAPE_CHOICES: readonly { id: LandscapeChoice; label: string }[
 
 /** `look` (All buildings only): every building shows the first level of that look; null = every building at `level`. */
 export type PreviewLook = 1 | 2 | 3 | 4 | null;
-let state: { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook } = {
+let state: { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook; work: boolean } = {
   on: readOn(),
   level: 1,
   building: null,
   landscape: 'tiles',
   look: null,
+  work: false,
 };
 const listeners = new Set<() => void>();
 
@@ -93,13 +94,23 @@ export function setPreviewBuilding(building: PreviewBuilding): void {
   emit();
 }
 
+/**
+ * Building work on/off (not remembered): every previewed building shows its scaffold and builders, as during an upgrade.
+ * Switching on plays the start moment (scaffold rises), off the finish (scaffold fades). Owner 2026-11-06.
+ */
+export function setPreviewWork(work: boolean): void {
+  if (work === state.work) return;
+  state = { ...state, work };
+  emit();
+}
+
 export function setPreviewLandscape(landscape: LandscapeChoice): void {
   if (landscape === state.landscape) return;
   state = { ...state, landscape };
   emit();
 }
 
-export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook } {
+export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook; work: boolean } {
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);

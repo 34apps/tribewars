@@ -3,7 +3,7 @@
 // panel; phones get a bigger scene that pans with a finger (pointer events, bounded).
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, Dispatch, PointerEvent as ReactPointerEvent, ReactElement, SetStateAction } from 'react';
 import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import {
@@ -32,6 +32,7 @@ import { LandscapeLayer, type LandscapeChoice } from '../../art/landscapes.tsx';
 import { Ground, SceneryDefs, fireItem, sceneryItems, wallItems } from '../../art/scenery.tsx';
 import type { DepthItem } from '../../art/scenery.tsx';
 import { Icon } from '../../art/Icon.tsx';
+import { Workers } from '../../art/workers.tsx';
 import { formatDuration } from '../../format.ts';
 import { unmetRequirements } from '../../rules.ts';
 import { useGame } from '../../game.ts';
@@ -46,6 +47,8 @@ interface ArtState {
   stage: WallLook;
   /** Has a job in the build queue. */
   queued: boolean;
+  /** Its job is running now (not just waiting in the queue): builders are at work. */
+  active: boolean;
   /** Not built and its requirements are not met yet: drawn as a faded plot with a lock. */
   locked: boolean;
 }
@@ -103,11 +106,16 @@ function SceneSprite({
 /** Length of the "new look" build moment (ms); keep in step with the 1.6s animations in village.css. */
 const MOMENT_MS = 1600;
 
+/** Length of the scaffold rising when work starts / fading when it ends without a new look (ms); see village.css. */
+const START_MS = 700;
+const END_MS = 900;
+
 /**
  * Dust puff and gold sparkles for the build moment. Offsets are in scene units around the ground point (gx, gy);
- * the keyframes in village.css move and fade them. Decoration only: no pointer events.
+ * the keyframes in village.css move and fade them. Decoration only: no pointer events. `sparks` off: dust only
+ * (start and finish of work, owner 2026-11-06).
  */
-function MomentFx({ gx, gy, roof }: { gx: number; gy: number; roof: number }) {
+function MomentFx({ gx, gy, roof, sparks: withSparks = true }: { gx: number; gy: number; roof: number; sparks?: boolean }) {
   const puffs = [
     { dx: -30, dy: -2, r: 10, to: [-26, -16] },
     { dx: -10, dy: 3, r: 13, to: [-8, -24] },
@@ -133,7 +141,7 @@ function MomentFx({ gx, gy, roof }: { gx: number; gy: number; roof: number }) {
           fill={i % 2 ? '#F7F1E3' : '#E8D3A4'}
         />
       ))}
-      {sparks.map((p, i) => (
+      {(withSparks ? sparks : []).map((p, i) => (
         <circle
           key={`s${i}`}
           className="vv-moment-spark"
@@ -149,8 +157,8 @@ function MomentFx({ gx, gy, roof }: { gx: number; gy: number; roof: number }) {
 }
 
 /** The SVG layer. Memoised: it only changes when a building's look, the queue or the selection changes. */
-/** Looks last shown per village (memoryKey) during this page visit; see the build moment in SceneArt. */
-const SEEN_LOOKS = new Map<string, Partial<Record<BuildingId, number>>>();
+/** Look and queued flag last shown per village (memoryKey) during this page visit; see the build moments in SceneArt. */
+const SEEN_LOOKS = new Map<string, Partial<Record<BuildingId, { s: number; q: boolean }>>>();
 
 export const SceneArt = memo(function SceneArt({
   arts,
@@ -186,43 +194,63 @@ export const SceneArt = memo(function SceneArt({
   // The looks last shown are remembered per village for this page visit (SEEN_LOOKS), so an upgrade that finished while the
   // player was on another screen plays its moment on the way back; after a page load nothing is remembered, so opening the
   // game never animates everything.
-  const prevStage = useRef<Partial<Record<BuildingId, number>> | null>(null);
+  // Start and finish of work (owner 2026-11-06: "users can't tell when an upgrade finishes"): when a building becomes queued the
+  // scaffold rises from the ground with a dust puff (starts); when it stops being queued without a new look, the scaffold fades
+  // with a dust puff (ends; a new look gets the look moment above instead). Same per-village memory, so a page load never animates.
+  const prevStage = useRef<Partial<Record<BuildingId, { s: number; q: boolean }>> | null>(null);
   const prevKey = useRef<string | null>(null);
   const [moments, setMoments] = useState<Partial<Record<BuildingId, number>>>({});
-  const timers = useRef<Partial<Record<BuildingId, ReturnType<typeof setTimeout>>>>({});
+  const [starts, setStarts] = useState<Partial<Record<BuildingId, number>>>({});
+  const [ends, setEnds] = useState<Partial<Record<BuildingId, number>>>({});
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useLayoutEffect(() => {
     const prev = prevKey.current === memoryKey ? prevStage.current : (SEEN_LOOKS.get(memoryKey) ?? null);
     prevKey.current = memoryKey;
-    prevStage.current = Object.fromEntries(BUILDING_IDS.map((id) => [id, arts[id].stage]));
+    prevStage.current = Object.fromEntries(BUILDING_IDS.map((id) => [id, { s: arts[id].stage, q: arts[id].queued }]));
     SEEN_LOOKS.set(memoryKey, prevStage.current);
     if (!prev) return;
-    const started: BuildingId[] = [];
+    const looks: BuildingId[] = [];
+    const began: BuildingId[] = [];
+    const ended: BuildingId[] = [];
     for (const id of BUILDING_IDS) {
-      const was = prev[id] ?? 0;
-      const now = arts[id].stage;
-      if (id !== 'wall' && now > 0 && was !== now) started.push(id);
+      const was = prev[id] ?? { s: 0, q: false };
+      const now = arts[id];
+      const lookChanged = id !== 'wall' && now.stage > 0 && was.s !== now.stage;
+      if (lookChanged) looks.push(id);
+      if (!was.q && now.queued) began.push(id);
+      else if (was.q && !now.queued && !lookChanged) ended.push(id);
     }
-    if (started.length === 0) return;
-    setMoments((m) => {
-      const next = { ...m };
-      for (const id of started) next[id] = (m[id] ?? 0) + 1;
-      return next;
-    });
-    for (const id of started) {
-      clearTimeout(timers.current[id]);
-      timers.current[id] = setTimeout(() => {
-        setMoments((m) => {
-          const next = { ...m };
-          delete next[id];
-          return next;
-        });
-      }, MOMENT_MS);
-    }
+    const play = (
+      ids: BuildingId[],
+      kind: string,
+      set: Dispatch<SetStateAction<Partial<Record<BuildingId, number>>>>,
+      ms: number,
+    ) => {
+      if (ids.length === 0) return;
+      set((m) => {
+        const next = { ...m };
+        for (const id of ids) next[id] = (m[id] ?? 0) + 1;
+        return next;
+      });
+      for (const id of ids) {
+        clearTimeout(timers.current[kind + id]);
+        timers.current[kind + id] = setTimeout(() => {
+          set((m) => {
+            const next = { ...m };
+            delete next[id];
+            return next;
+          });
+        }, ms);
+      }
+    };
+    play(looks, 'm', setMoments, MOMENT_MS);
+    play(began, 's', setStarts, START_MS);
+    play(ended, 'e', setEnds, END_MS);
   }, [arts, memoryKey]);
   useEffect(() => {
     const t = timers.current;
     return () => {
-      for (const id of Object.keys(t) as BuildingId[]) clearTimeout(t[id]);
+      for (const k of Object.keys(t)) clearTimeout(t[k]);
     };
   }, []);
   const items: DepthItem[] = [...sceneryItems(), fireItem(hearthOut)];
@@ -242,9 +270,10 @@ export const SceneArt = memo(function SceneArt({
   for (const id of BUILDING_IDS) {
     const art = arts[id];
     // The wall itself is drawn above; its sprite slot only shows building work (and nothing while unbuilt).
-    if (id === 'wall' && !art.queued) continue;
+    const ending = ends[id];
+    if (id === 'wall' && !art.queued && !ending) continue;
     // Unbuilt buildings show nothing at all (no empty plot): they are started from the Town Hall list.
-    if (art.stage === 0 && !art.queued) continue;
+    if (art.stage === 0 && !art.queued && !ending) continue;
     let url = spriteUrl(id, art.stage as Stage);
     if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
@@ -252,7 +281,22 @@ export const SceneArt = memo(function SceneArt({
     const { x: px, y: py, scale: ps } = PLACEMENT[id];
     const gx = px;
     const gy = py + 26 * ps;
-    const sprite = <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />;
+    const start = starts[id];
+    // The scaffold (or the under-construction sprite / the wall's slot) rises from the ground when work starts.
+    const rise = (el: ReactElement) =>
+      start ? (
+        <g key={`r${start}`} className="vv-start-rise" style={{ transformOrigin: `${gx}px ${gy}px` }}>
+          {el}
+        </g>
+      ) : (
+        el
+      );
+    // Finished without a new look: the scaffold stays a moment longer and fades. An unbuilt one that stopped fades the site.
+    const fade = !art.queued && ending && !moment ? (art.stage === 0 ? UNDER_CONSTRUCTION_URL : SCAFFOLD_URL) : null;
+    const sprite =
+      fade && (id === 'wall' || art.stage === 0) ? null : id === 'wall' || art.stage === 0 ? rise(<SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />) : (
+        <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={onBox} />
+      );
     const node = (
       <g
         className={`vv-b${art.locked ? ' is-locked' : ''}${selected === id && id !== 'wall' ? ' is-selected' : ''}`}
@@ -276,7 +320,14 @@ export const SceneArt = memo(function SceneArt({
           </g>
         )}
         {moment && <MomentFx key={`mf${moment}`} gx={gx} gy={gy} roof={py - 100 * ps} />}
-        {art.queued && art.stage > 0 && id !== 'wall' && !moment && <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />}
+        {art.queued && art.stage > 0 && id !== 'wall' && !moment && rise(<SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />)}
+        {fade && (
+          <g key={`e${ending}`} className="vv-end-scaffold" pointerEvents="none">
+            <SceneSprite url={fade} id={id} prefix={`se-${id}-`} />
+          </g>
+        )}
+        {(start || ending) && !moment && <MomentFx key={`f${start ?? ''}${ending ?? ''}`} gx={gx} gy={gy} roof={py - 100 * ps} sparks={false} />}
+        {art.active && <Workers id={id} />}
       </g>
     );
     items.push({ key: `b-${id}`, depth: placementDepth(id), node });
@@ -416,9 +467,16 @@ export function VillageScene({
   /**
    * Design preview. building = null ("All buildings"): every building at min(level, its max), or at the first level of
    * `look` when one is picked (no queue work). building = an id: that building alone at min(level, its max); the others keep
-   * their real levels and work.
+   * their real levels and work. `work` (owner 2026-11-06): every building the preview shows (all of them, or the picked one)
+   * counts as queued and running, so it shows its scaffold and builders; switching it on or off plays the start / finish.
    */
-  levelOverride?: { building: BuildingId | null; level: number; landscape: LandscapeChoice; look?: 1 | 2 | 3 | 4 | null } | null;
+  levelOverride?: {
+    building: BuildingId | null;
+    level: number;
+    landscape: LandscapeChoice;
+    look?: 1 | 2 | 3 | 4 | null;
+    work?: boolean;
+  } | null;
 }) {
   const { live, now, village } = useGame();
   const ov = levelOverride ?? null;
@@ -447,9 +505,13 @@ export function VillageScene({
 
   // No scaffolding on the building being previewed; other buildings keep their real queue work in single-building mode.
   const queue = !ov ? live.buildQueue : ov.building ? live.buildQueue.filter((j) => j.building !== ov.building) : [];
+  // 'q' = has a job, 'a' = a job is running now (builders at work); the preview's "Building work" switch fakes both.
+  const faked = (id: BuildingId) => !!ov?.work && (!ov.building || ov.building === id);
   const artKey = BUILDING_IDS.map(
     (id) =>
-      `${id === 'wall' ? wallLook(levels[id]) : buildingStage(id, levels[id])}${queue.some((j) => j.building === id) ? 'q' : ''}${
+      `${id === 'wall' ? wallLook(levels[id]) : buildingStage(id, levels[id])}${faked(id) || queue.some((j) => j.building === id) ? 'q' : ''}${
+        faked(id) || queue.some((j) => j.building === id && now >= j.startAt) ? 'a' : ''
+      }${
         levels[id] === 0 && unmetRequirements(levels, BUILDINGS[id].requires).length > 0 ? 'l' : ''
       }`,
   ).join(',');
@@ -458,7 +520,7 @@ export function VillageScene({
     const parts = artKey.split(',');
     BUILDING_IDS.forEach((id, i) => {
       const p = parts[i] ?? '0';
-      out[id] = { stage: Number(p[0]) as WallLook, queued: p.includes('q'), locked: p.includes('l') };
+      out[id] = { stage: Number(p[0]) as WallLook, queued: p.includes('q'), active: p.includes('a'), locked: p.includes('l') };
     });
     return out;
   }, [artKey]);

@@ -1933,3 +1933,190 @@ th[scope='row'] {
     }
   }
 }
+
+/* Start and finish of building work (owner 2026-11-06: players could not tell when an upgrade began or ended). Start: the
+   scaffold rises from the ground with a dust puff (0.7s, START_MS). Finish without a new look: the scaffold fades out with a
+   dust puff (0.9s, END_MS). */
+.vv-start-rise {
+  transform-box: view-box;
+  animation: vv-start-rise 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+
+@keyframes vv-start-rise {
+  0% {
+    transform: scaleY(0);
+  }
+  65% {
+    transform: scaleY(1.07);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.vv-end-scaffold {
+  animation: vv-end-scaffold 0.9s linear both;
+}
+
+@keyframes vv-end-scaffold {
+  0%,
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Builders: the arm swings a hammer round the shoulder; every strike pops a dust puff and two sparks at the plank. The
+   delays are set per worker so they do not hit in step. */
+.vv-wk-arm {
+  transform-origin: 0 0;
+  animation: vv-wk-swing var(--wd, 0.65s) ease-in-out infinite;
+}
+
+@keyframes vv-wk-swing {
+  0% {
+    transform: rotate(-75deg);
+  }
+  55% {
+    transform: rotate(-75deg);
+    animation-timing-function: ease-in;
+  }
+  68% {
+    transform: rotate(24deg);
+  }
+  80% {
+    transform: rotate(14deg);
+  }
+  100% {
+    transform: rotate(-75deg);
+  }
+}
+
+.vv-wk-puff,
+.vv-wk-spark {
+  stroke: #2b211c;
+  stroke-opacity: 0.35;
+  stroke-width: 0.8;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vv-wk-puff var(--wd, 0.65s) ease-out infinite;
+}
+
+.vv-wk-spark {
+  animation-name: vv-wk-spark;
+}
+
+.vv-wk-spark-b {
+  animation-name: vv-wk-spark-b;
+}
+
+@keyframes vv-wk-puff {
+  0%,
+  66% {
+    opacity: 0;
+    transform: translate(0, 1px) scale(0.4);
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(1px, -5px) scale(1.5);
+  }
+}
+
+@keyframes vv-wk-spark {
+  0%,
+  66% {
+    opacity: 0;
+    transform: translate(0, 2px) scale(0.5);
+  }
+  71% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(3px, -6px) scale(0.5);
+  }
+}
+
+@keyframes vv-wk-spark-b {
+  0%,
+  66% {
+    opacity: 0;
+    transform: translate(0, 2px) scale(0.5);
+  }
+  71% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-3px, -7px) scale(0.5);
+  }
+}
+
+/* The plank carrier walks to the front corner and back, turning at each end. */
+.vv-wk-walk {
+  animation: vv-wk-walk 7s linear infinite;
+}
+
+.vv-wk-turn {
+  animation: vv-wk-turn 7s step-end infinite;
+}
+
+@keyframes vv-wk-walk {
+  0% {
+    transform: translate(0, 0);
+    animation-timing-function: ease-in-out;
+  }
+  47% {
+    transform: translate(var(--wx), var(--wy));
+  }
+  53% {
+    transform: translate(var(--wx), var(--wy));
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes vv-wk-turn {
+  0% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vv-start-rise,
+  .vv-end-scaffold {
+    animation: none;
+  }
+
+  .vv-end-scaffold {
+    display: none;
+  }
+
+  /* Workers stand still and stay visible: arm held mid-swing, no puffs, the carrier stays put. */
+  .vv-wk-arm {
+    animation: none;
+    transform: rotate(-20deg);
+  }
+
+  .vv-wk-fx,
+  .vv-wk-puff,
+  .vv-wk-spark {
+    display: none;
+  }
+
+  .vv-wk-walk,
+  .vv-wk-turn {
+    animation: none;
+  }
+}

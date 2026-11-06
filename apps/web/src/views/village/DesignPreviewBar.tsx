@@ -14,6 +14,7 @@ import {
   setPreviewLandscape,
   setPreviewLevel,
   setPreviewLook,
+  setPreviewWork,
   useDesignPreview,
   type LandscapeChoice,
   type PreviewBuilding,
@@ -64,7 +65,7 @@ function changeLevels(id: BuildingId): number[] {
 }
 
 export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
-  const { level, building, landscape, look: allLook } = useDesignPreview();
+  const { level, building, landscape, look: allLook, work } = useDesignPreview();
   const [playing, setPlaying] = useState(false);
   const { max } = previewRange(building);
   const subject: BuildingId = building ?? 'wall';
@@ -152,6 +153,17 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
           }}
         >
           {playing ? 'Pause' : 'Play'}
+        </button>
+      </div>
+      <div style={{ ...row, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`btn btn-small${work ? ' btn-primary' : ''}`}
+          style={btn}
+          aria-pressed={work}
+          onClick={() => setPreviewWork(!work)}
+        >
+          Building work: {work ? 'on' : 'off'}
         </button>
       </div>
       {(!building || (building !== 'wall' && changes && changes.length > 0)) && (

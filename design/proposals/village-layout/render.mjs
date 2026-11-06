@@ -34,7 +34,7 @@ const lvl = (id, look) => {
   return look === 1 ? 1 : look === 2 ? a + 1 : look === 3 ? c + 1 : max;
 };
 for (const look of looks) {
-  const arts = Object.fromEntries(ids.map((id) => [id, { stage: look, queued: false, locked: false }]));
+  const arts = Object.fromEntries(ids.map((id) => [id, { stage: look, queued: !!process.env.WORK, active: !!process.env.WORK, locked: false }]));
   const vb = b.SCENE_VIEWBOX;
   const svg = renderToStaticMarkup(
     React.createElement(vs.SceneArt, { arts, vb, tier: 3, wide: true, landscape: 'tiles', selected: process.env.SEL ?? null, hearthOut: false, onBox: () => {}, onPick: () => {} }),
