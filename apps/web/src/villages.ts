@@ -462,3 +462,22 @@ export function villageReportText(d: VillageReportData, now: number): VillageRep
       return { title: `Hearth relit at ${name}`, lines: [`The claim on ${name} ${at} ended and the hearth burns again.`] };
   }
 }
+
+// ---- Map side panel helpers ------------------------------------------------------------------------------
+
+/** The troop picker of the map panel lists only units that are at home (count > 0); a siege row at 0 is not offered there. */
+export function homeUnits(visible: readonly UnitId[], home: Partial<Units>): UnitId[] {
+  return visible.filter((u) => (home[u] ?? 0) > 0);
+}
+
+/** "Send resources" (header button of the map panel): another player's or abandoned village, or another village of mine. */
+export function canShipTo(village: Pick<MapVillageDto, 'kind'> | undefined, isOwn: boolean, isCurrent: boolean): boolean {
+  if (!village) return false;
+  if (village.kind === 'own') return !isCurrent;
+  return !isOwn && (village.kind === 'player' || village.kind === 'abandoned');
+}
+
+/** What the send form holds after "Clear": no counts, random siege target, no note. */
+export function clearedSendForm(): { counts: Partial<Record<UnitId, string>>; siegePick: string; groupNote: null } {
+  return { counts: {}, siegePick: '', groupNote: null };
+}

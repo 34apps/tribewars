@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
-import { Icon } from '../art/Icon.tsx';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
@@ -11,7 +10,7 @@ import { useTroopGroups } from '../hooks/useTroopGroups.ts';
 import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
-import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
+import { MISSION_NAME } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { Segmented } from '../tribe/bits.tsx';
 import {
@@ -34,7 +33,10 @@ import {
   strikeNeed,
   strikeWarning,
   abandonedStrength,
+  canShipTo,
   chainText,
+  clearedSendForm,
+  homeUnits,
   UNIT_COLUMN_NAME,
   unitColumns,
 } from '../villages.ts';
@@ -171,6 +173,15 @@ export function SendForm({
     setGroupNote(Object.keys(fill.counts).length === 0 ? 'None of that group is at home for this mission.' : shortNote(fill.short));
   }
 
+  /** "Clear": every count back to zero. */
+  function clearForm() {
+    const c = clearedSendForm();
+    setError(null);
+    setCounts(c.counts);
+    setSiegePick(c.siegePick);
+    setGroupNote(c.groupNote);
+  }
+
   /** Everything at home (a Found send takes just the one Chieftain). */
   function fillAll(u: UnitId) {
     setCount(u, String(mission === 'found' && u === 'chieftain' ? Math.min(1, live.troops[u]) : live.troops[u]));
@@ -213,16 +224,30 @@ export function SendForm({
 
   const title = mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : mode === 'relieve' ? RELIEF_LABEL : missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`;
   const reliefTarget = isReliefTarget(target, { playerId: player.id, currentVillageId: village.id });
+  const compact = layout === 'panel';
+  // The map panel lists only the units that are at home (the Command post keeps its columns).
+  const listed = compact ? homeUnits(visible, live.troops) : visible;
+  const hint = (
+    <>
+      {mode === 'strike' ? strikeHint(target?.kind ?? null, settings) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
+      {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
+    </>
+  );
+  const strikeOffer = offerStrike ? (
+    <>
+      Add {strikeNeeds === 1 ? 'a Chieftain' : `${strikeNeeds} Chieftains`} and an escort to try a Strike: it tries to put the hearth of {targetName} out.
+    </>
+  ) : null;
 
   return (
     <form
-      className="wm-send"
+      className={compact ? 'wm-send wm-send-panel' : 'wm-send'}
       onSubmit={(e) => {
         e.preventDefault();
         void send();
       }}
     >
-      <h3 className="wm-send-title">{title}</h3>
+      {(!compact || missions.length < 2) && <h3 className="wm-send-title">{title}</h3>}
       {missions.length > 1 && (
         <Segmented
           label="Mission"
@@ -236,16 +261,13 @@ export function SendForm({
           }}
         />
       )}
-      <p className="wm-muted">
-        {mode === 'strike' ? strikeHint(target?.kind ?? null, settings) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
-        {mode === 'found' && chieftainHome ? ' The Renown for him is already paid (reserved when he was trained).' : ''}
-      </p>
-      {offerStrike && (
-        <p className="wm-muted">
-          Add {strikeNeeds === 1 ? 'a Chieftain' : `${strikeNeeds} Chieftains`} and an escort to try a Strike: it tries to put the hearth of {targetName} out.
-        </p>
+      {!compact && (
+        <>
+          <p className="wm-muted">{hint}</p>
+          {strikeOffer && <p className="wm-muted">{strikeOffer}</p>}
+        </>
       )}
-      {visible.length === 0 ? (
+      {listed.length === 0 ? (
         <p className="wm-muted">
           {mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
           <button type="button" className="wm-link" onClick={() => navigate('army')}>
@@ -262,6 +284,7 @@ export function SendForm({
             chosen={partial}
             total={total}
             onApply={applyGroup}
+            onClear={compact ? clearForm : undefined}
           />
         )}
         {groupNote && (
@@ -302,35 +325,44 @@ export function SendForm({
             ))}
           </div>
         ) : (
-        <ul className="wm-units">
-          {visible.map((u) => (
-            <li key={u}>
-              <label htmlFor={`send-${u}`}>
-                <Icon name={UNIT_ICON[u]} size={18} className="inline-icon" /> {UNITS[u].name}
-                <span className="wm-muted"> / {formatInt(live.troops[u])}</span>
-              </label>
-              <input
-                id={`send-${u}`}
-                className="wm-input"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={live.troops[u]}
-                step={1}
-                placeholder="0"
-                value={counts[u] ?? ''}
-                onChange={(e) => setCount(u, e.target.value)}
-              />
-              <button type="button" className="wm-btn wm-btn-small" onClick={() => setCount(u, String(mission === 'found' && u === 'chieftain' ? Math.min(1, live.troops[u]) : live.troops[u]))}>
-                {mission === 'found' && u === 'chieftain' ? '1' : 'All'}
-              </button>
-            </li>
-          ))}
+        <ul className="wm-ugrid">
+          {listed.map((u) => {
+            const n = chosen[u];
+            return (
+              <li key={u} className={n > 0 ? 'wm-ucard has' : 'wm-ucard'}>
+                <UnitFigure unit={u} pose="icon" size={34} className="wm-uico" />
+                <label className="wm-uname" htmlFor={`send-${u}`}>
+                  {UNITS[u].name}
+                </label>
+                <button type="button" className="wm-link wm-uhave" onClick={() => fillAll(u)} aria-label={`Fill all ${formatInt(live.troops[u])} ${UNITS[u].name}`}>
+                  {formatInt(live.troops[u])} at home
+                </button>
+                <input
+                  id={`send-${u}`}
+                  className="wm-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={live.troops[u]}
+                  step={1}
+                  placeholder="0"
+                  value={counts[u] ?? ''}
+                  onChange={(e) => setCount(u, e.target.value)}
+                />
+              </li>
+            );
+          })}
         </ul>
         )}
         </>
       )}
-      {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />}
+      {showsSiegePicker(mission, chosen, rules.features.siege) && <SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />}
+      {compact && (
+        <p className="wm-muted wm-send-hint">
+          {hint}
+          {strikeOffer && <> {strikeOffer}</>}
+        </p>
+      )}
       {mission === 'attack' && total > 0 && (
         <p className="wm-muted">
           <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial))}>
@@ -339,58 +371,56 @@ export function SendForm({
         </p>
       )}
 
-      {total > 0 && Number.isFinite(travel) && (
-        <dl className="wm-facts wm-facts-send">
-          <div>
-            <dt>Travel time</dt>
-            <dd>{formatDuration(travel)}</dd>
-          </div>
-          {preview && slowdown && (
-            <div className="wm-terrain-time">
-              <dt>Without terrain</dt>
-              <dd>
-                {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span>
-                <small className="wm-muted"> {slowGroundText(preview.route)}</small>
-              </dd>
-            </div>
+      {compact ? (
+        <>
+          {total > 0 && preview && slowdown && (
+            <p className="wm-muted wm-sum-slow">
+              Without terrain {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span> {slowGroundText(preview.route)}
+            </p>
           )}
-          <div>
-            <dt>Arrives</dt>
-            <dd>{formatClock(now + travel, now)}</dd>
-          </div>
-          {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
+        </>
+      ) : (
+        total > 0 &&
+        Number.isFinite(travel) && (
+          <dl className="wm-facts wm-facts-send">
             <div>
-              <dt>Can carry</dt>
-              <dd>{formatInt(carry)}</dd>
+              <dt>Travel time</dt>
+              <dd>{formatDuration(travel)}</dd>
             </div>
-          )}
-          {mode === 'found' && (
+            {preview && slowdown && (
+              <div className="wm-terrain-time">
+                <dt>Without terrain</dt>
+                <dd>
+                  {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span>
+                  <small className="wm-muted"> {slowGroundText(preview.route)}</small>
+                </dd>
+              </div>
+            )}
             <div>
-              <dt>Price</dt>
-              <dd>
-                {chosen.chieftain > 0 ? 'Renown already paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}
-              </dd>
+              <dt>Arrives</dt>
+              <dd>{formatClock(now + travel, now)}</dd>
             </div>
-          )}
-        </dl>
+            {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
+              <div>
+                <dt>Can carry</dt>
+                <dd>{formatInt(carry)}</dd>
+              </div>
+            )}
+            {mode === 'found' && (
+              <div>
+                <dt>Price</dt>
+                <dd>{chosen.chieftain > 0 ? 'Renown already paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}</dd>
+              </div>
+            )}
+          </dl>
+        )
       )}
       {player.sandbox && (
-        <div className="wm-muted">
-          <strong>Test mode:</strong> own travel time in seconds (blank = normal)
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <input
-              className="wm-input"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={86400}
-              step={1}
-              placeholder="Way out (s)"
-              aria-label="Test mode: seconds on the way out"
-              value={outSecs}
-              onChange={(e) => setOutSecs(e.target.value)}
-            />
-            {fights && (
+        <details className="wm-test wm-muted">
+          <summary>Test mode</summary>
+          <div className="wm-test-body">
+            Own travel time in seconds (blank = normal)
+            <div className="wm-test-row">
               <input
                 className="wm-input"
                 type="number"
@@ -398,14 +428,28 @@ export function SendForm({
                 min={0}
                 max={86400}
                 step={1}
-                placeholder="Way home (s)"
-                aria-label="Test mode: seconds on the way home"
-                value={backSecs}
-                onChange={(e) => setBackSecs(e.target.value)}
+                placeholder="Way out (s)"
+                aria-label="Test mode: seconds on the way out"
+                value={outSecs}
+                onChange={(e) => setOutSecs(e.target.value)}
               />
-            )}
+              {fights && (
+                <input
+                  className="wm-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={86400}
+                  step={1}
+                  placeholder="Way home (s)"
+                  aria-label="Test mode: seconds on the way home"
+                  value={backSecs}
+                  onChange={(e) => setBackSecs(e.target.value)}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        </details>
       )}
       {breaksProtection && !targetProtected && (
         <p className="wm-note">{scouting ? 'Scouting' : 'Attacking'} another player ends your beginner protection.</p>
@@ -416,13 +460,39 @@ export function SendForm({
           {error}
         </p>
       )}
-      <button className="wm-btn wm-btn-sun wm-btn-big" type="submit" disabled={!!reason || busy}>
-        <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 4l11 11M20 4 9 15M6 18l-2 2M18 18l2 2M13 17l4 4M11 17l-4 4" />
-        </svg>
-        {busy ? 'Sending…' : SEND_MODE_BUTTON[mode]}
-      </button>
-      {reason && <div className="wm-why">{reason}</div>}
+      <div className={compact ? 'wm-send-foot' : undefined}>
+        {compact && (
+          <dl className="wm-sum">
+            <div>
+              <dt>Travel</dt>
+              <dd>{total > 0 && Number.isFinite(travel) ? formatDuration(travel) : '–'}</dd>
+            </div>
+            <div>
+              <dt>Arrives</dt>
+              <dd>{total > 0 && Number.isFinite(travel) ? formatClock(now + travel, now) : '–'}</dd>
+            </div>
+            {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
+              <div>
+                <dt>Can carry</dt>
+                <dd>{total > 0 ? formatInt(carry) : '–'}</dd>
+              </div>
+            )}
+            {mode === 'found' && (
+              <div>
+                <dt>Price</dt>
+                <dd>{chosen.chieftain > 0 ? 'Paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+        <button className="wm-btn wm-btn-sun wm-btn-big" type="submit" disabled={!!reason || busy}>
+          <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4l11 11M20 4 9 15M6 18l-2 2M18 18l2 2M13 17l4 4M11 17l-4 4" />
+          </svg>
+          {busy ? 'Sending…' : SEND_MODE_BUTTON[mode]}
+        </button>
+        {reason && <div className="wm-why">{reason}</div>}
+      </div>
     </form>
   );
 }
@@ -440,7 +510,10 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const style = al ? ALLEGIANCE_STYLE[al] : null;
   const owner = isOwn ? player.username : village ? (village.ownerName ?? null) : null;
   // Resources can also go to another village of mine (the server allows it).
-  const canShip = village?.kind === 'own' && !isCurrent;
+  const shipKey = `${mine.id}|${tile.x}|${tile.y}`;
+  const [shipOpenFor, setShipOpenFor] = useState<string | null>(null);
+  const shipOpen = shipOpenFor === shipKey;
+  const canShip = canShipTo(village, isOwn, isCurrent);
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
   const missions: Mission[] = village ? missionsFor(village, { playerId: player.id, currentVillageId: mine.id }) : free ? ['found'] : [];
@@ -486,6 +559,17 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
             )}
           </div>
         </div>
+        {village && canShip && (
+          <button
+            type="button"
+            className="wm-btn wm-btn-sun wm-ship-btn"
+            aria-label="Send resources"
+            aria-expanded={shipOpen}
+            onClick={() => setShipOpenFor(shipOpen ? null : shipKey)}
+          >
+            Send res.
+          </button>
+        )}
         <button type="button" className="wm-btn wm-btn-icon wm-close" onClick={onClose} aria-label="Close panel">
           <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
         </button>
@@ -571,9 +655,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           {isCurrent ? 'Open my village' : 'Switch to this village'}
         </button>
       )}
-      {village && (canShip || (!isOwn && (village.kind === 'player' || village.kind === 'abandoned'))) && (
-        <ShipmentForm key={`ship-${mine.id}-${tile.x}|${tile.y}`} tile={tile} target={village} />
-      )}
+      {village && canShip && shipOpen && <ShipmentForm key={`ship-${shipKey}`} tile={tile} target={village} />}
       {village && !isOwn && attackBlocked && relation && (
         <p className="wm-note" role="note">
           {ATTACK_BLOCKED_TEXT[relation] ?? 'Attacks on this village are blocked.'}

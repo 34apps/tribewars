@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>B2 send sheet</title><link rel="stylesheet" href="common.css">
+<style>
+.dim{position:absolute;inset:0;background:rgba(30,20,14,.62)}
+.sheet{position:absolute;left:170px;top:70px;width:1100px;background:var(--bone);border:3px solid var(--ink);border-radius:18px;box-shadow:0 10px 0 rgba(0,0,0,.35);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px}
+.sh{display:flex;align-items:center;gap:14px}
+.sh h1{margin:0;font:400 1.6rem/1.1 var(--disp);flex:1}
+.sh h1 span{font:500 .95rem var(--text);color:var(--soft);margin-left:8px}
+.cols{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.col{display:flex;flex-direction:column;gap:8px}
+.col h3{margin:0;font:400 1rem/1 var(--disp);border-bottom:2px dotted var(--ink);padding-bottom:6px}
+.col .unit{grid-template-columns:48px 1fr;padding:8px}.col .unit img{width:48px;height:48px}
+.ghost{opacity:.55}
+.foot{display:flex;align-items:center;gap:20px;border-top:2px dashed rgba(43,33,28,.4);padding-top:12px}
+.foot .sum{border:0;padding:0;gap:28px;flex:1;justify-content:flex-start}
+.foot .btn.big{min-width:300px}
+</style></head><body><div class="dim"></div>
+<div class="sheet">
+ <div class="sh"><h1>Attack: Abandoned village <span>−15|−15, 4.0 fields</span></h1>
+  <div class="seg" style="width:300px"><button class="on">Attack</button><button>Support</button><button>Scout</button></div><button class="x">✕</button></div>
+ <div class="chips"><span class="chip">All troops</span><span class="chip">Decoy</span><span class="chip">Save as group</span><span class="chip">Clear</span><span class="chip">Raiders only</span></div>
+ <div class="cols">
+<div class=col><h3>Foot</h3>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/pikeman.svg'><div class=n>Pikeman</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/guard.svg'><div class=n>Shieldbearer</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+<div class='unit has'><img src='../../../apps/web/src/art/units/icon/raider.svg'><div class=n>Raider</div><button class=h>304 at home</button><div class=row><input class=num value='120'></div></div>
+</div>
+<div class=col><h3>Riders</h3>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/outrider.svg'><div class=n>Outrider</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/knight.svg'><div class=n>Knight</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/pathfinder.svg'><div class=n>Pathfinder</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+</div>
+<div class=col><h3>Siege</h3>
+<div class='unit'><img src='../../../apps/web/src/art/units/icon/logram.svg'><div class=n>Log Ram</div><button class=h>304 at home</button><div class=row><input class=num value='0'></div></div>
+<div class='unit has'><img src='../../../apps/web/src/art/units/icon/boulder.svg'><div class=n>Boulder Sling</div><button class=h>304 at home</button><div class=row><input class=num value='40'></div></div>
+</div>
+<div class=col><h3>Special</h3>
+<div class='unit ghost'><img src='../../../apps/web/src/art/units/icon/chieftain.svg'><div class=n>Chieftain</div><button class=h>0 at home</button><div class=row><input class=num value='0'></div></div>
+</div>
+ </div>
+ <div class="foot"><div class="sum"><div><span>Travel</span><b>2m 24s</b></div><div><span>Arrives</span><b>10:17:24 PM</b></div><div><span>Can carry</span><b>7,200</b></div><div><span>Boulder Slings hit</span><b>Random building</b></div></div>
+ <button class="btn big sun">⚔ Send attack</button></div>
+</div></body></html>

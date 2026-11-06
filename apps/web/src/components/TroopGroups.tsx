@@ -22,6 +22,7 @@ export function TroopGroupBar({
   chosen,
   total,
   onApply,
+  onClear,
 }: {
   builtins: BuiltinGroup[];
   store: TroopGroupsStore;
@@ -29,6 +30,8 @@ export function TroopGroupBar({
   chosen: Partial<Units>;
   total: number;
   onApply: (units: Partial<Units>) => void;
+  /** Adds a "Clear" chip that zeroes the form (the send form passes it; other users of the bar may not). */
+  onClear?: () => void;
 }) {
   const { groups } = store;
   const [saving, setSaving] = useState(false);
@@ -77,32 +80,28 @@ export function TroopGroupBar({
 
   return (
     <div className="wm-groups">
-      {(builtins.length > 0 || groups.length > 0) && (
-        <div className="wm-groups-row" role="group" aria-label="Troop groups">
-          {builtins.map((g) => (
-            <button key={g.id} type="button" className="wm-chip" title={g.hint} onClick={() => onApply(g.units)}>
-              {g.label}
-            </button>
-          ))}
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className="wm-chip wm-chip-saved"
-              title={groupSummary(g.units)}
-              aria-label={`${g.name}: ${groupSummary(g.units)}`}
-              onClick={() => onApply(g.units)}
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="wm-groups-tools">
+      <div className="wm-groups-row" role="group" aria-label="Troop groups">
+        {builtins.map((g) => (
+          <button key={g.id} type="button" className="wm-chip" title={g.hint} onClick={() => onApply(g.units)}>
+            {g.label}
+          </button>
+        ))}
+        {groups.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className="wm-chip wm-chip-saved"
+            title={groupSummary(g.units)}
+            aria-label={`${g.name}: ${groupSummary(g.units)}`}
+            onClick={() => onApply(g.units)}
+          >
+            {g.name}
+          </button>
+        ))}
         {!saving && (
           <button
             type="button"
-            className="wm-btn wm-btn-small"
+            className="wm-chip wm-chip-tool"
             disabled={total < 1 || full}
             title={full ? `You can save up to ${TROOP_GROUP_MAX} groups. Delete one first.` : undefined}
             onClick={() => {
@@ -114,12 +113,17 @@ export function TroopGroupBar({
           </button>
         )}
         {groups.length > 0 && (
-          <button type="button" className="wm-btn wm-btn-small" aria-expanded={managing} onClick={() => setManaging((m) => !m)}>
+          <button type="button" className="wm-chip wm-chip-tool" aria-expanded={managing} onClick={() => setManaging((m) => !m)}>
             {managing ? 'Done' : 'Manage'}
           </button>
         )}
-        {full && !saving && <span className="wm-muted">{TROOP_GROUP_MAX} of {TROOP_GROUP_MAX} saved</span>}
+        {onClear && (
+          <button type="button" className="wm-chip wm-chip-tool" onClick={onClear}>
+            Clear
+          </button>
+        )}
       </div>
+      {full && !saving && <span className="wm-muted">{TROOP_GROUP_MAX} of {TROOP_GROUP_MAX} saved</span>}
       {saving && (
         <div className="wm-groups-edit">
           <label className="wm-groups-label" htmlFor="troop-group-name">

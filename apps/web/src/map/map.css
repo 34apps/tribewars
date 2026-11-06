@@ -434,21 +434,28 @@
   right: 0;
   bottom: 0;
   z-index: 6;
-  display: grid;
-  align-content: start;
-  gap: 12px;
+  /* Flex column (not grid) so the send form can fill the rest of the panel and pin its Send button to the bottom. */
+  --wm-panel-pad-x: 14px;
+  --wm-panel-pad-b: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   max-height: 64%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 8px var(--wm-panel-pad-x) var(--wm-panel-pad-b);
   border-top: 3px solid var(--wm-ink);
   border-radius: 24px 24px 0 0;
   background: var(--wm-bone);
   box-shadow: 0 -6px 0 rgba(43, 33, 28, 0.25), 0 -12px 28px rgba(18, 12, 9, 0.35);
 }
 
+.wm-panel > * {
+  flex: none;
+}
+
 .wm-panel-grip {
-  justify-self: center;
+  align-self: center;
   width: 48px;
   height: 5px;
   border-radius: 3px;
@@ -457,9 +464,9 @@
 
 .wm-panel-head {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 12px 12px 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
   border-radius: 18px;
   background: var(--wm-ink);
   color: var(--wm-paper);
@@ -475,8 +482,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 2px 0 6px;
-  font: 400 1.4rem/1.1 var(--wm-display);
+  margin: 0 0 3px;
+  font: 400 1.15rem/1.1 var(--wm-display);
   overflow-wrap: anywhere;
 }
 
@@ -490,13 +497,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  font-size: 0.95rem;
+  gap: 4px 8px;
+  font-size: 0.85rem;
 }
 
 .wm-badge {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   flex: none;
   border-radius: 50%;
 }
@@ -544,32 +551,55 @@
 }
 
 .wm-close {
+  flex: none;
   width: 44px;
   height: 44px;
   box-shadow: 0 3px 0 #120c09;
 }
 
+/* "Send res." in the header: small and secondary; the ::after widens the tap area to 44 px. */
+.wm-ship-btn {
+  position: relative;
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 #120c09;
+}
+
+.wm-ship-btn::after {
+  content: '';
+  position: absolute;
+  inset: -4px -2px;
+}
+
+.wm-ship-btn[aria-expanded='true'] {
+  background: var(--wm-sun-hi);
+}
+
 .wm-stagecard {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 44px 1fr;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px 8px 8px;
+  gap: 10px;
+  padding: 5px 12px 5px 8px;
   border: 2.5px solid var(--wm-ink);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--wm-paper);
-  box-shadow: 0 4px 0 var(--wm-ink);
+  box-shadow: 0 3px 0 var(--wm-ink);
 }
 
 .wm-stagecard .wm-thumb {
-  width: 64px;
-  height: 72px;
+  width: 44px;
+  height: 48px;
 }
 
 .wm-stagecard .wm-thumb img {
-  width: 72px;
-  height: 88px;
-  margin: -10px 0 0 -4px;
+  width: 52px;
+  height: 64px;
+  margin: -8px 0 0 -4px;
 }
 
 .wm-stagecard-kicker {
@@ -581,8 +611,8 @@
 }
 
 .wm-stagecard-name {
-  margin: 2px 0 4px;
-  font: 400 1.05rem/1.15 var(--wm-display);
+  margin: 1px 0 2px;
+  font: 400 0.98rem/1.15 var(--wm-display);
 }
 
 .wm-stagecard-al {
@@ -590,7 +620,7 @@
   align-items: center;
   gap: 6px;
   color: var(--wm-soft);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 500;
 }
 
@@ -607,17 +637,18 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  padding: 6px 0;
+  padding: 3px 0;
   border-bottom: 2px dotted rgba(43, 33, 28, 0.25);
 }
 
 .wm-facts dt {
   color: var(--wm-soft);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .wm-facts dd {
   margin: 0;
+  font-size: 0.88rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -675,6 +706,175 @@
   font: 400 1.1rem/1.1 var(--wm-display);
 }
 
+/* The map panel's send form: no divider, fills the rest of the panel; the Send button is pinned at the bottom.
+   Which element scrolls: desktop (>= 768 px) the whole .wm region (the panel is overflow: visible); phone the panel itself
+   (bottom sheet, max-height 64%). position: sticky sticks to whichever is the nearest scroller. */
+.wm-send-panel {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 0;
+  border-top: 0;
+  /* Pull the form's end over the panel padding so the pinned bar sits flush with the panel's edge. */
+  margin-bottom: calc(-1 * var(--wm-panel-pad-b));
+}
+
+.wm-send-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: auto calc(-1 * var(--wm-panel-pad-x)) 0;
+  padding: 8px var(--wm-panel-pad-x) var(--wm-panel-pad-b);
+  border-top: 3px solid var(--wm-ink);
+  background: var(--wm-bone);
+}
+
+.wm-send-foot .wm-btn-big {
+  min-height: 50px;
+}
+
+.wm-send-foot .wm-why {
+  margin-top: 4px;
+  font-size: 0.76rem;
+}
+
+.wm-send-hint {
+  font-size: 0.78rem;
+}
+
+/* Units at home: two columns of cards (icon, name, "N at home" link, count field). */
+.wm-ugrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wm-ucard {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 1px 7px;
+  min-width: 0;
+  padding: 4px 7px 6px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 12px;
+  background: var(--wm-paper);
+}
+
+.wm-ucard.has {
+  background: #fff0c8;
+}
+
+.wm-ucard .wm-uico {
+  grid-row: 1 / 3;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--wm-ink);
+  border-radius: 50%;
+  background: var(--wm-bone);
+  object-fit: contain;
+}
+
+.wm-uname {
+  align-self: end;
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 0.82rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wm-uhave {
+  position: relative;
+  align-self: start;
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  color: #a0572f;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: underline dotted;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wm-uhave::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.wm-ucard .wm-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  margin-top: 4px;
+  background: #fff;
+}
+
+/* One-line summary under the units: Travel, Arrives, Can carry. */
+.wm-sum {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 2px dashed rgba(43, 33, 28, 0.4);
+  font-size: 0.78rem;
+}
+
+.wm-sum dt {
+  color: var(--wm-soft);
+}
+
+.wm-sum dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wm-sum > div:last-child:not(:first-child) {
+  text-align: right;
+}
+
+.wm-sum-slow {
+  font-size: 0.76rem;
+}
+
+/* Test mode (sandbox worlds): collapsed, so it adds one line only. */
+.wm-test summary {
+  min-height: 28px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.wm-test-body {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.wm-test-row {
+  display: flex;
+  gap: 8px;
+}
+
+.wm-test-row .wm-input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
 /* Troop groups: chips above the troop picker (built-ins, then saved), a small tools row, inline name field, manage list. */
 .wm-groups {
   /* Own copy of the map tokens so the chips also look right outside the map (Command post, simulator). */
@@ -687,28 +887,41 @@
   --wm-soft: #5a4a3c;
   --wm-text: var(--font-text, 'Rubik'), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .wm-groups-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px 6px;
 }
 
 .wm-chip {
-  min-height: 40px;
+  position: relative;
+  min-height: 36px;
   max-width: 100%;
-  padding: 0 12px;
+  padding: 0 11px;
   border: 2.5px solid var(--wm-ink);
   border-radius: 999px;
   background: var(--wm-paper);
   color: var(--wm-ink);
-  font: 700 0.88rem var(--wm-text);
+  font: 700 0.78rem var(--wm-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* Looks 36 px tall, taps like 44 px. */
+.wm-chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px -1px;
+}
+
+.wm-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .wm-chip:hover {
@@ -726,6 +939,10 @@
 
 .wm-chip-saved {
   background: var(--wm-bone);
+}
+
+.wm-chip-tool {
+  border-style: dashed;
 }
 
 .wm-groups-tools,
@@ -817,7 +1034,7 @@
 /* Boulder Sling target: a labelled full-width select (44 px tall, like the unit fields) and a one-line hint. */
 .wm-siege {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .wm-siege label {
@@ -827,6 +1044,7 @@
 
 .wm-siege p {
   margin: 0;
+  font-size: 0.78rem;
 }
 
 .wm-select {
@@ -838,7 +1056,7 @@
   border-radius: 12px;
   background: var(--wm-paper);
   color: var(--wm-ink);
-  font: 600 1rem var(--wm-text);
+  font: 600 0.95rem var(--wm-text);
 }
 
 .wm-select:focus-visible {
@@ -928,7 +1146,8 @@
     width: 380px;
     max-height: none;
     overflow: visible;
-    padding: 16px;
+    --wm-panel-pad-b: 12px;
+    padding: 12px var(--wm-panel-pad-x) var(--wm-panel-pad-b);
     border-top: 0;
     border-left: 3px solid var(--wm-ink);
     border-radius: 0;
@@ -1048,4 +1267,10 @@
 
 .wm-contingent-units {
   color: var(--wm-soft);
+}
+
+/* In the pinned foot bar the summary sits right above the Send button (always visible). */
+.wm-send-foot .wm-sum {
+  padding: 0 0 6px;
+  border-top: 0;
 }

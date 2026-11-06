@@ -14,7 +14,6 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   const [amounts, setAmounts] = useState<Partial<Record<ResourceId, string>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
 
   const capacity = shipmentCapacity(live.buildings.market);
   const cargo: Partial<Resources> = {};
@@ -64,15 +63,6 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
 
   if (live.buildings.market < 1) {
     return <p className="wm-why">Build a Market first to send resources.</p>;
-  }
-
-  // Collapsed by default so the button sits right under the facts, not below a long troop list on phones.
-  if (!open) {
-    return (
-      <button type="button" className="wm-btn wm-btn-big" onClick={() => setOpen(true)}>
-        Send resources
-      </button>
-    );
   }
 
   return (
