@@ -3,19 +3,17 @@
 Written 2026-11-06 (HEAD `9a47a21`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-06)
+## Last run (2026-11-06, village layout session)
 
-- **Village campfire** (`5e36b82`): animated fire + smoke puffs in front of the Town Hall (`scenery.tsx` `fireItem`), cold ash when the hearth is out (not viewed).
-- **4 looks per building** (`38b6ad6`): `Stage` 0..4 in `apps/web/src/art/buildings.ts`; look 4 = max level only; missing `-4.svg` falls back to `-3`; wall grand look at level 20 only (`WALL_GRAND_FROM` removed).
-- **All 13 buildings redrawn** (`4e0d484`) as escalating sets (owner approved the style on Town Hall + Iron Mine first). Banner Hall has real art now. Compare page: `design/proposals/building-stages/compare.html` (serve the repo root over http, e.g. `python3 -m http.server`, file:// breaks relative paths); image `building-looks-compare.png` (headless Chrome render).
-- **Preview tool**: PREVIEW pill → "Show all buildings" Stage 1–4 (`apps/preview/src/showcase*.ts`), preview-only. Preview has its first test (`apps/preview/test`).
-- **Design proposals (not in the app)**: homepage mockup `design/proposals/homepage/index.html` — owner: "homepage later".
-- Checks: engine 501, lobby 87, preview 1, server 508, web 119 green; build + build:preview pass.
+- **Bigger village ring** (`1671bad`): plate 234 -> 273, the ORIGINAL arrangement kept (owner rejected resource sites outside the wall and a 4-gate plan: "too small, too empty"), no two drawings touch at any look (painted-shape masks: `node scripts/measure-sprites.mjs` -> `apps/web/test/sprite-boxes.json`; re-run after ANY building SVG change or the layout test fails). Earth ramp at the main gate. Wall code now in `apps/web/src/art/wall.tsx` (`GATES` can add gates on any wall).
+- **Selection**: ink + gold outline (SVG filter `#vv-sel`; CSS drop-shadow does not show in Safari) + glowing ring on the lot; marker arrow removed.
+- **Build animations**: pressing Upgrade raises the scaffold; toy builders (`apps/web/src/art/workers.tsx`, unit-figure style, owner: "much better") hammer while the job runs; finish = look-change moment or scaffold fade. Remembered per village (plays on return, never on page load).
+- **Test tools**: preview PREVIEW menu → "Try look animations" opens the design-preview bar for anyone (All buildings / one building, Look 1–4, Replay, "Building work" switch). Headless scene renders: `node design/proposals/village-layout/render.mjs <prefix> 2 4` (env `SEL=<id>`, `WORK=1`), serve the repo root over http.
+- Checks: all green (web 127+ incl. 13 layout tests); build + build:preview pass.
 
 ## Very next step
 
-Owner looks at the new buildings (preview → Stage 1–4) and lists touch-ups (NEXT_STEPS top item). Then either
-homepage (build from the mockup) or the earlier open items (balance, World rules page check).
+Owner looks at the builders/animations in Safari and on a phone (not viewed there). Open items in NEXT_STEPS top entry: design-preview landscapes Current/A/B/C not refitted to plate 273; stage-4 `ROOF_TOP`. Then homepage or the earlier open items (balance, World rules page).
 
 ## How the owner works (important)
 
