@@ -59,6 +59,9 @@ import type {
   FeastResponse,
   TribeListResponse,
   TribeRole,
+  TroopGroupRequest,
+  TroopGroupResponse,
+  TroopGroupsResponse,
   TribeSettingsRequest,
   Units,
 } from '@clanfire/engine';
@@ -283,6 +286,11 @@ export const api = {
   /** Mark the given notifications read, or all of them when `ids` is left out. */
   markNotificationsRead: (ids?: number[]) =>
     request<NotificationsResponse>('POST', '/api/notifications/read', (ids ? { ids } : {}) satisfies NotificationsReadRequest),
+  /** Saved troop groups (a send-form convenience): mine only, oldest first. */
+  troopGroups: () => request<TroopGroupsResponse>('GET', '/api/troop-groups'),
+  createTroopGroup: (body: TroopGroupRequest) => request<TroopGroupResponse>('POST', '/api/troop-groups', body),
+  updateTroopGroup: (id: number, body: TroopGroupRequest) => request<TroopGroupResponse>('POST', `/api/troop-groups/${id}`, body),
+  deleteTroopGroup: (id: number) => request<void>('POST', `/api/troop-groups/${id}/delete`, {}),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
   mailList: (box: MailBox, before?: number) =>

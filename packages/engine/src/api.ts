@@ -1527,6 +1527,30 @@ export interface NotificationsReadRequest {
   ids?: number[];
 }
 
+// ---- Troop groups (docs/GAME_DESIGN.md, army: a convenience for the send form, no rule change) ----------------------------
+// GET  /api/troop-groups              -> 200 TroopGroupsResponse (the caller's own groups, oldest first)
+// POST /api/troop-groups              body TroopGroupRequest -> 201 TroopGroupResponse (409 group_limit past TROOP_GROUP_MAX)
+// POST /api/troop-groups/:id          body TroopGroupRequest -> 200 TroopGroupResponse (update; someone else's id -> 404 not_found)
+// POST /api/troop-groups/:id/delete   body {} -> 204 (someone else's id -> 404 not_found)
+export interface TroopGroupDto {
+  id: number;
+  name: string;
+  units: Partial<Units>;
+}
+
+export interface TroopGroupRequest {
+  name: string;
+  units: Partial<Units>;
+}
+
+export interface TroopGroupsResponse {
+  groups: TroopGroupDto[];
+}
+
+export interface TroopGroupResponse {
+  group: TroopGroupDto;
+}
+
 /** Server -> client text frames (JSON). */
 export type LiveMessage = { type: 'hello' } | { type: 'hint'; topics: LiveTopic[] } | { type: 'pong' };
 

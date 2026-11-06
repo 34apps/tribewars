@@ -473,6 +473,16 @@ tables are rebuilt in place on start (ids kept) because their CHECK constraints 
 stationed units, report JSON) must go through `normalizeVillage` / `normalizeUnits`, which add missing
 unit keys as 0.
 
+**Troop groups (2026-11-06; a convenience, no rule change).** The send form (map tile panel and the Army tab's Command post) has a row of chips
+above the troop picker; one tap fills the counts with min(group, at home) for the units the mission takes, and says "Only 40 of 60 Raiders at home"
+when short. Built-in, computed from the troops at home (client only): **All troops**; **Decoy** (exactly one of the slowest fighting unit, siege
+first, never a Chieftain or Pathfinder; attack missions only); **Chieftain escort** (an attack on an abandoned or other player's village where a
+Strike is possible: the Chieftains the target needs, then the strongest fighters until the army's population reaches the hold minimum;
+`apps/web/src/troopGroups.ts`). **Saved groups** are per player and shared by all their villages: a name of 1 to 24 characters (trimmed, no control
+characters) and a partial unit map (known unit ids, whole counts 0 to 1,000,000, at least one above zero); at most 12 per player (`group_limit`).
+Validation is `checkTroopGroup` in the engine; routes `GET/POST /api/troop-groups`, `POST /api/troop-groups/:id` and `/delete`. A group never reserves
+troops and every send is still fully checked by the server.
+
 ## 13. Resource shipments
 
 A player can send wood, food, iron and gold from a village to any village: their own other

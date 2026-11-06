@@ -304,6 +304,8 @@ export type GameErrorCode =
   | 'tribe_full'
   | 'already_in_tribe'
   | 'not_in_tribe'
+  /** Saved troop groups: the player already has the maximum (HTTP 409). */
+  | 'group_limit'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */
   | 'advisor_unavailable'
   /** Lobby sign-in: the password was right but no longer meets the password rules; choose a new one (HTTP 403). */

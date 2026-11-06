@@ -585,6 +585,10 @@ export const RESOURCE_PRODUCER: Record<ResourceId, 'lumber' | 'farm' | 'mine' | 
 /** Largest count of one unit type accepted in a send order (input sanity bound). */
 export const MAX_UNIT_COUNT = 1_000_000;
 
+/** Saved troop groups (a convenience for the send form): at most this many per player, names up to this long. */
+export const TROOP_GROUP_MAX = 12;
+export const TROOP_GROUP_NAME_MAX = 24;
+
 /** Abandoned-village start level of building b at tier T: perTier * T + offset (min 0, max NPC_MAX_LEVEL). */
 export const NPC_START_LEVELS: Partial<Record<BuildingId, { perTier: number; offset: number }>> = {
   hall: { perTier: 1, offset: 0 },

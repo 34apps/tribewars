@@ -42,6 +42,7 @@ import {
 import { statColumn } from './db.ts';
 import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
+import { TroopGroupStore } from './troop-group-store.ts';
 import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
 import { NotificationStore } from './notification-store.ts';
@@ -504,6 +505,7 @@ export class Store extends SqlBase {
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
   readonly notifications: NotificationStore;
+  readonly troopGroups: TroopGroupStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
   readonly staff: StaffStore;
@@ -526,6 +528,7 @@ export class Store extends SqlBase {
     this.support = new SupportStore(db);
     this.msgReports = new ReportStore(db);
     this.notifications = new NotificationStore(db);
+    this.troopGroups = new TroopGroupStore(db);
     this.emit = (event) => this.queueLive(event);
     for (const s of [this.tribes, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
   }

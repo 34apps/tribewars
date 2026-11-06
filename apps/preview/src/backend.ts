@@ -21,6 +21,7 @@ import { notificationRoutes } from '../../server/src/routes/notifications.ts';
 import { rankingRoutes } from '../../server/src/routes/rankings.ts';
 import { dominationRoutes } from '../../server/src/routes/domination.ts';
 import { siteRoutes } from '../../server/src/routes/sites.ts';
+import { troopGroupRoutes } from '../../server/src/routes/troop-groups.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
 import { ReportService } from '../../server/src/report-service.ts';
@@ -147,6 +148,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   // The domination bar (Tribe, Ranks) and the map sites, as on the real server (owner 2026-11-06: the bar showed an error).
   dominationRoutes(fastifyLike, ctx);
   siteRoutes(fastifyLike, ctx);
+  troopGroupRoutes(fastifyLike, ctx);
 
   let sessionToken = token;
 

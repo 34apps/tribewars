@@ -170,6 +170,17 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, id);
 CREATE INDEX IF NOT EXISTS idx_notifications_movement ON notifications(movement_id);
 
+-- ---- Saved troop groups (docs/GAME_DESIGN.md, army): a named set of unit counts per player for the send form. units = JSON.
+-- At most TROOP_GROUP_MAX per player (checked in the service inside one transaction). Rows are only ever read/changed keyed on player_id.
+CREATE TABLE IF NOT EXISTS troop_groups (
+  id         INTEGER PRIMARY KEY,
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  units      TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_troop_groups_player ON troop_groups(player_id);
+
 -- ---- Chieftain chain (section 18.2, 2026-11-05): Chieftains that survived a won attack but were too few for the village.
 -- Counted at the next Strike of the same player on the same village while they are inside the window AND their return
 -- movement still exists. Old rows are pruned when new ones are written. (The old conquests table of the pair cap was removed
@@ -521,9 +532,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 11; // 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 12; // 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '4c1626b5c10dfb8d';
+export const SCHEMA_FINGERPRINT = '28a6e948a5e510d9';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

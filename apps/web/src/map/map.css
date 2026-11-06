@@ -674,6 +674,108 @@
   font: 400 1.1rem/1.1 var(--wm-display);
 }
 
+/* Troop groups: chips above the troop picker (built-ins, then saved), a small tools row, inline name field, manage list. */
+.wm-groups {
+  display: grid;
+  gap: 8px;
+}
+
+.wm-groups-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wm-chip {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 2.5px solid var(--wm-ink);
+  border-radius: 999px;
+  background: var(--wm-paper);
+  color: var(--wm-ink);
+  font: 700 0.88rem var(--wm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wm-chip:hover {
+  background: #fff;
+}
+
+.wm-chip:active {
+  background: var(--wm-sun-hi);
+}
+
+.wm-chip:focus-visible {
+  outline: 3px solid var(--wm-sky);
+  outline-offset: 2px;
+}
+
+.wm-chip-saved {
+  background: var(--wm-bone);
+}
+
+.wm-groups-tools,
+.wm-groups-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wm-groups .wm-btn-small {
+  min-height: 40px;
+}
+
+.wm-groups-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.wm-groups .wm-groups-name {
+  flex: 1 1 140px;
+  width: auto;
+  min-width: 0;
+  height: 40px;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.wm-groups-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wm-groups-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.wm-groups-item {
+  display: grid;
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wm-groups-note,
+.wm-groups-error {
+  margin: 0;
+}
+
+.wm-groups-error {
+  color: var(--danger, #8f2f17);
+  font-weight: 600;
+}
+
 .wm-units {
   display: grid;
   gap: 8px;

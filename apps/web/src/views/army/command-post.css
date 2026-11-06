@@ -327,3 +327,19 @@
     padding: 12px;
   }
 }
+
+/* Troop groups in the wide form: chips and tools sit in one band above the columns; the manage list runs in two columns. */
+.cp-sheet .wm-groups {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cp-sheet .wm-groups-row {
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .cp-sheet .wm-groups-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 22px;
+  }
+}

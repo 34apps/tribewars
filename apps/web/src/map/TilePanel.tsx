@@ -6,6 +6,9 @@ import { Icon } from '../art/Icon.tsx';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
+import { TroopGroupBar } from '../components/TroopGroups.tsx';
+import { useTroopGroups } from '../hooks/useTroopGroups.ts';
+import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { MISSION_NAME, UNIT_ICON } from '../icons.ts';
@@ -91,6 +94,9 @@ export function SendForm({
   const [backSecs, setBackSecs] = useState('');
   // Boulder Slings only: the building they hit ('' = random).
   const [siegePick, setSiegePick] = useState('');
+  // Troop groups: "Only 40 of 60 Raiders at home" after a tap that came up short.
+  const [groupNote, setGroupNote] = useState<string | null>(null);
+  const savedGroups = useTroopGroups();
 
   // The relation can change while the panel is open (a pact formed): fall back to an allowed mission.
   const mission: Mission = missions.includes(chosenMission) ? chosenMission : fallback;
@@ -144,12 +150,22 @@ export function SendForm({
 
   function setCount(u: UnitId, value: string) {
     setError(null);
+    setGroupNote(null);
     setCounts((c) => ({ ...c, [u]: value }));
     // The chosen building only means something while Boulder Slings are in the army: drop it when they are deselected.
     if (u === 'boulder') {
       const n = Number(value);
       if (!(Number.isInteger(n) && n > 0)) setSiegePick('');
     }
+  }
+
+  /** A troop group tapped: min(group, at home) for the units this mission takes; everything else is cleared. */
+  function applyGroup(units: Partial<Units>) {
+    const fill = fillFromGroup(units, visible, live.troops);
+    setError(null);
+    setCounts(fill.counts);
+    if (!fill.counts.boulder) setSiegePick('');
+    setGroupNote(Object.keys(fill.counts).length === 0 ? 'None of that group is at home for this mission.' : shortNote(fill.short));
   }
 
   /** Everything at home (a Found send takes just the one Chieftain). */
@@ -180,6 +196,7 @@ export function SendForm({
       applySend(res);
       setCounts({});
       setSiegePick('');
+      setGroupNote(null);
       toast(`${SEND_MODE_SENT[mode]} ${targetLabel ?? target?.name ?? formatCoords(tile.x, tile.y)}. Arrives in ${formatDuration(res.movement.arriveAt - now)}.`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
@@ -210,6 +227,7 @@ export function SendForm({
           options={missions.map((m) => ({ value: m, label: m === 'attack' && reliefTarget ? RELIEF_LABEL : MISSION_NAME[m] }))}
           onChange={(m) => {
             setError(null);
+            setGroupNote(null);
             setSiegePick('');
             setChosenMission(m);
           }}
@@ -233,7 +251,22 @@ export function SendForm({
           .
         </p>
       ) : (
-        layout === 'wide' ? (
+        <>
+        {mission !== 'found' && (
+          <TroopGroupBar
+            builtins={builtinGroups({ visible, home: live.troops, mission, relief, target, minPopulation: target?.hearth?.minPopulation })}
+            store={savedGroups}
+            chosen={partial}
+            total={total}
+            onApply={applyGroup}
+          />
+        )}
+        {groupNote && (
+          <p className="wm-muted wm-groups-note" role="status">
+            {groupNote}
+          </p>
+        )}
+        {layout === 'wide' ? (
           <div className="wm-units-wide">
             {unitColumns(visible).map((col) => (
               <section key={col.column} className="wm-ucol" aria-label={UNIT_COLUMN_NAME[col.column]}>
@@ -291,7 +324,8 @@ export function SendForm({
             </li>
           ))}
         </ul>
-        )
+        )}
+        </>
       )}
       {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} />}
 

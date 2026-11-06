@@ -33,6 +33,7 @@ export function statusFor(code: GameErrorCode): number {
     case 'tribe_full':
     case 'already_in_tribe':
     case 'not_in_tribe':
+    case 'group_limit':
       return 409;
     case 'advisor_unavailable':
       return 503;
