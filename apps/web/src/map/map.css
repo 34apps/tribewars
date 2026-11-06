@@ -676,6 +676,15 @@
 
 /* Troop groups: chips above the troop picker (built-ins, then saved), a small tools row, inline name field, manage list. */
 .wm-groups {
+  /* Own copy of the map tokens so the chips also look right outside the map (Command post, simulator). */
+  --wm-ink: var(--toy-ink, #2b211c);
+  --wm-bone: var(--toy-bone, #f1e1c2);
+  --wm-paper: #fff8e8;
+  --wm-sun: var(--toy-sunflower, #f2b33d);
+  --wm-sun-hi: #ffdc7a;
+  --wm-sky: var(--toy-sky, #2f9aa0);
+  --wm-soft: #5a4a3c;
+  --wm-text: var(--font-text, 'Rubik'), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   display: grid;
   gap: 8px;
 }

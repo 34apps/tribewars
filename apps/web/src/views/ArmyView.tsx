@@ -626,9 +626,15 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
 }
 
 export function ArmyView() {
+  const { openSimulator } = useGame();
   return (
     <div className="page">
-      <h1 className="page-title">Army</h1>
+      <div className="army-head">
+        <h1 className="page-title">Army</h1>
+        <button type="button" className="btn btn-small" onClick={() => openSimulator()}>
+          Battle simulator
+        </button>
+      </div>
       <div className="army-top">
         <TroopsTable />
         <Movements />

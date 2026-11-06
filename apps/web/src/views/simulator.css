@@ -1,0 +1,206 @@
+/* Battle simulator: two cards (your army | defender) and a result card with three luck columns. Phone first: one column, 44 px fields. */
+
+.sim-page {
+  max-width: 1240px;
+}
+
+.sim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sim-lead {
+  margin: 0 0 10px;
+}
+
+.sim-hero {
+  flex: none;
+}
+
+.sim-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 14px;
+  align-items: start;
+}
+
+.sim-card {
+  min-width: 0;
+}
+
+.sim-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.sim-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--c-cream);
+  font-weight: 600;
+}
+
+.sim-switch input {
+  width: 22px;
+  height: 22px;
+}
+
+.sim-units {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 12px;
+  margin-top: 10px;
+}
+
+.sim-unit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-cream);
+}
+
+.sim-unit label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sim-unit-name {
+  display: grid;
+  min-width: 0;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.sim-unit-name .muted {
+  font-weight: 400;
+}
+
+.sim-field {
+  display: grid;
+  gap: 4px;
+  color: var(--c-cream);
+  font-weight: 600;
+}
+
+.sim-wall {
+  width: 150px;
+}
+
+.sim-more {
+  margin-top: 12px;
+  color: var(--c-cream);
+}
+
+.sim-more summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sim-more .sim-field,
+.sim-more .sim-units {
+  margin-top: 8px;
+}
+
+.sim-siege-pick {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--c-cream);
+}
+
+.sim-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.sim-col {
+  min-width: 0;
+  padding: 12px;
+  border: 2px solid var(--c-ink-3, #4a3a30);
+  border-radius: 14px;
+  background: rgba(255, 248, 232, 0.05);
+  color: var(--c-cream);
+}
+
+.sim-col.is-win {
+  border-color: var(--c-moss, #5e8c3a);
+}
+
+.sim-col.is-loss {
+  border-color: var(--c-terra, #c4623a);
+}
+
+.sim-col-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.1rem;
+}
+
+.sim-luck {
+  color: var(--c-sun, #f2b33d);
+}
+
+.sim-winner {
+  margin: 2px 0 8px;
+  font-weight: 700;
+}
+
+.sim-facts {
+  margin-bottom: 8px;
+}
+
+.sim-side {
+  margin-top: 10px;
+}
+
+.sim-side-title {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+}
+
+.sim-table {
+  width: 100%;
+}
+
+.sim-siege {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.sim-note {
+  margin-top: 12px;
+}
+
+@media (min-width: 760px) {
+  .sim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-cols {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .sim-units {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

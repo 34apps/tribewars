@@ -14,19 +14,26 @@ import type {
   WorldSettings,
 } from '@clanfire/engine';
 import { worldRules } from '@clanfire/engine';
+import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
 export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu (not in the navigation bar). */
-export type MenuPage = 'support' | 'staff' | 'results' | 'rules';
+export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
-export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {
   to: string;
   subject: string;
+  /** Changes on every request so the same draft can be opened twice. */
+  nonce: number;
+}
+
+/** Battle simulator pre-filled from elsewhere (send form, report). */
+export interface SimDraft extends SimDraftData {
   /** Changes on every request so the same draft can be opened twice. */
   nonce: number;
 }
@@ -76,6 +83,10 @@ export interface GameApi {
   composeMail: (to: string, subject?: string) => void;
   /** Draft requested by composeMail; the Mail tab consumes it. */
   mailDraft: MailDraft | null;
+  /** Open the Battle simulator page, optionally pre-filled (the draft is applied once). */
+  openSimulator: (draft?: SimDraftData) => void;
+  /** Draft requested by openSimulator; the simulator page consumes it. */
+  simDraft: SimDraft | null;
   /** Open tribe invitations addressed to me. */
   tribeInvites: number;
   /** Incoming attacks on members of my tribe (me included). */

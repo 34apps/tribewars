@@ -234,7 +234,9 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
   const defenderUnits = normalizeUnits(defender.troops);
   const support = (input.support ?? []).map((c) => normalizeUnits(c));
   const rng = mulberry32(input.seed);
-  const luck = rng() * 2 * BATTLE_LUCK - BATTLE_LUCK;
+  // Always draw, so the later draws (random siege target) see the same rng position with or without `fixedLuck`.
+  const drawnLuck = rng() * 2 * BATTLE_LUCK - BATTLE_LUCK;
+  const luck = typeof input.fixedLuck === 'number' && Number.isFinite(input.fixedLuck) ? Math.max(-BATTLE_LUCK, Math.min(BATTLE_LUCK, input.fixedLuck)) : drawnLuck;
 
   let attackInfantry = 0;
   let attackCavalry = 0;

@@ -136,6 +136,16 @@ describe('resolveBattle', () => {
     }
   });
 
+  it('fixedLuck replaces the seeded luck only, and is clamped', () => {
+    const input = { attackerUnits: units({ raider: 50, outrider: 10, logram: 3 }), defender: defenderOf({ troops: { pikeman: 20 }, buildings: { wall: 2, barracks: 3 } }), seed: 7 };
+    const seeded = resolveBattle(input);
+    assert.deepEqual(resolveBattle({ ...input, fixedLuck: seeded.luck }), seeded);
+    assert.equal(resolveBattle({ ...input, fixedLuck: 5 }).luck, BATTLE_LUCK);
+    assert.equal(resolveBattle({ ...input, fixedLuck: -5 }).luck, -BATTLE_LUCK);
+    assert.equal(resolveBattle({ ...input, fixedLuck: 0 }).luck, 0);
+    assert.equal(resolveBattle({ ...input, fixedLuck: Number.NaN }).luck, seeded.luck);
+  });
+
   it('weighs defenders against the infantry/cavalry mix of the attack, plus wall', () => {
     const defender = defenderOf({ troops: { pikeman: 20, guard: 10 }, buildings: { wall: 2 } });
     const mixed = resolveBattle({ attackerUnits: units({ raider: 50, outrider: 10 }), defender, seed: 3 });

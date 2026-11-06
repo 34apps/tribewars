@@ -145,7 +145,7 @@ Deterministic for a given seed (`mulberry32`). **The server's seed is secret** (
 Before this, `hashSeed(movementId, arriveAt)` could be computed by the sender, who could then cancel and re-send until luck was good.
 Tests and the simulator pass their own seeds.
 
-1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`.
+1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`. The battle simulator in the web client uses the same battle rule (`resolveBattle`); there luck can be set from −10% to +10% (`BattleInput.fixedLuck`, clamped to ±BATTLE_LUCK; the server never sets it).
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops

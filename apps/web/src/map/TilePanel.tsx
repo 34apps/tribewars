@@ -38,6 +38,7 @@ import {
 } from '../villages.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
 import { ShipmentForm } from './ShipmentForm.tsx';
+import { draftFromSend } from '../simulator.ts';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
 import { slowdownText, slowGroundText } from './travel.ts';
@@ -79,7 +80,7 @@ export function SendForm({
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
   layout?: 'panel' | 'wide';
 }) {
-  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd } = useGame();
+  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
@@ -328,6 +329,13 @@ export function SendForm({
         </>
       )}
       {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} />}
+      {mission === 'attack' && total > 0 && (
+        <p className="wm-muted">
+          <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial))}>
+            Try in simulator
+          </button>
+        </p>
+      )}
 
       {total > 0 && Number.isFinite(travel) && (
         <dl className="wm-facts wm-facts-send">

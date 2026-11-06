@@ -274,6 +274,15 @@ function Who({
             className="btn btn-block"
             onClick={() => {
               setOpen(false);
+              navigate('simulator');
+            }}
+          >
+            Battle simulator
+          </button>
+          <button
+            className="btn btn-block"
+            onClick={() => {
+              setOpen(false);
               navigate('support');
             }}
           >

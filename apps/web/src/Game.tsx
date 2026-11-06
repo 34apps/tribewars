@@ -7,13 +7,15 @@ import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { GameContext, MENU_PAGES, TABS } from './game.ts';
-import type { GameApi, MailDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
+import type { GameApi, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { LiveProvider } from './hooks/useLive.tsx';
 import { useNow } from './hooks/useNow.ts';
 import { useWorldEnd } from './hooks/useWorldEnd.ts';
 import { WorldEndView } from './views/WorldEndView.tsx';
 import { WorldRulesView } from './views/WorldRulesView.tsx';
+import { SimulatorView } from './views/SimulatorView.tsx';
+import type { SimDraftData } from './simulator.ts';
 import { ArmyView } from './views/ArmyView.tsx';
 import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
@@ -92,6 +94,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const [tribeFocus, setTribeFocus] = useState<TribeTarget | null>(null);
   const [tribeVersion, setTribeVersion] = useState(0);
   const [mailDraft, setMailDraft] = useState<MailDraft | null>(null);
+  const [simDraft, setSimDraft] = useState<SimDraft | null>(null);
   const toastId = useRef(0);
   const mapVisited = useRef(false);
   if (tab === 'map') mapVisited.current = true;
@@ -175,6 +178,13 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     },
     [navigate],
   );
+  const openSimulator = useCallback(
+    (draft?: SimDraftData) => {
+      setSimDraft(draft ? { ...draft, nonce: Date.now() } : null);
+      navigate('simulator');
+    },
+    [navigate],
+  );
   const { refresh } = store;
   const tribeChanged = useCallback(() => {
     setTribeVersion((v) => v + 1);
@@ -217,6 +227,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       unreadMail: data.unreadMail ?? 0,
       composeMail,
       mailDraft,
+      openSimulator,
+      simDraft,
       tribeInvites: data.tribeInvites ?? 0,
       tribeAlerts: data.tribeAlerts ?? 0,
       stationed: data.stationed ?? EMPTY_STATIONED,
@@ -238,7 +250,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       applySend: store.applySend,
       toast,
     };
-  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, worldEnd]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
 
   if (!ctx) {
     return (
@@ -267,6 +279,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         {tab === 'ranks' && <RankingsView />}
         {tab === 'support' && <SupportView />}
         {tab === 'rules' && <WorldRulesView />}
+        {tab === 'simulator' && <SimulatorView />}
         {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted page">The world is still running.</p>)}
         {tab === 'staff' && (
           <Suspense fallback={<p className="muted page">Loading…</p>}>

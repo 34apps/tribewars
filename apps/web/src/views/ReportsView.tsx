@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { draftFromReport } from '../simulator.ts';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
 import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
@@ -493,7 +494,8 @@ function ReportBody({ report }: { report: ReportDto }) {
 }
 
 function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
-  const { now } = useGame();
+  const { now, openSimulator } = useGame();
+  const draft = draftFromReport(report);
   return (
     <article className="card report-detail" aria-labelledby="report-title">
       <button className="btn btn-small back" onClick={onBack}>
@@ -506,6 +508,13 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
           <span className="muted">{metaText(report)} · {formatClock(report.createdAt, now)}</span>
         </div>
       </header>
+      {draft && (
+        <p>
+          <button type="button" className="btn btn-small" onClick={() => openSimulator(draft)}>
+            Try in simulator
+          </button>
+        </p>
+      )}
       <ReportBody report={report} />
     </article>
   );

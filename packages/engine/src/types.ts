@@ -335,6 +335,11 @@ export interface BattleInput {
   supportRanks?: Array<VillageRanks | undefined>;
   /** Deterministic luck: same seed, same result. The server mixes in a secret (see battleSeed), so nobody can predict it. */
   seed: number;
+  /**
+   * Luck to use instead of the seeded draw, clamped to +-BATTLE_LUCK. ONLY the client battle simulator sets it; the server never
+   * does. The seed still drives everything else (random siege target), so the rest of the battle is unchanged.
+   */
+  fixedLuck?: number;
   /** True: nothing is looted even on a win (Strike attempts, relief attacks, map sites). Default false: loot is always full. */
   noLoot?: boolean;
   /**

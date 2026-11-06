@@ -137,3 +137,16 @@
 .uinfo-name .card-title { margin: 0; }
 .uinfo-stats { grid-template-columns: 1fr; margin-top: 8px; }
 .uinfo-cost, .uinfo-note { margin-top: 8px; font-size: 0.9rem; }
+
+/* Army page title with the Battle simulator button beside it. */
+.army-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.army-head .page-title {
+  margin: 2px 0;
+}
