@@ -24,6 +24,7 @@ import type {
   Mission,
   RenownInfo,
   SiegeHit,
+  UnitId,
   Units,
   VillageListItemDto,
   VillageReportData,
@@ -185,6 +186,25 @@ export function isReliefTarget(target: MapVillageDto | null, ctx: MissionContext
   if (!target || !h || h.claimById === ctx.playerId) return false;
   if (target.kind === 'own') return target.id !== ctx.currentVillageId;
   return target.kind === 'player' && (target.relation === 'tribe' || target.relation === 'ally');
+}
+
+// ---- Troop columns of the wide send form (Command post) --------------------------------------------------
+
+export type UnitColumn = 'foot' | 'riders' | 'siege' | 'special';
+
+export const UNIT_COLUMN_NAME: Record<UnitColumn, string> = { foot: 'Foot', riders: 'Riders', siege: 'Siege', special: 'Special' };
+
+/** Which column a unit sits in: Chieftain and Pathfinder are Special, siege units Siege, the rest by their class. */
+export function unitColumn(u: UnitId): UnitColumn {
+  if (u === 'chieftain' || u === 'pathfinder') return 'special';
+  if (UNITS[u].siege) return 'siege';
+  return UNITS[u].unitClass === 'cavalry' ? 'riders' : 'foot';
+}
+
+/** The given units grouped into the columns Foot / Riders / Siege / Special (in that order, empty columns left out). */
+export function unitColumns(units: readonly UnitId[]): Array<{ column: UnitColumn; units: UnitId[] }> {
+  const order: UnitColumn[] = ['foot', 'riders', 'siege', 'special'];
+  return order.map((column) => ({ column, units: units.filter((u) => unitColumn(u) === column) })).filter((c) => c.units.length > 0);
 }
 
 export type SendMode = 'attack' | 'strike' | 'scout' | 'support' | 'found' | 'occupy' | 'relieve';

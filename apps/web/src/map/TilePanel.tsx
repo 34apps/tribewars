@@ -3,6 +3,7 @@ import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, c
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { UnitFigure } from '../art/UnitFigure.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
@@ -29,6 +30,8 @@ import {
   strikeHint,
   strikeNeed,
   strikeWarning,
+  UNIT_COLUMN_NAME,
+  unitColumns,
 } from '../villages.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, stageName, villageSprite } from './allegiance.ts';
 import { ShipmentForm } from './ShipmentForm.tsx';
@@ -60,6 +63,7 @@ export function SendForm({
   preferred,
   hints,
   targetLabel,
+  layout = 'panel',
 }: {
   tile: Coords;
   target: MapVillageDto | null;
@@ -69,6 +73,8 @@ export function SendForm({
   hints?: Partial<Record<Mission, string>>;
   /** Name for the toast after sending (a site's name); defaults to the village name or the coordinates. */
   targetLabel?: string;
+  /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
+  layout?: 'panel' | 'wide';
 }) {
   const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd } = useGame();
   const rules = useRules();
@@ -144,6 +150,11 @@ export function SendForm({
       const n = Number(value);
       if (!(Number.isInteger(n) && n > 0)) setSiegePick('');
     }
+  }
+
+  /** Everything at home (a Found send takes just the one Chieftain). */
+  function fillAll(u: UnitId) {
+    setCount(u, String(mission === 'found' && u === 'chieftain' ? Math.min(1, live.troops[u]) : live.troops[u]));
   }
 
   async function send() {
@@ -222,6 +233,39 @@ export function SendForm({
           .
         </p>
       ) : (
+        layout === 'wide' ? (
+          <div className="wm-units-wide">
+            {unitColumns(visible).map((col) => (
+              <section key={col.column} className="wm-ucol" aria-label={UNIT_COLUMN_NAME[col.column]}>
+                <h4 className="wm-ucol-title">{UNIT_COLUMN_NAME[col.column]}</h4>
+                <ul className="wm-units wm-units-col">
+                  {col.units.map((u) => (
+                    <li key={u}>
+                      <label htmlFor={`send-${u}`}>
+                        <UnitFigure unit={u} pose="icon" size={32} className="inline-icon" /> {UNITS[u].name}
+                      </label>
+                      <button type="button" className="wm-link wm-have" onClick={() => fillAll(u)} aria-label={`Fill all ${formatInt(live.troops[u])} ${UNITS[u].name}`}>
+                        {formatInt(live.troops[u])}
+                      </button>
+                      <input
+                        id={`send-${u}`}
+                        className="wm-input"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={live.troops[u]}
+                        step={1}
+                        placeholder="0"
+                        value={counts[u] ?? ''}
+                        onChange={(e) => setCount(u, e.target.value)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        ) : (
         <ul className="wm-units">
           {visible.map((u) => (
             <li key={u}>
@@ -247,6 +291,7 @@ export function SendForm({
             </li>
           ))}
         </ul>
+        )
       )}
       {showsSiegePicker(mission, chosen, rules.features.siege) &&<SiegePicker value={siegePick} onChange={setSiegePick} />}
 

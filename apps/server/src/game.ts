@@ -122,7 +122,7 @@ import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import { RenownService } from './renown-service.ts';
 import { SiteService } from './site-service.ts';
 import { sitesFor } from './site-layout.ts';
-import { NEW_VILLAGE_NAME, hasUnpaidBuildRenown, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
+import { NEW_VILLAGE_NAME, hasUnpaidBuildRenown, type MapRow, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
 import { addUnits, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
 
 /** A village name: 1 to 30 letters, digits, spaces and . _ - ' (checked after trimming). */
@@ -131,6 +131,8 @@ const VILLAGE_NAME_PATTERN = /^[\p{L}\p{N} ._'-]{1,30}$/u;
 const BATCH_SIZE = 100;
 const REPORT_LIST_LIMIT = 50;
 const ALERT_LIST_LIMIT = 200;
+/** Most villages one command-post search returns. */
+const SEARCH_LIMIT = 10;
 
 export interface GameLogger {
   error(obj: unknown, msg?: string): void;
@@ -1491,9 +1493,34 @@ export class GameService {
     if (w < 1 || h < 1 || w > MAP_MAX_SPAN || h > MAP_MAX_SPAN) {
       throw new GameError('invalid_input', `w and h must be from 1 to ${MAP_MAX_SPAN}.`);
     }
+    return { villages: this.mapDtos(player, this.store.mapVillages(x, x + w - 1, y, y + h - 1), t) };
+  }
+
+  /**
+   * Village search for the command post (GET /api/search/villages): the same per-viewer rows as the map, nothing more.
+   * `from` (optional) must be one of the caller's own villages; results are then nearest first.
+   */
+  searchVillages(player: PlayerRow, q: unknown, by: unknown, fromId: number | null, t: number): MapResponse {
+    if (by !== 'village' && by !== 'player') throw new GameError('invalid_input', 'by must be "village" or "player".');
+    if (typeof q !== 'string') throw new GameError('invalid_input', 'q must be text.');
+    const text = q.trim();
+    if (text.length < 2 || text.length > 24 || /[\u0000-\u001f\u007f]/.test(text)) {
+      throw new GameError('invalid_input', 'q must be 2 to 24 characters.');
+    }
+    let from: { x: number; y: number } | null = null;
+    if (fromId !== null) {
+      const v = this.store.getVillage(fromId);
+      if (!v || v.ownerId !== player.id) throw new GameError('not_found', 'Village not found.');
+      from = { x: v.x, y: v.y };
+    }
+    return { villages: this.mapDtos(player, this.store.searchVillages(by, text, from, SEARCH_LIMIT), t) };
+  }
+
+  /** The per-viewer map rows shared by the map and the search: public data only (no troops, stock or queues). */
+  private mapDtos(player: PlayerRow, rows: MapRow[], t: number): MapVillageDto[] {
     // The viewer's tribe and relations are read once; the owner's tribe comes with each map row.
     const viewer = loadRelationViewer(this.store.tribes, player.id, t);
-    const villages: MapVillageDto[] = this.store.mapVillages(x, x + w - 1, y, y + h - 1).map((r) => ({
+    return rows.map((r) => ({
       id: r.id,
       name: r.name,
       x: r.x,
@@ -1510,7 +1537,6 @@ export class GameService {
       relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
       ...(r.coldState?.hearth ? { hearth: hearthDto(r.coldState.hearth, t, this.settings, this.store.getPlayer(r.coldState.hearth.claimBy)?.username ?? '?') } : {}),
     }));
-    return { villages };
   }
 
   /** The player's own villages, light (GET /api/villages): hearth status, stock, incoming attacks. */

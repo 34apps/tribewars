@@ -477,6 +477,19 @@ export interface MapResponse {
   villages: MapVillageDto[];
 }
 
+// GET /api/search/villages?q=<text>&by=village|player[&from=<own village id>] -> 200 SearchVillagesResponse
+// Command post lookup. q is 2..24 characters after trimming; matches names that contain it (case-insensitive,
+// % and _ are literal). `by=village` searches village names (abandoned ones too), `by=player` the owner's name (all of
+// that player's villages). At most 10 results, the same public per-viewer rows as the map (never troops, stock or
+// queues). `from` must be one of the caller's own villages (else 404): results are then nearest first, otherwise by
+// name. Banned accounts' villages are left out. Bad q/by -> 400 invalid_input.
+export const SEARCH_VILLAGES_LIMIT = 10;
+export type SearchVillagesBy = 'village' | 'player';
+
+export interface SearchVillagesResponse {
+  villages: MapVillageDto[];
+}
+
 // ---- Reports -------------------------------------------------------------------------
 // GET /api/reports           -> 200 ReportListResponse (newest first, max 50)
 // GET /api/reports/:id       -> 200 ReportDto (marks it read)

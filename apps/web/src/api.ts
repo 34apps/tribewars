@@ -27,6 +27,8 @@ import type {
   MailDto,
   MailListResponse,
   MapResponse,
+  SearchVillagesBy,
+  SearchVillagesResponse,
   MeResponse,
   MovementResponse,
   MyTribeResponse,
@@ -273,6 +275,9 @@ export const api = {
   cancelMovement: (movementId: number) => request<MovementResponse>('POST', `/api/movements/${movementId}/cancel`, {}),
   sendBack: (stationedId: number) => request<MovementResponse>('POST', `/api/stationed/${stationedId}/send-back`, {}),
   map: (x: number, y: number, w: number, h: number) => request<MapResponse>('GET', `/api/map?x=${x}&y=${y}&w=${w}&h=${h}`),
+  /** Command post: villages by village or player name (max 10). `fromVillageId` (one of mine) sorts nearest first. */
+  searchVillages: (q: string, by: SearchVillagesBy, fromVillageId?: number) =>
+    request<SearchVillagesResponse>('GET', `/api/search/villages?q=${encodeURIComponent(q)}&by=${by}${fromVillageId === undefined ? '' : `&from=${fromVillageId}`}`),
   /** Incoming attack / support / resources warnings for my villages, newest first (GAME_DESIGN 18.10). Never carries units. */
   getNotifications: () => request<NotificationsResponse>('GET', '/api/notifications'),
   /** Mark the given notifications read, or all of them when `ids` is left out. */

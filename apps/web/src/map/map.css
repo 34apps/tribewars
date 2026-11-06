@@ -839,7 +839,8 @@
 }
 
 /* Mission switch inside the panel (shared Segmented component, restyled as toy toggles here). */
-.wm-panel .segmented {
+.wm-panel .segmented,
+.cp-sheet .segmented {
   max-width: none;
   gap: 6px;
   padding: 4px;
@@ -848,7 +849,8 @@
   background: var(--wm-paper);
 }
 
-.wm-panel .segment {
+.wm-panel .segment,
+.cp-sheet .segment {
   min-height: 44px;
   border: 0;
   border-radius: 10px;
@@ -857,12 +859,14 @@
   font: 600 0.95rem var(--wm-text);
 }
 
-.wm-panel .segment.is-active {
+.wm-panel .segment.is-active,
+.cp-sheet .segment.is-active {
   background: var(--wm-ink);
   color: var(--wm-paper);
 }
 
-.wm-panel .segment:focus-visible {
+.wm-panel .segment:focus-visible,
+.cp-sheet .segment:focus-visible {
   outline: 3px solid var(--wm-sky);
   outline-offset: 1px;
 }

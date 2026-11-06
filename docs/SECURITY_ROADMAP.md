@@ -117,6 +117,8 @@ with the movement (cancel inside the window deletes it), so it cannot be used to
 exploit (read-only information the target is entitled to; no resources or troops move). (7) Audit: the new routes are in the bucket test of `security-headers.test.ts`.
 Not done: a browser/push delivery path (client only, no server change).
 
+Gate note, command post search (2026-11-06; `GET /api/search/villages`, `apps/server/src/game.ts` `searchVillages`, tests in `apps/server/test/search-villages.test.ts`). (1) Signed in only; optional `from` must be the caller's own village (else 404). (2) `q` 2..24 characters after trim, no control characters; `by` is `village|player`; `from` digits only; extra query keys 400. (3) Bucket `lookup` (30 per minute per account), 10 rows, one indexed-free LIKE scan, prepared statement with escaped `%` `_` `\\`. (4) Rows are the map's per-viewer rows (shared builder), never troops, stock or queues; banned accounts' villages are left out. (5) Read only. (6) Nothing to stack: public data the map already shows, but the rate limit stops scraping the whole world by name. (7) Not audit-logged (read only, no sensitive action). (8) Tests cover 1-4 and the bucket.
+
 ## 5. Game-rules audit, 2026-11-04
 
 Every probe is a server test in `apps/server/test/security-audit.test.ts` and also asserts that the village state did not change.

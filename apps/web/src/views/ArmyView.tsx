@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CommandPost } from './army/CommandPost.tsx';
 import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
@@ -9,7 +10,6 @@ import {
   checkTrain,
   emptyUnits,
   isResearched,
-  moveSpeed,
   normalizeUnits,
   POP_PER_UNIT,
   populationCap,
@@ -25,6 +25,10 @@ import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from 
 import { useGame, useRules } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
 import { Icon } from '../art/Icon.tsx';
+import { UnitFigure } from '../art/UnitFigure.tsx';
+import { timePerTileMs, useUnitInfo } from '../components/UnitInfo.tsx';
+import { UNIT_ROLE } from '../unitRole.ts';
+import '../army.css';
 import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
@@ -35,6 +39,7 @@ import { HEARTH_OUT_REASON } from '../villages.ts';
 
 function TroopsTable() {
   const { live } = useGame();
+  const info = useUnitInfo();
   const training = emptyUnits();
   for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
   return (
@@ -56,7 +61,12 @@ function TroopsTable() {
               return (
                 <tr key={u} className={none ? 'is-zero' : ''}>
                   <th scope="row">
-                    <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
+                    <button type="button" className="unit-link" onClick={() => info.open(u)} aria-haspopup="dialog" title={`About the ${UNITS[u].name}`}>
+                      <span className="unit-round" aria-hidden="true">
+                        <UnitFigure unit={u} pose="icon" size={34} />
+                      </span>
+                      <span>{UNITS[u].name}</span>
+                    </button>
                   </th>
                   <td className="num">{formatInt(live.troops[u])}</td>
                   <td className="num">{formatInt(live.away[u])}</td>
@@ -68,6 +78,7 @@ function TroopsTable() {
         </table>
       </div>
       <PopulationLine used={populationUsage(live).total} cap={populationCap(live)} />
+      {info.dialog}
     </section>
   );
 }
@@ -408,7 +419,7 @@ function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: (
     <li className="job">
       <div className="job-head">
         <span className="job-name">
-          <Icon name={UNIT_ICON[job.unit]} size={20} className="inline-icon" /> {formatInt(job.count)} × {def.name}
+          <UnitFigure unit={job.unit} pose="icon" size={22} className="inline-icon" /> {formatInt(job.count)} × {def.name}
           <span className="muted"> ({job.done}/{job.count})</span>
         </span>
         <span className="job-time">
@@ -435,6 +446,8 @@ function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: (
 function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: TrainingBuildingId; busy: boolean; setBusy: (b: boolean) => void }) {
   const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
   const def = UNITS[unit];
+  const role = UNIT_ROLE[unit];
+  const info = useUnitInfo();
   const [text, setText] = useState('');
   const unmet = unmetRequirements(live.buildings, def.requires);
   const locked = unmet.length > 0;
@@ -470,27 +483,36 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
     }
   }
 
-  const speed = def.speed * moveSpeed(settings);
   return (
-    <article className={`card unit${locked ? ' is-locked' : ''}`} aria-labelledby={`u-${unit}`}>
-      <header className="unit-head">
-        <span className="building-icon" aria-hidden="true">
-          <Icon name={UNIT_ICON[unit]} size={30} />
-        </span>
+    <article className={`card unit unit-card${locked ? ' is-locked' : ''}`} aria-labelledby={`u-${unit}`}>
+      <button type="button" className="unit-stage" onClick={() => info.open(unit)} aria-haspopup="dialog" title={`About the ${def.name}`}>
+        <UnitFigure unit={unit} size={168} />
+        {locked && (
+          <span className="unit-lock">
+            <Icon name="lock" size={18} label="Locked" />
+          </span>
+        )}
+      </button>
+      <header className="unit-head unit-head-row">
         <div className="building-title">
-          <h4 id={`u-${unit}`}>{def.name}</h4>
-          <div className="level">{def.unitClass === 'cavalry' ? 'Cavalry' : 'Infantry'} · {formatInt(live.troops[unit])} at home</div>
+          <h4 id={`u-${unit}`}>
+            <button type="button" className="unit-name" onClick={() => info.open(unit)} aria-haspopup="dialog">
+              {def.name}
+            </button>
+          </h4>
+          <div className="level">{formatInt(live.troops[unit])} at home</div>
         </div>
+        <span className={`urole urole-${role.tone}`}>{role.label}</span>
       </header>
       <p className="building-desc">{def.description}</p>
-      <dl className="stats">
-        <div><dt>Attack</dt><dd>{def.attack}</dd></div>
-        <div><dt>Defence vs infantry</dt><dd>{def.defenseInfantry}</dd></div>
-        <div><dt>Defence vs cavalry</dt><dd>{def.defenseCavalry}</dd></div>
-        <div><dt>Speed</dt><dd>{formatInt(speed)} tiles/h</dd></div>
-        <div><dt>Carry</dt><dd>{def.carry}</dd></div>
-        <div><dt>Population</dt><dd>{POP_PER_UNIT[unit]}</dd></div>
-      </dl>
+      <ul className="chips" aria-label="Stats">
+        <li className="chip" title="Attack"><span className="chip-k">Atk</span> {def.attack}</li>
+        <li className="chip" title="Defence vs infantry"><span className="chip-k">Def foot</span> {def.defenseInfantry}</li>
+        <li className="chip" title="Defence vs cavalry"><span className="chip-k">Def riders</span> {def.defenseCavalry}</li>
+        <li className="chip" title="Speed"><span className="chip-k">Per field</span> {formatDuration(timePerTileMs(unit, settings))}</li>
+        <li className="chip" title="Carry"><span className="chip-k">Carry</span> {def.carry}</li>
+        <li className="chip" title="Population"><span className="chip-k">Pop</span> {POP_PER_UNIT[unit]}</li>
+      </ul>
       {locked ? (
         <p className="requirements">
           <Icon name="lock" size={18} className="inline-icon" /> Requires {requirementText(unmet)}
@@ -534,6 +556,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
           {reason && <div className="why">{reason}</div>}
         </>
       )}
+      {info.dialog}
     </article>
   );
 }
@@ -610,6 +633,7 @@ export function ArmyView() {
         <TroopsTable />
         <Movements />
       </div>
+      <CommandPost />
       <SupportPanel />
       <TrainingPanel building="barracks" />
       <TrainingPanel building="stables" />

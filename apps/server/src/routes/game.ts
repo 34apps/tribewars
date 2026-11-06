@@ -19,6 +19,7 @@ import {
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
+  type SearchVillagesResponse,
   type MovementResponse,
   type OwnVillageDto,
   type RecallRequest,
@@ -168,6 +169,17 @@ const mapQuery = {
   required: ['x', 'y', 'w', 'h'],
   additionalProperties: false,
   properties: { x: INT_QUERY, y: INT_QUERY, w: INT_QUERY, h: INT_QUERY },
+} as const;
+
+const searchQuery = {
+  type: 'object',
+  required: ['q', 'by'],
+  additionalProperties: false,
+  properties: {
+    q: { type: 'string', maxLength: 100 },
+    by: { type: 'string', enum: ['village', 'player'] },
+    from: INT_QUERY,
+  },
 } as const;
 
 export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
@@ -348,6 +360,16 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     async (req): Promise<MapResponse> => {
       const { x, y, w, h } = req.query;
       return ctx.game.map(playerOf(req), Number(x), Number(y), Number(w), Number(h), req.nowMs);
+    },
+  );
+
+  // Command post: find villages by village or player name. Read only; the rows are the map's per-viewer rows.
+  app.get<{ Querystring: { q: string; by: string; from?: string } }>(
+    '/api/search/villages',
+    { ...auth, schema: { querystring: searchQuery } },
+    async (req): Promise<SearchVillagesResponse> => {
+      const { q, by, from } = req.query;
+      return ctx.game.searchVillages(playerOf(req), q, by, from === undefined ? null : Number(from), req.nowMs);
     },
   );
 }

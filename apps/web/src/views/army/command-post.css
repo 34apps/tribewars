@@ -1,0 +1,329 @@
+/* Command post (Army tab). The card is the dark panel of the app; the send form sits on a light "bone" sheet that carries the
+   map's wm- tokens, because SendForm / ShipmentForm are styled by map.css. Phone first: one column, 44 px touch targets. */
+
+.command-post {
+  display: grid;
+  gap: 12px;
+}
+
+.command-post .card-title {
+  margin: 0;
+}
+
+.cp-lead,
+.cp-hint,
+.cp-empty,
+.cp-from {
+  margin: 0;
+  color: var(--c-cream-dim, rgba(247, 236, 212, 0.75));
+  font-size: 0.9rem;
+}
+
+.cp-hint {
+  min-height: 1.2em;
+}
+
+.cp-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--danger-bg, #f3c7ae);
+  color: var(--danger, #8f2f17);
+  font-weight: 600;
+}
+
+.cp-target {
+  display: grid;
+  gap: 8px;
+}
+
+.cp-find {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.cp-field {
+  flex: 1 1 auto;
+  max-width: 420px;
+}
+
+.cp-status {
+  min-width: 70px;
+  padding-bottom: 12px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* ---- Name results ---- */
+
+.cp-results {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-result {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 2px solid var(--line-strong, #2b211c);
+  border-radius: 12px;
+  background: var(--panel-2, #3a2d26);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.cp-result:hover,
+.cp-result.is-picked {
+  border-color: var(--c-sun, #f2b33d);
+}
+
+.cp-result.is-picked {
+  box-shadow: inset 0 0 0 1px var(--c-sun, #f2b33d);
+}
+
+.cp-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.5);
+}
+
+.cp-result-main {
+  display: grid;
+  min-width: 0;
+}
+
+.cp-result-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cp-result-owner,
+.cp-result-al {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.cp-result-where {
+  display: grid;
+  justify-items: end;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-result-where small {
+  font-weight: 400;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+/* ---- My other villages ---- */
+
+.cp-own-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.cp-own-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--line-strong, #2b211c);
+  border-radius: 999px;
+  background: var(--panel-2, #3a2d26);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.cp-chip small {
+  margin-left: 4px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.cp-chip:hover,
+.cp-chip.is-picked {
+  border-color: var(--c-sun, #f2b33d);
+}
+
+/* ---- The chosen target and the send form (light sheet with the map's tokens) ---- */
+
+.cp-sheet {
+  --wm-ink: var(--toy-ink, #2b211c);
+  --wm-bone: var(--toy-bone, #f1e1c2);
+  --wm-paper: #fff8e8;
+  --wm-sun: var(--toy-sunflower, #f2b33d);
+  --wm-sun-hi: #ffdc7a;
+  --wm-moss: var(--toy-moss, #5e8c3a);
+  --wm-terra: var(--toy-terracotta, #c4623a);
+  --wm-sky: var(--toy-sky, #2f9aa0);
+  --wm-plum: var(--toy-plum, #7a3b5e);
+  --wm-wood: var(--toy-wood, #b07d46);
+  --wm-iron: var(--toy-iron, #a39e94);
+  --wm-soft: #5a4a3c;
+  --wm-display: var(--font-display, 'Bagel Fat One'), 'Rubik', system-ui, sans-serif;
+  --wm-text: var(--font-text, 'Rubik'), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 3px solid var(--wm-ink);
+  border-radius: 18px;
+  background: var(--wm-bone);
+  color: var(--wm-ink);
+  font-family: var(--wm-text);
+}
+
+.cp-picked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.cp-picked-name {
+  margin: 0;
+  font: 400 1.35rem/1.1 var(--wm-display);
+  overflow-wrap: anywhere;
+}
+
+.cp-picked-sub {
+  margin-top: 2px;
+  color: var(--wm-soft);
+  font-size: 0.92rem;
+}
+
+.cp-al {
+  font-weight: 700;
+}
+
+.cp-picked-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0;
+}
+
+.cp-picked-facts dt {
+  color: var(--wm-soft);
+  font-size: 0.78rem;
+}
+
+.cp-picked-facts dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* Send form inside the sheet: no extra top rule, the sheet is the frame. */
+.cp-sheet .wm-send {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Wide troop picker: one column per class (Foot / Riders / Siege / Special); columns wrap, one column on a phone. */
+.wm-units-wide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px 22px;
+  align-items: start;
+}
+
+.wm-ucol {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wm-ucol-title {
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 2px dashed rgba(43, 33, 28, 0.3);
+  font: 400 0.95rem/1.1 var(--wm-display);
+}
+
+.cp-sheet .wm-units-col li {
+  grid-template-columns: minmax(0, 1fr) auto 76px;
+  column-gap: 8px;
+}
+
+.wm-units-col label {
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.wm-units-col label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wm-units-col .inline-icon {
+  flex: none;
+}
+
+/* The at-home count: a link-looking button that fills the whole stock (40 px touch target). */
+.wm-have {
+  min-width: 48px;
+  min-height: 40px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  touch-action: manipulation;
+}
+
+@media (min-width: 900px) {
+  .cp-find {
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 520px) {
+  .cp-find {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .cp-field {
+    max-width: none;
+  }
+
+  .cp-status {
+    padding-bottom: 0;
+  }
+
+  .cp-result {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+  }
+
+  .cp-result-al {
+    display: none;
+  }
+
+  .cp-sheet {
+    padding: 12px;
+  }
+}

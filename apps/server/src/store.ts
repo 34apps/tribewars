@@ -40,7 +40,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import { statColumn } from './db.ts';
-import { SqlBase, type Raw } from './sql.ts';
+import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
@@ -169,6 +169,35 @@ export interface AlertRow {
   attacker: VillageStub;
   attackerTribeTag: string | null;
   target: VillageStub;
+}
+
+const MAP_SELECT = `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
+              tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag, p.chieftain AS owner_chieftain,
+              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json,
+              CASE WHEN v.hold_due_at IS NOT NULL THEN v.state_json END AS cold_state_json,
+              COALESCE(json_extract(v.state_json, '$.protectedUntil'), 0) AS v_protected_until
+       FROM villages v
+       LEFT JOIN players p ON p.id = v.owner_id
+       LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
+       LEFT JOIN tribes tr ON tr.id = tm.tribe_id`;
+
+function mapRowOf(r: Raw): MapRow {
+  return {
+    id: r.id as number,
+    ownerId: (r.owner_id as number | null) ?? null,
+    ownerName: (r.owner_name as string | null) ?? null,
+    ownerProtectedUntil: r.owner_protected_until as number,
+    name: r.name as string,
+    x: r.x as number,
+    y: r.y as number,
+    points: r.points as number,
+    ownerTribeId: (r.owner_tribe_id as number | null) ?? null,
+    ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
+    ownerChieftain: (r.owner_chieftain as string | null) ?? null,
+    npcState: r.npc_state_json ? normalizeVillage(JSON.parse(r.npc_state_json as string) as VillageState) : null,
+    protectedUntil: r.v_protected_until as number,
+    coldState: r.cold_state_json ? normalizeVillage(JSON.parse(r.cold_state_json as string) as VillageState) : null,
+  };
 }
 
 export interface MapRow {
@@ -1252,37 +1281,35 @@ export class Store extends SqlBase {
 
   mapVillages(x0: number, x1: number, y0: number, y1: number): MapRow[] {
     return this.all(
-      `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
-              tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag, p.chieftain AS owner_chieftain,
-              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json,
-              CASE WHEN v.hold_due_at IS NOT NULL THEN v.state_json END AS cold_state_json,
-              COALESCE(json_extract(v.state_json, '$.protectedUntil'), 0) AS v_protected_until
-       FROM villages v
-       LEFT JOIN players p ON p.id = v.owner_id
-       LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
-       LEFT JOIN tribes tr ON tr.id = tm.tribe_id
+      `${MAP_SELECT}
        WHERE v.x BETWEEN ? AND ? AND v.y BETWEEN ? AND ?
        ORDER BY v.y, v.x`,
       x0,
       x1,
       y0,
       y1,
-    ).map((r) => ({
-      id: r.id as number,
-      ownerId: (r.owner_id as number | null) ?? null,
-      ownerName: (r.owner_name as string | null) ?? null,
-      ownerProtectedUntil: r.owner_protected_until as number,
-      name: r.name as string,
-      x: r.x as number,
-      y: r.y as number,
-      points: r.points as number,
-      ownerTribeId: (r.owner_tribe_id as number | null) ?? null,
-      ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
-      ownerChieftain: (r.owner_chieftain as string | null) ?? null,
-      npcState: r.npc_state_json ? normalizeVillage(JSON.parse(r.npc_state_json as string) as VillageState) : null,
-      protectedUntil: r.v_protected_until as number,
-      coldState: r.cold_state_json ? normalizeVillage(JSON.parse(r.cold_state_json as string) as VillageState) : null,
-    }));
+    ).map(mapRowOf);
+  }
+
+  /**
+   * Name search for the command post: villages whose name (by = village, abandoned ones too) or whose owner's name
+   * (by = player) contains `text`, case-insensitive. `%`, `_` and `\` in the text are literal (escaped, ESCAPE clause).
+   * Villages of banned accounts are left out. Nearest to `from` first, else prefix matches, then by name.
+   */
+  searchVillages(by: 'village' | 'player', text: string, from: { x: number; y: number } | null, limit: number): MapRow[] {
+    const esc = text.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const col = by === 'village' ? 'v.name' : 'p.username';
+    const dist = from ? '((v.x - ?) * (v.x - ?) + (v.y - ?) * (v.y - ?)),' : '';
+    const params: Param[] = [`%${esc}%`];
+    if (from) params.push(from.x, from.x, from.y, from.y);
+    params.push(`${esc}%`, limit);
+    return this.all(
+      `${MAP_SELECT}
+       WHERE ${col} LIKE ? ESCAPE '\\' AND (v.owner_id IS NULL OR p.banned_at IS NULL)${by === 'player' ? ' AND v.owner_id IS NOT NULL' : ''}
+       ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
+       LIMIT ?`,
+      ...params,
+    ).map(mapRowOf);
   }
 
   // ---- movements -------------------------------------------------------------------------------
