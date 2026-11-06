@@ -17,6 +17,7 @@ import {
   footprintFront,
   labelAnchor,
   loadSprite,
+  lookStartLevel,
   placementDepth,
   readySprite,
   SCENE_BASE_H,
@@ -148,6 +149,9 @@ function MomentFx({ gx, gy, roof }: { gx: number; gy: number; roof: number }) {
 }
 
 /** The SVG layer. Memoised: it only changes when a building's look, the queue or the selection changes. */
+/** Looks last shown per village (memoryKey) during this page visit; see the build moment in SceneArt. */
+const SEEN_LOOKS = new Map<string, Partial<Record<BuildingId, number>>>();
+
 export const SceneArt = memo(function SceneArt({
   arts,
   vb,
@@ -158,6 +162,7 @@ export const SceneArt = memo(function SceneArt({
   hearthOut,
   onBox,
   onPick,
+  memoryKey,
 }: {
   arts: Arts;
   vb: ViewBox;
@@ -173,16 +178,23 @@ export const SceneArt = memo(function SceneArt({
   onBox: (id: BuildingId, box: Box) => void;
   /** Click on a building's drawing (pixel-accurate; the overlay labels are the keyboard targets). */
   onPick: (id: BuildingId) => void;
+  /** Which village (and mode) the looks belong to, for the build moment's memory across visits. */
+  memoryKey: string;
 }) {
   // Build moment (owner 2026-11-06: "the designs change all of a sudden"). When a building's look changes while this
   // scene is on screen, show scaffolding over it for a moment and let the new look grow in, instead of an instant swap.
-  // The first render only records the looks, so opening the village never animates everything.
+  // The looks last shown are remembered per village for this page visit (SEEN_LOOKS), so an upgrade that finished while the
+  // player was on another screen plays its moment on the way back; after a page load nothing is remembered, so opening the
+  // game never animates everything.
   const prevStage = useRef<Partial<Record<BuildingId, number>> | null>(null);
+  const prevKey = useRef<string | null>(null);
   const [moments, setMoments] = useState<Partial<Record<BuildingId, number>>>({});
   const timers = useRef<Partial<Record<BuildingId, ReturnType<typeof setTimeout>>>>({});
   useLayoutEffect(() => {
-    const prev = prevStage.current;
+    const prev = prevKey.current === memoryKey ? prevStage.current : (SEEN_LOOKS.get(memoryKey) ?? null);
+    prevKey.current = memoryKey;
     prevStage.current = Object.fromEntries(BUILDING_IDS.map((id) => [id, arts[id].stage]));
+    SEEN_LOOKS.set(memoryKey, prevStage.current);
     if (!prev) return;
     const started: BuildingId[] = [];
     for (const id of BUILDING_IDS) {
@@ -206,7 +218,7 @@ export const SceneArt = memo(function SceneArt({
         });
       }, MOMENT_MS);
     }
-  }, [arts]);
+  }, [arts, memoryKey]);
   useEffect(() => {
     const t = timers.current;
     return () => {
@@ -402,10 +414,11 @@ export function VillageScene({
   bottomInset?: number;
   onPanned?: () => void;
   /**
-   * Design preview. building = null ("All buildings"): the wall alone (every other building unbuilt, no queue work) at the
-   * chosen level. building = an id: that building alone at min(level, its max); the others keep their real levels and work.
+   * Design preview. building = null ("All buildings"): every building at min(level, its max), or at the first level of
+   * `look` when one is picked (no queue work). building = an id: that building alone at min(level, its max); the others keep
+   * their real levels and work.
    */
-  levelOverride?: { building: BuildingId | null; level: number; landscape: LandscapeChoice } | null;
+  levelOverride?: { building: BuildingId | null; level: number; landscape: LandscapeChoice; look?: 1 | 2 | 3 | 4 | null } | null;
 }) {
   const { live, now, village } = useGame();
   const ov = levelOverride ?? null;
@@ -413,7 +426,9 @@ export function VillageScene({
     ? live.buildings
     : ov.building
       ? { ...live.buildings, [ov.building]: Math.min(ov.level, BUILDINGS[ov.building].maxLevel) }
-      : (Object.fromEntries(BUILDING_IDS.map((id) => [id, id === 'wall' ? Math.min(ov.level, BUILDINGS.wall.maxLevel) : 0])) as typeof live.buildings);
+      : (Object.fromEntries(
+          BUILDING_IDS.map((id) => [id, ov.look ? lookStartLevel(id, ov.look) : Math.min(ov.level, BUILDINGS[id].maxLevel)]),
+        ) as typeof live.buildings);
   const [boxes, setBoxes] = useState<Partial<Record<BuildingId, Box>>>({});
   const onBox = useCallback((id: BuildingId, box: Box) => {
     setBoxes((prev) => {
@@ -575,7 +590,7 @@ export function VillageScene({
       onPointerCancel={onPointerUp}
     >
       <div className="vv-stage" style={stageStyle}>
-        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} hearthOut={!!village.hearth} onBox={onBox} onPick={pick} />
+        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} hearthOut={!!village.hearth} onBox={onBox} onPick={pick} memoryKey={`${village.id}${ov ? ':preview' : ''}`} />
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);

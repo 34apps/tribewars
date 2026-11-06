@@ -13,7 +13,7 @@ import { loadSave, wipeSave, writeSave } from './persist.ts';
 import { mountPill } from './pill.ts';
 import { applyShowcase } from './showcase-apply.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
-import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLevel } from '../../web/src/views/village/designPreviewState.ts';
+import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLook } from '../../web/src/views/village/designPreviewState.ts';
 
 const SAVE_DEBOUNCE_MS = 2000;
 
@@ -58,8 +58,8 @@ async function boot(): Promise<void> {
   const pill = mountPill({
     storage: { ok: true },
     onLookTester: () => {
-      setPreviewBuilding('hall');
-      setPreviewLevel(1);
+      setPreviewBuilding(null);
+      setPreviewLook(1);
       setDesignPreview(true);
       window.location.hash = 'village';
     },

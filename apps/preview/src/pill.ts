@@ -116,7 +116,7 @@ export function mountPill(opts: PillOptions): Pill {
   });
   const animNote = document.createElement('p');
   animNote.className = 'pv-note';
-  animNote.textContent = 'Opens a bar on the village: pick a building, press Look 1\u20134 or Replay. Nothing is saved.';
+  animNote.textContent = 'Opens a bar on the village: all buildings or one, Look 1\u20134, Replay. Nothing is saved.';
   anim.append(animTitle, animBtn, animNote);
 
   menu.append(about, warn, sec, anim, reset, confirmNote, confirmBtn);

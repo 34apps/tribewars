@@ -74,6 +74,12 @@ export function wallLook(level: number): WallLook {
   return buildingStage('wall', level);
 }
 
+/** First level that shows look `stage` (1..4) of a building. */
+export function lookStartLevel(id: BuildingId, stage: Exclude<Stage, 0>): number {
+  const [a, b] = STAGE_TOPS[id];
+  return stage === 1 ? 1 : stage === 2 ? a + 1 : stage === 3 ? b + 1 : BUILDINGS[id].maxLevel;
+}
+
 /** "6–12" style level range of a stage, for captions ("20" for a single level). */
 export function stageRange(id: BuildingId, stage: Exclude<Stage, 0>): string {
   const [a, b] = STAGE_TOPS[id];

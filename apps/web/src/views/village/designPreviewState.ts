@@ -17,10 +17,10 @@ function readOn(): boolean {
   }
 }
 
-/** The building being stepped alone, or null for "All buildings" (today's wall-only preview). */
+/** The building being stepped alone, or null for "All buildings" (every building at the level, or at one look). */
 export type PreviewBuilding = BuildingId | null;
 
-/** Lowest and highest level the slider offers: "All buildings" runs 0..20 (wall look); one building runs 1..its max. */
+/** Lowest and highest level the slider offers: "All buildings" runs 0..20 (each building capped at its max); one building runs 1..its max. */
 export function previewRange(building: PreviewBuilding): { min: number; max: number } {
   return building ? { min: 1, max: BUILDINGS[building].maxLevel } : { min: 0, max: PREVIEW_MAX_LEVEL };
 }
@@ -35,11 +35,14 @@ export const LANDSCAPE_CHOICES: readonly { id: LandscapeChoice; label: string }[
   { id: 'C', label: 'C · Forest and hills' },
 ];
 
-let state: { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice } = {
+/** `look` (All buildings only): every building shows the first level of that look; null = every building at `level`. */
+export type PreviewLook = 1 | 2 | 3 | 4 | null;
+let state: { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook } = {
   on: readOn(),
   level: 1,
   building: null,
   landscape: 'tiles',
+  look: null,
 };
 const listeners = new Set<() => void>();
 
@@ -70,8 +73,15 @@ export function setDesignPreview(on: boolean): void {
 export function setPreviewLevel(level: number): void {
   const { min, max } = previewRange(state.building);
   const next = Math.max(min, Math.min(max, Math.round(level)));
-  if (next === state.level) return;
-  state = { ...state, level: next };
+  if (next === state.level && state.look === null) return;
+  state = { ...state, level: next, look: null };
+  emit();
+}
+
+/** All buildings: show every building at the first level of one of its looks (null: back to the level slider). */
+export function setPreviewLook(look: PreviewLook): void {
+  if (look === state.look) return;
+  state = { ...state, look };
   emit();
 }
 
@@ -79,7 +89,7 @@ export function setPreviewLevel(level: number): void {
 export function setPreviewBuilding(building: PreviewBuilding): void {
   if (building === state.building) return;
   const { min, max } = previewRange(building);
-  state = { ...state, building, level: Math.max(min, Math.min(max, state.level)) };
+  state = { ...state, building, level: Math.max(min, Math.min(max, state.level)), look: null };
   emit();
 }
 
@@ -89,7 +99,7 @@ export function setPreviewLandscape(landscape: LandscapeChoice): void {
   emit();
 }
 
-export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice } {
+export function useDesignPreview(): { on: boolean; level: number; building: PreviewBuilding; landscape: LandscapeChoice; look: PreviewLook } {
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);

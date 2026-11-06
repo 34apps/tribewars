@@ -13,6 +13,7 @@ import {
   setPreviewBuilding,
   setPreviewLandscape,
   setPreviewLevel,
+  setPreviewLook,
   useDesignPreview,
   type LandscapeChoice,
   type PreviewBuilding,
@@ -63,7 +64,7 @@ function changeLevels(id: BuildingId): number[] {
 }
 
 export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
-  const { level, building, landscape } = useDesignPreview();
+  const { level, building, landscape, look: allLook } = useDesignPreview();
   const [playing, setPlaying] = useState(false);
   const { max } = previewRange(building);
   const subject: BuildingId = building ?? 'wall';
@@ -153,23 +154,26 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
           {playing ? 'Pause' : 'Play'}
         </button>
       </div>
-      {building && building !== 'wall' && changes && changes.length > 0 && (
+      {(!building || (building !== 'wall' && changes && changes.length > 0)) && (
         <div style={{ ...row, flexWrap: 'wrap' }} role="group" aria-label="Jump to a look">
-          {changes.map((first, i) => {
-            const active = look(building, lvl) === i + 1;
+          {([1, 2, 3, 4] as const).map((n) => {
+            const first = building ? changes![n - 1] : n;
+            if (first === undefined) return null;
+            const active = building ? look(building, lvl) === n : allLook === n;
             return (
               <button
-                key={first}
+                key={n}
                 type="button"
                 className={`btn btn-small${active ? ' btn-primary' : ''}`}
                 style={btn}
                 aria-pressed={active}
                 onClick={() => {
                   setPlaying(false);
-                  setPreviewLevel(first);
+                  if (building) setPreviewLevel(first);
+                  else setPreviewLook(n);
                 }}
               >
-                Look {i + 1}
+                Look {n}
               </button>
             );
           })}
@@ -179,14 +183,20 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
             style={btn}
             aria-label="Replay the look change animation"
             onClick={() => {
-              // Step to the look before (or after, for look 1) and straight back: the scene plays the build moment again.
+              // Step to another look and straight back: the scene plays the build moment again.
               setPlaying(false);
-              const i = look(building, lvl) - 1;
-              const other = changes[i > 0 ? i - 1 : 1];
-              if (other === undefined) return;
-              const back = lvl;
-              setPreviewLevel(other);
-              window.setTimeout(() => setPreviewLevel(back), 60);
+              if (building) {
+                const i = look(building, lvl) - 1;
+                const other = changes![i > 0 ? i - 1 : 1];
+                if (other === undefined) return;
+                const back = lvl;
+                setPreviewLevel(other);
+                window.setTimeout(() => setPreviewLevel(back), 60);
+              } else {
+                const back = allLook;
+                setPreviewLook(back === 1 ? 2 : 1);
+                window.setTimeout(() => (back ? setPreviewLook(back) : setPreviewLevel(level)), 60);
+              }
             }}
           >
             Replay
@@ -194,10 +204,12 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
         </div>
       )}
       <div style={{ fontSize: 12, lineHeight: 1.35 }} aria-live="polite">
-        <strong style={{ fontSize: 14 }}>{building ? `${name} · Level ${lvl} of ${BUILDINGS[subject].maxLevel}` : `Wall preview · Level ${lvl}`}</strong>
+        <strong style={{ fontSize: 14 }}>
+          {building ? `${name} · Level ${lvl} of ${BUILDINGS[subject].maxLevel}` : allLook ? `All buildings · Look ${allLook}` : `All buildings · Level ${lvl}`}
+        </strong>
         <span style={{ opacity: 0.85 }}>
           {' '}
-          — {info}
+          — {building ? info : allLook ? 'Every building at the first level of this look.' : 'Every building at this level (or its max).'}
           {changes && changes.length > 0 ? ` Picture changes at level ${changes.join(', ')}.` : ''}
         </span>
       </div>
