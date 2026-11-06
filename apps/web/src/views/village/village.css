@@ -194,6 +194,13 @@ th[scope='row'] {
   cursor: grabbing;
 }
 
+/* While a finger drags the village, hold the scene's animations (fire, builders, ring): Safari repaints the whole SVG for
+   every animated frame, which made panning stutter on iPhones. */
+.vv-view.is-dragging .vv-svg *,
+.vv-view.is-dragging .vv-svg {
+  animation-play-state: paused !important;
+}
+
 .vv-stage {
   position: relative;
 }

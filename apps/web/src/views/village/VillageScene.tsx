@@ -540,7 +540,8 @@ export function VillageScene({
   const viewRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ w: 0, h: 0 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ id: number; sx: number; sy: number; px: number; py: number; moved: boolean } | null>(null);
+  const drag = useRef<{ id: number; sx: number; sy: number; px: number; py: number; moved: boolean; last?: { x: number; y: number } } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
 
   useLayoutEffect(() => {
@@ -556,7 +557,9 @@ export function VillageScene({
   // Scene size on phones: big enough to read labels, bounded so panning stays short.
   // The scale comes from the height without the headroom above the plate (SCENE_BASE_H), so the village keeps the size
   // it had before the headroom existed; the stage is taller by the headroom and panning reaches it.
-  const scale = mode === 'pan' && view.h > 0 ? Math.min(1.85, Math.max(1.35, (view.h * 0.9) / SCENE_BASE_H)) : 1;
+  // Owner 2026-11-06 (iPhone): 1.35-1.85 showed one building at a time and made every look round a long drag; now a few
+  // buildings fit on screen (the labels are HTML, so they stay readable at any zoom).
+  const scale = mode === 'pan' && view.h > 0 ? Math.min(1.05, Math.max(0.8, (view.h * 0.72) / SCENE_BASE_H)) : 1;
   const stageW = VB.w * scale;
   const stageH = VB.h * scale;
 
@@ -604,15 +607,22 @@ export function VillageScene({
     if (!d.moved) {
       d.moved = true;
       viewRef.current?.setPointerCapture(e.pointerId);
+      viewRef.current?.classList.add('is-dragging');
       onPanned?.();
     }
-    setPan(clamp(d.px + dx, d.py + dy));
+    // While the finger moves, move the stage directly (no React render per move: phones stayed smooth only this way);
+    // the position is committed to state when the drag ends.
+    const p = clamp(d.px + dx, d.py + dy);
+    d.last = p;
+    if (stageRef.current) stageRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     dragged.current = d.moved;
     drag.current = null;
+    viewRef.current?.classList.remove('is-dragging');
+    if (d.last) setPan(d.last);
     // The click that follows this pointerup (if any) reads the flag first; then it is cleared.
     if (d.moved) window.setTimeout(() => (dragged.current = false), 0);
   };
@@ -651,7 +661,7 @@ export function VillageScene({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <div className="vv-stage" style={stageStyle}>
+      <div ref={stageRef} className="vv-stage" style={stageStyle}>
         <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} hearthOut={!!village.hearth} onBox={onBox} onPick={pick} memoryKey={`${village.id}${ov ? ':preview' : ''}`} />
         <div className="vv-hits">
           {order.map((id) => {
