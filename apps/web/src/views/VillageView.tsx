@@ -12,7 +12,7 @@ import { MovementsSummary } from './village/MovementsSummary.tsx';
 import { RenownBadge, RenownCard, RenownChip } from './village/RenownCard.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
 import { DesignPreviewBar } from './village/DesignPreviewBar.tsx';
-import { useDesignPreview } from './village/designPreviewState.ts';
+import { designPreviewAllowed, useDesignPreview } from './village/designPreviewState.ts';
 import './village/village.css';
 
 function useBuild() {
@@ -36,7 +36,7 @@ function useBuild() {
 function DesktopVillage() {
   const { village, player } = useGame();
   const dp = useDesignPreview();
-  const preview = player.sandbox && dp.on;
+  const preview = designPreviewAllowed(player.sandbox) && dp.on;
   const [selected, setSelected] = useState<BuildingId | null>('hall');
   const { busy, build } = useBuild();
   useEffect(() => {
@@ -88,7 +88,7 @@ function PhoneVillage() {
   const { village, live, now, player } = useGame();
   const maxQueue = useRules().queues.build;
   const dp = useDesignPreview();
-  const preview = player.sandbox && dp.on;
+  const preview = designPreviewAllowed(player.sandbox) && dp.on;
   const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | null>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);

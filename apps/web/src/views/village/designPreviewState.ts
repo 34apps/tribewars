@@ -42,6 +42,18 @@ let state: { on: boolean; level: number; building: PreviewBuilding; landscape: L
   landscape: 'tiles',
 };
 const listeners = new Set<() => void>();
+
+/**
+ * The single-file preview build (apps/preview) has no test-mode accounts; it calls this at start-up so its "Try look
+ * animations" button can open the design preview for anyone. The real game never calls it (only sandbox accounts).
+ */
+let everyone = false;
+export function allowDesignPreviewForEveryone(): void {
+  everyone = true;
+}
+export function designPreviewAllowed(sandbox: boolean): boolean {
+  return sandbox || everyone;
+}
 const emit = () => listeners.forEach((l) => l());
 
 export function setDesignPreview(on: boolean): void {

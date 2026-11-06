@@ -7,6 +7,8 @@ export interface PillOptions {
   storage: { ok: boolean };
   /** "Show all buildings": set every building of the test village to a look (1 = first, 2 = middle, 3 = last). */
   onShowcase: (stage: 1 | 2 | 3 | 4) => void;
+  /** "Try look animations": open the level bar under the village (pick a building, jump between its looks, replay). */
+  onLookTester: () => void;
 }
 
 const CSS = `
@@ -100,7 +102,24 @@ export function mountPill(opts: PillOptions): Pill {
   secNote.textContent = 'Preview only \u2014 changes your test village';
   sec.append(secTitle, row, secNote);
 
-  menu.append(about, warn, sec, reset, confirmNote, confirmBtn);
+  const anim = document.createElement('div');
+  anim.className = 'pv-sec';
+  const animTitle = document.createElement('b');
+  animTitle.textContent = 'Look change animation';
+  const animBtn = document.createElement('button');
+  animBtn.className = 'pv-btn';
+  animBtn.type = 'button';
+  animBtn.textContent = 'Try look animations';
+  animBtn.addEventListener('click', () => {
+    opts.onLookTester();
+    setOpen(false);
+  });
+  const animNote = document.createElement('p');
+  animNote.className = 'pv-note';
+  animNote.textContent = 'Opens a bar on the village: pick a building, press Look 1\u20134 or Replay. Nothing is saved.';
+  anim.append(animTitle, animBtn, animNote);
+
+  menu.append(about, warn, sec, anim, reset, confirmNote, confirmBtn);
   root.append(chip, menu);
 
   const setOpen = (open: boolean): void => {

@@ -13,6 +13,7 @@ import { loadSave, wipeSave, writeSave } from './persist.ts';
 import { mountPill } from './pill.ts';
 import { applyShowcase } from './showcase-apply.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
+import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLevel } from '../../web/src/views/village/designPreviewState.ts';
 
 const SAVE_DEBOUNCE_MS = 2000;
 
@@ -52,8 +53,16 @@ async function boot(): Promise<void> {
   let resetting = false;
   let timer: number | undefined;
   let dirty = true;
+  // The preview has no test-mode accounts: let its "Try look animations" button open the village's design preview bar.
+  allowDesignPreviewForEveryone();
   const pill = mountPill({
     storage: { ok: true },
+    onLookTester: () => {
+      setPreviewBuilding('hall');
+      setPreviewLevel(1);
+      setDesignPreview(true);
+      window.location.hash = 'village';
+    },
     onShowcase: (stage) => {
       try {
         applyShowcase(backend.ctx, backend.getToken(), stage, STAGE_TOPS);

@@ -153,6 +153,46 @@ export function DesignPreviewBar({ inline = false }: { inline?: boolean }) {
           {playing ? 'Pause' : 'Play'}
         </button>
       </div>
+      {building && building !== 'wall' && changes && changes.length > 0 && (
+        <div style={{ ...row, flexWrap: 'wrap' }} role="group" aria-label="Jump to a look">
+          {changes.map((first, i) => {
+            const active = look(building, lvl) === i + 1;
+            return (
+              <button
+                key={first}
+                type="button"
+                className={`btn btn-small${active ? ' btn-primary' : ''}`}
+                style={btn}
+                aria-pressed={active}
+                onClick={() => {
+                  setPlaying(false);
+                  setPreviewLevel(first);
+                }}
+              >
+                Look {i + 1}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="btn btn-small"
+            style={btn}
+            aria-label="Replay the look change animation"
+            onClick={() => {
+              // Step to the look before (or after, for look 1) and straight back: the scene plays the build moment again.
+              setPlaying(false);
+              const i = look(building, lvl) - 1;
+              const other = changes[i > 0 ? i - 1 : 1];
+              if (other === undefined) return;
+              const back = lvl;
+              setPreviewLevel(other);
+              window.setTimeout(() => setPreviewLevel(back), 60);
+            }}
+          >
+            Replay
+          </button>
+        </div>
+      )}
       <div style={{ fontSize: 12, lineHeight: 1.35 }} aria-live="polite">
         <strong style={{ fontSize: 14 }}>{building ? `${name} · Level ${lvl} of ${BUILDINGS[subject].maxLevel}` : `Wall preview · Level ${lvl}`}</strong>
         <span style={{ opacity: 0.85 }}>
