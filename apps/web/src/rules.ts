@@ -202,13 +202,13 @@ export function unitListText(units: Units): string {
 
 /**
  * Missions that may be sent to a village, from the target's kind and relation to me. The server re-checks.
- * Abandoned: attack, scout. Tribe/ally: support only. NAP and self: none. Enemy/neutral: attack, scout.
+ * Abandoned: attack. Tribe/ally: support only. NAP and self: none. Enemy/neutral: attack. (There is no scout choice: an attack with Pathfinders scouts, owner 2026-11-06.)
  */
 export function allowedMissions(kind: MapVillageKind, relation: PlayerRelation | null): Mission[] {
   if (kind === 'own') return [];
-  if (kind === 'abandoned' || relation === null) return ['attack', 'scout'];
+  if (kind === 'abandoned' || relation === null) return ['attack'];
   const out: Mission[] = [];
-  if (!isAttackForbidden(relation)) out.push('attack', 'scout');
+  if (!isAttackForbidden(relation)) out.push('attack');
   if (isSupportAllowed(relation)) out.push('support');
   return out;
 }

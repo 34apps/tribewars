@@ -24,6 +24,11 @@ export function isWithin(want: Units, have: Units): boolean {
   return UNIT_IDS.every((u) => want[u] <= have[u]);
 }
 
+/** Pathfinders and nothing else (at least one): such an attack is a scouting march. */
+export function isScoutArmy(army: Units): boolean {
+  return army.pathfinder > 0 && UNIT_IDS.every((u) => u === 'pathfinder' || army[u] === 0);
+}
+
 /** Units with only `unit` set to `count`. */
 export function only(unit: (typeof UNIT_IDS)[number], count: number): Units {
   const out = emptyUnits();

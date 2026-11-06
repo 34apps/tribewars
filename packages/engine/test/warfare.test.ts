@@ -366,7 +366,7 @@ describe('checkMission', () => {
   };
   type Expect = 'ok' | 'no_troops' | 'invalid_input';
   const matrix: Record<Mission, Record<keyof typeof armies, Expect>> = {
-    attack: { empty: 'no_troops', pathfinders: 'invalid_input', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
+    attack: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
     scout: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'invalid_input', knights: 'invalid_input', mixed: 'invalid_input' },
     support: { empty: 'no_troops', pathfinders: 'ok', pikemen: 'ok', knights: 'ok', mixed: 'ok' },
     found: { empty: 'no_troops', pathfinders: 'invalid_input', pikemen: 'invalid_input', knights: 'invalid_input', mixed: 'invalid_input' },
@@ -395,8 +395,10 @@ describe('checkMission', () => {
   });
 
   it('uses clear messages', () => {
-    const attack = checkMission('attack', units({ pathfinder: 2 }));
-    assert.ok(!attack.ok && /Pathfinders can't attack alone/.test(attack.message) && /scouting mission/.test(attack.message));
+    // Pathfinders alone may attack now (owner, 2026-11-06): that is a scouting march. 'scout' stays for older clients.
+    assert.deepEqual(checkMission('attack', units({ pathfinder: 2 })), { ok: true });
+    const noAttack = checkMission('attack', units({ guard: 0, pikeman: 0 }));
+    assert.ok(!noAttack.ok && noAttack.reason === 'no_troops');
     const scout = checkMission('scout', units({ pathfinder: 1, pikeman: 1 }));
     assert.ok(!scout.ok && /Only Pathfinders/.test(scout.message));
     const none = checkMission('support', units({}));

@@ -419,12 +419,26 @@ Players are ranked by the sum of their villages' points (top 100 shown, ties sha
 Numbers in `config.ts` (`SCOUT_*`, unit `pathfinder`); contract in `api.ts` (`SendRequest.mission`,
 `StationedDto`, recall/send-back routes, `TribeAlertDto`, report `type`s).
 
-**Missions.** Every send carries `mission`:
-- `attack` — as before (sections 6–7). Needs total attack > 0 (`invalid_input`: "Pathfinders can't attack
-  alone — send them on a scouting mission"). Forbidden on self/tribe/ally/NAP; beginner protection applies.
-- `scout` — Pathfinders only (any other unit → `invalid_input`), at least one. Same targets as attack
-  (forbidden on self/tribe/ally/NAP; protected players refused; abandoned villages allowed). Never shown to
-  the target as incoming. Sending a scout or an attack at a *player* ends the sender's beginner protection.
+**Missions.** The player only ever chooses **Attack** or **Support** (owner, 2026-11-06: "if the user attacks with
+scouts, it will automatically scout"). Every send carries `mission`:
+- `attack` — as before (sections 6–7). Needs total attack > 0, or Pathfinders, or a Chieftain (`invalid_input` otherwise).
+  Forbidden on self/tribe/ally/NAP; beginner protection applies. **Pathfinders in an attack scout** (owner, 2026-11-06):
+  - *Pathfinders only:* the server stores and resolves it as a scouting march (movement `kind: 'scout'`): exactly the
+    scouting below, never shown to the target as incoming. Only villages can be scouted: a site refuses it.
+  - *Pathfinders plus other troops:* a normal attack (`kind: 'attack'`, shown as incoming to the target like any attack).
+    On arrival the Pathfinders scout first, with the same duel and formulas as below (only the army's Pathfinders count;
+    the target's own Pathfinders that die in the duel are gone before the battle). Then the rest of the army fights;
+    **Pathfinders take no part in the battle and suffer no battle losses**. The sender gets **two reports**: the scout
+    report (intel on success, a failure note otherwise; the intel is the village as it stood on arrival, before the battle)
+    and the battle report. The target gets the "Pathfinders spotted" report only under the usual rule (it had a defending
+    Pathfinder), besides the battle report. Surviving Pathfinders walk home with the army's survivors; if the rest of the
+    army is wiped out (or stays behind after a Strike) they walk home alone. Not applied to a relief attack on a cold
+    village or to a site attack (there the Pathfinders fight like any unit that has no attack).
+- `scout` — the old scouting mission, still accepted by the API for older clients: Pathfinders only (any other unit →
+  `invalid_input`), at least one; the same as an attack of Pathfinders only. The web client no longer sends it.
+  Same targets as attack (forbidden on self/tribe/ally/NAP; protected players refused; abandoned villages allowed).
+  Sending a scouting march or an attack at a *player* ends the sender's beginner protection. Old `scout` movements in a
+  database resolve as before.
 - `support` — any units, only to a village whose owner is in your tribe or an ally (`isSupportAllowed`);
   never to yourself, NAP partners, neutrals, enemies or abandoned villages (`invalid_target`). Visible to the
   host as incoming support (with units).

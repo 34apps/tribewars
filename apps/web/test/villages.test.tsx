@@ -193,9 +193,9 @@ test('missionsFor: free tile founds, own villages support, my claim occupies, ot
   assert.deepEqual(missionsFor(null, ctx), ['found']);
   assert.deepEqual(missionsFor(mapVillage({ id: 1, kind: 'own' }), ctx), [], 'the village I am in');
   assert.deepEqual(missionsFor(mapVillage({ id: 2, kind: 'own' }), ctx), ['support']);
-  assert.deepEqual(missionsFor(mapVillage({ id: 3 }), ctx), ['attack', 'scout']);
-  assert.deepEqual(missionsFor(mapVillage({ id: 3, hearth: hearth({ claimById: 7 }) }), ctx), ['occupy', 'scout']);
-  assert.deepEqual(missionsFor(mapVillage({ id: 3, hearth: hearth({ claimById: 8 }) }), ctx), ['attack', 'scout'], 'someone else holds it: attack it');
+  assert.deepEqual(missionsFor(mapVillage({ id: 3 }), ctx), ['attack']);
+  assert.deepEqual(missionsFor(mapVillage({ id: 3, hearth: hearth({ claimById: 7 }) }), ctx), ['occupy']);
+  assert.deepEqual(missionsFor(mapVillage({ id: 3, hearth: hearth({ claimById: 8 }) }), ctx), ['attack'], 'someone else holds it: attack it');
   assert.deepEqual(missionsFor(mapVillage({ id: 4, kind: 'player', relation: 'tribe' }), ctx), ['support']);
 });
 
@@ -208,7 +208,7 @@ test('relief: a cold own, tribe-mate or ally village offers an attack next to Su
   assert.deepEqual(missionsFor(mapVillage({ id: 5, kind: 'player', relation: 'ally', hearth: cold }), ctx), ['support', 'attack']);
   assert.deepEqual(missionsFor(mapVillage({ id: 4, kind: 'player', relation: 'tribe' }), ctx), ['support'], 'lit hearth: support only');
   assert.deepEqual(missionsFor(mapVillage({ id: 6, kind: 'player', relation: 'nap', hearth: cold }), ctx), [], 'a pact partner is not helped');
-  assert.deepEqual(missionsFor(mapVillage({ id: 7, kind: 'player', relation: 'enemy', hearth: cold }), ctx), ['attack', 'scout'], 'enemies: plain attack');
+  assert.deepEqual(missionsFor(mapVillage({ id: 7, kind: 'player', relation: 'enemy', hearth: cold }), ctx), ['attack'], 'enemies: plain attack');
   assert.equal(isReliefTarget(mapVillage({ id: 4, kind: 'player', relation: 'tribe', hearth: hearth({ claimById: 7 }) }), ctx), false, 'I hold it myself');
   assert.equal(isReliefTarget(mapVillage({ id: 3, kind: 'abandoned', hearth: cold }), ctx), false);
   assert.equal(isReliefTarget(null, ctx), false);
@@ -230,6 +230,8 @@ test('sendMode: an attack with Chieftains on an abandoned or player village is a
   assert.equal(sendMode('found', { chieftain: 1 }, null), 'found');
   assert.equal(sendMode('occupy', { pikeman: 5 }, 'abandoned'), 'occupy');
   assert.equal(sendMode('scout', { pathfinder: 3 }, 'abandoned'), 'scout');
+  assert.equal(sendMode('attack', { pathfinder: 3 }, 'abandoned'), 'scout', 'Pathfinders alone: the button says scouts');
+  assert.equal(sendMode('attack', { pathfinder: 3, raider: 5 }, 'abandoned'), 'attack', 'with fighters it is an attack');
 });
 
 test('strikeWarning asks for an escort and enough Chieftains', () => {

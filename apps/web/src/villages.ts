@@ -167,14 +167,14 @@ export interface MissionContext {
 
 /**
  * Missions a map tile offers. null = a free tile (Found a village). Own other village: Support (troops stay) and
- * resources (separate form). A cold village I hold the claim on: Occupy and Scout (an attack on it is refused, you hold it).
+ * resources (separate form). A cold village I hold the claim on: Occupy only (an attack on it is refused, you hold it).
  * Everything else follows `allowedMissions`.
  */
 export function missionsFor(target: MapVillageDto | null, ctx: MissionContext): Mission[] {
   if (target === null) return ['found'];
   const relief = isReliefTarget(target, ctx);
   if (target.kind === 'own') return target.id === ctx.currentVillageId ? [] : relief ? ['support', 'attack'] : ['support'];
-  if (target.hearth && target.hearth.claimById === ctx.playerId) return ['occupy', 'scout'];
+  if (target.hearth && target.hearth.claimById === ctx.playerId) return ['occupy'];
   const base = allowedMissions(target.kind, target.relation);
   // A relief attack goes next to Support on a cold tribe-mate's or ally's village (the attack mission there fights only the occupiers).
   return relief && !base.includes('attack') ? [...base, 'attack'] : base;
@@ -221,10 +221,16 @@ export function canStrike(targetKind: MapVillageDto['kind'] | null): boolean {
   return targetKind === 'abandoned' || targetKind === 'player';
 }
 
+function isScoutOnly(army: Units): boolean {
+  return army.pathfinder > 0 && UNIT_IDS.every((u) => u === 'pathfinder' || army[u] === 0);
+}
+
 /** What the send dialog calls this send: an attack with Chieftains on an abandoned or a player's village is a Strike. */
 export function sendMode(mission: Mission, chosen: Partial<Units>, targetKind: MapVillageDto['kind'] | null, relief = false): SendMode {
   if (mission === 'attack' && relief) return 'relieve';
   if (mission === 'attack' && normalizeUnits(chosen).chieftain > 0 && canStrike(targetKind)) return 'strike';
+  // An attack of Pathfinders only is a scouting march (the server decides; this only picks the button and the toast).
+  if (mission === 'attack' && isScoutOnly(normalizeUnits(chosen))) return 'scout';
   return mission;
 }
 

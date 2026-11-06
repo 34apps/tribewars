@@ -126,7 +126,7 @@ import { RenownService } from './renown-service.ts';
 import { SiteService } from './site-service.ts';
 import { sitesFor } from './site-layout.ts';
 import { NEW_VILLAGE_NAME, hasUnpaidBuildRenown, type MapRow, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
-import { addUnits, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
+import { addUnits, isScoutArmy, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
 
 /** A village name: 1 to 30 letters, digits, spaces and . _ - ' (checked after trimming). */
 const VILLAGE_NAME_PATTERN = /^[\p{L}\p{N} ._'-]{1,30}$/u;
@@ -463,8 +463,8 @@ export class GameService {
 
   private resolveAttack(m: MovementRow): number | null {
     const s = this.settings;
-    const origin = this.store.getVillage(m.originVillageId);
-    const target = this.store.getVillage(m.targetVillageId);
+    let origin = this.store.getVillage(m.originVillageId);
+    let target = this.store.getVillage(m.targetVillageId);
     if (!origin || !target) {
       this.store.deleteMovement(m.id);
       return null;
@@ -480,15 +480,27 @@ export class GameService {
     // Your own claim is not a target (the occupiers there are yours); a founded or restarted village is protected for a while.
     if (origin.ownerId !== null && target.state.hearth?.claimBy === origin.ownerId) return this.callOffAttack(m, origin, target);
     if (isAttackBlocked(target.state, at)) return this.callOffAttack(m, origin, target);
+    // Pathfinders in the army scout first (the same duel as a scouting march) and then stay out of the battle: the rest fights.
+    // An army of Pathfinders only is just a scouting march.
+    const scoutsSent = m.units.pathfinder;
+    if (scoutsSent > 0 && totalUnits(m.units) === scoutsSent) return this.resolveScout(m);
+    let scoutSurvivors = emptyUnits();
+    let fighters = m.units;
+    if (scoutsSent > 0) {
+      scoutSurvivors = this.runScouting(m, origin, target, at);
+      fighters = { ...m.units, pathfinder: 0 };
+      origin = this.store.getVillage(m.originVillageId) ?? origin; // both villages were saved by the duel
+      target = this.store.getVillage(m.targetVillageId) ?? target;
+    }
     const originState = settleVillage(origin.state, at, s);
     const targetState = settleVillage(target.state, at, s);
     // Support stationed at the target defends with the village's own troops.
     const contingents = this.store.stationedAt(target.id);
     // An attack with Chieftains is a Strike attempt, not a raid: it carries no loot.
-    const strikeTry = m.units.chieftain > 0 && origin.ownerId !== null;
+    const strikeTry = fighters.chieftain > 0 && origin.ownerId !== null;
 
     const result = resolveBattle({
-      attackerUnits: m.units,
+      attackerUnits: fighters,
       defender: targetState,
       support: contingents.map((c) => c.units),
       // Attacker and support use the ranks stamped when they left home; the defender's are its village's current ones.
@@ -541,7 +553,7 @@ export class GameService {
       luck: result.luck,
       attackPower: result.attackPower,
       defensePower: result.defensePower,
-      attackerUnits: m.units,
+      attackerUnits: fighters,
       attackerLosses: result.attackerLosses,
       defenderUnits: result.defenderUnits,
       defenderLosses: result.defenderLosses,
@@ -550,7 +562,7 @@ export class GameService {
       // The Wall as it counted in the battle (after the Log Rams' during hit); the Wall siege line below runs from before to after.
       wallLevel: result.wallDuring,
       loot: result.loot,
-      ...(hasSiegeUnits(m.units) ? { siege: result.siege ?? [] } : {}),
+      ...(hasSiegeUnits(fighters) ? { siege: result.siege ?? [] } : {}),
     };
     if (origin.ownerId !== null) {
       // An army wiped out sees nothing of the defence, except the Wall hit of a close loss (it shot during the battle).
@@ -564,7 +576,7 @@ export class GameService {
             supportUnits: null,
             supportLosses: null,
             wallLevel: null,
-            ...(hasSiegeUnits(m.units) ? { siege: wallHits } : {}),
+            ...(hasSiegeUnits(fighters) ? { siege: wallHits } : {}),
           };
       this.store.insertReport({
         playerId: origin.ownerId,
@@ -637,15 +649,17 @@ export class GameService {
     if (!struck && target.state.hearth) this.refreshHold(target.id, at);
 
     let spawned: number | null = null;
-    if (survived && !struck) {
-      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, result.attackerSurvivors, s);
+    // Surviving Pathfinders walk home with the army's survivors, or alone when the rest of the army fell (or struck and stayed).
+    const walkers = struck || !survived ? scoutSurvivors : addUnits(result.attackerSurvivors, scoutSurvivors);
+    if (totalUnits(walkers) > 0) {
+      const back = m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, walkers, s);
       spawned = at + back;
       const returnId = this.store.insertMovement({
         kind: 'return',
         originVillageId: origin.id,
         targetVillageId: target.id,
-        units: result.attackerSurvivors,
-        loot: result.loot,
+        units: walkers,
+        loot: survived && !struck ? result.loot : null,
         departAt: at,
         arriveAt: spawned,
       });
@@ -1103,7 +1117,6 @@ export class GameService {
    * support contingent. See GAME_DESIGN.md section 12.
    */
   private resolveScout(m: MovementRow): number | null {
-    const s = this.settings;
     const origin = this.store.getVillage(m.originVillageId);
     const target = this.store.getVillage(m.targetVillageId);
     if (!origin || !target) {
@@ -1117,6 +1130,32 @@ export class GameService {
       const rel = relationBetweenPlayers(this.store.tribes, origin.ownerId, target.ownerId, at);
       if (isAttackForbidden(rel.relation)) return this.turnBack(m, origin, target);
     }
+    const survivors = this.runScouting(m, origin, target, at);
+    let spawned: number | null = null;
+    if (totalUnits(survivors) > 0) {
+      spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, this.settings));
+      this.store.insertMovement({
+        kind: 'return',
+        originVillageId: origin.id,
+        targetVillageId: target.id,
+        units: survivors,
+        loot: null,
+        departAt: at,
+        arriveAt: spawned,
+      });
+    }
+    this.store.deleteMovement(m.id);
+    return spawned;
+  }
+
+  /**
+   * The scouting duel of the Pathfinders in movement `m` against the village `target`: losses on both sides are saved, stats
+   * counted, and the reports written (the sender's, and the target's if somebody there spotted them). Used by a Pathfinder-only
+   * march and, first of all, by an attack that carries Pathfinders. Returns the surviving Pathfinders (units); the caller sends
+   * them home. Re-read the villages afterwards: both were saved here.
+   */
+  private runScouting(m: MovementRow, origin: VillageRecord, target: VillageRecord, at: number): Units {
+    const s = this.settings;
     const originState = settleVillage(origin.state, at, s);
     const targetState = settleVillage(target.state, at, s);
     const contingents = this.store.stationedAt(target.id);
@@ -1124,7 +1163,6 @@ export class GameService {
     const supportScouts = contingents.map((c) => c.units.pathfinder);
     const defenderScouts = ownScouts + supportScouts.reduce((a, b) => a + b, 0);
     const scoutsSent = m.units.pathfinder;
-
     // Keen ranks tilt the duel: the sender's stamped ranks against each defending Pathfinder's own village ranks.
     const result = resolveScouting({
       scouts: scoutsSent,
@@ -1140,7 +1178,7 @@ export class GameService {
     const lost = only('pathfinder', result.scoutLosses);
     const newOrigin = applyAttackerLosses(originState, lost);
     this.store.saveVillage(origin.id, newOrigin, villagePoints(newOrigin));
-    const survivors = subtractUnits(m.units, lost);
+    const survivors = only('pathfinder', scoutsSent - result.scoutLosses);
 
     // Defenders lose their own Pathfinders first; the rest is split between contingents by size.
     let ownScoutsLost = 0;
@@ -1208,21 +1246,7 @@ export class GameService {
       });
     }
 
-    let spawned: number | null = null;
-    if (totalUnits(survivors) > 0) {
-      spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, s));
-      this.store.insertMovement({
-        kind: 'return',
-        originVillageId: origin.id,
-        targetVillageId: target.id,
-        units: survivors,
-        loot: null,
-        departAt: at,
-        arriveAt: spawned,
-      });
-    }
-    this.store.deleteMovement(m.id);
-    return spawned;
+    return survivors;
   }
 
   /**
@@ -1811,7 +1835,7 @@ export class GameService {
   }
 
   /**
-   * Send troops on a mission (attack, scout or support). Order of checks: the target exists and is not yours, the
+   * Send troops on a mission (attack, support, ...). An attack with Pathfinders only is stored and resolved as a scouting march. Order of checks: the target exists and is not yours, the
    * relation and beginner protection allow the mission, the army suits the mission, the troops are at home.
    */
   send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
@@ -1844,9 +1868,12 @@ export class GameService {
         // No village there: a map site (attack / support, like a found mission it walks to a tile), or nothing.
         const site = this.sites.at(x, y);
         if (!site) throw new GameError('invalid_target', 'There is no village at those coordinates.');
+        if ((mission === 'attack' || mission === 'scout') && isScoutArmy(army)) throw new GameError('invalid_target', 'Pathfinders alone can only scout villages.');
         this.sites.checkSend(player, site, mission, army, t);
       } else {
         target = this.store.getVillageAt(x, y) as VillageRecord;
+        // An attack of Pathfinders only is a scouting march (owner, 2026-11-06). An old client may still say 'scout'.
+        if (mission === 'attack' && isScoutArmy(army)) mission = 'scout';
         const own = target.ownerId === player.id;
         // A cold village (hearth out) may be attacked by its owner, tribe-mates and allies: the attack fights the occupiers only.
         relief = mission === 'attack' && target.id !== v.id && this.isRelief(player.id, target, t);

@@ -305,7 +305,7 @@ function botScout(ctx: AppContext, bots: Bot[], t: number): boolean {
   const state = restockBot(ctx, bot, t);
   const target = pick(nearbyAbandoned(ctx, bot.home, 4));
   if (!target || state.troops.pathfinder < 1) return false;
-  return trySend(ctx, bot, target.x, target.y, { pathfinder: Math.min(state.troops.pathfinder, 2) }, 'scout', t);
+  return trySend(ctx, bot, target.x, target.y, { pathfinder: Math.min(state.troops.pathfinder, 2) }, 'attack', t); // an attack of Pathfinders only scouts
 }
 
 /** Every human player (anyone who is not a bot). */

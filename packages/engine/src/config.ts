@@ -384,7 +384,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
   pathfinder: {
     id: 'pathfinder',
     name: 'Pathfinder',
-    description: 'Quick, quiet scout. Sent alone on a scouting mission, reports what a village holds. Catches enemy scouts at home.',
+    description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home.',
     unitClass: 'infantry',
     attack: 0,
     defenseInfantry: 2,
@@ -843,7 +843,7 @@ export const FORUM_PER_HOUR = 60;
 
 // ---- Tribe warfare (section 12) ----
 
-/** The scouting unit: the only unit a scout mission may carry. */
+/** The scouting unit: in an attack it scouts first and sits out the battle. */
 export const SCOUT_UNIT: UnitId = 'pathfinder';
 /** Scouting succeeds when sent scouts > defending scouts * this. */
 export const SCOUT_DEFENSE_FACTOR = 1;

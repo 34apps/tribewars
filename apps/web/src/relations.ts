@@ -25,18 +25,18 @@ export const RELATION_STYLE: Record<RelationKey, RelationStyle> = {
 
 export const LEGEND_ORDER: readonly RelationKey[] = ['self', 'tribe', 'ally', 'nap', 'enemy', 'neutral', 'abandoned'];
 
-/** Why attacking and scouting are unavailable for a village; support may still be possible (tribe, ally). */
+/** Why attacking (which includes scouting) is unavailable for a village; support may still be possible (tribe, ally). */
 export const ATTACK_BLOCKED_TEXT: Partial<Record<PlayerRelation, string>> = {
   self: 'This is your own village.',
-  tribe: 'Your tribe-mate: attacks and scouting are blocked. You can send support.',
-  ally: 'Your ally: attacks and scouting are blocked while the alliance holds. You can send support.',
-  nap: 'Non-aggression pact: attacks and scouting are blocked while the pact holds.',
+  tribe: 'Your tribe-mate: attacks are blocked. You can send support.',
+  ally: 'Your ally: attacks are blocked while the alliance holds. You can send support.',
+  nap: 'Non-aggression pact: attacks are blocked while the pact holds.',
 };
 
 /** One line under the mission selector. */
 export const MISSION_HINT: Record<Mission, string> = {
-  attack: 'Fight for loot. Survivors carry what they can home.',
-  scout: 'Pathfinders only. They report troops, buildings and resources, then come home.',
+  attack: 'Fight for loot. Survivors carry what they can home. Pathfinders in an attack scout the village first.',
+  scout: 'Pathfinders scout the village, report troops, buildings and resources, then come home.',
   support: 'Troops stay and defend this village until recalled or sent back.',
   found: 'One Chieftain founds a new village on free land. An escort becomes its garrison.',
   occupy: 'Troops stay at a village you are holding until the hold clock runs out.',

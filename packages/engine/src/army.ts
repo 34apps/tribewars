@@ -122,10 +122,11 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
   }
   const army = normalizeUnits(units);
   if (totalUnits(army) <= 0) return fail('no_troops', 'Select at least one unit.');
+  // 'scout' is the old scouting mission, kept so older clients still work: it is the same as an attack of Pathfinders only.
   if (mission === 'scout') {
     for (const u of UNIT_IDS) {
       if (u !== SCOUT_UNIT && army[u] > 0) {
-        return fail('invalid_input', `Only ${UNITS[SCOUT_UNIT].name}s can go on a scouting mission.`);
+        return fail('invalid_input', `Only ${UNITS[SCOUT_UNIT].name}s can scout. Send other troops on an attack.`);
       }
     }
     return { ok: true };
@@ -150,9 +151,11 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
     }
     let attack = 0;
     for (const u of UNIT_IDS) attack += army[u] * UNITS[u].attack;
-    // A Chieftain alone may be sent (the Strike attempt on an abandoned village needs him); with no escort he simply dies.
-    if (!(attack > 0) && chieftains <= 0) {
-      return fail('invalid_input', `${UNITS[SCOUT_UNIT].name}s can't attack alone — send them on a scouting mission.`);
+    // Pathfinders have no attack: an army of them alone is a scouting march, with other troops they scout first and sit out
+    // the battle (owner, 2026-11-06). A Chieftain alone may be sent too (the Strike attempt on an abandoned village needs him);
+    // with no escort he simply dies.
+    if (!(attack > 0) && chieftains <= 0 && army[SCOUT_UNIT] <= 0) {
+      return fail('invalid_input', 'These troops cannot attack.');
     }
   }
   return { ok: true };

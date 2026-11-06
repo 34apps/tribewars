@@ -103,8 +103,7 @@ export function SendForm({
 
   // The relation can change while the panel is open (a pact formed): fall back to an allowed mission.
   const mission: Mission = missions.includes(chosenMission) ? chosenMission : fallback;
-  const scouting = mission === 'scout';
-  const fights = mission === 'attack' || mission === 'scout';
+  const fights = mission === 'attack';
   const targetName = target?.name ?? 'the new village';
 
   // Attack on a cold own / tribe-mate / ally village = relief attack (occupiers only; no Chieftains, no siege, no loot).
@@ -119,6 +118,7 @@ export function SendForm({
   const partial: Partial<Units> = {};
   for (const u of UNIT_IDS) if (chosen[u] > 0) partial[u] = chosen[u];
   const mode = sendMode(mission, partial, target?.kind ?? null, relief);
+  const scouting = mode === 'scout';
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
   // The server computes the real time from the same rule and its own seed; this only shows it in advance.
@@ -137,8 +137,8 @@ export function SendForm({
   else if (targetProtected) reason = 'This player is under beginner protection';
   else if (total < 1) {
     if (mission === 'found') reason = chieftainHome ? 'Choose your Chieftain' : 'No Chieftain at home. Train one in the Army tab (Banner Hall)';
-    else if (visible.length > 0) reason = scouting ? 'Choose how many Pathfinders to send' : 'Choose troops to send';
-    else reason = scouting ? 'No Pathfinders at home' : 'No troops at home';
+    else if (visible.length > 0) reason = 'Choose troops to send';
+    else reason = 'No troops at home';
   } else if (!check.ok) reason = check.message;
   else if (!missionCheck.ok) reason = missionCheck.message;
   else if (mission === 'found') reason = foundProblem(chosen);
@@ -247,7 +247,7 @@ export function SendForm({
       )}
       {visible.length === 0 ? (
         <p className="wm-muted">
-          {scouting ? 'No Pathfinders at home. ' : mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
+          {mission === 'found' ? 'No Chieftain at home. ' : 'No troops at home. '}
           <button type="button" className="wm-link" onClick={() => navigate('army')}>
             {mission === 'found' ? 'Train one in the Army tab (Banner Hall)' : 'Train some in the Army tab'}
           </button>
@@ -444,7 +444,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
   const missions: Mission[] = village ? missionsFor(village, { playerId: player.id, currentVillageId: mine.id }) : free ? ['found'] : [];
-  // Attack and scout go together, so a missing attack means the relation blocks both.
+  // A missing attack means the relation blocks it (an attack with Pathfinders scouts).
   const attackBlocked = relation !== null && !missions.includes('attack');
   // Found: the same rule as the server on free, buildable land away from other villages (the server re-checks on send and arrival).
   const foundSite = free ? checkFoundTarget(tile, settings, occupied) : null;

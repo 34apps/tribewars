@@ -125,7 +125,8 @@ test('found: bad tiles and bad armies are refused and nothing leaves home', asyn
   // More Chieftains than at home.
   const solo = await player(app, 'solo');
   const soloHome = strongHome(app, clock, solo, { pikeman: 5 });
-  errorOf(await solo.c.post(`/api/villages/${soloHome}/send`, { x: tile.x, y: tile.y, units: { chieftain: 1 }, mission: 'found' }), 409, 'not_enough_troops');
+  const soloTile = freeTileNear(app, solo); // after solo joins: his random home spot may sit next to `tile`
+  errorOf(await solo.c.post(`/api/villages/${soloHome}/send`, { x: soloTile.x, y: soloTile.y, units: { chieftain: 1 }, mission: 'found' }), 409, 'not_enough_troops');
   await app.close();
 });
 

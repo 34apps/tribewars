@@ -22,13 +22,20 @@ test('mission is required and must be attack, scout or support', async () => {
   await app.close();
 });
 
-test('attack: Pathfinders cannot attack alone; with other units they may come along', async () => {
+test('attack: Pathfinders alone become a scouting march (stealthy, like the old scout mission)', async () => {
   const { app, alice, bob } = await world();
   giveTroops(app, alice, { pathfinder: 4, raider: 2 });
-  const msg = await sendFails(alice, bob, 'attack', { pathfinder: 4 }, 400, 'invalid_input');
-  assert.match(msg, /scouting mission/);
-  assert.equal((await village(alice)).state.troops.pathfinder, 4, 'a refused send keeps the troops home');
+  const alone = await sendOk(alice, bob, 'attack', { pathfinder: 4 });
+  assert.deepEqual([alone.movement.kind, alone.movement.direction], ['scout', 'outgoing']);
+  assert.equal(alone.movement.units?.pathfinder, 4);
+  assert.equal((await village(alice)).state.away.pathfinder, 4);
+  assert.deepEqual((await movementsOf(bob)), [], 'the target sees nothing, as with the old scout mission');
+  await app.close();
+});
 
+test('attack: a mixed army of Pathfinders and fighters is an attack', async () => {
+  const { app, alice, bob } = await world();
+  giveTroops(app, alice, { pathfinder: 4, raider: 2 });
   const { movement } = await sendOk(alice, bob, 'attack', { pathfinder: 1, raider: 2 });
   assert.equal(movement.kind, 'attack');
   assert.deepEqual([movement.units?.pathfinder, movement.units?.raider], [1, 2]);
