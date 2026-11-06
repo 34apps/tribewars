@@ -7,8 +7,8 @@ import { memo } from 'react';
 import type { ReactNode } from 'react';
 import { T } from './Icon.tsx';
 import type { BuildingId } from '@clanfire/engine';
-import { PLACEMENT, WALL_RING, iso } from './buildings.ts';
-import type { WallLook } from './buildings.ts';
+import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV } from './buildings.ts';
+import type { RoadDef } from './buildings.ts';
 
 export interface DepthItem {
   key: string;
@@ -17,9 +17,7 @@ export interface DepthItem {
 }
 
 const INK = '#2B211C';
-const { cx: CX, cy: CY, plate: RP, gateHalf: GATE, gateU: GATE_U } = WALL_RING;
-/** Half width of the closed main gate (a third wider than the road's gap, so the doors read clearly). */
-const GATE_W = GATE * 1.3;
+const { cx: CX, cy: CY, plate: RP } = WALL_RING;
 
 /** Half-side of the paved square under the Town Hall. */
 const SQUARE = 58;
@@ -54,6 +52,7 @@ function rng(seed: number) {
 // ---- Plots (from PLACEMENT, in grid units) ---------------------------------------------------------------------
 
 interface Plot {
+  id: BuildingId;
   u: number;
   v: number;
   /** Half-side of the plot's pad plus a margin. */
@@ -61,92 +60,67 @@ interface Plot {
   x: number;
   y: number;
   hw: number;
+  /** Stands outside the wall, on the land. */
+  out: boolean;
 }
 
 const PLOTS: Plot[] = (Object.keys(PLACEMENT) as BuildingId[])
   .filter((id) => id !== 'wall')
   .map((id) => {
     const p = PLACEMENT[id];
-    const ty = p.y + 26 * p.scale;
-    const dx = p.x - CX;
-    const s = 2 * (ty - CY);
-    return { u: (dx + s) / 2, v: (s - dx) / 2, half: 31 * p.scale, x: p.x, y: ty, hw: 56 * p.scale };
+    const { u, v } = plotUV(id);
+    return { id, u, v, half: 31 * p.scale, x: p.x, y: p.y + 26 * p.scale, hw: 56 * p.scale, out: OUTSIDE.has(id) };
   });
 
-const HALL = PLOTS[(Object.keys(PLACEMENT) as BuildingId[]).filter((id) => id !== 'wall').indexOf('hall')]!;
+const HALL = PLOTS.find((p) => p.id === 'hall')!;
 
 // ---- Paths ---------------------------------------------------------------------------------------------------
 // One street network on the ground, all in grid directions (no wiggles): the main street runs from the gate straight along
 // u = GATE_U to the hall square, as wide as the road outside the walls (which leaves the gate along the same line), and a
-// branch runs from the square to the door of EVERY building: out along u past the building, then straight to the middle of its
-// front-left face (where the doors are). The three southern buildings and the Farm hang off one lane just inside the gate;
-// the back buildings run along v. A branch shows only once its building exists (built or queued), so no road leads nowhere.
+// branch runs from the square to the door of EVERY building, ending at the middle of its front-left face (where the doors
+// are). The four front buildings hang off one lane just inside the gate; Storehouse and Barracks off the sides of the
+// square; the back buildings off the back of the square. A branch shows only once its building exists (built or queued),
+// so no road leads nowhere.
 
-export interface PathDef {
-  key: string;
-  /** Corner points (u, v) in grid units; every leg runs along u or v. */
-  pts: readonly (readonly [number, number])[];
-  /** Half width in grid units. */
-  w: number;
-  /** The building it leads to (null: always shown). */
-  to: BuildingId | null;
-}
+export type PathDef = RoadDef;
+export { STREET_W };
 
-/** Half width of the main street: the same as the packed-earth road tile outside the gate (fill 0.576 tile, 39 units a tile). */
-export const STREET_W = 12.1;
-/** Half width of a branch to a door. */
-const BRANCH_W = 8;
 /** The ink edge round a path (grid units). Matches the road tile's. */
 const EDGE = 3.2;
-/** Where the lane just inside the gate runs (v). */
-const LANE_V = 204;
-/** Ground depth of a building's pad (half side, grid units) and how far a path pushes in under the building. */
-const padOf = (id: BuildingId) => 28 * PLACEMENT[id].scale;
-const door = (id: BuildingId) => PLOTS_BY_ID[id].v + padOf(id) - 3;
+const { gateU: GATE_U } = WALL_RING;
+/** Where the lane just inside the gate runs (v), and the lane across the front of the square. */
+const LANE_V = 238;
+/** The side branches out of the square to the Storehouse (right) and the Barracks (left), and the Iron Mine road's bend. */
+const SIDE_R = 36;
+const SIDE_L = 70;
+const MINE_U = 120;
 
-const PLOTS_BY_ID = Object.fromEntries(
-  (Object.keys(PLACEMENT) as BuildingId[])
-    .filter((id) => id !== 'wall')
-    .map((id) => {
-      const p = PLACEMENT[id];
-      const ty = p.y + 26 * p.scale;
-      const dx = p.x - CX;
-      const s2 = 2 * (ty - CY);
-      return [id, { u: (dx + s2) / 2, v: (s2 - dx) / 2 }];
-    }),
-) as Record<BuildingId, { u: number; v: number }>;
-
-const branch = (to: BuildingId, ...via: [number, number][]): PathDef => ({
-  key: to,
-  to,
-  w: BRANCH_W,
-  pts: [...via, [PLOTS_BY_ID[to].u, via[via.length - 1]![1]], [PLOTS_BY_ID[to].u, door(to)]],
-});
+/** A branch along the corner points `via`, then along u to the building and along v to its door. */
+const branch = (to: BuildingId, ...via: [number, number][]): PathDef => {
+  const d = doorUV(to);
+  return { key: to, to, w: BRANCH_W, pts: [...via, [d.u, via[via.length - 1]![1]], [d.u, d.v]] };
+};
+const BACK = HALL.v - SQUARE + 6;
 
 export const PATHS: PathDef[] = [
   // The gate to the middle of the square, straight (the outside road continues it).
-  { key: 'main', to: null, w: STREET_W, pts: [[GATE_U, RP + 6], [GATE_U, 50]] },
+  { key: 'main', to: null, w: STREET_W, pts: [[GATE_U, RP + 6], [GATE_U, HALL.v + SQUARE - 30]] },
   // Along the lane just inside the gate.
   branch('market', [GATE_U, LANE_V]),
   branch('drillyard', [GATE_U, LANE_V]),
   branch('lumber', [GATE_U, LANE_V]),
   branch('farm', [GATE_U, LANE_V]),
   // Out of the sides of the square.
-  branch('storehouse', [60, 56]),
-  branch('barracks', [-20, 56]),
-  // Out of the back of the square, then along v.
-  { key: 'stables', to: 'stables', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, door('stables')]] },
-  // Straight up the back of the square along u to the Banner Hall's door (between the Stables and Vault roads).
-  { key: 'bannerhall', to: 'bannerhall', w: BRANCH_W, pts: [[PLOTS_BY_ID.bannerhall.u, -30], [PLOTS_BY_ID.bannerhall.u, door('bannerhall')]] },
-  { key: 'vault', to: 'vault', w: BRANCH_W, pts: [[-20, -20], [PLOTS_BY_ID.vault.u, -20], [PLOTS_BY_ID.vault.u, door('vault')]] },
-  { key: 'mine', to: 'mine', w: BRANCH_W, pts: [[PLOTS_BY_ID.stables.u, -30], [PLOTS_BY_ID.stables.u, -94], [PLOTS_BY_ID.mine.u, -94], [PLOTS_BY_ID.mine.u, door('mine')]] },
-  {
-    key: 'goldmine',
-    to: 'goldmine',
-    w: BRANCH_W,
-    pts: [[-20, -20], [PLOTS_BY_ID.vault.u, -20], [PLOTS_BY_ID.vault.u, -94], [PLOTS_BY_ID.goldmine.u, -94], [PLOTS_BY_ID.goldmine.u, door('goldmine')]],
-  },
+  branch('storehouse', [HALL.u + SQUARE - 6, SIDE_R]),
+  branch('barracks', [HALL.u - SQUARE + 6, SIDE_L]),
+  // Out of the back of the square: the Banner Hall and the Stables straight up, the others round them.
+  branch('bannerhall', [GATE_U, BACK]),
+  branch('stables', [doorUV('stables').u, BACK]),
+  branch('mine', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120]),
+  branch('vault', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
+  branch('goldmine', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
 ];
+
 
 interface Sample {
   u: number;
@@ -186,8 +160,8 @@ const onRoad = (u: number, v: number, pad: number) =>
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
-  [172, 84, 20, 22, 'wheat'],
-  [170, -60, 16, 18, 'greens'],
+  [240, 180, 18, 18, 'wheat'],
+  [232, -88, 16, 18, 'greens'],
 ];
 const onField = (u: number, v: number, pad: number) =>
   FIELDS.some(([cu, cv, hu, hv]) => Math.abs(u - cu) < hu + pad && Math.abs(v - cv) < hv + pad);
@@ -328,6 +302,9 @@ export function SceneryDefs() {
 
 const GRASS = '#A6C964';
 const PATH_FILL = '#D9B98A';
+/** Building pads: a calmer, lighter grass with a soft darker edge. */
+const PAD_FILL = '#B9D27A';
+const PAD_EDGE = '#7FA650';
 
 /** The ground plate: chunky earth sides, grass top with light patches and speckles, and the fields. */
 const GroundBase = memo(function GroundBase() {
@@ -399,14 +376,57 @@ const GrassDetail = memo(function GrassDetail() {
   );
 });
 
-/** Bold tan paths (ink edge, flat fill, a lighter dashed middle) to the buildings that stand, and the hall square. */
+/** Draws road bands (ink edge, flat fill, a lighter dashed middle) in grid units through the iso projection at height z. */
+function roadBands(list: readonly PathDef[], z: number, keyPrefix: string): ReactNode {
+  // Drawn in grid units (u, v) through the same projection as iso(), so a path is exactly as wide in the ground as it says.
+  const line = (p: PathDef) => `M${p.pts.map(([u, v]) => `${u} ${v}`).join('L')}`;
+  return (
+    <g transform={`matrix(1 0.5 -1 0.5 ${CX} ${CY - z})`}>
+      {list.map((p) => (
+        <path key={`${keyPrefix}e${p.key}`} d={line(p)} stroke={INK} strokeWidth={p.w * 2 + EDGE * 2} />
+      ))}
+      {list.map((p) => (
+        <path key={`${keyPrefix}f${p.key}`} d={line(p)} stroke={PATH_FILL} strokeWidth={p.w * 2} />
+      ))}
+      {list.map((p) => (
+        <path key={`${keyPrefix}m${p.key}`} d={line(p)} stroke="#E8D3A4" strokeWidth={p.w * 0.5} strokeDasharray="9 11" strokeLinecap="butt" opacity={0.8} />
+      ))}
+    </g>
+  );
+}
+
+/** A plot's pad: a calm lot of packed grass under the building, with a soft edge, so each building reads on its own ground. */
+function pad(p: Plot, z: number): ReactNode {
+  const h = 28 * PLACEMENT[p.id].scale + 4;
+  const sq = poly([
+    [p.u - h, p.v - h, z],
+    [p.u + h, p.v - h, z],
+    [p.u + h, p.v + h, z],
+    [p.u - h, p.v + h, z],
+  ]);
+  return <path key={`pad-${p.id}`} d={sq} fill={PAD_FILL} stroke={PAD_EDGE} strokeWidth={1.6} strokeLinejoin="round" />;
+}
+
+/** Roads and pads outside the wall (drawn under the plate, on the land). */
+const OuterGround = memo(function OuterGround({ built }: { built: string }) {
+  const have = new Set(built.split(','));
+  return (
+    <g className="vv-paths vv-outer" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {PLOTS.filter((p) => p.out && have.has(p.id)).map((p) => pad(p, LAND_Z))}
+      {roadBands(
+        OUTER_ROADS.filter((p) => !p.to || have.has(p.to)),
+        LAND_Z,
+        'o',
+      )}
+    </g>
+  );
+});
+
+/** Bold tan paths to the buildings that stand, the hall square and the pads of the buildings inside the wall. */
 const Paths = memo(function Paths({ built }: { built: string }) {
   const have = new Set(built.split(','));
   const shown = PATHS.filter((p) => !p.to || have.has(p.to));
   const sq = (h: number) => groundSquare(HALL.u, HALL.v, h);
-  // Drawn in grid units (u, v) through the same projection as iso(), so a path is exactly as wide in the ground as it says;
-  // a clip cuts it flat inside the plate's edge (the main street ends under the gate).
-  const line = (p: PathDef) => `M${p.pts.map(([u, v]) => `${u} ${v}`).join('L')}`;
   return (
     <g className="vv-paths" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <defs>
@@ -414,19 +434,9 @@ const Paths = memo(function Paths({ built }: { built: string }) {
           <path d={groundSquare(0, 0, RP - 2)} />
         </clipPath>
       </defs>
-      <g clipPath="url(#vv-ground-clip)">
-        <g transform={`matrix(1 0.5 -1 0.5 ${CX} ${CY})`}>
-          {shown.map((p) => (
-            <path key={`e${p.key}`} d={line(p)} stroke={INK} strokeWidth={p.w * 2 + EDGE * 2} />
-          ))}
-          {shown.map((p) => (
-            <path key={`f${p.key}`} d={line(p)} stroke={PATH_FILL} strokeWidth={p.w * 2} />
-          ))}
-          {shown.map((p) => (
-            <path key={`m${p.key}`} d={line(p)} stroke="#E8D3A4" strokeWidth={p.w * 0.5} strokeDasharray="9 11" strokeLinecap="butt" opacity={0.8} />
-          ))}
-        </g>
-      </g>
+      {PLOTS.filter((p) => !p.out && p.id !== 'hall' && have.has(p.id)).map((p) => pad(p, 0))}
+      {/* a clip cuts the streets flat inside the plate's edge (they end under the gates) */}
+      <g clipPath="url(#vv-ground-clip)">{roadBands(shown, 0, 'i')}</g>
       {/* the square under the Town Hall: kerb, light paving, inner ring */}
       <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={1.8} />
       <path d={sq(SQUARE - 7)} fill="#E3DED3" stroke={INK} strokeWidth={1} />
@@ -441,6 +451,7 @@ const Paths = memo(function Paths({ built }: { built: string }) {
 export const Ground = memo(function Ground({ built }: { built: string }) {
   return (
     <>
+      <OuterGround built={built} />
       <GroundBase />
       <Paths built={built} />
       <GrassDetail />
@@ -458,20 +469,19 @@ const RADIUS: Record<Kind, number> = { pineA: 8, pineB: 9, oak: 9, bush: 6, rock
 const ZONES: [Kind[], number, number, number, number, number, number, number][] = [
   // Forest around the Lumber Camp in the left corner (owner 2026-11-04: no scattered stumps or log piles; the
   // camp's own sprite carries the neat plank and log stacks).
-  [['pineA', 'pineB', 'pineA', 'oak'], -196, 96, 26, 44, 9, 1.35, 1.7],
-  [['pineA', 'pineB', 'oak'], -118, 200, 18, 22, 5, 1.35, 1.7],
-  [['pineA', 'pineB'], -206, 210, 12, 12, 2, 1.3, 1.5],
-  [['bush', 'bush', 'oak'], -130, 130, 22, 22, 3, 1.2, 1.5],
+  [['pineA', 'pineB', 'pineA', 'oak'], -229, 112, 26, 44, 8, 1.35, 1.7],
+  [['pineA', 'pineB', 'oak'], -138, 233, 18, 22, 4, 1.35, 1.7],
+  [['pineA', 'pineB'], -240, 245, 12, 12, 2, 1.3, 1.5],
   // Rocks around the Gold Mine (back corner) and the Iron Mine (right corner), with a few pines.
-  [['rockA', 'rockC', 'rockB', 'pineB'], -130, -205, 26, 14, 5, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB', 'pineB'], -205, -120, 14, 30, 5, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB', 'pineA'], 130, -205, 26, 14, 5, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB'], 205, -125, 14, 28, 4, 1.2, 1.7],
-  // Hedges and haystack-like bushes around the fields in front.
-  [['bush', 'bush', 'oak'], 208, 150, 10, 30, 4, 1.2, 1.5],
-  [['bush', 'oak'], 120, 205, 20, 16, 3, 1.2, 1.5],
-  // Lone trees and bushes filling the gaps between the ring and the corners.
-  [['oak', 'bush', 'pineB', 'bush', 'oak'], 0, 0, INNER, INNER, 26, 1.2, 1.55],
+  [['rockA', 'rockC', 'rockB', 'pineB'], -152, -240, 26, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineB'], -240, -140, 14, 30, 4, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineA'], 152, -240, 26, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB'], 240, -146, 14, 28, 3, 1.2, 1.7],
+  // Hedges and bushes around the fields in front.
+  [['bush', 'bush', 'oak'], 243, 175, 10, 30, 3, 1.2, 1.5],
+  [['bush', 'oak'], 140, 240, 20, 16, 3, 1.2, 1.5],
+  // A few lone trees and bushes in the gaps (owner 2026-11-06: fewer than before, so the buildings stand clear).
+  [['oak', 'bush', 'pineB', 'bush', 'oak'], 0, 0, INNER, INNER, 16, 1.2, 1.55],
 ];
 
 const PROPS: [Kind, number, number, number][] = (() => {
@@ -493,7 +503,7 @@ const PROPS: [Kind, number, number, number][] = (() => {
   // Little bushes and stones along the paths' edges.
   PATHS.forEach((p, pi) => {
     SAMPLES[pi]!.forEach((q, i) => {
-      if (q.s < 30 || i % 13 !== 0 || r() < 0.35) return;
+      if (q.s < 30 || i % 15 !== 0 || r() < 0.4) return;
       const g = r() < 0.5 ? 1 : -1;
       const kind: Kind = r() < 0.8 ? 'bush' : 'rockB';
       const sc = 0.9 + r() * 0.35;
@@ -561,636 +571,5 @@ export function fireItem(cold: boolean): DepthItem {
   };
 }
 
-// ---- Ring wall ------------------------------------------------------------------------------------------------
-// Drawn in code (not a sprite) because it wraps the whole village, split into pieces for the painter's sort.
-// Stage 4 (the wall's max level only): the stage-3 wall made grand: gold tile caps, buttresses, taller gold-ringed towers, a crest on the gate.
-// Stage 1: wooden palisade with timber watchtowers; stage 2: low stone wall with square towers; stage 3: tall stone
-// wall with round towers, terracotta roofs and sunflower flags (as the approved building-stages artboard).
-
-type Pt = readonly [number, number];
-const WOOD = { top: '#E4B67C', left: '#B07D46', right: '#714B29', pTop: '#B98F5E', pLeft: '#8E6539', pRight: '#5E3F22' };
-const STONE = { top: '#E3DED3', left: '#B3ACA0', right: '#7C756B' };
-const ROOF = { light: '#EF9C6E', mid: '#C4623A', dark: '#843A23' };
-const SUN = '#F2B33D';
-/** Gold trim of the grand (last-levels) wall. */
-const GOLD = { light: '#FFE08F', mid: '#F2B33D', dark: '#B9791F' };
-const GOLD_BOX = { top: GOLD.light, left: GOLD.mid, right: GOLD.dark };
-
-interface Colors {
-  top: string;
-  left: string;
-  right: string;
-}
-
-/** Visible faces of the box u0..u1 x v0..v1 x z0..z1: left (+v, lit), right (+u, shaded), top. */
-function box(
-  key: string,
-  u0: number,
-  u1: number,
-  v0: number,
-  v1: number,
-  z0: number,
-  z1: number,
-  c: Colors,
-  o: { courses?: number; sw?: number; band?: { z0: number; z1: number; left: string; right: string } } = {},
-): ReactNode {
-  const left = poly([
-    [u0, v1, z0],
-    [u1, v1, z0],
-    [u1, v1, z1],
-    [u0, v1, z1],
-  ]);
-  const right = poly([
-    [u1, v1, z0],
-    [u1, v0, z0],
-    [u1, v0, z1],
-    [u1, v1, z1],
-  ]);
-  const top = poly([
-    [u0, v0, z1],
-    [u1, v0, z1],
-    [u1, v1, z1],
-    [u0, v1, z1],
-  ]);
-  return (
-    <g key={key} stroke={INK} strokeWidth={o.sw ?? 1.5} strokeLinejoin="round">
-      <path d={left} fill={c.left} />
-      <path d={right} fill={c.right} />
-      <path d={top} fill={c.top} />
-      {o.courses && <path d={masonry(u0, u1, v0, v1, z0, z1, o.courses)} fill="none" strokeWidth={0.7} opacity={0.4} />}
-      {o.band && (
-        <>
-          <path
-            d={poly([[u0, v1, o.band.z0], [u1, v1, o.band.z0], [u1, v1, o.band.z1], [u0, v1, o.band.z1]])}
-            fill={o.band.left}
-            strokeWidth={1.1}
-          />
-          <path
-            d={poly([[u1, v1, o.band.z0], [u1, v0, o.band.z0], [u1, v0, o.band.z1], [u1, v1, o.band.z1]])}
-            fill={o.band.right}
-            strokeWidth={1.1}
-          />
-        </>
-      )}
-    </g>
-  );
-}
-
-/** Stone courses on both visible faces of a box: level joints plus staggered upright joints (one path). */
-function masonry(u0: number, u1: number, v0: number, v1: number, z0: number, z1: number, n: number): string {
-  const ch = (z1 - z0) / n;
-  const js = Math.max(5, ch * 2.4);
-  let d = '';
-  for (let i = 0; i < n; i++) {
-    const za = z0 + ch * i;
-    const zb = za + ch;
-    if (i > 0) d += `M${pt(u0, v1, za)}L${pt(u1, v1, za)}M${pt(u1, v1, za)}L${pt(u1, v0, za)}`;
-    const off = (i % 2) * (js / 2) + js / 2;
-    for (let u = u0 + off; u < u1 - 1; u += js) d += `M${pt(u, v1, za)}L${pt(u, v1, zb)}`;
-    for (let v = v1 - off; v > v0 + 1; v -= js) d += `M${pt(u1, v, za)}L${pt(u1, v, zb)}`;
-  }
-  return d;
-}
-
-/** Crenellations on both edges of a wall top (the walkway runs between them). `a..b` along the wall, `lo..hi` across. */
-function merlonRows(along: 'u' | 'v', a: number, b: number, lo: number, hi: number, z: number, mh: number): ReactNode[] {
-  const ml = 3.6;
-  const mt = (hi - lo) * 0.34;
-  const out: ReactNode[] = [];
-  for (let s = a + 1.2; s + ml <= b - 0.6; s += ml * 2) {
-    for (const m0 of [lo, hi - mt]) {
-      out.push(
-        along === 'u'
-          ? box(`m${f(s)}-${f(m0)}`, s, s + ml, m0, m0 + mt, z, z + mh, STONE, { sw: 1.2 })
-          : box(`m${f(s)}-${f(m0)}`, m0, m0 + mt, s, s + ml, z, z + mh, STONE, { sw: 1.2 }),
-      );
-    }
-  }
-  return out;
-}
-
-const sp = (list: Pt[]) => list.map(([x, y]) => `${f(x)} ${f(y)}`).join('L');
-
-/** Screen-space iso box (half-width a, height h) on (cx, cy), for the timber towers. */
-function isoBox(key: string, cx: number, cy: number, a: number, h: number, c: Colors, sw = 1.5): ReactNode {
-  const L: Pt = [cx - a, cy];
-  const F: Pt = [cx, cy + a / 2];
-  const R: Pt = [cx + a, cy];
-  const B: Pt = [cx, cy - a / 2];
-  const up = (p: Pt): Pt => [p[0], p[1] - h];
-  return (
-    <g key={key} stroke={INK} strokeWidth={sw} strokeLinejoin="round">
-      <path d={`M${sp([L, F, up(F), up(L)])}Z`} fill={c.left} />
-      <path d={`M${sp([F, R, up(R), up(F)])}Z`} fill={c.right} />
-      <path d={`M${sp([up(L), up(F), up(R), up(B)])}Z`} fill={c.top} />
-    </g>
-  );
-}
-
-function pyramid(key: string, cx: number, cy: number, a: number, rise: number, c = { top: WOOD.top, left: WOOD.left, right: WOOD.right }): ReactNode {
-  const L: Pt = [cx - a, cy];
-  const F: Pt = [cx, cy + a / 2];
-  const R: Pt = [cx + a, cy];
-  const A: Pt = [cx, cy - rise];
-  return (
-    <g key={key} stroke={INK} strokeWidth={2} strokeLinejoin="round">
-      <path d={`M${sp([L, A, F])}Z`} fill={c.left} />
-      <path d={`M${sp([R, A, F])}Z`} fill={c.right} />
-      <path d={`M${sp([[cx, cy - rise + 7], A, L])}Z`} fill={c.top} />
-    </g>
-  );
-}
-
-/** A sunflower pennant on a pole standing at screen point (x, y). */
-function flag(key: string, x: number, y: number, h = 13, big = false): ReactNode {
-  const len = big ? 19 : 11;
-  const half = big ? 5.5 : 3.5;
-  return (
-    <g key={key}>
-      <path d={`M${f(x)} ${f(y)}V${f(y - h)}`} stroke={INK} strokeWidth={1.8} strokeLinecap="round" />
-      <path d={`M${f(x + 1)} ${f(y - h)}h${len}l-3 ${half}l3 ${half}h-${len}z`} fill={SUN} stroke={INK} strokeWidth={1.5} strokeLinejoin="round" />
-      {big && <path d={`M${f(x + 4)} ${f(y - h + half)}h${len - 8}`} stroke={ROOF.mid} strokeWidth={2} strokeLinecap="round" />}
-    </g>
-  );
-}
-
-/** Round stone tower with a terracotta cone roof (screen space, base centre (cx, cy)). */
-function roundTower(cx: number, cy: number, r: number, h: number, rise: number, withFlag: boolean, gallery = false, grand = false): ReactNode {
-  const ry = r / 2;
-  const top = cy - h;
-  const roofR = r + 2.5;
-  return (
-    <g stroke={INK} strokeLinejoin="round">
-      <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.left} strokeWidth={1.6} />
-      <path d={`M${f(cx + 2)} ${f(top + ry)}V${f(cy + ry)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}Z`} fill={STONE.right} strokeWidth={0} />
-      <path d={`M${f(cx - r)} ${f(top)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(top)}`} fill="none" strokeWidth={1.8} />
-      {/* Stone courses round the shaft, and a darker footing ring */}
-      <path
-        d={[0.2, 0.4, 0.6, 0.8].map((p) => `M${f(cx - r)} ${f(cy - h * p)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy - h * p)}`).join('')}
-        fill="none"
-        strokeWidth={0.8}
-        opacity={0.4}
-      />
-      <path d={`M${f(cx - r)} ${f(cy - 4)}V${f(cy)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy)}V${f(cy - 4)}A${r} ${ry} 0 0 1 ${f(cx - r)} ${f(cy - 4)}Z`} fill={STONE.right} strokeWidth={1.2} opacity={0.55} />
-      {grand && (
-        <>
-          {/* A gold band round the shaft */}
-          <path d={`M${f(cx - r)} ${f(cy - h * 0.62)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy - h * 0.62)}`} stroke={INK} strokeWidth={4.2} fill="none" />
-          <path d={`M${f(cx - r)} ${f(cy - h * 0.62)}A${r} ${ry} 0 0 0 ${f(cx + r)} ${f(cy - h * 0.62)}`} stroke={GOLD.mid} strokeWidth={2.2} fill="none" />
-        </>
-      )}
-      {/* Arrow slits on the lit side and a lookout window higher up */}
-      <path d={`M${f(cx - r * 0.55)} ${f(top + h * 0.5)}v6M${f(cx - r * 0.1)} ${f(top + h * 0.34)}v7`} strokeWidth={2.4} strokeLinecap="round" />
-      <path d={`M${f(cx + r * 0.42)} ${f(top + h * 0.5)}v6`} strokeWidth={2.4} strokeLinecap="round" />
-      {/* Corbelled gallery ring under the roof */}
-      {gallery && (
-        <>
-          <path d={`M${f(cx - r - 3.5)} ${f(top)}V${f(top + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}Z`} fill={STONE.left} strokeWidth={1.6} />
-          <path d={`M${f(cx + 2)} ${f(top + (r + 3.5) / 2 + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}H${f(cx + 2)}Z`} fill={STONE.right} strokeWidth={0} />
-          <path d={`M${f(cx - r - 3.5)} ${f(top)}V${f(top + 5)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 5)}V${f(top)}`} fill="none" strokeWidth={1.6} />
-          {grand && <path d={`M${f(cx - r - 3.5)} ${f(top + 2.4)}A${r + 3.5} ${(r + 3.5) / 2} 0 0 0 ${f(cx + r + 3.5)} ${f(top + 2.4)}`} stroke={GOLD.mid} strokeWidth={1.8} fill="none" />}
-        </>
-      )}
-      <path
-        d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
-        fill={ROOF.mid}
-        strokeWidth={1.8}
-      />
-      <path d={`M${f(cx + 1)} ${f(top - rise + 2)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx + 1)} ${f(top + roofR / 2)}Z`} fill={ROOF.dark} strokeWidth={0} />
-      <path d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx - 3)} ${f(top - rise + 6)}Z`} fill={ROOF.light} strokeWidth={0} />
-      <path
-        d={`M${f(cx - roofR)} ${f(top)}L${f(cx)} ${f(top - rise)}L${f(cx + roofR)} ${f(top)}A${roofR} ${roofR / 2} 0 0 1 ${f(cx - roofR)} ${f(top)}Z`}
-        fill="none"
-        strokeWidth={2}
-      />
-      {grand && (
-        <>
-          {/* Gold ring round the roof's foot, a gold ball on the tip */}
-          <path d={`M${f(cx - roofR * 0.86)} ${f(top - rise * 0.14)}A${roofR * 0.86} ${roofR * 0.43} 0 0 0 ${f(cx + roofR * 0.86)} ${f(top - rise * 0.14)}`} stroke={INK} strokeWidth={4.2} fill="none" strokeLinecap="round" />
-          <path d={`M${f(cx - roofR * 0.86)} ${f(top - rise * 0.14)}A${roofR * 0.86} ${roofR * 0.43} 0 0 0 ${f(cx + roofR * 0.86)} ${f(top - rise * 0.14)}`} stroke={GOLD.mid} strokeWidth={2.2} fill="none" strokeLinecap="round" />
-          <circle cx={f(cx)} cy={f(top - rise - 1.5)} r={3.4} fill={GOLD.mid} strokeWidth={1.5} />
-          <circle cx={f(cx - 1)} cy={f(top - rise - 2.5)} r={1.1} fill={GOLD.light} strokeWidth={0} />
-        </>
-      )}
-      {withFlag && (grand ? flag('fl', cx, top - rise - 4, 19, true) : flag('fl', cx, top - rise, 13))}
-    </g>
-  );
-}
-
-/** Stone tower: square with merlons (stage 2), or round with a terracotta roof (stage 3, when `roof` is set). */
-function stoneTower(key: string, cu: number, cv: number, a: number, h: number, o: { roof?: number; flag?: boolean; banner?: 'l' | 'r'; plinth?: number; turret?: boolean; grand?: boolean }) {
-  if (o.roof) {
-    // A square footing fills the whole footprint (flush with the plate edge and the walls), the round tower stands on it.
-    const pl = o.plinth ?? 0;
-    const [x, y] = iso(cu, cv, pl);
-    const band = o.grand ? { z0: pl - 4.4, z1: pl, left: GOLD.mid, right: GOLD.dark } : { z0: pl - 3.4, z1: pl, left: ROOF.mid, right: ROOF.dark };
-    return (
-      <g key={key}>
-        {pl > 0 && box('pl', cu - a, cu + a, cv - a, cv + a, 0, pl, STONE, { sw: 1.6, courses: Math.max(3, Math.round(pl / 5)), band })}
-        {/* The grand footing wears a terracotta banner on its lit face. */}
-        {pl > 0 && o.grand && gateBanner('pb', cu, cv + a, pl - 8, 1.5)}
-        {roundTower(x, y, a * 1.4, h, o.roof * 0.8, !!o.flag, true, !!o.grand)}
-      </g>
-    );
-  }
-  // Tower shaft with stone courses, a slightly wider crown (corbelled top), two arrow slits per visible face.
-  const crown = 4;
-  const parts: ReactNode[] = [box('b', cu - a, cu + a, cv - a, cv + a, 0, h - crown, STONE, { sw: 1.6, courses: Math.max(3, Math.round(h / 5)) })];
-  const sl = (u: number, v: number, z: number) => `M${pt(u, v, z)}L${pt(u, v, z + 6)}`;
-  parts.push(
-    <path
-      key="sl"
-      d={[-0.5, 0.5].map((k) => sl(cu + k * a, cv + a, h * 0.4) + sl(cu + a, cv + k * a, h * 0.4)).join('') + sl(cu, cv + a, h * 0.68) + sl(cu + a, cv, h * 0.68)}
-      stroke={INK}
-      strokeWidth={2.4}
-      strokeLinecap="round"
-    />,
-  );
-  const a1 = a + 1;
-  parts.push(box('cr', cu - a1, cu + a1, cv - a1, cv + a1, h - crown, h, STONE, { sw: 1.6 }));
-  const m = Math.max(2, a1 * 0.26);
-  const spots: [number, number][] = [];
-  for (const du of [-1, 0, 1]) for (const dv of [-1, 0, 1]) if (du || dv) spots.push([du, dv]);
-  spots.sort((p, q) => p[0] + p[1] - q[0] - q[1]);
-  for (const [du, dv] of spots) {
-    const u = cu + du * (a1 - m);
-    const v = cv + dv * (a1 - m);
-    parts.push(box(`m${du}${dv}`, u - m, u + m, v - m, v + m, h, h + 5, STONE, { sw: 1.2 }));
-  }
-  let top = h + 5;
-  if (o.turret) {
-    const at = parts.findIndex((n) => (n as { key?: string }).key === 'cr') + 1;
-    const mark = parts.length;
-    // A smaller turret with its own battlements crowns the keep.
-    const ta = a * 0.5;
-    const th = 12;
-    parts.push(box('tu', cu - ta, cu + ta, cv - ta, cv + ta, h, h + th, STONE, { sw: 1.5, courses: 2 }));
-    const tm = 1.8;
-    for (const [du, dv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-      const u = cu + du * (ta - tm);
-      const v = cv + dv * (ta - tm);
-      parts.push(box(`tm${du}${dv}`, u - tm, u + tm, v - tm, v + tm, h + th, h + th + 3.5, STONE, { sw: 1.1 }));
-    }
-    top = h + th + 3.5;
-    // The turret goes right after the crown, before the front merlons (painter's order).
-    parts.splice(at, 0, ...parts.splice(mark));
-  }
-  if (o.flag) {
-    const [x, y] = iso(cu, cv, top);
-    parts.push(flag('fl', x, y, o.turret ? 16 : 13));
-  }
-  return <g key={key}>{parts}</g>;
-}
-
-/** Timber watchtower with a pyramid roof (palisade stage), standing on (cu, cv). */
-function watchtower(key: string, cu: number, cv: number, half: number) {
-  const [cx, cy] = iso(cu, cv);
-  // The base fills the whole corner footprint (`half` grid units each way), flush with both plate edges.
-  const a = half * 2;
-  const h = 36;
-  const L: Pt = [cx - a, cy];
-  const F: Pt = [cx, cy + a / 2];
-  const R: Pt = [cx + a, cy];
-  const at = (p: Pt, z: number) => `${f(p[0])} ${f(p[1] - z)}`;
-  const mix = (p: Pt, q: Pt, k: number): Pt => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
-  // Plank joints, an X of cross braces on the lower half, a dark lookout opening under the platform.
-  let planks = '';
-  for (const z of [10, 20]) planks += `M${at(L, z)}L${at(F, z)}L${at(R, z)}`;
-  let braces = `M${at(L, 1)}L${at(F, 19)}M${at(L, 19)}L${at(F, 1)}M${at(F, 1)}L${at(R, 19)}M${at(F, 19)}L${at(R, 1)}`;
-  const look = (p: Pt, q: Pt) => `M${at(mix(p, q, 0.28), 23)}L${at(mix(p, q, 0.72), 23)}L${at(mix(p, q, 0.72), 30)}L${at(mix(p, q, 0.28), 30)}Z`;
-  return (
-    <g key={key}>
-      {isoBox('b', cx, cy, a, h, WOOD, 1.6)}
-      <path d={planks} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.4} />
-      <path d={braces} fill="none" stroke={WOOD.pRight} strokeWidth={1.7} strokeLinecap="round" />
-      <path d={look(L, F) + look(F, R)} fill="#3B2A1E" stroke={INK} strokeWidth={1.2} strokeLinejoin="round" />
-      {isoBox('p', cx, cy - h, a + 4, 5, { top: WOOD.pTop, left: WOOD.pLeft, right: WOOD.pRight })}
-      {pyramid('r', cx, cy - h - 5, a + 8, 18)}
-      <path d={`M${f(cx - 8)} ${f(cy - h - 5 + 2.5)}L${f(cx)} ${f(cy - h - 23)}`} stroke={WOOD.pRight} strokeWidth={1} opacity={0.6} fill="none" />
-      {flag('fl', cx, cy - h - 23, 14)}
-    </g>
-  );
-}
-
-/** Timber gate post with a small pyramid cap (palisade stage). */
-function gatePost(key: string, cu: number, cv: number, half: number) {
-  const [cx, cy] = iso(cu, cv);
-  const a = half * 2;
-  return (
-    <g key={key}>
-      {isoBox('b', cx, cy, a, 32, WOOD, 1.4)}
-      {pyramid('r', cx, cy - 32, a + 3, 11)}
-    </g>
-  );
-}
-
-/** One run of palisade along an edge: chunky pointed stakes with a rail. */
-function palisade(key: string, along: 'u' | 'v', c: number, a: number, b: number, hs: number): ReactNode {
-  const P = (s: number, dc = 0): Pt => {
-    const [x, y] = along === 'u' ? iso(s, c + dc) : iso(c + dc, s);
-    return [x, y + 1];
-  };
-  const step = 3.6;
-  const xs: number[] = [];
-  for (let s = a + 1.5; s <= b - 1.5; s += step) xs.push(s);
-  // Stakes of uneven height (a repeating pattern, so every chunk matches its neighbours), pointed tops.
-  const ups = [1, 0.9, 1.07, 0.96, 1.03];
-  const stake = (s: number, dc: number, back: boolean) => {
-    const [x, y] = P(s, dc);
-    const hh = (back ? 25 : 21) * hs * (ups[Math.abs(Math.round(s / step)) % ups.length] ?? 1);
-    const tip = hh + 6.1 * hs;
-    const x0 = x - 3.4;
-    return (
-      <g key={`${back ? 'k' : 'q'}${f(s)}`}>
-        <path
-          d={`M${f(x0)} ${f(y)}V${f(y - hh)}L${f(x)} ${f(y - tip)}L${f(x0 + 6.8)} ${f(y - hh)}V${f(y)}Z`}
-          fill={back ? WOOD.pLeft : WOOD.left}
-          stroke={INK}
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-        />
-        <path d={`M${f(x + 0.8)} ${f(y - 1)}V${f(y - hh)}H${f(x + 2.6)}V${f(y - 1)}Z`} fill={back ? WOOD.pRight : WOOD.right} />
-      </g>
-    );
-  };
-  // A second, taller row stands half a step behind, so there is no gap to see through.
-  const back = xs.map((s) => stake(s + step / 2, -1.6, true));
-  const front = xs.map((s) => stake(s, 0, false));
-  const first = P(xs[0] ?? a);
-  const last = P(xs[xs.length - 1] ?? b);
-  const rail = (z: number) => `M${f(first[0])} ${f(first[1] - z * hs)}L${f(last[0])} ${f(last[1] - z * hs)}`;
-  return (
-    <g key={key}>
-      {back}
-      {front}
-      <path d={rail(15) + rail(6)} fill="none" stroke={WOOD.pRight} strokeWidth={2.2} strokeLinecap="round" />
-      <path d={rail(15.9) + rail(6.9)} fill="none" stroke={WOOD.top} strokeWidth={0.8} strokeLinecap="round" opacity={0.8} />
-    </g>
-  );
-}
-
-/** One run of stone wall along an edge, with merlons on its outer side. `outer` is +1 when the outer side is +v/+u. */
-function stoneRun(key: string, along: 'u' | 'v', c: number, a: number, b: number, h: number, t: number, stage: 2 | 3 | 4, pilaster = false): ReactNode {
-  const lo = c - t / 2;
-  const hi = c + t / 2;
-  // Stage 3 wears a terracotta tile cap under the battlements, the grand stage a gold one.
-  const opts = {
-    courses: Math.max(2, Math.round(h / 5)),
-    band: stage === 4 ? { z0: h - 4, z1: h, left: GOLD.mid, right: GOLD.dark } : stage === 3 ? { z0: h - 3.4, z1: h, left: ROOF.mid, right: ROOF.dark } : undefined,
-  };
-  const body = along === 'u' ? box('w', a, b, lo, hi, 0, h, STONE, opts) : box('w', lo, hi, a, b, 0, h, STONE, opts);
-  // Arrow slits on the visible long face of walls tall enough to hold them.
-  let slits = '';
-  if (h >= 14) {
-    for (let s = a + 6; s < b - 2; s += 12) slits += along === 'u' ? `M${pt(s, hi, h * 0.4)}L${pt(s, hi, h * 0.4 + 5)}` : `M${pt(hi, s, h * 0.4)}L${pt(hi, s, h * 0.4 + 5)}`;
-  }
-  // Grand stage: a buttress with a gold cap at the end of the run (the back walls show it on their inner side).
-  let post: ReactNode = null;
-  if (pilaster) {
-    const p0 = b - 6;
-    const ext = c < 0 ? 2.6 : 0;
-    const cap = (u0: number, u1: number, v0: number, v1: number, z0: number, z1: number, k: string) =>
-      along === 'u' ? box(k, u0, u1, v0, v1, z0, z1, GOLD_BOX, { sw: 1.3 }) : box(k, v0, v1, u0, u1, z0, z1, GOLD_BOX, { sw: 1.3 });
-    post = (
-      <g key="pil">
-        {along === 'u' ? box('pb', p0, b - 1, lo + 1, hi + ext, 0, h + 3, STONE, { sw: 1.4, courses: Math.round(h / 6) }) : box('pb', lo + 1, hi + ext, p0, b - 1, 0, h + 3, STONE, { sw: 1.4, courses: Math.round(h / 6) })}
-        {cap(p0 - 0.8, b - 0.2, lo + 0.2, hi + ext + 0.8, h + 3, h + 6.5, 'pc')}
-      </g>
-    );
-  }
-  return (
-    <g key={key}>
-      {body}
-      {slits && <path d={slits} stroke={INK} strokeWidth={2.2} strokeLinecap="round" fill="none" />}
-      {merlonRows(along, a, b, lo, hi, h, stage >= 3 ? 5 : 4.2)}
-      {post}
-    </g>
-  );
-}
-
-/** Colours and line weights of the gate doors (Toy Diorama). */
-const G = { sw: 1.5, merlonSw: 1.2, wood: '#B07D46', plank: '#714B29', lit: '#E4B67C', iron: '#4A4440', band: 2, stud: 0.75, studFill: '#E3DED3', bar: '#8E6539', lock: '#F2B33D', arch: '#7C756B' };
-/** A terracotta banner with a sunflower flame hanging on the gatehouse face (plane v = cv). */
-function gateBanner(key: string, cu: number, cv: number, ztop: number, k = 1): ReactNode {
-  const w = 3.2 * k;
-  const hh = 10 * k;
-  const d = poly([[cu - w, cv, ztop], [cu + w, cv, ztop], [cu + w, cv, ztop - hh], [cu, cv, ztop - hh + 3], [cu - w, cv, ztop - hh]]);
-  const [x, y] = iso(cu, cv, ztop - hh / 2 + 1);
-  return (
-    <g key={key}>
-      <path d={d} fill="#C4623A" stroke={INK} strokeWidth={1.4} strokeLinejoin="round" />
-      <path d={`M${f(x)} ${f(y + 2)}q-1.8 -1.4 0 -4.2q1.8 2.8 0 4.2Z`} fill={SUN} stroke={INK} strokeWidth={0.6} />
-    </g>
-  );
-}
-/** The closed main gate between the gate towers: wooden double doors with iron bands, studs, a crossbar and a lock. */
-function closedGate(key: string, stage: Exclude<WallLook, 0>, c: number, t: number): ReactNode {
-  const u0 = GATE_U - GATE_W;
-  const u1 = GATE_U + GATE_W;
-  const stone = stage > 1;
-  const grand = stage === 4;
-  const V = stone ? c + t / 2 : c + 1;
-  const Hd = stage === 1 ? 19 : stage === 2 ? 13 : 19;
-  const rise = stone ? 4 : 0;
-  // The gatehouse stands clearly taller than the (low) front wall beside it.
-  const top = stage === 1 ? 0 : stage === 2 ? 22 : stage === 3 ? 35 : 46;
-  const a = u0 + (stone ? 2 : 0.5);
-  const b = u1 - (stone ? 2 : 0.5);
-  const q = (u: number, z: number) => pt(u, V, z);
-  const parts: ReactNode[] = [];
-  if (stone) {
-    // Gatehouse block over the opening, with merlons on the outer side.
-    parts.push(
-      box('gh', u0, u1, c - t / 2, c + t / 2, 0, top, STONE, {
-        courses: Math.round(top / 5),
-        band: grand ? { z0: top - 4, z1: top, left: GOLD.mid, right: GOLD.dark } : stage === 3 ? { z0: top - 3.4, z1: top, left: ROOF.mid, right: ROOF.dark } : undefined,
-      }),
-    );
-    parts.push(...merlonRows('u', u0, u1, c - t / 2, c + t / 2, top, stage >= 3 ? 5 : 4.2));
-  }
-  // Door outline: straight sides, arched (stone) or stake-pointed (timber) top.
-  const n = 12;
-  const topAt = (u: number) => {
-    if (stone) return Hd + rise * Math.sin((Math.PI * (u - a)) / (b - a));
-    const k = Math.floor((u - a) / 3.4);
-    const m = a + k * 3.4 + 1.7;
-    return Hd + 3 - Math.abs(u - m) * 1.6;
-  };
-  const arc: string[] = [];
-  if (stone) for (let i = n; i >= 0; i--) arc.push(q(a + ((b - a) * i) / n, topAt(a + ((b - a) * i) / n)));
-  else for (let u = b; u >= a - 0.01; u -= 0.85) arc.push(q(u, topAt(u)));
-  const door = `M${q(a, 0)}L${q(b, 0)}L${arc.join('L')}Z`;
-  if (stone) {
-    // Dark recess and a ring of arch stones around the doors.
-    const ring: string[] = [];
-    for (let i = 0; i <= n; i++) ring.push(q(a - 1.6 + ((b - a + 3.2) * i) / n, Hd + 1.6 + (rise + 1) * Math.sin((Math.PI * i) / n)));
-    parts.push(<path key="ar" d={`M${q(a - 1.6, 0)}L${ring.join('L')}L${q(b + 1.6, 0)}Z`} fill={G.arch} stroke={INK} strokeWidth={G.sw} strokeLinejoin="round" />);
-  }
-  parts.push(<path key="dr" d={door} fill={G.wood} stroke={INK} strokeWidth={G.sw} strokeLinejoin="round" />);
-  // Planks and the split between the two leaves.
-  let planks = '';
-  for (let u = a + 3; u < b - 1; u += 3) planks += `M${q(u, 0.4)}L${q(u, topAt(u) - 0.6)}`;
-  parts.push(<path key="pl" d={planks} stroke={G.plank} strokeWidth={0.7} fill="none" />);
-  parts.push(<path key="lit" d={`M${q(a + 1, 0.6)}L${q(a + 1, topAt(a + 1) - 0.8)}`} stroke={G.lit} strokeWidth={0.9} fill="none" />);
-  parts.push(<path key="sp" d={`M${q(GATE_U, 0)}L${q(GATE_U, topAt(GATE_U))}`} stroke={INK} strokeWidth={G.sw} fill="none" />);
-  // Iron bands with studs.
-  const studs: ReactNode[] = [];
-  let bands = '';
-  for (const zb of [Hd * 0.22, Hd * 0.74]) {
-    bands += `M${q(a + 0.4, zb)}L${q(b - 0.4, zb)}`;
-    for (let u = a + 1.6; u < b - 1; u += 3.2) {
-      const [x, y] = iso(u, V, zb);
-      studs.push(<circle key={`s${f(u)}-${f(zb)}`} cx={f(x)} cy={f(y)} r={G.stud} fill={G.studFill} stroke={INK} strokeWidth={0.3} />);
-    }
-  }
-  parts.push(<path key="bd" d={bands} stroke={grand ? GOLD.mid : G.iron} strokeWidth={grand ? G.band + 0.6 : G.band} strokeLinecap="round" fill="none" />);
-  parts.push(...studs);
-  // Crossbar in iron brackets, and a big padlock hanging from it.
-  const zc = Hd * 0.47;
-  parts.push(
-    <path key="cb" d={`M${q(a - 0.6, zc - 1.5)}L${q(b + 0.6, zc - 1.5)}L${q(b + 0.6, zc + 1.5)}L${q(a - 0.6, zc + 1.5)}Z`} fill={G.bar} stroke={INK} strokeWidth={G.sw * 0.8} strokeLinejoin="round" />,
-  );
-  let brackets = '';
-  for (const u of [a + 3, b - 3]) brackets += `M${q(u - 0.8, zc - 2.3)}L${q(u - 0.8, zc + 2.3)}M${q(u + 0.8, zc - 2.3)}L${q(u + 0.8, zc + 2.3)}`;
-  parts.push(<path key="bk" d={brackets} stroke={G.iron} strokeWidth={1.1} fill="none" />);
-  const [lx, ly] = iso(GATE_U, V, zc - 1.6);
-  parts.push(
-    <g key="lk" strokeLinejoin="round">
-      <path d={`M${f(lx - 2.2)} ${f(ly + 0.3)}v-3a2.2 2.2 0 0 1 4.4 0v3`} fill="none" stroke={G.iron} strokeWidth={1.4} />
-      <rect x={f(lx - 3.6)} y={f(ly)} width={7.2} height={6} rx={1} fill={G.lock} stroke={INK} strokeWidth={G.sw * 0.8} />
-      <circle cx={f(lx)} cy={f(ly + 2.4)} r={0.8} fill={INK} />
-      <path d={`M${f(lx)} ${f(ly + 2.8)}v1.8`} stroke={INK} strokeWidth={0.8} />
-    </g>,
-  );
-  if (stage === 1) {
-    // Timber lintel across the posts.
-    parts.push(box('ln', u0 - 2, u1 + 2, c - 1.2, c + 1.2, Hd + 4, Hd + 7, { top: G.lit, left: G.wood, right: G.plank }, { sw: G.sw }));
-  }
-  if (stage === 3) parts.push(gateBanner('gb', GATE_U, V, top - 2.5));
-  if (grand) {
-    // Two banners flank a gold sunflower crest above the doors.
-    parts.push(gateBanner('gl', GATE_U - 15, V, top - 6, 1.3), gateBanner('gr', GATE_U + 15, V, top - 6, 1.3));
-    const [x, y] = iso(GATE_U, V, 35);
-    const rays = Array.from({ length: 10 }, (_, i) => {
-      const an = (i / 10) * Math.PI * 2;
-      return `M${f(Math.cos(an) * 4.2)} ${f(Math.sin(an) * 4.2)}L${f(Math.cos(an) * 6.6)} ${f(Math.sin(an) * 6.6)}`;
-    }).join('');
-    parts.push(
-      <g key="crest" transform={`matrix(1 0.5 0 1 ${f(x)} ${f(y)})`} strokeLinejoin="round" strokeLinecap="round">
-        <path d={rays} stroke={INK} strokeWidth={4} fill="none" />
-        <path d={rays} stroke={GOLD.mid} strokeWidth={1.8} fill="none" />
-        <circle r={4.4} fill={GOLD.mid} stroke={INK} strokeWidth={1.5} />
-        <circle r={2.2}fill={ROOF.mid} stroke={INK} strokeWidth={1} />
-      </g>,
-    );
-  }
-  return <g key={key}>{parts}</g>;
-}
-
-interface Edge {
-  name: string;
-  /** Runs along u (at v = c) or along v (at u = c). */
-  along: 'u' | 'v';
-  c: number;
-}
-
-/** The four walls, each on the plate's edge with its outer face flush with the border (`c` is the wall's middle line). */
-function edges(t: number): Edge[] {
-  // Flush with the plate's edge: no ground left outside the wall, no gap under it.
-  const c = RP - t / 2;
-  return [
-    { name: 'back-right', along: 'u', c: -c },
-    { name: 'back-left', along: 'v', c: -c },
-    { name: 'front-left', along: 'u', c },
-    { name: 'front-right', along: 'v', c },
-  ];
-}
-
-/** Screen depth of the front-most ground point of a run piece. */
-function runDepth(e: Edge, s1: number, t: number): number {
-  return e.along === 'u' ? iso(s1, e.c + t / 2)[1] : iso(e.c + t / 2, s1)[1];
-}
-
-const wallCache = new Map<number, DepthItem[]>();
-
-/** Painter-sorted pieces of the ring wall for a stage (1–3): corner towers, four walls, one gate on the main road. */
-export function wallItems(stage: Exclude<WallLook, 0>): DepthItem[] {
-  const hit = wallCache.get(stage);
-  if (hit) return hit;
-  const items: DepthItem[] = [];
-  // Half-size of the corner towers' footprint (towers stand inside the corner, flush with both edges).
-  const grand = stage === 4;
-  const corner = stage === 1 ? 9 : stage === 2 ? 13 : grand ? 18 : 16;
-  const post = stage === 1 ? 3 : stage === 2 ? 8 : grand ? 11 : 10;
-  const t = stage === 1 ? 2 : stage === 2 ? 7 : grand ? 10 : 9;
-  // The two walls facing the camera stay low so the village inside shows over them; the two far walls stand tall.
-  const hBack = stage === 2 ? 18 : grand ? 34 : 30;
-  const hFront = stage === 2 ? 9 : grand ? 18 : 16;
-  const chunk = 24;
-  // Gate towers a third bigger than before, so the gate reads as the village's front door.
-  const gpost = Math.round(post * 1.3);
-  const end = RP - 2 * corner + 1;
-
-  for (const e of edges(t)) {
-    const near = e.c > 0;
-    const h = near ? hFront : hBack;
-    const gate = e.name === 'front-left';
-    const runs: [number, number][] = gate
-      ? [
-          [-end, GATE_U - GATE_W - gpost],
-          [GATE_U + GATE_W + gpost, end],
-        ]
-      : [[near ? -end : -end + 1, end]]; // back walls start exactly at the back tower's face (it is drawn first)
-    for (const [a0, b0] of runs) {
-      for (let a = a0; a < b0 - 0.5; a += chunk) {
-        const b = Math.min(b0, a + chunk);
-        const node = stage === 1 ? palisade('p', e.along, e.c, a, b, near ? 0.72 : 1) : stoneRun('s', e.along, e.c, a, b, h, t, stage, grand && b - a > chunk - 0.5 && b < b0 - 3);
-        items.push({ key: `w-${e.name}-${f(a)}`, depth: runDepth(e, b, t), node });
-      }
-    }
-    if (!gate) continue;
-    // The closed gate, then the gate towers (or posts) on both sides of it.
-    items.push({ key: 'gate', depth: iso(GATE_U + GATE_W, e.c + t / 2)[1], node: closedGate('gate', stage, e.c, t) });
-    for (const side of [-1, 1] as const) {
-      const u = GATE_U + side * (GATE_W + gpost);
-      const v = RP - Math.max(gpost, t / 2 + 0.3);
-      const node =
-        stage === 1
-          ? gatePost('g', u, v, gpost)
-          : stoneTower('g', u, v, gpost, stage === 2 ? 34 : 22, {
-              roof: stage >= 3 ? (grand ? 26 : 20) : undefined,
-              plinth: stage >= 3 ? (grand ? 40 : 30) : undefined,
-              grand,
-              banner: stage >= 2 ? 'l' : undefined,
-              flag: stage === 2,
-            });
-      items.push({ key: `g-${side}`, depth: iso(u + gpost, v + gpost)[1], node });
-    }
-  }
-  const k = RP - corner;
-  const corners: [number, number][] = [
-    [-k, -k],
-    [k, -k],
-    [-k, k],
-    [k, k],
-  ];
-  corners.forEach(([u, v], i) => {
-    const node =
-      stage === 1
-        ? watchtower(`c${i}`, u, v, corner)
-        : stoneTower(`c${i}`, u, v, corner, stage === 2 ? 38 : grand ? 34 : 24, {
-            roof: stage >= 3 ? (grand ? 40 : 30) : undefined,
-            // The footing rises clearly above the tall back walls (30 + 5 merlons), so the walls butt into its side.
-            plinth: stage >= 3 ? (grand ? 48 : 42) : undefined,
-            grand,
-            turret: stage === 2,
-            flag: true,
-          });
-    // The back tower stands BEHIND the first wall pieces on both sides (they run out in front of its inner faces), so it
-    // is sorted by its centre; by its front corner it tied with them (level 13-17) or was drawn over them (max level),
-    // which made the walls look like they slid behind the tower's base.
-    items.push({ key: `c${i}`, depth: i === 0 ? iso(u, v)[1] : iso(u + corner, v + corner)[1], node });
-  });
-  wallCache.set(stage, items);
-  return items;
-}
+// The ring wall (with its gates) lives in ./wall.tsx.
+export { wallItems } from './wall.tsx';

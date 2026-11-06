@@ -235,6 +235,50 @@ th[scope='row'] {
   filter: brightness(1.07);
 }
 
+/* Selected building: an ink + gold outline round the drawing (SVG filter #vv-sel in VillageScene) and a softly breathing
+   gold ring on its pad (owner 2026-11-06: the old two-edge highlight read as half a rectangle). */
+.vv-svg .vv-b.is-selected,
+.vv-svg .vv-b.is-selected:hover {
+  filter: url(#vv-sel);
+}
+
+.vv-ring-fill {
+  fill: #ffdc7a;
+  opacity: 0.38;
+  animation: vv-ring-breathe 1.8s ease-in-out infinite;
+}
+
+.vv-ring-edge {
+  animation: vv-ring-edge 1.8s ease-in-out infinite;
+}
+
+@keyframes vv-ring-breathe {
+  0%,
+  100% {
+    opacity: 0.26;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes vv-ring-edge {
+  0%,
+  100% {
+    stroke: #ffdc7a;
+  }
+  50% {
+    stroke: #fff1c2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vv-ring-fill,
+  .vv-ring-edge {
+    animation: none;
+  }
+}
+
 /* The label pill is the button (keyboard and screen readers); 44 px tall touch target around it. */
 .vv-hit {
   position: absolute;
@@ -435,25 +479,6 @@ th[scope='row'] {
 
 .vv-hit.is-selected .vv-lv {
   background: var(--c-cream);
-}
-
-.vv-marker {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform: translate(-50%, -78%);
-  animation: vv-bob 1.1s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes vv-bob {
-  0%,
-  100% {
-    margin-top: 0;
-  }
-  50% {
-    margin-top: -6px;
-  }
 }
 
 .vv-timer {
@@ -1488,10 +1513,6 @@ th[scope='row'] {
     opacity: 0;
   }
 
-  .vv-marker {
-    animation: none;
-  }
-
   .vv-pan .vv-stage {
     transition: none;
   }
@@ -1803,4 +1824,112 @@ th[scope='row'] {
   margin-top: 8px;
   font-weight: 800;
   color: var(--c-sun-hi);
+}
+
+/* Build moment (owner 2026-11-06): a building whose look changes grows in behind fading scaffolding, with a dust puff and
+   gold sparkles, instead of swapping instantly. Total 1.6s (MOMENT_MS in VillageScene.tsx). Flat shapes, no blur. */
+.vv-moment-grow {
+  transform-box: view-box;
+  animation: vv-moment-grow 1.6s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+
+@keyframes vv-moment-grow {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  72% {
+    transform: scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.vv-moment-scaffold {
+  animation: vv-moment-scaffold 1.6s linear both;
+}
+
+@keyframes vv-moment-scaffold {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.vv-moment-puff {
+  stroke: #2b211c;
+  stroke-opacity: 0.35;
+  stroke-width: 2.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vv-moment-puff 1.2s ease-out both;
+}
+
+@keyframes vv-moment-puff {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--mx, 0), var(--my, -20px)) scale(1.7);
+  }
+}
+
+.vv-moment-spark {
+  stroke: #2b211c;
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vv-moment-spark 0.9s ease-out both;
+}
+
+@keyframes vv-moment-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 6px) scale(0.3);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(0, -4px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, -18px) scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vv-moment-grow {
+    animation: vv-moment-fade 0.4s ease-out both;
+  }
+
+  .vv-moment-scaffold,
+  .vv-moment-fx {
+    display: none;
+  }
+
+  @keyframes vv-moment-fade {
+    from {
+      opacity: 0.4;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }

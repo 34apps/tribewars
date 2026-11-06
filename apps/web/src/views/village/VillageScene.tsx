@@ -13,6 +13,7 @@ import {
   UNDER_CONSTRUCTION_URL,
   WALL_HIT,
   buildingStage,
+  footprint,
   footprintFront,
   labelAnchor,
   loadSprite,
@@ -98,6 +99,54 @@ function SceneSprite({
   );
 }
 
+/** Length of the "new look" build moment (ms); keep in step with the 1.6s animations in village.css. */
+const MOMENT_MS = 1600;
+
+/**
+ * Dust puff and gold sparkles for the build moment. Offsets are in scene units around the ground point (gx, gy);
+ * the keyframes in village.css move and fade them. Decoration only: no pointer events.
+ */
+function MomentFx({ gx, gy, roof }: { gx: number; gy: number; roof: number }) {
+  const puffs = [
+    { dx: -30, dy: -2, r: 10, to: [-26, -16] },
+    { dx: -10, dy: 3, r: 13, to: [-8, -24] },
+    { dx: 12, dy: 2, r: 12, to: [10, -22] },
+    { dx: 32, dy: -3, r: 9, to: [28, -14] },
+  ];
+  const sparks = [
+    { dx: -28, dy: 0, r: 5 },
+    { dx: 4, dy: -14, r: 6 },
+    { dx: 30, dy: 2, r: 4.5 },
+    { dx: -8, dy: 12, r: 3.5 },
+  ];
+  return (
+    <g className="vv-moment-fx" pointerEvents="none">
+      {puffs.map((p, i) => (
+        <circle
+          key={`p${i}`}
+          className="vv-moment-puff"
+          cx={gx + p.dx}
+          cy={gy + p.dy}
+          r={p.r}
+          style={{ '--mx': `${p.to[0]}px`, '--my': `${p.to[1]}px`, animationDelay: `${i * 60}ms` } as CSSProperties}
+          fill={i % 2 ? '#F7F1E3' : '#E8D3A4'}
+        />
+      ))}
+      {sparks.map((p, i) => (
+        <circle
+          key={`s${i}`}
+          className="vv-moment-spark"
+          cx={gx + p.dx}
+          cy={roof + p.dy}
+          r={p.r}
+          style={{ animationDelay: `${500 + i * 110}ms` }}
+          fill="#FFDC7A"
+        />
+      ))}
+    </g>
+  );
+}
+
 /** The SVG layer. Memoised: it only changes when a building's look, the queue or the selection changes. */
 export const SceneArt = memo(function SceneArt({
   arts,
@@ -125,6 +174,45 @@ export const SceneArt = memo(function SceneArt({
   /** Click on a building's drawing (pixel-accurate; the overlay labels are the keyboard targets). */
   onPick: (id: BuildingId) => void;
 }) {
+  // Build moment (owner 2026-11-06: "the designs change all of a sudden"). When a building's look changes while this
+  // scene is on screen, show scaffolding over it for a moment and let the new look grow in, instead of an instant swap.
+  // The first render only records the looks, so opening the village never animates everything.
+  const prevStage = useRef<Partial<Record<BuildingId, number>> | null>(null);
+  const [moments, setMoments] = useState<Partial<Record<BuildingId, number>>>({});
+  const timers = useRef<Partial<Record<BuildingId, ReturnType<typeof setTimeout>>>>({});
+  useLayoutEffect(() => {
+    const prev = prevStage.current;
+    prevStage.current = Object.fromEntries(BUILDING_IDS.map((id) => [id, arts[id].stage]));
+    if (!prev) return;
+    const started: BuildingId[] = [];
+    for (const id of BUILDING_IDS) {
+      const was = prev[id] ?? 0;
+      const now = arts[id].stage;
+      if (id !== 'wall' && now > 0 && was !== now) started.push(id);
+    }
+    if (started.length === 0) return;
+    setMoments((m) => {
+      const next = { ...m };
+      for (const id of started) next[id] = (m[id] ?? 0) + 1;
+      return next;
+    });
+    for (const id of started) {
+      clearTimeout(timers.current[id]);
+      timers.current[id] = setTimeout(() => {
+        setMoments((m) => {
+          const next = { ...m };
+          delete next[id];
+          return next;
+        });
+      }, MOMENT_MS);
+    }
+  }, [arts]);
+  useEffect(() => {
+    const t = timers.current;
+    return () => {
+      for (const id of Object.keys(t) as BuildingId[]) clearTimeout(t[id]);
+    };
+  }, []);
   const items: DepthItem[] = [...sceneryItems(), fireItem(hearthOut)];
   const wall = arts.wall;
   if (wall.stage > 0) {
@@ -148,10 +236,35 @@ export const SceneArt = memo(function SceneArt({
     let url = spriteUrl(id, art.stage as Stage);
     if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
+    const moment = id !== 'wall' && art.stage > 0 ? moments[id] : undefined;
+    const { x: px, y: py, scale: ps } = PLACEMENT[id];
+    const gx = px;
+    const gy = py + 26 * ps;
+    const sprite = <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />;
     const node = (
-      <g className={`vv-b${art.locked ? ' is-locked' : ''}`} onClick={() => onPick(id)}>
-        <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />
-        {art.queued && art.stage > 0 && id !== 'wall' && <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />}
+      <g
+        className={`vv-b${art.locked ? ' is-locked' : ''}${selected === id && id !== 'wall' ? ' is-selected' : ''}`}
+        filter={selected === id && id !== 'wall' ? 'url(#vv-sel)' : undefined}
+        onClick={() => onPick(id)}
+      >
+        {moment ? (
+          <g
+            key={`m${moment}`}
+            className="vv-moment-grow"
+            style={{ transformOrigin: `${gx}px ${gy}px` }}
+          >
+            {sprite}
+          </g>
+        ) : (
+          sprite
+        )}
+        {moment && (
+          <g key={`ms${moment}`} className="vv-moment-scaffold" pointerEvents="none">
+            <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sm-${id}-`} />
+          </g>
+        )}
+        {moment && <MomentFx key={`mf${moment}`} gx={gx} gy={gy} roof={py - 100 * ps} />}
+        {art.queued && art.stage > 0 && id !== 'wall' && !moment && <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />}
       </g>
     );
     items.push({ key: `b-${id}`, depth: placementDepth(id), node });
@@ -161,13 +274,37 @@ export const SceneArt = memo(function SceneArt({
     <svg className="vv-svg" viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} aria-hidden="true" focusable="false">
       <defs>
         <SceneryDefs />
+        {/* Selected building outline: an ink line and a gold line round the drawing's own shape. An SVG filter (not a CSS
+            drop-shadow, which Safari ignores on SVG parts). */}
+        <filter id="vv-sel" x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
+          <feMorphology in="SourceAlpha" operator="dilate" radius="4" result="outer" />
+          <feFlood floodColor="#2B211C" />
+          <feComposite in2="outer" operator="in" result="ink" />
+          <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="inner" />
+          <feFlood floodColor="#FFDC7A" />
+          <feComposite in2="inner" operator="in" result="gold" />
+          <feMerge>
+            <feMergeNode in="ink" />
+            <feMergeNode in="gold" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
       <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
       <Ground built={BUILDING_IDS.filter((id) => arts[id].stage > 0 || arts[id].queued).join(',')} />
+      {/* Selected building: a glowing ring round its whole pad on the ground (the building stands in it, so nothing is cut
+          in half), plus a gold outline on the drawing itself (CSS .vv-b.is-selected). */}
+      {selected && selected !== 'wall' && (
+        <g className="vv-ring" pointerEvents="none" strokeLinejoin="round">
+          <path className="vv-ring-fill" d={footprint(selected)} fill="#FFDC7A" opacity={0.38} />
+          <path d={footprint(selected)} fill="none" stroke="#2B211C" strokeWidth={7} />
+          <path className="vv-ring-edge" d={footprint(selected)} fill="none" stroke="#FFDC7A" strokeWidth={3.6} />
+        </g>
+      )}
       {items.map((it) => (
         <g key={it.key}>{it.node}</g>
       ))}
-      {selected && (
+      {selected === 'wall' && (
         <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path d={footprintFront(selected)} stroke="#2B211C" strokeWidth={7} />
           <path d={footprintFront(selected)} stroke="#FFDC7A" strokeWidth={3.6} />
@@ -230,11 +367,6 @@ function BuildingHit({
           if (!wasDrag()) onSelect(id);
         }}
       >
-        {selected && (
-          <span className="vv-marker" aria-hidden="true">
-            <Icon name="marker" size={26} />
-          </span>
-        )}
         <span className="vv-label" aria-hidden="true">
           <span className="vv-name">
             <span className="vv-label-full">{name}</span>

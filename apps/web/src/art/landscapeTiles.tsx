@@ -1,5 +1,5 @@
 // Village landscape "Map tiles" (the default). The land around the walls is built from the world map's terrain tiles
-// (design/sprites/terrain, copied to ./terrain-sprites) at scale 0.875, so a tile is 39 grid units wide and the plate is twelve
+// (design/sprites/terrain, copied to ./terrain-sprites) at scale 0.875, so a tile is 39 grid units wide and the plate is fourteen
 // tiles across; tile outlines are drawn thinner and softer than on the map. The tile grid is shifted sideways so that one tile
 // column is centred exactly on the gate (u = 8): the road leaves the gate straight along that column, tile by tile, crosses the
 // river on the bridge tile and runs to the edge.
@@ -10,6 +10,9 @@
 // sheep inside a fence in front of the left wall; a river that rises in the hills and bends round the front. The grass next to
 // the walls stays calm; trees, stones and flowers get denser towards the edges. Same contract as `Landscape` (landscape.tsx):
 // one <g className="vv-land"> drawn BEFORE the plate. Growth: `tier` 0..3 (tier 0 is complete; each tier adds fields, hay, sheep).
+//
+// Every hand-placed position below was drawn for a 234 plate (twelve tiles) and is pushed out by GROW = PLATE - 234 (one tile per
+// 39 grid units) with `g`, on the sides that face away from the plate, so a later size change that is a multiple of 39 keeps working.
 //
 // Tall tiles (forest, hills, mountains) only stand where the plate and its walls cannot cut them: behind the back walls or
 // clear of the plate on screen; in front of the walls only low things (grass, fields, props) are drawn.
@@ -27,12 +30,16 @@ const TILE = 39;
 /** Tile art scale: the map tile diamond is 44.6 wide per side; 39 / 44.6 makes one tile 39 grid units. */
 const K = TILE / 44.6;
 const PLATE = WALL_RING.plate;
+/** How far the plate has grown since the hand-placed positions were drawn (plate 234); a multiple of the tile size. */
+const GROW = PLATE - 234;
+/** Push an old (plate 234) coordinate out by GROW when it lay outside the plate on that side. */
+const g = (x: number) => (x > 234 ? x + GROW : x < -234 ? x - GROW : x);
 const GATE_U = WALL_RING.gateU;
 /** Ground height of the tile tops: the foot of the plate's earth sides, so the plate stands proud of the land. */
 const TZ = -24;
 const BASE_FILL = '#3A5E27';
 
-/** Tile column a is centred on u = GATE_U + 39 a (a = 0 holds the road); row j on v = -214.5 + 39 j (rows 0..11 lie under the plate). */
+/** Tile column a is centred on u = GATE_U + 39 a (a = 0 holds the road); row j on v = -PLATE + 19.5 + 39 j (the first rows lie under the plate). */
 const uOf = (a: number) => GATE_U + TILE * a;
 const vOf = (j: number) => -PLATE + TILE / 2 + TILE * j;
 /** The tile index holding a ground point. */
@@ -47,10 +54,10 @@ const MASSIF_SCALE = 1.5;
 /** Forest tiles are drawn a little larger so their trees are as tall as the pines inside the walls. */
 const FOREST = 1.3;
 
-const RIVER_A = 14; // river column (u = 554)
-const RIVER_J = 16; // river row (v = 409.5)
+const RIVER_A = 14 + GROW / TILE; // river column (u = 554 at plate 234)
+const RIVER_J = 16 + (2 * GROW) / TILE; // river row (v = 409.5 at plate 234; stays the same distance from the front wall)
 /** The massif far behind the Iron Mine: centre of its 2x2 base (grid units); drawn at 1.5 times the tile scale (far away, big). */
-const MASSIF_AT = [250, -570] as const;
+const MASSIF_AT = [g(250), g(-570)] as const;
 
 // ---- Sprites -----------------------------------------------------------------------------------------------------------------
 
@@ -272,7 +279,8 @@ const FIELD_LIST: readonly (readonly [number, number, Crop, 'n' | 'pv' | 'mv', n
   [10, 12, 'plough', 'n', 2],
   [10, 2, 'wheat', 'pv', 3], [10, 3, 'wheat', 'mv', 3],
 ];
-const FIELDS = new Map(FIELD_LIST.map(([a, j, crop, ext, tier]) => [`${a},${j}`, { crop, ext, tier }]));
+/** Columns move out one tile with the right wall; rows keep their v (the rows beside the wall just run past the corners). */
+const FIELDS = new Map(FIELD_LIST.map(([a, j, crop, ext, tier]) => [`${a + GROW / TILE},${j + GROW / TILE}`, { crop, ext, tier }]));
 
 /** River: one continuous ribbon down the right side (rising in the hills far back) and along the front. */
 const RIVER_U = uOf(RIVER_A);
@@ -283,28 +291,28 @@ const RIVER_PTS: readonly (readonly [number, number])[] = [[RIVER_U, -1100], [RI
 const ROAD_W = 28;
 const ROAD_FROM = PLATE - 6;
 /** Side paths (narrower, no ink edge) from the main road to the places around the village. */
-const LANE_U = uOf(9);
-const TRACK_V = vOf(14);
+const LANE_U = uOf(9 + GROW / TILE);
+const TRACK_V = g(331.5);
 const SIDE_W = 11;
 const SIDE_PATHS: readonly (readonly (readonly [number, number])[])[] = [
   // the farm lane: from the quarry, down between the fields, then along the front to the road
-  [[236, -338], [LANE_U, -338], [LANE_U, TRACK_V], [GATE_U, TRACK_V]],
+  [[g(236), g(-338)], [LANE_U, g(-338)], [LANE_U, TRACK_V], [GATE_U, TRACK_V]],
   // hamlet and orchard
-  [[LANE_U, 60], [473, 60]],
-  [[473, 60], [473, 150]],
+  [[LANE_U, 60], [g(473), 60]],
+  [[g(473), 60], [g(473), 150]],
   // woodcutter's clearing on the Lumber Camp side
-  [[-420, 78], [-420, 345], [GATE_U, 345]],
+  [[g(-420), 78], [g(-420), g(345)], [GATE_U, g(345)]],
   // the pond beyond the river
-  [[GATE_U, 455], [36, 455]],
+  [[GATE_U, g(455)], [36, g(455)]],
 ];
 /** Places: centre, radius (grid units) kept clear of trees and rocks, and the ground look under them. */
 const PLACES: readonly { u: number; v: number; rx: number; ry: number; ground: string }[] = [
-  { u: 470, v: 62, rx: 74, ry: 50, ground: '#CDB98A' }, // hamlet yard
-  { u: -420, v: 60, rx: 52, ry: 38, ground: '#CDB98A' }, // woodcutter's clearing
-  { u: 236, v: -340, rx: 56, ry: 38, ground: '#B9B29B' }, // quarry
-  { u: 466, v: 190, rx: 52, ry: 40, ground: '#B9D67A' }, // orchard floor
+  { u: g(470), v: 62, rx: 74, ry: 50, ground: '#CDB98A' }, // hamlet yard
+  { u: g(-420), v: 60, rx: 52, ry: 38, ground: '#CDB98A' }, // woodcutter's clearing
+  { u: g(236), v: g(-340), rx: 56, ry: 38, ground: '#B9B29B' }, // quarry
+  { u: g(466), v: 190, rx: 52, ry: 40, ground: '#B9D67A' }, // orchard floor
 ];
-const POND = { u: 62, v: 458, rx: 26, ry: 17 } as const;
+const POND = { u: 62, v: g(458), rx: 26, ry: 17 } as const;
 
 /** Distance from a point to a polyline. */
 function distToLine(u: number, v: number, pts: readonly (readonly [number, number])[]): number {
@@ -330,11 +338,11 @@ function occupied(u: number, v: number, pad: number): boolean {
 }
 
 /** The sheep meadow in front of the left wall, between the open land and the road (grid units), and its fence. */
-const PASTURE = { u0: -265, u1: -31, v0: PLATE, v1: PLATE + 78 } as const;
+const PASTURE = { u0: g(-265), u1: -31, v0: PLATE, v1: PLATE + 78 } as const;
 const inPasture = (u: number, v: number) => u > PASTURE.u0 && u < PASTURE.u1 && v > PASTURE.v0 && v < PASTURE.v1;
 /** Haystacks (u, v, tier) on grass between the fields. */
-const HAY: readonly (readonly [number, number, number])[] = [[322, 117, 1], [398, 22, 2], [322, 292, 3]];
-const SCARECROWS: readonly (readonly [number, number, number])[] = [[320, 40, 0], [398, 117, 2]];
+const HAY: readonly (readonly [number, number, number])[] = [[g(322), 117, 1], [g(398), 22, 2], [g(322), g(292), 3]];
+const SCARECROWS: readonly (readonly [number, number, number])[] = [[g(320), 40, 0], [g(398), 117, 2]];
 
 /** Plain ground by soft noise, so grass tones form patches. */
 function grassName(u: number, v: number): string {
@@ -407,16 +415,16 @@ function dress(a: number, j: number, ground: string): Prop[] {
 
 /** The flock: positions in the meadow (u, v, sprite, mirrored, tier). 3 sheep at tier 0, up to 6. */
 const SHEEP: readonly (readonly [number, number, string, boolean, number])[] = [
-  [-200, 285, 'sheep', false, 0],
-  [-150, 300, 'sheep-grazing', true, 0],
-  [-105, 278, 'sheep', true, 0],
-  [-70, 296, 'sheep-grazing', false, 1],
-  [-230, 300, 'sheep-grazing', false, 2],
-  [-125, 262, 'sheep', false, 3],
+  [-200, 285 + GROW, 'sheep', false, 0],
+  [-150, 300 + GROW, 'sheep-grazing', true, 0],
+  [-105, 278 + GROW, 'sheep', true, 0],
+  [-70, 296 + GROW, 'sheep-grazing', false, 1],
+  [-230, 300 + GROW, 'sheep-grazing', false, 2],
+  [-125, 262 + GROW, 'sheep', false, 3],
 ];
 const PASTURE_FLOWERS: readonly (readonly [number, number, string])[] = [
-  [-245, 268, 'daisies'],
-  [-52, 306, 'flowers'],
+  [-245, 268 + GROW, 'daisies'],
+  [-52, 306 + GROW, 'flowers'],
 ];
 
 /** A placed object: a drawing with a foot point, drawn with the raised tiles in depth order. */
@@ -441,20 +449,20 @@ function places(): Obj[] {
   const o = (u: number, v: number, sprite: string, tier = 0, scale = 1, flip = false): Obj => ({ u, v, sprite, scale, flip, tier });
   const out: Obj[] = [
     // hamlet beside the fields
-    o(440, 20, 'house-a'), o(440, 104, 'house-b', 1), o(508, 64, 'house-a', 2, 1, true), o(473, 66, 'well'),
-    o(425, 62, 'vt-bush', 1, 0.9), o(500, 100, 'vt-bush', 2, 0.9), o(452, 84, 'vt-logs', 1, 0.8),
+    o(g(440), 20, 'house-a'), o(g(440), 104, 'house-b', 1), o(g(508), 64, 'house-a', 2, 1, true), o(g(473), 66, 'well'),
+    o(g(425), 62, 'vt-bush', 1, 0.9), o(g(500), 100, 'vt-bush', 2, 0.9), o(g(452), 84, 'vt-logs', 1, 0.8),
     // woodcutter's clearing
-    o(-420, 40, 'hut'), o(-446, 72, 'vt-stump'), o(-398, 78, 'vt-stump', 0, 0.9), o(-444, 30, 'vt-stump', 1, 0.8),
-    o(-394, 44, 'vt-logs'), o(-446, 98, 'vt-logs', 1), o(-384, 100, 'vt-logs', 2, 0.9), o(-404, 22, 'vt-stump', 2),
+    o(g(-420), 40, 'hut'), o(g(-446), 72, 'vt-stump'), o(g(-398), 78, 'vt-stump', 0, 0.9), o(g(-444), 30, 'vt-stump', 1, 0.8),
+    o(g(-394), 44, 'vt-logs'), o(g(-446), 98, 'vt-logs', 1), o(g(-384), 100, 'vt-logs', 2, 0.9), o(g(-404), 22, 'vt-stump', 2),
     // quarry in the rocks of the Iron Mine side
-    o(236, -348, 'mine'), o(264, -326, 'cart', 1), o(204, -322, 'vt-rockC', 0, 1.1), o(284, -352, 'vt-rockA', 0, 1), o(198, -356, 'vt-rockA', 1, 0.9),
-    o(288, -318, 'vt-rockB', 2), o(220, -300, 'vt-rockB', 3),
+    o(236 + GROW, -348 - GROW, 'mine'), o(264 + GROW, -326 - GROW, 'cart', 1), o(204 + GROW, -322 - GROW, 'vt-rockC', 0, 1.1), o(284 + GROW, -352 - GROW, 'vt-rockA', 0, 1), o(198 + GROW, -356 - GROW, 'vt-rockA', 1, 0.9),
+    o(288 + GROW, -318 - GROW, 'vt-rockB', 2), o(220 + GROW, -300 - GROW, 'vt-rockB', 3),
     // pond with ducks and reeds
-    o(52, 452, 'duck', 0), o(70, 460, 'duck', 0, 1, true), o(60, 470, 'duck', 1, 0.9),
-    o(40, 442, 'reeds', 0, 0.9), o(86, 450, 'reeds', 0, 0.9), o(76, 472, 'reeds', 1, 0.9), o(34, 466, 'reeds', 2, 0.9),
+    o(g(52), g(452), 'duck', 0), o(g(70), g(460), 'duck', 0, 1, true), o(g(60), g(470), 'duck', 1, 0.9),
+    o(g(40), g(442), 'reeds', 0, 0.9), o(g(86), g(450), 'reeds', 0, 0.9), o(g(76), g(472), 'reeds', 1, 0.9), o(g(34), g(466), 'reeds', 2, 0.9),
   ];
   // orchard: rows of fruit trees, a row more as the village grows
-  for (let k = 0; k < 3; k++) for (let i = 0; i < 4; i++) out.push(o(436 + i * 24, 166 + k * 24, 'fruit-tree', k, 0.92));
+  for (let k = 0; k < 3; k++) for (let i = 0; i < 4; i++) out.push(o(g(436) + i * 24, 166 + k * 24, 'fruit-tree', k, 0.92));
   return out;
 }
 
