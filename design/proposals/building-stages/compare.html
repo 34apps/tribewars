@@ -38,7 +38,10 @@ const B = [
 const v = Date.now();
 const src = f => `../../../apps/web/src/art/buildings/${f}.svg?v=${v}`;
 const r = (a,b) => a===b ? `Level ${a}` : `Levels ${a}–${b}`;
-document.getElementById('list').innerHTML = B.map(([n,f,max,t1,t2,nw]) => {
+// ?only=stables,farm shows just those buildings (by file stem).
+const only = new URLSearchParams(location.search).get('only');
+const pick = only ? B.filter(b => only.split(',').includes(b[1])) : B;
+document.getElementById('list').innerHTML = pick.map(([n,f,max,t1,t2,nw]) => {
   const ranges = [r(1,t1), r(t1+1,t2), r(t2+1,max-1), r(max,max)];
   return `<div class="b"><div class="name">${n}<small>Max level ${max}</small></div>` +
     ranges.map((rg,i) => `<div class="st"><img src="${src(f+'-'+(i+1))}" data-f="${f}" data-s="${i+1}" alt="${n} stage ${i+1}"><b>Stage ${i+1}</b><span>${rg}</span></div>`).join('') +
