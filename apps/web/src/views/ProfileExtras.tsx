@@ -1,9 +1,9 @@
 // Achievements (badge cards with tier colours and progress) and lifetime statistics on a player's profile sheet.
 
 import { ACHIEVEMENTS, STAT_KEYS, STAT_LABELS, TIER_NAMES } from '@clanfire/engine';
-import type { AchievementProgress, BadgeSummaryDto, PlayerStatsDto } from '@clanfire/engine';
+import type { AchievementProgress, BadgeSummaryDto, PlayerStatsDto, WorldBadgeDto } from '@clanfire/engine';
 import { formatInt } from '../format.ts';
-import { BADGE_HELP, BadgeRow } from '../components/Badges.tsx';
+import { BADGE_HELP, BadgeChip, BadgeRow } from '../components/Badges.tsx';
 
 const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
 
@@ -31,11 +31,11 @@ function Badge({ p }: { p: AchievementProgress }) {
   );
 }
 
-export function ProfileExtras({ stats, achievements, badges = [] }: { stats: PlayerStatsDto; achievements: AchievementProgress[]; badges?: BadgeSummaryDto[] }) {
+export function ProfileExtras({ stats, achievements, badges = [], worldBadges = [] }: { stats: PlayerStatsDto; achievements: AchievementProgress[]; badges?: BadgeSummaryDto[]; worldBadges?: WorldBadgeDto[] }) {
   const earned = achievements.filter((a) => a.tier > 0).length;
   return (
     <div className="prof-extras">
-      {badges.length > 0 && (
+      {(badges.length > 0 || worldBadges.length > 0) && (
         <section aria-label="Badges">
           <div className="title-row">
             <h3 className="prof-h">Badges</h3>
@@ -45,6 +45,16 @@ export function ProfileExtras({ stats, achievements, badges = [] }: { stats: Pla
             </details>
           </div>
           <BadgeRow badges={badges} />
+          {worldBadges.length > 0 && (
+            <>
+              <p className="muted small">This world</p>
+              <ul className="badge-row" aria-label="This world">
+                {worldBadges.map((b) => (
+                  <BadgeChip key={b.badge} badge={b.badge} place={b.place} />
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       )}
       <section aria-label="Achievements">

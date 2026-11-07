@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, randomBytes, sign as edSign } from 'node:crypto';
 import { test } from 'node:test';
-import { BADGE_MIN_DAYS, ENTRY_PASS_DOMAIN, ENTRY_PASS_TTL_MS, type PlayerProfileDto, type WorldEndResponse } from '@clanfire/engine';
+import { BADGE_MIN_DAYS, ENTRY_PASS_DOMAIN, ENTRY_PASS_TTL_MS, type MyTribeResponse, type PlayerProfileDto, type WorldEndResponse } from '@clanfire/engine';
 import { endWorld } from '../src/domination-service.ts';
 import { Client, HOUR, errorOf, makeApp, ok } from './helpers.ts';
 import { DAY, domWorld, setPts, touchAll } from './domination-helpers.ts';
@@ -178,4 +178,33 @@ test('profile: bad or empty stored badges read as []', async () => {
     assert.deepEqual(await get(), [], junk);
   }
   await app.close();
+});
+
+test('tribe member list carries each member\'s account badges; junk or none reads as []', async () => {
+  const w = await domWorld();
+  const db = w.app.ctx.store.db;
+  const set = (id: number, v: string | null) => db.prepare('UPDATE players SET badges_json = ? WHERE id = ?').run(v, id);
+  set(w.alice.id, JSON.stringify(GOOD));
+  set(w.amy.id, 'not json');
+  const list = async () => (await w.alice.c.get('/api/tribe')).json<MyTribeResponse>().tribe?.memberList ?? [];
+  const by = (l: Awaited<ReturnType<typeof list>>, id: number) => l.find((m) => m.playerId === id)?.badges;
+  let l = await list();
+  assert.deepEqual(by(l, w.alice.id), GOOD);
+  assert.deepEqual(by(l, w.amy.id), []);
+  set(w.amy.id, '[{"badge":"x"}]');
+  set(w.alice.id, null);
+  l = await list();
+  assert.deepEqual([by(l, w.alice.id), by(l, w.amy.id)], [[], []]);
+  w.app.close();
+});
+
+test('profile worldBadges: [] while the world runs, the player\'s rows after it ended', async () => {
+  const w = await endedWorld();
+  const get = async () => (await w.alice.c.get(`/api/players/${w.alice.id}`)).json<PlayerProfileDto>().worldBadges;
+  assert.deepEqual(await get(), []);
+  endWorld(w.app.ctx.store, { at: w.end, kind: 'domination', winner: w.winner, reason: 'x', actorIp: 'server' });
+  assert.deepEqual(await get(), [{ badge: 'champion', place: null }, { badge: 'top10', place: 1 }, { badge: 'veteran', place: null }]);
+  const lou = (await w.alice.c.get(`/api/players/${w.lou.id}`)).json<PlayerProfileDto>();
+  assert.deepEqual(lou.worldBadges, []);
+  w.app.close();
 });

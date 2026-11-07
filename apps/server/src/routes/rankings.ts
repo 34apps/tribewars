@@ -91,6 +91,7 @@ function playerProfile(ctx: AppContext, id: number, now: number): PlayerProfileD
     stats,
     achievements: achievementProgress(stats),
     badges: ctx.store.domination.accountBadges(id),
+    worldBadges: ctx.store.domination.worldBadgesOf(id),
   };
 }
 

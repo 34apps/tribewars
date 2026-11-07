@@ -93,7 +93,7 @@ export function BadgeRow({ badges, label = 'Badges' }: { badges: readonly BadgeS
 }
 
 /** Icons only (tables): one small icon per badge with the label as tooltip and for screen readers. */
-export function BadgeIcons({ badges }: { badges: readonly { badge: BadgeKind; place: number | null }[] | undefined }) {
+export function BadgeIcons({ badges }: { badges: readonly { badge: BadgeKind; place: number | null; count?: number }[] | undefined }) {
   if (!badges || badges.length === 0) return null;
   return (
     <span className="badge-icons">
@@ -104,6 +104,11 @@ export function BadgeIcons({ badges }: { badges: readonly { badge: BadgeKind; pl
       ))}
     </span>
   );
+}
+
+/** Small badge icons next to a tribe member's name; nothing without badges. */
+export function MemberBadges({ badges }: { badges: readonly BadgeSummaryDto[] | undefined }) {
+  return <BadgeIcons badges={badges?.map((b) => ({ badge: b.badge, place: b.bestPlace, count: b.count }))} />;
 }
 
 /** The one plain help text (3 short lines) shown behind every "?" next to badges. */

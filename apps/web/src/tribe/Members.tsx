@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { canKick, canTribe } from '@clanfire/engine';
 import type { TribeAction, TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
+import { MemberBadges } from '../components/Badges.tsx';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
@@ -76,6 +77,7 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
           <strong className="member-name">{m.username}</strong>
           {isMe && <span className="muted small">(you)</span>}
           <RoleBadge role={m.role} />
+          <MemberBadges badges={m.badges} />
           {hasActions && (
             <button className="btn btn-small member-manage" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
               Manage

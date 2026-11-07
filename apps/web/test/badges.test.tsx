@@ -6,7 +6,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BADGE_KINDS } from '@clanfire/engine';
 import type { HallOfFameEntryDto, PlayerStatsDto } from '@clanfire/engine';
-import { BadgeIcon, BadgeIcons, BadgeRow, badgeLabel } from '../src/components/Badges.tsx';
+import { BadgeIcon, BadgeIcons, MemberBadges, BadgeRow, badgeLabel } from '../src/components/Badges.tsx';
 import { HallOfFameList } from '../src/components/HallOfFame.tsx';
 import { ProfileExtras } from '../src/views/ProfileExtras.tsx';
 
@@ -55,4 +55,23 @@ test('profile shows Badges only when there are some', () => {
   assert.ok(!none.includes('Badges'));
   const some = renderToStaticMarkup(createElement(ProfileExtras, { stats, achievements: [], badges: [{ badge: 'champion', count: 1, bestPlace: null }] }));
   assert.match(text(some), /Badges.*Champion/);
+});
+
+test('member rows show badge icons with labels, and nothing without badges', () => {
+  assert.equal(renderToStaticMarkup(createElement(MemberBadges, { badges: [] })), '');
+  assert.equal(renderToStaticMarkup(createElement(MemberBadges, { badges: undefined })), '');
+  const html = renderToStaticMarkup(createElement(MemberBadges, { badges: [{ badge: 'champion', count: 2, bestPlace: null }, { badge: 'top10', count: 1, bestPlace: 4 }] }));
+  assert.equal((html.match(/<svg/g) ?? []).length, 2);
+  assert.match(html, /aria-label="Champion ×2"/);
+  assert.match(html, /aria-label="Top 10 · #4"/);
+});
+
+test('profile "This world" row shows only with world badges; Badges section shows for either list', () => {
+  const none = renderToStaticMarkup(createElement(ProfileExtras, { stats, achievements: [], badges: [], worldBadges: [] }));
+  assert.ok(!none.includes('This world'));
+  const acct = renderToStaticMarkup(createElement(ProfileExtras, { stats, achievements: [], badges: [{ badge: 'veteran', count: 1, bestPlace: null }], worldBadges: [] }));
+  assert.ok(!acct.includes('This world'));
+  const world = renderToStaticMarkup(createElement(ProfileExtras, { stats, achievements: [], badges: [], worldBadges: [{ badge: 'top10', place: 3 }] }));
+  assert.match(text(world), /Badges.*This world.*Top 10 · #3/);
+  assert.ok(!world.includes('aria-label="Badges"><li') );
 });

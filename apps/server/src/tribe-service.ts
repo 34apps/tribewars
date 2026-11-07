@@ -49,6 +49,7 @@ import {
   type TribeSettingsRequest,
   type TribeSummaryDto,
   type WorldSettings,
+  type BadgeSummaryDto,
 } from '@clanfire/engine';
 import { assertNotMuted } from './mute.ts';
 import { TribeProjectService } from './tribe-projects-service.ts';
@@ -413,7 +414,7 @@ export class TribeService {
       }
       const row = this.ts.members(m.tribeId).find((x) => x.playerId === target.playerId);
       if (!row) throw new GameError('not_found', 'That player is not in your tribe.');
-      return memberDto(row, true);
+      return memberDto(row, true, this.store.domination.accountBadges(row.playerId));
     });
   }
 
@@ -734,6 +735,7 @@ export class TribeService {
     const index = ranking.findIndex((r) => r.id === tribeId);
     const ranked = ranking[index];
     if (!ranked) throw new GameError('not_found', 'Tribe not found.');
+    const badges = this.store.domination.accountBadgesOfTribe(tribeId);
     const memberList: TribeMemberDto[] = this.ts
       .members(tribeId)
       .sort((a, b) => ROLE_RANK[a.role] - ROLE_RANK[b.role] || b.points - a.points || a.joinedAt - b.joinedAt || a.playerId - b.playerId)
@@ -746,6 +748,7 @@ export class TribeService {
         villageX: x.villageX,
         villageY: x.villageY,
         joinedAt: x.joinedAt,
+        badges: badges.get(x.playerId) ?? [],
         ...(withGrants ? { grants: x.grants } : {}),
         ...(withActivity ? { lastActive: x.lastActive, online: t - x.lastActive <= ONLINE_WINDOW_MS } : {}),
       }));
@@ -793,7 +796,7 @@ export class TribeService {
   }
 }
 
-function memberDto(x: MemberRow, withGrants: boolean): TribeMemberDto {
+function memberDto(x: MemberRow, withGrants: boolean, badges: BadgeSummaryDto[]): TribeMemberDto {
   return {
     playerId: x.playerId,
     username: x.username,
@@ -803,6 +806,7 @@ function memberDto(x: MemberRow, withGrants: boolean): TribeMemberDto {
     villageX: x.villageX,
     villageY: x.villageY,
     joinedAt: x.joinedAt,
+    badges,
     ...(withGrants ? { grants: x.grants } : {}),
   };
 }

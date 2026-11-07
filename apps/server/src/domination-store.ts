@@ -139,6 +139,21 @@ export class DominationStore extends SqlBase {
     }
   }
 
+  /** Account badge summaries of every member of one tribe, in one query (members without any are left out). */
+  accountBadgesOfTribe(tribeId: number): Map<number, BadgeSummaryDto[]> {
+    const out = new Map<number, BadgeSummaryDto[]>();
+    for (const r of this.all('SELECT p.id AS id, p.badges_json AS j FROM players p JOIN tribe_members m ON m.player_id = p.id WHERE m.tribe_id = ?', tribeId)) {
+      if (typeof r.j !== 'string' || r.j === '') continue;
+      try {
+        const list = parseBadgeSummary(JSON.parse(r.j));
+        if (list && list.length > 0) out.set(r.id as number, list);
+      } catch {
+        // unreadable: no badges
+      }
+    }
+    return out;
+  }
+
   setAccountBadges(playerId: number, list: readonly BadgeSummaryDto[]): void {
     this.run('UPDATE players SET badges_json = ? WHERE id = ?', JSON.stringify(list), playerId);
   }

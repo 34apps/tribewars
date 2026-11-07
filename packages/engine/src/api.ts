@@ -748,6 +748,9 @@ export interface PlayerProfileDto {
   achievements: AchievementProgress[];
   /** Account badges earned in finished worlds (all worlds, from the lobby via the entry pass; empty without a lobby). */
   badges: BadgeSummaryDto[];
+  /** Badges this player earned in THIS world when it ended (world_end_badges; empty while the world runs). Shown apart from
+   *  `badges`, never added to it: the lobby summary already includes this world once the operator ran `world-finish`. */
+  worldBadges: WorldBadgeDto[];
 }
 
 export interface PlayerRankingResponse {
@@ -792,6 +795,8 @@ export interface TribeMemberDto {
   lastActive?: number;
   /** Active within ONLINE_WINDOW_MS. Only with the `view_activity` right, else omitted. */
   online?: boolean;
+  /** Account badges from all finished worlds (same as PlayerProfileDto.badges; public). */
+  badges: BadgeSummaryDto[];
 }
 
 export interface TribeRelationDto {
