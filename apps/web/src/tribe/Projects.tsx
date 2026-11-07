@@ -8,7 +8,7 @@ import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { ProgressBar } from '../components/ui.tsx';
-import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
+import { formatAgo, formatClock, formatCompact, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { pollMs } from '../hooks/live.ts';
 import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
@@ -32,6 +32,20 @@ export function effectText(project: TribeProjectId, effect: number): string {
   return 'Warnings show no size yet';
 }
 
+/** Terse effect for a level: a value and a short label (Roads/Wards: a percentage; Watchtower: what warnings show). */
+export function shortEffect(project: TribeProjectId, effect: number): { value: string; label: string } {
+  if (project === 'roads') return { value: effect > 0 ? pct(effect) : '0%', label: 'faster trips between members' };
+  if (project === 'wards') return { value: effect > 0 ? pct(effect) : '0%', label: 'defence at held sites' };
+  const value = effect >= 3 ? 'size, slowest, count' : effect >= 2 ? 'size, slowest' : effect >= 1 ? 'size' : '–';
+  return { value, label: 'in warnings' };
+}
+
+/** The "next level" value: same as shortEffect, except the Watchtower shows only what the level adds. */
+export function shortNext(project: TribeProjectId, effect: number): string {
+  if (project !== 'watchtower') return shortEffect(project, effect).value;
+  return effect >= 3 ? '+ count' : effect >= 2 ? '+ slowest' : shortEffect(project, effect).value;
+}
+
 function CostLine({ cost }: { cost: Resources }) {
   return (
     <span className="loot">
@@ -39,7 +53,7 @@ function CostLine({ cost }: { cost: Resources }) {
         <span key={r} className="loot-item">
           <Icon name={RESOURCE_ICON[r]} size={16} className="inline-icon" />
           <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
-          {formatInt(cost[r])}
+          <span title={formatInt(cost[r])}>{formatCompact(cost[r])}</span>
         </span>
       ))}
     </span>
@@ -51,13 +65,12 @@ function StoreBars({ d }: { d: TribeProjectsResponse }) {
     <ul className="store-bars" aria-label="Tribe Store">
       {RESOURCE_IDS.map((r) => (
         <li key={r}>
-          <span className="store-bar-name">
-            <Icon name={RESOURCE_ICON[r]} size={18} className="inline-icon" /> {RESOURCE_NAME[r]}
+          <span className="store-bar-num">
+            <Icon name={RESOURCE_ICON[r]} size={20} className="inline-icon" />
+            <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+            {formatInt(d.store[r])}
           </span>
           <ProgressBar value={d.store[r] / Math.max(1, d.storeCap)} tone="brand" label={`${RESOURCE_NAME[r]} in the Tribe Store`} />
-          <span className="store-bar-num">
-            {formatInt(d.store[r])} <span className="muted">/ {formatInt(d.storeCap)}</span>
-          </span>
         </li>
       ))}
     </ul>
@@ -72,6 +85,7 @@ export function Projects() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pick, setPick] = useState('');
+  const [moving, setMoving] = useState(false);
   const seq = useRef(0);
   const applied = useRef(0);
 
@@ -147,95 +161,118 @@ export function Projects() {
   const home = d.storeVillage;
   const waitingChange = d.storeVillageChangeableAt !== null && d.storeVillageChangeableAt > now;
   let giveReason: string | null = null;
-  if (!home) giveReason = 'Your tribe has no store village yet.';
-  else if (d.myGiveFrom !== null && d.myGiveFrom > now) giveReason = `Your account can give from ${formatClock(d.myGiveFrom, now)}.`;
-  else if (d.myDailyLeft <= 0) giveReason = 'You gave the most you can today. Try again later.';
+  if (!home) giveReason = 'No store village yet.';
+  else if (d.myGiveFrom !== null && d.myGiveFrom > now) giveReason = `You can give from ${formatClock(d.myGiveFrom, now)}.`;
+  else if (d.myDailyLeft <= 0) giveReason = 'Daily limit reached.';
+  const showPick = d.canManage && (!home || moving);
 
+  /** Only a specific reason is shown on a card (the store is short of a resource). */
   function startReason(p: TribeProjectOptionDto): string | null {
     if (!d || p.nextCost === null) return 'Fully built.';
     if (d.running) return 'Another project is being built.';
     const short = RESOURCE_IDS.find((r) => d.store[r] < (p.nextCost?.[r] ?? 0));
-    return short ? `The Tribe Store is short of ${RESOURCE_NAME[short].toLowerCase()}.` : null;
+    return short ? `Need more ${RESOURCE_NAME[short].toLowerCase()}` : null;
   }
 
   return (
     <>
       <section className="card card-light" aria-labelledby="store-title">
-        <h2 id="store-title" className="card-title">Tribe Store</h2>
-        <p className="muted small pad-bottom">
-          Members send resources to the store village. The tribe spends them on projects that help every member. Anyone can raid the store village, so defend it.
-        </p>
+        <div className="store-title-row">
+          <h2 id="store-title" className="card-title">Tribe Store</h2>
+          <details className="help-pop">
+            <summary aria-label="How the Tribe Store works">?</summary>
+            <p className="small">
+              Members send resources here; the tribe spends them on projects. The store village can be raided. Max {formatInt(d.storeCap)} each.
+            </p>
+          </details>
+        </div>
         <StoreBars d={d} />
 
-        <div className="store-home">
-          <h3 className="subtitle">Store village</h3>
+        <p className="store-home">
+          <Icon name="pin" size={18} className="inline-icon" />
           {home ? (
-            <p>
-              <strong>{home.name}</strong>{home.ownerName ? ` (${home.ownerName})` : ''}, {formatCoords(home.x, home.y)}{' '}
-              <button className="link link-touch" onClick={() => showOnMap(home.x, home.y)}>Show on map</button>
-            </p>
+            <>
+              <span>
+                <strong>{home.name}</strong>
+                {home.ownerName ? ` (${home.ownerName})` : ''} {formatCoords(home.x, home.y)}
+              </span>
+              <button className="link link-touch" onClick={() => showOnMap(home.x, home.y)}>Map</button>
+            </>
           ) : (
-            <p className="muted">No store village yet. {d.canManage ? 'Pick one below.' : 'The leader picks one.'}</p>
+            <span className="muted">No store village yet.</span>
           )}
-          {d.canManage && (
-            <div className="store-pick">
-              <label className="field">
-                <span>{home ? 'Move the store to' : 'Choose a village'}</span>
-                <select className="input" value={pick} onChange={(e) => setPick(e.target.value)} disabled={busy || waitingChange}>
-                  <option value="">Pick a member village…</option>
-                  {d.memberVillages.map((v) => (
-                    <option key={v.villageId} value={v.villageId}>
-                      {v.ownerName ?? 'Member'}: {v.name} ({formatCoords(v.x, v.y)})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="btn btn-tall"
-                disabled={busy || !pick || waitingChange}
-                onClick={() => void act(() => api.setStoreVillage(Number(pick))).then(() => setPick(''))}
-              >
-                Set store village
-              </button>
-              {waitingChange && d.storeVillageChangeableAt !== null && (
-                <p className="muted small">You can change it again {formatClock(d.storeVillageChangeableAt, now)}. The contents move with it.</p>
-              )}
-            </div>
-          )}
-        </div>
+        </p>
+
+        {d.canManage && (
+          <div className="store-move">
+            {home && (
+              <div className="store-move-bar">
+                <button className="btn btn-small" aria-expanded={moving} disabled={busy || waitingChange} onClick={() => setMoving((m) => !m)}>
+                  Move store
+                </button>
+                {waitingChange && d.storeVillageChangeableAt !== null && (
+                  <span className="muted small">next {formatClock(d.storeVillageChangeableAt, now)}</span>
+                )}
+              </div>
+            )}
+            {showPick && (
+              <div className="store-pick">
+                <label className="field">
+                  <span className="visually-hidden">{home ? 'Move the store to' : 'Choose a village'}</span>
+                  <select className="input" value={pick} onChange={(e) => setPick(e.target.value)} disabled={busy || waitingChange}>
+                    <option value="">Pick a member village…</option>
+                    {d.memberVillages.map((v) => (
+                      <option key={v.villageId} value={v.villageId}>
+                        {v.ownerName ?? 'Member'}: {v.name} ({formatCoords(v.x, v.y)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn btn-tall"
+                  disabled={busy || !pick || waitingChange}
+                  onClick={() =>
+                    void act(() => api.setStoreVillage(Number(pick))).then(() => {
+                      setPick('');
+                      setMoving(false);
+                    })
+                  }
+                >
+                  {home ? 'Move here' : 'Set'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="store-give">
           <button
-            className="btn btn-primary btn-tall btn-wide"
+            className="btn btn-primary btn-tall"
             disabled={!!giveReason || !home}
             onClick={() => home && showOnMap(home.x, home.y, { ship: true })}
           >
-            Send resources to the Tribe Store
+            Send resources
           </button>
-          {giveReason ? (
-            <p className="muted small">{giveReason}</p>
-          ) : (
-            <p className="muted small">You can still give {formatInt(d.myDailyLeft)} today.</p>
-          )}
+          <span className="muted small">{giveReason ?? `${formatInt(d.myDailyLeft)} left today`}</span>
         </div>
         {actionError && <p className="form-error" role="alert">{actionError}</p>}
       </section>
 
       {d.running && (
         <section className="card card-light" aria-labelledby="running-title">
-          <h2 id="running-title" className="card-title">
-            <Icon name={PROJECT_ICON[d.running.project]} size={24} className="inline-icon" /> Building {PROJECT_NAME[d.running.project]}, level {d.running.level}
-          </h2>
-          <p>
-            <strong>{d.running.endsAt > now ? formatDuration(d.running.endsAt - now) : 'finishing…'}</strong> left
-          </p>
+          <div className="running-head">
+            <h2 id="running-title" className="card-title">
+              <Icon name={PROJECT_ICON[d.running.project]} size={24} className="inline-icon" /> {PROJECT_NAME[d.running.project]} → level {d.running.level}
+            </h2>
+            <strong className="running-time">{d.running.endsAt > now ? formatDuration(d.running.endsAt - now) : 'finishing…'}</strong>
+          </div>
           <ProgressBar
             value={(now - d.running.startedAt) / Math.max(1, d.running.endsAt - d.running.startedAt)}
             tone="ok"
             label="Project progress"
           />
           {d.canManage && (
-            <button className="btn btn-danger-outline" disabled={busy} onClick={() => void cancel()}>
+            <button className="btn btn-small btn-danger-outline" disabled={busy} onClick={() => void cancel()}>
               Cancel
             </button>
           )}
@@ -244,42 +281,58 @@ export function Projects() {
 
       <section className="card card-light" aria-labelledby="projects-title">
         <h2 id="projects-title" className="card-title">Projects</h2>
-        <p className="muted small pad-bottom">One at a time, level by level. They last for good and help every member.</p>
+        {d.running && d.canManage && <p className="muted small pad-bottom">One project at a time.</p>}
         <ul className="project-grid">
           {d.projects.map((p) => {
             const reason = startReason(p);
+            const now1 = shortEffect(p.project, p.effectNow);
+            const next = p.effectNext !== null ? shortNext(p.project, p.effectNext) : null;
+            const maxed = p.nextCost === null;
             return (
-              <li key={p.project} className="project-card">
+              <li key={p.project} className="project-card" title={effectText(p.project, p.effectNow)}>
                 <div className="project-head">
-                  <Icon name={PROJECT_ICON[p.project]} size={36} />
-                  <div>
-                    <h3 className="project-name">{PROJECT_NAME[p.project]}</h3>
-                    <span className="muted small">Level {p.level}/{p.maxLevel}</span>
-                  </div>
+                  <Icon name={PROJECT_ICON[p.project]} size={32} />
+                  <h3 className="project-name">{PROJECT_NAME[p.project]}</h3>
+                  <span className="level-pips" role="img" aria-label={`Level ${p.level} of ${p.maxLevel}`}>
+                    {Array.from({ length: p.maxLevel }, (_, i) => (
+                      <span key={i} className={i < p.level ? 'pip pip-on' : 'pip'} />
+                    ))}
+                  </span>
                 </div>
-                <p>Now: {effectText(p.project, p.effectNow)}.</p>
-                {p.effectNext !== null && p.nextCost && (
-                  <>
-                    <p>Next: {effectText(p.project, p.effectNext)}.</p>
-                    <p className="small">
-                      <CostLine cost={p.nextCost} />
-                      {p.nextBuildMs !== null && <span className="muted"> · builds in {formatDuration(p.nextBuildMs)}</span>}
-                    </p>
-                  </>
+                <p className="project-effect">
+                  <strong>{now1.value}</strong>
+                  {next && (
+                    <>
+                      {' → '}
+                      <strong>{next}</strong>
+                    </>
+                  )}
+                  {maxed && <span className="tag tag-ok project-max">Max</span>}
+                  <span className="muted small project-effect-label"> {now1.label}</span>
+                </p>
+                {p.nextCost && (
+                  <p className="project-cost small">
+                    <CostLine cost={p.nextCost} />
+                    {p.nextBuildMs !== null && (
+                      <span className="loot-item">
+                        <Icon name="time" size={16} className="inline-icon" /> {formatDuration(p.nextBuildMs)}
+                      </span>
+                    )}
+                  </p>
                 )}
-                {d.canManage && (
+                {d.canManage && !maxed && (
                   <>
                     <button className="btn btn-primary btn-tall" disabled={busy || !!reason} onClick={() => void act(() => api.startProject(p.project))}>
-                      Start level {p.level + 1}
+                      Build level {p.level + 1}
                     </button>
-                    {reason && p.nextCost !== null && <p className="muted small">{reason}</p>}
+                    {reason && !d.running && <p className="muted small">{reason}</p>}
                   </>
                 )}
               </li>
             );
           })}
         </ul>
-        {!d.canManage && <p className="muted small">The leader, or a member with the "Tribe projects" right, starts projects.</p>}
+        {!d.canManage && <p className="muted small">Leaders start projects.</p>}
       </section>
 
       <section className="card card-light" aria-labelledby="ledger-title">
@@ -288,32 +341,44 @@ export function Projects() {
           <p className="muted">Nobody has given yet.</p>
         ) : (
           <div className="ledger-cols">
-            <div>
-              <h3 className="subtitle">Totals</h3>
-              <ol className="ledger-list">
+            <table className="ledger-table">
+              <caption className="visually-hidden">Totals</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Player</th>
+                  <th scope="col" className="num">Total</th>
+                  <th scope="col" className="num">24 h</th>
+                </tr>
+              </thead>
+              <tbody>
                 {d.totals.map((t) => (
-                  <li key={t.player.id}>
-                    <span className="ledger-name">{t.player.name}</span>
-                    <span>
-                      <strong>{formatInt(t.total)}</strong> <span className="muted small">({formatInt(t.last24h)} in 24 h)</span>
-                    </span>
-                  </li>
+                  <tr key={t.player.id}>
+                    <td className="ledger-name">{t.player.name}</td>
+                    <td className="num"><strong>{formatInt(t.total)}</strong></td>
+                    <td className="num">{formatInt(t.last24h)}</td>
+                  </tr>
                 ))}
-              </ol>
-            </div>
-            <div>
-              <h3 className="subtitle">Recent gifts</h3>
-              <ul className="ledger-list">
+              </tbody>
+            </table>
+            <table className="ledger-table">
+              <caption className="visually-hidden">Recent gifts</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Player</th>
+                  <th scope="col" className="num">Amount</th>
+                  <th scope="col" className="num">When</th>
+                </tr>
+              </thead>
+              <tbody>
                 {d.ledger.map((e, i) => (
-                  <li key={`${e.at}-${e.player.id}-${i}`}>
-                    <span className="ledger-name">{e.player.name}</span>
-                    <span>
-                      {formatInt(RESOURCE_IDS.reduce((s, r) => s + e.resources[r], 0))} <span className="muted small">{formatAgo(e.at, now)}</span>
-                    </span>
-                  </li>
+                  <tr key={`${e.at}-${e.player.id}-${i}`}>
+                    <td className="ledger-name">{e.player.name}</td>
+                    <td className="num">{formatInt(RESOURCE_IDS.reduce((s, r) => s + e.resources[r], 0))}</td>
+                    <td className="num">{formatAgo(e.at, now)}</td>
+                  </tr>
                 ))}
-              </ul>
-            </div>
+              </tbody>
+            </table>
           </div>
         )}
       </section>

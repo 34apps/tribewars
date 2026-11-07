@@ -4749,24 +4749,62 @@ button.strip {
   }
 }
 
-/* Tribe tab: Lookout sightings (enemy armies seen passing by). Rows wrap on a 360 px phone. */
+/* Tribe tab: Lookout sightings (enemy armies seen passing by). Two lines per row; wraps on a 360 px phone. */
 .lookout-held {
-  font-weight: 600;
   margin-left: 6px;
+  vertical-align: middle;
 }
 
-/* One sighting: kind + time on top, then who, where, when, size. Text lines share one left edge. */
+.sighting-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .sighting-row {
   display: grid;
-  justify-items: start;
-  gap: 4px;
-  padding: 10px 12px 12px;
+  gap: 2px;
+  padding: 8px 10px;
 }
 
-.sighting-row .movement-head {
-  justify-self: stretch;
+.sighting-top {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  margin: 0;
+  gap: 2px 8px;
+}
+
+/* Phone: tag and time on top, who on its own full line below. */
+@media (max-width: 599px) {
+  .sighting-who {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .sighting-time {
+    margin-left: auto;
+  }
+}
+
+.sighting-who {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.sighting-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sighting-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
 }
 
 /* Filled so the tag stands apart from the red-tinted row (both themes are at least 5:1). */
@@ -4776,21 +4814,12 @@ button.strip {
   color: var(--danger-bg);
 }
 
-.sighting-who {
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.sighting-row .size-chip {
-  margin-top: 4px;
-}
-
 /* A label, not a button: filled, no outline. */
 .size-chip {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 1px 8px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -4811,18 +4840,60 @@ button.strip {
 }
 
 /* Tribe tab: Projects (Tribe Store, project cards, ledger). 360 px first; wider screens use columns, the page scrolls. */
+.store-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.store-title-row .card-title {
+  margin: 0;
+}
+
+/* Round "?" toggle; opened, the line shows under the title. */
+.store-title-row {
+  flex-wrap: wrap;
+}
+
+.help-pop[open] {
+  flex-basis: 100%;
+}
+
+.help-pop summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--c-ink);
+  color: var(--c-cream);
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.help-pop summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-pop p {
+  margin: 6px 0 0;
+}
+
 .store-bars {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 900px) {
   .store-bars {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 24px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -4831,48 +4902,78 @@ button.strip {
   gap: 4px;
 }
 
-.store-bar-name {
-  font-weight: 700;
-}
-
 .store-bar-num {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
-.store-home,
-.store-give {
+.store-home {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin: 12px 0 0;
+}
+
+.store-move {
   display: grid;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 8px;
+}
+
+.store-move-bar,
+.store-give {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.store-give {
+  margin-top: 12px;
 }
 
 .store-pick {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  max-width: 480px;
+  max-width: 560px;
+}
+
+.store-pick .field {
+  flex: 1 1 220px;
+  margin: 0;
 }
 
 .store-pick select {
-  min-height: 48px;
+  min-height: 44px;
   width: 100%;
   font-size: 16px;
 }
 
-.btn-wide {
-  width: 100%;
+.running-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-@media (min-width: 720px) {
-  .btn-wide {
-    width: auto;
-    justify-self: start;
-  }
+.running-head .card-title {
+  margin: 0;
+}
+
+.running-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.card-light .btn-small.btn-danger-outline {
+  margin-top: 8px;
 }
 
 .project-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -4887,8 +4988,8 @@ button.strip {
 .project-card {
   display: grid;
   align-content: start;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px 12px;
   border: 2px solid var(--c-ink-4);
   border-radius: 14px;
   background: var(--c-ink-2);
@@ -4897,40 +4998,84 @@ button.strip {
 .project-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .project-name {
+  flex: 1 1 auto;
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+}
+
+.level-pips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e7d7b8;
+  box-shadow: inset 0 0 0 2px var(--c-ink);
+}
+
+.pip-on {
+  background: var(--c-ink);
+}
+
+.project-effect {
+  margin: 0;
+}
+
+.project-max {
+  margin-left: 6px;
+}
+
+.project-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 0;
 }
 
 .ledger-cols {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 @media (min-width: 720px) {
   .ledger-cols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
+    align-items: start;
   }
 }
 
-.ledger-list {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
 
-.ledger-list li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 2px 12px;
-  font-variant-numeric: tabular-nums;
+.ledger-table th {
+  padding: 2px 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ledger-table td {
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+
+.ledger-table .num {
+  padding-left: 10px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .ledger-name {
@@ -4986,7 +5131,7 @@ button.strip {
 }
 
 .card-light .project-card {
-  padding-top: 16px;
+  padding-top: 14px;
   background: #fffaf0;
   border: 2px solid var(--c-ink);
   box-shadow: inset 0 6px 0 var(--c-sun), 0 3px 0 rgba(43, 33, 28, 0.25);
@@ -4994,7 +5139,7 @@ button.strip {
 
 .card-light .sighting-row {
   border: 2px solid var(--c-ink);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fffaf0;
   box-shadow: 0 3px 0 rgba(43, 33, 28, 0.25);
 }

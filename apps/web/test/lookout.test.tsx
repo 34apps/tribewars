@@ -30,7 +30,8 @@ const render = (sightings: LookoutSightingDto[], lookouts: number) =>
 
 test('the Lookout list shows one row per sighting with who, where, when and size', () => {
   const t = render([sighting(), sighting({ movementId: 2, mission: 'support', size: 'large', fromTribeTag: null })], 2);
-  assert.ok(t.includes('You hold 2 Lookouts'));
+  assert.ok(t.includes('2 held') && t.includes('You hold 2 Lookouts'));
+  assert.ok(!t.includes('Seen by'), 'lookout name is only a tooltip');
   assert.ok(t.includes('Attack') && t.includes('Support'));
   assert.ok(t.includes('[WLF] Brann, Red Hill'));
   assert.ok(t.includes('Oak Gate (12|5)'), t);

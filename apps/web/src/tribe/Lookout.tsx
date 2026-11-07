@@ -32,33 +32,32 @@ export function LookoutList({ sightings, lookouts, now, onShow }: ListProps) {
     <section className="card card-light" aria-labelledby="lookout-title">
       <h2 id="lookout-title" className="card-title">
         Lookout{' '}
-        <span className="muted small lookout-held">
-          {lookouts === 1 ? 'You hold 1 Lookout' : `You hold ${lookouts} Lookouts`}
+        <span className="tag tag-info lookout-held" title={lookouts === 1 ? 'You hold 1 Lookout' : `You hold ${lookouts} Lookouts`}>
+          {lookouts} held
+          <span className="visually-hidden">{lookouts === 1 ? ': You hold 1 Lookout' : `: You hold ${lookouts} Lookouts`}</span>
         </span>
       </h2>
       {lookouts <= 0 && <p className="muted">{LOOKOUT_NONE_HELD}</p>}
       {lookouts > 0 && live.length === 0 && <p className="muted">{LOOKOUT_NONE_SEEN}</p>}
       {live.length > 0 && (
-        <ul className="movement-list" aria-label="Enemy armies seen by your Lookouts">
+        <ul className="sighting-list" aria-label="Enemy armies seen by your Lookouts">
           {live.map((s) => {
             const left = s.arriveAt - now;
             return (
-              <li key={s.movementId} className={`movement sighting-row ${s.mission === 'attack' ? 'is-attack' : 'is-support'}`}>
-                <div className="movement-head">
+              <li key={s.movementId} className="sighting-row" title={`Seen by ${s.lookoutName}`}>
+                <div className="sighting-top">
                   <span className={`tag ${s.mission === 'attack' ? 'tag-bad' : 'tag-info'}`}>{s.mission === 'attack' ? 'Attack' : 'Support'}</span>
-                  <strong className="movement-time">{left > 0 ? formatDuration(left) : 'landing…'}</strong>
+                  <span className="sighting-who">{sightingWho(s)}</span>
+                  <strong className="sighting-time">{left > 0 ? formatDuration(left) : 'landing…'}</strong>
                 </div>
-                <p className="sighting-who">{sightingWho(s)}</p>
-                <p>
-                  {'→ '}
+                <div className="sighting-sub muted small">
+                  <span aria-hidden="true">→</span>
                   <button type="button" className="link link-touch" onClick={() => onShow(s.to.x, s.to.y)} title="Show on map">
                     {s.to.name} ({formatCoords(s.to.x, s.to.y)})
                   </button>
-                </p>
-                <p className="muted small">
-                  arrives {formatClock(s.arriveAt, now)} · seen by {s.lookoutName}
-                </p>
-                <span className={`size-chip size-${s.size}`}>{SIZE_LABEL[s.size]}</span>
+                  <span className={`size-chip size-${s.size}`}>{SIZE_LABEL[s.size]}</span>
+                  <span>lands {formatClock(s.arriveAt, now)}</span>
+                </div>
               </li>
             );
           })}
