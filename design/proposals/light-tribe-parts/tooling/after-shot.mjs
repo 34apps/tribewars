@@ -143,6 +143,7 @@ try {
   await clickText('[role=tab]', 'Alerts'); await sleep(2500);
   await clipShot('after-lookout-1440.png', 'lookout-title', 'lookout-title', 16);
   console.log('lookout 1440', JSON.stringify(await evalJs(LOWC)));
+  await evalJs('window.scrollTo(0,0); document.querySelector("main") && document.querySelector("main").scrollTo(0,0)'); await sleep(400); await shot('after-alerts-1440.png', false);
   await size(360, 780, true); await sleep(1000);
   await clipShot('after-lookout-360.png', 'lookout-title', 'lookout-title', 8);
   console.log('hscroll360', await evalJs('document.documentElement.scrollWidth'));

@@ -43,30 +43,22 @@ export function LookoutList({ sightings, lookouts, now, onShow }: ListProps) {
           {live.map((s) => {
             const left = s.arriveAt - now;
             return (
-              <li key={s.movementId} className="movement is-incoming alert-row sighting-row">
+              <li key={s.movementId} className={`movement sighting-row ${s.mission === 'attack' ? 'is-attack' : 'is-support'}`}>
                 <div className="movement-head">
-                  <span className="movement-title">
-                    <span className={`tag ${s.mission === 'attack' ? 'tag-bad' : 'tag-info'}`}>{s.mission === 'attack' ? 'Attack' : 'Support'}</span>{' '}
-                    <span className="sighting-who">{sightingWho(s)}</span>
-                  </span>
-                  <span className="movement-time">
-                    <strong>{left > 0 ? formatDuration(left) : 'landing…'}</strong>
-                  </span>
+                  <span className={`tag ${s.mission === 'attack' ? 'tag-bad' : 'tag-info'}`}>{s.mission === 'attack' ? 'Attack' : 'Support'}</span>
+                  <strong className="movement-time">{left > 0 ? formatDuration(left) : 'landing…'}</strong>
                 </div>
-                <div className="movement-foot">
-                  <span>
-                    {'→ '}
-                    <button type="button" className="link link-touch" onClick={() => onShow(s.to.x, s.to.y)} title="Show on map">
-                      {s.to.name} ({formatCoords(s.to.x, s.to.y)})
-                    </button>
-                  </span>
-                  <span className="muted">
-                    arrives {formatClock(s.arriveAt, now)} · seen by {s.lookoutName}
-                  </span>
-                </div>
-                <div className="sighting-size">
-                  <span className={`size-chip size-${s.size}`}>{SIZE_LABEL[s.size]}</span>
-                </div>
+                <p className="sighting-who">{sightingWho(s)}</p>
+                <p>
+                  {'→ '}
+                  <button type="button" className="link link-touch" onClick={() => onShow(s.to.x, s.to.y)} title="Show on map">
+                    {s.to.name} ({formatCoords(s.to.x, s.to.y)})
+                  </button>
+                </p>
+                <p className="muted small">
+                  arrives {formatClock(s.arriveAt, now)} · seen by {s.lookoutName}
+                </p>
+                <span className={`size-chip size-${s.size}`}>{SIZE_LABEL[s.size]}</span>
               </li>
             );
           })}
