@@ -12,6 +12,8 @@ import {
   dominationActiveMs,
   evaluateDomination,
   mergeDominationSettings,
+  worldEndBadges,
+  DEFAULT_WORLD,
   type DominationEvaluation,
   type DominationSettings,
   type DominationStatusDto,
@@ -167,6 +169,8 @@ export interface EndWorldArgs {
   reason: string;
   /** Who ended it, for the audit log: 'server' (domination) or 'cli' (operator). */
   actorIp: 'server' | 'cli';
+  /** World speed for the badge day limits; default: the stored world settings. */
+  speed?: number;
 }
 
 /**
@@ -188,6 +192,17 @@ export function endWorld(store: Store, args: EndWorldArgs): boolean {
       finalPlayers: final.players,
     });
     if (!inserted) return false;
+    // Badges: computed once, here, from the same moment as the final rankings (docs/GAME_DESIGN.md 18.1).
+    store.domination.insertBadges(
+      worldEndBadges({
+        endedAt: args.at,
+        speed: args.speed ?? store.getSettings()?.speed ?? DEFAULT_WORLD.speed,
+        winnerTribeId: args.winner?.tribeId ?? null,
+        finalTribes: final.tribes.map((t) => ({ rank: t.rank, tribeId: t.tribeId })),
+        finalPlayers: final.players.map((p) => ({ rank: p.rank, playerId: p.playerId })),
+        players: store.domination.badgePlayers(store.sandboxUsers),
+      }),
+    );
     store.audit({
       at: args.at,
       actorId: null,
@@ -201,19 +216,23 @@ export function endWorld(store: Store, args: EndWorldArgs): boolean {
   });
 }
 
-export function worldEndDto(row: WorldEndRow): WorldEndDto {
+export function worldEndDto(row: WorldEndRow, store: Store, viewerId: number | null = null): WorldEndDto {
+  const finalPlayers = row.finalPlayers.slice(0, WORLD_END_DTO_ROWS);
   return {
     endedAt: row.endedAt,
     kind: row.kind,
     winner: row.winnerTribeId !== null && row.winnerName !== null && row.winnerTag !== null ? { tribeId: row.winnerTribeId, name: row.winnerName, tag: row.winnerTag } : null,
     reason: row.reason,
     finalTribes: row.finalTribes.slice(0, WORLD_END_DTO_ROWS),
-    finalPlayers: row.finalPlayers.slice(0, WORLD_END_DTO_ROWS),
+    finalPlayers,
+    myBadges: viewerId === null ? [] : store.domination.worldBadgesOf(viewerId),
+    badgeCounts: store.domination.badgeCounts(),
+    playerBadges: store.domination.badgesOfPlayers(finalPlayers.map((p) => p.playerId)),
   };
 }
 
 /** The status shown to players (and printed by the operator tool). Read-only: it writes nothing. */
-export function dominationStatus(store: Store, world: Pick<WorldSettings, 'speed'>, now: number): DominationStatusDto {
+export function dominationStatus(store: Store, world: Pick<WorldSettings, 'speed'>, now: number, viewerId: number | null = null): DominationStatusDto {
   const speed = world.speed;
   const g = gather(store, speed, now);
   const ev = evaluateWith(g, speed, now);
@@ -248,7 +267,7 @@ export function dominationStatus(store: Store, world: Pick<WorldSettings, 'speed
     streakDays: streakStartedAt === null ? 0 : round(Math.max(0, now - streakStartedAt) / DAY_MS, 1),
     streakDaysNeeded: round(ev.streakNeededMs / DAY_MS, 2),
     reasons: ev.reasons,
-    ended: end ? worldEndDto(end) : null,
+    ended: end ? worldEndDto(end, store, viewerId) : null,
   };
 }
 
@@ -272,13 +291,13 @@ export class DominationService {
     return readDominationSettings(this.store);
   }
 
-  ended(): WorldEndDto | null {
+  ended(viewerId: number | null = null): WorldEndDto | null {
     const row = this.store.domination.getWorldEnd();
-    return row ? worldEndDto(row) : null;
+    return row ? worldEndDto(row, this.store, viewerId) : null;
   }
 
-  status(now: number): DominationStatusDto {
-    return dominationStatus(this.store, this.world, now);
+  status(now: number, viewerId: number | null = null): DominationStatusDto {
+    return dominationStatus(this.store, this.world, now, viewerId);
   }
 
   /**
@@ -302,7 +321,7 @@ export class DominationService {
       if (ev.won && ev.leader && ev.wonAt !== null) {
         const days = round(ev.streakNeededMs / DAY_MS, 2);
         const reason = `${ev.leader.name} [${ev.leader.tag}] held ${pctText(ev.leader.share)} of all village points for ${days} days (needed ${pctText(g.settings.winShare)}).`;
-        if (endWorld(this.store, { at: ev.wonAt, kind: 'domination', winner: { tribeId: ev.leader.tribeId, name: ev.leader.name, tag: ev.leader.tag }, reason, actorIp: 'server' })) {
+        if (endWorld(this.store, { at: ev.wonAt, kind: 'domination', winner: { tribeId: ev.leader.tribeId, name: ev.leader.name, tag: ev.leader.tag }, reason, actorIp: 'server', speed: this.world.speed })) {
           this.announced = true;
         }
       }

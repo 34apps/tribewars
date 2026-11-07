@@ -261,6 +261,8 @@ export class AuthService {
         this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'role_sync', targetPlayer: player.id, detail: `${player.staffRole ?? 'none'} -> ${claims.role ?? 'none'}` });
         player = this.store.getPlayer(player.id) ?? player;
       }
+      // Badges of the account (all worlds), copied like the role; a pass without the claim leaves them unchanged.
+      if (claims.bdg) this.store.domination.setAccountBadges(player.id, claims.bdg);
       return { grant: this.openSession(player, t, true), created };
     });
     if (outcome instanceof GameError) throw outcome;

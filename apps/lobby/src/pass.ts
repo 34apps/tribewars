@@ -9,6 +9,7 @@ import {
   ENTRY_PASS_MAX_LIFETIME_MS,
   ENTRY_PASS_TTL_MS,
   isStaffRole,
+  type BadgeSummaryDto,
   type EntryPassClaims,
   type StaffRole,
 } from '@clanfire/engine';
@@ -75,6 +76,8 @@ export interface PassSubject {
   wid: string;
   chn: string;
   role: StaffRole | null;
+  /** Per-kind badge summary (summarizeBadges output only). */
+  bdg?: BadgeSummaryDto[];
 }
 
 const b64u = (b: Buffer | string): string => Buffer.from(b).toString('base64url');
@@ -92,6 +95,7 @@ export function signPass(subject: PassSubject, privateKey: KeyObject, now: numbe
     iat: now,
     exp: now + ENTRY_PASS_TTL_MS,
     nonce: randomBytes(16).toString('base64url'),
+    ...(subject.bdg ? { bdg: subject.bdg } : {}),
   };
   const payload = b64u(JSON.stringify(claims));
   const signature = sign(null, Buffer.from(`${ENTRY_PASS_DOMAIN}\n${payload}`, 'utf8'), privateKey);

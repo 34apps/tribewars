@@ -4,10 +4,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { DominationStatusDto, WorldEndResponse } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
-import { requireAuth } from './auth.ts';
+import { playerOf, requireAuth } from './auth.ts';
 
 export function dominationRoutes(app: FastifyInstance, ctx: AppContext): void {
   const auth = { onRequest: requireAuth(ctx) };
-  app.get('/api/domination', auth, async (req): Promise<DominationStatusDto> => ctx.domination.status(req.nowMs));
-  app.get('/api/world-end', auth, async (): Promise<WorldEndResponse> => ({ ended: ctx.domination.ended() }));
+  app.get('/api/domination', auth, async (req): Promise<DominationStatusDto> => ctx.domination.status(req.nowMs, playerOf(req).id));
+  app.get('/api/world-end', auth, async (req): Promise<WorldEndResponse> => ({ ended: ctx.domination.ended(playerOf(req).id) }));
 }

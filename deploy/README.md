@@ -96,6 +96,13 @@ start until `LOBBY_SIGNING_KEY` is filled in; the worlds are not affected.
    status 2. Then rename one of the two accounts in that world's database, or let that player register anew, and run it again.
 5. Put `LOBBY_PUBLIC_KEY=...` into the world's env file, start both: `docker compose up -d lobby game-w1`.
 6. Add the world: `docker compose exec lobby node admin.js world-add w1 "Clanfire One"`.
+
+**When a world has ended: record it in the lobby** (badges to accounts, Hall of Fame, status `finished`)
+1. Mount BOTH volumes (the lobby's `/data` comes from the compose file; the world's folder is added like for the import):
+   `docker compose run --rm --no-deps -v /srv/clanfire/w1:/world lobby node admin.js world-finish w1 /world/clanfire.sqlite`
+   (dev: `npm run lobby:admin -- world-finish w1 <world db>`). Stop the lobby first if you want no writes during the copy.
+2. It backs up the lobby database to `/data/backups/pre-finish-<stamp>-w1.sqlite`, opens the world database read-only, and is safe to run
+   twice ("already recorded"). Fix single badges with `badge-grant` / `badge-revoke` (see `docs/MULTI_WORLD.md`).
 Players who were signed in keep their world session cookie (30 days). A lobby ban blocks only NEW passes; the world keeps its own
 bans and sessions, so ban in the world too (staff tools) to end a session at once.
 

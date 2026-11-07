@@ -1,8 +1,9 @@
 // Achievements (badge cards with tier colours and progress) and lifetime statistics on a player's profile sheet.
 
 import { ACHIEVEMENTS, STAT_KEYS, STAT_LABELS, TIER_NAMES } from '@clanfire/engine';
-import type { AchievementProgress, PlayerStatsDto } from '@clanfire/engine';
+import type { AchievementProgress, BadgeSummaryDto, PlayerStatsDto } from '@clanfire/engine';
 import { formatInt } from '../format.ts';
+import { BADGE_HELP, BadgeRow } from '../components/Badges.tsx';
 
 const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
 
@@ -30,10 +31,22 @@ function Badge({ p }: { p: AchievementProgress }) {
   );
 }
 
-export function ProfileExtras({ stats, achievements }: { stats: PlayerStatsDto; achievements: AchievementProgress[] }) {
+export function ProfileExtras({ stats, achievements, badges = [] }: { stats: PlayerStatsDto; achievements: AchievementProgress[]; badges?: BadgeSummaryDto[] }) {
   const earned = achievements.filter((a) => a.tier > 0).length;
   return (
     <div className="prof-extras">
+      {badges.length > 0 && (
+        <section aria-label="Badges">
+          <div className="title-row">
+            <h3 className="prof-h">Badges</h3>
+            <details className="help-pop on-light">
+              <summary aria-label="About badges">?</summary>
+              <p className="small">{BADGE_HELP}</p>
+            </details>
+          </div>
+          <BadgeRow badges={badges} />
+        </section>
+      )}
       <section aria-label="Achievements">
         <h3 className="prof-h">
           Achievements <span className="muted small">{earned} / {achievements.length}</span>

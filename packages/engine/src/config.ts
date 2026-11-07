@@ -40,6 +40,20 @@ export const DOMINATION_EVAL_INTERVAL_MINUTES = 15;
 /** Ranking rows kept in the stored final result, and rows sent in the API (the rest stays in the database). */
 export const WORLD_END_STORED_ROWS = 200;
 export const WORLD_END_DTO_ROWS = 50;
+
+// ---- Badges + Hall of Fame (docs/GAME_DESIGN.md 18.1 "Badges") ----
+/** A player needs this many days in the world (and, for tribe badges, in that tribe) before the end. Divided by the world speed. */
+export const BADGE_MIN_DAYS = 14;
+/** ... and must have played within this many days before the end. Divided by the world speed. */
+export const BADGE_ACTIVE_DAYS = 7;
+/** Final player ranks 1..this earn 'top10'. Ties share a rank, so a tie at 10 gives more than ten. */
+export const BADGE_TOP_PLAYERS = 10;
+/** Hall of Fame: how many tribes / players each finished world shows, and how many worlds the list returns. */
+export const HALL_OF_FAME_TOP_TRIBES = 3;
+export const HALL_OF_FAME_TOP_PLAYERS = 3;
+export const HALL_OF_FAME_MAX_WORLDS = 50;
+/** Upper bound of a badge count in an entry pass summary. */
+export const BADGE_COUNT_MAX = 999;
 /** Tribes listed in the domination status. */
 export const DOMINATION_TOP_TRIBES = 5;
 

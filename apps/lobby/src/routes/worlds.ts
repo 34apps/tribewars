@@ -1,12 +1,18 @@
 import type { FastifyInstance } from 'fastify';
-import { GameError, WORLD_ID_PATTERN, type EnterWorldResponse, type LobbyWorldsResponse } from '@clanfire/engine';
+import { GameError, HALL_OF_FAME_MAX_WORLDS, WORLD_ID_PATTERN, summarizeBadges, type EnterWorldResponse, type HallOfFameResponse, type LobbyWorldsResponse } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { signPass } from '../pass.ts';
+import { hallOfFameDtos } from '../finish-world.ts';
 import { accountOf, requireAccount } from './auth.ts';
 
 export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.get('/api/worlds', { onRequest: requireAccount(ctx) }, async (): Promise<LobbyWorldsResponse> => ({
     worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path })),
+  }));
+
+  // No input at all: the Hall of Fame is the same for everyone who is signed in. Covered by the global per-IP API limit.
+  app.get('/api/hall-of-fame', { onRequest: requireAccount(ctx) }, async (): Promise<HallOfFameResponse> => ({
+    worlds: hallOfFameDtos(ctx.store.listHallOfFame(HALL_OF_FAME_MAX_WORLDS)),
   }));
 
   // The body is empty or `{}`; anything else is refused.
@@ -30,7 +36,7 @@ export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
     if (world.status === 'closed') throw new GameError('forbidden', 'This world is closed.');
     // 'full' and 'finished' still get a pass: the world decides about newcomers (a finished world refuses them),
     // returning players may always enter (a finished world is read-only, to look at the results).
-    const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole }, ctx.signingKey, req.nowMs);
+    const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole, bdg: summarizeBadges(ctx.store.accountBadges(account.id)) }, ctx.signingKey, req.nowMs);
     ctx.store.audit({ at: req.nowMs, actorId: account.id, actorIp: req.ip, action: 'enter', targetAccount: account.id, detail: world.id });
     return { pass, path: world.path, expiresAt: claims.exp };
   });

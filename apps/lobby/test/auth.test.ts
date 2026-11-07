@@ -14,7 +14,7 @@ test('register: 201, account dto, session cookie with the right attributes', asy
   const c = new Client(app);
   const res = await c.post(REGISTER, { username: 'Alice_1', password: PASSWORD });
   ok(res, 201);
-  assert.deepEqual(res.json<LobbyMeResponse>(), { account: { id: 1, username: 'Alice_1', chieftain: DEFAULT_CHIEFTAIN, staffRole: null } });
+  assert.deepEqual(res.json<LobbyMeResponse>(), { account: { id: 1, username: 'Alice_1', chieftain: DEFAULT_CHIEFTAIN, staffRole: null, badges: [] } });
   const cookie = res.cookies.find((x) => x.name === LOBBY_SESSION_COOKIE);
   assert.ok(cookie, 'cookie set');
   assert.equal(cookie.path, '/lobby/');

@@ -44,8 +44,17 @@ A world never sees a password once it uses the lobby.
   `npm run lobby:admin -- <command>`): `keygen`, `public-key`, `worlds`, `world-add <id> <name...> [--path=/w/<id>/]
   [--status=open]`, `world-status <id> <open|full|closed|finished>`, `world-rename`, `world-remove`, `shared-ips`,
   `ban <username> [reason...]`, `unban`, `grant <username> <support|moderator|admin>`, `revoke`.
-  When a world ends by domination, run `lobby:admin -- world-status <id> finished`: it stays enterable for viewing the
-  results (the lobby list marks it "Finished", button "View results"); new accounts are not routed to it.
+  **When a world ends** (domination or operator end), run `lobby:admin -- world-finish <id> <path to the world's .sqlite>`
+  (stop the world first or let it be: the file is opened read-only). It needs the world's `world_end` row (else "world has not
+  ended"), backs up the lobby database (`BACKUP_DIR/pre-finish-<stamp>-<id>.sqlite`), then in one transaction copies the world's
+  frozen `world_end_badges` to the lobby accounts (`account_badges`, through `players.account_id`; players without an account are
+  skipped and counted), writes the Hall of Fame row (`hall_of_fame`: winner and the top 3 tribes / players from `final_json`), sets the
+  world status to `finished` and audits it. Running it twice prints "already recorded" and changes nothing. The world stays
+  enterable for viewing the results (the lobby list marks it "Finished", button "View results"); new accounts are not routed to it.
+  `badge-grant <username> <worldId> <badge> [place]` and `badge-revoke <username> <worldId> <badge>` fix single badges by hand
+  (badge = `champion|second_tribe|third_tribe|top10|veteran`; place 1-10 only for `top10`); both are audited.
+  Badges reach players like this: `GET /lobby/api/hall-of-fame` (signed in, newest 50 worlds), `badges` on every account answer, and
+  the entry pass claim `bdg` (per-kind summary, from `summarizeBadges`) which a world stores on the player for profiles.
 
 **Entry pass.** `POST /lobby/api/worlds/:id/enter` (signed in, status not `closed`, not banned) returns a pass:
 `base64url(JSON claims) + "." + base64url(Ed25519 signature)`. The signature covers the UTF-8 bytes of

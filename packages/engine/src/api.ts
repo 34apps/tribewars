@@ -746,6 +746,8 @@ export interface PlayerProfileDto {
   stats: PlayerStatsDto;
   /** Progress for every achievement in ACHIEVEMENTS order: tier 0-3, current value, next threshold (null at gold). */
   achievements: AchievementProgress[];
+  /** Account badges earned in finished worlds (all worlds, from the lobby via the entry pass; empty without a lobby). */
+  badges: BadgeSummaryDto[];
 }
 
 export interface PlayerRankingResponse {
@@ -1525,6 +1527,63 @@ export interface WorldEndDto {
   /** Final rankings, frozen at the end (top WORLD_END_DTO_ROWS of each; the database keeps WORLD_END_STORED_ROWS). */
   finalTribes: FinalTribeDto[];
   finalPlayers: FinalPlayerDto[];
+  /** Badges this world gave out at its end (computed once, frozen): the caller's own, and how many of each kind in all. */
+  myBadges: WorldBadgeDto[];
+  badgeCounts: Partial<Record<BadgeKind, number>>;
+  /** Badges of the players in finalPlayers (playerId -> badges), so the end screen can mark them. */
+  playerBadges: Record<number, WorldBadgeDto[]>;
+}
+
+// ---- Badges + Hall of Fame (docs/GAME_DESIGN.md 18.1 "Badges", plan step 9) ----------------------------------------
+// A world computes its badges ONCE, in the same transaction that stores world_end (engine `worldEndBadges`), into the frozen
+// table world_end_badges. The operator's lobby command `world-finish <id> <world db>` copies them to lobby accounts
+// (account_badges) and writes the Hall of Fame row. The lobby puts a per-kind summary into every entry pass (claim `bdg`);
+// the world stores it on the player so profiles show badges from all worlds. Badges give no power and are never sold.
+
+export type BadgeKind = 'champion' | 'second_tribe' | 'third_tribe' | 'top10' | 'veteran';
+export const BADGE_KINDS: readonly BadgeKind[] = ['champion', 'second_tribe', 'third_tribe', 'top10', 'veteran'];
+export function isBadgeKind(v: unknown): v is BadgeKind {
+  return typeof v === 'string' && (BADGE_KINDS as readonly string[]).includes(v);
+}
+
+/** One badge given out by one world. `place` only for 'top10' (the final player rank, 1-10). */
+export interface WorldBadgeDto {
+  badge: BadgeKind;
+  place: number | null;
+}
+
+/** All badges of one kind an account holds: how many worlds, and the best place (top10 only, else null). */
+export interface BadgeSummaryDto {
+  badge: BadgeKind;
+  count: number;
+  bestPlace: number | null;
+}
+
+/** One badge on a lobby account, with the world it came from. */
+export interface AccountBadgeDto {
+  worldId: string;
+  worldName: string;
+  badge: BadgeKind;
+  place: number | null;
+  /** The world's end time (ms). */
+  endedAt: number;
+}
+
+/** One finished world in the lobby's Hall of Fame. */
+export interface HallOfFameEntryDto {
+  worldId: string;
+  worldName: string;
+  endedAt: number;
+  kind: WorldEndKind;
+  winner: { name: string; tag: string } | null;
+  /** The best HALL_OF_FAME_TOP_TRIBES tribes and HALL_OF_FAME_TOP_PLAYERS players, as frozen at the world's end. */
+  topTribes: { rank: number; name: string; tag: string; points: number }[];
+  topPlayers: { rank: number; name: string; points: number; tribeTag: string | null }[];
+}
+
+// GET /lobby/api/hall-of-fame (signed in) -> 200 HallOfFameResponse, newest end first, at most HALL_OF_FAME_MAX_WORLDS.
+export interface HallOfFameResponse {
+  worlds: HallOfFameEntryDto[];
 }
 
 export interface WorldEndResponse {
@@ -1825,6 +1884,8 @@ export interface LobbyAccountDto {
   chieftain: string;
   /** Staff role of the account; worlds copy it onto the player at every entry. */
   staffRole: StaffRole | null;
+  /** Badges from finished worlds, newest first. */
+  badges: AccountBadgeDto[];
 }
 
 export interface LobbyMeResponse {
@@ -1890,4 +1951,7 @@ export interface EntryPassClaims {
   exp: number;
   /** 22+ random url-safe characters, never reused. */
   nonce: string;
+  /** Optional: the account's badges as a per-kind summary (at most one entry per BadgeKind; count 1-999, bestPlace 1-10 or null,
+   *  non-null only for 'top10'). A world refuses a pass with a malformed `bdg`; a pass without it leaves the stored badges unchanged. */
+  bdg?: BadgeSummaryDto[];
 }

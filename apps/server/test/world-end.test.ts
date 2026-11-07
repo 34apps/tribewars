@@ -110,7 +110,7 @@ test('final rankings are stored once and never change', async () => {
   const body = res.json<WorldEndResponse>();
   assert.deepEqual(Object.keys(body), ['ended']);
   assert.ok(body.ended);
-  assert.deepEqual(Object.keys(body.ended).sort(), ['endedAt', 'finalPlayers', 'finalTribes', 'kind', 'reason', 'winner']);
+  assert.deepEqual(Object.keys(body.ended).sort(), ['badgeCounts', 'endedAt', 'finalPlayers', 'finalTribes', 'kind', 'myBadges', 'playerBadges', 'reason', 'winner']);
   assert.deepEqual(body.ended, first);
   const status = (await w.lou.c.get('/api/domination')).json<{ ended: unknown }>();
   assert.deepEqual(status.ended, first);

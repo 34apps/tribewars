@@ -10,6 +10,7 @@ import {
   GameError,
   WORLD_ID_PATTERN,
   isStaffRole,
+  parseBadgeSummary,
   type EntryPassClaims,
 } from '@clanfire/engine';
 
@@ -112,7 +113,7 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
 
   // ---- signature good: now check every claim strictly ----
   const c = unverified as Record<string, unknown>;
-  const { v, kid, aid, name, wid, chn, role, iat, exp, nonce } = c;
+  const { v, kid, aid, name, wid, chn, role, iat, exp, nonce, bdg } = c;
   if (v !== 1 || kid !== entry.kid) throw invalid();
   const keyId = entry.kid;
   if (!isSafeInt(aid) || aid <= 0) throw invalid();
@@ -121,6 +122,9 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
   if (typeof chn !== 'string' || chn.length > 64) throw invalid();
   const staffRole = role === null ? null : isStaffRole(role) ? role : undefined;
   if (staffRole === undefined) throw invalid();
+  // Badge summary of the account: absent = leave the stored one alone; present but malformed = refuse like any bad claim.
+  const badges = bdg === undefined ? undefined : parseBadgeSummary(bdg);
+  if (badges === null) throw invalid();
   if (!isSafeInt(iat) || !isSafeInt(exp)) throw invalid();
   if (typeof nonce !== 'string' || !NONCE_RE.test(nonce)) throw invalid();
   if (wid !== worldId) throw invalid();
@@ -128,5 +132,5 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
   if (iat > now + ENTRY_PASS_CLOCK_SKEW_MS) throw invalid();
   if (now >= exp) throw new GameError('unauthorized', 'This entry pass has expired.');
 
-  return { v: 1, kid: keyId, aid, name, wid, chn, role: staffRole, iat, exp, nonce };
+  return { v: 1, kid: keyId, aid, name, wid, chn, role: staffRole, iat, exp, nonce, ...(badges ? { bdg: badges } : {}) };
 }

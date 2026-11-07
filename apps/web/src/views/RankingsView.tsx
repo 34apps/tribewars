@@ -285,7 +285,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
       ...(pickedRow.playerId > 0 && pickedRow.playerId !== meId ? [{ label: 'Send mail', onClick: () => composeMail(pickedRow.username) }] : []),
       ...(pickedRow.tribe && pickedRow.tribe.id > 0 ? [{ label: 'View tribe', onClick: () => viewTribe({ id: pickedRow.tribe!.id }) }] : []),
     ],
-    extra: prof ? <ProfileExtras stats={prof.stats} achievements={prof.achievements} /> : undefined,
+    extra: prof ? <ProfileExtras stats={prof.stats} achievements={prof.achievements} badges={prof.badges} /> : undefined,
     note:
       pickedRow.playerId < 0
         ? 'Sample player: not a real account, so there is nothing to open.'

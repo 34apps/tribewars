@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
@@ -87,6 +87,30 @@ CREATE TABLE IF NOT EXISTS account_ips (
 CREATE INDEX IF NOT EXISTS idx_account_ips_ip ON account_ips(ip);
 
 ${worldsTableSql('worlds')}
+
+-- v4: badges from finished worlds (docs/GAME_DESIGN.md 18.1 "Badges") and the Hall of Fame. Both are written only by the
+-- operator CLI (world-finish, badge-grant, badge-revoke). Additive tables: older databases get them on the next start.
+-- place: only for 'top10' (1-10). top_json: {tribes: [...], players: [...]} as frozen by the world at its end.
+CREATE TABLE IF NOT EXISTS account_badges (
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  world_id   TEXT    NOT NULL,
+  badge      TEXT    NOT NULL CHECK (badge IN ('champion', 'second_tribe', 'third_tribe', 'top10', 'veteran')),
+  place      INTEGER CHECK (place IS NULL OR (place BETWEEN 1 AND 10 AND badge = 'top10')),
+  ended_at   INTEGER NOT NULL,
+  PRIMARY KEY (account_id, world_id, badge)
+);
+CREATE INDEX IF NOT EXISTS idx_account_badges_world ON account_badges(world_id);
+
+CREATE TABLE IF NOT EXISTS hall_of_fame (
+  world_id    TEXT    PRIMARY KEY,
+  world_name  TEXT    NOT NULL,
+  ended_at    INTEGER NOT NULL,
+  kind        TEXT    NOT NULL CHECK (kind IN ('domination', 'manual')),
+  winner_name TEXT,
+  winner_tag  TEXT,
+  top_json    TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_hall_of_fame_ended ON hall_of_fame(ended_at);
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,

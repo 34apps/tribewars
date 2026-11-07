@@ -5172,3 +5172,120 @@ button.strip {
   background: #fffaf0;
   box-shadow: 0 3px 0 rgba(43, 33, 28, 0.25);
 }
+
+/* ---- Badges + Hall of Fame (filled tags, no side stripes; the page scrolls) ---------------------------------- */
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 2px 10px 2px 4px;
+  border-radius: 999px;
+  background: var(--c-sand);
+  color: var(--c-ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.badge-champion {
+  background: var(--c-sun-hi);
+}
+
+.badge-top10 {
+  background: var(--c-teal-hi);
+}
+
+.badge-veteran {
+  background: var(--c-leaf);
+}
+
+.badge-icon {
+  flex: none;
+}
+
+.badge-icons {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.badge-icon-wrap {
+  display: inline-flex;
+}
+
+.lobby-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.hof {
+  display: grid;
+  gap: 12px;
+}
+
+.hof-title {
+  margin: 0;
+}
+
+.hof-winner {
+  margin: 0;
+  color: var(--c-cream);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.hof-crown {
+  color: var(--c-sun);
+  margin-right: 4px;
+}
+
+.hof-players {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+}
+
+.hof-players li {
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.hof-rank {
+  font-weight: 800;
+  color: var(--c-sun-hi);
+}
+
+.hof-name {
+  overflow-wrap: anywhere;
+}
+
+/* World results: the long winner title keeps its "?" beside it; the tribe table drops Members on phones (5 columns do not fit 360 px). */
+.title-row .end-winner-title {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .end-hide-sm {
+    display: none;
+  }
+}

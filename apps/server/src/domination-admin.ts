@@ -80,7 +80,7 @@ export function endByHand(store: Store, tagArg: string | undefined, reasonWords:
   const ended = endWorld(store, { at: now, kind: 'manual', winner, reason: reason.slice(0, 500), actorIp: 'cli' });
   if (!ended) return fail('This world has already ended.');
   const end = store.domination.getWorldEnd();
-  const dto = end ? worldEndDto(end) : null;
+  const dto = end ? worldEndDto(end, store) : null;
   return done(
     `The world has ended${winner ? ` with winner [${winner.tag}] ${winner.name}` : ''}. Final rankings stored: ${dto?.finalTribes.length ?? 0} tribes shown, ${dto?.finalPlayers.length ?? 0} players shown.`,
     'Players are blocked from changing the game on their next request; a running server announces it within a second.',

@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { summarizeBadges } from '@clanfire/engine';
 import type { LobbyAccountDto, LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { BADGE_HELP, BadgeRow } from './Badges.tsx';
+import { HallOfFame } from './HallOfFame.tsx';
 import { WORLD_STATUS_LABEL, enterWorld, sortWorlds, worldButtonLabel } from '../lobby.ts';
 
 type WorldList = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; worlds: LobbyWorldDto[] };
@@ -13,6 +16,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [signingOut, setSigningOut] = useState(false);
+  const badges = useMemo(() => summarizeBadges(account.badges ?? []), [account.badges]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +101,16 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
         </button>
       </header>
 
+      {badges.length > 0 && (
+        <div className="lobby-badges">
+          <BadgeRow badges={badges} label="Your badges" />
+          <details className="help-pop on-light">
+            <summary aria-label="About badges">?</summary>
+            <p className="small">{BADGE_HELP}</p>
+          </details>
+        </div>
+      )}
+
       <h1 className="lobby-title">Choose a world</h1>
 
       {list.state === 'loading' && (
@@ -141,6 +155,8 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
           })}
         </ul>
       )}
+
+      <HallOfFame />
     </main>
   );
 }

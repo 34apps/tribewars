@@ -128,7 +128,7 @@ export class AuthService {
   ) {}
 
   toDto(a: AccountRow): LobbyAccountDto {
-    return { id: a.id, username: a.username, chieftain: a.chieftain, staffRole: a.staffRole };
+    return { id: a.id, username: a.username, chieftain: a.chieftain, staffRole: a.staffRole, badges: this.store.accountBadges(a.id) };
   }
 
   /** Create an account, then sign it in. */

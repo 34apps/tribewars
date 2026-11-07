@@ -121,7 +121,7 @@ test('dominationPhase and headline follow the streak', () => {
   const counting = status({ leader: tribe(1, 'EW', 0.8), qualifies: true, streakStartedAt: 1, streakDays: 4 });
   assert.equal(dominationPhase(counting), 'counting');
   assert.equal(dominationHeadline(counting), '[EW] is winning: 10 days to go');
-  const end: WorldEndDto = { endedAt: 5, kind: 'domination', winner: { tribeId: 1, name: 'Ember Wolves', tag: 'EW' }, reason: 'x', finalTribes: [], finalPlayers: [] };
+  const end: WorldEndDto = { endedAt: 5, kind: 'domination', winner: { tribeId: 1, name: 'Ember Wolves', tag: 'EW' }, reason: 'x', finalTribes: [], finalPlayers: [], myBadges: [], badgeCounts: {}, playerBadges: {} };
   assert.equal(dominationPhase(status({ ended: end })), 'ended');
   assert.equal(dominationHeadline(status({ ended: end })), 'Ember Wolves [EW] won the world');
 });

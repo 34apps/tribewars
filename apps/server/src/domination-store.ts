@@ -1,7 +1,7 @@
 // SQL for the domination win condition and the world end. Rules live in the engine (domination.ts) and the rest in
 // domination-service.ts. The world_end table has one row that is written once and never changed (triggers in db.ts).
 
-import type { FinalPlayerDto, FinalTribeDto, WorldEndKind } from '@clanfire/engine';
+import { parseBadgeSummary, type BadgePlayerInput, type BadgeSummaryDto, type FinalPlayerDto, type FinalTribeDto, type WorldBadgeDto, type WorldEndBadge, type WorldEndKind } from '@clanfire/engine';
 import { SqlBase, type Param } from './sql.ts';
 
 export interface WorldEndRow {
@@ -78,5 +78,68 @@ export class DominationStore extends SqlBase {
   /** Points of every village that a player owns (abandoned villages are not counted). */
   totalPlayerVillagePoints(): number {
     return Number(this.get('SELECT COALESCE(SUM(points), 0) AS n FROM villages WHERE owner_id IS NOT NULL')?.n ?? 0);
+  }
+
+  // ---- badges (docs/GAME_DESIGN.md 18.1) ----
+
+  /** Every player as the badge rules need them (sandbox = test accounts, by lowercase username). */
+  badgePlayers(sandbox: ReadonlySet<string>): BadgePlayerInput[] {
+    return this.all(
+      `SELECT p.id, p.username_lower, p.created_at, p.last_active, p.banned_at, tm.tribe_id, tm.joined_at,
+              (SELECT COUNT(*) FROM villages v WHERE v.owner_id = p.id) AS villages
+         FROM players p LEFT JOIN tribe_members tm ON tm.player_id = p.id`,
+    ).map((r) => ({
+      playerId: r.id as number,
+      createdAt: r.created_at as number,
+      lastActive: (r.last_active as number | null) ?? null,
+      banned: r.banned_at !== null,
+      test: sandbox.has(r.username_lower as string),
+      villages: Number(r.villages),
+      tribeId: (r.tribe_id as number | null) ?? null,
+      tribeJoinedAt: (r.joined_at as number | null) ?? null,
+    }));
+  }
+
+  insertBadges(list: readonly WorldEndBadge[]): void {
+    for (const b of list) this.run('INSERT OR IGNORE INTO world_end_badges (player_id, badge, place) VALUES (?, ?, ?)', b.playerId, b.badge, b.place);
+  }
+
+  /** Badges of one player from this world's end (empty before the end and for old worlds). */
+  worldBadgesOf(playerId: number): WorldBadgeDto[] {
+    return this.all('SELECT badge, place FROM world_end_badges WHERE player_id = ? ORDER BY rowid', playerId).map((r) => ({ badge: r.badge as WorldBadgeDto['badge'], place: (r.place as number | null) ?? null }));
+  }
+
+  /** How many of each kind this world gave out. */
+  badgeCounts(): Partial<Record<WorldBadgeDto['badge'], number>> {
+    const out: Partial<Record<WorldBadgeDto['badge'], number>> = {};
+    for (const r of this.all('SELECT badge, COUNT(*) AS n FROM world_end_badges GROUP BY badge')) out[r.badge as WorldBadgeDto['badge']] = Number(r.n);
+    return out;
+  }
+
+  /** Badges of the given players, grouped by player id (players without any are left out). */
+  badgesOfPlayers(ids: readonly number[]): Record<number, WorldBadgeDto[]> {
+    const want = new Set(ids);
+    const out: Record<number, WorldBadgeDto[]> = {};
+    for (const r of this.all('SELECT player_id, badge, place FROM world_end_badges ORDER BY player_id, rowid')) {
+      const id = r.player_id as number;
+      if (!want.has(id)) continue;
+      (out[id] ??= []).push({ badge: r.badge as WorldBadgeDto['badge'], place: (r.place as number | null) ?? null });
+    }
+    return out;
+  }
+
+  /** The account badge summary the lobby pass brought (stored as JSON). Defensive: anything unreadable is []. */
+  accountBadges(playerId: number): BadgeSummaryDto[] {
+    const raw = this.get('SELECT badges_json FROM players WHERE id = ?', playerId)?.badges_json;
+    if (typeof raw !== 'string' || raw === '') return [];
+    try {
+      return parseBadgeSummary(JSON.parse(raw)) ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  setAccountBadges(playerId: number, list: readonly BadgeSummaryDto[]): void {
+    this.run('UPDATE players SET badges_json = ? WHERE id = ?', JSON.stringify(list), playerId);
   }
 }

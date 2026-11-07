@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS players (
   -- Lobby account this player belongs to (docs/MULTI_WORLD.md); null for players of a world without a lobby.
   -- The unique index idx_players_account is created in addMissingColumns (the column may not exist yet on old databases).
   account_id      INTEGER,
+  badges_json     TEXT,
   -- Renown (docs/GAME_DESIGN.md section 18.2): everything earned (never goes down) and everything spent on villages. REAL: fractions are kept.
   renown_total    REAL    NOT NULL DEFAULT 0,
   renown_spent    REAL    NOT NULL DEFAULT 0,
@@ -494,6 +495,18 @@ BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
 CREATE TRIGGER IF NOT EXISTS world_end_no_update BEFORE UPDATE ON world_end
 BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
 
+-- ---- Badges of the ended world (docs/GAME_DESIGN.md 18.1 "Badges"): written once in the same transaction as world_end, never changed.
+CREATE TABLE IF NOT EXISTS world_end_badges (
+  player_id INTEGER NOT NULL,
+  badge     TEXT    NOT NULL,
+  place     INTEGER,
+  PRIMARY KEY (player_id, badge)
+);
+CREATE TRIGGER IF NOT EXISTS world_end_badges_no_delete BEFORE DELETE ON world_end_badges
+BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
+CREATE TRIGGER IF NOT EXISTS world_end_badges_no_update BEFORE UPDATE ON world_end_badges
+BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
+
 -- ---- Map sites (docs/GAME_DESIGN.md 18.4b "Step 5"). Positions are not stored: they are a pure function of the world seed (engine
 -- generateSites). A row exists once a site has been held; holder_tribe_id null = neutral (militia). calm_until: no attack before it.
 CREATE TABLE IF NOT EXISTS sites (
@@ -579,9 +592,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 13; // 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 14; // 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '4ab7054827bc9389';
+export const SCHEMA_FINGERPRINT = 'bfc0610cc6138cd7';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -665,6 +678,8 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'muted_until')) db.exec('ALTER TABLE players ADD COLUMN muted_until INTEGER');
   if (!cols.some((c) => c.name === 'mute_reason')) db.exec('ALTER TABLE players ADD COLUMN mute_reason TEXT');
   if (!cols.some((c) => c.name === 'account_id')) db.exec('ALTER TABLE players ADD COLUMN account_id INTEGER');
+  // Badge summary from the lobby entry pass (all worlds), shown on the profile.
+  if (!cols.some((c) => c.name === 'badges_json')) db.exec('ALTER TABLE players ADD COLUMN badges_json TEXT');
   if (!cols.some((c) => c.name === 'renown_total')) db.exec('ALTER TABLE players ADD COLUMN renown_total REAL NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'renown_spent')) db.exec('ALTER TABLE players ADD COLUMN renown_spent REAL NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'renown_reserved')) db.exec('ALTER TABLE players ADD COLUMN renown_reserved REAL NOT NULL DEFAULT 0');

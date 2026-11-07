@@ -90,6 +90,7 @@ function playerProfile(ctx: AppContext, id: number, now: number): PlayerProfileD
     villageCount: villages.length,
     stats,
     achievements: achievementProgress(stats),
+    badges: ctx.store.domination.accountBadges(id),
   };
 }
 

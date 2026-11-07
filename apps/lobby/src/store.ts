@@ -1,7 +1,7 @@
 // All lobby SQL. Prepared statements with bound parameters only.
 
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import { isStaffRole, type StaffRole, type WorldStatus } from '@clanfire/engine';
+import { BADGE_KINDS, isBadgeKind, isStaffRole, type AccountBadgeDto, type BadgeKind, type StaffRole, type WorldEndKind, type WorldStatus } from '@clanfire/engine';
 
 type Raw = Record<string, unknown>;
 type Param = string | number | null;
@@ -36,6 +36,16 @@ export interface WorldRow {
   path: string;
   createdAt: number;
   sortOrder: number;
+}
+
+export interface HallOfFameRow {
+  worldId: string;
+  worldName: string;
+  endedAt: number;
+  kind: WorldEndKind;
+  winnerName: string | null;
+  winnerTag: string | null;
+  topJson: string;
 }
 
 export interface NewAudit {
@@ -315,6 +325,74 @@ export class Store {
 
   removeWorld(id: string): void {
     this.run('DELETE FROM worlds WHERE id = ?', id);
+  }
+
+  // ---- badges and Hall of Fame ---------------------------------------------------------------------
+
+  hasHallOfFame(worldId: string): boolean {
+    return this.get('SELECT 1 AS x FROM hall_of_fame WHERE world_id = ?', worldId) !== undefined;
+  }
+
+  /** True when the row was new (an existing world_id is left alone). */
+  insertHallOfFame(h: HallOfFameRow): boolean {
+    return (
+      this.run(
+        'INSERT OR IGNORE INTO hall_of_fame (world_id, world_name, ended_at, kind, winner_name, winner_tag, top_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        h.worldId,
+        h.worldName,
+        h.endedAt,
+        h.kind,
+        h.winnerName,
+        h.winnerTag,
+        h.topJson,
+      ).changes > 0
+    );
+  }
+
+  /** Newest end first. */
+  listHallOfFame(limit: number): HallOfFameRow[] {
+    return this.all('SELECT * FROM hall_of_fame ORDER BY ended_at DESC, world_id LIMIT ?', limit).map((r) => ({
+      worldId: r.world_id as string,
+      worldName: r.world_name as string,
+      endedAt: r.ended_at as number,
+      kind: r.kind as WorldEndKind,
+      winnerName: (r.winner_name as string | null) ?? null,
+      winnerTag: (r.winner_tag as string | null) ?? null,
+      topJson: r.top_json as string,
+    }));
+  }
+
+  /** True when the badge was new (an existing one is left alone). */
+  insertAccountBadge(accountId: number, worldId: string, badge: BadgeKind, place: number | null, endedAt: number): boolean {
+    return this.run('INSERT OR IGNORE INTO account_badges (account_id, world_id, badge, place, ended_at) VALUES (?, ?, ?, ?, ?)', accountId, worldId, badge, place, endedAt).changes > 0;
+  }
+
+  deleteAccountBadge(accountId: number, worldId: string, badge: BadgeKind): boolean {
+    return this.run('DELETE FROM account_badges WHERE account_id = ? AND world_id = ? AND badge = ?', accountId, worldId, badge).changes > 0;
+  }
+
+  accountExists(id: number): boolean {
+    return this.get('SELECT 1 AS x FROM accounts WHERE id = ?', id) !== undefined;
+  }
+
+  /** The account's badges, newest world first (world name from the Hall of Fame, else the world list, else the id). */
+  accountBadges(accountId: number): AccountBadgeDto[] {
+    const rows = this.all(
+      `SELECT b.world_id, b.badge, b.place, b.ended_at, COALESCE(h.world_name, w.name, b.world_id) AS world_name
+         FROM account_badges b
+         LEFT JOIN hall_of_fame h ON h.world_id = b.world_id
+         LEFT JOIN worlds w ON w.id = b.world_id
+        WHERE b.account_id = ?
+        ORDER BY b.ended_at DESC, b.world_id`,
+      accountId,
+    );
+    const out: AccountBadgeDto[] = [];
+    for (const r of rows) {
+      if (!isBadgeKind(r.badge)) continue;
+      out.push({ worldId: r.world_id as string, worldName: r.world_name as string, badge: r.badge, place: (r.place as number | null) ?? null, endedAt: r.ended_at as number });
+    }
+    // Within one world: BADGE_KINDS order (stable sort keeps the world order).
+    return out.sort((a, b) => b.endedAt - a.endedAt || (a.worldId < b.worldId ? -1 : a.worldId > b.worldId ? 1 : 0) || BADGE_KINDS.indexOf(a.badge) - BADGE_KINDS.indexOf(b.badge));
   }
 
   // ---- audit log ---------------------------------------------------------------------------------

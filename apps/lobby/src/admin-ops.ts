@@ -1,7 +1,8 @@
 // The operator commands of the lobby (run on the server machine, never over HTTP). admin.ts is the thin entry point;
 // everything lives here so tests can call it. Every change goes to the audit log (actor: none, ip: 'cli').
 
-import { STAFF_ROLES, WORLD_STATUSES, isStaffRole, isWorldStatus } from '@clanfire/engine';
+import { BADGE_KINDS, BADGE_TOP_PLAYERS, STAFF_ROLES, WORLD_STATUSES, isBadgeKind, isStaffRole, isWorldStatus } from '@clanfire/engine';
+import { formatFinishReport, finishWorld } from './finish-world.ts';
 import { generateKeyPair, keyIdOf, parseSigningKey, publicKeyBase64 } from './pass.ts';
 import type { AccountRow, Store } from './store.ts';
 import { checkWorldId, checkWorldName, checkWorldPath, defaultWorldPath } from './worlds.ts';
@@ -24,6 +25,9 @@ export const ADMIN_USAGE = [
   '  world-status <id> <open|full|closed|finished>',
   '  world-rename <id> <name...>',
   '  world-remove <id>',
+  '  world-finish <worldId> <world db path>   after a world ended: copy its badges to accounts, add it to the Hall of Fame, set status finished',
+  '  badge-grant <username> <worldId> <badge> [place]   badge = champion|second_tribe|third_tribe|top10|veteran (place 1-10 only for top10)',
+  '  badge-revoke <username> <worldId> <badge>',
   '  shared-ips                               IPs used by two or more accounts',
   '  ban <username> [reason...]               suspend an account and end its sessions',
   '  unban <username>',
@@ -138,6 +142,48 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
         out(`Removed world ${w.id} from the list. The world's own data was not touched.`);
         return 0;
       }
+      case 'world-finish': {
+        const w = mustWorld(store, positional[0]);
+        const dbPath = positional[1];
+        if (!dbPath) throw new CliError('Usage: world-finish <worldId> <world db path>');
+        const report = finishWorld({ store, worldId: w.id, worldDbPath: dbPath, backupDir: deps.env.BACKUP_DIR?.trim() || './data/backups', now: at });
+        for (const l of formatFinishReport(w.id, report)) out(l);
+        return 0;
+      }
+      case 'badge-grant': {
+        const a = mustAccount(store, positional[0]);
+        const w = mustWorld(store, positional[1]);
+        const badge = positional[2];
+        if (!isBadgeKind(badge)) throw new CliError(`Badge must be one of: ${BADGE_KINDS.join(', ')}`);
+        let place: number | null = null;
+        if (badge === 'top10') {
+          place = positional[3] !== undefined && /^\d{1,2}$/.test(positional[3]) ? Number(positional[3]) : NaN;
+          if (!Number.isInteger(place) || place < 1 || place > BADGE_TOP_PLAYERS) throw new CliError(`top10 needs a place from 1 to ${BADGE_TOP_PLAYERS}.`);
+        } else if (positional.length > 3) throw new CliError('Only top10 takes a place.');
+        const endedAt = store.listHallOfFame(1000).find((h) => h.worldId === w.id)?.endedAt ?? at;
+        const added = store.tx(() => {
+          const ok = store.insertAccountBadge(a.id, w.id, badge, place, endedAt);
+          if (ok) log('badge_grant', a.id, `${w.id} ${badge}${place === null ? '' : ` #${place}`}`);
+          return ok;
+        });
+        if (!added) throw new CliError(`${a.username} already has ${badge} from ${w.id}. Revoke it first to change it.`);
+        out(`${a.username} got ${badge}${place === null ? '' : ` #${place}`} from ${w.id}.`);
+        return 0;
+      }
+      case 'badge-revoke': {
+        const a = mustAccount(store, positional[0]);
+        const worldId = positional[1] ?? '';
+        const badge = positional[2];
+        if (!isBadgeKind(badge)) throw new CliError(`Badge must be one of: ${BADGE_KINDS.join(', ')}`);
+        const removed = store.tx(() => {
+          const ok = store.deleteAccountBadge(a.id, worldId, badge);
+          if (ok) log('badge_revoke', a.id, `${worldId} ${badge}`);
+          return ok;
+        });
+        if (!removed) throw new CliError(`${a.username} has no ${badge} from ${worldId}.`);
+        out(`Removed ${badge} of ${worldId} from ${a.username}.`);
+        return 0;
+      }
       case 'shared-ips': {
         const groups = store.sharedIpGroups();
         if (groups.length === 0) out('No IP is shared by two or more accounts.');
@@ -191,4 +237,4 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
   }
 }
 
-const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);
+const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);

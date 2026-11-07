@@ -2,7 +2,9 @@
 // Reached from the banner every screen shows once the world has ended; the page scrolls, no inner scrollbars.
 
 import { useMemo } from 'react';
+import { BADGE_KINDS } from '@clanfire/engine';
 import type { WorldEndDto } from '@clanfire/engine';
+import { BADGE_HELP, BadgeChip, BadgeIcons, badgeLabel } from '../components/Badges.tsx';
 import { DominationCard } from '../components/DominationBar.tsx';
 import { endKindText, finalRows, winnerLine } from '../domination.ts';
 import { formatClock, formatDate, formatInt } from '../format.ts';
@@ -26,6 +28,9 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
   const tribes = useMemo(() => finalRows(end.finalTribes), [end.finalTribes]);
   const players = useMemo(() => finalRows(end.finalPlayers), [end.finalPlayers]);
   const myTag = player.tribe?.tag ?? null;
+  const countsLine = BADGE_KINDS.filter((k) => (end.badgeCounts[k] ?? 0) > 0)
+    .map((k) => `${badgeLabel({ badge: k })}: ${end.badgeCounts[k]}`)
+    .join(' · ');
 
   return (
     <div className="rk-stage end-stage">
@@ -59,6 +64,24 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
         </dl>
       </section>
 
+      {end.myBadges.length > 0 && (
+        <section className="card rk-card" aria-labelledby="end-badges-title">
+          <div className="title-row">
+            <h2 id="end-badges-title" className="card-title">Your badges</h2>
+            <details className="help-pop on-light">
+              <summary aria-label="About badges">?</summary>
+              <p className="small">{BADGE_HELP}</p>
+            </details>
+          </div>
+          <ul className="badge-row">
+            {end.myBadges.map((b) => (
+              <BadgeChip key={b.badge} badge={b.badge} place={b.place} />
+            ))}
+          </ul>
+          {countsLine && <p className="muted small">{countsLine}</p>}
+        </section>
+      )}
+
       <DominationCard />
 
       <section className="card rk-card" aria-labelledby="end-tribes-title">
@@ -72,7 +95,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
                 <tr>
                   <th scope="col" className="rk-c-rank">Rank</th>
                   <th scope="col">Tribe</th>
-                  <th scope="col" className="num">Members</th>
+                  <th scope="col" className="num end-hide-sm">Members</th>
                   <th scope="col" className="num">Villages</th>
                   <th scope="col" className="num">Points</th>
                 </tr>
@@ -87,7 +110,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
                         <button type="button" className="rk-who" onClick={() => viewTribe({ id: t.tribeId })}>{t.name}</button>
                         <span className="muted small end-sub">[{t.tag}]{mine ? ' · you' : ''}</span>
                       </td>
-                      <td className="num">{t.members}</td>
+                      <td className="num end-hide-sm">{t.members}</td>
                       <td className="num">{t.villages}</td>
                       <td className="num rk-pts">{formatInt(t.points)}</td>
                     </tr>
@@ -122,6 +145,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
                       <td className="rk-c-rank"><Rank rank={p.rank} /></td>
                       <td className="rk-name">
                         <span>{p.name}</span>
+                        <BadgeIcons badges={end.playerBadges[p.playerId]} />
                         <span className="muted small end-sub">
                           {p.tribeTag ? `[${p.tribeTag}]` : 'No tribe'}
                           {mine ? ' · you' : ''}

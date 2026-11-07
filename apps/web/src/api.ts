@@ -112,6 +112,7 @@ import type {
 import type {
   EnterPassRequest,
   EnterWorldResponse,
+  HallOfFameResponse,
   LobbyAuthRequest,
   LobbyChangePasswordRequest,
   LobbyMeResponse,
@@ -228,6 +229,7 @@ export const api = {
   lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
   lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
+  lobbyHallOfFame: () => lobbyRequest<HallOfFameResponse>('GET', `${lobbyApiBase}/hall-of-fame`),
   lobbyEnter: (id: string) => lobbyRequest<EnterWorldResponse>('POST', `${lobbyApiBase}/worlds/${encodeURIComponent(id)}/enter`, {}),
   /** Hand the entry pass to the world (same origin: sets its session cookie). The pass travels in the body only. */
   worldEnter: (worldPath: string, pass: string): Promise<MeResponse> => {

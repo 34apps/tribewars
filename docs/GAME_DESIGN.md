@@ -770,6 +770,22 @@ other durations):
   weeks of holding it, and every one of those moments shows on the public bar, so other tribes can join forces against the leader (allies do
   not add up for the *leader*, but any number of tribes can fight it). Raising or lowering the numbers is an operator decision per world.
 
+**Badges and Hall of Fame (built 2026-11-08).** Badges give no power and are never sold. They are computed **once**, in the same
+transaction that stores `world_end` (engine `worldEndBadges`), into the frozen table `world_end_badges` (no update, no delete).
+
+| Badge | Earned by |
+|---|---|
+| Champion | in the winning tribe at the end |
+| Second tribe / Third tribe | in the next two tribes of the final ranking (only when there is a winner) |
+| Top 10 (with place) | final player rank 1-10 (ties share a rank) |
+| Veteran | still had a village at the end |
+
+All badges need: not banned, not a test-mode account, joined the world at least 14 days before the end (tribe badges: joined *that tribe*
+at least 14 days before), last played within 7 days before the end; every day count is divided by the world speed. Several badges stack.
+Where they show: the world-end screen (own badges, counts, marks in the final table), the player profile and the lobby page (summary per
+account, carried into every world by the entry pass claim `bdg`), and the lobby's Hall of Fame (one card per finished world, filled by
+the operator command `world-finish`). Worlds that ended before this was built get no badges (no backfill).
+
 **Sites and Fire Shrines are not the win condition any more.** They stay on the map as **objectives with bonuses** for the tribe that holds
 them (§18.4b).
 
