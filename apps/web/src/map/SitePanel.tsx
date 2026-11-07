@@ -29,7 +29,7 @@ interface Props {
   wakesAt: number;
   terrain: TerrainCache;
   /** Mission to pre-select (a jump from elsewhere); null otherwise. */
-  preferred: { mission: Mission; nonce: number } | null;
+  preferred: { mission?: Mission; nonce: number } | null;
   /** Called after a recall so the site list refetches. */
   onChanged?: () => void;
   onClose: () => void;

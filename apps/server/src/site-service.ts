@@ -44,6 +44,7 @@ import {
   type VillageRefDto,
   type WorldSettings,
 } from '@clanfire/engine';
+import type { TribeProjectService } from './tribe-projects-service.ts';
 import { worldCreatedAt } from './domination-service.ts';
 import { sitesFor } from './site-layout.ts';
 import type { GarrisonRow } from './site-store.ts';
@@ -91,6 +92,7 @@ export class SiteService {
     private readonly store: Store,
     private readonly settings: WorldSettings,
     private readonly now: () => number,
+    private readonly projects: TribeProjectService | null = null,
   ) {
     this.defs = sitesFor(settings);
     store.siteNameAt = (x, y) => {
@@ -327,6 +329,8 @@ export class SiteService {
       attackerRanks: m.ranks ?? undefined,
       supportRanks: garrison.map((c) => c.ranks ?? undefined),
       seed: battleSeed(this.store.battleSalt(), m.id, at),
+      // Wards: the holding tribe's defenders fight a little harder at the site it holds (not at villages).
+      defenceMultiplier: holder !== null && this.projects ? this.projects.wardFactor(holder, at) : 1,
     });
     const survivors = result.attackerSurvivors;
     const survived = totalUnits(survivors) > 0;

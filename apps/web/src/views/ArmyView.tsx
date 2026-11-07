@@ -147,6 +147,9 @@ function MovementRow({ m }: { m: MovementDto }) {
     label = 'Incoming resources';
     tagClass = 'tag-ok';
     preposition = 'from';
+  } else if (m.kind === 'shipment' && m.toTribeStore) {
+    label = 'To Tribe Store';
+    tagClass = KIND_TAG.shipment;
   } else {
     label = MISSION_NAME[m.kind];
     tagClass = KIND_TAG[m.kind];

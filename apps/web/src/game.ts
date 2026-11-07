@@ -50,6 +50,8 @@ export interface MapFocus {
   nonce: number;
   /** Mission to pre-select in the send form (e.g. support from a tribe alert). */
   mission?: Mission;
+  /** Open the send-resources form on that village (the Tribe Store button). */
+  ship?: boolean;
 }
 
 export interface ToastOptions {
@@ -108,7 +110,7 @@ export interface GameApi {
   connectionError: string | null;
   tab: Tab;
   navigate: (tab: Tab) => void;
-  showOnMap: (x: number, y: number, options?: { mission?: Mission }) => void;
+  showOnMap: (x: number, y: number, options?: { mission?: Mission; ship?: boolean }) => void;
   mapFocus: MapFocus | null;
   highlightMovementId: number | null;
   viewMovement: (id: number) => void;

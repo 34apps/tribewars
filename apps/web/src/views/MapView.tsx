@@ -86,7 +86,7 @@ export function MapView({ active }: { active: boolean }) {
 
   const [selected, setSelected] = useState<Coords | null>(null);
   /** Mission asked for by the tab that sent us here (tribe alert -> support); cleared by any tap on the map. */
-  const [preferred, setPreferred] = useState<{ x: number; y: number; mission: Mission; nonce: number } | null>(null);
+  const [preferred, setPreferred] = useState<{ x: number; y: number; mission?: Mission; ship?: boolean; nonce: number } | null>(null);
   const [version, setVersion] = useState(0);
   const [goX, setGoX] = useState('');
   const [goY, setGoY] = useState('');
@@ -283,10 +283,10 @@ export function MapView({ active }: { active: boolean }) {
   }, [radius]);
 
   const select = useCallback(
-    (c: Coords | null, opts?: { reveal?: boolean; mission?: Mission; nonce?: number }) => {
+    (c: Coords | null, opts?: { reveal?: boolean; mission?: Mission; ship?: boolean; nonce?: number }) => {
       selectedRef.current = c;
       setSelected(c);
-      setPreferred(c && opts?.mission ? { x: c.x, y: c.y, mission: opts.mission, nonce: opts.nonce ?? 0 } : null);
+      setPreferred(c && (opts?.mission || opts?.ship) ? { x: c.x, y: c.y, mission: opts.mission, ship: opts.ship, nonce: opts.nonce ?? 0 } : null);
       if (c && opts?.reveal) reveal(c);
       schedule();
     },
@@ -311,7 +311,7 @@ export function MapView({ active }: { active: boolean }) {
     if (!mapFocus) return;
     const c = { x: Math.max(-radius, Math.min(radius, mapFocus.x)), y: Math.max(-radius, Math.min(radius, mapFocus.y)) };
     centerOn(c.x, c.y, 72);
-    select(c, { reveal: true, mission: mapFocus.mission, nonce: mapFocus.nonce });
+    select(c, { reveal: true, mission: mapFocus.mission, ship: mapFocus.ship, nonce: mapFocus.nonce });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
 

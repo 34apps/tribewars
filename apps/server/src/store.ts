@@ -52,6 +52,7 @@ import { StaffStore, type NewAudit } from './staff-store.ts';
 import { DominationStore } from './domination-store.ts';
 import { SiteStore } from './site-store.ts';
 import { SupportStore } from './support-store.ts';
+import { ProjectStore } from './tribe-projects-store.ts';
 import { TribeStore } from './tribe-store.ts';
 import { addUnits } from './units.ts';
 
@@ -130,6 +131,8 @@ export interface MovementRow {
   targetY?: number | null;
   /** Boulder Sling pick of an attack (sender's choice, never compared with the target's buildings); null = random / none. */
   siegeTarget?: BuildingId | null;
+  /** A shipment whose cargo goes into the sender's Tribe Store (GAME_DESIGN 18.5). */
+  toTribeStore?: boolean;
 }
 
 export interface VillageStub {
@@ -171,6 +174,8 @@ export interface AlertRow {
   attacker: VillageStub;
   attackerTribeTag: string | null;
   target: VillageStub;
+  /** The marching army (the server reduces it to what a Watchtower may show; never sent as is). */
+  units: Units;
 }
 
 const MAP_SELECT = `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
@@ -266,7 +271,7 @@ export type FullReport = ReportRow & {
 
 const MOVEMENT_VIEW_SQL = `
 SELECT m.id, m.kind, m.origin_village_id, m.target_village_id, m.units_json, m.loot_json, m.depart_at, m.arrive_at, m.ranks_json, m.return_secs,
-       m.target_x, m.target_y, m.siege_target,
+       m.target_x, m.target_y, m.siege_target, m.to_tribe_store,
        o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
        t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name
 FROM movements m
@@ -342,6 +347,7 @@ function toMovement(r: Raw): MovementRow {
     targetX: (r.target_x as number | null) ?? null,
     targetY: (r.target_y as number | null) ?? null,
     siegeTarget: isBuildingId(r.siege_target) ? r.siege_target : null,
+    toTribeStore: r.to_tribe_store === 1,
   };
 }
 
@@ -493,6 +499,8 @@ export class Store extends SqlBase {
   private depth = 0;
   /** Tribe tables. Shares this connection, so it takes part in `tx`. */
   readonly tribes: TribeStore;
+  /** Tribe Store, projects and ledger (tribe-projects-service.ts). Shares this connection. */
+  readonly projects: ProjectStore;
   /** Domination win condition and the world end (domination-service.ts). */
   readonly domination: DominationStore;
   /** Map sites: holders and the troops standing at them (site-service.ts). */
@@ -521,6 +529,7 @@ export class Store extends SqlBase {
   constructor(db: DatabaseSync) {
     super(db);
     this.tribes = new TribeStore(db);
+    this.projects = new ProjectStore(db);
     this.domination = new DominationStore(db);
     this.sites = new SiteStore(db);
     this.mail = new MailStore(db);
@@ -531,7 +540,7 @@ export class Store extends SqlBase {
     this.notifications = new NotificationStore(db);
     this.troopGroups = new TroopGroupStore(db);
     this.emit = (event) => this.queueLive(event);
-    for (const s of [this.tribes, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+    for (const s of [this.tribes, this.projects, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
   }
 
   /** True once the world has ended (a tribe won, or the operator ended it): the world is frozen. */
@@ -1328,7 +1337,7 @@ export class Store extends SqlBase {
 
   insertMovement(m: Omit<MovementRow, 'id'>): number {
     const id = this.run(
-      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO movements (kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target, to_tribe_store) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       m.kind,
       m.originVillageId,
       m.targetVillageId,
@@ -1341,6 +1350,7 @@ export class Store extends SqlBase {
       m.targetX ?? null,
       m.targetY ?? null,
       m.siegeTarget ?? null,
+      m.toTribeStore ? 1 : 0,
     ).id;
     this.emitMovement(m.kind, m.originVillageId, m.targetVillageId, true);
     this.notifyTarget(id, m);
@@ -1492,7 +1502,7 @@ export class Store extends SqlBase {
   /** Incoming attacks on villages of the tribe's members, soonest first. Scouts and support never show up here. */
   tribeAlerts(tribeId: number, limit: number): AlertRow[] {
     return this.all(
-      `SELECT m.id, m.depart_at, m.arrive_at,
+      `SELECT m.id, m.depart_at, m.arrive_at, m.units_json,
               o.id AS o_id, o.name AS o_name, o.x AS o_x, o.y AS o_y, o.owner_id AS o_owner_id, op.username AS o_owner_name,
               t.id AS t_id, t.name AS t_name, t.x AS t_x, t.y AS t_y, t.owner_id AS t_owner_id, tp.username AS t_owner_name,
               otr.tag AS o_tribe_tag
@@ -1515,6 +1525,7 @@ export class Store extends SqlBase {
       attacker: stubFrom(r, 'o', r.o_id as number),
       attackerTribeTag: (r.o_tribe_tag as string | null) ?? null,
       target: stubFrom(r, 't', r.t_id as number),
+      units: normalizeUnits(JSON.parse(r.units_json as string) as Partial<Units>),
     }));
   }
 

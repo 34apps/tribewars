@@ -152,6 +152,7 @@ const shipBody = {
     x: COORD,
     y: COORD,
     resources: { type: 'object', additionalProperties: false, properties: resourceAmounts },
+    toTribeStore: { type: 'boolean' },
   },
 } as const;
 
@@ -308,8 +309,8 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/ship',
     { ...auth, schema: { params: idParams, body: shipBody } },
     async (req, reply): Promise<SendShipmentResponse> => {
-      const { x, y, resources } = req.body;
-      const res = ctx.game.sendShipment(playerOf(req), Number(req.params.id), x, y, resources, req.nowMs);
+      const { x, y, resources, toTribeStore } = req.body;
+      const res = ctx.game.sendShipment(playerOf(req), Number(req.params.id), x, y, resources, req.nowMs, toTribeStore === true);
       void reply.code(201);
       return res;
     },

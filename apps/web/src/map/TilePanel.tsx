@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -55,7 +55,7 @@ interface Props {
   loaded: boolean;
   terrain: TerrainCache;
   /** Mission to pre-select for this tile (a jump from a tribe alert); null otherwise. */
-  preferred: { mission: Mission; nonce: number } | null;
+  preferred: { mission?: Mission; ship?: boolean; nonce: number } | null;
   /** Is a village standing on this tile (as far as the loaded map chunks know)? Previews the free-site rule for Found. */
   occupied: (x: number, y: number) => boolean;
   onClose: () => void;
@@ -520,6 +520,12 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const shipKey = `${mine.id}|${tile.x}|${tile.y}`;
   const [shipOpenFor, setShipOpenFor] = useState<string | null>(null);
   const shipOpen = shipOpenFor === shipKey;
+  // "Send resources to the Tribe Store" on the Projects page lands here with the form open.
+  const askedShip = preferred?.ship ? preferred.nonce : 0;
+  useEffect(() => {
+    if (askedShip) setShipOpenFor(shipKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askedShip]);
   const canShip = canShipTo(village, isOwn, isCurrent);
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
@@ -647,6 +653,12 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           </div>
         )}
       </dl>
+
+      {village?.tribeStore && (
+        <p className="wm-note" role="note">
+          Tribe Store of {village.tribeTag ? `[${village.tribeTag}]` : 'a tribe'} — can be raided.
+        </p>
+      )}
 
       {hearth && <HoldCard hearth={hearth} viewpoint={viewpoint} occupiers={occupiers} className="wm-hold" compact />}
 

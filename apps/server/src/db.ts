@@ -30,7 +30,8 @@ const movementsTable = (name: string): string => `CREATE TABLE IF NOT EXISTS ${n
   return_secs       INTEGER,
   target_x          INTEGER,
   target_y          INTEGER,
-  siege_target      TEXT
+  siege_target      TEXT,
+  to_tribe_store    INTEGER NOT NULL DEFAULT 0
 );`;
 
 /** battle_json holds the report body of any type; its `type` key (absent = battle) tells which. */
@@ -51,7 +52,7 @@ const REBUILDS = [
     marker: "'occupy'",
     create: movementsTable,
     // Only the columns the old table has are copied (older ones lack ranks_json, return_secs, target_x, target_y).
-    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target',
+    columns: 'id, kind, origin_village_id, target_village_id, units_json, loot_json, depart_at, arrive_at, ranks_json, return_secs, target_x, target_y, siege_target, to_tribe_store',
   },
   {
     table: 'reports',
@@ -514,6 +515,52 @@ CREATE TABLE IF NOT EXISTS site_garrison (
 CREATE INDEX IF NOT EXISTS idx_site_garrison_home ON site_garrison(home_village_id);
 CREATE INDEX IF NOT EXISTS idx_site_garrison_owner ON site_garrison(owner_player_id);
 CREATE INDEX IF NOT EXISTS idx_sites_holder ON sites(holder_tribe_id);
+
+-- ---- Tribe projects (docs/GAME_DESIGN.md 18.5). One row per tribe, made on first use; everything goes with the tribe (ON DELETE CASCADE).
+-- village_id: the store village (null = no home); checked lazily against the owner's membership at every use.
+CREATE TABLE IF NOT EXISTS tribe_stores (
+  tribe_id       INTEGER PRIMARY KEY REFERENCES tribes(id) ON DELETE CASCADE,
+  wood           INTEGER NOT NULL DEFAULT 0 CHECK (wood >= 0),
+  food           INTEGER NOT NULL DEFAULT 0 CHECK (food >= 0),
+  iron           INTEGER NOT NULL DEFAULT 0 CHECK (iron >= 0),
+  gold           INTEGER NOT NULL DEFAULT 0 CHECK (gold >= 0),
+  village_id     INTEGER REFERENCES villages(id) ON DELETE SET NULL,
+  village_set_at INTEGER NOT NULL DEFAULT 0,
+  roads          INTEGER NOT NULL DEFAULT 0,
+  watchtower     INTEGER NOT NULL DEFAULT 0,
+  wards          INTEGER NOT NULL DEFAULT 0
+);
+-- The running project: the primary key allows one per tribe.
+CREATE TABLE IF NOT EXISTS tribe_project_runs (
+  tribe_id   INTEGER PRIMARY KEY REFERENCES tribes(id) ON DELETE CASCADE,
+  project    TEXT    NOT NULL,
+  level      INTEGER NOT NULL,
+  started_at INTEGER NOT NULL,
+  ends_at    INTEGER NOT NULL,
+  cost_json  TEXT    NOT NULL
+);
+-- What members gave (credited on arrival). player_id has no foreign key: the ledger outlives members.
+CREATE TABLE IF NOT EXISTS tribe_store_ledger (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  tribe_id    INTEGER NOT NULL REFERENCES tribes(id) ON DELETE CASCADE,
+  player_id   INTEGER NOT NULL,
+  player_name TEXT    NOT NULL,
+  wood        INTEGER NOT NULL,
+  food        INTEGER NOT NULL,
+  iron        INTEGER NOT NULL,
+  gold        INTEGER NOT NULL,
+  at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_store_ledger_tribe ON tribe_store_ledger(tribe_id, id);
+-- Daily-cap bookkeeping: one row per funding shipment (removed when it is cancelled or turns back), kept 24 h after sending.
+CREATE TABLE IF NOT EXISTS tribe_store_sends (
+  movement_id INTEGER PRIMARY KEY,
+  tribe_id    INTEGER NOT NULL REFERENCES tribes(id) ON DELETE CASCADE,
+  player_id   INTEGER NOT NULL,
+  sent_at     INTEGER NOT NULL,
+  total       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_store_sends_player ON tribe_store_sends(player_id, sent_at);
 `;
 
 /**
@@ -532,9 +579,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 12; // 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 13; // 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '28a6e948a5e510d9';
+export const SCHEMA_FINGERPRINT = '4ab7054827bc9389';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -645,6 +692,8 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   }
   // The building a Boulder Sling attack was aimed at (sender's pick, never checked against the target; GAME_DESIGN 18.9).
   if (!moveCols.some((c) => c.name === 'siege_target')) db.exec('ALTER TABLE movements ADD COLUMN siege_target TEXT');
+  // A shipment whose cargo goes into the sender's Tribe Store, not the target village's stock (GAME_DESIGN 18.5).
+  if (!moveCols.some((c) => c.name === 'to_tribe_store')) db.exec('ALTER TABLE movements ADD COLUMN to_tribe_store INTEGER NOT NULL DEFAULT 0');
 }
 
 /**

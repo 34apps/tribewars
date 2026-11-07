@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RESOURCE_IDS, checkShipment, flatShipmentTravelMs, shipmentCapacity, shipmentTravelMs, terrainAmountOf, travelRoute } from '@clanfire/engine';
+import { PROJECT_DAILY_CAP_PER_MEMBER, RESOURCE_IDS, checkShipment, flatShipmentTravelMs, shipmentCapacity, shipmentTravelMs, terrainAmountOf, travelRoute } from '@clanfire/engine';
 import type { Coords, MapVillageDto, ResourceId, Resources } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -8,10 +8,11 @@ import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
 import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
+import { useRoadsLevel, withRoads } from '../hooks/useRoadsLevel.ts';
 
 /** "Send resources" for a tribe-mate's or ally's village. The server re-checks everything. */
 export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillageDto }) {
-  const { live, now, settings, village, applySend, refresh, toast, viewMovement } = useGame();
+  const { player, live, now, settings, village, applySend, refresh, toast, viewMovement } = useGame();
   const [amounts, setAmounts] = useState<Partial<Record<ResourceId, string>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +29,15 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   }
   const check = checkShipment(live, cargo);
   const waymarks = useTribeWaymarks();
-  const travel = shipmentTravelMs(village, tile, settings, waymarks);
-  const waymarkHelps = waymarks.length > 0 && travel < shipmentTravelMs(village, tile, settings);
+  // Tribe mates: the tribe's Roads shorten the trip. The Tribe Store is the store village of my own tribe.
+  const mate = player.tribe !== null && player.tribe !== undefined && target.tribeId === player.tribe.id;
+  const storeVillage = mate && target.tribeStore === true;
+  // At the store village the cargo goes into the Tribe Store by default; untick to help the village owner instead.
+  const [intoStore, setIntoStore] = useState(true);
+  const toStore = storeVillage && intoStore;
+  const roads = useRoadsLevel(mate);
+  const travel = withRoads(shipmentTravelMs(village, tile, settings, waymarks), roads);
+  const waymarkHelps = waymarks.length > 0 && travel < withRoads(shipmentTravelMs(village, tile, settings), roads);
   const flat = flatShipmentTravelMs(village, tile, settings);
   const slowdown = slowdownText(flat, travel);
   const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings), waymarks)) : '';
@@ -50,10 +58,10 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
     setBusy(true);
     setError(null);
     try {
-      const res = await api.ship(village.id, { x: tile.x, y: tile.y, resources: cargo });
+      const res = await api.ship(village.id, { x: tile.x, y: tile.y, resources: cargo, ...(toStore ? { toTribeStore: true } : {}) });
       applySend(res);
       setAmounts({});
-      toast(`Resources sent to ${target.name}. Arrive in ${formatDuration(res.movement.arriveAt - now)}.`, {
+      toast(`Resources sent to ${toStore ? 'the Tribe Store' : target.name}. Arrive in ${formatDuration(res.movement.arriveAt - now)}.`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
     } catch (e) {
@@ -76,9 +84,21 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         void send();
       }}
     >
-      <h3 className="wm-send-title">Send resources</h3>
+      <h3 className="wm-send-title">{toStore ? 'Send to the Tribe Store' : 'Send resources'}</h3>
+      {storeVillage && (
+        <label className="wm-muted">
+          <input type="checkbox" checked={intoStore} onChange={(e) => setIntoStore(e.target.checked)} /> Into the Tribe Store
+        </label>
+      )}
+      {toStore && (
+        <p className="wm-muted">
+          The cargo goes into your tribe's store, not into {target.name}. Your tribe can spend it on projects.
+        </p>
+      )}
+      {roads > 0 && <p className="wm-muted">Roads make trips between tribe members faster.</p>}
       <p className="wm-muted">
-        Carriers take up to {formatInt(capacity)} in total. Anything over the storehouse limit on arrival is lost.
+        Carriers take up to {formatInt(capacity)} in total.
+        {toStore ? ` You can give at most ${formatInt(PROJECT_DAILY_CAP_PER_MEMBER)} a day to the Tribe Store.` : ' Anything over the storehouse limit on arrival is lost.'}
       </p>
       <ul className="wm-units">
         {RESOURCE_IDS.map((r) => (
@@ -138,7 +158,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         </p>
       )}
       <button className="wm-btn wm-btn-sun wm-btn-big" type="submit" disabled={!!reason || busy}>
-        {busy ? 'Sending…' : 'Send resources'}
+        {busy ? 'Sending…' : toStore ? 'Send to Tribe Store' : 'Send resources'}
       </button>
       {reason && <div className="wm-why">{reason}</div>}
     </form>

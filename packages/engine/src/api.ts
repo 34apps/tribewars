@@ -15,7 +15,9 @@ import type {
   Resources,
   SiegeHit,
   TribeAction,
+  TribeProjectId,
   TribeRole,
+  UnitId,
   Units,
   VillageRanks,
   VillageState,
@@ -257,6 +259,8 @@ export interface MovementDto {
   loot: Resources | null;
   /** Cargo of a `shipment`; visible to sender and receiver. null for every other kind. */
   resources: Resources | null;
+  /** Present (true) on a shipment whose cargo goes into the Tribe Store rather than the target village. */
+  toTribeStore?: boolean;
   /** Server time (ms) until which the sender may still cancel this movement; null if it cannot be cancelled (not mine, a return, window over). */
   cancellableUntil: number | null;
 }
@@ -420,6 +424,13 @@ export interface SendRequest extends Coords {
 export interface SendShipmentRequest extends Coords {
   /** Amounts per resource (whole numbers); omitted ones count as 0. */
   resources: Partial<Resources>;
+  /**
+   * Tribe projects (GAME_DESIGN 18.5): true = the cargo goes into the sender's Tribe Store. x/y must then be the tribe's
+   * current store village (400 invalid_target otherwise). Extra checks: account age >= PROJECT_MIN_ACCOUNT_DAYS, the
+   * per-member 24 h cap PROJECT_DAILY_CAP_PER_MEMBER (sum of the 4 resources), and the store cap counting cargo already
+   * on the road. Normal shipment rules (Market, capacity, travel, cancel window) apply as well.
+   */
+  toTribeStore?: boolean;
 }
 
 export interface SendShipmentResponse {
@@ -483,6 +494,8 @@ export interface MapVillageDto extends Coords {
   relation: PlayerRelation | null;
   /** Present only when the viewer has banked Chieftains on this village (Chieftain chain, GAME_DESIGN 18.2); the viewer's own data. */
   chain?: ChainProgressDto;
+  /** Present (true) when this village holds its tribe's Tribe Store (public: anyone may raid it, GAME_DESIGN 18.5). Never the amounts. */
+  tribeStore?: true;
 }
 
 export interface MapResponse {
@@ -555,8 +568,10 @@ export interface BattleReportData {
   supportLosses: Units | null;
   /** The Wall as it counted in the battle (after the Log Rams' during-the-battle hit); null when hidden from a wiped-out attacker. */
   wallLevel: number | null;
-  /** Loot is always full: what the surviving units carry, up to the stock above the Vault. */
+  /** Loot is always full: what the surviving units carry, up to the stock above the Vault. Includes `lootFromTribeStore`. */
   loot: Resources;
+  /** Part of `loot` that came from the defender tribe's Tribe Store (the target was its store village, GAME_DESIGN 18.5). Absent when none. */
+  lootFromTribeStore?: Resources;
   /**
    * Renown the report owner earned from this battle (attacker, defender or support owner; absent or 0 when none, e.g. forbidden
    * pair, under RENOWN_MIN_BATTLE_VALUE, or nothing left in the daily pair window). Floored for display.
@@ -796,6 +811,10 @@ export interface TribeDto extends TribeSummaryDto {
   memberList: TribeMemberDto[];
   /** Active relations (incl. those serving notice). */
   relations: TribeRelationDto[];
+  /** Finished project levels (GAME_DESIGN 18.5). Only in the caller's own tribe view (for travel-time previews), else omitted. */
+  projectLevels?: Record<TribeProjectId, number>;
+  /** The store village (own tribe view only; null = no home). Omitted in other tribes' views. */
+  storeVillage?: VillageRefDto | null;
 }
 
 export interface TribeInviteDto {
@@ -917,7 +936,18 @@ export interface TribeAlertDto {
   attackerTribeTag: string | null;
   departAt: number;
   arriveAt: number;
+  /**
+   * Watchtower project (GAME_DESIGN 18.5). Chieftains are NEVER counted or named (owner decision 11).
+   * Level >= 1: rough army size (population of the non-Chieftain units, bands WATCHTOWER_SIZE_BANDS).
+   * Level >= 2: the slowest non-Chieftain unit type. Level 3: `sizeAbout` = that population rounded to WATCHTOWER_ROUND_TO.
+   * Absent below the level that shows it.
+   */
+  sizeBand?: WatchtowerSizeBand;
+  slowestUnit?: UnitId;
+  sizeAbout?: number;
 }
+
+export type WatchtowerSizeBand = 'small' | 'medium' | 'large' | 'huge';
 
 /**
  * A village of a tribe member whose hearth is out (docs/GAME_DESIGN.md 18.2, step 4). Same information as the map shows to
@@ -933,6 +963,91 @@ export interface TribeAlertsResponse {
   alerts: TribeAlertDto[];
   /** Cold villages of members (hearth out) with the hold clock, soonest end first. Shown on the alert list at the moment of the strike. */
   holds: TribeHoldDto[];
+  /** The tribe's finished Watchtower level (0-3); tells the client which alert fields to expect. */
+  watchtowerLevel: number;
+}
+
+// ---- Tribe projects (docs/GAME_DESIGN.md 18.5) ---------------------------------------------------
+//   GET  /api/tribe/projects                      -> 200 TribeProjectsResponse (members only; 403 not_in_tribe)
+//   POST /api/tribe/projects/store-village  body StoreVillageRequest -> 200 TribeProjectsResponse
+//        ('projects' right; a village of a current member; once per STORE_VILLAGE_CHANGE_COOLDOWN_DAYS unless the
+//        store has no home; the store's contents move with it at once)
+//   POST /api/tribe/projects/start          body StartProjectRequest -> 201 TribeProjectsResponse
+//        ('projects' right; one running project per tribe; next level only; cost paid from the store at once,
+//        409 not_enough_resources if the store is short; max level -> 409 max_level)
+//   POST /api/tribe/projects/cancel         -> 200 TribeProjectsResponse
+//        ('projects' right; CANCEL_REFUND_PERCENT of the cost back into the store, clamped to the cap)
+// Funding: POST /api/villages/:id/ship with `toTribeStore: true` (SendShipmentRequest).
+// Raids: a won attack on the store village also loots up to TRIBE_STORE_LOOT_SHARE of each store resource
+//        (BattleReportData.lootFromTribeStore). The Hidden Vault protects only the village's own stock.
+
+export interface StoreVillageRequest {
+  villageId: number;
+}
+
+export interface StartProjectRequest {
+  project: TribeProjectId;
+}
+
+export interface TribeProjectRunDto {
+  project: TribeProjectId;
+  /** The level being built. */
+  level: number;
+  startedAt: number;
+  endsAt: number;
+  /** What it cost (cancel returns CANCEL_REFUND_PERCENT of it). */
+  cost: Resources;
+}
+
+export interface TribeProjectOptionDto {
+  project: TribeProjectId;
+  /** Finished level (0 = not built). */
+  level: number;
+  maxLevel: number;
+  /** Cost and build time of the next level; null at max level. */
+  nextCost: Resources | null;
+  nextBuildMs: number | null;
+  /** What the finished level does now and what the next level would do (plain numbers for the client's text). */
+  effectNow: number;
+  effectNext: number | null;
+}
+
+export interface TribeLedgerEntryDto {
+  player: { id: number; name: string };
+  resources: Resources;
+  /** Arrival time (server ms). */
+  at: number;
+}
+
+export interface TribeLedgerTotalDto {
+  player: { id: number; name: string };
+  /** Sum of all 4 resources ever given (kept after the player leaves). */
+  total: number;
+  /** Sum given in the last 24 hours. */
+  last24h: number;
+}
+
+export interface TribeProjectsResponse {
+  store: Resources;
+  storeCap: number;
+  /** The village holding the store; null = no home (none picked yet, or it left the tribe): shipments cannot be sent. */
+  storeVillage: VillageRefDto | null;
+  /** Server ms when the store village may be changed again; null = now. */
+  storeVillageChangeableAt: number | null;
+  running: TribeProjectRunDto | null;
+  projects: TribeProjectOptionDto[];
+  /** Newest first, at most TRIBE_LEDGER_LIST_LIMIT. */
+  ledger: TribeLedgerEntryDto[];
+  /** Every player who ever gave, biggest total first. */
+  totals: TribeLedgerTotalDto[];
+  /** Caller holds the 'projects' right. */
+  canManage: boolean;
+  /** How much more (sum of 4) the caller may send to the store in the next 24 h, counting what is on the road. */
+  myDailyLeft: number;
+  /** Server ms when the caller's account is old enough to give; null = already allowed. */
+  myGiveFrom: number | null;
+  /** Only when canManage: every current member's villages (store village picker), by owner name then village name. Else []. */
+  memberVillages: VillageRefDto[];
 }
 
 // ---- Advisor (Mags the Tinker, AI tips) ----

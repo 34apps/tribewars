@@ -277,7 +277,13 @@ export type TribeAction =
   | 'chat'
   | 'forum_manage'
   | 'forum_moderate'
-  | 'view_activity';
+  | 'view_activity'
+  /** Tribe projects (GAME_DESIGN 18.5): pick the store village, start and cancel projects. Leader by role, grantable. */
+  | 'projects';
+
+/** Tribe projects (docs/GAME_DESIGN.md 18.5). Effects are for all members; none raises attack or production. */
+export const TRIBE_PROJECT_IDS = ['roads', 'watchtower', 'wards'] as const;
+export type TribeProjectId = (typeof TRIBE_PROJECT_IDS)[number];
 
 /** Result of a rule check. Server sends `reason` to the client as an error code. */
 export type CheckResult<T> = ({ ok: true } & T) | { ok: false; reason: GameErrorCode; message: string };
@@ -347,6 +353,10 @@ export interface BattleInput {
    * can still drop, drawn from `seed`. Never checked against the village: the server must not reveal what a village has.
    */
   siegeTarget?: BuildingId | null;
+  /** Defence factor applied to the defender's power (Wards at a held map site, GAME_DESIGN 18.5). Default 1. */
+  defenceMultiplier?: number;
+  /** More lootable stock beyond the village's own (a Tribe Store's share, GAME_DESIGN 18.5); the server splits the loot afterwards. */
+  extraLootable?: Resources;
 }
 
 /** One building a siege kind lowered (or tried to) after a won battle. `from === to` means nothing was there to hit or the points fell short. */

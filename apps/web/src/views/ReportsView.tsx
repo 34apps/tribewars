@@ -229,6 +229,14 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
         ) : (
           <p className="muted">Nothing was taken.</p>
         )}
+        {b.lootFromTribeStore && RESOURCE_IDS.some((r) => (b.lootFromTribeStore?.[r] ?? 0) > 0) && (
+          <p className="muted">
+            From the Tribe Store:{' '}
+            {RESOURCE_IDS.filter((r) => (b.lootFromTribeStore?.[r] ?? 0) > 0)
+              .map((r) => `${formatInt(b.lootFromTribeStore?.[r] ?? 0)} ${RESOURCE_NAME[r].toLowerCase()}`)
+              .join(', ')}
+          </p>
+        )}
         {b.renownGained !== undefined && b.renownGained > 0 && (
           <p className="report-renown">
             <strong>Renown +{formatInt(b.renownGained)}</strong>

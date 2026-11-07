@@ -861,6 +861,49 @@ const ICONS = {
       </>
     ),
   },
+  // Tribe projects (hand drawn, same ink + warm palette). Chest = Tribe Store; road = Roads; tower = Watchtower; ward = Wards.
+  chest: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <rect x="4" y="14" width="24" height="13" rx="1.5" fill="#B0763A" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M4 14C4 7 9 5 16 5s12 2 12 9Z" fill="#C98D4A" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M11 6v21M21 6v21" stroke="#E3B23C" strokeWidth="2.2" />
+        <rect x="13.5" y="14" width="5" height="6" rx="1" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.6" />
+      </>
+    ),
+  },
+  road: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M12 3h8l7 26H5Z" fill="#C6AF88" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M16 6v4M16 13v5M16 21v6" stroke="#FFF8E8" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M4 29c3-2 5-2 8 0M22 29c3-2 5-2 8 0" stroke="#5E8C3A" strokeWidth="2" strokeLinecap="round" fill="none" />
+      </>
+    ),
+  },
+  watchtower: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M10 28L12 12h8l2 16Z" fill="#B7B0A2" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M8 12V7h3v2h3V7h4v2h3V7h3v5Z" fill="#8FA0A3" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <rect x="14" y="16" width="4" height="6" rx="2" fill="#2B211C" />
+        <path d="M16 7V2l5 1.6L16 5.2" fill="#C4623A" stroke="#2B211C" strokeWidth="1.5" strokeLinejoin="round" />
+      </>
+    ),
+  },
+  ward: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M16 3l11 4v8c0 7-5 12-11 14C10 27 5 22 5 15V7Z" fill="#2F9AA0" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M16 3l11 4v8c0 7-5 12-11 14Z" fill="#1F7C82" opacity="0.55" />
+        <path d="M16 9v12M11 14h10" stroke="#FFF8E8" strokeWidth="2.6" strokeLinecap="round" />
+      </>
+    ),
+  },
   // Population: two heads and shoulders.
   pop: {
     vb: '0 0 32 32',

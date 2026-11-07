@@ -267,7 +267,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
   }
   // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
   const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
-  const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall);
+  const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall) * (input.defenceMultiplier ?? 1);
 
   const attackerWon = attackPower > defensePower;
   const attackerLosses = emptyUnits();
@@ -294,7 +294,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     if (!input.noLoot) {
       const hidden = vaultProtection(defender);
       const lootable = emptyResources();
-      for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden);
+      for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden) + Math.max(0, Math.floor(input.extraLootable?.[r] ?? 0));
       loot = waterFillLoot(Math.floor(capacity), lootable);
     }
     // The survivors shoot after the battle (Log Rams: full points, sharing their level cap with the during step).

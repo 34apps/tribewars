@@ -8,6 +8,31 @@ import { useGame, useRules } from '../game.ts';
 import { RoleBadge } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
+import type { RunAction } from './useMyTribe.ts';
+
+/** One grantable right as a checkbox (leader only). */
+function GrantBox({ label, right, grants, m, busy, run, on, off }: { label: string; right: TribeAction; grants: TribeAction[]; m: TribeMemberDto; busy: boolean; run: RunAction; on: string; off: string }) {
+  const has = grants.includes(right);
+  return (
+    <label className="check">
+      <input
+        type="checkbox"
+        checked={has}
+        disabled={busy}
+        onChange={() =>
+          void run(
+            async () => {
+              await api.setGrants(m.playerId, has ? grants.filter((g) => g !== right) : [...grants, right]);
+              return api.myTribe();
+            },
+            { ok: has ? off : on },
+          )
+        }
+      />{' '}
+      {label}
+    </label>
+  );
+}
 
 function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }) {
   const { player, showOnMap, now } = useGame();
@@ -22,7 +47,6 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
   const canGrant = role === 'leader' && !isMe && m.role === 'member';
   const hasActions = canSetRole || canRemove || canTransfer || canGrant;
   const grants: TribeAction[] = m.grants ?? [];
-  const seesActivity = grants.includes('view_activity');
 
   async function remove() {
     const ok = await confirm({
@@ -73,23 +97,10 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
         {open && hasActions && (
           <div className="member-actions">
             {canGrant && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={seesActivity}
-                  disabled={busy}
-                  onChange={() =>
-                    void run(
-                      async () => {
-                        await api.setGrants(m.playerId, seesActivity ? grants.filter((g) => g !== 'view_activity') : [...grants, 'view_activity']);
-                        return api.myTribe();
-                      },
-                      { ok: seesActivity ? `${m.username} can no longer see who is online.` : `${m.username} can now see who is online.` },
-                    )
-                  }
-                />{' '}
-                Can see members' online status
-              </label>
+              <>
+                <GrantBox label="Can see members' online status" right="view_activity" grants={grants} m={m} busy={busy} run={run} on={`${m.username} can now see who is online.`} off={`${m.username} can no longer see who is online.`} />
+                <GrantBox label="Tribe projects" right="projects" grants={grants} m={m} busy={busy} run={run} on={`${m.username} can now run Tribe projects.`} off={`${m.username} can no longer run Tribe projects.`} />
+              </>
             )}
             {canSetRole && m.role === 'member' && (
               <button className="btn" disabled={busy} onClick={() => void run(() => api.setMemberRole(m.playerId, 'officer'), { ok: `${m.username} is now an officer.` })}>

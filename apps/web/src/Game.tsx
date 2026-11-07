@@ -147,8 +147,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
   const showOnMap = useCallback(
-    (x: number, y: number, options?: { mission?: Mission }) => {
-      setMapFocus({ x, y, nonce: Date.now(), mission: options?.mission });
+    (x: number, y: number, options?: { mission?: Mission; ship?: boolean }) => {
+      setMapFocus({ x, y, nonce: Date.now(), mission: options?.mission, ship: options?.ship });
       navigate('map');
     },
     [navigate],

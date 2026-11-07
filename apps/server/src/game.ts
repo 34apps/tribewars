@@ -86,6 +86,9 @@ import {
   UNITS,
   normalizeUnits,
   resolveBattle,
+  splitLoot,
+  vaultProtection,
+  watchtowerInfo,
   resolveScouting,
   settleVillage,
   totalUnits,
@@ -124,6 +127,7 @@ import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import { RenownService } from './renown-service.ts';
 import { SiteService } from './site-service.ts';
+import { TribeProjectService } from './tribe-projects-service.ts';
 import { sitesFor } from './site-layout.ts';
 import { NEW_VILLAGE_NAME, hasUnpaidBuildRenown, type MapRow, type MovementRow, type MovementView, type PlayerRow, type Store, type StationedRow, type StationedView, type VillageRecord, type VillageStub } from './store.ts';
 import { addUnits, isScoutArmy, isWithin, only, splitScoutLosses, subtractUnits, sumUnits } from './units.ts';
@@ -169,6 +173,7 @@ function movementDto(m: MovementView, viewerId: number, now: number, asSender = 
     units: outgoing || m.kind === 'support' ? m.units : null,
     loot: outgoing && m.kind === 'return' ? (m.loot ?? emptyResources()) : null,
     resources: m.kind === 'shipment' ? (m.loot ?? emptyResources()) : null,
+    ...(m.kind === 'shipment' && m.toTribeStore ? { toTribeStore: true as const } : {}),
     cancellableUntil: outgoing && !asSender && canCancel(m, now) ? cancelDeadline(m.departAt) : null,
   };
 }
@@ -230,6 +235,9 @@ export class GameService {
   /** Map sites (Fire Shrines): sending, holding and the Renown bonus (site-service.ts). */
   readonly sites: SiteService;
 
+  /** Tribe Store, projects and their effects on travel, defence and alerts (tribe-projects-service.ts). */
+  readonly projects: TribeProjectService;
+
   constructor(
     private readonly store: Store,
     readonly settings: WorldSettings,
@@ -237,7 +245,8 @@ export class GameService {
     now: () => number = Date.now,
   ) {
     this.renown = new RenownService(store, settings);
-    this.sites = new SiteService(store, settings, now);
+    this.projects = new TribeProjectService(store, settings);
+    this.sites = new SiteService(store, settings, now, this.projects);
   }
 
   // ---- caretaker bot (docs/GAME_DESIGN.md section 17) ----------------------------------------------
@@ -498,6 +507,8 @@ export class GameService {
     const contingents = this.store.stationedAt(target.id);
     // An attack with Chieftains is a Strike attempt, not a raid: it carries no loot.
     const strikeTry = fighters.chieftain > 0 && origin.ownerId !== null;
+    // The store village: a won raid may also take up to a fifth of each Tribe Store resource (the Vault shelters only the stock).
+    const storeRaid = strikeTry ? null : this.projects.raidPool(target, at);
 
     const result = resolveBattle({
       attackerUnits: fighters,
@@ -510,7 +521,22 @@ export class GameService {
       seed: battleSeed((this.salt ??= this.store.battleSalt()), m.id, at),
       noLoot: strikeTry,
       siegeTarget: m.siegeTarget ?? null,
+      ...(storeRaid ? { extraLootable: storeRaid.pool } : {}),
     }, s);
+    // Split the loot between the village stock and the store (the carriers take the whole of it home).
+    let lootFromStore: Resources | null = null;
+    let villageLoot = result.loot;
+    if (storeRaid && result.attackerWon) {
+      const hidden = vaultProtection(targetState);
+      const villagePool = emptyResources();
+      for (const r of RESOURCE_IDS) villagePool[r] = Math.max(0, Math.floor(targetState.resources[r]) - hidden);
+      const split = splitLoot(result.loot, villagePool, storeRaid.pool);
+      villageLoot = split.fromVillage;
+      if (RESOURCE_IDS.some((r) => split.fromStore[r] > 0)) {
+        lootFromStore = split.fromStore;
+        this.projects.applyRaid(storeRaid.tribeId, split.fromStore, origin.ownerName ?? 'someone', at);
+      }
+    }
     // Chieftain ledger: each owner's average reservation is read BEFORE any village is changed (the dead still count).
     const supportLosses = contingents.map((_, i) => normalizeUnits(result.supportLosses[i]));
     const chiefLosses: Array<[number | null, number]> = [
@@ -519,7 +545,7 @@ export class GameService {
       ...contingents.map((c, i): [number, number] => [c.ownerPlayerId, supportLosses[i]?.chieftain ?? 0]),
     ];
     const shares = chiefLosses.some(([, n]) => n > 0) ? this.sharesBefore(chiefLosses.map(([id]) => id), at) : null;
-    const newTarget = applyBattleToDefender(targetState, result);
+    const newTarget = applyBattleToDefender(targetState, { ...result, loot: villageLoot });
     const newOrigin = applyAttackerLosses(originState, result.attackerLosses);
     this.store.saveVillage(target.id, newTarget, villagePoints(newTarget));
     this.store.saveVillage(origin.id, newOrigin, villagePoints(newOrigin));
@@ -562,6 +588,7 @@ export class GameService {
       // The Wall as it counted in the battle (after the Log Rams' during hit); the Wall siege line below runs from before to after.
       wallLevel: result.wallDuring,
       loot: result.loot,
+      ...(lootFromStore ? { lootFromTribeStore: lootFromStore } : {}),
       ...(hasSiegeUnits(fighters) ? { siege: result.siege ?? [] } : {}),
     };
     if (origin.ownerId !== null) {
@@ -1308,10 +1335,12 @@ export class GameService {
     t: number,
     cargo?: Resources,
   ): { id: number; arriveAt: number } {
-    // A turned-back shipment (no units) travels at carrier speed.
-    const arriveAt = cargo
-      ? t + shipmentTravelMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, this.settings, this.sites.waymarksForPlayer(home.ownerId))
-      : t + travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings, this.sites.waymarksForPlayer(home.ownerId));
+    // A turned-back shipment (no units) travels at carrier speed. Roads shorten the way home between two members of one tribe
+    // (support coming home, a shipment turning back): the same factor as on the way out.
+    const way = cargo
+      ? shipmentTravelMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, this.settings, this.sites.waymarksForPlayer(home.ownerId))
+      : travelTimeMs({ x: from.x, y: from.y }, { x: home.x, y: home.y }, units, this.settings, this.sites.waymarksForPlayer(home.ownerId));
+    const arriveAt = t + this.projects.roadsMs(way, home.ownerId, from.ownerId, t);
     const id = this.store.insertMovement({
       kind: 'return',
       originVillageId: home.id,
@@ -1563,6 +1592,7 @@ export class GameService {
       if (have < 1) return {};
       return { chain: { have, need: chieftainsNeeded(abandoned, points), endsAt: Math.min(...counted.map((e) => e.at)) + windowMs } };
     };
+    const storeMarks = this.projects.storeMarkers(rows);
     return rows.map((r): MapVillageDto => {
       const points = r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points;
       return {
@@ -1582,6 +1612,7 @@ export class GameService {
         relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
         ...(r.coldState?.hearth ? { hearth: hearthDto(r.coldState.hearth, t, this.settings, this.store.getPlayer(r.coldState.hearth.claimBy)?.username ?? '?') } : {}),
         ...chainOf(r.id, r.ownerId === null, points),
+        ...(storeMarks.has(r.id) ? { tribeStore: true as const } : {}),
       };
     });
   }
@@ -1668,7 +1699,9 @@ export class GameService {
   tribeAlerts(player: PlayerRow, t: number): TribeAlertsResponse {
     const tribe = this.store.tribes.playerTribe(player.id);
     if (!tribe) throw new GameError('not_in_tribe', 'You are not in a tribe.');
+    const watchtowerLevel = this.projects.level(tribe.id, 'watchtower', t);
     return {
+      watchtowerLevel,
       alerts: this.store.tribeAlerts(tribe.id, ALERT_LIST_LIMIT).map((a) => ({
         movementId: a.movementId,
         target: stubRef(a.target),
@@ -1676,6 +1709,8 @@ export class GameService {
         attackerTribeTag: a.attackerTribeTag,
         departAt: a.departAt,
         arriveAt: a.arriveAt,
+        // Watchtower: a rough size, then the slowest unit, then about-how-many. Chieftains are never counted or named.
+        ...watchtowerInfo(a.units, watchtowerLevel),
       })),
       holds: this.store.tribeColdVillages(tribe.id, ALERT_LIST_LIMIT).flatMap((v): TribeHoldDto[] => {
         const h = v.state.hearth;
@@ -1912,7 +1947,9 @@ export class GameService {
       if (!check.ok) throw new GameError(check.reason, check.message);
       const next = applySend(settled, check.units, t, s);
       const dest = target ?? { x, y };
-      const travel = timing.travelSeconds !== undefined ? timing.travelSeconds * 1000 : travelTimeMs({ x: v.x, y: v.y }, { x: dest.x, y: dest.y }, check.units, s, this.sites.waymarksForPlayer(player.id));
+      let travel = timing.travelSeconds !== undefined ? timing.travelSeconds * 1000 : travelTimeMs({ x: v.x, y: v.y }, { x: dest.x, y: dest.y }, check.units, s, this.sites.waymarksForPlayer(player.id));
+      // Roads: support between villages of members of one tribe is faster (never attacks, scouts or marches to sites).
+      if (mission === 'support' && target && timing.travelSeconds === undefined) travel = this.projects.roadsMs(travel, player.id, target.ownerId, t);
 
       const movementId = this.store.insertMovement({
         returnSecs: timing.returnSeconds ?? null,
@@ -1941,7 +1978,7 @@ export class GameService {
    * Send resources to any player village (own, tribe-mate, ally, neutral or enemy). The cargo leaves the village at once
    * (after catch-up) and is credited on arrival. Section 13 of GAME_DESIGN.
    */
-  sendShipment(player: PlayerRow, villageId: number, x: number, y: number, cargo: unknown, t: number): SendShipmentResponse {
+  sendShipment(player: PlayerRow, villageId: number, x: number, y: number, cargo: unknown, t: number, toTribeStore = false): SendShipmentResponse {
     const s = this.settings;
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
@@ -1960,8 +1997,16 @@ export class GameService {
       const settled = settleVillage(v.state, t, s);
       const check = checkShipment(settled, cargo);
       if (!check.ok) throw new GameError(check.reason, check.message);
+      // To the Tribe Store: the member, daily-cap, account-age and store-cap checks run here, inside the send transaction.
+      const storeTribe = toTribeStore ? this.projects.checkFunding(player, target, check.resources, check.total, t) : null;
       const next = applyShipmentSend(settled, check.resources, t, s);
-      const travel = shipmentTravelMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, s, this.sites.waymarksForPlayer(player.id));
+      // Roads: shipments between villages of members of one tribe are faster (the Tribe Store funding included).
+      const travel = this.projects.roadsMs(
+        shipmentTravelMs({ x: v.x, y: v.y }, { x: target.x, y: target.y }, s, this.sites.waymarksForPlayer(player.id)),
+        player.id,
+        target.ownerId,
+        t,
+      );
       const movementId = this.store.insertMovement({
         kind: 'shipment',
         originVillageId: v.id,
@@ -1970,7 +2015,9 @@ export class GameService {
         loot: check.resources,
         departAt: t,
         arriveAt: t + travel,
+        ...(toTribeStore ? { toTribeStore: true } : {}),
       });
+      if (storeTribe !== null) this.projects.recordSend(movementId, storeTribe, player.id, check.total, t);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, {
         shipmentsSent: 1,
@@ -1995,6 +2042,7 @@ export class GameService {
       return null;
     }
     const at = m.arriveAt;
+    if (m.toTribeStore) return this.resolveStoreShipment(m, origin, target, cargo);
     const allowed = origin.ownerId !== null; // an abandoned target still takes the cargo
     if (!allowed) {
       const back = this.insertReturn(origin, target, emptyUnits(), at, cargo);
@@ -2036,6 +2084,33 @@ export class GameService {
   }
 
   /**
+   * A shipment to the Tribe Store arrives (GAME_DESIGN 18.5): into the store when the target is still the store village of the
+   * sender's tribe, else the whole cargo turns back. Any excess over the store cap (only possible after a project refund filled it)
+   * turns back home with the carriers. The village stock of the store village is never touched.
+   */
+  private resolveStoreShipment(m: MovementRow, origin: VillageRecord, target: VillageRecord, cargo: Resources): number | null {
+    const at = m.arriveAt;
+    const sender = origin.ownerId === null ? null : this.store.getPlayer(origin.ownerId);
+    const outcome = sender ? this.projects.arrive(sender.id, sender.username, target, cargo, at) : ({ kind: 'turned_back' } as const);
+    this.projects.forgetSend(m.id);
+    this.store.deleteMovement(m.id);
+    if (outcome.kind === 'turned_back') return this.insertReturn(origin, target, emptyUnits(), at, cargo).arriveAt;
+    const lost = emptyResources();
+    let back: number | null = null;
+    if (RESOURCE_IDS.some((r) => outcome.excess[r] > 0)) back = this.insertReturn(origin, target, emptyUnits(), at, outcome.excess).arriveAt;
+    this.store.insertReport({
+      playerId: origin.ownerId as number,
+      side: 'shipment',
+      won: true,
+      title: `Shipment delivered into the Tribe Store at ${target.name} ${coords(target)}`,
+      createdAt: at,
+      type: 'shipment',
+      shipment: { role: 'sent', from: refOf(origin), to: refOf(target), resources: cargo, stored: outcome.credited, lost },
+    });
+    return back;
+  }
+
+  /**
    * The sender calls an outgoing attack, scout, support or shipment back within CANCEL_WINDOW_MS of departure.
    * The troops (or cargo) return in exactly the time already travelled; nothing is looted. Others' movements look missing.
    */
@@ -2061,6 +2136,7 @@ export class GameService {
         ...(m.targetX != null && m.targetY != null ? { targetX: m.targetX, targetY: m.targetY } : {}),
       });
       this.store.deleteMovement(m.id);
+      if (m.kind === 'shipment') this.projects.forgetSend(m.id); // a cancelled funding shipment no longer counts towards the daily cap
       this.store.cancelNotifications(m.id); // the target's "incoming" notification goes with the order
       const view = this.store.getMovementView(id);
       if (!view) throw new Error('movement vanished after insert');

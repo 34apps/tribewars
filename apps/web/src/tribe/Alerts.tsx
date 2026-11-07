@@ -10,11 +10,34 @@ import { useGame } from '../game.ts';
 import { pollMs } from '../hooks/live.ts';
 import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
+import { Icon } from '../art/Icon.tsx';
+import { UNIT_ICON } from '../icons.ts';
+import { UNITS } from '@clanfire/engine';
 import { RELIEF_LABEL, alertCount, sortHolds } from '../villages.ts';
 
 const POLL_MS = 10_000; // slower while live updates are connected
 
-function AlertRow({ a }: { a: TribeAlertDto }) {
+const BAND_TEXT = { small: 'Small army', medium: 'Medium army', large: 'Large army', huge: 'Huge army' } as const;
+
+/** What the Watchtower shows about an attack: rough size, slowest unit, about-number. Nothing at level 0 beyond a hint. */
+function WatchtowerInfo({ a, level }: { a: TribeAlertDto; level: number }) {
+  if (!a.sizeBand && !a.slowestUnit && a.sizeAbout === undefined) {
+    return level <= 0 ? <p className="muted small alert-watch">Build a Watchtower to see more.</p> : null;
+  }
+  return (
+    <p className="alert-watch">
+      {a.sizeBand && <span className={`size-chip size-${a.sizeBand === 'huge' ? 'large' : a.sizeBand}`}>{BAND_TEXT[a.sizeBand]}</span>}
+      {a.sizeAbout !== undefined && a.sizeAbout > 0 && <span> about {a.sizeAbout.toLocaleString('en-US')} troops</span>}
+      {a.slowestUnit && (
+        <span className="muted">
+          {' '}· slowest: <Icon name={UNIT_ICON[a.slowestUnit]} size={16} className="inline-icon" /> {UNITS[a.slowestUnit].name}
+        </span>
+      )}
+    </p>
+  );
+}
+
+function AlertRow({ a, level }: { a: TribeAlertDto; level: number }) {
   const { now, villages, showOnMap, viewMovement } = useGame();
   const mine = villages.some((v) => v.id === a.target.villageId);
   const left = a.arriveAt - now;
@@ -46,6 +69,7 @@ function AlertRow({ a }: { a: TribeAlertDto }) {
           departed {formatClock(a.departAt, now)} ({formatAgo(a.departAt, now)}) · arrives {formatClock(a.arriveAt, now)}
         </span>
       </div>
+      <WatchtowerInfo a={a} level={level} />
       <div className="alert-actions">
         {mine ? (
           <button className="btn btn-tall" onClick={() => viewMovement(a.movementId)}>
@@ -107,6 +131,7 @@ function HoldRow({ h }: { h: TribeHoldDto }) {
 export function Alerts() {
   const { tribeAlerts } = useGame();
   const [alerts, setAlerts] = useState<TribeAlertDto[] | null>(null);
+  const [level, setLevel] = useState(0);
   const [holds, setHolds] = useState<TribeHoldDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
@@ -119,6 +144,7 @@ export function Alerts() {
       if (my < applied.current) return;
       applied.current = my;
       setAlerts([...res.alerts].sort((a, b) => a.arriveAt - b.arriveAt));
+      setLevel(res.watchtowerLevel ?? 0);
       setHolds(sortHolds(res.holds ?? []));
       setError(null);
     } catch (e) {
@@ -175,7 +201,7 @@ export function Alerts() {
       {alerts !== null && alerts.length > 0 && (
         <ul className="movement-list" aria-label="Incoming attacks on tribe members">
           {alerts.map((a) => (
-            <AlertRow key={a.movementId} a={a} />
+            <AlertRow key={a.movementId} a={a} level={level} />
           ))}
         </ul>
       )}

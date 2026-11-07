@@ -231,6 +231,8 @@ export interface SiteBattleInput {
   attackerRanks?: VillageRanks;
   supportRanks?: Array<VillageRanks | undefined>;
   seed: number;
+  /** Defence factor for the defending side (Wards of the holding tribe, GAME_DESIGN 18.5). Default 1. */
+  defenceMultiplier?: number;
 }
 
 /**
@@ -260,6 +262,7 @@ export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
     seed: input.seed,
     noLoot: true,
     siegeTarget: null,
+    defenceMultiplier: input.defenceMultiplier,
   });
   return { ...result, siege: [] };
 }

@@ -818,10 +818,43 @@ export const TRIBE_PERMISSIONS: Record<TribeAction, readonly TribeRole[]> = {
   forum_moderate: ['leader', 'officer'],
   // See each member's online status and last-online time (members' own tribe view only).
   view_activity: ['leader', 'officer'],
+  // Tribe projects (GAME_DESIGN 18.5): store village, start/cancel projects. Leader only by role; the leader can grant it.
+  projects: ['leader'],
 };
 
 /** Rights the leader may grant to an individual member (stored on the membership). Everything else stays role-bound. */
-export const TRIBE_GRANTABLE = ['invite', 'handle_applications', 'kick', 'diplomacy', 'edit_settings', 'forum_manage', 'forum_moderate', 'view_activity'] as const satisfies readonly TribeAction[];
+export const TRIBE_GRANTABLE = ['invite', 'handle_applications', 'kick', 'diplomacy', 'edit_settings', 'forum_manage', 'forum_moderate', 'view_activity', 'projects'] as const satisfies readonly TribeAction[];
+
+// ---- Tribe projects (docs/GAME_DESIGN.md 18.5; owner approved the simple version 2026-11-07) ----
+/** Most of EACH resource the Tribe Store holds. Cargo arriving above it turns back home with the carriers. */
+export const TRIBE_STORE_CAP = 1_500_000;
+/** Highest level of every project. */
+export const TRIBE_PROJECT_MAX_LEVEL = 3;
+/** Level L costs PROJECT_BASE_COST_PER_RESOURCE * PROJECT_COST_GROWTH^(L-1) of EACH resource (rounded); level 1 = 75,000 each. */
+export const PROJECT_BASE_COST_PER_RESOURCE = 75_000;
+export const PROJECT_COST_GROWTH = 1.8;
+/** Build time of level L: L * this many hours, divided by the world speed. */
+export const PROJECT_BUILD_HOURS_PER_LEVEL = 24;
+/** A member may send at most this much (sum of the 4 resources) to the store per rolling 24 h, cargo on the road included. */
+export const PROJECT_DAILY_CAP_PER_MEMBER = 60_000;
+/** Accounts younger than this many days cannot send to the store (stops fresh alt accounts funding projects). */
+export const PROJECT_MIN_ACCOUNT_DAYS = 3;
+/** The store village can be changed once per this many days (always when the store has no home). */
+export const STORE_VILLAGE_CHANGE_COOLDOWN_DAYS = 7;
+/** A won attack on the store village may carry away at most this share of each store resource (owner 2026-11-07: "a fifth"). */
+export const TRIBE_STORE_LOOT_SHARE = 0.2;
+/** Roads: support and shipments between two villages of the same tribe's members are this much faster, by level (index = level - 1). */
+export const ROADS_SPEED_BONUS = [0.1, 0.2, 0.3] as const;
+/** Wards: defence bonus for the holding tribe's side at map sites it holds (not villages), by level. */
+export const WARD_DEFENCE_BONUS = [0.04, 0.08, 0.12] as const;
+/**
+ * Watchtower alert bands, by the population of the incoming non-Chieftain units: below the first number = small, below the
+ * second = medium, below the third = large, else huge. Level 2 adds the slowest unit type; level 3 the population rounded to WATCHTOWER_ROUND_TO.
+ */
+export const WATCHTOWER_SIZE_BANDS = [200, 1_000, 4_000] as const;
+export const WATCHTOWER_ROUND_TO = 100;
+/** Ledger rows returned by GET /api/tribe/projects (newest first). */
+export const TRIBE_LEDGER_LIST_LIMIT = 50;
 
 // ---- Tribe forum (docs/GAME_DESIGN.md section 11) ----
 export const FORUM_BOARD_NAME_MAX = 40;

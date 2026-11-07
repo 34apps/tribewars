@@ -20,6 +20,10 @@ import {
   type TribeDto,
   type TribeMemberDto,
   type LookoutSightingsResponse,
+  type StartProjectRequest,
+  type StoreVillageRequest,
+  type TribeProjectsResponse,
+  TRIBE_PROJECT_IDS,
   type TribeAlertsResponse,
   type TribeListResponse,
   type TribeSettingsRequest,
@@ -277,6 +281,28 @@ export function tribeRoutes(app: FastifyInstance, ctx: AppContext): void {
   // ---- incoming attacks on members (scouts and support are not shown) ------------------------------------
 
   app.get('/api/tribe/alerts', auth, async (req): Promise<TribeAlertsResponse> => ctx.game.tribeAlerts(playerOf(req), req.nowMs));
+
+  // ---- tribe projects: Tribe Store, store village, Roads / Watchtower / Wards (GAME_DESIGN 18.5) --------
+
+  app.get('/api/tribe/projects', { ...auth, schema: { querystring: noQuery } }, async (req): Promise<TribeProjectsResponse> => ctx.game.projects.view(playerOf(req), req.nowMs));
+
+  app.post<{ Body: StoreVillageRequest }>(
+    '/api/tribe/projects/store-village',
+    { ...auth, schema: { body: { type: 'object', required: ['villageId'], additionalProperties: false, properties: { villageId: { type: 'integer', minimum: 1, maximum: 1_000_000_000 } } } } },
+    async (req): Promise<TribeProjectsResponse> => ctx.game.projects.setStoreVillage(playerOf(req), req.body.villageId, req.nowMs),
+  );
+
+  app.post<{ Body: StartProjectRequest }>(
+    '/api/tribe/projects/start',
+    { ...auth, schema: { body: { type: 'object', required: ['project'], additionalProperties: false, properties: { project: { type: 'string', enum: [...TRIBE_PROJECT_IDS] } } } } },
+    async (req, reply): Promise<TribeProjectsResponse> => {
+      const res = ctx.game.projects.start(playerOf(req), req.body.project, req.nowMs);
+      void reply.code(201);
+      return res;
+    },
+  );
+
+  app.post('/api/tribe/projects/cancel', auth, async (req): Promise<TribeProjectsResponse> => ctx.game.projects.cancel(playerOf(req), req.nowMs));
 
   // ---- Lookout sightings: enemy marches passing a Lookout the tribe holds (empty without a tribe) ----------
 

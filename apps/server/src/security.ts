@@ -61,6 +61,7 @@ export const ROUTE_LIMITS = {
   world: 30, // domination status (a few ranking queries), the world end screen, the site list and Lookout sightings
   notifications: 60, // incoming-attack notifications: list and mark read
   groups: 30, // saved troop groups: list, create, update, delete
+  projects: 30, // tribe projects: read the store and ledger, store village, start and cancel a project
 } as const;
 export type RouteBucket = keyof typeof ROUTE_LIMITS;
 
@@ -79,6 +80,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'lookup', test: /^\/api\/(search\/villages|scouted\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
   { bucket: 'world', test: /^\/api\/(domination|world-end|sites|tribe\/sightings)$/ },
+  { bucket: 'projects', test: /^\/api\/tribe\/projects(\/|$)/ },
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },
 ];
 

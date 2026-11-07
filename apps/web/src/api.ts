@@ -105,6 +105,8 @@ import type {
   ForumThreadsResponse,
   TribeAction,
   TribeMemberDto,
+  TribeProjectId,
+  TribeProjectsResponse,
 } from '@clanfire/engine';
 
 import type {
@@ -348,6 +350,10 @@ export const api = {
   declineProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/decline`, {}),
   withdrawProposal: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/proposals/${id}/withdraw`, {}),
   cancelRelation: (id: number) => request<MyTribeResponse>('POST', `/api/tribe/diplomacy/relations/${id}/cancel`, {}),
+  tribeProjects: () => request<TribeProjectsResponse>('GET', '/api/tribe/projects'),
+  setStoreVillage: (villageId: number) => request<TribeProjectsResponse>('POST', '/api/tribe/projects/store-village', { villageId }),
+  startProject: (project: TribeProjectId) => request<TribeProjectsResponse>('POST', '/api/tribe/projects/start', { project }),
+  cancelProject: () => request<TribeProjectsResponse>('POST', '/api/tribe/projects/cancel', {}),
   tribeAlerts: () => request<TribeAlertsResponse>('GET', '/api/tribe/alerts'),
   sightings: () => request<LookoutSightingsResponse>('GET', '/api/tribe/sightings'),
   chat: (after?: number) => request<ChatResponse>('GET', `/api/tribe/chat${after ? `?after=${after}` : ''}`),

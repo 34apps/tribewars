@@ -42,6 +42,7 @@ const ACTIONS: TribeAction[] = [
   'forum_manage',
   'forum_moderate',
   'view_activity',
+  'projects',
 ];
 
 describe('explicit grants', () => {
@@ -89,6 +90,7 @@ describe('canTribe: who may do what', () => {
     ['forum_manage', true, true, false],
     ['forum_moderate', true, true, false],
     ['view_activity', true, true, false],
+    ['projects', true, false, false], // leader only by role; the leader can grant it
   ];
 
   it('matches the rules table for every action and role', () => {

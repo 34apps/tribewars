@@ -1308,54 +1308,48 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
 
 ---
 
-### 18.5 Tribe projects funded by shipments
+### 18.5 Tribe projects (owner approved the simple version 2026-11-07; built 2026-11-07)
 
 **How it works**
-- A tribe has a **Tribe Store** (4 resources, cap 1,500,000 each) at a place called the **Seat**: one village chosen by
-  the leader (changeable once every 7 days; it must be a member's village and the owner agrees by choosing it).
-- Members fund the store by **shipping** to the Seat: the shipment form gets "Tribe Store" as a destination.
-  It uses the normal shipment rules (Market gate, carrier capacity, travel time, 5 on the road, cancel
-  window, household guard), so the Seat's location matters and a far-away member's help takes longer. On
-  arrival the cargo goes **into the store, not into the Seat village** (no storage cap overflow, the Seat owner
-  never sees or touches it).
-- Leaders, and members with a new grantable right `projects`, **start a project**. Its cost is paid from the store
-  at once and it completes after a build time (hours, not scaled by anything but world speed). Only one
-  project at a time per tribe; levels one after another like buildings. Cancelling a running project returns 80% to the store (same as village cancel).
-- Visible **ledger**: who sent how much and when (so leaders can see who carries the tribe and who does not).
-- **Projects** (levels 1–3 unless noted; effects are for **all members' villages**):
+- A tribe has a **Tribe Store**: 4 resources, at most 1,500,000 of each. It lives in one **store village**, a village of a current member
+  that the leader (or a member with the grantable right `projects`) picks. It can be changed once every 7 days. If the owner leaves,
+  is removed, or loses the village, the store has **no home**: the contents stay with the tribe, shipments cannot be sent, and a new
+  store village can be set at once. The store village is shown on the map to everybody (never what is in the store).
+- Members fund the store with a normal **shipment marked "to Tribe Store"** (the target must be the store village). Normal shipment
+  rules apply (Market, capacity, travel time, 5 on the road, 2 minute cancel window, household guard). On arrival the cargo goes **into the
+  store, not into the village stock**; the village owner never gets it. If the store village changed on the way, the cargo turns back home.
+  In the map send form the store village shows an "Into the Tribe Store" tick (on by default); untick it to ship to the owner's village as usual.
+  If the store is full when it lands (only possible after a cancelled project refunded it), what fits goes in and the rest walks home.
+- Extra checks, all inside the send transaction: the account is at least 3 days old (403), the member gave at most 60,000 (sum of
+  the 4 resources) in the last 24 hours counting cargo still on the road (409), and each resource of store plus cargo on the road plus this cargo
+  stays within the cap (409 `exceeds_storage`).
+- A visible **ledger** (newest 50 gifts, plus per-player totals and last 24 hours) shows who carries the tribe. It stays after members leave.
+- The leader (or a member with `projects`) **starts a project**: the cost is paid from the store at once, it builds for `24 h x level`
+  (divided by world speed), then helps every member for good. No upkeep. One project at a time per tribe, levels 1-3 one after another.
+  **Cancel** returns 80% to the store (clamped to the cap). A finished level shows up the next time anything reads it (finished lazily) and
+  is written to the tribe event log with its real finish time.
+- Cost of level L: `75,000 x 1.8^(L-1)` of each resource (75,000 / 135,000 / 243,000).
 
-| Project | Effect | Why this one |
-|---|---|---|
-| **Roads** | Support and shipments **between tribe members' villages** travel 10 / 20 / 30% faster (applied on top of terrain). Not for attacks. | Makes defence and logistics better; does not boost offence. |
-| **Watchtowers** | Tribe alerts show more about incoming attacks: level 1 the army size in rough bands; level 2 the slowest unit's type; level 3 whether a Chieftain is among them. | Information to answer a Strike (18.2). Defenders still cannot see exact armies. |
-| **Ember Wards** | +4 / +8 / +12% defence at **sites the tribe holds** (not villages). | Helps keep shrines without making villages untouchable. |
-| **Tribe Banner** (one level) | Map colours, shapes and a banner flag for the tribe (looks only). | A cheap identity goal for new tribes. |
+| Project | Effect (levels 1-3) |
+|---|---|
+| **Roads** | Support and shipments between villages of members of the tribe (also a player's own villages) travel 10 / 20 / 30% faster, on top of terrain and Waymarks. Troops coming home from that support and a shipment turning back use the same factor. Never attacks, scouts, marches to sites, or allies. |
+| **Watchtower** | The tribe's incoming-attack alerts show more. Level 1: the army size as a rough band (small below 200 population, medium below 1,000, large below 4,000, else huge). Level 2: also the slowest unit type. Level 3: also the size rounded to 100. **Chieftains are never counted or named**; a Chieftain-only attack shows as small with nothing else. |
+| **Wards** | +4 / +8 / +12% defence for the defending side at map sites (shrines, Waymarks, Lookouts) the tribe holds. Not at villages. |
 
-**Why it is fair**
-- Every effect is **logistics, information or defence at sites**. None raises attack or production, so a rich tribe cannot buy a stronger army.
-- The cost is paid in real resources, shipped by real members with real travel time and exposed to the Market gate.
-- **Per-member cap**: a member can fund at most `PROJECT_DAILY_CAP_PER_MEMBER` (60,000 total) per day, and an account needs `PROJECT_MIN_ACCOUNT_DAYS` (3) of age. So one rich account or a stack of fresh alts cannot buy a project alone, and the ledger shows it.
-- Tribes cannot hoard forever: the store has a cap. Resources in the store cannot be taken out except by starting projects; a disbanded tribe loses the store (nobody can steal it).
-- Members who leave keep their ledger line but not the store (the contribution is a gift to the tribe).
+**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Hidden Vault **and** up to a fifth
+of each store resource (rounded down); the carry limit is the same. The Hidden Vault shelters only the village's own stock, not the store.
+The loot of each resource is split between village and store in proportion to what each offered. The report shows `lootFromTribeStore`; the
+tribe event log says "The Tribe Store was raided by X". Renown counts the whole loot as before. So the tribe has to defend that village
+with support; a fifth per won attack and the existing repeat-raid rules bound what one raider can take.
 
-**Rough numbers for `config.ts`**
-`TRIBE_STORE_CAP` 1,500,000; project cost level L total goods `300,000 × 1.8^(L−1)` split evenly over 4 resources (level 1 = 75,000 each, so a 20-member tribe giving about 4% of one day's output each pays it in a day or two); build time `24 h × L` (÷ speed); `PROJECT_DAILY_CAP_PER_MEMBER` 60,000; `PROJECT_MIN_ACCOUNT_DAYS` 3; `SEAT_CHANGE_COOLDOWN_DAYS` 7; effects: `ROADS_SPEED_BONUS [0.10, 0.20, 0.30]`, `EMBER_WARD_DEFENCE [0.04, 0.08, 0.12]`, `WATCHTOWER_LEVELS`.
-(All to be checked with `npm run sim` against real production at day 20–40.)
+**Why it is fair.** Every effect is logistics, information or defence at sites. None raises attack or production. The cost is real
+resources shipped by real members with real travel time. The per-member daily cap, the account age and the ledger stop one rich account or a stack of
+fresh alts from buying a project alone. A disbanded tribe loses its store, projects and ledger.
 
-**What it needs**
-- Engine: `tribe-projects.ts` (cost, time, effect lookups), a `tribeStore` shape, shipment target kind `tribe_store`.
-- Server: tables `tribe_store`, `tribe_project` (running/finished), `tribe_ledger`; Seat set route; shipment resolve branch that credits the store; project start/cancel/finish (lazy, due events); alerts add detail by Watchtower level; roads applied inside the one `travelTimeMs` path.
-- Web: Tribe tab "Projects" page (store bars, current project, ledger, start button), Seat selector, "Tribe Store" in the shipment form, project icons.
-- Security: only leader/`projects` right starts projects; per-member daily cap and account age checked inside the shipment transaction; the store never goes below zero; event log entries; tests for double-spend (two projects started at once).
-
-**Size: M.**
-
-**Open questions for the owner**
-1. Is a **Seat village** the right model, or should shipments go to a "tribe stockpile" with no place on the map (simpler, but then no logistics)? I suggest the Seat.
-2. Do you want projects to give **permanent** effects (my proposal), or effects that need a small upkeep per week?
-3. Which projects do you want first? I suggest Roads and Watchtowers; Ember Wards only when sites exist.
-
----
+**Where it lives.** Engine: `packages/engine/src/tribe-projects.ts` (cost, time, roads, wards, Watchtower info, loot split) and the numbers in
+`config.ts` ("Tribe projects"). Server: `apps/server/src/tribe-projects-service.ts`, `tribe-projects-store.ts`, tables `tribe_stores`,
+`tribe_project_runs`, `tribe_store_ledger`, `tribe_store_sends` and `movements.to_tribe_store`; routes `GET /api/tribe/projects`,
+`POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
 ### 18.6 Cosmetics-only shop
 
@@ -1871,54 +1865,48 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
 
 ---
 
-### 18.5 Tribe projects funded by shipments
+### 18.5 Tribe projects (owner approved the simple version 2026-11-07; built 2026-11-07)
 
 **How it works**
-- A tribe has a **Tribe Store** (4 resources, cap 1,500,000 each) at a place called the **Seat**: one village chosen by
-  the leader (changeable once every 7 days; it must be a member's village and the owner agrees by choosing it).
-- Members fund the store by **shipping** to the Seat: the shipment form gets "Tribe Store" as a destination.
-  It uses the normal shipment rules (Market gate, carrier capacity, travel time, 5 on the road, cancel
-  window, household guard), so the Seat's location matters and a far-away member's help takes longer. On
-  arrival the cargo goes **into the store, not into the Seat village** (no storage cap overflow, the Seat owner
-  never sees or touches it).
-- Leaders, and members with a new grantable right `projects`, **start a project**. Its cost is paid from the store
-  at once and it completes after a build time (hours, not scaled by anything but world speed). Only one
-  project at a time per tribe; levels one after another like buildings. Cancelling a running project returns 80% to the store (same as village cancel).
-- Visible **ledger**: who sent how much and when (so leaders can see who carries the tribe and who does not).
-- **Projects** (levels 1–3 unless noted; effects are for **all members' villages**):
+- A tribe has a **Tribe Store**: 4 resources, at most 1,500,000 of each. It lives in one **store village**, a village of a current member
+  that the leader (or a member with the grantable right `projects`) picks. It can be changed once every 7 days. If the owner leaves,
+  is removed, or loses the village, the store has **no home**: the contents stay with the tribe, shipments cannot be sent, and a new
+  store village can be set at once. The store village is shown on the map to everybody (never what is in the store).
+- Members fund the store with a normal **shipment marked "to Tribe Store"** (the target must be the store village). Normal shipment
+  rules apply (Market, capacity, travel time, 5 on the road, 2 minute cancel window, household guard). On arrival the cargo goes **into the
+  store, not into the village stock**; the village owner never gets it. If the store village changed on the way, the cargo turns back home.
+  In the map send form the store village shows an "Into the Tribe Store" tick (on by default); untick it to ship to the owner's village as usual.
+  If the store is full when it lands (only possible after a cancelled project refunded it), what fits goes in and the rest walks home.
+- Extra checks, all inside the send transaction: the account is at least 3 days old (403), the member gave at most 60,000 (sum of
+  the 4 resources) in the last 24 hours counting cargo still on the road (409), and each resource of store plus cargo on the road plus this cargo
+  stays within the cap (409 `exceeds_storage`).
+- A visible **ledger** (newest 50 gifts, plus per-player totals and last 24 hours) shows who carries the tribe. It stays after members leave.
+- The leader (or a member with `projects`) **starts a project**: the cost is paid from the store at once, it builds for `24 h x level`
+  (divided by world speed), then helps every member for good. No upkeep. One project at a time per tribe, levels 1-3 one after another.
+  **Cancel** returns 80% to the store (clamped to the cap). A finished level shows up the next time anything reads it (finished lazily) and
+  is written to the tribe event log with its real finish time.
+- Cost of level L: `75,000 x 1.8^(L-1)` of each resource (75,000 / 135,000 / 243,000).
 
-| Project | Effect | Why this one |
-|---|---|---|
-| **Roads** | Support and shipments **between tribe members' villages** travel 10 / 20 / 30% faster (applied on top of terrain). Not for attacks. | Makes defence and logistics better; does not boost offence. |
-| **Watchtowers** | Tribe alerts show more about incoming attacks: level 1 the army size in rough bands; level 2 the slowest unit's type; level 3 whether a Chieftain is among them. | Information to answer a Strike (18.2). Defenders still cannot see exact armies. |
-| **Ember Wards** | +4 / +8 / +12% defence at **sites the tribe holds** (not villages). | Helps keep shrines without making villages untouchable. |
-| **Tribe Banner** (one level) | Map colours, shapes and a banner flag for the tribe (looks only). | A cheap identity goal for new tribes. |
+| Project | Effect (levels 1-3) |
+|---|---|
+| **Roads** | Support and shipments between villages of members of the tribe (also a player's own villages) travel 10 / 20 / 30% faster, on top of terrain and Waymarks. Troops coming home from that support and a shipment turning back use the same factor. Never attacks, scouts, marches to sites, or allies. |
+| **Watchtower** | The tribe's incoming-attack alerts show more. Level 1: the army size as a rough band (small below 200 population, medium below 1,000, large below 4,000, else huge). Level 2: also the slowest unit type. Level 3: also the size rounded to 100. **Chieftains are never counted or named**; a Chieftain-only attack shows as small with nothing else. |
+| **Wards** | +4 / +8 / +12% defence for the defending side at map sites (shrines, Waymarks, Lookouts) the tribe holds. Not at villages. |
 
-**Why it is fair**
-- Every effect is **logistics, information or defence at sites**. None raises attack or production, so a rich tribe cannot buy a stronger army.
-- The cost is paid in real resources, shipped by real members with real travel time and exposed to the Market gate.
-- **Per-member cap**: a member can fund at most `PROJECT_DAILY_CAP_PER_MEMBER` (60,000 total) per day, and an account needs `PROJECT_MIN_ACCOUNT_DAYS` (3) of age. So one rich account or a stack of fresh alts cannot buy a project alone, and the ledger shows it.
-- Tribes cannot hoard forever: the store has a cap. Resources in the store cannot be taken out except by starting projects; a disbanded tribe loses the store (nobody can steal it).
-- Members who leave keep their ledger line but not the store (the contribution is a gift to the tribe).
+**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Hidden Vault **and** up to a fifth
+of each store resource (rounded down); the carry limit is the same. The Hidden Vault shelters only the village's own stock, not the store.
+The loot of each resource is split between village and store in proportion to what each offered. The report shows `lootFromTribeStore`; the
+tribe event log says "The Tribe Store was raided by X". Renown counts the whole loot as before. So the tribe has to defend that village
+with support; a fifth per won attack and the existing repeat-raid rules bound what one raider can take.
 
-**Rough numbers for `config.ts`**
-`TRIBE_STORE_CAP` 1,500,000; project cost level L total goods `300,000 × 1.8^(L−1)` split evenly over 4 resources (level 1 = 75,000 each, so a 20-member tribe giving about 4% of one day's output each pays it in a day or two); build time `24 h × L` (÷ speed); `PROJECT_DAILY_CAP_PER_MEMBER` 60,000; `PROJECT_MIN_ACCOUNT_DAYS` 3; `SEAT_CHANGE_COOLDOWN_DAYS` 7; effects: `ROADS_SPEED_BONUS [0.10, 0.20, 0.30]`, `EMBER_WARD_DEFENCE [0.04, 0.08, 0.12]`, `WATCHTOWER_LEVELS`.
-(All to be checked with `npm run sim` against real production at day 20–40.)
+**Why it is fair.** Every effect is logistics, information or defence at sites. None raises attack or production. The cost is real
+resources shipped by real members with real travel time. The per-member daily cap, the account age and the ledger stop one rich account or a stack of
+fresh alts from buying a project alone. A disbanded tribe loses its store, projects and ledger.
 
-**What it needs**
-- Engine: `tribe-projects.ts` (cost, time, effect lookups), a `tribeStore` shape, shipment target kind `tribe_store`.
-- Server: tables `tribe_store`, `tribe_project` (running/finished), `tribe_ledger`; Seat set route; shipment resolve branch that credits the store; project start/cancel/finish (lazy, due events); alerts add detail by Watchtower level; roads applied inside the one `travelTimeMs` path.
-- Web: Tribe tab "Projects" page (store bars, current project, ledger, start button), Seat selector, "Tribe Store" in the shipment form, project icons.
-- Security: only leader/`projects` right starts projects; per-member daily cap and account age checked inside the shipment transaction; the store never goes below zero; event log entries; tests for double-spend (two projects started at once).
-
-**Size: M.**
-
-**Open questions for the owner**
-1. Is a **Seat village** the right model, or should shipments go to a "tribe stockpile" with no place on the map (simpler, but then no logistics)? I suggest the Seat.
-2. Do you want projects to give **permanent** effects (my proposal), or effects that need a small upkeep per week?
-3. Which projects do you want first? I suggest Roads and Watchtowers; Ember Wards only when sites exist.
-
----
+**Where it lives.** Engine: `packages/engine/src/tribe-projects.ts` (cost, time, roads, wards, Watchtower info, loot split) and the numbers in
+`config.ts` ("Tribe projects"). Server: `apps/server/src/tribe-projects-service.ts`, `tribe-projects-store.ts`, tables `tribe_stores`,
+`tribe_project_runs`, `tribe_store_ledger`, `tribe_store_sends` and `movements.to_tribe_store`; routes `GET /api/tribe/projects`,
+`POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
 ### 18.6 Cosmetics-only shop
 
@@ -2019,6 +2007,8 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 10. **Siege (owner, 2026-11-04):** building levels only drop through siege, never automatically (no loss on capture, none from time). Our own design, details in §18.9.
 
 Terrain slowing an average trip by about 12% was not answered; it stays as proposed (§18.4a) and was built and re-checked with `npm run sim` on 2026-11-04 (step 1 done; the sim's pace did not move, `BALANCE.md` 7.4).
+
+13. **Owner 2026-11-07: tribe projects simple version** — store in a member village that can be raided (at most a fifth per won attack), Roads/Watchtower/Wards 3 levels, permanent, no Banner. Built the same day (§18.5).
 
 ### 18.9 Siege units: the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05)
 

@@ -42,6 +42,8 @@ import {
   type TribeInviteDto,
   type TribeListResponse,
   type TribeMemberDto,
+  type TribeProjectId,
+  type VillageRefDto,
   type TribeRelationDto,
   type TribeRole,
   type TribeSettingsRequest,
@@ -49,6 +51,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import { assertNotMuted } from './mute.ts';
+import { TribeProjectService } from './tribe-projects-service.ts';
 import type { PlayerRow, Store } from './store.ts';
 import type { ApplicationRow, InviteRow, MemberRow, MembershipRow, ProposalRow, RankedTribeRow, RelationSideRow, TribeRow } from './tribe-store.ts';
 
@@ -77,6 +80,7 @@ const DENIED: Record<TribeAction, string> = {
   forum_manage: "You don't have the right to manage the forum boards.",
   forum_moderate: "You don't have the right to moderate the forum.",
   view_activity: "You don't have the right to see when members were last online.",
+  projects: "You don't have the right to manage the tribe projects.",
 };
 
 const RECRUITMENT_LABEL: Record<Recruitment, string> = {
@@ -151,10 +155,14 @@ class ChatLimiter {
 export class TribeService {
   private readonly chatLimiter = new ChatLimiter();
 
+  private readonly projects: TribeProjectService;
+
   constructor(
     private readonly store: Store,
     private readonly settings: WorldSettings,
-  ) {}
+  ) {
+    this.projects = new TribeProjectService(store, settings);
+  }
 
   private get ts() {
     return this.store.tribes;
@@ -748,7 +756,14 @@ export class TribeService {
       members: memberList.length,
       memberList,
       relations: this.ts.relationsOfTribe(tribeId, t).map((r) => relationDto(r, tribeId)),
+      // Own tribe view only (withGrants marks it): finished project levels for travel previews, and the store village.
+      ...(withGrants ? this.projectInfo(tribeId, t) : {}),
     };
+  }
+
+  private projectInfo(tribeId: number, t: number): { projectLevels: Record<TribeProjectId, number>; storeVillage: VillageRefDto | null } {
+    const info = this.projects.ownTribeInfo(tribeId, t);
+    return { projectLevels: info.levels, storeVillage: info.storeVillage };
   }
 
   private view(playerId: number, t: number): MyTribeResponse {

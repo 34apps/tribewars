@@ -416,6 +416,45 @@ function drawSmoke(ctx: CanvasRenderingContext2D, x: number, y: number, s: numbe
   ctx.restore();
 }
 
+/** The Tribe Store marker: a small toy chest (ink outline, warm wood, gold band and lock) beside the village. */
+function drawChest(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale: number): void {
+  // Never smaller than a readable icon when zoomed out.
+  const s = Math.max(scale, 0.9);
+  const w = 26 * s;
+  const h = 18 * s;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.setLineDash([]);
+  ctx.lineWidth = Math.max(1.5, 1.8 * s);
+  ctx.strokeStyle = INK;
+  // Body, then the rounded lid.
+  ctx.fillStyle = '#B0763A';
+  ctx.beginPath();
+  ctx.rect(cx - w / 2, cy - h * 0.55, w, h * 0.75);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#C98D4A';
+  ctx.beginPath();
+  ctx.moveTo(cx - w / 2, cy - h * 0.55);
+  ctx.quadraticCurveTo(cx, cy - h * 1.5, cx + w / 2, cy - h * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Gold band and lock.
+  ctx.strokeStyle = '#E3B23C';
+  ctx.lineWidth = Math.max(1.2, 1.6 * s);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - h * 0.98);
+  ctx.lineTo(cx, cy + h * 0.2);
+  ctx.stroke();
+  ctx.fillStyle = '#E3B23C';
+  ctx.beginPath();
+  ctx.arc(cx, cy - h * 0.3, Math.max(1.4, 1.9 * s), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapVillageDto, x: number, y: number, s: number): DrawnVillage {
   const al = allegianceOf(v);
   const style = ALLEGIANCE_STYLE[al];
@@ -479,6 +518,8 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
     painter.draw(`banner-${al}`, x + base[0] * s * k, y + base[1] * s * k, 1.15 * k);
   }
+
+  if (v.tribeStore) drawChest(ctx, x + 46 * s, y - 2 * s, s);
 
   if (cold) {
     const top = abandoned ? RUIN_TOP[ruinStage(v.points) - 1] : STAGE_TOP[mapStage(v.points) - 1];
@@ -1095,7 +1136,7 @@ function drawMovements(sc: Scene): number {
       const where = `${mv.target.x}|${mv.target.y}`;
       const left = shortClock(mv.arriveAt - now);
       let text: string;
-      if (mv.kind === 'shipment') text = `${incoming ? 'Resources to' : 'Shipment to'} ${where} · ${left}`;
+      if (mv.kind === 'shipment') text = `${incoming ? 'Resources to' : mv.toTribeStore ? 'To Tribe Store' : 'Shipment to'} ${where} · ${left}`;
       else if (incoming) text = mv.kind === 'support' ? `Support to ${where} · ${left}` : `Attack on ${where} · ${left}`;
       else if (mv.kind === 'attack') text = `${mv.target.ownerName ? 'Attack on' : 'Raid on'} ${where} · ${left}`;
       else if (mv.kind === 'scout') text = `Scouting ${where} · ${left}`;

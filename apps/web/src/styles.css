@@ -4792,3 +4792,134 @@ button.strip {
 .size-large {
   color: var(--danger);
 }
+
+/* Tribe tab: Projects (Tribe Store, project cards, ledger). 360 px first; wider screens use columns, the page scrolls. */
+.store-bars {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 720px) {
+  .store-bars {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 24px;
+  }
+}
+
+.store-bars li {
+  display: grid;
+  gap: 4px;
+}
+
+.store-bar-name {
+  font-weight: 700;
+}
+
+.store-bar-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.store-home,
+.store-give {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.store-pick {
+  display: grid;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.store-pick select {
+  min-height: 48px;
+  width: 100%;
+  font-size: 16px;
+}
+
+.btn-wide {
+  width: 100%;
+}
+
+@media (min-width: 720px) {
+  .btn-wide {
+    width: auto;
+    justify-self: start;
+  }
+}
+
+.project-grid {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .project-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.project-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid var(--c-ink-4);
+  border-radius: 14px;
+  background: var(--c-ink-2);
+}
+
+.project-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-name {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ledger-cols {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 720px) {
+  .ledger-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+.ledger-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-name {
+  overflow-wrap: anywhere;
+}
+
+.alert-watch {
+  margin-top: 6px;
+}

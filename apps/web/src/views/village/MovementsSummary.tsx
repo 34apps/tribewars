@@ -7,7 +7,7 @@ import { useGame } from '../../game.ts';
 function label(mv: MovementDto): string {
   const where = formatCoords(mv.target.x, mv.target.y);
   const incoming = mv.direction === 'incoming';
-  if (mv.kind === 'shipment') return incoming ? `Resources coming from ${formatCoords(mv.origin.x, mv.origin.y)}` : `Shipment to ${where}`;
+  if (mv.kind === 'shipment') return incoming ? `Resources coming from ${formatCoords(mv.origin.x, mv.origin.y)}` : (mv.toTribeStore ? `Shipment to Tribe Store ${where}` : `Shipment to ${where}`);
   if (incoming) return mv.kind === 'support' ? `Support arriving from ${formatCoords(mv.origin.x, mv.origin.y)}` : `Attack coming from ${formatCoords(mv.origin.x, mv.origin.y)}`;
   if (mv.kind === 'return') return 'Returning home';
   if (mv.kind === 'scout') return `Scouting ${where}`;

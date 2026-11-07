@@ -22,18 +22,20 @@ import { Finder } from '../tribe/Finder.tsx';
 import { Forum } from '../tribe/Forum.tsx';
 import { Log } from '../tribe/Log.tsx';
 import { Members } from '../tribe/Members.tsx';
+import { Projects } from '../tribe/Projects.tsx';
 import { Overview } from '../tribe/Overview.tsx';
 import { PublicTribe } from '../tribe/PublicTribe.tsx';
 import { Recruit } from '../tribe/Recruit.tsx';
 import { useMyTribe } from '../tribe/useMyTribe.ts';
 
-type Section = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'recruit' | 'chat' | 'forum' | 'log';
+type Section = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'projects' | 'recruit' | 'chat' | 'forum' | 'log';
 
 const SECTION_LABEL: Record<Section, string> = {
   alerts: 'Alerts',
   overview: 'Overview',
   members: 'Members',
   diplomacy: 'Diplomacy',
+  projects: 'Projects',
   recruit: 'Recruit',
   chat: 'Chat',
   forum: 'Forum',
@@ -68,8 +70,8 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   const sections = useMemo<Section[]>(
     () =>
       canRecruit
-        ? ['alerts', 'overview', 'members', 'diplomacy', 'recruit', 'chat', 'forum', 'log']
-        : ['alerts', 'overview', 'members', 'diplomacy', 'chat', 'forum', 'log'],
+        ? ['alerts', 'overview', 'members', 'diplomacy', 'projects', 'recruit', 'chat', 'forum', 'log']
+        : ['alerts', 'overview', 'members', 'diplomacy', 'projects', 'chat', 'forum', 'log'],
     [canRecruit],
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
@@ -127,6 +129,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
         {section === 'overview' && <Overview tribe={tribe} role={role} />}
         {section === 'members' && <Members tribe={tribe} role={role} />}
         {section === 'diplomacy' && <Diplomacy tribe={tribe} role={role} />}
+        {section === 'projects' && <Projects />}
         {section === 'recruit' && <Recruit tribe={tribe} role={role} />}
         {section === 'chat' && <Chat />}
         {section === 'forum' && <Forum />}
