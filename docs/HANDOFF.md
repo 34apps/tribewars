@@ -3,16 +3,13 @@
 Written 2026-11-07 (HEAD after the step 8 commits). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-07, step 8 session)
+## Last run (2026-11-07, UI clean-up session)
 
-Plan (NEXT_STEPS top entry, owner-approved order): steps 1-4, 6, 7 and now **8 Tribe projects DONE**; 5 foraging CUT.
-Owner said yes to the simple version and added a twist: the Tribe Store lives in a real member village and **can be raided**
-(a won attack takes at most a fifth of each store resource). Roads / Watchtower / Wards, 3 levels, permanent; no Banner.
-Rules in `GAME_DESIGN` 18.5 (both copies identical) and 18.8 item 13. Labelled screenshots in
-`design/proposals/tribe-projects/` (sent to the owner). **Screenshot tooling is now kept** in
-`design/proposals/tribe-projects/tooling/`: `shot.mjs` (headless Chrome CDP on `apps/preview/dist/index.html?demo`, seeds
-through `clanfirePreview.ctx`; edit the SEED block per feature) and `compose.mjs` (numbered labels + legend). Both use
-absolute scratchpad paths at the top: change `SCRATCH` before running.
+Owner asked: lighter, readable, less text. Done and pushed: Tribe Projects + Lookout in light parchment panels (`.card-light`,
+owner pick A); no one-sided accent stripes anywhere (rule in `ART_DIRECTION`); text trimmed to labels + numbers on every
+screen, explanations behind a "?" (`.title-row` + `.help-pop`) or tooltips (fd3c2b2); project Build buttons line up. The rest of
+the app keeps dark panels (owner: only the new parts lighter). Screenshot tooling for all tabs:
+`design/proposals/light-tribe-parts/tooling/` (`after-shot.mjs`; fakes `/api/tribe/sightings`).
 
 ## Very next step
 
