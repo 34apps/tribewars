@@ -1,21 +1,19 @@
 # Handoff — Clanfire
 
-Written 2026-11-07 (HEAD after the step 8 commits). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-08 (HEAD after step 9, badges + Hall of Fame). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-07, UI clean-up session)
+## Last run (2026-11-08, step 9)
 
-Owner asked: lighter, readable, less text. Done and pushed: Tribe Projects + Lookout in light parchment panels (`.card-light`,
-owner pick A); no one-sided accent stripes anywhere (rule in `ART_DIRECTION`); text trimmed to labels + numbers on every
-screen, explanations behind a "?" (`.title-row` + `.help-pop`) or tooltips (fd3c2b2); project Build buttons line up. The rest of
-the app keeps dark panels (owner: only the new parts lighter). Screenshot tooling for all tabs:
-`design/proposals/light-tribe-parts/tooling/` (`after-shot.mjs`; fakes `/api/tribe/sightings`).
+Badges + Hall of Fame built and pushed (`8238175`): Champion, 2nd/3rd tribe, Top 10, Veteran (14 days in world/tribe, played in the
+last 7 days). A world computes its badges once at its end; the operator's lobby command `world-finish <id> <world db>` copies them to
+accounts, writes the Hall of Fame row and sets Finished. Shown in the lobby (badge row + Hall of Fame), on profiles and on the end
+screen. Screenshot tooling with faked API data: `design/proposals/badges/tooling/badges-shot.mjs` (needs vite on 127.0.0.1:5199).
 
 ## Very next step
 
-Plan step 9: **Hall of Fame + season badges** (`GAME_DESIGN` 18.1 / ~759-822; the lobby has no badge code yet). Explain to
-the owner in 3 plain lines (no formulas, no new words) and get a yes before building. Then 10 morale (design first),
-11 homepage + quests, 12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
+Plan step 10: **morale** (design first: explain to the owner in 3 plain lines, no formulas, get a yes). Then 11 homepage + quests,
+12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
 Note: `GAME_DESIGN` 18.2-18.6 is still duplicated (~857-1410 and ~1410-1950); edit both copies or merge them first.
 
 ## How the owner works (important)
