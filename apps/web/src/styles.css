@@ -4923,3 +4923,58 @@ button.strip {
 .alert-watch {
   margin-top: 6px;
 }
+
+/* Light "parchment" panels for the Tribe Projects page and the Lookout list (owner pick A, 2026-11-07). Same
+   tokens as the dark panels, switched back to dark ink on warm paper; every text colour here is at least 4.5:1. */
+.card.card-light {
+  --ink: var(--c-ink);
+  --ink-soft: #5d4838;
+  --line: rgba(43, 33, 28, 0.2);
+  --line-strong: var(--c-ink);
+  --panel-2: #fffaf0;
+  --brand: var(--c-ink);
+  --brand-dark: var(--c-edge);
+  --on-brand: var(--c-cream);
+  --danger: #8f2f17;
+  --danger-bg: #f8d8c6;
+  --ok: #2e5a1c;
+  --ok-bg: #d6e8b4;
+  --warn: #6b4410;
+  --warn-bg: #f6d991;
+  --info: #155a5e;
+  --info-bg: #c8eae6;
+  color: var(--ink);
+  background: #f8edd6;
+  box-shadow: inset 0 0 0 2.5px var(--c-ink), inset 0 5px 0 #fffaf0, 0 5px 0 var(--c-edge);
+}
+
+.card-light .card-title {
+  color: var(--c-ink);
+}
+
+.card-light .progress {
+  background: #e7d7b8;
+  box-shadow: inset 0 2px 0 rgba(43, 33, 28, 0.16);
+}
+
+.card-light .btn:disabled {
+  background: #ece0c6;
+  border-color: rgba(43, 33, 28, 0.4);
+  box-shadow: inset 0 -4px 0 rgba(43, 33, 28, 0.1);
+  color: #6a5646;
+}
+
+.card-light .input {
+  background: #fff;
+}
+
+.card-light .project-card {
+  padding-top: 16px;
+  background: #fffaf0;
+  border: 2px solid var(--c-ink);
+  box-shadow: inset 0 6px 0 var(--c-sun), 0 3px 0 rgba(43, 33, 28, 0.25);
+}
+
+.card-light .size-medium {
+  color: var(--warn);
+}

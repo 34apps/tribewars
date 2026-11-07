@@ -1,0 +1,58 @@
+/* Light panels for the new Tribe parts. Shared base; .pilot-a/b/c set the look. */
+.card.card-light {
+  --ink: var(--c-ink);
+  --ink-soft: #5d4838;
+  --line: rgba(43, 33, 28, 0.2);
+  --line-strong: var(--c-ink);
+  --panel-2: var(--L-inner);
+  --brand: var(--c-ink);
+  --brand-dark: var(--c-edge);
+  --on-brand: var(--c-cream);
+  --danger: #8f2f17;
+  --danger-bg: #f8d8c6;
+  --ok: #2e5a1c;
+  --ok-bg: #d6e8b4;
+  --warn: #6b4410;
+  --warn-bg: #f6d991;
+  --info: #155a5e;
+  --info-bg: #c8eae6;
+  color: var(--ink);
+  background: var(--L-bg);
+  box-shadow: inset 0 0 0 2.5px var(--c-ink), inset 0 5px 0 var(--L-hi), 0 5px 0 var(--c-edge);
+}
+.card-light .card-title { color: var(--L-title); }
+.card-light .progress { background: var(--L-track); box-shadow: inset 0 2px 0 rgba(43, 33, 28, 0.16); }
+.card-light .btn:disabled {
+  background: var(--L-disabled);
+  border-color: rgba(43, 33, 28, 0.4);
+  box-shadow: inset 0 -4px 0 rgba(43, 33, 28, 0.1);
+  color: #6a5646;
+}
+.card-light .project-card {
+  background: var(--L-inner);
+  border: 2px solid var(--c-ink);
+  box-shadow: 0 3px 0 rgba(43, 33, 28, 0.25);
+}
+.card-light .input { background: #fff; }
+
+/* A · Parchment: warm paper, ink text, sun edge on each project */
+.pilot-a { --L-bg: #f8edd6; --L-hi: #fffaf0; --L-inner: #fffaf0; --L-title: var(--c-ink); --L-track: #e7d7b8; --L-disabled: #ece0c6; }
+.pilot-a .card-light .project-card { box-shadow: inset 0 6px 0 var(--c-sun), 0 3px 0 rgba(43, 33, 28, 0.25); padding-top: 16px; }
+
+/* B · Meadow & sky: pale sky panels, white cards, one colour band per project */
+.pilot-b { --L-bg: #dff0ec; --L-hi: #f2faf8; --L-inner: #ffffff; --L-title: #164d52; --L-track: #c4dfda; --L-disabled: #e3ece9; }
+.pilot-b .card-light .project-card { padding-top: 0; overflow: hidden; }
+.pilot-b .card-light .project-head { margin: 0 -12px; padding: 10px 12px; color: #fff; }
+.pilot-b .card-light .project-head .muted { color: #fff; opacity: 0.95; }
+.pilot-b .card-light .project-grid > li:nth-child(1) .project-head { background: #3f6b22; }
+.pilot-b .card-light .project-grid > li:nth-child(2) .project-head { background: #1a646b; }
+.pilot-b .card-light .project-grid > li:nth-child(3) .project-head { background: var(--c-plum); }
+
+/* C · Stone + sun: soft stone panels, titles on a sun-yellow toy label */
+.pilot-c { --L-bg: #eceae4; --L-hi: #f8f7f3; --L-inner: #fbfaf7; --L-title: var(--c-ink); --L-track: #d9d6cd; --L-disabled: #e4e1d9; }
+.pilot-c .card-light .card-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px 7px; border: 2.5px solid var(--c-ink); border-radius: 12px;
+  background: var(--c-sun); box-shadow: inset 0 2px 0 var(--c-sun-hi), 0 3px 0 var(--c-ink);
+}
+.pilot-c .card-light .project-card { border-left-width: 8px; border-left-color: var(--c-terra); }

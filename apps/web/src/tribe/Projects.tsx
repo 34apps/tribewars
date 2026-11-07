@@ -135,7 +135,7 @@ export function Projects() {
 
   if (!d) {
     return error ? (
-      <section className="card">
+      <section className="card card-light">
         <p className="form-error" role="alert">{error}</p>
         <button className="btn" onClick={() => void load()}>Try again</button>
       </section>
@@ -160,7 +160,7 @@ export function Projects() {
 
   return (
     <>
-      <section className="card" aria-labelledby="store-title">
+      <section className="card card-light" aria-labelledby="store-title">
         <h2 id="store-title" className="card-title">Tribe Store</h2>
         <p className="muted small pad-bottom">
           Members send resources to the store village. The tribe spends them on projects that help every member. Anyone can raid the store village, so defend it.
@@ -222,7 +222,7 @@ export function Projects() {
       </section>
 
       {d.running && (
-        <section className="card" aria-labelledby="running-title">
+        <section className="card card-light" aria-labelledby="running-title">
           <h2 id="running-title" className="card-title">
             <Icon name={PROJECT_ICON[d.running.project]} size={24} className="inline-icon" /> Building {PROJECT_NAME[d.running.project]}, level {d.running.level}
           </h2>
@@ -242,7 +242,7 @@ export function Projects() {
         </section>
       )}
 
-      <section className="card" aria-labelledby="projects-title">
+      <section className="card card-light" aria-labelledby="projects-title">
         <h2 id="projects-title" className="card-title">Projects</h2>
         <p className="muted small pad-bottom">One at a time, level by level. They last for good and help every member.</p>
         <ul className="project-grid">
@@ -282,7 +282,7 @@ export function Projects() {
         {!d.canManage && <p className="muted small">The leader, or a member with the "Tribe projects" right, starts projects.</p>}
       </section>
 
-      <section className="card" aria-labelledby="ledger-title">
+      <section className="card card-light" aria-labelledby="ledger-title">
         <h2 id="ledger-title" className="card-title">Who gave</h2>
         {d.totals.length === 0 ? (
           <p className="muted">Nobody has given yet.</p>
