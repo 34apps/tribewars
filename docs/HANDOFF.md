@@ -1,22 +1,25 @@
 # Handoff — Clanfire
 
-Written 2026-11-07 (HEAD after `3416e75`). Read this first, then `docs/AI-WORKFLOW.md`, the top of
+Written 2026-11-07 (HEAD after the step 8 commits). Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
-## Last run (2026-11-07, step 7 session)
+## Last run (2026-11-07, step 8 session)
 
-Plan (NEXT_STEPS top entry, owner-approved order): steps 1-4, 6 and now **7 Waymarks + Lookouts DONE** (`3416e75`);
-5 foraging CUT. Owner said yes to the 3-line explanation and picked "A": Lookout sightings as a Tribe-tab list AND red
-arrows on the map. Screenshots in `design/proposals/waymark-lookout/`. Screenshot tooling: a headless Chrome CDP script
-drives `apps/preview/dist/index.html?demo` and seeds state through the page's `clanfirePreview.ctx` handle (scripts lived
-in the session scratchpad, now gone; re-create when needed).
+Plan (NEXT_STEPS top entry, owner-approved order): steps 1-4, 6, 7 and now **8 Tribe projects DONE**; 5 foraging CUT.
+Owner said yes to the simple version and added a twist: the Tribe Store lives in a real member village and **can be raided**
+(a won attack takes at most a fifth of each store resource). Roads / Watchtower / Wards, 3 levels, permanent; no Banner.
+Rules in `GAME_DESIGN` 18.5 (both copies identical) and 18.8 item 13. Labelled screenshots in
+`design/proposals/tribe-projects/` (sent to the owner). **Screenshot tooling is now kept** in
+`design/proposals/tribe-projects/tooling/`: `shot.mjs` (headless Chrome CDP on `apps/preview/dist/index.html?demo`, seeds
+through `clanfirePreview.ctx`; edit the SEED block per feature) and `compose.mjs` (numbered labels + legend). Both use
+absolute scratchpad paths at the top: change `SCRATCH` before running.
 
 ## Very next step
 
-Plan step 8: **Tribe projects** (`GAME_DESIGN` 18.5 "Tribe projects funded by shipments", not built). Explain to the owner
-in 3 plain lines and get a yes before building. Then 9 Hall of Fame + badges, 10 morale (design first), 11 homepage +
-quests, 12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
-Note: `GAME_DESIGN` 18.2-18.6 is duplicated (~857-1399 and ~1400-1935); edit both copies or merge them first.
+Plan step 9: **Hall of Fame + season badges** (`GAME_DESIGN` 18.1 / ~759-822; the lobby has no badge code yet). Explain to
+the owner in 3 plain lines (no formulas, no new words) and get a yes before building. Then 10 morale (design first),
+11 homepage + quests, 12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
+Note: `GAME_DESIGN` 18.2-18.6 is still duplicated (~857-1410 and ~1410-1950); edit both copies or merge them first.
 
 ## How the owner works (important)
 
