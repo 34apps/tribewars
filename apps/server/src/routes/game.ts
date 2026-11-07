@@ -221,6 +221,12 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     return res;
   });
 
+  app.post('/api/sandbox/finish', auth, async (req): Promise<GameStateResponse> => {
+    const res = ctx.game.sandboxFinish(playerOf(req), req.nowMs);
+    req.log.warn({ playerId: playerOf(req).id, action: 'finish' }, 'sandbox action');
+    return res;
+  });
+
   app.post('/api/sandbox/clear-abandoned', auth, async (req): Promise<GameStateResponse> => {
     const res = ctx.game.sandboxClearAbandoned(playerOf(req), req.nowMs);
     req.log.warn({ playerId: playerOf(req).id, action: 'clear-abandoned' }, 'sandbox action');

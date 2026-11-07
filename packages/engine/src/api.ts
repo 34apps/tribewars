@@ -93,6 +93,7 @@ export interface PlayerDto {
 //   (start levels/resources, no troops, no queues; own outgoing movements and own stationed support are removed).
 //   Works at any time. World speed is unchanged. 403 `forbidden` unless the account is in SANDBOX_USERS.
 // POST /api/sandbox/warp {seconds: 0..3600} -> 200 GameStateResponse. The player's movements due later arrive in `seconds`.
+// POST /api/sandbox/finish (no body) -> 200 GameStateResponse. Completes every queued build, training batch and research in all my villages.
 // POST /api/sandbox/clear-army (no body) -> 200 GameStateResponse. Removes my own troops at home in every village of mine.
 // POST /api/sandbox/clear-abandoned (no body) -> 200 GameStateResponse. Every abandoned village's garrison is emptied
 //   (it slowly refills through growth steps). 403 `forbidden` unless the account is in SANDBOX_USERS.

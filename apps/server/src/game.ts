@@ -91,6 +91,8 @@ import {
   watchtowerInfo,
   resolveScouting,
   settleVillage,
+  cloneVillage,
+  TRAINING_BUILDING_IDS,
   totalUnits,
   travelTimeMs,
   villagePoints,
@@ -2254,6 +2256,35 @@ export class GameService {
     if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
     // The same `seconds` also applies to the way home of everything still on its way out (and to returns already walking).
     this.store.tx(() => this.store.warpMovementsOfPlayer(player.id, t + Math.round(seconds) * 1000, Math.round(seconds)));
+    this.processDue(t);
+    return this.getState(player, t);
+  }
+
+  /**
+   * Sandbox: finish everything queued in every village of mine right now (buildings, training incl. Chieftains, research).
+   * Every queued item's time is pulled back so it ends at `t`; the engine's own settle then completes it.
+   */
+  sandboxFinish(player: PlayerRow, t: number): GameStateResponse {
+    if (!this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
+    this.store.tx(() => {
+      for (const v of this.store.villagesOfPlayer(player.id)) {
+        const st = cloneVillage(v.state);
+        st.lastUpdate = Math.min(st.lastUpdate, t - 1); // settle returns early when nothing has passed since the last update
+        for (const j of st.buildQueue) {
+          j.startAt = Math.min(j.startAt, t);
+          j.finishAt = t;
+        }
+        for (const j of st.researchQueue ?? []) {
+          j.startAt = Math.min(j.startAt, t);
+          j.finishAt = t;
+        }
+        for (const b of TRAINING_BUILDING_IDS) {
+          for (const j of st.trainQueues[b]) j.startAt = Math.min(j.startAt, t - j.count * j.perUnitMs);
+        }
+        const next = settleVillage(st, t, this.settings);
+        this.store.saveVillage(v.id, next, villagePoints(next));
+      }
+    });
     this.processDue(t);
     return this.getState(player, t);
   }

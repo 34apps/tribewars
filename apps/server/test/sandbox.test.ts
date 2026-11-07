@@ -179,3 +179,25 @@ test('clear-army: refuses others; removes my troops at home and keeps those away
   assert.equal(mine.away.raider, 4, 'the army on the road is untouched');
   assert.equal(app.ctx.store.villagesOfPlayer(bob.id)[0]!.state.troops.pikeman, 3, 'others are untouched');
 });
+
+test('finish: refuses others; completes builds, training and research in every village', async () => {
+  const { app, alice, bob } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  errorOf(await bob.c.post('/api/sandbox/finish', {}), 403, 'forbidden');
+  const far = Date.now() + 10 * 24 * 3600_000;
+  const v = app.ctx.store.villagesOfPlayer(alice.id)[0]!;
+  const level = v.state.buildings.lumber;
+  v.state.buildQueue.push({ building: 'lumber', targetLevel: level + 1, startAt: v.state.lastUpdate, finishAt: far });
+  v.state.trainQueues.barracks.push({ unit: 'pikeman', count: 5, done: 0, perUnitMs: 3_600_000, startAt: v.state.lastUpdate });
+  v.state.researchQueue = [{ unit: 'raider', startAt: v.state.lastUpdate, finishAt: far }];
+  app.ctx.store.saveVillage(v.id, v.state, v.points);
+  const before = v.state.troops.pikeman;
+  ok(await alice.c.post('/api/sandbox/finish', {}));
+  const now = app.ctx.store.villagesOfPlayer(alice.id)[0]!.state;
+  assert.equal(now.buildings.lumber, level + 1);
+  assert.equal(now.troops.pikeman, before + 5);
+  assert.ok(now.researched?.includes('raider'));
+  assert.equal(now.buildQueue.length, 0);
+  assert.equal(now.trainQueues.barracks.length, 0);
+  assert.ok(!now.researchQueue?.length);
+});

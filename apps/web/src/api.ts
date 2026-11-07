@@ -244,6 +244,7 @@ export const api = {
   register: (body: AuthRequest) => request<MeResponse>('POST', '/api/auth/register', body),
   sandboxMax: () => request<GameStateResponse>('POST', '/api/sandbox/max', {}),
   sandboxWarp: (seconds: number) => request<GameStateResponse>('POST', '/api/sandbox/warp', { seconds }),
+  sandboxFinish: () => request<GameStateResponse>('POST', '/api/sandbox/finish', {}),
   sandboxClearArmy: () => request<GameStateResponse>('POST', '/api/sandbox/clear-army', {}),
   sandboxClearAbandoned:() => request<GameStateResponse>('POST', '/api/sandbox/clear-abandoned', {}),
   sandboxReset: () => request<GameStateResponse>('POST', '/api/sandbox/reset', {}),
