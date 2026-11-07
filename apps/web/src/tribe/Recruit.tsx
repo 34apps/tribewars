@@ -4,7 +4,7 @@ import { TRIBE_INVITE_TTL_HOURS, TRIBE_MAX_OPEN_INVITES, canTribe } from '@clanf
 import { api } from '../api.ts';
 import { formatAgo, formatInt, formatLeft } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
-import { PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME } from './bits.tsx';
+import { PlainText, RECRUITMENT_NAME } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
 
@@ -26,7 +26,7 @@ function InviteForm() {
   return (
     <section className="card" aria-labelledby="inv-new">
       <h2 id="inv-new" className="card-title">
-        Invite a player <span className="muted">{data.invites.length}/{TRIBE_MAX_OPEN_INVITES} open</span>
+        Invite <span className="muted">{data.invites.length}/{TRIBE_MAX_OPEN_INVITES}</span>
       </h2>
       <form className="stack" onSubmit={(e) => void submit(e)}>
         <div className="inline-form">
@@ -49,10 +49,8 @@ function InviteForm() {
             Invite
           </button>
         </div>
-        <p className="muted small">
-          Invitations expire after {Math.round(TRIBE_INVITE_TTL_HOURS / 24)} days. A player in another tribe can accept once they have left it.
-        </p>
-        {full && <p className="form-error">Too many open invitations. Cancel one first.</p>}
+        <p className="muted small">Expire after {Math.round(TRIBE_INVITE_TTL_HOURS / 24)} days.</p>
+        {full && <p className="form-error">Invitation limit reached.</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </form>
     </section>
@@ -71,7 +69,7 @@ export function Recruit({ tribe, role }: MemberProps) {
       <section className="card" aria-labelledby="rec-mode">
         <h2 id="rec-mode" className="card-title">Recruitment: {RECRUITMENT_NAME[tribe.recruitment]}</h2>
         <p className="muted">
-          {RECRUITMENT_HINT[tribe.recruitment]} {tribe.members}/{maxMembers} members{isFull ? ' (full)' : ''}. Change the mode in Overview.
+          {tribe.members}/{maxMembers}{isFull ? ' (full)' : ''}
         </p>
       </section>
 
@@ -86,7 +84,7 @@ export function Recruit({ tribe, role }: MemberProps) {
                 <div className="invite-text">
                   <strong>{i.username}</strong>
                   <div className="muted small">
-                    by {i.invitedBy} · expires in {formatLeft(i.expiresAt - now)}
+                    {i.invitedBy} · {formatLeft(i.expiresAt - now)}
                   </div>
                 </div>
                 <button className="btn btn-small" disabled={busy} onClick={() => void run(() => api.cancelInvite(i.id), { ok: 'Invitation cancelled.' })}>
@@ -104,7 +102,7 @@ export function Recruit({ tribe, role }: MemberProps) {
             Applications <span className="muted">{data.applications.length}</span>
           </h2>
           {data.applications.length === 0 ? (
-            <p className="muted">No open applications.</p>
+            <p className="muted">None.</p>
           ) : (
             <ul className="stack">
               {data.applications.map((a) => (
@@ -123,12 +121,12 @@ export function Recruit({ tribe, role }: MemberProps) {
                       </button>
                     </div>
                   </div>
-                  {a.message ? <PlainText className="quote" text={a.message} /> : <p className="muted small">No message.</p>}
+                  {a.message ? <PlainText className="quote" text={a.message} /> : null}
                 </li>
               ))}
             </ul>
           )}
-          {isFull && data.applications.length > 0 && <p className="why">The tribe is full, so applications cannot be accepted.</p>}
+          {isFull && data.applications.length > 0 && <p className="why">Tribe full.</p>}
         </section>
       )}
     </>

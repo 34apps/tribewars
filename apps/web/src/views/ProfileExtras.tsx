@@ -13,15 +13,14 @@ function Badge({ p }: { p: AchievementProgress }) {
   // Progress inside the current tier band towards the next threshold.
   const from = p.tier === 0 ? 0 : def.tiers[p.tier - 1] ?? 0;
   const ratio = p.next === null ? 1 : Math.max(0, Math.min(1, (p.value - from) / Math.max(1, p.next - from)));
-  const status = p.next === null ? 'Gold reached' : `${formatInt(p.value)} / ${formatInt(p.next)}`;
+  const status = p.next === null ? 'Max' : `${formatInt(p.value)} / ${formatInt(p.next)}`;
   return (
-    <li className={`ach ach-${tierName}`} aria-label={`${def.name}: ${tierName === 'locked' ? 'locked' : `${tierName} tier`}. ${def.description} ${status}.`}>
+    <li className={`ach ach-${tierName}`} title={def.description} aria-label={`${def.name}: ${tierName === 'locked' ? 'locked' : `${tierName} tier`}. ${def.description} ${status}.`}>
       <span className="ach-medal" aria-hidden="true">
         {p.tier === 0 ? '?' : '★'.repeat(p.tier)}
       </span>
       <span className="ach-body">
         <span className="ach-name">{def.name}</span>
-        <span className="ach-desc">{def.description}</span>
         <span className="ach-meter" aria-hidden="true">
           <span style={{ width: `${ratio * 100}%` }} />
         </span>

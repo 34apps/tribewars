@@ -6,13 +6,6 @@ import { WORLD_STATUS_LABEL, enterWorld, sortWorlds, worldButtonLabel } from '..
 
 type WorldList = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; worlds: LobbyWorldDto[] };
 
-const STATUS_NOTE = {
-  open: 'Anyone can join.',
-  full: 'No new players. If you already play here, you can still enter.',
-  closed: 'Nobody can enter right now.',
-  finished: 'This world has ended. You can still enter to see the final results.',
-} as const;
-
 /** Lobby home for a signed-in account: header with sign-out, and one card per world. */
 export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto; onSignedOut: () => void }) {
   const [list, setList] = useState<WorldList>({ state: 'loading' });
@@ -88,7 +81,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
           <span className="lobby-brand-name">Clanfire</span>
         </span>
         <p className="lobby-who">
-          Signed in as <strong>{account.username}</strong>
+          <strong>{account.username}</strong>
         </p>
         <button type="button" className="btn btn-small" disabled={signingOut || busyId !== null} onClick={() => void signOut()}>
           Sign out
@@ -97,7 +90,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
           type="button"
           className="btn btn-small"
           disabled={signingOut || busyId !== null}
-          title="Ends all your Clanfire sessions on every device. Worlds you have open close within 12 hours."
+          title="Ends all sessions on every device. Open worlds close within 12 hours."
           onClick={() => void signOut(true)}
         >
           Sign out everywhere
@@ -119,7 +112,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
           </button>
         </div>
       )}
-      {list.state === 'ready' && list.worlds.length === 0 && <p className="lobby-note dark">No worlds are open yet.</p>}
+      {list.state === 'ready' && list.worlds.length === 0 && <p className="lobby-note dark">No worlds.</p>}
       {list.state === 'ready' && list.worlds.length > 0 && (
         <ul className="lobby-grid">
           {sortWorlds(list.worlds).map((w) => {
@@ -131,7 +124,6 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
                   <h2 className="lobby-card-name">{w.name}</h2>
                   <span className={`world-status world-status-${w.status}`}>{WORLD_STATUS_LABEL[w.status]}</span>
                 </div>
-                <p className="lobby-card-note">{STATUS_NOTE[w.status]}</p>
                 <div className="form-error lobby-card-error" role="alert" aria-live="assertive">
                   {error}
                 </div>

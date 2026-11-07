@@ -53,13 +53,13 @@ export function holdView(h: HearthInfoDto, now: number): HoldView {
   return { running: false, leftMs: Math.max(0, h.holdMsLeft), failsInMs: h.failsAt === null ? null : Math.max(0, h.failsAt - now) };
 }
 
-/** One plain sentence about the hold, for the tile panel and the village view. `mine`: I am the claimant. */
+/** One short line about the hold, for the tile panel and the village view. `mine`: I am the claimant. */
 export function holdText(h: HearthInfoDto, now: number, mine = false): string {
   const v = holdView(h, now);
   const who = mine ? 'You hold' : `${h.claimBy} holds`;
-  if (v.running) return `${who} this village. It changes hands in ${formatLeft(v.leftMs)} unless the hold is broken.`;
-  const fails = v.failsInMs === null ? '' : ` The claim fails in ${formatLeft(v.failsInMs)} if it stays this weak.`;
-  return `${who} this village, but the clock is paused: too few occupiers (${formatInt(h.minPopulation)} needed).${fails}`;
+  if (v.running) return `${who} this village · ${formatLeft(v.leftMs)} left`;
+  const fails = v.failsInMs === null ? '' : ` · fails in ${formatLeft(v.failsInMs)}`;
+  return `${who} this village · paused, needs ${formatInt(h.minPopulation)} occupiers${fails}`;
 }
 
 /** Occupiers standing there vs the minimum that keeps the clock running; null when the number is not known. */
@@ -260,7 +260,7 @@ export const SEND_MODE_SENT: Record<SendMode, string> = {
 };
 
 export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
-  strike: `A Strike is an attack that tries to put the hearth out. No loot. If your army wins and at least one Chieftain lives, your survivors stay as occupiers and the hold clock starts. A Chieftain fights badly: bring an escort.`,
+  strike: 'Puts the hearth out. No loot. Survivors stay as occupiers. Bring an escort.',
   found: 'One Chieftain carries an ember from your hearth to this free land. Anything else you send is his escort and becomes the new village\'s garrison.',
   occupy: 'Reinforce the village you are holding. The hold clock only runs while your occupiers number enough.',
   relieve: 'Fights only the occupiers holding this village. No loot. If they all fall the hearth relights.',
@@ -270,11 +270,10 @@ export const SEND_MODE_HINT: Partial<Record<SendMode, string>> = {
 export function strikeHint(targetKind: MapVillageDto['kind'] | null, s?: Pick<WorldSettings, 'speed' | 'config'>): string {
   const rules = worldRules(s).conquest;
   const speed = s?.speed ?? 1;
-  const chain = `The Chieftains can come in separate attacks, as long as they arrive within ${hoursText(rules.chainWindowHours / speed)} of each other and are still on their way home.`;
-  const base = `${SEND_MODE_HINT.strike ?? ''} ${chain}`;
-  if (targetKind !== 'player') return `${base} An abandoned village changes owner after a ${hoursText(rules.holdHoursAbandoned / speed, true)} hold.`;
-  if (!rules.playersCanBeConquered) return `${base} In this world only abandoned villages can be taken: a player's village cannot change owner.`;
-  return `${base} A player's village changes owner after a ${hoursText(rules.holdHours / speed, true)} hold if the occupiers stay strong enough. Tribe-mates and allies cannot be struck. Its owner can fight back, so bring a strong escort.`;
+  const chain = `Chieftains must land within ${hoursText(rules.chainWindowHours / speed)}.`;
+  if (targetKind !== 'player') return `${hoursText(rules.holdHoursAbandoned / speed, true)} hold. ${chain}`;
+  if (!rules.playersCanBeConquered) return `Only abandoned villages can be taken. ${chain}`;
+  return `${hoursText(rules.holdHours / speed, true)} hold. ${chain} Allies are safe.`;
 }
 
 /** Real hours as plain words: "8 hours", "1 hour", "45 minutes"; `adjective` gives "8-hour", "45-minute". Rounded to the minute. */
@@ -407,13 +406,13 @@ export function foundProblem(chosen: Partial<Units>): string | null {
 // ---- Reports --------------------------------------------------------------------------------------------
 
 const REASON_TEXT: Record<NonNullable<VillageReportData['reason']>, string> = {
-  tile_taken: 'someone built there first',
-  village_limit: 'you own as many villages as the world allows',
-  time: 'the occupiers were too weak for too long',
-  relit: 'the owner relit the hearth',
-  replaced: 'another player took over the claim',
-  no_room: 'there was no room for the troops',
-  no_claim: 'you no longer held the claim',
+  tile_taken: 'tile taken',
+  village_limit: 'village limit reached',
+  time: 'occupiers too weak',
+  relit: 'owner relit the hearth',
+  replaced: 'claim replaced',
+  no_room: 'no room for troops',
+  no_claim: 'claim lost',
 };
 
 /** Shown instead of a build or train button while the hearth of the current village is out. */
@@ -436,30 +435,30 @@ export interface VillageReportText {
 export function villageReportText(d: VillageReportData, now: number): VillageReportText {
   const name = d.village.name;
   const at = `(${d.village.x}|${d.village.y})`;
-  const why = d.reason ? `, because ${REASON_TEXT[d.reason]}` : '';
-  const hold = d.holdEndsAt != null ? `If the clock keeps running, ${d.holdEndsAt > now ? `it is yours in ${formatLeft(d.holdEndsAt - now)}` : 'it is yours now'}.` : 'The clock is paused until your occupiers are strong enough.';
-  const home = d.units && UNIT_IDS.some((u) => (d.units?.[u] ?? 0) > 0) ? 'Your troops are on their way home.' : '';
-  const overflow = d.overflow && UNIT_IDS.some((u) => (d.overflow?.[u] ?? 0) > 0) ? 'Troops that did not fit went home.' : '';
+  const why = d.reason ? ` (${REASON_TEXT[d.reason]})` : '';
+  const hold = d.holdEndsAt != null ? `${d.holdEndsAt > now ? `Yours in ${formatLeft(d.holdEndsAt - now)}` : 'Yours now'}.` : 'Clock paused: too few occupiers.';
+  const home = d.units && UNIT_IDS.some((u) => (d.units?.[u] ?? 0) > 0) ? 'Troops heading home.' : '';
+  const overflow = d.overflow && UNIT_IDS.some((u) => (d.overflow?.[u] ?? 0) > 0) ? 'Extra troops went home.' : '';
   switch (d.kind) {
     case 'struck':
-      return { title: `Hearth put out at ${name}`, lines: [`Your Strike put out the hearth of ${name} ${at}. Your survivors stay as occupiers.`, hold] };
+      return { title: `Hearth put out at ${name}`, lines: [`Hearth of ${name} ${at} put out. Survivors hold it.`, hold] };
     case 'hearth_out':
       return {
         title: `Hearth out at ${name}`,
-        lines: [`${d.claimBy ?? 'Someone'} put out the hearth of ${name} ${at}. Break the hold with troops before the clock runs out.`],
+        lines: [`${d.claimBy ?? 'Someone'} put out the hearth of ${name} ${at}. Break the hold.`],
       };
     case 'taken':
-      return { title: `${name} is yours`, lines: [`The hold ended: ${name} ${at} is now your village, buildings and all.`, overflow].filter(Boolean) };
+      return { title: `${name} is yours`, lines: [`${name} ${at} is now yours.`, overflow].filter(Boolean) };
     case 'lost':
-      return { title: `${name} was lost`, lines: [`${name} ${at} changed owner. Troops of yours that were away are gone.`] };
+      return { title: `${name} was lost`, lines: [`${name} ${at} changed owner. Troops away are lost.`] };
     case 'founded':
-      return { title: `New village ${name}`, lines: [`A new village stands at ${at}. It cannot be attacked for a while.`, overflow].filter(Boolean) };
+      return { title: `New village ${name}`, lines: [`New village at ${at}. Protected for a while.`, overflow].filter(Boolean) };
     case 'found_failed':
-      return { title: 'Founding failed', lines: [`Your Chieftain could not found a village at ${at}${why}. He is walking home.`] };
+      return { title: 'Founding failed', lines: [`Founding at ${at} failed${why}. Chieftain heading home.`] };
     case 'claim_failed':
-      return { title: `Claim on ${name} failed`, lines: [`Your claim on ${name} ${at} ended without taking it${why}.`, home].filter(Boolean) };
+      return { title: `Claim on ${name} failed`, lines: [`Claim on ${name} ${at} failed${why}.`, home].filter(Boolean) };
     case 'relit':
-      return { title: `Hearth relit at ${name}`, lines: [`The claim on ${name} ${at} ended and the hearth burns again.`] };
+      return { title: `Hearth relit at ${name}`, lines: [`Claim on ${name} ${at} ended. Hearth relit.`] };
   }
 }
 

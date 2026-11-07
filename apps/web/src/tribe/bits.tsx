@@ -77,7 +77,7 @@ export const RECRUITMENT_OPTIONS = [
 export const RECRUITMENT_NAME = { open: 'Open', application: 'Application', invite: 'Invite only' } as const;
 
 export const RECRUITMENT_HINT = {
-  open: 'Anyone without a tribe can join at once.',
-  application: 'Players apply with a short message; officers decide.',
-  invite: 'Only players you invite can join.',
+  open: 'Anyone can join.',
+  application: 'Officers approve.',
+  invite: 'By invitation.',
 } as const;

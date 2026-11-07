@@ -106,7 +106,7 @@ function MovementRow({ m }: { m: MovementDto }) {
     setCancelling(true);
     try {
       const res = await api.cancelMovement(m.id);
-      toast(`Called back. They are home in ${formatDuration(res.movement.arriveAt - res.movement.departAt)}.`);
+      toast(`Called back, home in ${formatDuration(res.movement.arriveAt - res.movement.departAt)}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
@@ -203,10 +203,9 @@ function MovementRow({ m }: { m: MovementDto }) {
       </div>
       {cancelLeft > 0 && (
         <div className="movement-foot">
-          <button className="btn btn-small" disabled={cancelling} onClick={() => void cancel()}>
+          <button className="btn btn-small" disabled={cancelling} onClick={() => void cancel()} title="Troops come back in the time already travelled">
             Cancel ({formatDuration(cancelLeft)})
           </button>
-          <span className="muted">They come back in the time already travelled.</span>
         </div>
       )}
     </li>
@@ -226,7 +225,7 @@ function Movements() {
     <section className="card" aria-labelledby="mov-title">
       <h2 id="mov-title" className="card-title">Movements</h2>
       {sorted.length === 0 ? (
-        <p className="muted">No troops on the road. Open the Map and send raiders to an abandoned village.</p>
+        <p className="muted">No movements.</p>
       ) : (
         <ul className="movement-list">
           {sorted.map((m) => (
@@ -288,7 +287,7 @@ function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onR
         ))}
       </ul>
       <button className="btn btn-primary btn-block" type="submit" disabled={total < 1 || busy}>
-        {total > 0 ? `Recall ${formatInt(total)} troops` : 'Choose troops to recall'}
+        {total > 0 ? `Recall ${formatInt(total)}` : 'Recall'}
       </button>
     </form>
   );
@@ -306,7 +305,7 @@ function SupportPanel() {
     try {
       const res = await fn();
       setRecalling(null);
-      toast(`${okText} They arrive in ${formatDuration(res.movement.arriveAt - now)}.`);
+      toast(`${okText}, home in ${formatDuration(res.movement.arriveAt - now)}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
@@ -321,13 +320,13 @@ function SupportPanel() {
       title: `Send ${who} troops back?`,
       body: (
         <p>
-          {unitListText(s.units)} stationed in {s.host.name} will march home to {s.home.name}. Your village loses their help in defense.
+          {unitListText(s.units)} leave {s.host.name} and your village loses their defence.
         </p>
       ),
       confirmLabel: 'Send back',
       danger: true,
     });
-    if (ok) await act(() => api.sendBack(s.id), 'Troops are on their way home.');
+    if (ok) await act(() => api.sendBack(s.id), 'Troops sent back');
   }
 
   return (
@@ -336,10 +335,10 @@ function SupportPanel() {
 
       <div className="subsection">
         <h3 className="subtitle">
-          Troops stationed in my village <span className="muted">{stationed.here.length > 0 ? stationed.here.length : ''}</span>
+          Stationed here <span className="muted">{stationed.here.length > 0 ? stationed.here.length : ''}</span>
         </h3>
         {stationed.here.length === 0 ? (
-          <p className="muted">No one's troops are defending your village.</p>
+          <p className="muted">None.</p>
         ) : (
           <ul className="movement-list" aria-label="Troops stationed in my village">
             {stationed.here.map((s) => (
@@ -367,10 +366,10 @@ function SupportPanel() {
 
       <div className="subsection">
         <h3 className="subtitle">
-          My troops abroad <span className="muted">{stationed.abroad.length > 0 ? stationed.abroad.length : ''}</span>
+          Abroad <span className="muted">{stationed.abroad.length > 0 ? stationed.abroad.length : ''}</span>
         </h3>
         {stationed.abroad.length === 0 ? (
-          <p className="muted">You have no troops stationed in other villages. Pick a tribe-mate on the Map and choose Support.</p>
+          <p className="muted">None.</p>
         ) : (
           <ul className="movement-list" aria-label="My troops abroad">
             {stationed.abroad.map((s) => (
@@ -384,7 +383,7 @@ function SupportPanel() {
                   <div className="muted small">arrived {formatAgo(s.arrivedAt, now)}</div>
                 </div>
                 <div className="stationed-actions">
-                  <button className="btn btn-primary btn-tall" disabled={busy} onClick={() => void act(() => api.recall(s.id), 'Troops recalled.')}>
+                  <button className="btn btn-primary btn-tall" disabled={busy} onClick={() => void act(() => api.recall(s.id), 'Recalled')}>
                     Recall all
                   </button>
                   <button
@@ -397,7 +396,7 @@ function SupportPanel() {
                   </button>
                 </div>
                 {recalling === s.id && (
-                  <RecallSome s={s} busy={busy} onRecall={(units) => void act(() => api.recall(s.id, units), 'Troops recalled.')} />
+                  <RecallSome s={s} busy={busy} onRecall={(units) => void act(() => api.recall(s.id, units), 'Recalled')} />
                 )}
               </li>
             ))}
@@ -428,16 +427,16 @@ function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: (
         <span className="job-time">
           {started ? (
             <>
-              next <strong>{formatDuration(nextAt - now)}</strong>
+              <Icon name="time" size={16} className="inline-icon" /> <strong>{formatDuration(nextAt - now)}</strong>
             </>
           ) : (
-            <span className="muted">starts in {formatDuration(job.startAt - now)}</span>
+            <span className="muted">in {formatDuration(job.startAt - now)}</span>
           )}
         </span>
       </div>
       <ProgressBar value={(now - job.startAt) / total} label={`${def.name} batch progress`} />
       <div className="job-foot muted">
-        Batch done in {formatDuration(endAt - now)} · {formatClock(endAt, now)}
+        <Icon name="time" size={16} className="inline-icon" /> {formatDuration(endAt - now)} · {formatClock(endAt, now)}
       </div>
       <button type="button" className="btn btn-small" disabled={disabled} onClick={onCancel}>
         Cancel ({CANCEL_REFUND_PERCENT}% back)
@@ -464,9 +463,9 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   let reason: string | null = null;
   if (village.hearth) reason = HEARTH_OUT_REASON;
   else if (locked) reason = `Needs ${requirementText(unmet)}`;
-  else if (!isResearched(live, unit)) reason = 'Research it in the Drillyard';
+  else if (!isResearched(live, unit)) reason = 'Research in Drillyard';
   else if (queueFull) reason = 'Queue full';
-  else if (count < 1) reason = max < 1 ? 'Not enough resources or room for even one' : 'Enter how many to train';
+  else if (count < 1) reason = max < 1 ? 'Cannot afford one' : 'Enter amount';
   else if (!check.ok) reason = reasonText(check, unmet);
 
   const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * Math.max(1, count)])) as typeof def.cost;
@@ -507,7 +506,6 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
         </div>
         <span className={`urole urole-${role.tone}`}>{role.label}</span>
       </header>
-      <p className="building-desc">{def.description}</p>
       <ul className="chips" aria-label="Stats">
         <li className="chip" title="Attack"><span className="chip-k">Atk</span> {def.attack}</li>
         <li className="chip" title="Defence vs infantry"><span className="chip-k">Def foot</span> {def.defenseInfantry}</li>
@@ -525,7 +523,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
           <div className="building-cost">
             <Cost cost={def.cost} have={live.resources} />
             <span className="time" title="Time per unit">
-              <Icon name="time" size={18} className="inline-icon" /> {formatDuration(perUnit)} each
+              <Icon name="time" size={18} className="inline-icon" /> {formatDuration(perUnit)}
             </span>
           </div>
           <div className="train-row">
@@ -590,7 +588,7 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
         <div className="empty-state">
           <p>Build the {def.name} first.</p>
           {unmetRequirements(live.buildings, def.requires).length > 0 && (
-            <p className="muted">Requires {requirementText(unmetRequirements(live.buildings, def.requires))}.</p>
+            <p className="muted">Needs {requirementText(unmetRequirements(live.buildings, def.requires))}</p>
           )}
           {nav}
         </div>

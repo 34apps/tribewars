@@ -5,7 +5,7 @@ import { ApiRequestError, api, safeWorldPath } from './api.ts';
 
 export const WORLD_STATUS_LABEL: Record<WorldStatus, string> = {
   open: 'Open',
-  full: 'Full: returning players only',
+  full: 'Full · returning only',
   closed: 'Closed',
   finished: 'Finished',
 };

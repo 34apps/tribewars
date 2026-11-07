@@ -63,7 +63,7 @@ export function DrillyardPanel() {
       title: `Reset ${UNITS[unit].name} ${trackName(track)}?`,
       body: (
         <p>
-          Resetting is free. You get {refund} Training {refund === 1 ? 'Point' : 'Points'} back, but the resources you paid for the ranks are lost.
+          Free. +{refund} {refund === 1 ? 'point' : 'points'} back; resources spent are lost.
         </p>
       ),
       confirmLabel: 'Reset',
@@ -97,12 +97,11 @@ export function DrillyardPanel() {
           const check = checkResearch(live, u, now, settings, limit);
           const reason = done || active ? null : !check.ok ? reasonText(check) : null;
           let status: string;
-          if (done) status = 'Researched';
+          if (done) status = 'Done';
           else if (active && job) {
-            status = qi === 0 ? `Researching · ${formatDuration(job.finishAt - now)} left` : `Waiting (#${qi + 1}) · starts in ${formatDuration(job.startAt - now)}`;
-          }
-          else if (level < rule.drillyard) status = `Needs Drillyard level ${rule.drillyard}`;
-          else status = 'Available';
+            status = qi === 0 ? formatDuration(job.finishAt - now) : `#${qi + 1} · in ${formatDuration(job.startAt - now)}`;
+          } else if (level < rule.drillyard) status = `Needs Drillyard ${rule.drillyard}`;
+          else status = '';
           return (
             <li key={u} className={`drill-row${done ? ' is-done' : ''}`}>
               <span className="drill-icon" aria-hidden="true">
@@ -110,7 +109,7 @@ export function DrillyardPanel() {
               </span>
               <div className="drill-main">
                 <div className="drill-name">{def.name}</div>
-                <div className="drill-status">{status}</div>
+                {status && <div className="drill-status">{status}</div>}
                 {active && job && qi === 0 && <ProgressBar value={(now - job.startAt) / Math.max(1, job.finishAt - job.startAt)} label={`${def.name} research progress`} />}
                 {!done && !active && (
                   <div className="drill-cost">
@@ -127,9 +126,10 @@ export function DrillyardPanel() {
                   type="button"
                   className="btn btn-small drill-btn"
                   disabled={busy || cancel.busy}
+                  title={`${CANCEL_REFUND_PERCENT}% back`}
                   onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost, qi)}
                 >
-                  Cancel ({CANCEL_REFUND_PERCENT}% back)
+                  Cancel
                 </button>
               )}
               {!done && !active && (
@@ -150,7 +150,7 @@ export function DrillyardPanel() {
       <h3 className="eyebrow">Training Points</h3>
       <div className="drill-points">
         <span>
-          <strong>{formatInt(Math.max(0, total - spent))}</strong> free · {formatInt(spent)} of {formatInt(total)} spent
+          <strong>{formatInt(Math.max(0, total - spent))}</strong> free · {formatInt(spent)}/{formatInt(total)}
         </span>
         <ProgressBar value={total > 0 ? spent / total : 0} label="Training Points spent" />
       </div>
@@ -175,8 +175,8 @@ export function DrillyardPanel() {
                 return (
                   <div key={t.id} className="drill-track">
                     <div className="drill-track-info">
-                      <div className="drill-track-name">
-                        {t.name} <span className="muted">{t.hint}</span>
+                      <div className="drill-track-name" title={t.hint}>
+                        {t.name}
                       </div>
                       <div className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
                         {Array.from({ length: RANK_MAX }, (_, i) => (
@@ -185,11 +185,11 @@ export function DrillyardPanel() {
                         <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
                       </div>
                       {atMax ? (
-                        <div className="drill-status">Top rank</div>
+                        <div className="drill-status">Max</div>
                       ) : check.ok ? (
                         <div className="drill-cost">
                           <span>
-                            {check.points} {check.points === 1 ? 'point' : 'points'}
+                            {check.points} pt
                           </span>
                           <Cost cost={check.cost} have={live.resources} />
                         </div>
@@ -212,11 +212,11 @@ export function DrillyardPanel() {
                           type="button"
                           className="btn btn-small drill-reset"
                           disabled={!respec?.ok || busy}
-                          title={respec && !respec.ok ? reasonText(respec) : `Free, returns ${respec?.ok ? respec.refund : 0} points`}
+                          title={respec && !respec.ok ? reasonText(respec) : `Free, +${respec?.ok ? respec.refund : 0} points`}
                           onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
                         >
-                          Reset · free
-                          {respec?.ok ? ` · +${respec.refund} pts` : ''}
+                          Reset
+                          {respec?.ok ? ` +${respec.refund} pts` : ''}
                         </button>
                       )}
                     </div>

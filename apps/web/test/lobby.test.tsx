@@ -184,7 +184,7 @@ test('enterWorld surfaces API errors and does not navigate', async () => {
 
 test('world status labels cover every status', () => {
   assert.equal(WORLD_STATUS_LABEL.open, 'Open');
-  assert.match(WORLD_STATUS_LABEL.full, /returning players only/);
+  assert.match(WORLD_STATUS_LABEL.full, /returning only/);
   assert.equal(WORLD_STATUS_LABEL.closed, 'Closed');
   assert.equal(WORLD_STATUS_LABEL.finished, 'Finished');
   for (const s of WORLD_STATUSES) assert.ok(WORLD_STATUS_LABEL[s], s);

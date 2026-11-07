@@ -38,7 +38,7 @@ export default function ChieftainDialog({ onClose }: { onClose: () => void }) {
       await api.setChieftain(value);
       // Refreshes /api/state (header avatar) and bumps tribeVersion so tribe lists and the map re-fetch.
       tribeChanged();
-      toast(`${chosen?.name ?? 'Your chieftain'} now leads your clan.`);
+      toast(`${chosen?.name ?? 'Chieftain'} chosen`);
       closeRef.current();
     } catch (e) {
       setError(errorMessage(e));
@@ -67,7 +67,7 @@ export default function ChieftainDialog({ onClose }: { onClose: () => void }) {
           Cancel
         </button>
         <button type="button" className="btn btn-primary" disabled={busy || unchanged} onClick={() => void save()}>
-          {busy ? 'Saving…' : unchanged ? 'Pick a new face' : `Lead as ${chosen?.name ?? 'this chieftain'}`}
+          {busy ? 'Saving…' : unchanged ? 'Pick another' : `Lead as ${chosen?.name ?? 'this chieftain'}`}
         </button>
       </div>
     </dialog>

@@ -120,7 +120,7 @@ export function VillageBar() {
         className={`vbar${village.hearth ? ' is-cold' : ''}`}
         aria-expanded={open}
         aria-haspopup="true"
-        aria-label={`Current village ${villageLabel(village)}. ${villages.length} villages. Switch village`}
+        aria-label={`${villageLabel(village)}, ${villages.length} villages. Switch village`}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name="village" size={22} />
@@ -191,7 +191,7 @@ export function VillageBar() {
               <RenameVillage onDone={() => setRenaming(false)} />
             ) : (
               <button type="button" className="btn btn-small" onClick={() => setRenaming(true)}>
-                Rename this village
+                Rename
               </button>
             )}
             {tab !== 'village' && (

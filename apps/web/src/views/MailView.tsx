@@ -33,7 +33,7 @@ function Compose({ initialTo, initialSubject, onSent, onCancel }: { initialTo: s
     setBusy(true);
     try {
       const sent = await api.sendMail({ to: to.trim(), subject: subject.trim(), body });
-      toast(`Mail sent to ${sent.to}.`);
+      toast(`Sent to ${sent.to}.`);
       onSent();
     } catch (err) {
       toast(errorMessage(err), { kind: 'error' });
@@ -49,11 +49,11 @@ function Compose({ initialTo, initialSubject, onSent, onCancel }: { initialTo: s
       </button>
       <h2 className="card-title">New mail</h2>
       <label className="field">
-        To (player name)
+        To
         <input value={to} onChange={(e) => setTo(e.target.value)} maxLength={64} autoComplete="off" autoCapitalize="none" spellCheck={false} />
       </label>
       <label className="field">
-        Subject <span className="hint">(optional)</span>
+        Subject
         <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={MAIL_SUBJECT_MAX * 2} />
       </label>
       <label className="field">
@@ -100,7 +100,7 @@ function Reader({ id, box, onBack, onReply, onDeleted, onRead }: { id: number; b
         }
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof ApiRequestError && e.code === 'not_found' ? 'This message no longer exists.' : errorMessage(e));
+        if (!cancelled) setError(e instanceof ApiRequestError && e.code === 'not_found' ? 'Message not found.' : errorMessage(e));
       });
     return () => {
       cancelled = true;
@@ -134,7 +134,7 @@ function Reader({ id, box, onBack, onReply, onDeleted, onRead }: { id: number; b
         <>
           <h2 className="card-title mail-subject">{mail.subject || '(no subject)'}</h2>
           <p className="muted mail-meta">
-            From <strong>{mail.from}</strong> to <strong>{mail.to}</strong> · {new Date(mail.createdAt).toLocaleString()}
+            <strong>{mail.from}</strong> → <strong>{mail.to}</strong> · {new Date(mail.createdAt).toLocaleString()}
           </p>
           {/* Plain text only: React escapes it; line breaks come from CSS. */}
           <div className="mail-text">{mail.body}</div>
@@ -248,7 +248,7 @@ export function MailView() {
             </p>
           )}
           {list === null && !listError && <p className="muted">Loading…</p>}
-          {list !== null && list.length === 0 && <p className="muted">{box === 'inbox' ? 'Your inbox is empty.' : 'You have not sent any mail yet.'}</p>}
+          {list !== null && list.length === 0 && <p className="muted">No mail.</p>}
           {list !== null && list.length > 0 && (
             <ul className="mail-list">
               {list.map((m) => {
@@ -283,7 +283,7 @@ export function MailView() {
           )}
         </section>
         <section className="card mail-pane" aria-label="Message">
-          {pane.kind === 'none' && <p className="muted mail-hint">Pick a message to read it, or write a new one.</p>}
+          {pane.kind === 'none' && <p className="muted mail-hint">Pick a message.</p>}
           {pane.kind === 'read' && (
             <Reader
               id={pane.id}

@@ -215,15 +215,20 @@ export function SimulatorView() {
     const home: Text = {};
     for (const u of UNIT_IDS) if (live.troops[u] > 0) home[u] = String(live.troops[u]);
     setMine(home);
-    setNote(Object.keys(home).length === 0 ? 'No troops at home in this village.' : null);
+    setNote(Object.keys(home).length === 0 ? 'No troops at home.' : null);
   }
 
   return (
     <div className="page sim-page">
       <header className="sim-head">
         <div>
-          <h1 className="page-title">Battle simulator</h1>
-          <p className="muted sim-lead">Try a fight before you send. Same battle rule as the real thing; nothing is sent and nothing changes.</p>
+          <div className="title-row">
+            <h1 className="page-title">Battle simulator</h1>
+            <details className="help-pop">
+              <summary aria-label="How the simulator works">?</summary>
+              <p className="small">Same battle rule as the real thing. Nothing is sent.</p>
+            </details>
+          </div>
         </div>
         {ready && lead && <UnitFigure unit={lead} pose={even.result.attackerWon ? 'victory' : 'defeated'} size={72} className="sim-hero" />}
       </header>
@@ -274,7 +279,7 @@ export function SimulatorView() {
                   />
                 </div>
               )}
-              {!target && <p className="muted small">With a random target nothing can be shown: pick a building and its level.</p>}
+              {!target && <p className="muted small">Pick a building and level.</p>}
             </div>
           )}
         </section>
@@ -315,9 +320,17 @@ export function SimulatorView() {
       </div>
 
       <section className="card sim-result" aria-labelledby="sim-result-title" aria-live="polite">
-        <h2 id="sim-result-title" className="card-title">Result</h2>
+        <div className="title-row">
+          <h2 id="sim-result-title" className="card-title">Result</h2>
+          <details className="help-pop">
+            <summary aria-label="About luck">?</summary>
+            <p className="small">
+              Luck is random in the real fight, from −{Math.round(BATTLE_LUCK * 100)}% to +{Math.round(BATTLE_LUCK * 100)}%. The defender may differ.
+            </p>
+          </details>
+        </div>
         {!ready ? (
-          <p className="muted">Add some troops to your army to see how the fight would go.</p>
+          <p className="muted">Add troops to your army.</p>
         ) : (
           <div className="sim-cols">
             {SIM_LUCKS.map((l, i) => (
@@ -325,9 +338,6 @@ export function SimulatorView() {
             ))}
           </div>
         )}
-        <p className="muted small sim-note">
-          The real battle draws luck at random, from −{Math.round(BATTLE_LUCK * 100)}% to +{Math.round(BATTLE_LUCK * 100)}%, and the defender's real army may differ from what you type here.
-        </p>
       </section>
     </div>
   );

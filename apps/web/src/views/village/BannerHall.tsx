@@ -26,20 +26,15 @@ export function BannerHallPanel() {
     return (
       <div className="bh">
         <h3 className="eyebrow">Feast</h3>
-        <p className="bh-text">Hold a Feast to turn resources into Renown, which you need to own more villages.</p>
         <div className="bh-line">
-          <span>One Feast</span>
+          <span>Feast</span>
           <Cost cost={FEAST_COST} />
           <span className="bh-gain">
             <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
           </span>
         </div>
         <p className="why bh-why">
-          {building
-            ? 'The Banner Hall is being built. Feasts open when it is done.'
-            : unmet.length > 0
-              ? `To build the Banner Hall you need ${requirementText(unmet)} first.`
-              : 'You can build the Banner Hall now (see above).'}
+          {building ? 'Being built' : unmet.length > 0 ? `Needs ${requirementText(unmet)}` : 'Build it above'}
         </p>
       </div>
     );
@@ -50,8 +45,8 @@ export function BannerHallPanel() {
   const count = clampFeastCount(want, max);
   const total = feastTotal(Math.max(1, count));
   let reason: string | null = null;
-  if (allowance.left < 1) reason = 'No Feasts left in this window';
-  else if (max < 1) reason = 'Not enough resources for a Feast';
+  if (allowance.left < 1) reason = 'No Feasts left';
+  else if (max < 1) reason = 'Need more resources';
 
   async function feast() {
     if (busy || reason || count < 1) return;
@@ -73,9 +68,8 @@ export function BannerHallPanel() {
   return (
     <div className="bh">
       <h3 className="eyebrow">Feast</h3>
-      <p className="bh-text">Turn spare resources into Renown. Each level of the hall allows {FEAST_DAILY_PER_LEVEL} Feasts a day.</p>
       <div className="bh-line">
-        <span>One Feast</span>
+        <span title={`${FEAST_DAILY_PER_LEVEL} Feasts a day per hall level`}>Feast</span>
         <Cost cost={FEAST_COST} have={live.resources} />
         <span className="bh-gain">
           <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
@@ -83,12 +77,12 @@ export function BannerHallPanel() {
       </div>
       <div className="bh-allow" role="status">
         <span>
-          Left today: <strong>{allowance.left}</strong> of {allowance.max}
+          Left <strong>{allowance.left}</strong>/{allowance.max}
         </span>
         <span className="bh-reset">
           {allowance.windowEnd !== null
-            ? `Resets in ${formatDuration(allowance.windowEnd - now)}`
-            : 'The first Feast starts a 24 hour window'}
+            ? `Resets ${formatDuration(allowance.windowEnd - now)}`
+            : '24 h window'}
         </span>
       </div>
 
@@ -125,24 +119,27 @@ export function BannerHallPanel() {
       )}
       <button type="button" className="btn btn-primary btn-cta bh-go" disabled={!!reason || busy || count < 1} onClick={() => void feast()}>
         {!reason && <Icon name="renown" size={22} />}
-        {count > 1 ? `Hold ${count} Feasts` : 'Hold a Feast'}
+        {count > 1 ? `Feast ×${count}` : 'Feast'}
       </button>
       {reason && <div className="why bh-why">{reason}</div>}
       {gained !== null && !reason && (
         <div className="bh-result" role="status">
-          +{formatInt(gained)} Renown earned
+          +{formatInt(gained)} Renown
         </div>
       )}
 
       <h3 className="eyebrow bh-chief-title">Chieftain</h3>
-      <p className="bh-text">
-        The Chieftain founds a new village on free land or, with an escort, puts out the hearth of an abandoned village or of another player's. The next one costs{' '}
-        {formatInt(nextChieftainPrice(renown, settings))} Renown ({formatInt(renown.balance)} to spend
-        {renown.reserved ? `, ${formatInt(renown.reserved)} reserved` : ''}).
-      </p>
-      <p className="bh-text muted">{chieftainRenownNote()}</p>
+      <div className="bh-line">
+        <span title={chieftainRenownNote()}>Next</span>
+        <span className="bh-gain">
+          <Icon name="renown" size={18} className="inline-icon" /> {formatInt(nextChieftainPrice(renown, settings))}
+        </span>
+        <span className="muted">
+          {formatInt(renown.balance)} left{renown.reserved ? ` · ${formatInt(renown.reserved)} reserved` : ''}
+        </span>
+      </div>
       <button type="button" className="btn btn-primary bh-go" onClick={() => navigate('army')}>
-        <Icon name="chieftain" size={22} /> Train Chieftains
+        <Icon name="chieftain" size={22} /> Train
       </button>
     </div>
   );

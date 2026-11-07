@@ -80,7 +80,7 @@ export function Overview({ tribe, role }: MemberProps) {
     <>
       <section className="card" aria-labelledby="ov-title">
         <h2 id="ov-title" className="card-title">About</h2>
-        {tribe.description ? <PlainText text={tribe.description} /> : <p className="muted">No description yet.</p>}
+        {tribe.description ? <PlainText text={tribe.description} /> : <p className="muted">No description.</p>}
         <dl className="facts">
           <div><dt>Recruitment</dt><dd>{RECRUITMENT_NAME[tribe.recruitment]}</dd></div>
           <div><dt>Members</dt><dd>{tribe.members}/{maxMembers}</dd></div>
@@ -88,11 +88,7 @@ export function Overview({ tribe, role }: MemberProps) {
           <div><dt>Founded</dt><dd>{formatDate(tribe.createdAt)}</dd></div>
         </dl>
       </section>
-      {canTribe(role, 'edit_settings') ? (
-        <SettingsForm tribe={tribe} role={role} />
-      ) : (
-        <p className="muted small">Only the leader and officers can change the description and recruitment.</p>
-      )}
+      {canTribe(role, 'edit_settings') && <SettingsForm tribe={tribe} role={role} />}
     </>
   );
 }

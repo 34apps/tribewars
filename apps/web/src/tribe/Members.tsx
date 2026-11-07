@@ -51,7 +51,7 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
   async function remove() {
     const ok = await confirm({
       title: `Remove ${m.username}?`,
-      body: <p>{m.username} leaves the tribe and loses access to its chat and log. They can apply again later.</p>,
+      body: <p>{m.username} loses access to chat and log.</p>,
       confirmLabel: 'Remove',
       danger: true,
     });
@@ -61,7 +61,7 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
   async function transfer() {
     const ok = await confirm({
       title: `Make ${m.username} the leader?`,
-      body: <p>{m.username} becomes the leader. You become an officer and lose the right to disband the tribe or change roles.</p>,
+      body: <p>You become an officer and lose disband and role rights.</p>,
       confirmLabel: 'Transfer leadership',
       danger: true,
     });
@@ -85,12 +85,12 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
         <div className="member-sub">
           <span>{formatInt(m.points)} pts</span>
           <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
-            {formatCoords(m.villageX, m.villageY)} on map
+            {formatCoords(m.villageX, m.villageY)}
           </button>
           <span className="muted">joined {formatAgo(m.joinedAt, now)}</span>
           {m.lastActive !== undefined && (
             <span className={m.online ? undefined : 'muted'}>
-              {m.online ? '● Online' : `Offline · last seen ${formatAgo(m.lastActive, now)}`}
+              {m.online ? '● Online' : `Seen ${formatAgo(m.lastActive, now)}`}
             </span>
           )}
         </div>
@@ -98,8 +98,8 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
           <div className="member-actions">
             {canGrant && (
               <>
-                <GrantBox label="Can see members' online status" right="view_activity" grants={grants} m={m} busy={busy} run={run} on={`${m.username} can now see who is online.`} off={`${m.username} can no longer see who is online.`} />
-                <GrantBox label="Tribe projects" right="projects" grants={grants} m={m} busy={busy} run={run} on={`${m.username} can now run Tribe projects.`} off={`${m.username} can no longer run Tribe projects.`} />
+                <GrantBox label="See online status" right="view_activity" grants={grants} m={m} busy={busy} run={run} on={`${m.username} sees online status.`} off={`${m.username} no longer sees online status.`} />
+                <GrantBox label="Projects" right="projects" grants={grants} m={m} busy={busy} run={run} on={`${m.username} runs projects.`} off={`${m.username} no longer runs projects.`} />
               </>
             )}
             {canSetRole && m.role === 'member' && (
@@ -145,8 +145,7 @@ export function Members({ tribe, role }: MemberProps) {
       title: `Leave ${label}?`,
       body: (
         <p>
-          You lose access to the tribe chat and log.
-          {last && ' You are the last member, so the tribe is disbanded.'} You can join or found another tribe later.
+          You lose access to chat and log.{last && ' The tribe is disbanded.'}
         </p>
       ),
       confirmLabel: 'Leave tribe',
@@ -160,8 +159,7 @@ export function Members({ tribe, role }: MemberProps) {
       title: `Disband ${label}?`,
       body: (
         <p>
-          Every member is removed, and all invitations, applications, proposals and relations are deleted. The name and tag
-          become free. This cannot be undone.
+          Members, invitations and relations are deleted. This cannot be undone.
         </p>
       ),
       confirmLabel: 'Disband tribe',
@@ -186,9 +184,7 @@ export function Members({ tribe, role }: MemberProps) {
       <section className="card stack" aria-labelledby="leave-title">
         <h2 id="leave-title" className="card-title">Leaving</h2>
         {leaderBlocked && (
-          <p className="muted">
-            You lead this tribe. Make another member the leader (Manage on their row) before you leave.
-          </p>
+          <p className="muted">Hand over leadership first.</p>
         )}
         <div className="form-row wrap">
           <button className="btn btn-danger-outline" disabled={busy || leaderBlocked} onClick={() => void leave()}>

@@ -163,10 +163,10 @@ export function TribeView() {
     body = store.error ? (
       <div className="card">
         <p className="form-error" role="alert">{store.error}</p>
-        <button className="btn" onClick={() => void store.reload()}>Try again</button>
+        <button className="btn" onClick={() => void store.reload()}>Retry</button>
       </div>
     ) : (
-      <p className="muted" role="status">Loading tribe…</p>
+      <p className="muted" role="status">Loading…</p>
     );
   } else if (viewing) {
     body = (
@@ -184,7 +184,6 @@ export function TribeView() {
     body = (
       <TribeContext.Provider value={api}>
         <h1 className="page-title">Tribes</h1>
-        <p className="muted pad-bottom">Join a tribe to share a chat, make alliances and keep your friends off your target list.</p>
         <Finder />
       </TribeContext.Provider>
     );

@@ -60,7 +60,7 @@ test('unit speed shows next to the world speed', () => {
   const c = setWorldConfigValue(config(2), 'pace.unitSpeed', 1.5);
   const html = page(response(c));
   assert.ok(html.includes('World speed 2×'));
-  assert.ok(html.includes('Troops and shipments walk at 3×'));
+  assert.ok(html.includes('March speed 3×'));
 });
 
 test('flags read On and Off, and the non-default numbers show', () => {
@@ -81,10 +81,10 @@ test('every setting of the engine list has a row', () => {
 
 test('open world marks only the settings that can still change; a closed world says everything can', () => {
   const open = page(response(config(1), { open: true, editableAfterOpen: ['tribe.maxMembers'] }));
-  assert.equal(open.split('Can still change').length - 1, 2, 'one row tag plus the sentence in the note');
+  assert.equal(open.split('Can still change').length - 1, 1, 'one row tag');
   const closed = page(response(config(1), { open: false, openedAt: null }));
   assert.ok(closed.includes('Not open yet'));
-  assert.ok(closed.includes('can still change any rule'));
+  assert.ok(closed.includes('Any rule can still change'));
   assert.ok(!closed.includes('Can still change'));
 });
 
@@ -94,7 +94,7 @@ test('a failed load shows a plain notice and the standard rules; loading shows a
   assert.ok(html.includes('could not be loaded'));
   assert.ok(html.includes('Hold time, player village 8 h'));
   const loading = text(renderToStaticMarkup(createElement(WorldRulesPanel, { state: { status: 'loading', config: DEFAULT_WORLD_CONFIG, response: null } })));
-  assert.ok(loading.includes('Loading the rules'));
+  assert.ok(loading.includes('Loading'));
 });
 
 test('value words', () => {
@@ -230,12 +230,12 @@ test('strike hint uses the world\'s hold time and chain window, in real time', (
   const s = settingsWith(c);
   assert.ok(strikeHint('player', s).includes('12-hour hold'));
   assert.ok(strikeHint('abandoned', s).includes('3-hour hold'));
-  assert.ok(strikeHint('player', s).includes('within 4 hours of each other'));
+  assert.ok(strikeHint('player', s).includes('land within 4 hours'));
   // At speed 10 the same rules play out ten times faster.
   const fast = settingsWith(setWorldConfigValue(c, 'pace.speed', 10));
   assert.ok(strikeHint('abandoned', fast).includes('18-minute hold'));
   const noPlayers = settingsWith(setWorldConfigValue(defaultWorldConfig(), 'conquest.playersCanBeConquered', false));
-  assert.ok(strikeHint('player', noPlayers).includes('only abandoned villages can be taken'));
+  assert.ok(strikeHint('player', noPlayers).includes('Only abandoned villages can be taken'));
   assert.equal(hoursText(1), '1 hour');
   assert.equal(hoursText(8, true), '8-hour');
 });

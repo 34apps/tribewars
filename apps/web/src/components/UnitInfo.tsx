@@ -47,8 +47,11 @@ export function UnitInfoBody({ unit, settings, buildings }: { unit: UnitId; sett
       <div className="uinfo-name">
         <h2 id="unit-info-title" className="card-title">{def.name}</h2>
         <span className={`urole urole-${role.tone}`}>{role.label}</span>
+        <details className="help-pop">
+          <summary aria-label={`About the ${def.name}`}>?</summary>
+          <p className="small">{def.description}</p>
+        </details>
       </div>
-      <p className="building-desc">{def.description}</p>
       <dl className="stats uinfo-stats">
         {row('Attack', def.attack)}
         {row('Defence vs infantry', def.defenseInfantry)}
@@ -60,14 +63,13 @@ export function UnitInfoBody({ unit, settings, buildings }: { unit: UnitId; sett
         {row('Unlocked by', requiresText(unit))}
       </dl>
       <div className="uinfo-cost">
-        <span className="muted">Cost per unit</span> <Cost cost={def.cost} />
+        <Cost cost={def.cost} />
       </div>
       {research && (
         <p className="uinfo-note">
-          Research needed (once per village): Drillyard {research.drillyard}, <Cost cost={research.cost} />, {formatDuration(researchTimeMs(unit, settings))}.
+          Research: Drillyard {research.drillyard}, <Cost cost={research.cost} />, {formatDuration(researchTimeMs(unit, settings))}
         </p>
       )}
-      <p className="uinfo-note muted">Each unit counts toward the village population (Farm cap). There is no other upkeep.</p>
     </>
   );
 }

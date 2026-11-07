@@ -29,7 +29,7 @@ export default function ChieftainPicker({
           </span>
           <p className="cp-bubble">
             <strong>Mags, the Tinker</strong>
-            Welcome! Every tribe needs a face. Tap one you would follow into a raid.
+            Pick your chieftain.
           </p>
         </div>
       )}

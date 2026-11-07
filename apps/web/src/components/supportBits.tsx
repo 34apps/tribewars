@@ -98,7 +98,7 @@ export function ReportDialog({
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       setDone(true);
-      toast('Report sent. Thank you, our team will look at it.');
+      toast('Report sent');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -122,7 +122,7 @@ export function ReportDialog({
       <h2 id="report-dialog-title" className="card-title">Report {about}</h2>
       {done ? (
         <>
-          <p>Thank you. Your report was sent to our team. We will not tell the other player who reported them.</p>
+          <p>Report sent.</p>
           <button type="button" className="btn btn-primary btn-block" onClick={onClose}>
             Close
           </button>

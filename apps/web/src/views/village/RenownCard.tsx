@@ -52,7 +52,7 @@ export function RenownCard() {
           Renown
         </h2>
         <span className="renown-bal">
-          <strong>{formatInt(renown.balance)}</strong> to spend
+          <strong>{formatInt(renown.balance)}</strong> left
         </span>
       </div>
       <dl className="renown-facts">
@@ -71,18 +71,16 @@ export function RenownCard() {
       </dl>
       <div className="renown-next">
         <span>
-          Next village: <strong>{formatInt(renown.nextVillageCost)}</strong> Renown
+          Next village <strong>{formatInt(renown.nextVillageCost)}</strong>
         </span>
-        <span className="renown-togo">{toGo > 0 ? `${formatInt(toGo)} to go` : 'Enough saved'}</span>
+        <span className="renown-togo">{toGo > 0 ? `${formatInt(toGo)} to go` : 'Enough'}</span>
       </div>
       <ProgressBar value={renownProgress(renown)} label="Renown saved towards the next village" tone={toGo > 0 ? 'brand' : 'ok'} />
-      <p className="renown-note">Earned by building, fighting, keeping troops at home (a little each day once beginner protection ends) and Feasts. Never lost.</p>
-      <p className="renown-note renown-soon">
-        {renown.reserved
-          ? `${formatInt(renown.reserved)} Renown is reserved for ${renown.chieftains ?? 0} Chieftain${renown.chieftains === 1 ? '' : 's'} (it is part of Spent). `
-          : ''}
-        New villages come from a Chieftain (trained in the Banner Hall): he founds one on free land or, with an escort, takes an abandoned one.
-      </p>
+      {renown.reserved ? (
+        <p className="renown-note renown-soon">
+          {formatInt(renown.reserved)} reserved · {renown.chieftains ?? 0} Chieftain{renown.chieftains === 1 ? '' : 's'}
+        </p>
+      ) : null}
     </section>
   );
 }

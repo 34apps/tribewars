@@ -44,9 +44,9 @@ test('the building picker shows only for an attack with Boulder Slings', () => {
 test('the picker lists building names (random first), no levels', () => {
   const html = renderToString(createElement(SiegePicker, { value: '', onChange: () => {} }));
   const plain = text(html);
-  assert.match(plain, /Boulder Slings hit:/);
+  assert.match(plain, /Slings hit:/);
   assert.match(plain, /Random building/);
-  assert.match(plain, /Scout first to see building levels\./);
+  assert.match(plain, /No scout report/);
   assert.ok(html.indexOf('Random building') < html.indexOf(BUILDINGS.hall.name));
   for (const id of BUILDING_IDS) assert.ok(html.includes(`value="${id}"`), id);
   for (const o of siegeTargetOptions()) assert.ok(plain.includes(o.name), o.name);

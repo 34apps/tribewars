@@ -41,7 +41,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   const flat = flatShipmentTravelMs(village, tile, settings);
   const slowdown = slowdownText(flat, travel);
   const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings), waymarks)) : '';
-  const reason = total < 1 ? 'Choose what to send' : !check.ok ? check.message : null;
+  const reason = total < 1 ? 'Pick resources' : !check.ok ? check.message : null;
 
   function set(r: ResourceId, value: string) {
     setError(null);
@@ -61,7 +61,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
       const res = await api.ship(village.id, { x: tile.x, y: tile.y, resources: cargo, ...(toStore ? { toTribeStore: true } : {}) });
       applySend(res);
       setAmounts({});
-      toast(`Resources sent to ${toStore ? 'the Tribe Store' : target.name}. Arrive in ${formatDuration(res.movement.arriveAt - now)}.`, {
+      toast(`Sent to ${toStore ? 'Tribe Store' : target.name} · ${formatDuration(res.movement.arriveAt - now)}`, {
         action: { label: 'View', onClick: () => viewMovement(res.movement.id) },
       });
     } catch (e) {
@@ -73,7 +73,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   }
 
   if (live.buildings.market < 1) {
-    return <p className="wm-why">Build a Market first to send resources.</p>;
+    return <p className="wm-why">Needs a Market</p>;
   }
 
   return (
@@ -84,21 +84,22 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         void send();
       }}
     >
-      <h3 className="wm-send-title">{toStore ? 'Send to the Tribe Store' : 'Send resources'}</h3>
+      <div className="title-row">
+        <h3 className="wm-send-title">{toStore ? 'To Tribe Store' : 'Send resources'}</h3>
+        <details className="help-pop on-light">
+          <summary aria-label="How sending resources works">?</summary>
+          <p className="small">{toStore ? 'Goes to the tribe store, not the village.' : 'Over the storehouse limit on arrival is lost.'}</p>
+        </details>
+      </div>
       {storeVillage && (
         <label className="wm-muted">
-          <input type="checkbox" checked={intoStore} onChange={(e) => setIntoStore(e.target.checked)} /> Into the Tribe Store
+          <input type="checkbox" checked={intoStore} onChange={(e) => setIntoStore(e.target.checked)} /> To Tribe Store
         </label>
       )}
-      {toStore && (
-        <p className="wm-muted">
-          The cargo goes into your tribe's store, not into {target.name}. Your tribe can spend it on projects.
-        </p>
-      )}
-      {roads > 0 && <p className="wm-muted">Roads make trips between tribe members faster.</p>}
       <p className="wm-muted">
-        Carriers take up to {formatInt(capacity)} in total.
-        {toStore ? ` You can give at most ${formatInt(PROJECT_DAILY_CAP_PER_MEMBER)} a day to the Tribe Store.` : ' Anything over the storehouse limit on arrival is lost.'}
+        Carry {formatInt(capacity)}
+        {toStore ? ` · ${formatInt(PROJECT_DAILY_CAP_PER_MEMBER)}/day max` : ''}
+        {roads > 0 ? ' · Roads: faster' : ''}
       </p>
       <ul className="wm-units">
         {RESOURCE_IDS.map((r) => (
@@ -132,7 +133,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
           </dd>
         </div>
         <div>
-          <dt>Travel time</dt>
+          <dt>Travel</dt>
           <dd>
             {formatDuration(travel)}
             {waymarkHelps && <small className="wm-muted"> {WAYMARK_NOTE}</small>}
@@ -140,7 +141,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         </div>
         {slowdown && (
           <div className="wm-terrain-time">
-            <dt>Without terrain</dt>
+            <dt>Flat</dt>
             <dd>
               {formatDuration(flat)} <span className="wm-slow">{slowdown}</span>
               <small className="wm-muted"> {slowGround}</small>
@@ -158,7 +159,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
         </p>
       )}
       <button className="wm-btn wm-btn-sun wm-btn-big" type="submit" disabled={!!reason || busy}>
-        {busy ? 'Sending…' : toStore ? 'Send to Tribe Store' : 'Send resources'}
+        {busy ? 'Sending…' : toStore ? 'Send to store' : 'Send'}
       </button>
       {reason && <div className="wm-why">{reason}</div>}
     </form>

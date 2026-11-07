@@ -28,7 +28,7 @@ function NewTicket({ onCreated, onCancel }: { onCreated: (t: TicketDto) => void;
     setError(null);
     try {
       const t = await api.createTicket({ category, subject: subject.trim(), body: body.trim() });
-      toast('Your request was sent to support.');
+      toast('Sent');
       onCreated(t);
     } catch (err) {
       setError(errorMessage(err));
@@ -97,7 +97,7 @@ function Thread({ id, onBack, onChanged }: { id: number; onBack: () => void; onC
         onChanged();
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof ApiRequestError && e.code === 'not_found' ? 'This request no longer exists.' : errorMessage(e));
+        if (!cancelled) setError(e instanceof ApiRequestError && e.code === 'not_found' ? 'Request not found.' : errorMessage(e));
       });
     return () => {
       cancelled = true;
@@ -141,7 +141,7 @@ function Thread({ id, onBack, onChanged }: { id: number; onBack: () => void; onC
           </p>
           <TicketThread messages={ticket.messages} viewerIsStaff={false} />
           {closed ? (
-            <p className="muted">This request is closed. Open a new one if you need more help.</p>
+            <p className="muted">Closed.</p>
           ) : (
             <form
               className="mail-compose"
@@ -209,7 +209,7 @@ export function SupportView() {
               ← Game
             </button>
             <span className="muted" aria-live="polite">
-              {unread > 0 ? `${unread} new ${unread === 1 ? 'answer' : 'answers'}` : ''}
+              {unread > 0 ? `${unread} new` : ''}
             </span>
             <button type="button" className="btn btn-primary" onClick={() => setPane({ kind: 'new' })}>
               New request
@@ -224,7 +224,7 @@ export function SupportView() {
             </p>
           )}
           {list === null && !error && <p className="muted">Loading…</p>}
-          {list !== null && list.length === 0 && <p className="muted">You have no requests yet. Use “New request” to write to support.</p>}
+          {list !== null && list.length === 0 && <p className="muted">No requests.</p>}
           {list !== null && list.length > 0 && (
             <ul className="mail-list">
               {list.map((t) => (
@@ -251,7 +251,7 @@ export function SupportView() {
           )}
         </section>
         <section className="card mail-pane" aria-label="Request">
-          {pane.kind === 'none' && <p className="muted mail-hint">Pick a request to read it, or write a new one.</p>}
+          {pane.kind === 'none' && <p className="muted mail-hint">Select a request.</p>}
           {pane.kind === 'new' && (
             <NewTicket
               onCancel={closePane}

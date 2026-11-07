@@ -32,7 +32,13 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
       <h1 className="page-title">World results</h1>
 
       <section className="card rk-card end-winner" aria-labelledby="end-winner-title">
-        <h2 id="end-winner-title" className="card-title end-winner-title">{winnerLine(end)}</h2>
+        <div className="title-row">
+          <h2 id="end-winner-title" className="card-title end-winner-title">{winnerLine(end)}</h2>
+          <details className="help-pop">
+            <summary aria-label="About the ended world">?</summary>
+            <p className="small">Orders closed. Map, reports, mail, rankings and chat stay open.</p>
+          </details>
+        </div>
         {end.winner && (
           <p className="end-winner-tag">
             <button type="button" className="link link-touch" onClick={() => viewTribe({ id: end.winner!.tribeId })}>
@@ -43,7 +49,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
         {end.reason.trim() && <p className="end-reason">{end.reason}</p>}
         <dl className="facts end-facts">
           <div>
-            <dt>How it ended</dt>
+            <dt>Result</dt>
             <dd>{endKindText(end.kind)}</dd>
           </div>
           <div>
@@ -51,17 +57,14 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
             <dd>{endedAtText(end, now)}</dd>
           </div>
         </dl>
-        <p className="muted small end-note">
-          The world is frozen: no more orders. You can still read the map, reports, mail and rankings, and write in your tribe's chat and forum.
-        </p>
       </section>
 
       <DominationCard />
 
       <section className="card rk-card" aria-labelledby="end-tribes-title">
-        <h2 id="end-tribes-title" className="card-title">Final tribe ranking</h2>
+        <h2 id="end-tribes-title" className="card-title">Tribes</h2>
         {tribes.length === 0 ? (
-          <p className="muted">No tribes at the end.</p>
+          <p className="muted">No tribes.</p>
         ) : (
           <div className="rk-scroll">
             <table className="rk-table">
@@ -82,7 +85,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
                       <td className="rk-c-rank"><Rank rank={t.rank} /></td>
                       <td className="rk-name">
                         <button type="button" className="rk-who" onClick={() => viewTribe({ id: t.tribeId })}>{t.name}</button>
-                        <span className="muted small end-sub">[{t.tag}]{mine ? ' · your tribe' : ''}</span>
+                        <span className="muted small end-sub">[{t.tag}]{mine ? ' · you' : ''}</span>
                       </td>
                       <td className="num">{t.members}</td>
                       <td className="num">{t.villages}</td>
@@ -97,9 +100,9 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
       </section>
 
       <section className="card rk-card" aria-labelledby="end-players-title">
-        <h2 id="end-players-title" className="card-title">Final player ranking</h2>
+        <h2 id="end-players-title" className="card-title">Players</h2>
         {players.length === 0 ? (
-          <p className="muted">No players at the end.</p>
+          <p className="muted">No players.</p>
         ) : (
           <div className="rk-scroll">
             <table className="rk-table">
@@ -137,7 +140,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
 
       <p className="end-back">
         <button type="button" className="btn btn-tall" onClick={() => showOnMap(village.x, village.y)}>
-          Look at the final map
+          Final map
         </button>
       </p>
     </div>

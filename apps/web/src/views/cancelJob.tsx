@@ -28,10 +28,9 @@ export function useCancelJob() {
       body: (
         <>
           <p>
-            You only get {CANCEL_REFUND_PERCENT}% of the resources back: <strong>{amounts(back)}</strong>.
+            Refund {CANCEL_REFUND_PERCENT}%: <strong>{amounts(back)}</strong>
           </p>
-          <p>The other {100 - CANCEL_REFUND_PERCENT}% is lost.</p>
-          {reservesRenown && <p>The Renown reserved for the batch comes back in full.</p>}
+          {reservesRenown && <p>Renown refunded in full.</p>}
         </>
       ),
       confirmLabel: 'Cancel it',
@@ -42,8 +41,8 @@ export function useCancelJob() {
     try {
       const res = await call();
       applyVillage(res.village);
-      const renown = res.renownRefund ? ` ${formatInt(res.renownRefund)} Renown came back in full.` : '';
-      toast(`Cancelled ${what}. You got back ${amounts(res.refund)} (${CANCEL_REFUND_PERCENT}%); the rest is lost.${renown}`);
+      const renown = res.renownRefund ? ` +${formatInt(res.renownRefund)} Renown.` : '';
+      toast(`Cancelled ${what}. Back: ${amounts(res.refund)}.${renown}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {

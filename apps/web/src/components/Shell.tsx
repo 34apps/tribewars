@@ -113,7 +113,7 @@ function Strip() {
       {worldEnd && (
         <div className="strip strip-ended" role="status">
           <Icon name="flame" size={22} />
-          <span>{bannerText(worldEnd)} Orders are closed.</span>
+          <span>{bannerText(worldEnd)} Orders closed.</span>
           {tab !== 'results' && (
             <button type="button" className="btn btn-small strip-ended-btn" onClick={() => navigate('results')}>
               See results
@@ -130,7 +130,7 @@ function Strip() {
         <button className="strip strip-danger" onClick={() => navigate('army')}>
           <Icon name="warning" size={22} />
           <span>
-            {incoming.length > 1 ? `${incoming.length} attacks incoming` : 'Attack incoming'}: first lands in{' '}
+            {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} ·{' '}
             <strong>{formatDuration(first.arriveAt - now)}</strong>
           </span>
         </button>
@@ -139,7 +139,7 @@ function Strip() {
         <div className="strip strip-protect">
           <Icon name="shield" size={22} />
           <span>
-            Beginner protection: <strong>{formatLeft(protectedLeft)}</strong> left
+            Protected <strong>{formatLeft(protectedLeft)}</strong>
           </span>
         </div>
       )}
@@ -320,12 +320,12 @@ function Who({
                   .setHousehold(shared)
                   .then(() => {
                     tribeChanged();
-                    toast(shared ? 'Reported: someone else plays from your household.' : 'Household report removed.');
+                    toast(shared ? 'Household shared.' : 'Household unshared.');
                   })
                   .catch((err) => toast(errorMessage(err)));
               }}
             />
-            <span>Someone else in my household plays Clanfire. Our accounts can't send troops to each other.</span>
+            <span title="Accounts in the same household can't send troops to each other.">Shared household</span>
           </label>
           {isLobbyWorld(worldInfo) && (
             <a className="btn btn-block" href={LOBBY_URL}>
@@ -336,11 +336,10 @@ function Who({
             Sign out
           </button>
           {isLobbyWorld(worldInfo) && (
-            <button className="btn btn-block" onClick={onSignOutEverywhere}>
+            <button className="btn btn-block" title="Ends all sessions on every device." onClick={onSignOutEverywhere}>
               Sign out everywhere
             </button>
           )}
-          {isLobbyWorld(worldInfo) && <small className="muted">Everywhere ends all your Clanfire sessions on every device.</small>}
         </div>
       )}
     </div>

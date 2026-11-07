@@ -176,19 +176,19 @@ export function Chat() {
       <h2 id="chat-title" className="card-title">Tribe chat</h2>
       <div className="chat-wrap">
         <div className="chat-list" ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-label="Messages" tabIndex={0}>
-          {messages === null && <p className="muted">{error ? `Could not load the chat: ${error} Retrying…` : 'Loading messages…'}</p>}
-          {messages !== null && messages.length === 0 && <p className="muted">No messages yet. Say hello.</p>}
+          {messages === null && <p className="muted">{error ? `${error} Retrying…` : 'Loading…'}</p>}
+          {messages !== null && messages.length === 0 && <p className="muted">No messages.</p>}
           {messages?.map((m) => (
             <ChatMessage key={m.id} m={m} own={m.playerId === player.id} minute={minute} />
           ))}
         </div>
         {unseen > 0 && (
           <button className="btn btn-small chat-new" onClick={jumpToEnd}>
-            {unseen} new {unseen === 1 ? 'message' : 'messages'} ↓
+            {unseen} new ↓
           </button>
         )}
       </div>
-      {messages !== null && error && <p className="form-error small" role="status">Connection problem. Retrying…</p>}
+      {messages !== null && error && <p className="form-error small" role="status">Reconnecting…</p>}
       <form className="chat-form" onSubmit={(e) => void send(e)}>
         <label className="visually-hidden" htmlFor="chat-input">Message</label>
         <textarea
@@ -196,7 +196,7 @@ export function Chat() {
           className="input textarea chat-input"
           rows={2}
           value={text}
-          placeholder="Write to your tribe"
+          placeholder="Message"
           onChange={(e) => {
             setText(e.target.value);
             setSendError(null);

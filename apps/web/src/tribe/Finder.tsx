@@ -37,7 +37,7 @@ function Invitations() {
                 <TribeLabel tag={i.tribe.tag} name={i.tribe.name} />
               </button>
               <div className="muted small">
-                Invited by {i.invitedBy} · expires in {formatLeft(i.expiresAt - now)}
+                {i.invitedBy} · {formatLeft(i.expiresAt - now)}
               </div>
             </div>
             <div className="row-actions">
@@ -119,13 +119,13 @@ function TribeList() {
     <section className="card" aria-labelledby="find-title">
       <h2 id="find-title" className="card-title">Find a tribe</h2>
       <label className="field">
-        <span className="visually-hidden">Search by name or tag</span>
+        <span className="visually-hidden">Search</span>
         <input
           className="input"
           type="search"
           inputMode="search"
           autoComplete="off"
-          placeholder="Search by name or tag"
+          placeholder="Name or tag"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -137,7 +137,7 @@ function TribeList() {
       )}
       {tribes === null && !error && <p className="muted pad-top">Loading…</p>}
       {tribes !== null && tribes.length === 0 && (
-        <p className="muted pad-top">{query ? 'No tribe matches that search.' : 'No tribes yet. Found the first one below.'}</p>
+        <p className="muted pad-top">{query ? 'No match.' : 'No tribes.'}</p>
       )}
       {tribes !== null && tribes.length > 0 && (
         <ul className="tribe-list">
@@ -148,9 +148,9 @@ function TribeList() {
                 <span className="tribe-row-text">
                   <span className="tribe-row-title"><TribeLabel tag={t.tag} name={t.name} /></span>
                   <span className="muted small">
-                    {t.members}/{maxMembers} members · {formatInt(t.points)} pts
+                    {t.members}/{maxMembers} · {formatInt(t.points)} pts
                   </span>
-                  <span className="muted small">Recruitment: {RECRUITMENT_NAME[t.recruitment]}</span>
+                  <span className="muted small">{RECRUITMENT_NAME[t.recruitment]}</span>
                 </span>
               </button>
               <div className="tribe-row-action">
@@ -182,7 +182,7 @@ function FoundForm() {
   const desc = checkTribeDescription(description);
   let why: string | null = null;
   if (locked) why = `Needs Town Hall ${TRIBE_FOUND_HALL_LEVEL}`;
-  else if (name.trim() === '' || tag.trim() === '') why = 'Choose a name and a tag';
+  else if (name.trim() === '' || tag.trim() === '') why = 'Name and tag needed';
   else if (!identity.ok) why = identity.message;
   else if (!desc.ok) why = desc.message;
 
@@ -208,9 +208,7 @@ function FoundForm() {
       </summary>
       <form className="stack" onSubmit={(e) => void submit(e)}>
         {locked && (
-          <p className="notice">
-            Your Town Hall is level {hall}. Raise it to level {TRIBE_FOUND_HALL_LEVEL} in the Village tab to found a tribe. Joining one has no requirement.
-          </p>
+          <p className="notice">Town Hall {hall}/{TRIBE_FOUND_HALL_LEVEL}</p>
         )}
         <fieldset className="fieldset" disabled={locked}>
           <label className="field">
@@ -228,7 +226,7 @@ function FoundForm() {
             />
           </label>
           <label className="field">
-            <span>Tag <span className="hint">2-6 letters or digits, shown as [TAG]</span></span>
+            <span>Tag <span className="hint">2-6 characters</span></span>
             <input
               className="input input-tag"
               value={tag}
@@ -256,7 +254,7 @@ function FoundForm() {
             <CharCount value={description} max={TRIBE_DESCRIPTION_MAX} />
           </div>
         </fieldset>
-        <p className="muted small">Name and tag are permanent. You become the leader.</p>
+        <p className="muted small">Name and tag are permanent.</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="btn btn-primary btn-block" type="submit" disabled={!!why || busy}>
           {locked ? `Needs Town Hall ${TRIBE_FOUND_HALL_LEVEL}` : busy ? 'Founding…' : 'Found tribe'}

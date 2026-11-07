@@ -103,7 +103,7 @@ export function TroopGroupBar({
             type="button"
             className="wm-chip wm-chip-tool"
             disabled={total < 1 || full}
-            title={full ? `You can save up to ${TROOP_GROUP_MAX} groups. Delete one first.` : undefined}
+            title={full ? `Limit ${TROOP_GROUP_MAX} groups` : undefined}
             onClick={() => {
               setError(null);
               setSaving(true);
@@ -123,7 +123,7 @@ export function TroopGroupBar({
           </button>
         )}
       </div>
-      {full && !saving && <span className="wm-muted">{TROOP_GROUP_MAX} of {TROOP_GROUP_MAX} saved</span>}
+      {full && !saving && <span className="wm-muted">{TROOP_GROUP_MAX}/{TROOP_GROUP_MAX} saved</span>}
       {saving && (
         <div className="wm-groups-edit">
           <label className="wm-groups-label" htmlFor="troop-group-name">

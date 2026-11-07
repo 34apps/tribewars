@@ -143,8 +143,13 @@ export function CommandPost() {
 
   return (
     <section className="card command-post" aria-label="Command post">
-      <h2 className="card-title">Command post</h2>
-      <p className="cp-lead">Send troops to any village without opening the map: find it by coordinates, village name or player name.</p>
+      <div className="title-row">
+        <h2 className="card-title">Command post</h2>
+        <details className="help-pop">
+          <summary aria-label="How the command post works">?</summary>
+          <p className="small">Find any village by coordinates, village name or player name and send troops without the map.</p>
+        </details>
+      </div>
 
       <form className="cp-target" onSubmit={submit} role="search">
         <Segmented label="Find the target by" value={mode} options={MODES} onChange={reset} />
@@ -181,7 +186,7 @@ export function CommandPost() {
 
       {mode !== 'coords' && results !== null && (
         rows.length === 0 ? (
-          <p className="cp-empty">{busy ? '' : `No ${mode === 'player' ? 'player' : 'village'} found with that name.`}</p>
+          <p className="cp-empty">{busy ? '' : 'No match'}</p>
         ) : (
           <ul className="cp-results" aria-label="Search results">
             {rows.map(({ village: v, distance: d }) => {
@@ -243,9 +248,8 @@ export function CommandPost() {
           from={here}
         />
       )}
-      {!picked && <p className="cp-empty">Choose a target above.</p>}
       <p className="cp-from">
-        Troops leave from <strong>{village.name}</strong> ({formatCoords(village.x, village.y)}).
+        From <strong>{village.name}</strong> ({formatCoords(village.x, village.y)})
       </p>
     </section>
   );
@@ -300,8 +304,8 @@ function Picked({ picked, nearby, from }: { picked: PickedTarget; nearby: MapVil
         </dl>
       </header>
 
-      {isCurrent && <p className="wm-note">This is the village your troops leave from. Pick another target, or switch village first.</p>}
-      {attackBlocked && target?.relation && <p className="wm-note">Attacks on this village are blocked by your relation to its tribe. Support and shipments may still be possible.</p>}
+      {isCurrent && <p className="wm-note">Your troops leave from here.</p>}
+      {attackBlocked && target?.relation && <p className="wm-note">Attacks blocked by tribe relation.</p>}
       {free && foundSite && !foundSite.ok && <p className="wm-note">{foundSite.message}</p>}
 
       {canShip && target && <ShipmentForm key={`ship-${current.id}-${tile.x}|${tile.y}`} tile={tile} target={target} />}

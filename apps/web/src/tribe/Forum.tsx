@@ -58,13 +58,13 @@ export function Forum() {
     const back = () => { setThread(null); if (board) void openBoard(board); void loadBoards(); };
     return (
       <div className="forum">
-        <button className="btn" style={{ minHeight: 44 }} onClick={back}>Back to {thread.board.name}</button>
+        <button className="btn" style={{ minHeight: 44 }} onClick={back}>← {thread.board.name}</button>
         <h2>{t.pinned ? '📌 ' : ''}{t.locked ? '🔒 ' : ''}{t.title}</h2>
         {can('forum_moderate') && (
           <div className="row">
             <button className="btn" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumUpdateThread(t.id, { pinned: !t.pinned }), refresh)}>{t.pinned ? 'Unpin' : 'Pin'}</button>
             <button className="btn" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumUpdateThread(t.id, { locked: !t.locked }), refresh)}>{t.locked ? 'Unlock' : 'Lock'}</button>
-            <button className="btn btn-danger-outline" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumDeleteThread(t.id), back)}>Delete thread</button>
+            <button className="btn btn-danger-outline" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumDeleteThread(t.id), back)}>Delete</button>
           </div>
         )}
         {thread.posts.map((p: ForumPostDto) => (
@@ -72,15 +72,15 @@ export function Forum() {
             <strong>{p.author}</strong> <span className="muted small">{new Date(p.createdAt).toLocaleString()}{p.editedAt ? ' (edited)' : ''}</span>
             <PlainText text={p.body} />
             <div className="row">
-              {p.canEdit && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => setText(p.body)}>Copy to edit</button>}
-              {p.canEdit && text.trim() !== '' && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumEditPost(p.id, text), refresh)}>Save as edit</button>}
+              {p.canEdit && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => setText(p.body)}>Edit</button>}
+              {p.canEdit && text.trim() !== '' && <button className="btn btn-small" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumEditPost(p.id, text), refresh)}>Save edit</button>}
               {p.authorId !== player.id && <ReportButton kind="forum_post" refId={p.id} about={`a post by ${p.author}`} className="btn btn-small btn-danger-outline" />}
               {p.canDelete && <button className="btn btn-small btn-danger-outline" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumDeletePost(p.id), refresh)}>Delete</button>}
             </div>
           </article>
         ))}
-        {thread.hasMore && <p className="muted">Showing the first {thread.posts.length} posts.</p>}
-        {t.locked ? <p className="muted">This thread is locked.</p> : composer('Write a reply', false, () => void act(() => api.forumReply(t.id, text), refresh))}
+        {thread.hasMore && <p className="muted">First {thread.posts.length} posts.</p>}
+        {t.locked ? <p className="muted">Locked.</p> : composer('Write a reply', false, () => void act(() => api.forumReply(t.id, text), refresh))}
       </div>
     );
   }
@@ -88,13 +88,13 @@ export function Forum() {
   if (board) {
     return (
       <div className="forum">
-        <button className="btn" style={{ minHeight: 44 }} onClick={() => { setBoard(null); void loadBoards(); }}>All boards</button>
+        <button className="btn" style={{ minHeight: 44 }} onClick={() => { setBoard(null); void loadBoards(); }}>← Boards</button>
         <h2>{board.name}</h2>
         <ul className="list">
           {threads.map((t) => (
             <li key={t.id}>
               <button className="btn" style={{ minHeight: 44, width: '100%', textAlign: 'left' }} onClick={() => void openThread(t.id)}>
-                {t.unread ? '● ' : ''}{t.pinned ? '📌 ' : ''}{t.locked ? '🔒 ' : ''}{t.title} <span className="muted small">by {t.author}, {t.postCount} posts</span>
+                {t.unread ? '● ' : ''}{t.pinned ? '📌 ' : ''}{t.locked ? '🔒 ' : ''}{t.title} <span className="muted small">{t.author} · {t.postCount}</span>
               </button>
             </li>
           ))}
@@ -102,7 +102,7 @@ export function Forum() {
         {threads.length === 0 && <p className="muted">No threads yet.</p>}
         {board.canPost
           ? composer('First post', true, () => void act(() => api.forumNewThread(board.id, title, text).then(setThread), () => undefined))
-          : <p className="muted">Only the leadership starts threads here. You can reply to them.</p>}
+          : <p className="muted">Leaders post here.</p>}
         {can('forum_manage') && (
           <button className="btn btn-danger-outline" style={{ minHeight: 44 }} onClick={() => void act(() => api.forumDeleteBoard(board.id), () => { setBoard(null); return loadBoards(); })}>Delete board</button>
         )}
@@ -112,12 +112,12 @@ export function Forum() {
 
   return (
     <div className="forum">
-      {boards === null && <p className="muted" role="status">Loading forum…</p>}
+      {boards === null && <p className="muted" role="status">Loading…</p>}
       <ul className="list">
         {(boards ?? []).map((b) => (
           <li key={b.id}>
             <button className="btn" style={{ minHeight: 44, width: '100%', textAlign: 'left' }} onClick={() => void openBoard(b)}>
-              {b.unread > 0 ? '● ' : ''}{b.name} <span className="muted small">{b.threadCount} threads{b.visibility === 'leadership' ? ', leadership only' : ''}</span>
+              {b.unread > 0 ? '● ' : ''}{b.name} <span className="muted small">{b.threadCount}{b.visibility === 'leadership' ? ' · leaders' : ''}</span>
             </button>
           </li>
         ))}

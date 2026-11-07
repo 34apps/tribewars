@@ -22,15 +22,15 @@ const BAND_TEXT = { small: 'Small army', medium: 'Medium army', large: 'Large ar
 /** What the Watchtower shows about an attack: rough size, slowest unit, about-number. Nothing at level 0 beyond a hint. */
 function WatchtowerInfo({ a, level }: { a: TribeAlertDto; level: number }) {
   if (!a.sizeBand && !a.slowestUnit && a.sizeAbout === undefined) {
-    return level <= 0 ? <p className="muted small alert-watch">Build a Watchtower to see more.</p> : null;
+    return level <= 0 ? <p className="muted small alert-watch">No Watchtower.</p> : null;
   }
   return (
     <p className="alert-watch">
       {a.sizeBand && <span className={`size-chip size-${a.sizeBand === 'huge' ? 'large' : a.sizeBand}`}>{BAND_TEXT[a.sizeBand]}</span>}
-      {a.sizeAbout !== undefined && a.sizeAbout > 0 && <span> about {a.sizeAbout.toLocaleString('en-US')} troops</span>}
+      {a.sizeAbout !== undefined && a.sizeAbout > 0 && <span> ~{a.sizeAbout.toLocaleString('en-US')}</span>}
       {a.slowestUnit && (
         <span className="muted">
-          {' '}· slowest: <Icon name={UNIT_ICON[a.slowestUnit]} size={16} className="inline-icon" /> {UNITS[a.slowestUnit].name}
+          {' '}· <Icon name={UNIT_ICON[a.slowestUnit]} size={16} className="inline-icon" /> {UNITS[a.slowestUnit].name}
         </span>
       )}
     </p>
@@ -42,12 +42,12 @@ function AlertRow({ a, level }: { a: TribeAlertDto; level: number }) {
   const mine = villages.some((v) => v.id === a.target.villageId);
   const left = a.arriveAt - now;
   const total = Math.max(1, a.arriveAt - a.departAt);
-  const owner = mine ? 'you' : (a.target.ownerName ?? 'a member');
+  const owner = mine ? 'you' : (a.target.ownerName ?? 'member');
   return (
     <li className="movement is-incoming alert-row">
       <div className="movement-head">
         <span className="movement-title">
-          <span className="tag tag-bad">Attack</span> on {owner},{' '}
+          <span className="tag tag-bad">Attack</span> on {owner} ·{' '}
           <button className="link link-touch" onClick={() => showOnMap(a.target.x, a.target.y)} title="Show on map">
             {a.target.name} ({formatCoords(a.target.x, a.target.y)})
           </button>
@@ -59,25 +59,25 @@ function AlertRow({ a, level }: { a: TribeAlertDto; level: number }) {
       <ProgressBar value={(now - a.departAt) / total} tone="danger" label="Attack progress" />
       <div className="movement-foot">
         <span>
-          from {a.attacker.ownerName ?? 'unknown'}
+          <Icon name="arrowRight" size={16} className="inline-icon" /> {a.attacker.ownerName ?? 'unknown'}
           {a.attackerTribeTag && <> <span className="tribe-tag">[{a.attackerTribeTag}]</span></>},{' '}
           <button className="link link-touch" onClick={() => showOnMap(a.attacker.x, a.attacker.y)} title="Show on map">
             {a.attacker.name} ({formatCoords(a.attacker.x, a.attacker.y)})
           </button>
         </span>
         <span className="muted">
-          departed {formatClock(a.departAt, now)} ({formatAgo(a.departAt, now)}) · arrives {formatClock(a.arriveAt, now)}
+          {formatAgo(a.departAt, now)} · lands {formatClock(a.arriveAt, now)}
         </span>
       </div>
       <WatchtowerInfo a={a} level={level} />
       <div className="alert-actions">
         {mine ? (
           <button className="btn btn-tall" onClick={() => viewMovement(a.movementId)}>
-            View in Army
+            Army
           </button>
         ) : (
           <button className="btn btn-primary btn-tall" onClick={() => showOnMap(a.target.x, a.target.y, { mission: 'support' })}>
-            Send support
+            Support
           </button>
         )}
       </div>
@@ -90,12 +90,12 @@ function HoldRow({ h }: { h: TribeHoldDto }) {
   const { villages, showOnMap, selectVillage, navigate } = useGame();
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const mine = villages.some((v) => v.id === h.village.villageId);
-  const owner = mine ? 'you' : (h.village.ownerName ?? 'a member');
+  const owner = mine ? 'you' : (h.village.ownerName ?? 'member');
   return (
     <li className="movement is-incoming alert-row alert-hold">
       <div className="movement-head">
         <span className="movement-title">
-          <span className="tag tag-bad">Hearth out</span> at {owner},{' '}
+          <span className="tag tag-bad">Hearth out</span> {owner},{' '}
           <button className="link link-touch" onClick={() => showOnMap(h.village.x, h.village.y)} title="Show on map">
             {h.village.name} ({formatCoords(h.village.x, h.village.y)})
           </button>
@@ -111,12 +111,12 @@ function HoldRow({ h }: { h: TribeHoldDto }) {
               navigate('village');
             }}
           >
-            View village
+            Village
           </button>
         ) : (
           <>
             <button className="btn btn-primary btn-tall" onClick={() => showOnMap(h.village.x, h.village.y, { mission: 'support' })}>
-              Send support
+              Support
             </button>
             <button className="btn btn-tall" onClick={() => showOnMap(h.village.x, h.village.y, { mission: 'attack' })}>
               {RELIEF_LABEL}
@@ -181,16 +181,13 @@ export function Alerts() {
       <h2 id="alerts-title" className="card-title">
         Alerts {count > 0 && <span className="badge badge-inline" aria-label={`${count} alerts`}>{count}</span>}
       </h2>
-      <p className="muted small pad-bottom">
-        Villages with the hearth out come first, then attacks on their way to your tribe's villages, soonest first. Send support to stand beside a member.
-      </p>
       {error && (
         <p className="form-error" role="alert">
           {error} <button className="link" onClick={() => void load()}>Retry</button>
         </p>
       )}
       {alerts === null && !error && <p className="muted" role="status">Loading…</p>}
-      {alerts !== null && count === 0 && <p className="muted">No attacks or held villages on your tribe right now.</p>}
+      {alerts !== null && count === 0 && <p className="muted">No alerts.</p>}
       {holds.length > 0 && (
         <ul className="movement-list" aria-label="Tribe villages with the hearth out">
           {holds.map((h) => (

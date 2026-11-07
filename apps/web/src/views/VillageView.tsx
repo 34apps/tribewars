@@ -56,7 +56,7 @@ function DesktopVillage() {
           </h1>
           <div className="vv-sub">
             {formatCoords(village.x, village.y)}
-            {player.tribe ? ` · ${player.tribe.name} [${player.tribe.tag}]` : ''} · click any building
+            {player.tribe ? ` · ${player.tribe.name} [${player.tribe.tag}]` : ''}
           </div>
           {preview && <DesignPreviewBar />}
         </div>
@@ -74,7 +74,7 @@ function DesktopVillage() {
             <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" onPick={setSelected} />
           </>
         ) : (
-          <p className="muted vv-side-hint">Click a building to see its details.</p>
+          <p className="muted vv-side-hint">Pick a building</p>
         )}
         <BuildQueue onPick={setSelected} />
         <RenownCard />
@@ -148,7 +148,6 @@ function PhoneVillage() {
         {!panned && !sheet && (
           <div className="vv-draghint" aria-hidden="true">
             <Icon name="drag" size={22} />
-            Drag to look around
           </div>
         )}
         {!sheet && (
@@ -213,9 +212,7 @@ function AbandonedNotice() {
   return (
     <div className="notice notice-block" role="status" style={{ margin: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div>
-        You were away for {days}, so {n.villages === 1 ? 'your village was' : `your ${n.villages} villages were`} abandoned and now{' '}
-        {n.villages === 1 ? 'belongs' : 'belong'} to the map. Troops you stationed elsewhere stay there. You start over with a new village under
-        beginner protection.
+        Away {days}: {n.villages === 1 ? '1 village' : `${n.villages} villages`} abandoned. You get a new village with beginner protection.
       </div>
       <button className="btn btn-primary" style={{ minHeight: 40, alignSelf: 'flex-start' }} onClick={dismiss} disabled={busy}>
         Got it

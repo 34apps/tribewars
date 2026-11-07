@@ -36,8 +36,8 @@ interface Props {
 }
 
 const SITE_HINTS: Partial<Record<Mission, string>> = {
-  attack: 'Beat the troops standing on the site to take it. If your army wins, the survivors stay as the new garrison and your tribe holds the site.',
-  support: 'Your troops stay at the site as part of its garrison. A tribe holds a site while at least one of its members has troops there.',
+  attack: 'Win to take it. Survivors become the garrison.',
+  support: 'Troops join the garrison. A tribe holds it while a member has troops there.',
 };
 
 export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClose }: Props) {
@@ -61,7 +61,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
     setError(null);
     try {
       const res = await api.siteRecall(site.id, villageId);
-      toast(`Troops called back from ${siteName(site)}. Home in ${formatDuration(res.movement.arriveAt - now)}.`);
+      toast(`Called back from ${siteName(site)} · ${formatDuration(res.movement.arriveAt - now)}`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -101,7 +101,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
           <SiteGlyph kind={site.kind} awake={site.awake} size={72} />
         </span>
         <div>
-          <div className="wm-stagecard-kicker">{utility ? SITE_KIND_NAME[site.kind] : site.kind === 'great_fire' ? 'The centre of the world' : 'Fire site'}</div>
+          <div className="wm-stagecard-kicker">{utility ? SITE_KIND_NAME[site.kind] : site.kind === 'great_fire' ? 'Centre' : 'Fire site'}</div>
           <div className="wm-stagecard-name">{utility ? kindLine : siteBonusText(site)}</div>
           {!utility && <div className="wm-stagecard-al">{stateText(site, wakesAt, now)}</div>}
         </div>
@@ -130,10 +130,10 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
         </div>
         <div className="wm-fact-wide">
           <dt>Calm</dt>
-          <dd>{calm > 0 ? `${formatDuration(calm)} left (cannot be attacked)` : 'None'}</dd>
+          <dd>{calm > 0 ? formatDuration(calm) : 'None'}</dd>
         </div>
         <div>
-          <dt>Your troops there</dt>
+          <dt>Yours</dt>
           <dd>{site.mine > 0 ? site.mine.toLocaleString() : 'None'}</dd>
         </div>
       </dl>
@@ -151,7 +151,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
                 </span>
               </div>
               <button type="button" className="wm-btn" disabled={busyId !== null || worldEnd !== null} onClick={() => void callBack(c.villageId)}>
-                {busyId === c.villageId ? 'Calling back...' : 'Call back'}
+                {busyId === c.villageId ? '…' : 'Call back'}
               </button>
             </li>
           ))}
@@ -159,7 +159,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
       )}
       {site.mine > 0 && contingents.length === 0 && (
         <button type="button" className="wm-btn wm-btn-big" onClick={() => navigate('army')}>
-          Recall or manage in the Army tab
+          Manage in Army
         </button>
       )}
       {error && (

@@ -580,7 +580,7 @@ export function MapView({ active }: { active: boolean }) {
     const x = Number(goX);
     const y = Number(goY);
     if (goX.trim() === '' || goY.trim() === '' || !Number.isInteger(x) || !Number.isInteger(y) || Math.abs(x) > radius || Math.abs(y) > radius) {
-      setGoError(`Enter whole numbers from −${radius} to ${radius}.`);
+      setGoError(`−${radius} to ${radius}`);
       return;
     }
     setGoError(null);

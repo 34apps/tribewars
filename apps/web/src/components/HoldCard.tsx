@@ -37,20 +37,15 @@ export function HoldCard({
         </span>
         <span>Hearth out</span>
         <span className="hold-clock" aria-label={view.running ? `Changes hands in ${formatDuration(view.leftMs)}` : 'Clock paused'}>
-          {view.running ? formatDuration(view.leftMs) : 'paused'}
+          {view.running ? formatDuration(view.leftMs) : `paused ${formatDuration(view.leftMs)}`}
         </span>
       </div>
       <p>{holdText(hearth, now, viewpoint === 'claimant')}</p>
-      {!compact && viewpoint === 'owner' && (
-        <p>
-          Your village makes nothing and eats nothing while the hearth is out, and nothing can be trained. Only the Wall can still be built. Win it back with troops before the clock runs out.
-        </p>
-      )}
-      {compact && viewpoint === 'owner' && <p>No training while the hearth is out. Only the Wall can be built.</p>}
-      {!compact && !view.running && <p>Clock left once it runs again: {formatDuration(view.leftMs)}.</p>}
+      {viewpoint === 'owner' && <p>{compact ? 'No training. Only the Wall can be built.' : 'No output, no training. Only the Wall can be built.'}</p>}
       {gap && (
         <p>
-          Occupiers: <strong>{formatInt(gap.have)}</strong> of {formatInt(gap.need)} needed{gap.enough ? '' : ' (too few)'}
+          Occupiers <strong>{formatInt(gap.have)}</strong>/{formatInt(gap.need)}
+          {gap.enough ? '' : <span className="tag tag-bad">Too few</span>}
         </p>
       )}
     </div>

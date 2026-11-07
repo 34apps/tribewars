@@ -37,7 +37,7 @@ export function JoinButton({ t, onApply }: { t: JoinTarget; onApply: () => void 
   if (t.recruitment === 'application') {
     if (applied) return <span className="tag tag-ok">Applied</span>;
     return (
-      <button className="btn btn-small" disabled={busy || atAppLimit} onClick={onApply} title={atAppLimit ? `You can have ${PLAYER_MAX_APPLICATIONS} open applications` : undefined}>
+      <button className="btn btn-small" disabled={busy || atAppLimit} onClick={onApply} title={atAppLimit ? `Limit ${PLAYER_MAX_APPLICATIONS}` : undefined}>
         Apply
       </button>
     );
@@ -62,12 +62,12 @@ export function ApplyForm({ t, onDone }: { t: JoinTarget; onDone: () => void }) 
   return (
     <form className="apply-form" onSubmit={(e) => void submit(e)}>
       <label className="field">
-        <span>Message to {t.name}</span>
+        <span>Message</span>
         <textarea
           className="input textarea"
           rows={3}
           value={message}
-          placeholder="Who are you and why this tribe?"
+          placeholder="Message"
           onChange={(e) => {
             setMessage(e.target.value);
             setError(null);
@@ -81,7 +81,7 @@ export function ApplyForm({ t, onDone }: { t: JoinTarget; onDone: () => void }) 
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={busy || over}>
-          Send application
+          Send
         </button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}

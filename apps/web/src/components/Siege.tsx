@@ -30,7 +30,7 @@ export function SiegePicker({ value, onChange, targetId, now }: { value: string;
   const ageText = scouted?.buildings && scouted.scoutedAt !== null ? formatAgo(scouted.scoutedAt, now ?? Date.now()) : null;
   return (
     <div className="wm-siege">
-      <label htmlFor="send-siege-target">Boulder Slings hit:</label>
+      <label htmlFor="send-siege-target">Slings hit:</label>
       <select id="send-siege-target" className="wm-select" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Random building</option>
         {siegeTargetOptions().map((b) => (
@@ -39,7 +39,7 @@ export function SiegePicker({ value, onChange, targetId, now }: { value: string;
           </option>
         ))}
       </select>
-      <p className="wm-muted">{ageText ? `Levels from your scouting report, ${ageText}. They may have changed since.` : 'Scout first to see building levels.'}</p>
+      <p className="wm-muted">{ageText ? `Scouted ${ageText}` : 'No scout report'}</p>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { MAP_STAGE_NAMES } from '@clanfire/engine';
 import { ALLEGIANCE_STYLE, stageRange } from './allegiance.ts';
 import { ROUTE_DOT_COLOR } from './render.ts';
 import { ALLEGIANCES, STAGE_FILES, artUrl } from './sprites.ts';
-import { siteKindLine } from '../sites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
 
 /** "Map key": village growth stages by points, allegiance banners, ruins and protection. Open by default on wide screens. */
@@ -19,7 +18,7 @@ export function Legend({ sites = true }: { sites?: boolean }) {
         Map key
       </summary>
       <div className="wm-legend-body">
-        <h3>Village size · points</h3>
+        <h3>Size · points</h3>
         <ul className="wm-legend-stages">
           {STAGE_FILES.map((f, i) => (
             <li key={f}>
@@ -40,7 +39,7 @@ export function Legend({ sites = true }: { sites?: boolean }) {
             </span>
             <span>
               <b>Ruins</b>
-              <small>Abandoned · raid them</small>
+              <small>Abandoned</small>
             </span>
           </li>
         </ul>
@@ -58,52 +57,52 @@ export function Legend({ sites = true }: { sites?: boolean }) {
           </li>
           <li className="wm-legend-wide">
             <span className="wm-cold-sample" aria-hidden="true" />
-            Hearth out: grey ring and smoke. Someone is holding it
+            Hearth out
           </li>
         </ul>
         {sites && (
           <>
-            <h3>Fire sites · bonus Renown</h3>
+            <h3>Fire sites · Renown</h3>
             <ul className="wm-legend-banners wm-legend-sites">
               <li>
                 <SiteGlyph kind="fire_shrine" awake size={38} />
-                Fire Shrine, awake
+                Shrine, awake
               </li>
               <li>
                 <SiteGlyph kind="fire_shrine" awake={false} size={38} />
-                Fire Shrine, dormant (ash)
+                Shrine, dormant
               </li>
               <li className="wm-legend-wide">
                 <SiteGlyph kind="great_fire" awake size={38} />
-                Great Fire: bigger bonus. Ring colour: green = your tribe, red = another tribe, grey = nobody
+                Great Fire · ring: green mine, red other, grey none
               </li>
             </ul>
-            <h3>Tribe sites · taken by attack, held with support</h3>
+            <h3>Tribe sites</h3>
             <ul className="wm-legend-banners wm-legend-sites">
               <li className="wm-legend-wide">
                 <SiteGlyph kind="waymark" awake={false} size={38} />
-                Waymark: {siteKindLine('waymark')}
+                Waymark · faster travel
               </li>
               <li className="wm-legend-wide">
                 <SiteGlyph kind="lookout" awake={false} size={38} />
-                Lookout: {siteKindLine('lookout')} Red dashed arrows show them on the map.
+                Lookout · sees armies
               </li>
             </ul>
           </>
         )}
-        <h3>Route to the selected tile</h3>
+        <h3>Route</h3>
         <ul className="wm-legend-banners">
           <li>
             <span className="wm-route-dot" style={{ background: ROUTE_DOT_COLOR.grass }} aria-hidden="true" />
-            Open ground
+            Open
           </li>
           <li>
             <span className="wm-route-dot" style={{ background: ROUTE_DOT_COLOR.hills }} aria-hidden="true" />
-            Forest, hills: slower
+            Forest, hills · slow
           </li>
           <li className="wm-legend-wide">
             <span className="wm-route-dot" style={{ background: ROUTE_DOT_COLOR.mountain }} aria-hidden="true" />
-            Mountains, water: much slower (never more than 2.2 times the flat time)
+            Mountains, water · slower
           </li>
         </ul>
       </div>

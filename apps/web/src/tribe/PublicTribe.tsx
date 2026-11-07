@@ -51,10 +51,10 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
       {error && (
         <div className="card">
           <p className="form-error" role="alert">{error}</p>
-          <button className="btn" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
+          <button className="btn" onClick={() => setAttempt((n) => n + 1)}>Retry</button>
         </div>
       )}
-      {!tribe && !error && <p className="muted">Loading tribe…</p>}
+      {!tribe && !error && <p className="muted">Loading…</p>}
       {tribe && (
         <>
           <section className="card" aria-labelledby="pub-title">
@@ -66,11 +66,10 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
               <div><dt>Recruitment</dt><dd>{RECRUITMENT_NAME[tribe.recruitment]}</dd></div>
               <div><dt>Founded</dt><dd>{formatDate(tribe.createdAt)}</dd></div>
             </dl>
-            {mine && <p className="notice notice-ok">This is your tribe.</p>}
+            {mine && <span className="tag tag-ok">Your tribe</span>}
             {tribeless && (
               <div className="join-line">
                 <JoinButton t={tribe} onApply={() => setApplying(true)} />
-                {tribe.recruitment === 'invite' && <span className="muted small">Ask an officer to invite you.</span>}
               </div>
             )}
             {tribeless && applying && <ApplyForm t={tribe} onDone={() => setApplying(false)} />}
@@ -78,7 +77,7 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
 
           <section className="card" aria-labelledby="pub-desc">
             <h2 id="pub-desc" className="card-title">About</h2>
-            {tribe.description ? <PlainText text={tribe.description} /> : <p className="muted">No description yet.</p>}
+            {tribe.description ? <PlainText text={tribe.description} /> : <p className="muted">No description.</p>}
           </section>
 
           <section className="card" aria-labelledby="pub-members">
@@ -95,7 +94,7 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
                     <div className="member-sub">
                       <span>{formatInt(m.points)} pts</span>
                       <button className="link" onClick={() => showOnMap(m.villageX, m.villageY)}>
-                        {formatCoords(m.villageX, m.villageY)} on map
+                        {formatCoords(m.villageX, m.villageY)}
                       </button>
                     </div>
                   </div>
@@ -107,7 +106,7 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
           <section className="card" aria-labelledby="pub-rel">
             <h2 id="pub-rel" className="card-title">Relations</h2>
             {tribe.relations.length === 0 ? (
-              <p className="muted">No alliances, pacts or wars.</p>
+              <p className="muted">None.</p>
             ) : (
               <ul className="stack">
                 {tribe.relations.map((r) => (

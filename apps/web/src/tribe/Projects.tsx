@@ -322,10 +322,10 @@ export function Projects() {
                 )}
                 {d.canManage && !maxed && (
                   <>
+                    {reason && !d.running && <p className="muted small project-reason">{reason}</p>}
                     <button className="btn btn-primary btn-tall" disabled={busy || !!reason} onClick={() => void act(() => api.startProject(p.project))}>
                       Build level {p.level + 1}
                     </button>
-                    {reason && !d.running && <p className="muted small">{reason}</p>}
                   </>
                 )}
               </li>

@@ -108,7 +108,7 @@ test('holdView counts down while running and shows what is left while paused', (
 });
 
 test('holdText names the claimant and says running or paused with the time', () => {
-  assert.match(holdText(hearth(), NOW), /Rhea holds this village.*5h 0m/);
+  assert.match(holdText(hearth(), NOW), /Rhea holds this village.*5h 0m left/);
   assert.match(holdText(hearth(), NOW, true), /^You hold this village/);
   const paused = holdText(hearth({ running: false, endsAt: null, failsAt: NOW + 2 * H }), NOW);
   assert.match(paused, /paused/);
@@ -252,11 +252,11 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
   assert.equal(strikeNeed('player', 0), 1);
   assert.equal(strikeNeed('player', 9000), 3);
   assert.ok(strikeHint('player').includes(`${HOLD_HOURS}-hour hold`));
-  assert.match(strikeHint('player'), /Tribe-mates and allies cannot be struck/);
-  assert.equal(strikeHint('abandoned').includes('Tribe-mates'), false);
+  assert.match(strikeHint('player'), /Allies are safe/);
+  assert.equal(strikeHint('abandoned').includes('Allies'), false);
   assert.ok(strikeHint('abandoned').includes(`${HOLD_HOURS_ABANDONED}-hour hold`));
   for (const kind of ['player', 'abandoned'] as const) {
-    assert.ok(strikeHint(kind).includes(`separate attacks, as long as they arrive within ${STRIKE_CHAIN_WINDOW_HOURS} hours of each other and are still on their way home`), kind);
+    assert.ok(strikeHint(kind).includes(`Chieftains must land within ${STRIKE_CHAIN_WINDOW_HOURS} hours`), kind);
   }
   assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 100) ?? '', /strong|defends/);
   assert.match(strikeWarning({ raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
@@ -302,11 +302,11 @@ test('villageReportText has plain words for every kind', () => {
     assert.ok(t.title.length > 0, kind);
     assert.ok(t.lines.length > 0 && t.lines.every((l) => l.length > 0), kind);
   }
-  assert.match(villageReportText({ kind: 'struck', village: ref, holdEndsAt: NOW + 3 * H }, NOW).lines.join(' '), /yours in 3h 0m/);
+  assert.match(villageReportText({ kind: 'struck', village: ref, holdEndsAt: NOW + 3 * H }, NOW).lines.join(' '), /Yours in 3h 0m/);
   assert.match(villageReportText({ kind: 'struck', village: ref, holdEndsAt: null }, NOW).lines.join(' '), /paused/);
   assert.match(villageReportText({ kind: 'hearth_out', village: ref, claimBy: 'Rhea' }, NOW).lines[0]!, /Rhea put out the hearth/);
-  assert.match(villageReportText({ kind: 'found_failed', village: ref, reason: 'village_limit' }, NOW).lines[0]!, /as many villages as the world allows/);
-  assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'time', units: units({ pikeman: 4 }) }, NOW).lines.join(' '), /on their way home/);
+  assert.match(villageReportText({ kind: 'found_failed', village: ref, reason: 'village_limit' }, NOW).lines[0]!, /village limit reached/);
+  assert.match(villageReportText({ kind: 'claim_failed', village: ref, reason: 'time', units: units({ pikeman: 4 }) }, NOW).lines.join(' '), /heading home/);
 });
 
 test('a cold village builds only the Wall; training keeps the plain reason', () => {

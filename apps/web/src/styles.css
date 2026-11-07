@@ -4851,9 +4851,22 @@ button.strip {
   margin: 0;
 }
 
-/* Round "?" toggle; opened, the line shows under the title. */
-.store-title-row {
+/* Round "?" toggle next to a title (any screen): <div class="title-row"><h2 class="card-title">…</h2><details class="help-pop">
+   <summary aria-label="…">?</summary><p class="small">…</p></details></div>. Opened, the line shows under the title. */
+.store-title-row,
+.title-row {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.title-row .card-title {
+  margin: 0;
+}
+
+.title-row + * {
+  margin-top: 10px;
 }
 
 .help-pop[open] {
@@ -4867,11 +4880,17 @@ button.strip {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--c-ink);
-  color: var(--c-cream);
+  background: var(--c-cream);
+  color: var(--c-ink);
   font-weight: 800;
   cursor: pointer;
   list-style: none;
+}
+
+.card-light .help-pop summary,
+.help-pop.on-light summary {
+  background: var(--c-ink);
+  color: var(--c-cream);
 }
 
 .help-pop summary::-webkit-details-marker {
@@ -4985,14 +5004,24 @@ button.strip {
   }
 }
 
+/* Flex column so the Build button sits at the bottom: buttons line up across the cards of one row. */
 .project-card {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
   border: 2px solid var(--c-ink-4);
   border-radius: 14px;
   background: var(--c-ink-2);
+}
+
+.project-card > .btn,
+.project-card > .project-reason {
+  margin-top: auto;
+}
+
+.project-card > .project-reason + .btn {
+  margin-top: 0;
 }
 
 .project-head {

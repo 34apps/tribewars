@@ -1,6 +1,6 @@
 import { Suspense, lazy, useState } from 'react';
 import type { FormEvent } from 'react';
-import { CHIEFTAINS, DEFAULT_CHIEFTAIN } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 import type { AuthRequest, LobbyChangePasswordRequest } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
@@ -117,7 +117,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
         <div className="auth-card">
           <div className="auth-brand">
             <h1>Choose a new password</h1>
-            <p className="auth-tagline">Your account is fine. Your old password just no longer meets our rules.</p>
+            <p className="auth-tagline">Old password no longer meets the rules.</p>
           </div>
           <form onSubmit={submitChange} className="auth-form" noValidate>
             <label className="field">
@@ -134,7 +134,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
                 required
               />
               <small id="new-password-hint" className="hint">
-                At least {passwordMin} characters. Not a common password, and not containing your username.
+                Min {passwordMin} characters. Not common, no username.
               </small>
             </label>
             <div className="form-error" role="alert" aria-live="assertive">
@@ -162,7 +162,6 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
   }
 
   if (register && step === 'chieftain') {
-    const chosen = CHIEFTAINS.find((c) => c.id === chieftain) ?? CHIEFTAINS[0];
     return (
       <div className="auth">
         <div className="auth-card auth-card-wide">
@@ -172,7 +171,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             </button>
             <div>
               <p className="auth-step-count">Step 2 of 2</p>
-              <h1 className="auth-step-title">Choose your chieftain</h1>
+              <h1 className="auth-step-title">Chieftain</h1>
             </div>
           </div>
           <Suspense fallback={<p className="muted auth-step-loading" role="status">Loading chieftains…</p>}>
@@ -185,7 +184,6 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             <button type="button" className="btn btn-primary btn-block btn-lead" disabled={busy} onClick={() => void leadClan()}>
               {busy ? 'Please wait…' : 'Lead your clan'}
             </button>
-            <p className="auth-step-note">{chosen.name} will lead your clan.</p>
           </div>
         </div>
       </div>
@@ -250,7 +248,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             />
             {register && (
               <small id="username-hint" className="hint">
-                3-20 letters, digits or underscores.
+                3-20 letters, digits, _
               </small>
             )}
           </label>
@@ -268,7 +266,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             />
             {register && (
               <small id="password-hint" className="hint">
-                {passwordMin > 8 ? `At least ${passwordMin} characters. Not a common password, and not containing your username.` : 'At least 8 characters.'}
+                {passwordMin > 8 ? `Min ${passwordMin} characters. Not common, no username.` : 'Min 8 characters.'}
               </small>
             )}
           </label>
@@ -276,14 +274,14 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             {error}
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : register ? 'Next: choose your chieftain' : 'Sign in'}
+            {busy ? 'Please wait…' : register ? 'Next' : 'Sign in'}
           </button>
         </form>
 
         <ul className="auth-blurb">
-          <li><Icon name="food" size={26} /> Grow wood, food, iron and gold in your own village.</li>
-          <li><Icon name="army" size={26} /> Train raiders and cavalry, then plunder abandoned villages.</li>
-          <li><Icon name="shield" size={26} /> New villages are protected for the first days. Take your time.</li>
+          <li><Icon name="food" size={26} /> Build</li>
+          <li><Icon name="army" size={26} /> Raid</li>
+          <li><Icon name="shield" size={26} /> Protected start</li>
         </ul>
       </div>
     </div>

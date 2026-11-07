@@ -25,10 +25,10 @@ export function WorldRulesPanel({ state }: { state: WorldConfigState }) {
     <div className="page rules-page">
       <h1 className="page-title">World rules</h1>
 
-      {status === 'loading' && <p className="muted" role="status">Loading the rules of this world…</p>}
+      {status === 'loading' && <p className="muted" role="status">Loading…</p>}
       {status === 'failed' && (
         <p className="why" role="alert">
-          The rules of this world could not be loaded. These are the standard rules and may differ from this world. Try again in a moment.
+          Rules could not be loaded. Showing standard rules.
         </p>
       )}
 
@@ -46,26 +46,19 @@ export function WorldRulesPanel({ state }: { state: WorldConfigState }) {
             <dd>{trim(speed)}×</dd>
           </div>
           <div>
-            <dt>Troops and shipments walk at</dt>
+            <dt>March speed</dt>
             <dd>{trim(walk)}×</dd>
           </div>
           {response && (
             <div>
               <dt>Map</dt>
               <dd>
-                {response.map.radius} tiles from the centre, {response.map.layout === 'expanding' ? 'growing outwards' : 'scattered'}
+                {response.map.radius} tiles, {response.map.layout === 'expanding' ? 'growing' : 'scattered'}
               </dd>
             </div>
           )}
         </dl>
-        <p className="muted small rules-note">
-          {speed !== 1
-            ? `Times below are real times in this world: the value at normal speed divided by ${trim(speed)}. `
-            : 'Times below are real times. '}
-          {response && !response.open
-            ? 'This world has not opened yet, so the operator can still change any rule until it does.'
-            : 'Once a world is open most rules are fixed, so nothing changes under your feet. Only the rules marked "Can still change" may be adjusted by the operator.'}
-        </p>
+        {response && !response.open && <p className="muted small rules-note">Any rule can still change.</p>}
       </section>
 
       <div className="rules-grid">
@@ -75,15 +68,16 @@ export function WorldRulesPanel({ state }: { state: WorldConfigState }) {
             <dl className="rules-list">
               {g.rows.map((row) => (
                 <div key={row.path} className="rules-row" data-path={row.path}>
-                  <dt className="rules-label">{row.label}</dt>
+                  <dt className="rules-label" title={row.help}>{row.label}</dt>
                   <dd className="rules-value">
                     {row.value}
                     {row.atSpeed1 && <span className="muted small rules-at1"> {row.atSpeed1}</span>}
                   </dd>
-                  <dd className="rules-help muted small">
-                    {row.help}
-                    {response?.open && row.editable && <span className="tag tag-info rules-tag">Can still change</span>}
-                  </dd>
+                  {response?.open && row.editable && (
+                    <dd className="rules-help muted small">
+                      <span className="tag tag-info rules-tag">Can still change</span>
+                    </dd>
+                  )}
                 </div>
               ))}
             </dl>

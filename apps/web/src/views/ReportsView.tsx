@@ -39,13 +39,13 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
 
 const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support', shipment: 'Shipment', village: 'Village' };
 const SIDE_NAME: Record<ReportSummaryDto['side'], string> = {
-  attack: 'You attacked',
-  defense: 'You were attacked',
-  support: 'Your troops there were attacked',
+  attack: 'Attack',
+  defense: 'Defense',
+  support: 'Support attacked',
   shipment: 'Resources',
 };
 // Village reports use side 'attack' for the claimant or founder and 'defense' for the owner; the sub-line names the event instead.
-const VILLAGE_SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Your claim', defense: 'Your village', support: 'Your village', shipment: 'Your village' };
+const VILLAGE_SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Claim', defense: 'Village', support: 'Village', shipment: 'Village' };
 
 function reportIcon(r: ReportSummaryDto): IconName {
   if (r.type === 'village') return 'chieftain';
@@ -73,15 +73,15 @@ function OutcomeTag({ report }: { report: ReportSummaryDto }) {
 }
 
 function metaText(report: ReportSummaryDto): string {
-  if (report.type === 'village') return report.side === 'attack' ? 'Your claim or new village' : 'Your village';
-  if (report.type === 'scout') return report.side === 'attack' ? 'You scouted' : 'Enemy scouts were spotted';
-  if (report.type === 'shipment') return report.side === 'shipment' ? 'Resources arrived' : '';
-  if (report.type === 'support') return 'Your support turned back';
-  if (report.side === 'support') return 'Your troops stationed there were attacked';
-  return report.side === 'attack' ? 'You attacked' : 'You were attacked';
+  if (report.type === 'village') return report.side === 'attack' ? 'Claim' : 'Village';
+  if (report.type === 'scout') return report.side === 'attack' ? 'Scouted' : 'Spotted';
+  if (report.type === 'shipment') return report.side === 'shipment' ? 'Arrived' : '';
+  if (report.type === 'support') return 'Turned back';
+  if (report.side === 'support') return 'Support attacked';
+  return report.side === 'attack' ? 'Attack' : 'Defense';
 }
 
-function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['side'] }) {
+function CalledOffDetail({ b }: { b: BattleReportData }) {
   return (
     <>
       <div className="sides">
@@ -91,16 +91,13 @@ function CalledOffDetail({ b, side }: { b: BattleReportData; side: ReportDto['si
       </div>
       <p className="notice notice-block called-off" role="note">
         <Icon name="shield" size={20} className="inline-icon" />{' '}
-        <span>
-          Attack called off. The target is now protected by a pact or tribe, so {side === 'attack' ? 'your troops turned back' : 'the attackers turned back'}.
-          No battle took place: no losses, no loot.
-        </span>
+        <span>Called off: target protected. No losses, no loot.</span>
       </p>
     </>
   );
 }
 
-function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean }) {
+function BattleDetail({ b }: { b: BattleReportData }) {
   const defenderKnown = b.defenderUnits !== null;
   const att = normalizeUnits(b.attackerUnits);
   const attLost = normalizeUnits(b.attackerLosses);
@@ -139,7 +136,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             <tbody>
               {rows.length === 0 && supportRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="muted">No units were involved.</td>
+                  <td colSpan={5} className="muted">No units.</td>
                 </tr>
               ) : (
                 rows.map((u) => (
@@ -158,7 +155,7 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
                 <>
                   <tr className="group-row">
                     <th scope="rowgroup" colSpan={5}>
-                      <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> Support troops (defending)
+                      <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> Support
                     </th>
                   </tr>
                   {supportRows.map((u) => (
@@ -177,20 +174,20 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             </tbody>
           </table>
         </div>
-        {!defenderKnown && <p className="muted note">The defender's forces are unknown because none of the attackers came back.</p>}
+        {!defenderKnown && <p className="muted note">Defender forces unknown.</p>}
       </section>
 
       <section className="subsection" aria-label="Battle numbers">
         <div className="power">
           <div className="power-row">
-            <span>Attack power</span>
+            <span>Attack</span>
             <strong>{formatInt(b.attackPower)}</strong>
           </div>
           <div className="power-bar" aria-hidden="true">
             <span className="power-att" style={{ width: `${(b.attackPower / power) * 100}%` }} />
           </div>
           <div className="power-row">
-            <span>Defense power</span>
+            <span>Defense</span>
             <strong>{formatInt(b.defensePower)}</strong>
           </div>
           <div className="power-bar" aria-hidden="true">
@@ -199,16 +196,16 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
         </div>
         <dl className="facts">
           <div>
-            <dt>Luck (attacker)</dt>
+            <dt>Luck</dt>
             <dd className={b.luck >= 0 ? 'gain' : 'loss'}>{formatSignedPercent(b.luck)}</dd>
           </div>
           <div>
-            <dt>Wall in battle</dt>
+            <dt>Wall</dt>
             <dd>{b.wallLevel === null ? <span className="muted">Unknown</span> : b.wallLevel}</dd>
           </div>
           <div>
             <dt>Result</dt>
-            <dd>{b.attackerWon ? 'Attacker won' : 'Defender held'}{ownerWon ? ' (your win)' : ''}</dd>
+            <dd>{b.attackerWon ? 'Attacker won' : 'Defender held'}</dd>
           </div>
         </dl>
       </section>
@@ -227,11 +224,11 @@ function BattleDetail({ b, ownerWon }: { b: BattleReportData; ownerWon: boolean 
             ))}
           </ul>
         ) : (
-          <p className="muted">Nothing was taken.</p>
+          <p className="muted">No loot.</p>
         )}
         {b.lootFromTribeStore && RESOURCE_IDS.some((r) => (b.lootFromTribeStore?.[r] ?? 0) > 0) && (
           <p className="muted">
-            From the Tribe Store:{' '}
+            Tribe Store:{' '}
             {RESOURCE_IDS.filter((r) => (b.lootFromTribeStore?.[r] ?? 0) > 0)
               .map((r) => `${formatInt(b.lootFromTribeStore?.[r] ?? 0)} ${RESOURCE_NAME[r].toLowerCase()}`)
               .join(', ')}
@@ -259,12 +256,12 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
   let result: string;
   if (sender) {
     result = s.success
-      ? 'Scouting succeeded. Your Pathfinders got a look inside and made it out.'
-      : 'Scouting failed. The defending Pathfinders caught every one of your scouts, so you learned nothing.';
+      ? 'Scouting succeeded.'
+      : 'Scouting failed: all scouts caught.';
   } else {
     result = s.success
-      ? `${formatInt(s.scoutsSent)} enemy Pathfinders were spotted. They outnumbered your Pathfinders and escaped.`
-      : `${formatInt(s.scoutsSent)} enemy Pathfinders were spotted and caught by your Pathfinders.`;
+      ? `${formatInt(s.scoutsSent)} enemy scouts escaped.`
+      : `${formatInt(s.scoutsSent)} enemy scouts caught.`;
   }
 
   return (
@@ -281,15 +278,15 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
       <section className="subsection" aria-label="Scouts">
         <dl className="facts">
           <div>
-            <dt>Scouts sent</dt>
+            <dt>Sent</dt>
             <dd>{formatInt(s.scoutsSent)}</dd>
           </div>
           <div>
-            <dt>Scouts lost</dt>
+            <dt>Lost</dt>
             <dd className={s.scoutsLost > 0 ? 'loss' : undefined}>{s.scoutsLost > 0 ? `−${formatInt(s.scoutsLost)}` : '–'}</dd>
           </div>
           <div>
-            <dt>Defending scouts</dt>
+            <dt>Defenders</dt>
             <dd>{s.defenderScouts === null ? <span className="muted">Unknown</span> : formatInt(s.defenderScouts)}</dd>
           </div>
           <div>
@@ -302,8 +299,8 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
       </section>
 
       {intel && (
-        <section className="subsection" aria-label="What the scouts saw">
-          <h3 className="subtitle">What the scouts saw</h3>
+        <section className="subsection" aria-label="Intel">
+          <h3 className="subtitle">Intel</h3>
           {intel.resources && (
             <>
               <h4 className="subtitle-small">Resources</h4>
@@ -319,9 +316,9 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
           )}
           {troops && (
             <>
-              <h4 className="subtitle-small">Troops in the village{intel.troopsApprox ? ' (rough numbers)' : ''}</h4>
+              <h4 className="subtitle-small">Troops{intel.troopsApprox ? ' (rough)' : ''}</h4>
               {troopRows.length === 0 ? (
-                <p className="muted">No troops at home.</p>
+                <p className="muted">No troops.</p>
               ) : (
                 <ul className="loot">
                   {troopRows.map((u) => (
@@ -355,19 +352,19 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
           {typeof intel.wallLevel === 'number' && (
             <dl className="facts">
               <div>
-                <dt>Wall level</dt>
+                <dt>Wall</dt>
                 <dd>{intel.wallLevel}</dd>
               </div>
               {typeof intel.drillyardLevel === 'number' && (
                 <div>
-                  <dt>Drillyard level</dt>
+                  <dt>Drillyard</dt>
                   <dd>{intel.drillyardLevel}</dd>
                 </div>
               )}
             </dl>
           )}
           {typeof intel.keen === 'number' && intel.keen < 5 && (
-            <p className="muted">Your Pathfinders' Keen rank ({intel.keen}) limits what they can see. Higher ranks reveal more.</p>
+            <p className="muted">Keen {intel.keen}: limited view.</p>
           )}
         </section>
       )}
@@ -380,7 +377,7 @@ function SupportDetail({ s }: { s: SupportReportData }) {
   const units = normalizeUnits(s.units);
   const rows = UNIT_IDS.filter((u) => units[u] > 0);
   const host = s.host.ownerName ?? s.host.name;
-  const reason = s.reason === 'relation_changed' ? `${host} is no longer in your tribe or an ally, so the support turned back.` : 'The support turned back.';
+  const reason = s.reason === 'relation_changed' ? ` ${host} left your tribe or pact.` : '';
   return (
     <>
       <div className="sides">
@@ -389,12 +386,12 @@ function SupportDetail({ s }: { s: SupportReportData }) {
         <VillageCell role="Sent to" v={s.host} won={false} />
       </div>
       <p className="notice called-off" role="note">
-        <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> <span>Support turned back. {reason}</span>
+        <Icon name={MISSION_ICON.support} size={20} className="inline-icon" /> <span>Support turned back.{reason}</span>
       </p>
       <section className="subsection" aria-label="Troops">
         <h3 className="subtitle">Troops</h3>
         {rows.length === 0 ? (
-          <p className="muted">No troop details.</p>
+          <p className="muted">None.</p>
         ) : (
           <ul className="loot">
             {rows.map((u) => (
@@ -436,14 +433,14 @@ function ShipmentDetail({ s }: { s: ShipmentReportData }) {
       <p className={`notice called-off ${lostTotal > 0 ? 'notice-block' : 'notice-ok'}`} role="note">
         <Icon name={MISSION_ICON.shipment} size={20} className="inline-icon" />{' '}
         <span>
-          {s.role === 'sent' ? 'Your shipment was delivered.' : 'You received a shipment.'}
-          {lostTotal > 0 && ' The storehouse was full, so part of it was lost.'}
+          {s.role === 'sent' ? 'Delivered.' : 'Received.'}
+          {lostTotal > 0 && ' Storehouse full: part lost.'}
         </span>
       </p>
       <section className="subsection" aria-label="Cargo">
         {row('Sent', s.resources)}
         {row('Stored', s.stored)}
-        {lostTotal > 0 && row('Lost (storehouse full)', s.lost)}
+        {lostTotal > 0 && row('Lost (full)', s.lost)}
       </section>
     </>
   );
@@ -478,7 +475,7 @@ function VillageDetail({ d }: { d: VillageReportData }) {
       )}
       {d.overflow && unitListText(d.overflow) !== '' && (
         <section className="subsection" aria-label="Troops that did not fit">
-          <h4 className="subtitle-small">Did not fit, went home</h4>
+          <h4 className="subtitle-small">Sent home</h4>
           <p>{unitListText(d.overflow)}</p>
         </section>
       )}
@@ -493,12 +490,12 @@ function ReportBody({ report }: { report: ReportDto }) {
   if (report.type === 'support' && report.support) return <SupportDetail s={report.support} />;
   if (report.type === 'battle' && report.battle) {
     return report.battle.outcome === 'called_off' ? (
-      <CalledOffDetail b={report.battle} side={report.side} />
+      <CalledOffDetail b={report.battle} />
     ) : (
-      <BattleDetail b={report.battle} ownerWon={report.won} />
+      <BattleDetail b={report.battle} />
     );
   }
-  return <p className="muted">This report has no details.</p>;
+  return <p className="muted">No details.</p>;
 }
 
 function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
@@ -519,7 +516,7 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
       {draft && (
         <p>
           <button type="button" className="btn btn-small" onClick={() => openSimulator(draft)}>
-            Try in simulator
+            Simulate
           </button>
         </p>
       )}
@@ -598,7 +595,7 @@ export function ReportsView() {
           )}
           {list === null && !listError && <p className="muted">Loading…</p>}
           {list !== null && list.length === 0 && (
-            <p className="muted">No reports yet. Send raiders or Pathfinders to an abandoned village from the Map and the report will show up here.</p>
+            <p className="muted">No reports yet.</p>
           )}
           {list !== null && list.length > 0 && (
             <ul className="report-list">
@@ -636,10 +633,10 @@ export function ReportsView() {
               <button className="btn btn-small back" onClick={() => setSelected(null)}>
                 ← Reports
               </button>
-              {loadingDetail ? <p className="muted">Loading report…</p> : <p className="form-error" role="alert">{detailError}</p>}
+              {loadingDetail ? <p className="muted">Loading…</p> : <p className="form-error" role="alert">{detailError}</p>}
             </div>
           )}
-          {!showDetail && <p className="muted report-hint">Select a report to read it.</p>}
+          {!showDetail && <p className="muted report-hint">Pick a report.</p>}
         </div>
       </div>
     </div>

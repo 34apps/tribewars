@@ -38,12 +38,11 @@ export function BrowserAlertsBox({ state, onEnable }: { state: BrowserAlertState
           <button type="button" className="btn btn-small" onClick={onEnable}>
             Turn on browser alerts
           </button>
-          <p className="muted">Get a pop-up when someone sends troops or goods your way, while this page is open.</p>
         </>
       )}
-      {state === 'granted' && <p className="muted">Browser alerts are on while this page is open.</p>}
-      {state === 'denied' && <p className="muted">Browser alerts are blocked. Allow notifications for this site in your browser settings to use them.</p>}
-      {state === 'unsupported' && <p className="muted">This browser cannot show alerts. The bell still lists every warning.</p>}
+      {state === 'granted' && <p className="muted">Browser alerts are on.</p>}
+      {state === 'denied' && <p className="muted" title="Allow notifications for this site in your browser settings.">Browser alerts blocked.</p>}
+      {state === 'unsupported' && <p className="muted">This browser cannot show alerts.</p>}
     </div>
   );
 }
@@ -81,7 +80,7 @@ function NotificationRow({ n, now, onOpen }: { n: NotificationDto; now: number; 
 export function NotificationList({ items, now, onOpen }: { items: readonly NotificationDto[]; now: number; onOpen: (n: NotificationDto) => void }) {
   const shown = shownNotifications(items);
   if (shown.length === 0) {
-    return <p className="muted">No warnings yet. When someone sends troops or goods to one of your villages, it shows up here the moment they set off.</p>;
+    return <p className="muted">No warnings yet.</p>;
   }
   return (
     <>

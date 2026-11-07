@@ -17,9 +17,9 @@ const KIND_OPTIONS = [
 ] as const;
 
 const KIND_HINT: Record<DiplomacyKind, string> = {
-  ally: 'The other tribe must accept. Allies cannot attack each other.',
-  nap: 'The other tribe must accept. Partners cannot attack each other.',
-  enemy: 'Takes effect at once and both tribes see it. It only marks who you are at war with.',
+  ally: 'Needs their accept.',
+  nap: 'Needs their accept.',
+  enemy: 'Instant.',
 };
 
 function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) {
@@ -34,8 +34,7 @@ function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) 
         title: `Cancel the ${DIPLOMACY_NAME[r.kind].toLowerCase()} with [${r.other.tag}]?`,
         body: (
           <p>
-            It keeps protecting both tribes for another <strong>{formatLeft(pactNoticeMs(settings))}</strong>, then it ends. Both tribes
-            see the countdown. You cannot undo this.
+            Protects both tribes for <strong>{formatLeft(pactNoticeMs(settings))}</strong> more, then ends. Cannot be undone.
           </p>
         ),
         confirmLabel: 'Start notice',
@@ -54,13 +53,12 @@ function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) 
           <TribeLabel tag={r.other.tag} name={r.other.name} />
         </button>
         <div className="muted small">
-          since {formatAgo(r.since, now)}
-          {r.kind === 'enemy' && ` · declared by ${r.declaredByUs ? 'us' : 'them'}`}
+          {formatAgo(r.since, now)}
+          {r.kind === 'enemy' && ` · by ${r.declaredByUs ? 'us' : 'them'}`}
         </div>
         {r.endsAt !== null && (
           <div className="countdown">
-            Cancelled: ends in <strong>{r.endsAt > now ? formatLeft(r.endsAt - now) : 'a moment'}</strong>
-            <span className="muted"> (still protects until then)</span>
+            Ends in <strong>{r.endsAt > now ? formatLeft(r.endsAt - now) : 'a moment'}</strong>
           </div>
         )}
       </div>
@@ -77,8 +75,7 @@ function ProposalRow({ p, canEdit, relations }: { p: DiplomacyProposalDto; canEd
   const { now } = useGame();
   const { busy, run, openTribe } = useTribe();
   const incoming = p.direction === 'incoming';
-  const noun = p.kind === 'ally' ? 'an alliance' : 'a non-aggression pact';
-  const war = relations.some((r) => r.other.id === p.other.id && r.kind === 'enemy');
+    const war = relations.some((r) => r.other.id === p.other.id && r.kind === 'enemy');
   return (
     <li className="relation-row">
       <KindBadge kind={p.kind} />
@@ -88,19 +85,18 @@ function ProposalRow({ p, canEdit, relations }: { p: DiplomacyProposalDto; canEd
             <>
               <button className="link" onClick={() => openTribe({ id: p.other.id })}>
                 <TribeLabel tag={p.other.tag} name={p.other.name} />
-              </button>{' '}
-              proposes {noun}
+              </button>
             </>
           ) : (
             <>
-              You proposed {noun} to{' '}
+              To{' '}
               <button className="link" onClick={() => openTribe({ id: p.other.id })}>
                 <TribeLabel tag={p.other.tag} name={p.other.name} />
               </button>
             </>
           )}
         </div>
-        <div className="muted small">{formatAgo(p.createdAt, now)}{incoming && war ? ' · accepting ends the war between you' : ''}</div>
+        <div className="muted small">{formatAgo(p.createdAt, now)}{incoming && war ? ' · ends the war' : ''}</div>
       </div>
       {canEdit && incoming && (
         <div className="row-actions">
@@ -131,9 +127,9 @@ function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
   const tagValid = new RegExp(TRIBE_TAG_PATTERN).test(normTag);
   const own = normTag === tribe.tag.toUpperCase();
   let why: string | null = null;
-  if (normTag === '') why = 'Enter the other tribe\'s tag';
-  else if (!tagValid) why = 'A tag is 2-6 letters or digits';
-  else if (own) why = 'That is your own tribe';
+  if (normTag === '') why = 'Enter a tag';
+  else if (!tagValid) why = '2-6 letters or digits';
+  else if (own) why = 'Your own tribe';
 
   const allies = tribe.relations.filter((r) => r.kind === 'ally').length + data.proposals.filter((p) => p.kind === 'ally' && p.direction === 'outgoing').length;
   const naps = tribe.relations.filter((r) => r.kind === 'nap').length + data.proposals.filter((p) => p.kind === 'nap' && p.direction === 'outgoing').length;
@@ -144,7 +140,7 @@ function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
     if (kind === 'enemy') {
       const ok = await confirm({
         title: `Declare [${normTag}] an enemy?`,
-        body: <p>It takes effect at once and both tribes see it. You cannot declare war on a tribe you have a pact with.</p>,
+        body: <p>Takes effect at once. Not possible with a pact partner.</p>,
         confirmLabel: 'Declare enemy',
         danger: true,
       });
@@ -163,7 +159,7 @@ function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
     <form className="card stack" onSubmit={(e) => void submit(e)} aria-labelledby="dip-new">
       <h2 id="dip-new" className="card-title">New relation</h2>
       <label className="field">
-        <span>Other tribe's tag</span>
+        <span>Tribe tag</span>
         <input
           className="input input-tag"
           value={tag}
@@ -184,7 +180,7 @@ function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
         <span className="hint">{KIND_HINT[kind]}</span>
       </div>
       <p className="muted small">
-        Alliances {allies}/{TRIBE_MAX_ALLIES} · NAPs {naps}/{TRIBE_MAX_NAPS} (active plus your pending proposals)
+        Alliances {allies}/{TRIBE_MAX_ALLIES} · NAPs {naps}/{TRIBE_MAX_NAPS}
       </p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className={`btn btn-block ${kind === 'enemy' ? 'btn-danger' : 'btn-primary'}`} type="submit" disabled={!!why || busy}>
@@ -205,7 +201,7 @@ export function Diplomacy({ tribe, role }: MemberProps) {
       <section className="card" aria-labelledby="rel-title">
         <h2 id="rel-title" className="card-title">Relations</h2>
         {tribe.relations.length === 0 ? (
-          <p className="muted">No alliances, pacts or wars.</p>
+          <p className="muted">None.</p>
         ) : (
           <ul className="stack">
             {tribe.relations.map((r) => (
@@ -226,7 +222,7 @@ export function Diplomacy({ tribe, role }: MemberProps) {
         </section>
       )}
 
-      {canEdit ? <ProposeForm tribe={tribe} /> : <p className="muted small">Only the leader and officers can change diplomacy.</p>}
+      {canEdit && <ProposeForm tribe={tribe} />}
     </>
   );
 }

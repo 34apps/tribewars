@@ -31,7 +31,7 @@ function Details({ status }: { status: DominationStatusDto }) {
       </dl>
       {reasons.length > 0 && !status.ended && (
         <div className="dom-why">
-          <h3 className="subtitle">Why it does not count yet</h3>
+          <h3 className="subtitle">Not counting yet</h3>
           <ul>
             {reasons.map((r) => (
               <li key={r}>{r}</li>
@@ -89,7 +89,7 @@ export function DominationBar({ status, compact = false }: { status: DominationS
       </div>
       {compact && (
         <button type="button" className="btn btn-small dom-toggle" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((o) => !o)}>
-          {open ? 'Hide details' : 'Details'}
+          {open ? 'Hide' : 'Details'}
         </button>
       )}
       <div id={detailsId} hidden={!showDetails}>
@@ -103,10 +103,10 @@ export function DominationBar({ status, compact = false }: { status: DominationS
 export function DominationCard({ compact = false }: { compact?: boolean }) {
   const { status, error, reload } = useDomination();
   if (!status) {
-    if (!error) return <p className="muted small" role="status">Loading domination…</p>;
+    if (!error) return <p className="muted small" role="status">Loading…</p>;
     return (
       <p className="muted small" role="status">
-        The domination bar is not available right now. <button className="link" onClick={reload}>Retry</button>
+        Domination unavailable. <button className="link" onClick={reload}>Retry</button>
       </p>
     );
   }

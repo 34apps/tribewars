@@ -33,7 +33,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       await (action === 'max' ? api.sandboxMax() : action === 'clear' ? api.sandboxClearAbandoned() : action === 'army' ? api.sandboxClearArmy() : api.sandboxReset());
       setConfirmReset(false);
       await refresh();
-      toast(action === 'max' ? 'Your villages are maxed out.' : action === 'clear' ? 'Abandoned villages are empty.' : action === 'army' ? 'Your army at home is gone.' : 'Your villages are fresh again.');
+      toast(action === 'max' ? 'Maxed out.' : action === 'clear' ? 'Abandoned villages emptied.' : action === 'army' ? 'Army cleared.' : 'Reset.');
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -48,7 +48,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     try {
       await api.sandboxWarp(seconds);
       await refresh();
-      toast(seconds === 0 ? 'Armies arrived now.' : `Armies arrive in ${seconds} s.`);
+      toast(seconds === 0 ? 'Armies arrived.' : `Armies arrive in ${seconds} s.`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -73,23 +73,20 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       {player.sandbox ? (
         <section aria-labelledby="test-mode-title">
           <h3 id="test-mode-title" className="card-title">Test mode</h3>
-          <p className="muted">
-            For testing only; only your account sees this. World speed is unchanged, so a reset goes back to the real game pace.
-          </p>
           <label className="check" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44 }}>
             <input type="checkbox" role="switch" checked={dp.on} onChange={(e) => setDesignPreview(e.target.checked)} />
-            <span>Design preview (village shows every building at levels 0–20; nothing is saved)</span>
+            <span title="Village shows every building at levels 0–20; nothing is saved.">Design preview</span>
           </label>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('max')}>
-            {busy === 'max' ? 'Working…' : 'Max out my village'}
+            {busy === 'max' ? 'Working…' : 'Max out village'}
           </button>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('army')}>
-            {busy === 'army' ? 'Working…' : 'Clear my army (troops at home)'}
+            {busy === 'army' ? 'Working…' : 'Clear home army'}
           </button>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('clear')}>
-            {busy === 'clear' ? 'Working…' : 'Empty abandoned villages'}
+            {busy === 'clear' ? 'Working…' : 'Empty abandoned'}
           </button>
-          <p className="muted">Armies on the road (outgoing, returning, incoming) arrive after:</p>
+          <p className="muted">Armies arrive in</p>
           <div className="confirm-actions">
             {[0, 10, 60].map((s) => (
               <button key={s} type="button" className="btn" disabled={busy !== null} onClick={() => void warp(s)}>
@@ -99,10 +96,10 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           </div>
           {confirmReset ? (
             <div>
-              <p className="muted">This wipes your villages back to the start: buildings, troops, resources and queues.</p>
+              <p className="muted">Wipes buildings, troops, resources, queues.</p>
               <div className="confirm-actions">
                 <button type="button" className="btn" disabled={busy !== null} onClick={() => setConfirmReset(false)}>
-                  Keep my village
+                  Keep
                 </button>
                 <button type="button" className="btn btn-primary" disabled={busy !== null} onClick={() => void run('reset')}>
                   {busy === 'reset' ? 'Working…' : 'Yes, reset'}
@@ -111,12 +108,12 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => setConfirmReset(true)}>
-              Reset to a fresh village (real game pace)
+              Reset village
             </button>
           )}
         </section>
       ) : (
-        <p className="muted">Nothing to set here yet.</p>
+        <p className="muted">No settings.</p>
       )}
       <div className="form-error" role="alert" aria-live="assertive">{error}</div>
       <div className="confirm-actions">

@@ -77,19 +77,19 @@ export function BuildingPanel({
   const active = jobs.find((j) => now >= j.startAt);
 
   let status: string;
-  if (active) status = `Upgrading to level ${active.targetLevel} · ${formatDuration(active.finishAt - now)} left`;
-  else if (queued > 0) status = `Level ${level} · level ${level + 1} is queued`;
+  if (active) status = `Upgrading → ${active.targetLevel} · ${formatDuration(active.finishAt - now)}`;
+  else if (queued > 0) status = `Level ${level} · +${queued} queued`;
   else if (level === 0 && unmet.length > 0)
-    status = `Locked · needs ${requirementText(unmet)} (you have ${unmet.map((u) => u.have).join(', ')})`;
-  else if (level === 0) status = 'Not built yet · empty plot';
-  else status = `Level ${level} of ${def.maxLevel}`;
+    status = `Locked · needs ${requirementText(unmet)}`;
+  else if (level === 0) status = 'Not built';
+  else status = `Level ${level}/${def.maxLevel}`;
 
   // A cold village (hearth out) builds only the Wall; the server refuses the rest too.
   const reason = atMax ? 'Max level' : hearthBuildReason(!!village.hearth, id) ?? (!check.ok ? reasonText(check, unmet) : null);
   let affordHint: string | null = null;
   if (!check.ok && check.reason === 'not_enough_resources' && cost) {
     const wait = timeToAfford(live.resources, net, cost, cap);
-    affordHint = wait === null ? 'Production is too low to afford this' : `Affordable in ${formatDuration(wait)}`;
+    affordHint = wait === null ? 'Production too low' : `Ready in ${formatDuration(wait)}`;
   }
   const verb = level === 0 && queued === 0 ? 'Build' : 'Upgrade';
   const cta = atMax ? 'Max level' : level === 0 && queued === 0 ? `Build ${def.name}` : `${verb} to level ${target}`;
@@ -107,6 +107,10 @@ export function BuildingPanel({
             <h2 id={headingId} className="bpanel-name">
               {def.name}
             </h2>
+            <details className="help-pop">
+              <summary aria-label={`About ${def.name}`}>?</summary>
+              <p className="small">{def.description}</p>
+            </details>
             <span className="lvl-step" aria-label={atMax ? `Level ${level}, max` : `Level ${level}, next ${target}`}>
               <span className="lvl-now">{level}</span>
               {!atMax && (
@@ -118,7 +122,6 @@ export function BuildingPanel({
             </span>
           </div>
           <div className="bpanel-status">{status}</div>
-          <p className="bpanel-desc">{def.description}</p>
         </div>
       </div>
 
@@ -149,7 +152,6 @@ export function BuildingPanel({
 
       {cost && timeMs !== null && (
         <>
-          <div className="eyebrow">{level === 0 && queued === 0 ? 'Cost to build' : `Cost to reach level ${target}`}</div>
           <ul className="chips">
             {RESOURCE_IDS.filter((r) => cost[r] > 0 || r !== 'gold').map((r) => {
               const short = shortOf(r) > 0 || cost[r] > cap;
@@ -188,7 +190,7 @@ export function BuildingPanel({
         {trains.length > 0 && (
           <button className="btn btn-teal btn-cta-side" onClick={() => navigate('army')} disabled={level === 0}>
             <Icon name="train" size={22} />
-            Train troops
+            Train
           </button>
         )}
       </div>
@@ -285,7 +287,7 @@ function HallBuildings({
       <ul className="hb-list">{open.map(row)}</ul>
       {locked.length > 0 && (
         <>
-          <div className="eyebrow">Not yet available</div>
+          <div className="eyebrow">Locked</div>
           <ul className="hb-list">{locked.map(row)}</ul>
         </>
       )}
@@ -299,7 +301,6 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
   const { live, now, settings } = useGame();
   const maxQueue = useRules().queues.build;
   const jobs = live.buildQueue;
-  const last = jobs[jobs.length - 1];
   const cancel = useCancelJob();
   return (
     <section className="vv-card queue" aria-labelledby="queue-title">
@@ -307,10 +308,10 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
       <div className="queue-head">
         <Icon name="queue" size={22} />
         <h2 id="queue-title" className="vv-h2">
-          Construction queue
+          Queue
         </h2>
-        <span className="queue-count">
-          {jobs.length} of {maxQueue} slots
+        <span className="queue-count" aria-label={`${jobs.length} of ${maxQueue} slots used`}>
+          {jobs.length}/{maxQueue}
         </span>
       </div>
       {jobs.length > 0 && (
@@ -341,12 +342,8 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
                     <span className="qjob-time">{left}</span>
                   </div>
                   <div className="qjob-sub">
-                    {effect
-                      ? `${effect.label} ${effect.from} → ${effect.to} when done`
-                      : started
-                        ? `Done at ${formatClock(job.finishAt, now)}`
-                        : 'Waiting for a builder'}
-                    {` · +${formatInt(levelPoints(job.building, job.targetLevel))} points`}
+                    {effect ? `${effect.label} ${effect.from} → ${effect.to}` : started ? `Done ${formatClock(job.finishAt, now)}` : 'Waiting'}
+                    {` · +${formatInt(levelPoints(job.building, job.targetLevel))} pts`}
                   </div>
                   <ProgressBar value={started ? (now - job.startAt) / total : 0} label={`${def.name} progress`} />
                   {index === jobs.length - 1 && (
@@ -354,11 +351,12 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
                       type="button"
                       className="btn btn-small"
                       disabled={cancel.busy}
+                      title={`${CANCEL_REFUND_PERCENT}% back`}
                       onClick={() =>
                         void cancel.cancelBuild(`${def.name} level ${job.targetLevel}`, buildingCost(job.building, job.targetLevel), index)
                       }
                     >
-                      Cancel ({CANCEL_REFUND_PERCENT}% back)
+                      Cancel
                     </button>
                   )}
                 </div>
@@ -372,12 +370,7 @@ export function BuildQueue({ onPick }: { onPick?: (id: BuildingId) => void }) {
           <span className="qfree-plus" aria-hidden="true">
             +
           </span>
-          <span>
-            Free slot · pick a building, then{' '}
-            {jobs.length === 0
-              ? 'Build or Upgrade.'
-              : `Upgrade. It starts after the ${last ? BUILDINGS[last.building].name : 'current job'}.`}
-          </span>
+          <span>Free slot</span>
         </div>
       )}
     </section>
