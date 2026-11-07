@@ -12,8 +12,9 @@ screen. Follow-up `945b3a7`: badges in tribe member lists, "This world" row on p
 
 ## Very next step
 
-Plan step 10: **morale** (design first: explain to the owner in 3 plain lines, no formulas, get a yes). Then 11 homepage + quests,
-12 safety pass, 13 desktop check of every screen + staff route tests, 14 phone pass.
+Step 10 morale was CUT by the owner (2026-11-08). Next: plan step 11, **homepage + first-steps quests** (mockup
+`design/proposals/homepage/`; explain to the owner in 3 plain lines and get a yes first). Then 12 safety pass, 13 desktop check of
+every screen + staff route tests, 14 phone pass.
 Note: `GAME_DESIGN` 18.2-18.6 is still duplicated (~857-1410 and ~1410-1950); edit both copies or merge them first.
 
 ## How the owner works (important)

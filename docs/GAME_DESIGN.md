@@ -2129,7 +2129,7 @@ like every other duration.
 
 - **Flags.** `siege` off: Log Rams and Boulder Slings cannot be trained or researched and battles never lower buildings (the web hides them).
   `sites` off: no Fire Shrines or Great Fire are created, the sites list is empty. `morale`, `scavenging` and `paidSpeedups` are **reserved**:
-  the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11).
+  the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11). Morale and scavenging were cut by the owner (2026-11-08, 2026-11-06): their flags do nothing.
 - **Ranges.** Every value has a range (`WORLD_CONFIG_FIELDS`); out-of-range or wrong-type values are refused when set and replaced by the default
   when a stored config is read (so a config written by an older version gets today's value for settings added later).
 - **Old worlds.** A database with no stored config runs on `worldConfigFromSettings` (defaults plus what the flat settings already said, e.g. its
