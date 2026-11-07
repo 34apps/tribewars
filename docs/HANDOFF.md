@@ -8,7 +8,7 @@ Written 2026-11-08 (HEAD after step 9, badges + Hall of Fame). Read this first, 
 Badges + Hall of Fame built and pushed (`8238175`): Champion, 2nd/3rd tribe, Top 10, Veteran (14 days in world/tribe, played in the
 last 7 days). A world computes its badges once at its end; the operator's lobby command `world-finish <id> <world db>` copies them to
 accounts, writes the Hall of Fame row and sets Finished. Shown in the lobby (badge row + Hall of Fame), on profiles and on the end
-screen. Screenshot tooling with faked API data: `design/proposals/badges/tooling/badges-shot.mjs` (needs vite on 127.0.0.1:5199).
+screen. Follow-up `945b3a7`: badges in tribe member lists, "This world" row on profiles, real end-to-end run (`design/proposals/badges/e2e/`). Screenshot tooling with faked API data: `design/proposals/badges/tooling/badges-shot.mjs` (needs vite on 127.0.0.1:5199).
 
 ## Very next step
 
