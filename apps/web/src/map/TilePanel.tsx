@@ -256,7 +256,7 @@ export function SendForm({
     >
       <div className="title-row">
         {(!compact || missions.length < 2) && <h3 className="wm-send-title">{title}</h3>}
-        <details className={compact ? 'help-pop on-light' : 'help-pop'}>
+        <details className="help-pop">
           <summary aria-label="How sending works">?</summary>
           <p className="small">{hint}</p>
         </details>

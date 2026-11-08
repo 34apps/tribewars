@@ -1,0 +1,26 @@
+/* Light top/bottom bars (theme A): same re-pointing as the panels, on a honey bar. */
+.topbar, .resstrip, .bottomnav, .home-bar, .who-menu {
+  --c-cream: var(--t-ink);
+  --c-dust: var(--t-soft);
+  --c-sand: var(--t-ink);
+  --c-ink-2: var(--t-bar-in);
+  --c-ink-3: var(--t-bar-line);
+  --c-ink-4: var(--t-bar-line);
+  --c-ink-deep: var(--t-bar-deep);
+  --c-edge: var(--t-bar-edge);
+  --c-sun-hi: var(--t-title);
+  --c-leaf: #2e5a1c;
+  --c-terra-hi: #8f2f17;
+  --ink: var(--t-ink);
+  --ink-soft: var(--t-soft);
+  --on-header: var(--t-ink);
+  color: var(--t-ink);
+  background: var(--t-bar);
+  box-shadow: inset 0 -3px 0 var(--t-bar-line), 0 4px 0 var(--t-bar-edge);
+}
+.bottomnav { box-shadow: inset 0 3px 0 var(--t-bar-line); }
+.tab-top.is-active, .tab-bottom.is-active { --c-sun-hi: #ffdc7a; --c-cream: #fff8e8; }
+.tab-token, .bell-token { box-shadow: inset 0 0 0 2px var(--c-ink), inset 0 -3px 0 var(--c-bone-shade); }
+.res-meter { background: var(--t-bar-deep); }
+.brand, .home-brand { color: var(--t-title); }
+.btn-ghost { color: var(--t-ink); }

@@ -149,7 +149,7 @@ export function Projects() {
 
   if (!d) {
     return error ? (
-      <section className="card card-light">
+      <section className="card">
         <p className="form-error" role="alert">{error}</p>
         <button className="btn" onClick={() => void load()}>Try again</button>
       </section>
@@ -176,7 +176,7 @@ export function Projects() {
 
   return (
     <>
-      <section className="card card-light" aria-labelledby="store-title">
+      <section className="card" aria-labelledby="store-title">
         <div className="store-title-row">
           <h2 id="store-title" className="card-title">Tribe Store</h2>
           <details className="help-pop">
@@ -259,7 +259,7 @@ export function Projects() {
       </section>
 
       {d.running && (
-        <section className="card card-light" aria-labelledby="running-title">
+        <section className="card" aria-labelledby="running-title">
           <div className="running-head">
             <h2 id="running-title" className="card-title">
               <Icon name={PROJECT_ICON[d.running.project]} size={24} className="inline-icon" /> {PROJECT_NAME[d.running.project]} → level {d.running.level}
@@ -279,7 +279,7 @@ export function Projects() {
         </section>
       )}
 
-      <section className="card card-light" aria-labelledby="projects-title">
+      <section className="card" aria-labelledby="projects-title">
         <h2 id="projects-title" className="card-title">Projects</h2>
         {d.running && d.canManage && <p className="muted small pad-bottom">One project at a time.</p>}
         <ul className="project-grid">
@@ -335,7 +335,7 @@ export function Projects() {
         {!d.canManage && <p className="muted small">Leaders start projects.</p>}
       </section>
 
-      <section className="card card-light" aria-labelledby="ledger-title">
+      <section className="card" aria-labelledby="ledger-title">
         <h2 id="ledger-title" className="card-title">Who gave</h2>
         {d.totals.length === 0 ? (
           <p className="muted">Nobody has given yet.</p>

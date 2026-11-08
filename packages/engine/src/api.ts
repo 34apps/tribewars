@@ -289,6 +289,8 @@ export interface GameStateResponse {
   stationed: { here: StationedDto[]; abroad: StationedDto[] };
   /** The player's Renown (section 18.2). */
   renown: RenownInfo;
+  /** First steps card: done/claimed state of the starter tasks. */
+  firstSteps: FirstStepsDto;
 }
 
 /** A support contingent standing in someone else's village. */
@@ -1758,6 +1760,50 @@ export interface NotificationsReadRequest {
   ids?: number[];
 }
 
+// ---- First steps (docs/GAME_DESIGN.md "First steps": eight starter tasks with small rewards) -----------------------------
+// Carried by GET /api/state as `firstSteps` (the client already polls it; newly done steps are stored when it is built).
+// POST /api/first-steps/:id/claim  body FirstStepClaimRequest -> 200 FirstStepClaimResponse
+//        400 invalid_input (unknown id / bad body), 403 forbidden (not your village; ended world), 404 not_found (no such village),
+//        409 step_not_done | step_claimed
+// POST /api/first-steps/hidden     body FirstStepHiddenRequest -> 200 FirstStepsDto
+// The reward is capped per resource at the named village's storage (overflow is lost); claims never expire.
+
+export type FirstStepId = 'lumber2' | 'farm2' | 'hall2' | 'barracks2' | 'raiders5' | 'raid' | 'report' | 'tribe';
+
+export interface FirstStepDto {
+  id: FirstStepId;
+  /** Seen by the game at some point; stays true. */
+  done: boolean;
+  /** The reward was taken. */
+  claimed: boolean;
+  reward: Resources;
+}
+
+export interface FirstStepsDto {
+  /** In display order. */
+  steps: FirstStepDto[];
+  /** The player folded the card away. */
+  hidden: boolean;
+  /** All steps claimed: the client stops showing the card. */
+  allClaimed: boolean;
+}
+
+export interface FirstStepClaimRequest {
+  villageId: number;
+}
+
+export interface FirstStepClaimResponse {
+  firstSteps: FirstStepsDto;
+  /** The village that received the reward, settled, with its new resources. */
+  village: OwnVillageDto;
+  /** What was actually added (after the storage cap). */
+  added: Resources;
+}
+
+export interface FirstStepHiddenRequest {
+  hidden: boolean;
+}
+
 // ---- Troop groups (docs/GAME_DESIGN.md, army: a convenience for the send form, no rule change) ----------------------------
 // GET  /api/troop-groups              -> 200 TroopGroupsResponse (the caller's own groups, oldest first)
 // POST /api/troop-groups              body TroopGroupRequest -> 201 TroopGroupResponse (409 group_limit past TROOP_GROUP_MAX)
@@ -1850,6 +1896,7 @@ export interface WorldConfigResponse {
 //   POST /lobby/api/auth/change-password body LobbyChangePasswordRequest -> 200 LobbyMeResponse (new session; all other sessions end)
 //   GET  /lobby/api/auth/me       -> 200 LobbyMeResponse (account null when signed out)
 //   GET  /lobby/api/worlds         -> 200 LobbyWorldsResponse (signed in)
+//   GET  /lobby/api/worlds/public  -> 200 PublicWorldsResponse (no sign-in: the homepage's world strip; open and full worlds only, at most PUBLIC_WORLDS_MAX)
 //   POST /lobby/api/worlds/:id/enter (empty body {}, signed in) -> 200 EnterWorldResponse; 403 forbidden when banned or the world is closed
 //   GET  /lobby/api/health         -> 200 { ok: true }
 //
@@ -1913,6 +1960,25 @@ export interface LobbyWorldDto {
 export interface LobbyWorldsResponse {
   worlds: LobbyWorldDto[];
 }
+
+/** What a signed-out visitor may see of a world: nothing but the name, status and page path. */
+export interface PublicWorldDto {
+  id: string;
+  name: string;
+  /** Only 'open' or 'full' are ever listed here. */
+  status: 'open' | 'full';
+  /** Same as LobbyWorldDto.path. */
+  path: string;
+  /** When the world was added to the lobby, ms since epoch. */
+  openedAt: number;
+}
+
+export interface PublicWorldsResponse {
+  worlds: PublicWorldDto[];
+}
+
+/** Most worlds the public list returns. */
+export const PUBLIC_WORLDS_MAX = 6;
 
 export interface EnterWorldResponse {
   /** Signed entry pass (see EntryPassClaims). Single use, valid for ENTRY_PASS_TTL_MS. Never put it in a URL. */

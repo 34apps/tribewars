@@ -183,6 +183,20 @@ CREATE TABLE IF NOT EXISTS troop_groups (
 );
 CREATE INDEX IF NOT EXISTS idx_troop_groups_player ON troop_groups(player_id);
 
+-- ---- First steps (docs/GAME_DESIGN.md "First steps"): a row per step the game has seen done (sticky), claimed_at set once the
+-- reward was taken (the claim is one UPDATE ... WHERE claimed_at IS NULL inside a transaction). first_steps_card holds the hide flag.
+CREATE TABLE IF NOT EXISTS first_steps (
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  step_id    TEXT    NOT NULL,
+  done_at    INTEGER NOT NULL,
+  claimed_at INTEGER,
+  PRIMARY KEY (player_id, step_id)
+);
+CREATE TABLE IF NOT EXISTS first_steps_card (
+  player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+  hidden    INTEGER NOT NULL DEFAULT 0
+);
+
 -- ---- Chieftain chain (section 18.2, 2026-11-05): Chieftains that survived a won attack but were too few for the village.
 -- Counted at the next Strike of the same player on the same village while they are inside the window AND their return
 -- movement still exists. Old rows are pruned when new ones are written. (The old conquests table of the pair cap was removed
@@ -592,9 +606,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 14; // 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 15; // 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = 'bfc0610cc6138cd7';
+export const SCHEMA_FINGERPRINT = 'f93fdff8dfcfaa26';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

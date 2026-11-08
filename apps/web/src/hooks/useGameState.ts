@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
+import type { FirstStepsDto, GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { pollMs } from './live.ts';
 import { useLiveConnected, useLiveTopic } from './useLive.tsx';
@@ -19,6 +19,8 @@ export interface GameStateStore {
   applyVillage: (village: OwnVillageDto) => void;
   /** Apply a send response: updated village plus the new movement. */
   applySend: (res: SendResponse) => void;
+  /** Replace the First steps block (claim and hide responses). */
+  applyFirstSteps: (fs: FirstStepsDto) => void;
 }
 
 /**
@@ -120,5 +122,10 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
     );
   }, []);
 
-  return { data, serverOffset, error, refresh, applyVillage, applySend };
+  const applyFirstSteps = useCallback((firstSteps: FirstStepsDto) => {
+    applied.current = ++seq.current;
+    setData((d) => (d ? { ...d, firstSteps } : d));
+  }, []);
+
+  return { data, serverOffset, error, refresh, applyVillage, applySend, applyFirstSteps };
 }

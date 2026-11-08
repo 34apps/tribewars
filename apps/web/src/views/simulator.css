@@ -43,7 +43,7 @@
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  color: var(--c-cream);
+  color: var(--on-surface);
   font-weight: 600;
 }
 
@@ -64,7 +64,7 @@
   grid-template-columns: minmax(0, 1fr) 84px;
   align-items: center;
   gap: 8px;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .sim-unit label {
@@ -91,7 +91,7 @@
 .sim-field {
   display: grid;
   gap: 4px;
-  color: var(--c-cream);
+  color: var(--on-surface);
   font-weight: 600;
 }
 
@@ -101,7 +101,7 @@
 
 .sim-more {
   margin-top: 12px;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .sim-more summary {
@@ -121,7 +121,7 @@
   display: grid;
   gap: 8px;
   margin-top: 12px;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .sim-cols {
@@ -136,7 +136,7 @@
   border: 2px solid var(--c-ink-3, #4a3a30);
   border-radius: 14px;
   background: rgba(255, 248, 232, 0.05);
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .sim-col.is-win {
@@ -155,7 +155,7 @@
 }
 
 .sim-luck {
-  color: var(--c-sun, #f2b33d);
+  color: var(--accent);
 }
 
 .sim-winner {

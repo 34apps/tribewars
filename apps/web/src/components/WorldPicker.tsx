@@ -104,7 +104,7 @@ export function WorldPicker({ account, onSignedOut }: { account: LobbyAccountDto
       {badges.length > 0 && (
         <div className="lobby-badges">
           <BadgeRow badges={badges} label="Your badges" />
-          <details className="help-pop on-light">
+          <details className="help-pop">
             <summary aria-label="About badges">?</summary>
             <p className="small">{BADGE_HELP}</p>
           </details>

@@ -29,7 +29,7 @@ interface ListProps {
 export function LookoutList({ sightings, lookouts, now, onShow }: ListProps) {
   const live = sightings.filter((s) => s.arriveAt > now - 1500);
   return (
-    <section className="card card-light" aria-labelledby="lookout-title">
+    <section className="card" aria-labelledby="lookout-title">
       <h2 id="lookout-title" className="card-title">
         Lookout{' '}
         <span className="tag tag-info lookout-held" title={lookouts === 1 ? 'You hold 1 Lookout' : `You hold ${lookouts} Lookouts`}>

@@ -299,17 +299,15 @@ function Who({
               Staff tools
             </button>
           )}
-          {player.sandbox && (
-            <button
-              className="btn btn-block"
-              onClick={() => {
-                setOpen(false);
-                onSettings();
-              }}
-            >
-              Settings (test mode)
-            </button>
-          )}
+          <button
+            className="btn btn-block"
+            onClick={() => {
+              setOpen(false);
+              onSettings();
+            }}
+          >
+            Settings
+          </button>
           <label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
             <input
               type="checkbox"

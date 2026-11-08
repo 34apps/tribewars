@@ -39,7 +39,7 @@ export function ProfileExtras({ stats, achievements, badges = [], worldBadges = 
         <section aria-label="Badges">
           <div className="title-row">
             <h3 className="prof-h">Badges</h3>
-            <details className="help-pop on-light">
+            <details className="help-pop">
               <summary aria-label="About badges">?</summary>
               <p className="small">{BADGE_HELP}</p>
             </details>

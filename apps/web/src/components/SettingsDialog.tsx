@@ -1,4 +1,4 @@
-// Settings sheet. Today it holds the "Test mode" card, shown only to accounts the server allow-lists (player.sandbox).
+// Settings sheet: the "Show first steps" switch for everyone, and the "Test mode" card, shown only to accounts the server allow-lists (player.sandbox).
 // The server re-checks every call. Loaded lazily by the shell.
 
 import { useEffect, useRef, useState } from 'react';
@@ -7,7 +7,7 @@ import { useGame } from '../game.ts';
 import { setDesignPreview, useDesignPreview } from '../views/village/designPreviewState.ts';
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const { player, refresh, toast } = useGame();
+  const { player, refresh, toast, firstSteps, applyFirstSteps } = useGame();
   const [busy, setBusy] = useState<'max' | 'reset' | 'warp' | 'clear' | 'army' | 'finish' | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +70,25 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       }}
     >
       <h2 id="settings-dialog-title" className="card-title">Settings</h2>
+      {firstSteps && !firstSteps.allClaimed && (
+        <label className="check" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44 }}>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={!firstSteps.hidden}
+            disabled={busy !== null}
+            onChange={(e) => {
+              const hidden = !e.target.checked;
+              setError(null);
+              api
+                .setFirstStepsHidden(hidden)
+                .then(applyFirstSteps)
+                .catch((err) => setError(errorMessage(err)));
+            }}
+          />
+          <span>Show first steps</span>
+        </label>
+      )}
       {player.sandbox ? (
         <section aria-labelledby="test-mode-title">
           <h3 id="test-mode-title" className="card-title">Test mode</h3>
@@ -115,9 +134,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
             </button>
           )}
         </section>
-      ) : (
-        <p className="muted">No settings.</p>
-      )}
+      ) : null}
       <div className="form-error" role="alert" aria-live="assertive">{error}</div>
       <div className="confirm-actions">
         <button type="button" className="btn" disabled={busy !== null} onClick={onClose}>

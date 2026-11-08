@@ -8,6 +8,7 @@ import { formatCoords, formatDuration } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
+import { FirstStepsBar, FirstStepsCard } from './village/FirstSteps.tsx';
 import { MovementsSummary } from './village/MovementsSummary.tsx';
 import { RenownBadge, RenownCard, RenownChip } from './village/RenownCard.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
@@ -66,6 +67,7 @@ function DesktopVillage() {
       </section>
       <aside className="vv-side" aria-label="Village details">
         <MovementsSummary />
+        <FirstStepsCard onShowBuilding={setSelected} />
         {selected ? (
           <>
             <button type="button" className="btn btn-small vv-side-close" onClick={() => setSelected(null)} aria-label="Close building details">
@@ -89,7 +91,7 @@ function PhoneVillage() {
   const maxQueue = useRules().queues.build;
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
-  const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | { kind: 'steps' } | null>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -122,10 +124,11 @@ function PhoneVillage() {
   const jobs = live.buildQueue;
   const first = jobs[0];
   const selected = sheet?.kind === 'building' ? sheet.id : null;
-  const sheetTitle = sheet?.kind === 'building' ? BUILDINGS[sheet.id].name : sheet?.kind === 'renown' ? 'Renown' : 'Construction queue';
+  const sheetTitle = sheet?.kind === 'building' ? BUILDINGS[sheet.id].name : sheet?.kind === 'renown' ? 'Renown' : sheet?.kind === 'steps' ? 'First steps' : 'Construction queue';
 
   return (
     <div className="vv vv-phone">
+      <FirstStepsBar onOpen={() => setSheet({ kind: 'steps' })} />
       <div className="vv-phone-main">
         <VillageScene
           mode="pan"
@@ -181,6 +184,8 @@ function PhoneVillage() {
                 </>
               ) : sheet.kind === 'renown' ? (
                 <RenownCard />
+              ) : sheet.kind === 'steps' ? (
+                <FirstStepsCard sheet onShowBuilding={(id) => setSheet({ kind: 'building', id })} />
               ) : (
                 <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />
               )}

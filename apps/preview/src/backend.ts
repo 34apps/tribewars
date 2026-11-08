@@ -22,6 +22,7 @@ import { rankingRoutes } from '../../server/src/routes/rankings.ts';
 import { dominationRoutes } from '../../server/src/routes/domination.ts';
 import { siteRoutes } from '../../server/src/routes/sites.ts';
 import { troopGroupRoutes } from '../../server/src/routes/troop-groups.ts';
+import { firstStepsRoutes } from '../../server/src/routes/first-steps.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
 import { ReportService } from '../../server/src/report-service.ts';
@@ -149,6 +150,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   dominationRoutes(fastifyLike, ctx);
   siteRoutes(fastifyLike, ctx);
   troopGroupRoutes(fastifyLike, ctx);
+  firstStepsRoutes(fastifyLike, ctx);
 
   let sessionToken = token;
 

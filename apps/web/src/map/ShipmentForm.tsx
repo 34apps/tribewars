@@ -86,7 +86,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
     >
       <div className="title-row">
         <h3 className="wm-send-title">{toStore ? 'To Tribe Store' : 'Send resources'}</h3>
-        <details className="help-pop on-light">
+        <details className="help-pop">
           <summary aria-label="How sending resources works">?</summary>
           <p className="small">{toStore ? 'Goes to the tribe store, not the village.' : 'Over the storehouse limit on arrival is lost.'}</p>
         </details>

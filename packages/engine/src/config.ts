@@ -1,6 +1,7 @@
 // Game balance data. Formulas that use these numbers are described in docs/GAME_DESIGN.md.
 // Change numbers here (not in logic files) when tuning the game.
 
+import type { FirstStepId } from './api.ts';
 import type { BuildingDef, BuildingId, DominationSettings, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
 
 const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
@@ -1055,3 +1056,23 @@ export const SIDE_SITE_COUNT = 12;
 export const LOOKOUT_SIZE_BANDS = { smallBelow: 100, mediumBelow: 1000 } as const;
 /** At most this many sightings are listed (soonest arrival first). */
 export const LOOKOUT_LIST_LIMIT = 100;
+
+/**
+ * First steps (docs/GAME_DESIGN.md "First steps"): eight starter tasks with a small reward each. Done is detected by the
+ * server (any order, sticky); the reward is claimed once into a village the player names. Order here = order shown.
+ */
+export const FIRST_STEPS: readonly { id: FirstStepId; reward: Resources }[] = [
+  { id: 'lumber2', reward: { wood: 150, food: 80, iron: 80, gold: 0 } },
+  { id: 'farm2', reward: { wood: 80, food: 150, iron: 80, gold: 0 } },
+  { id: 'hall2', reward: { wood: 120, food: 120, iron: 120, gold: 0 } },
+  { id: 'barracks2', reward: { wood: 250, food: 200, iron: 200, gold: 0 } },
+  { id: 'raiders5', reward: { wood: 200, food: 200, iron: 200, gold: 20 } },
+  { id: 'raid', reward: { wood: 150, food: 150, iron: 150, gold: 0 } },
+  { id: 'report', reward: { wood: 100, food: 100, iron: 100, gold: 30 } },
+  { id: 'tribe', reward: { wood: 250, food: 250, iron: 250, gold: 50 } },
+];
+
+/** Building level (counting a queued or started upgrade) that completes each building step. */
+export const FIRST_STEP_BUILDING_LEVEL = 2;
+/** Raiders (home + training + away) that complete the `raiders5` step. */
+export const FIRST_STEP_RAIDERS = 5;

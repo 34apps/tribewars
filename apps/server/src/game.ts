@@ -6,6 +6,9 @@ import {
   BOT_BATCH_VILLAGES,
   BOT_MAX_STEPS_PER_RUN,
   GameError,
+  claimReward,
+  firstStepReward,
+  storageCap,
   HOLD_MIN_POPULATION,
   UNIT_IDS,
   abandonVillageKeepBuildings,
@@ -31,6 +34,9 @@ import {
   type HearthState,
   type VillageListResponse,
   type VillageReportData,
+  type FirstStepClaimResponse,
+  type FirstStepId,
+  type FirstStepsDto,
   type VillageState,
   MAP_MAX_SPAN,
   botBuildChoice,
@@ -129,6 +135,7 @@ import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
 import { RenownService } from './renown-service.ts';
+import { firstStepsDto } from './first-steps-service.ts';
 import { SiteService } from './site-service.ts';
 import { TribeProjectService } from './tribe-projects-service.ts';
 import { sitesFor } from './site-layout.ts';
@@ -241,12 +248,15 @@ export class GameService {
   /** Tribe Store, projects and their effects on travel, defence and alerts (tribe-projects-service.ts). */
   readonly projects: TribeProjectService;
 
+  private readonly clock: () => number;
+
   constructor(
     private readonly store: Store,
     readonly settings: WorldSettings,
     private readonly log: GameLogger = { error: () => {} },
     now: () => number = Date.now,
   ) {
+    this.clock = now;
     this.renown = new RenownService(store, settings);
     this.projects = new TribeProjectService(store, settings);
     this.sites = new SiteService(store, settings, now, this.projects);
@@ -1505,8 +1515,10 @@ export class GameService {
     const fresh0 = this.store.getPlayer(player.id) ?? player;
     const eligibleFrom = defenderEligibleFrom(fresh0.protectedUntil, fresh0.createdAt, this.settings);
     const earns = !this.store.isSandboxUser(player.username);
+    const settledStates: VillageState[] = [];
     const villages = this.store.villagesOfPlayer(player.id).map((v) => {
       const settled = settleVillage(v.state, t, this.settings);
+      settledStates.push(settled);
       chieftains += chieftainsIn(settled);
       // Builds finish lazily; keep the map's cached points current once the owner looks.
       const points = villagePoints(settled);
@@ -1544,7 +1556,37 @@ export class GameService {
         here: this.store.stationedHere(player.id).map(stationedDto),
         abroad: this.store.stationedAbroad(player.id).map(stationedDto),
       },
+      // Newly done starter tasks are stored here (sticky); a read of this card is the only place they are detected.
+      firstSteps: this.store.tx(() => firstStepsDto(this.store, player.id, settledStates, t)),
     };
+  }
+
+  /** Take a done step's reward into one of the player's villages (capped at its storage). One transaction; a second claim changes nothing. */
+  claimFirstStep(player: PlayerRow, stepId: FirstStepId, villageId: number, t: number): FirstStepClaimResponse {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const reward = firstStepReward(stepId);
+      if (!reward) throw new GameError('invalid_input', 'Unknown step.');
+      const all = this.store.villagesOfPlayer(player.id).map((x) => settleVillage(x.state, t, this.settings));
+      const state = firstStepsDto(this.store, player.id, all, t);
+      const step = state.steps.find((x) => x.id === stepId);
+      if (!step?.done) throw new GameError('step_not_done', 'You have not finished that step yet.');
+      if (step.claimed || !this.store.firstSteps.claim(player.id, stepId, t)) throw new GameError('step_claimed', 'You already took that reward.');
+      const settled = settleVillage(v.state, t, this.settings);
+      const { resources, added } = claimReward(storageCap(settled), settled.resources, reward);
+      const next: VillageState = { ...settled, resources };
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      return { firstSteps: firstStepsDto(this.store, player.id, all, t), village: this.ownDto(v, next, t), added };
+    });
+  }
+
+  /** Fold the first steps card away or bring it back. */
+  setFirstStepsHidden(player: PlayerRow, hidden: boolean, t: number): FirstStepsDto {
+    return this.store.tx(() => {
+      this.store.firstSteps.setHidden(player.id, hidden);
+      const all = this.store.villagesOfPlayer(player.id).map((x) => settleVillage(x.state, t, this.settings));
+      return firstStepsDto(this.store, player.id, all, t);
+    });
   }
 
   /** Villages in the rectangle [x, x+w) x [y, y+h). */
@@ -1740,6 +1782,7 @@ export class GameService {
       const r = this.store.getReport(player.id, id);
       if (!r) throw new GameError('not_found', 'Report not found.');
       if (!r.read) this.store.markReportRead(player.id, id);
+      if (r.type === 'battle') this.store.firstSteps.markDone(player.id, 'report', this.clock());
       return {
         id: r.id,
         createdAt: r.createdAt,
@@ -1977,6 +2020,8 @@ export class GameService {
         ...(siegeTarget ? { siegeTarget } : {}),
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
+      // First steps: an attack on an abandoned village is the "raid" step (recorded here, at the event).
+      if (mission === 'attack' && target && target.ownerId === null && !relief) this.store.firstSteps.markDone(player.id, 'raid', t);
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support, found and occupy never do.
       if ((mission === 'attack' || mission === 'scout') && target && target.ownerId !== null && !relief) this.store.setProtectedUntil(player.id, 0);
 

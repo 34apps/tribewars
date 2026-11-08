@@ -59,6 +59,11 @@ import type {
   PlayerRankingResponse,
   RenownRankingResponse,
   FeastRequest,
+  FirstStepClaimRequest,
+  FirstStepClaimResponse,
+  FirstStepHiddenRequest,
+  FirstStepId,
+  FirstStepsDto,
   FeastResponse,
   TribeListResponse,
   TribeRole,
@@ -117,6 +122,7 @@ import type {
   LobbyChangePasswordRequest,
   LobbyMeResponse,
   LobbyWorldsResponse,
+  PublicWorldsResponse,
   WorldConfigResponse,
   WorldInfoResponse,
 } from '@clanfire/engine';
@@ -229,6 +235,8 @@ export const api = {
   lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
   lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
+  /** Signed-out homepage strip: open and full worlds, public fields only. */
+  lobbyPublicWorlds: () => lobbyRequest<PublicWorldsResponse>('GET', `${lobbyApiBase}/worlds/public`),
   lobbyHallOfFame: () => lobbyRequest<HallOfFameResponse>('GET', `${lobbyApiBase}/hall-of-fame`),
   lobbyEnter: (id: string) => lobbyRequest<EnterWorldResponse>('POST', `${lobbyApiBase}/worlds/${encodeURIComponent(id)}/enter`, {}),
   /** Hand the entry pass to the world (same origin: sets its session cookie). The pass travels in the body only. */
@@ -252,6 +260,10 @@ export const api = {
   sandboxReset: () => request<GameStateResponse>('POST', '/api/sandbox/reset', {}),
   logout: () => request<void>('POST', '/api/auth/logout', {}),
   setChieftain: (chieftain: string) => request<MeResponse>('POST', '/api/me/chieftain', { chieftain } satisfies ChieftainRequest),
+  claimFirstStep: (id: FirstStepId, villageId: number) =>
+    request<FirstStepClaimResponse>('POST', `/api/first-steps/${id}/claim`, { villageId } satisfies FirstStepClaimRequest),
+  setFirstStepsHidden: (hidden: boolean) =>
+    request<FirstStepsDto>('POST', '/api/first-steps/hidden', { hidden } satisfies FirstStepHiddenRequest),
   dismissAbandonedNotice: () => request<MeResponse>('POST', '/api/me/abandoned-notice/dismiss', {}),
   setHousehold: (shared: boolean) => request<MeResponse>('POST', '/api/me/household', { shared } satisfies HouseholdRequest),
   state: () => request<GameStateResponse>('GET', '/api/state'),

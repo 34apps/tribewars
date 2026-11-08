@@ -2152,3 +2152,24 @@ like every other duration.
   and chain texts, march times and the siege/sites screens use it instead of constants.
 - **Still constants** (not per world yet): unit stats and costs, building costs, terrain, `HOLD_MIN_POPULATION`, Chieftain limits, Renown formulas other
   than the village price, rate limits. Next candidates are in `NEXT_STEPS.md`.
+
+## 20. First steps (starter tasks; owner-approved 2026-11-08)
+
+Eight small tasks with a small reward each, shown as a card in the web client. Numbers: `FIRST_STEPS` in `packages/engine/src/config.ts`; rules: `packages/engine/src/firstSteps.ts`.
+
+| # | Id | Task | Reward (wood / food / iron / gold) |
+|---|---|---|---|
+| 1 | `lumber2` | Lumber Camp to level 2 | 150 / 80 / 80 / 0 |
+| 2 | `farm2` | Farm to level 2 | 80 / 150 / 80 / 0 |
+| 3 | `hall2` | Town Hall to level 2 | 120 / 120 / 120 / 0 |
+| 4 | `barracks2` | Barracks to level 2 | 250 / 200 / 200 / 0 |
+| 5 | `raiders5` | Train 5 Raiders | 200 / 200 / 200 / 20 |
+| 6 | `raid` | Raid an abandoned village | 150 / 150 / 150 / 0 |
+| 7 | `report` | Open a battle report | 100 / 100 / 100 / 30 |
+| 8 | `tribe` | Join or found a tribe | 250 / 250 / 250 / 50 |
+
+- **Done:** in any order, as soon as the game sees it, and then done for good (stored). Building steps: that building is at level 2 or more in any of the player's villages, a queued or started upgrade to level 2 counts (no waiting for it to finish). `raiders5`: own Raiders at home plus in training plus away are 5 or more. `raid`: the player sent an attack (any troops) at an abandoned village (written when the army is sent; a scout-only march, an attack on a player or a support march does not count). `report`: the player opened a battle report (written when it is read). `tribe`: member of a tribe, founding counts. Everything else is derived from existing state when the player's game state is read.
+- **Claim:** a done, unclaimed step can be claimed once, any time (claims never expire). The player names one of their own villages; the reward goes into it, each resource capped at that village's storage like any delivery (the overflow is lost; the client warns). Done in one transaction, so two requests at once pay once.
+- **Hide:** the player can fold the card away and bring it back (stored flag). When all eight are claimed (`allClaimed`) the client stops showing it.
+- Applies to every player, existing ones see what they already did as done, test accounts included. On an ended world claim and hide answer 403 "This world has ended."
+- API: `firstSteps` on `GET /api/state`; `POST /api/first-steps/:id/claim` `{villageId}`; `POST /api/first-steps/hidden` `{hidden}` (`packages/engine/src/api.ts`).

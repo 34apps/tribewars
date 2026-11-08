@@ -7,7 +7,7 @@ import { Icon } from '../art/Icon.tsx';
 
 const ChieftainPicker = lazy(() => import('./ChieftainPicker.tsx'));
 
-type Mode = 'login' | 'register';
+export type Mode = 'login' | 'register';
 
 /** The two account calls the form makes: the world's own (default) or the lobby's. */
 export interface AuthCalls {
@@ -28,8 +28,8 @@ export function newPasswordProblem(password: string, username: string, min: numb
   return null;
 }
 
-export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => void; calls?: AuthCalls }) {
-  const [mode, setMode] = useState<Mode>('login');
+export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login', onBack }: { onAuthed: () => void; calls?: AuthCalls; initialMode?: Mode; /** Lobby homepage: a small link back to it. */ onBack?: () => void }) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +277,12 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS }: { onAuthed: () => 
             {busy ? 'Please wait…' : register ? 'Next' : 'Sign in'}
           </button>
         </form>
+
+        {onBack && (
+          <button type="button" className="auth-back" onClick={onBack}>
+            <span aria-hidden="true">←</span> Back
+          </button>
+        )}
 
         <ul className="auth-blurb">
           <li><Icon name="food" size={26} /> Build</li>

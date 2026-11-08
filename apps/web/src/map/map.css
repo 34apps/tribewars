@@ -19,7 +19,7 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  background: #c99a62;
+  background: var(--surface-2);
   color: var(--wm-ink);
   font-family: var(--wm-text);
 }
@@ -186,8 +186,8 @@
   gap: 6px;
   padding: 5px;
   border-radius: 18px;
-  background: var(--wm-ink);
-  box-shadow: inset 0 2px 0 #4a3a2f, 0 4px 0 #120c09;
+  background: var(--bar);
+  box-shadow: inset 0 -3px 0 var(--bar-line), 0 4px 0 var(--bar-edge);
 }
 
 .wm-goto .wm-btn {
@@ -196,7 +196,7 @@
 }
 
 .wm-goto-sep {
-  color: var(--wm-bone);
+  color: var(--on-bar);
   font-weight: 800;
 }
 
@@ -228,8 +228,9 @@
   max-width: calc(100% - 24px);
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(43, 33, 28, 0.82);
-  color: var(--wm-paper);
+  background: rgba(255, 250, 240, 0.92);
+  color: var(--wm-ink);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 2px 0 var(--edge-shadow);
   font-size: 0.8rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -244,8 +245,9 @@
   min-width: 150px;
   max-width: 260px;
   border-radius: 10px;
-  background: rgba(43, 33, 28, 0.94);
-  color: var(--wm-paper);
+  background: var(--surface);
+  color: var(--wm-ink);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 3px 0 var(--edge-shadow);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -259,7 +261,7 @@
 .wm-tip-head {
   padding: 6px 12px;
   font-weight: 700;
-  background: rgba(255, 248, 232, 0.14);
+  background: var(--surface-2);
 }
 
 .wm-tip-row {
@@ -293,9 +295,9 @@
   min-height: 0;
   max-width: 290px;
   border-radius: 18px;
-  background: var(--wm-ink);
-  color: var(--wm-paper);
-  box-shadow: inset 0 2px 0 #4a3a2f, 0 5px 0 #120c09;
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
 }
 
 .wm-legend summary {
@@ -327,12 +329,12 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: #6b5846 transparent;
+  scrollbar-color: var(--edge) transparent;
 }
 
 .wm-legend h3 {
   margin: 6px 0;
-  color: #cdba98;
+  color: var(--on-surface-muted);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -383,7 +385,7 @@
 }
 
 .wm-legend-stages small {
-  color: var(--wm-sun);
+  color: var(--accent);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -458,10 +460,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px var(--wm-panel-pad-x) var(--wm-panel-pad-b);
-  border-top: 3px solid var(--wm-ink);
+  border-top: 3px solid var(--edge);
   border-radius: 24px 24px 0 0;
-  background: var(--wm-bone);
-  box-shadow: 0 -6px 0 rgba(43, 33, 28, 0.25), 0 -12px 28px rgba(18, 12, 9, 0.35);
+  background: var(--surface);
+  box-shadow: 0 -4px 0 var(--edge-shadow), 0 -12px 28px rgba(120, 90, 40, 0.25);
 }
 
 .wm-panel > * {
@@ -482,9 +484,9 @@
   gap: 8px;
   padding: 8px 8px 8px 14px;
   border-radius: 18px;
-  background: var(--wm-ink);
-  color: var(--wm-paper);
-  box-shadow: inset 0 2px 0 #4a3a2f, 0 5px 0 #120c09;
+  background: var(--bar);
+  color: var(--on-bar);
+  box-shadow: inset 0 -3px 0 var(--bar-line), 0 4px 0 var(--bar-edge);
 }
 
 .wm-panel-titles {
@@ -527,7 +529,7 @@
 }
 
 .wm-dim {
-  color: #cdba98;
+  color: var(--on-bar-muted);
   font-weight: 500;
 }
 
@@ -561,14 +563,18 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  filter: brightness(1.3);
+  filter: brightness(1.7);
+  /* filled dark tag so the ring colour (set inline) stays readable on the honey head */
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--dark);
 }
 
 .wm-close {
   flex: none;
   width: 44px;
   height: 44px;
-  box-shadow: 0 3px 0 #120c09;
+  box-shadow: 0 3px 0 var(--wm-ink);
 }
 
 /* "Send res." in the header: small and secondary; the ::after widens the tap area to 44 px. */
@@ -580,7 +586,7 @@
   border-radius: 10px;
   font-size: 0.78rem;
   white-space: nowrap;
-  box-shadow: 0 3px 0 #120c09;
+  box-shadow: 0 3px 0 var(--wm-ink);
 }
 
 .wm-ship-btn::after {
@@ -934,7 +940,9 @@
 }
 
 .wm-chip:disabled {
-  opacity: 0.5;
+  border-color: var(--on-surface-muted);
+  background: var(--surface-2);
+  color: var(--on-surface-muted);
   cursor: default;
 }
 
@@ -1139,7 +1147,41 @@
   }
 }
 
+@media (max-width: 767px) {
+  /* Phone: an opened key rides above the tile sheet so every row can be reached (it scrolls inside its own card). */
+  .wm-top:has(.wm-legend[open]) {
+    z-index: 8;
+  }
+
+  .wm-legend-body {
+    max-height: calc(100dvh - 300px);
+  }
+}
+
 @media (min-width: 768px) {
+  /* Desktop: the key is an overlay, so it fits instead of scrolling: two columns of sections. */
+  .wm-legend[open] {
+    max-width: 560px;
+  }
+
+  .wm-legend-body {
+    columns: 2;
+    column-gap: 22px;
+    max-height: calc(100dvh - 190px);
+  }
+
+  .wm-legend-body h3 {
+    break-after: avoid;
+  }
+
+  .wm-legend-body ul {
+    break-inside: avoid;
+  }
+
+  .wm-legend-body h3:first-child {
+    margin-top: 0;
+  }
+
   /* The region scrolls as a whole; the map stays pinned while a tall side panel scrolls past it. */
   .wm {
     align-items: flex-start;
@@ -1163,9 +1205,9 @@
     --wm-panel-pad-b: 12px;
     padding: 12px var(--wm-panel-pad-x) var(--wm-panel-pad-b);
     border-top: 0;
-    border-left: 3px solid var(--wm-ink);
+    border-left: 3px solid var(--edge);
     border-radius: 0;
-    box-shadow: -6px 0 0 rgba(43, 33, 28, 0.18);
+    box-shadow: -4px 0 0 var(--edge-shadow);
   }
 
   .wm-panel-grip {

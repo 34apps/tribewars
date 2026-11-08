@@ -6,9 +6,8 @@ Owner's direction (2026-11-02). Read before any visual work.
 - **Original art only.** Same genre as Tribal Wars and similar games, but never copy their art,
   layouts, icons or text. Reference screenshots the owner shares describe *structure*, not look;
   don't store them in this repo.
-- **No generic "AI" look**: no emoji icons, no cream/parchment card UI, no gradient washes, no stock
-  fantasy fonts. Every icon and picture is drawn for Clanfire. (Exception the owner picked on 2026-11-07:
-  light "parchment" panels, `.card-light`, for the Tribe Projects page and the Lookout list, to keep text readable.)
+- **No generic "AI" look**: no emoji icons, no gradient washes, no stock fantasy fonts. Every icon and picture is
+  drawn for Clanfire. The app UI is **Parchment** (owner, 2026-11-08, replacing the dark brown look): see "UI colours" below.
 - **No one-sided accent stripes** (owner, 2026-11-07: "AI slop"): no thick left/right border bar on rows,
   cards or list items. Mark a state with a thin even border, a filled tag or a background instead.
 - **Web app first**: desktop browsers and phone browsers from one responsive app; native mobile app later.
@@ -17,6 +16,17 @@ Owner's direction (2026-11-02). Read before any visual work.
 - Work **one piece at a time**, each approved by the owner before it goes into the game.
 - Approved designs fix the **general concept**; the owner may still touch up details at the end. Keep
   every piece of art swappable (sprite registries, separate SVG files), never baked into layout code.
+
+## UI colours: Parchment (owner, 2026-11-08)
+Warm paper page (`--page` #f6ecd6, very faint board lines), cream panels (`--surface` #fffaf0, rows `--surface-2`, wells
+`--surface-3`) with dark ink text (`--on-surface`, `--on-surface-muted`), a soft tan edge and bottom shadow
+(`--edge`, `--edge-soft`, `--edge-shadow`), white inputs (`--input-bg`), honey top bar / resource strip / bottom tab bar
+(`--bar*`, text `--on-bar`), gold primary buttons. Small dark pieces (`--dark` with `--on-dark`: tags, "?" buttons,
+selected map tabs) and the Attack strip (`--strip-danger` with `--on-strip`) stay strong. Village and map art is unchanged.
+All tokens live in `:root` of `apps/web/src/styles.css` next to the raw palette; rules use the semantic names, never
+`--c-*` for panel or text colours. The bars re-point the same tokens to honey values (one block under `:root`).
+Every text is at least 4.5:1 on its background (disabled buttons excepted). The pilot pictures and tooling are in
+`design/proposals/app-colours/` (`after/` = the result).
 
 ## Village: back to Toy Diorama (owner, 2026-11-04)
 The owner tried style B (Painted Miniature) for the village, then chose to stay with **D · Toy Diorama** for the

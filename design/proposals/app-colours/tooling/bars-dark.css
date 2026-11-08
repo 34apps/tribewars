@@ -1,0 +1,21 @@
+/* Coloured top/bottom bars with cream text (themes B and C). */
+.topbar, .resstrip, .bottomnav, .home-bar, .who-menu {
+  --c-ink-2: var(--t-bar-in);
+  --c-ink-3: var(--t-bar-line);
+  --c-ink-4: var(--t-bar-line);
+  --c-ink-deep: var(--t-bar-deep);
+  --c-edge: var(--t-bar-edge);
+  --c-leaf: #f0fbc8;
+  --c-terra-hi: #fff0dc;
+  --c-sand: #fff8e8;
+  --c-dust: #f6f8e8;
+  background: var(--t-bar);
+  color: #fff8e8;
+  box-shadow: inset 0 -3px 0 var(--t-bar-line), 0 4px 0 var(--t-bar-edge);
+}
+.bottomnav { box-shadow: inset 0 3px 0 var(--t-bar-line); }
+.tab-top.is-active, .tab-bottom.is-active { --c-sand: var(--c-ink); }
+.res-meter { background: var(--t-bar-deep); }
+.who-menu .muted { color: #f6f8e8; }
+.home-tag { background: var(--t-bar); }
+.brand, .home-brand { color: #ffe9a8; }

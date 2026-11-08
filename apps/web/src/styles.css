@@ -1,10 +1,11 @@
-/* Clanfire web client — style D · Toy Diorama (docs/ART_DIRECTION.md). Mobile-first: base rules target 360 px;
-   the desktop shell starts at 1024 px. Pages sit on the table-wood background; panels are dark ink "toy pieces"
-   that switch the colour tokens to light-on-dark (see .card and friends below). */
+/* Clanfire web client — style D · Toy Diorama pieces on "Parchment" (docs/ART_DIRECTION.md). Mobile-first: base rules
+   target 360 px; the desktop shell starts at 1024 px. Pages are warm paper, panels are cream, the top and bottom bars are
+   honey; text is dark ink. Rules use the SEMANTIC tokens below (--surface, --on-surface, --edge ...), never the raw palette
+   for panel/text colours. The bars re-point the same tokens to the honey values (see .topbar below). */
 
 :root {
   color-scheme: light;
-  /* Palette (fixed) */
+  /* Raw palette (fixed). Use for art, toy-button faces and status fills; panel and text colours go through the semantic tokens. */
   --c-ink: #2b211c;
   --c-ink-2: #3e3028;
   --c-ink-3: #4a3a2f;
@@ -35,31 +36,49 @@
   --c-plum: #7a3b5e;
   --c-iron: #a39e94;
 
-  /* Context tokens: on the wood table (dark ink). Dark panels redefine them. */
-  --bg: var(--c-wood);
-  --bg-deep: var(--c-wood-board);
-  --panel: var(--c-ink);
-  --panel-2: var(--c-ink-2);
-  --ink: var(--c-ink);
-  --ink-soft: #4f3a2b;
-  --line: rgba(43, 33, 28, 0.28);
-  --line-strong: var(--c-ink);
+  /* Semantic tokens: Parchment (owner, 2026-11-08). Every text colour is at least 4.5:1 on the surface it is paired with. */
+  --page: #f6ecd6; /* warm paper behind everything */
+  --page-line: rgba(174, 126, 74, 0.09); /* very faint board lines */
+  --surface: #fffaf0; /* cards, panels, sheets, dialogs */
+  --surface-2: #f6ecd4; /* rows, wells and inner pieces on a surface */
+  --surface-3: #eadcb8; /* deeper wells, tracks, bars of a meter */
+  --on-surface: #2b211c; /* text on surfaces and on the page */
+  --on-surface-muted: #5d4838; /* secondary text */
+  --heading: #2b211c; /* titles and highlighted numbers */
+  --accent: #a8472a; /* emphasis words on the page (terracotta) */
+  --link: #155a5e;
+  --edge-soft: #e6d7b6; /* hairlines between rows */
+  --edge: #cdb98e; /* outlines of panels, inputs, ghost buttons */
+  --edge-shadow: #d9c49a; /* soft tan bottom edge ("toy" shadow) of panels */
+  --input-bg: #ffffff;
+  --bar: #f4dfa8; /* top bar, resource strip, bottom tab bar (honey) */
+  --bar-2: #ead08a;
+  --bar-line: #dcc07a;
+  --bar-deep: #d6b96e;
+  --bar-edge: #cfae62;
+  --on-bar: #2b211c;
+  --on-bar-muted: #5d4838;
+  --dark: #2b211c; /* small dark pieces: tags, tooltips, selected tabs */
+  --on-dark: #fff8e8; /* text on --dark and on the strongly coloured strips */
+  --on-fill: #2b211c; /* text on gold, teal and bone fills */
+  --strip-danger: #a9502d; /* Attack strip / badge fill (white text 5.3:1) */
+  --on-strip: #fff8e8;
+  --scrim: rgba(43, 33, 28, 0.55);
+
   --brand: var(--c-ink);
-  --brand-dark: var(--c-edge);
+  --brand-dark: var(--edge-shadow);
   --on-brand: var(--c-cream);
-  --header: var(--c-ink);
-  --on-header: var(--c-cream);
   --gold: var(--c-sun);
   --danger: #8f2f17;
-  --danger-bg: #f3c7ae;
+  --danger-bg: #f8d8c6;
   --ok: #2e5a1c;
-  --ok-bg: #cfe2a8;
+  --ok-bg: #d6e8b4;
   --warn: #6b4410;
   --warn-bg: #f6d991;
   --info: #155a5e;
-  --info-bg: #b5e3df;
+  --info-bg: #c8eae6;
   --radius: 16px;
-  --shadow: 0 5px 0 var(--c-edge);
+  --shadow: 0 4px 0 var(--edge-shadow);
   --font: 'Rubik', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-display: 'Bagel Fat One', 'Rubik', 'Arial Rounded MT Bold', system-ui, sans-serif;
   --font-serif: var(--font-display);
@@ -67,31 +86,21 @@
   --header-h: 76px;
 }
 
-/* Dark toy panels: same tokens, light-on-dark values. */
-.card,
-.auth-card,
-.map-toolbar,
-.map-panel,
-.confirm,
-.toast,
-.dark {
-  --ink: var(--c-cream);
-  --ink-soft: var(--c-dust);
-  --line: var(--c-ink-3);
-  --line-strong: var(--c-ink-4);
-  --panel-2: var(--c-ink-2);
-  --brand: var(--c-sun-hi);
-  --brand-dark: var(--c-sun);
-  --on-brand: var(--c-ink);
-  --danger: var(--c-terra-hi);
-  --danger-bg: #5a2a1c;
-  --ok: var(--c-leaf);
-  --ok-bg: var(--c-moss-deep);
-  --warn: var(--c-sun-hi);
-  --warn-bg: #4a3a1a;
-  --info: var(--c-teal-hi);
-  --info-bg: #17393b;
-  color: var(--ink);
+/* Bars: the same semantic tokens, honey values (everything inside the bars follows). */
+.topbar,
+.resstrip,
+.bottomnav,
+.home-bar,
+.who-menu {
+  --surface-2: var(--bar-2);
+  --edge-soft: var(--bar-line);
+  --edge: var(--bar-line);
+  --surface-3: var(--bar-deep);
+  --edge-shadow: var(--bar-edge);
+  --on-surface: var(--on-bar);
+  --on-surface-muted: var(--on-bar-muted);
+  color: var(--on-bar);
+  background: var(--bar);
 }
 
 *,
@@ -114,10 +123,11 @@ html:has(.app) {
 
 body {
   margin: 0;
-  background-color: var(--bg);
-  /* Table planks */
-  background-image: repeating-linear-gradient(180deg, transparent 0 94px, var(--c-wood-line) 94px 96px);
-  color: var(--ink);
+  background-color: var(--page);
+  /* very faint board lines on the paper */
+  background-image: repeating-linear-gradient(180deg, transparent 0 94px, var(--page-line) 94px 96px);
+  background-attachment: fixed;
+  color: var(--on-surface);
   font: 15px/1.45 var(--font);
   -webkit-tap-highlight-color: transparent;
 }
@@ -174,7 +184,7 @@ textarea {
 }
 
 .muted {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 400;
 }
 
@@ -198,7 +208,7 @@ textarea {
   border-radius: 14px;
   background: var(--c-bone);
   box-shadow: inset 0 2px 0 #fff3dc, inset 0 -4px 0 var(--c-bone-shade);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-weight: 700;
   line-height: 1.1;
   cursor: pointer;
@@ -221,16 +231,16 @@ a.btn {
 }
 
 .btn:disabled {
-  background: var(--c-ink-4);
-  box-shadow: inset 0 -4px 0 var(--c-ink-2);
-  color: var(--c-sand);
+  background: var(--edge-soft);
+  box-shadow: inset 0 -4px 0 var(--edge);
+  color: var(--on-surface-muted);
   cursor: not-allowed;
 }
 
 .btn-primary {
   background: var(--c-sun);
   box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -5px 0 var(--c-sun-lo);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: 0.01em;
@@ -239,16 +249,16 @@ a.btn {
 .btn-teal {
   background: var(--c-teal-hi);
   box-shadow: inset 0 2px 0 #b9ece8, inset 0 -4px 0 var(--c-teal);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-family: var(--font-display);
   font-weight: 400;
 }
 
 .btn-ghost {
   background: transparent;
-  border-color: var(--c-ink-4);
+  border-color: var(--edge);
   box-shadow: none;
-  color: var(--on-header);
+  color: var(--on-surface);
 }
 
 .btn-block {
@@ -288,11 +298,11 @@ a.btn {
   min-width: 0;
   width: 100%;
   padding: 0 12px;
-  border: 2px solid var(--c-ink);
+  border: 2px solid var(--edge);
   border-radius: 12px;
-  background: var(--c-cream);
-  box-shadow: inset 0 3px 0 rgba(43, 33, 28, 0.12);
-  color: var(--c-ink);
+  background: var(--input-bg);
+  box-shadow: inset 0 3px 0 rgba(43, 33, 28, 0.06);
+  color: var(--on-fill);
   font-size: 16px; /* 16 px stops iOS from zooming into focused fields */
 }
 
@@ -309,17 +319,17 @@ a.btn {
 .field input {
   min-height: 48px;
   padding: 0 12px;
-  border: 2px solid var(--c-ink);
+  border: 2px solid var(--edge);
   border-radius: 12px;
-  background: var(--c-cream);
-  box-shadow: inset 0 3px 0 rgba(43, 33, 28, 0.12);
-  color: var(--c-ink);
+  background: var(--input-bg);
+  box-shadow: inset 0 3px 0 rgba(43, 33, 28, 0.06);
+  color: var(--on-fill);
   font-size: 16px;
   font-weight: 400;
 }
 
 .hint {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 400;
 }
 
@@ -375,8 +385,8 @@ a.btn {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: var(--c-ink);
-  box-shadow: 0 5px 0 var(--c-edge);
+  background: var(--dark);
+  box-shadow: 0 5px 0 var(--edge-shadow);
 }
 
 .auth {
@@ -392,8 +402,8 @@ a.btn {
   max-width: 420px;
   padding: 20px 18px 18px;
   border-radius: 22px;
-  background: var(--panel);
-  box-shadow: inset 0 3px 0 var(--c-ink-3), 0 6px 0 var(--c-edge);
+  background: var(--surface);
+  box-shadow: inset 0 3px 0 var(--edge-soft), 0 6px 0 var(--edge-shadow);
 }
 
 .auth-brand {
@@ -412,11 +422,11 @@ a.btn {
   font-weight: 400;
   font-size: 2.2rem;
   letter-spacing: 0.01em;
-  color: var(--c-sun-hi);
+  color: var(--heading);
 }
 
 .auth-tagline {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .auth-tabs {
@@ -426,8 +436,8 @@ a.btn {
   margin-bottom: 14px;
   padding: 4px;
   border-radius: 16px;
-  background: var(--c-ink-2);
-  box-shadow: inset 0 3px 0 var(--c-ink-deep);
+  background: var(--surface-2);
+  box-shadow: inset 0 3px 0 var(--surface-3);
 }
 
 .auth-tabs button {
@@ -435,7 +445,7 @@ a.btn {
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: var(--c-sand);
+  color: var(--on-surface-muted);
   font-weight: 700;
   cursor: pointer;
 }
@@ -443,7 +453,7 @@ a.btn {
 .auth-tabs button.is-active {
   background: var(--c-sun);
   box-shadow: inset 0 -4px 0 var(--c-sun-lo);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .auth-form {
@@ -465,7 +475,7 @@ a.btn {
 }
 
 .auth-step-count {
-  color: var(--c-teal-hi);
+  color: var(--info);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -477,7 +487,7 @@ a.btn {
   font-weight: 400;
   font-size: 1.7rem;
   line-height: 1.05;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .auth-step-loading {
@@ -493,8 +503,8 @@ a.btn {
   margin: 10px -14px 0;
   padding: 10px 14px 14px;
   border-radius: 0 0 22px 22px;
-  background: var(--panel);
-  box-shadow: 0 -10px 12px -6px var(--panel);
+  background: var(--surface);
+  box-shadow: 0 -10px 12px -6px var(--surface);
 }
 
 .auth-step-foot .form-error:empty {
@@ -508,7 +518,7 @@ a.btn {
 
 .auth-step-note {
   text-align: center;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.9rem;
 }
 
@@ -532,7 +542,7 @@ a.btn {
   height: 64px;
   overflow: hidden;
   border-radius: 50%;
-  border: 3px solid var(--c-edge);
+  border: 3px solid var(--edge-shadow);
   background: var(--c-sun-hi);
 }
 
@@ -549,11 +559,11 @@ a.btn {
   flex: 1;
   min-width: 0;
   padding: 8px 12px;
-  border: 3px solid var(--c-edge);
+  border: 3px solid var(--edge-shadow);
   border-radius: 16px;
   background: var(--c-teal-hi);
-  box-shadow: 0 3px 0 var(--c-edge);
-  color: var(--c-ink);
+  box-shadow: 0 3px 0 var(--edge-shadow);
+  color: var(--on-fill);
   font-size: 0.92rem;
   line-height: 1.3;
 }
@@ -565,8 +575,8 @@ a.btn {
   top: 22px;
   width: 14px;
   height: 14px;
-  border-left: 3px solid var(--c-edge);
-  border-bottom: 3px solid var(--c-edge);
+  border-left: 3px solid var(--edge-shadow);
+  border-bottom: 3px solid var(--edge-shadow);
   background: var(--c-teal-hi);
   transform: rotate(45deg);
 }
@@ -601,15 +611,15 @@ a.btn {
   font-weight: 400;
   font-size: 1.9rem;
   line-height: 1;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .cp-pill {
   display: inline-block;
   padding: 3px 12px;
-  border: 2.5px solid var(--c-edge);
+  border: 2.5px solid var(--edge-shadow);
   border-radius: 999px;
-  box-shadow: 0 2px 0 var(--c-edge);
+  box-shadow: 0 2px 0 var(--edge-shadow);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -618,7 +628,7 @@ a.btn {
 
 .cp-line {
   max-width: 34ch;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.95rem;
   line-height: 1.35;
 }
@@ -629,8 +639,8 @@ a.btn {
   gap: 6px;
   padding: 8px;
   border-radius: 18px;
-  background: var(--c-ink-deep);
-  box-shadow: inset 0 3px 0 var(--c-edge);
+  background: var(--surface-3);
+  box-shadow: inset 0 3px 0 var(--edge-shadow);
 }
 
 .cp-tile {
@@ -643,21 +653,21 @@ a.btn {
   padding: 8px 2px 6px;
   border: 0;
   border-radius: 14px;
-  background: var(--c-ink-2);
-  box-shadow: inset 0 3px 0 var(--c-ink-deep);
-  color: var(--c-cream);
+  background: var(--surface-2);
+  box-shadow: inset 0 3px 0 var(--surface-3);
+  color: var(--on-surface);
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .cp-tile:hover:not(:disabled) {
-  background: var(--c-ink-3);
+  background: var(--edge-soft);
 }
 
 .cp-tile.is-on {
   background: var(--c-teal-lo);
-  box-shadow: inset 0 0 0 3px var(--c-sun-hi), 0 3px 0 var(--c-edge);
+  box-shadow: inset 0 0 0 3px var(--c-sun-hi), 0 3px 0 var(--edge-shadow);
 }
 
 .cp-tile:disabled {
@@ -686,7 +696,7 @@ a.btn {
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 2.5px solid var(--c-edge);
+  border: 2.5px solid var(--edge-shadow);
   border-radius: 50%;
   background: var(--c-sun);
 }
@@ -744,8 +754,8 @@ a.btn {
   gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 2px dashed var(--line);
-  color: var(--ink-soft);
+  border-top: 2px dashed var(--edge-soft);
+  color: var(--on-surface-muted);
   font-size: 0.93rem;
 }
 
@@ -773,8 +783,8 @@ a.btn {
   gap: 8px 12px;
   padding: 10px 14px;
   border-radius: 18px;
-  background: var(--panel);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge);
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
 }
 
 .lobby-brand {
@@ -788,17 +798,17 @@ a.btn {
   font-family: var(--font-display);
   font-size: 1.5rem;
   line-height: 1;
-  color: var(--c-sun-hi);
+  color: var(--heading);
 }
 
 .lobby-who {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .lobby-who strong {
-  color: var(--c-cream);
+  color: var(--on-surface);
   font-weight: 700;
 }
 
@@ -807,7 +817,7 @@ a.btn {
   font-weight: 400;
   font-size: 2rem;
   line-height: 1.1;
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .lobby-note {
@@ -816,8 +826,8 @@ a.btn {
   gap: 10px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: var(--panel);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge);
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
   font-weight: 600;
 }
 
@@ -833,8 +843,8 @@ a.btn {
   gap: 8px;
   padding: 14px 16px 16px;
   border-radius: 18px;
-  background: var(--panel);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge);
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
 }
 
 .lobby-card-head {
@@ -852,12 +862,12 @@ a.btn {
   font-weight: 400;
   font-size: 1.4rem;
   line-height: 1.1;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .lobby-card-note {
   flex: 1;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.93rem;
 }
 
@@ -891,8 +901,8 @@ a.btn {
 }
 
 .world-status-finished {
-  background: var(--panel-2);
-  color: var(--ink-soft);
+  background: var(--surface-2);
+  color: var(--on-surface-muted);
 }
 
 @media (min-width: 640px) {
@@ -935,7 +945,7 @@ a.btn {
   font-family: var(--font-display);
   font-size: 25px;
   line-height: 1;
-  color: var(--c-sun-hi);
+  color: var(--heading);
   white-space: nowrap;
 }
 
@@ -971,22 +981,22 @@ a.btn {
   height: 50px;
   padding: 0 8px 0 4px;
   border-radius: 14px;
-  color: var(--c-sand);
+  color: var(--on-surface-muted);
   font-size: 14.5px;
   font-weight: 600;
 }
 
 .tab-top:hover {
-  color: var(--c-cream);
+  color: var(--on-surface);
   background: rgba(255, 248, 232, 0.06);
 }
 
 .tab-top.is-active,
 .tab-bottom.is-active {
-  border: 2.5px solid var(--c-cream);
+  border: 2.5px solid var(--on-surface);
   background: var(--c-sun);
   box-shadow: inset 0 -4px 0 var(--c-sun-lo);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-weight: 700;
 }
 
@@ -1012,7 +1022,7 @@ a.btn {
   border-radius: 10px;
   border: 2px solid var(--c-ink);
   background: var(--c-terra-hi);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
@@ -1020,8 +1030,8 @@ a.btn {
 }
 
 .badge-danger {
-  background: var(--c-terra);
-  color: var(--c-cream);
+  background: var(--strip-danger);
+  color: var(--on-strip);
 }
 
 /* Resource counters */
@@ -1050,7 +1060,7 @@ a.btn {
 }
 
 .res-amount {
-  color: var(--c-cream);
+  color: var(--on-surface);
   font-size: 14.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -1058,7 +1068,7 @@ a.btn {
 }
 
 .res-cap {
-  color: var(--c-dust);
+  color: var(--on-surface-muted);
   font-size: 11.5px;
   font-weight: 500;
 }
@@ -1074,7 +1084,7 @@ a.btn {
   width: 30px;
   height: 6px;
   border-radius: 3px;
-  background: var(--c-ink-2);
+  background: var(--surface-2);
   overflow: hidden;
 }
 
@@ -1086,7 +1096,7 @@ a.btn {
 }
 
 .res-rate {
-  color: var(--c-leaf);
+  color: var(--ok);
   font-size: 11.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1094,7 +1104,7 @@ a.btn {
 }
 
 .res.is-zero .res-rate {
-  color: var(--c-dust);
+  color: var(--on-surface-muted);
 }
 
 .res.is-near-full .res-meter span {
@@ -1102,20 +1112,20 @@ a.btn {
 }
 
 .res.is-full .res-amount {
-  color: var(--c-terra-hi);
+  color: var(--danger);
 }
 
 .res.is-bad .res-rate {
-  color: var(--c-terra-hi);
+  color: var(--danger);
 }
 
 /* Population chip: same look as a resource, warning colours from 90% */
 .res-pop .res-rate {
-  color: var(--c-dust);
+  color: var(--on-surface-muted);
 }
 
 .res-pop.is-near-full .res-rate {
-  color: var(--c-terra-hi);
+  color: var(--danger);
 }
 
 /* Player block + account menu */
@@ -1133,7 +1143,7 @@ a.btn {
   border: 0;
   border-radius: 14px;
   background: none;
-  color: var(--c-cream);
+  color: var(--on-surface);
   text-align: left;
   cursor: pointer;
 }
@@ -1148,7 +1158,7 @@ a.btn {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  border: 2.5px solid var(--c-cream);
+  border: 2.5px solid var(--on-surface);
   background: var(--c-sun);
   overflow: hidden;
 }
@@ -1174,7 +1184,7 @@ a.btn {
 }
 
 .who-tag {
-  color: var(--c-sun-hi);
+  color: var(--heading);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1189,9 +1199,9 @@ a.btn {
   width: 240px;
   padding: 14px;
   border-radius: 16px;
-  background: var(--c-ink);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge), 0 10px 30px rgba(0, 0, 0, 0.35);
-  color: var(--c-cream);
+  background: var(--bar);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color: var(--on-surface);
 }
 
 .who-menu strong {
@@ -1201,7 +1211,7 @@ a.btn {
 }
 
 .who-menu .muted {
-  color: var(--c-dust);
+  color: var(--on-surface-muted);
 }
 
 /* Notification bell (top bar on desktop, resource strip on phones) */
@@ -1259,8 +1269,8 @@ a.btn {
   margin: calc(8px + env(safe-area-inset-top)) 8px 6px;
   padding: 6px 8px 6px 6px;
   border-radius: 16px;
-  background: var(--c-ink);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 4px 0 var(--c-edge);
+  background: var(--bar);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 4px 0 var(--edge-shadow);
 }
 
 .resstrip .who-button {
@@ -1311,13 +1321,13 @@ a.btn {
 
 .resstrip .res-pop .res-amount::after {
   content: ' Pop';
-  color: var(--c-dust);
+  color: var(--on-surface-muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .resstrip .res-pop.is-near-full .res-amount {
-  color: var(--c-terra-hi);
+  color: var(--danger);
 }
 
 .resstrip .res .token {
@@ -1367,17 +1377,17 @@ button.strip {
 
 .strip-protect {
   background: var(--c-teal-hi);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .strip-danger {
-  background: var(--c-terra);
-  color: var(--c-cream);
+  background: var(--strip-danger);
+  color: var(--on-strip);
 }
 
 .strip-warn {
   background: var(--c-sun-hi);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .main {
@@ -1405,8 +1415,8 @@ button.strip {
   align-items: center;
   min-height: var(--nav-h);
   padding: 0 4px calc(4px + env(safe-area-inset-bottom));
-  background: var(--c-ink);
-  box-shadow: inset 0 3px 0 var(--c-ink-3);
+  background: var(--bar);
+  box-shadow: inset 0 3px 0 var(--edge-soft);
 }
 
 .tab-bottom {
@@ -1417,7 +1427,7 @@ button.strip {
   max-width: 64px;
   min-height: 56px;
   border-radius: 14px;
-  color: var(--c-sand);
+  color: var(--on-surface-muted);
   font-size: 11.5px;
   font-weight: 600;
 }
@@ -1435,9 +1445,15 @@ button.strip {
   transform: translateY(-5px);
 }
 
+.tab-top .badge {
+  left: auto;
+  right: -7px;
+  top: -7px;
+}
+
 .tab-bottom .badge {
-  left: 38px;
-  top: 0;
+  left: calc(50% + 12px);
+  top: -2px;
 }
 
 /* ---- Toasts --------------------------------------------------------------------------------------- */
@@ -1459,11 +1475,11 @@ button.strip {
   gap: 6px;
   padding: 4px 2px 4px 12px;
   border-radius: 14px;
-  background: var(--c-ink);
-  color: var(--c-cream);
+  background: var(--surface);
+  color: var(--on-surface);
   font-size: 0.875rem;
   line-height: 1.3;
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 4px 0 var(--c-edge), 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 4px 0 var(--edge-shadow), 0 8px 24px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
 }
 
@@ -1504,9 +1520,9 @@ button.strip {
     gap: 14px;
     height: var(--header-h);
     padding: 0 16px;
-    background: var(--c-ink);
-    box-shadow: inset 0 -3px 0 var(--c-edge);
-    color: var(--c-cream);
+    background: var(--bar);
+    box-shadow: inset 0 -3px 0 var(--edge-shadow);
+    color: var(--on-surface);
   }
 
   /* Cause of the overlap: nav and resources were flex-shrink:1 with min-width:0, so the boxes shrank
@@ -1524,7 +1540,7 @@ button.strip {
   .topbar .who {
     flex: none;
     padding-left: 12px;
-    border-left: 2px solid var(--c-ink-3);
+    border-left: 2px solid var(--edge-soft);
   }
 
   .resstrip,
@@ -1644,7 +1660,7 @@ button.strip {
   font-weight: 400;
   font-size: 1.75rem;
   line-height: 1.05;
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .card {
@@ -1652,8 +1668,8 @@ button.strip {
   padding: 14px 16px;
   border: 0;
   border-radius: 18px;
-  background: var(--panel);
-  box-shadow: inset 0 2px 0 var(--c-ink-3), 0 5px 0 var(--c-edge);
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
 }
 
 .card-title {
@@ -1662,7 +1678,7 @@ button.strip {
   font-weight: 400;
   font-size: 1.2rem;
   line-height: 1.1;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .subsection {
@@ -1678,8 +1694,8 @@ button.strip {
 .progress {
   height: 12px;
   border-radius: 6px;
-  background: var(--c-ink-2);
-  box-shadow: inset 0 2px 0 var(--c-ink-deep);
+  background: var(--surface-2);
+  box-shadow: inset 0 2px 0 var(--surface-3);
   overflow: hidden;
 }
 
@@ -1695,7 +1711,7 @@ button.strip {
 }
 
 .progress-ok .progress-fill {
-  background: var(--c-leaf);
+  background: var(--c-moss);
 }
 
 .cost {
@@ -1720,13 +1736,13 @@ button.strip {
 
 .time {
   white-space: nowrap;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .why {
   margin-top: 4px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.86rem;
 }
 
@@ -1827,8 +1843,8 @@ button.strip {
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border: 1px solid var(--edge-soft);
   font-size: 1.6rem;
 }
 
@@ -1846,12 +1862,12 @@ button.strip {
 }
 
 .level {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.88rem;
 }
 
 .level strong {
-  color: var(--ink);
+  color: var(--on-surface);
 }
 
 .queued {
@@ -1860,7 +1876,7 @@ button.strip {
 }
 
 .building-desc {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.9rem;
 }
 
@@ -1869,7 +1885,7 @@ button.strip {
   gap: 2px;
   padding: 6px 8px;
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .effect {
@@ -1880,7 +1896,7 @@ button.strip {
 }
 
 .effect dt {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .effect dd {
@@ -1918,8 +1934,11 @@ button.strip {
   background: #efe6d0;
 }
 
+.card.is-locked .building-title {
+  color: var(--on-surface-muted);
+}
+
 .card.is-locked .building-icon,
-.card.is-locked .building-title,
 .card.is-locked .building-desc,
 .card.is-locked .stats {
   opacity: 0.6;
@@ -1942,13 +1961,13 @@ button.strip {
 .table th,
 .table td {
   padding: 8px 6px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge-soft);
   text-align: left;
   font-weight: 400;
 }
 
 .table thead th {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -1963,11 +1982,11 @@ button.strip {
 
 .table th.group {
   text-align: center;
-  border-bottom: 2px solid var(--line-strong);
+  border-bottom: 2px solid var(--edge);
 }
 
 .table tr.is-zero {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .upkeep {
@@ -1983,9 +2002,9 @@ button.strip {
 
 .movement {
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .movement.is-incoming {
@@ -2044,11 +2063,11 @@ button.strip {
   justify-content: space-between;
   gap: 6px;
   padding: 2px 0;
-  border-bottom: 1px dotted var(--line);
+  border-bottom: 1px dotted var(--edge-soft);
 }
 
 .stats dt {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .stats dd {
@@ -2094,9 +2113,9 @@ button.strip {
   width: 100%;
   min-height: 52px;
   padding: 6px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
@@ -2138,7 +2157,7 @@ button.strip {
   height: 9px;
   margin-right: 6px;
   border-radius: 50%;
-  background: var(--danger);
+  background: var(--strip-danger);
 }
 
 .report-detail .back {
@@ -2165,9 +2184,9 @@ button.strip {
   align-content: start;
   gap: 2px;
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2198,7 +2217,7 @@ button.strip {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -2211,7 +2230,7 @@ button.strip {
 
 .vs {
   align-self: center;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 800;
 }
 
@@ -2244,7 +2263,8 @@ button.strip {
 }
 
 .power-att {
-  background: var(--danger);
+  background: var(--strip-danger);
+  color: var(--on-strip);
 }
 
 .power-def {
@@ -2259,7 +2279,7 @@ button.strip {
 }
 
 .facts dt {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.8rem;
 }
 
@@ -2303,8 +2323,8 @@ button.strip {
   align-items: center;
   gap: 6px 8px;
   padding: 6px 8px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-bottom: 1px solid var(--edge);
 }
 
 .goto {
@@ -2314,7 +2334,7 @@ button.strip {
 }
 
 .goto-sep {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 800;
 }
 
@@ -2371,8 +2391,8 @@ button.strip {
   max-width: calc(100% - 16px);
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(44, 35, 24, 0.72);
-  color: #fbf6e9;
+  background: rgba(255, 250, 240, 0.92);
+  color: var(--on-surface);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -2407,9 +2427,9 @@ button.strip {
   max-height: 62%;
   overflow-y: auto;
   padding: 6px 14px 14px;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--edge);
   border-radius: 16px 16px 0 0;
-  background: var(--panel);
+  background: var(--surface);
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.3);
 }
 
@@ -2418,7 +2438,7 @@ button.strip {
   width: 40px;
   height: 4px;
   border-radius: 2px;
-  background: var(--line-strong);
+  background: var(--edge);
 }
 
 .map-panel .facts {
@@ -2433,7 +2453,7 @@ button.strip {
   align-items: baseline;
   gap: 8px;
   padding: 3px 0;
-  border-bottom: 1px dotted var(--line);
+  border-bottom: 1px dotted var(--edge-soft);
 }
 
 .map-panel .facts dt {
@@ -2444,7 +2464,7 @@ button.strip {
   display: grid;
   gap: 10px;
   padding-top: 10px;
-  border-top: 1px dashed var(--line-strong);
+  border-top: 1px dashed var(--edge);
 }
 
 .send-units {
@@ -2552,7 +2572,7 @@ button.strip {
 }
 
 .char-count {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
 }
@@ -2571,13 +2591,13 @@ button.strip {
 
 .quote {
   padding: 6px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: var(--strip-danger);
   border-color: #7d1a14;
   color: #fff;
 }
@@ -2598,7 +2618,7 @@ button.strip {
 
 .tag-muted {
   background: #ece2c8;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .tag-warn {
@@ -2618,7 +2638,7 @@ button.strip {
 
 .tag-role.role-member {
   background: #ece2c8;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .tag-kind.kind-ally {
@@ -2639,7 +2659,8 @@ button.strip {
 .badge-inline {
   position: static;
   display: inline-block;
-  background: var(--danger);
+  background: var(--strip-danger);
+  color: var(--on-strip);
 }
 
 .notice-ok {
@@ -2668,7 +2689,7 @@ button.strip {
 .tribe-title {
   margin: 0 0 6px;
   overflow-wrap: anywhere;
-  color: var(--c-cream);
+  color: var(--on-surface);
 }
 
 .tribe-head {
@@ -2731,7 +2752,7 @@ button.strip {
 .fold-summary::after {
   content: '▸';
   flex: none;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .fold[open] > .fold-summary::after {
@@ -2754,7 +2775,7 @@ button.strip {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--edge);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -2763,8 +2784,8 @@ button.strip {
   min-height: 44px;
   padding: 0 6px;
   border: 0;
-  border-left: 1px solid var(--line-strong);
-  background: var(--panel-2);
+  border-left: 1px solid var(--edge);
+  background: var(--surface-2);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -2799,10 +2820,10 @@ button.strip {
   min-height: 44px;
   padding: 0 4px;
   font-size: 0.94rem;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--edge);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--c-cream);
+  background: var(--surface);
+  color: var(--on-surface);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -2810,8 +2831,8 @@ button.strip {
 
 .subtab.is-active {
   background: var(--c-sun, #f2b33d);
-  border-color: var(--c-edge);
-  color: var(--c-ink);
+  border-color: var(--edge-shadow);
+  color: var(--on-fill);
 }
 
 /* Tribe list */
@@ -2827,9 +2848,9 @@ button.strip {
   align-items: center;
   gap: 4px 8px;
   padding: 2px 8px 2px 2px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .tribe-row-main {
@@ -2849,7 +2870,7 @@ button.strip {
 .rank {
   flex: none;
   min-width: 2.3em;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -2896,7 +2917,7 @@ button.strip {
 .rk-note {
   margin: 0;
   padding: 8px 12px;
-  border: 1px dashed var(--line);
+  border: 1px dashed var(--edge-soft);
   border-radius: 8px;
 }
 
@@ -2914,9 +2935,9 @@ button.strip {
   gap: 2px;
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .rk-tile-value {
@@ -2937,16 +2958,16 @@ button.strip {
   min-width: 0;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
   color: inherit;
   font: inherit;
 }
 
 .rk-scroll {
   overflow-x: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
 }
 
@@ -2959,7 +2980,7 @@ button.strip {
 .rk-table th,
 .rk-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge-soft);
   text-align: left;
   vertical-align: middle;
 }
@@ -2967,8 +2988,8 @@ button.strip {
 .rk-table th {
   position: sticky;
   top: 0;
-  background: var(--panel-2);
-  color: var(--ink-soft);
+  background: var(--surface-2);
+  color: var(--on-surface-muted);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3033,7 +3054,7 @@ button.strip {
   display: inline-block;
   min-width: 1.8em;
   padding-left: 2px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-weight: 800;
 }
 
@@ -3125,7 +3146,7 @@ button.strip {
     radial-gradient(ellipse at 20% 15%, rgba(255, 248, 232, 0.9), transparent 55%),
     radial-gradient(ellipse at 85% 90%, rgba(176, 119, 32, 0.28), transparent 60%),
     linear-gradient(160deg, #ead7b0, #d8bf90);
-  color: var(--c-ink);
+  color: var(--on-fill);
   overflow: hidden;
 }
 
@@ -3158,7 +3179,7 @@ button.strip {
   margin-inline: auto;
   border: 2px solid var(--c-wood-line);
   background: rgba(255, 248, 232, 0.94);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .rk-stage .rk-tile,
@@ -3166,7 +3187,7 @@ button.strip {
 .rk-stage .rk-note {
   border-color: var(--c-bone-shade);
   background: var(--c-bone);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .rk-stage .rk-scroll {
@@ -3175,7 +3196,7 @@ button.strip {
 
 .rk-stage .rk-table th {
   background: linear-gradient(var(--c-wood-board), var(--c-wood));
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .rk-stage .rk-table th,
@@ -3233,8 +3254,8 @@ button.strip {
   border: 3px solid #6f6a64;
   border-radius: 8px;
   background: linear-gradient(#c4623a, #8f4527);
-  box-shadow: inset 0 0 0 2px rgba(255, 220, 122, 0.25), 0 3px 0 var(--c-edge);
-  color: var(--c-cream);
+  box-shadow: inset 0 0 0 2px rgba(255, 220, 122, 0.25), 0 3px 0 var(--edge-shadow);
+  color: var(--on-surface);
   font: inherit;
   cursor: pointer;
 }
@@ -3271,8 +3292,8 @@ button.strip {
   overflow: hidden;
   border: 2px solid var(--c-bone-shade);
   border-radius: 6px;
-  background: var(--c-cream);
-  color: var(--c-ink);
+  background: var(--surface);
+  color: var(--on-fill);
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3307,8 +3328,8 @@ button.strip {
   padding: 8px 16px 16px;
   border: 2px solid var(--c-wood-line);
   border-radius: 16px 16px 0 0;
-  background: var(--c-cream);
-  color: var(--c-ink);
+  background: var(--surface);
+  color: var(--on-fill);
 }
 
 .rk-sheet-grip {
@@ -3418,7 +3439,7 @@ button.strip {
   height: 44px;
   border-radius: 50%;
   background: var(--ach-c);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 1;
@@ -3538,7 +3559,7 @@ button.strip {
   display: grid;
   gap: 6px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge-soft);
 }
 
 /* Members */
@@ -3551,7 +3572,7 @@ button.strip {
   align-items: flex-start;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge-soft);
 }
 
 .member-row:last-child {
@@ -3641,7 +3662,7 @@ button.strip {
   display: grid;
   gap: 0;
   padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge-soft);
 }
 
 .log-list li:last-child {
@@ -3666,9 +3687,9 @@ button.strip {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .chat-row {
@@ -3694,11 +3715,11 @@ button.strip {
 .chat-msg {
   min-width: 0;
   padding: 6px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 12px 12px 12px 3px;
   background: #fffdf6;
-  color: var(--c-ink);
-  --ink-soft: #6b5442;
+  color: var(--on-fill);
+  --on-surface-muted: #6b5442;
 }
 
 .chat-msg.is-own {
@@ -3716,7 +3737,7 @@ button.strip {
 }
 
 .chat-meta span {
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .chat-msg.is-own .chat-meta span {
@@ -3749,10 +3770,10 @@ button.strip {
 .confirm {
   width: min(420px, calc(100vw - 24px));
   padding: 16px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--edge);
   border-radius: 14px;
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--on-surface);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -3815,9 +3836,9 @@ button.strip {
 
 .notif {
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
 }
 
 .notif:not(.is-unread) {
@@ -3825,7 +3846,7 @@ button.strip {
 }
 
 .notif.is-unread {
-  border-color: var(--line-strong);
+  border-color: var(--edge);
   box-shadow: inset 0 0 0 1px var(--gold);
 }
 
@@ -3857,7 +3878,7 @@ button.strip {
   justify-content: space-between;
   gap: 8px;
   margin-top: 6px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.84rem;
 }
 
@@ -3867,7 +3888,7 @@ button.strip {
   right: 8px;
   bottom: 8px;
   z-index: 3;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--edge);
   border-radius: 10px;
   background: rgba(251, 246, 233, 0.96);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
@@ -3935,7 +3956,7 @@ button.strip {
     max-height: none;
     padding: 12px 14px;
     border-top: 0;
-    border-left: 1px solid var(--line-strong);
+    border-left: 1px solid var(--edge);
     border-radius: 0;
     box-shadow: -4px 0 12px rgba(60, 40, 10, 0.12);
   }
@@ -4017,9 +4038,9 @@ button.strip {
   width: 100%;
   min-height: 64px;
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
@@ -4088,9 +4109,9 @@ button.strip {
 /* The body is untrusted text: keep line breaks, wrap long words, never treat it as markup. */
 .mail-text {
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
-  background: var(--panel-2);
+  background: var(--surface-2);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   line-height: 1.45;
@@ -4327,13 +4348,13 @@ button.strip {
   display: grid;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px dashed var(--line-strong);
+  border-top: 1px dashed var(--edge);
 }
 
 /* Reports: scout intel and support rows */
 .subtitle-small {
   margin: 10px 0 4px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -4342,8 +4363,8 @@ button.strip {
 
 .table tr.group-row th {
   padding-top: 10px;
-  background: var(--panel-2);
-  color: var(--ink-soft);
+  background: var(--surface-2);
+  color: var(--on-surface-muted);
   font-size: 0.82rem;
   text-align: left;
 }
@@ -4367,7 +4388,7 @@ button.strip {
   padding: 8px 14px;
   border-radius: 18px;
   background: var(--c-sun-hi);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .strip-ended-btn {
@@ -4387,7 +4408,7 @@ button.strip {
 
 .rk-stage .card-title,
 .rk-stage .end-winner .end-reason {
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .end-winner-title {
@@ -4418,7 +4439,7 @@ button.strip {
 }
 
 .rk-stage .end-back .btn {
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 /* ---- Domination bar ------------------------------------------------------------------------------------- */
@@ -4447,7 +4468,7 @@ button.strip {
   height: 22px;
   margin-top: 20px;
   border-radius: 11px;
-  background: var(--c-ink-deep);
+  background: var(--surface-3);
   box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.45);
 }
 
@@ -4470,7 +4491,7 @@ button.strip {
   top: -6px;
   bottom: -6px;
   width: 0;
-  border-left: 3px solid var(--c-cream);
+  border-left: 3px solid var(--on-surface);
   border-radius: 2px;
 }
 
@@ -4480,8 +4501,8 @@ button.strip {
   left: 0;
   padding: 0 4px;
   border-radius: 6px;
-  background: var(--c-cream);
-  color: var(--c-ink);
+  background: var(--surface);
+  color: var(--on-fill);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.4;
@@ -4533,14 +4554,14 @@ button.strip {
 }
 
 .dom-cond.is-ok .dom-mark {
-  color: var(--c-leaf);
+  color: var(--ok);
 }
 
 .dom-mini {
   display: block;
   height: 6px;
   border-radius: 3px;
-  background: var(--c-ink-deep);
+  background: var(--surface-3);
   overflow: hidden;
 }
 
@@ -4608,7 +4629,7 @@ button.strip {
 .rk-stage .dom {
   border: 2px solid var(--c-wood-line);
   background: rgba(255, 248, 232, 0.94);
-  color: var(--c-ink);
+  color: var(--on-fill);
 }
 
 .rk-stage .dom .muted {
@@ -4638,8 +4659,8 @@ button.strip {
 }
 
 .rk-stage .dom .dom-line-label {
-  background: var(--c-ink);
-  color: var(--c-cream);
+  background: var(--dark);
+  color: var(--on-dark);
 }
 
 .site-bonus {
@@ -4702,7 +4723,7 @@ button.strip {
   align-items: baseline;
   gap: 2px 12px;
   padding: 10px 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--edge-soft);
 }
 
 .rules-row:first-child {
@@ -4752,6 +4773,8 @@ button.strip {
 /* Tribe tab: Lookout sightings (enemy armies seen passing by). Two lines per row; wraps on a 360 px phone. */
 .lookout-held {
   margin-left: 6px;
+  font-family: var(--font);
+  color: var(--on-surface);
   vertical-align: middle;
 }
 
@@ -4767,6 +4790,10 @@ button.strip {
   display: grid;
   gap: 2px;
   padding: 8px 10px;
+  border: 2px solid var(--c-ink);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--edge-shadow);
 }
 
 .sighting-top {
@@ -4810,8 +4837,8 @@ button.strip {
 /* Filled so the tag stands apart from the red-tinted row (both themes are at least 5:1). */
 .movement.is-incoming .tag-bad,
 .sighting-row .tag-bad {
-  background: var(--danger);
-  color: var(--danger-bg);
+  background: var(--strip-danger);
+  color: var(--on-strip);
 }
 
 /* A label, not a button: filled, no outline. */
@@ -4880,17 +4907,11 @@ button.strip {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--c-cream);
-  color: var(--c-ink);
+  background: var(--dark);
+  color: var(--on-dark);
   font-weight: 800;
   cursor: pointer;
   list-style: none;
-}
-
-.card-light .help-pop summary,
-.help-pop.on-light summary {
-  background: var(--c-ink);
-  color: var(--c-cream);
 }
 
 .help-pop summary::-webkit-details-marker {
@@ -4986,7 +5007,7 @@ button.strip {
   font-variant-numeric: tabular-nums;
 }
 
-.card-light .btn-small.btn-danger-outline {
+.running-head ~ .btn-small.btn-danger-outline {
   margin-top: 8px;
 }
 
@@ -5009,10 +5030,11 @@ button.strip {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px;
-  border: 2px solid var(--c-ink-4);
+  padding: 14px 12px 10px;
+  border: 2px solid var(--c-ink);
   border-radius: 14px;
-  background: var(--c-ink-2);
+  background: var(--surface);
+  box-shadow: inset 0 6px 0 var(--c-sun), 0 3px 0 var(--edge-shadow);
 }
 
 .project-card > .btn,
@@ -5050,7 +5072,7 @@ button.strip {
 }
 
 .pip-on {
-  background: var(--c-ink);
+  background: var(--dark);
 }
 
 .project-effect {
@@ -5090,7 +5112,7 @@ button.strip {
 
 .ledger-table th {
   padding: 2px 0 4px;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
   font-size: 0.8rem;
   font-weight: 600;
   text-align: left;
@@ -5098,7 +5120,7 @@ button.strip {
 
 .ledger-table td {
   padding: 4px 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--edge-soft);
 }
 
 .ledger-table .num {
@@ -5113,64 +5135,6 @@ button.strip {
 
 .alert-watch {
   margin-top: 6px;
-}
-
-/* Light "parchment" panels for the Tribe Projects page and the Lookout list (owner pick A, 2026-11-07). Same
-   tokens as the dark panels, switched back to dark ink on warm paper; every text colour here is at least 4.5:1. */
-.card.card-light {
-  --ink: var(--c-ink);
-  --ink-soft: #5d4838;
-  --line: rgba(43, 33, 28, 0.2);
-  --line-strong: var(--c-ink);
-  --panel-2: #fffaf0;
-  --brand: var(--c-ink);
-  --brand-dark: var(--c-edge);
-  --on-brand: var(--c-cream);
-  --danger: #8f2f17;
-  --danger-bg: #f8d8c6;
-  --ok: #2e5a1c;
-  --ok-bg: #d6e8b4;
-  --warn: #6b4410;
-  --warn-bg: #f6d991;
-  --info: #155a5e;
-  --info-bg: #c8eae6;
-  color: var(--ink);
-  background: #f8edd6;
-  box-shadow: inset 0 0 0 2.5px var(--c-ink), inset 0 5px 0 #fffaf0, 0 5px 0 var(--c-edge);
-}
-
-.card-light .card-title {
-  color: var(--c-ink);
-}
-
-.card-light .progress {
-  background: #e7d7b8;
-  box-shadow: inset 0 2px 0 rgba(43, 33, 28, 0.16);
-}
-
-.card-light .btn:disabled {
-  background: #ece0c6;
-  border-color: rgba(43, 33, 28, 0.4);
-  box-shadow: inset 0 -4px 0 rgba(43, 33, 28, 0.1);
-  color: #6a5646;
-}
-
-.card-light .input {
-  background: #fff;
-}
-
-.card-light .project-card {
-  padding-top: 14px;
-  background: #fffaf0;
-  border: 2px solid var(--c-ink);
-  box-shadow: inset 0 6px 0 var(--c-sun), 0 3px 0 rgba(43, 33, 28, 0.25);
-}
-
-.card-light .sighting-row {
-  border: 2px solid var(--c-ink);
-  border-radius: 10px;
-  background: #fffaf0;
-  box-shadow: 0 3px 0 rgba(43, 33, 28, 0.25);
 }
 
 /* ---- Badges + Hall of Fame (filled tags, no side stripes; the page scrolls) ---------------------------------- */
@@ -5192,7 +5156,7 @@ button.strip {
   padding: 2px 10px 2px 4px;
   border-radius: 999px;
   background: var(--c-sand);
-  color: var(--c-ink);
+  color: var(--on-fill);
   font-size: 0.85rem;
   font-weight: 700;
   line-height: 1.2;
@@ -5243,7 +5207,7 @@ button.strip {
 
 .hof-winner {
   margin: 0;
-  color: var(--c-cream);
+  color: var(--on-surface);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -5259,7 +5223,7 @@ button.strip {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--ink-soft);
+  color: var(--on-surface-muted);
 }
 
 .hof-players li {
@@ -5271,7 +5235,7 @@ button.strip {
 
 .hof-rank {
   font-weight: 800;
-  color: var(--c-sun-hi);
+  color: var(--heading);
 }
 
 .hof-name {
@@ -5288,4 +5252,22 @@ button.strip {
   .end-hide-sm {
     display: none;
   }
+}
+
+/* Lobby sign-in: the way back to the homepage. */
+.auth-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  color: var(--on-surface-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
 }

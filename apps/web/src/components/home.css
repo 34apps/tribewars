@@ -1,0 +1,396 @@
+/* Signed-out lobby homepage: exactly one screen, never a page scrollbar. */
+
+html:has(.home),
+html:has(.home) body {
+  overflow: hidden;
+  height: 100%;
+}
+
+.home {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.home-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: calc(6px + env(safe-area-inset-top)) 14px 6px;
+  box-shadow: inset 0 -3px 0 var(--bar-line), 0 4px 0 var(--bar-edge);
+  position: relative;
+  z-index: 2;
+}
+
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--heading);
+}
+
+.home-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px 0;
+}
+
+.home-copy {
+  /* Phone: the copy's parts join the page's column so the village can sit between headline and buttons. */
+  display: contents;
+  text-align: center;
+}
+
+.home-tag {
+  order: 0;
+  display: none;
+  align-self: flex-start;
+  margin: 0 0 12px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 var(--edge-shadow);
+}
+
+.home-title {
+  order: 1;
+  text-align: center;
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 6.4vw, 1.9rem);
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  color: var(--on-surface);
+}
+
+.home-title em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.home-sub {
+  order: 2;
+  text-align: center;
+  display: none;
+  margin: 12px 0 0;
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: var(--on-surface);
+}
+
+.btn.home-play {
+  order: 4;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 8px;
+  font-size: 1.3rem;
+  border-radius: 18px;
+}
+
+.home-chips {
+  order: 5;
+  display: none;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px 0 12px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--on-surface);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.home-already {
+  margin: 0;
+  order: 6;
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.home-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.home-trust {
+  display: none;
+  text-align: center;
+  margin: 0;
+  order: 7;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--on-surface-muted);
+}
+
+/* The village fills whatever height is left; its box is always there, so nothing jumps when the drawing arrives. */
+.home-hero {
+  order: 3;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+  margin: 8px 0;
+  /* The landscape paints past the village's box; this frame clips it, like a window onto the diorama. */
+  overflow: hidden;
+  border-radius: 22px;
+  background: #8fb85a;
+  box-shadow: 0 0 0 3px var(--edge-shadow), 0 6px 0 3px var(--edge-shadow);
+}
+
+.home-village-stage {
+  position: relative;
+  width: min(100cqw, 100cqh * var(--vb-ratio));
+  aspect-ratio: var(--vb-ratio);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.home-village-stage.is-ready {
+  opacity: 1;
+}
+
+.home-village-stage .vv-svg {
+  pointer-events: none;
+}
+
+.home-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 14px 10px;
+}
+
+.home-worlds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-world {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 2px 4px 2px 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
+}
+
+.home-world:nth-child(n + 3) {
+  display: none;
+}
+
+.home-world-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.home-join {
+  flex: none;
+  min-height: 44px;
+  background: var(--c-sun);
+  box-shadow: inset 0 2px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo);
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.home-world-full {
+  flex: none;
+  margin-right: 8px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--edge-soft);
+  color: var(--on-surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.home-copy-line {
+  display: none;
+  color: var(--on-surface-muted);
+  font-weight: 500;
+}
+
+/* Short phones: the headline and buttons matter more than the sub line. */
+@media (max-height: 700px) {
+  .home-bar {
+    min-height: 48px;
+  }
+  .home-title {
+    font-size: clamp(1.2rem, 5.6vw, 1.6rem);
+  }
+}
+
+@media (min-width: 900px) {
+  .home-bar {
+    min-height: 64px;
+    padding: 6px 28px;
+  }
+
+  .home-main {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 24px;
+    padding: 12px 28px 0;
+  }
+
+  .home-copy {
+    flex: 0 0 min(40%, 540px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    text-align: left;
+    padding-bottom: 24px;
+  }
+
+  .home-title,
+  .home-sub,
+  .home-already,
+  .home-trust {
+    text-align: left;
+  }
+
+  .home-tag {
+    display: inline-block;
+  }
+
+  .home-title {
+    font-size: clamp(2.6rem, 4.4vw, 4.4rem);
+    line-height: 1.04;
+  }
+
+  .home-title em {
+    display: block;
+  }
+
+  .home-sub {
+    display: block;
+    max-width: 28em;
+    font-size: 1.2rem;
+  }
+
+  .home-chips {
+    display: flex;
+    margin-top: 22px;
+  }
+
+  .btn.home-play {
+    align-self: flex-start;
+    width: auto;
+    min-height: 84px;
+    margin-top: 26px;
+    padding: 0 72px 4px;
+    font-size: 2.1rem;
+    border-radius: 26px;
+  }
+
+  .home-already {
+    margin-top: 6px;
+  }
+
+  .home-trust {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .home-hero {
+    order: 0;
+    flex: 1 1 0;
+    margin: 4px 0 14px;
+  }
+
+  .home-foot {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 4px 28px 16px;
+  }
+
+  .home-worlds {
+    width: auto;
+    gap: 10px;
+  }
+
+  .home-worlds {
+    flex-direction: row;
+  }
+
+  .home-world {
+    flex: none;
+    min-width: 230px;
+  }
+
+  .home-world:nth-child(n + 3) {
+    display: flex;
+  }
+
+  .home-copy-line {
+    display: block;
+    flex: none;
+  }
+}
+
+/* Tall phones: room for the sub line. */
+@media (max-width: 899px) and (min-height: 760px) {
+  .home-sub {
+    display: block;
+    margin: 8px 0 0;
+    font-size: 0.95rem;
+  }
+}

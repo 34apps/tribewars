@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ENTRY_PASS_TTL_MS, LOBBY_SESSION_COOKIE, type EnterWorldResponse, type LobbyWorldsResponse } from '@clanfire/engine';
+import { ENTRY_PASS_TTL_MS, LOBBY_SESSION_COOKIE, type EnterWorldResponse, type LobbyWorldsResponse, type PublicWorldsResponse, PUBLIC_WORLDS_MAX } from '@clanfire/engine';
 import { runAdmin } from '../src/admin-ops.ts';
 import { RATE_ENTER_PER_ACCOUNT } from '../src/app.ts';
 import { generateKeyPair, publicKeyBase64, verifyPass } from '../src/pass.ts';
@@ -228,4 +228,28 @@ test('the lobby cookie never authenticates under another name', async () => {
   errorOf(await other.get(WORLDS), 401, 'unauthorized');
   other.cookie = `${LOBBY_SESSION_COOKIE}=${token}`;
   ok(await other.get(WORLDS));
+});
+
+test('public worlds: works signed out, lists only open and full worlds with public fields', async () => {
+  const { app } = await makeApp();
+  addWorld(app, 'w1', 'Open one');
+  addWorld(app, 'w2', 'Full one', 'full');
+  addWorld(app, 'w3', 'Closed one', 'closed');
+  addWorld(app, 'w4', 'Finished one', 'finished');
+  const res = await new Client(app).get('/lobby/api/worlds/public');
+  ok(res);
+  assert.deepEqual(res.json<PublicWorldsResponse>(), {
+    worlds: [
+      { id: 'w1', name: 'Open one', status: 'open', path: '/w/w1/', openedAt: 0 },
+      { id: 'w2', name: 'Full one', status: 'full', path: '/w/w2/', openedAt: 0 },
+    ],
+  });
+  for (const w of res.json<PublicWorldsResponse>().worlds) assert.deepEqual(Object.keys(w).sort(), ['id', 'name', 'openedAt', 'path', 'status']);
+});
+
+test('public worlds: an empty lobby gives an empty list, and the list is capped', async () => {
+  const { app } = await makeApp();
+  assert.deepEqual((await new Client(app).get('/lobby/api/worlds/public')).json(), { worlds: [] });
+  for (let i = 0; i < PUBLIC_WORLDS_MAX + 3; i++) addWorld(app, `x${i}`);
+  assert.equal((await new Client(app).get('/lobby/api/worlds/public')).json<PublicWorldsResponse>().worlds.length, PUBLIC_WORLDS_MAX);
 });

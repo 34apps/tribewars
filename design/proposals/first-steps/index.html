@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First steps proposal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --c-ink:#2b211c;--c-ink-2:#3e3028;--c-ink-3:#4a3a2f;--c-ink-4:#5a4a40;--c-edge:#120c09;
+  --c-cream:#fff8e8;--c-bone:#f1e1c2;--c-sand:#e8d9bc;--c-dust:#cdba98;
+  --c-wood:#b98a56;--c-wood-line:#ae7e4a;
+  --c-sun:#f2b33d;--c-sun-hi:#ffdc7a;--c-sun-lo:#b07720;
+  --c-moss:#5e8c3a;--c-leaf:#a6c964;--c-teal-hi:#7ad3cd;
+  --font:'Rubik',system-ui,sans-serif;--font-display:'Bagel Fat One','Rubik',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-wood);background-image:repeating-linear-gradient(180deg,transparent 0 94px,var(--c-wood-line) 94px 96px);
+  color:var(--c-ink);font:15px/1.45 var(--font);padding:28px}
+h1,h2{font-family:var(--font-display);font-weight:400;margin:0 0 6px;color:var(--c-cream);text-shadow:0 3px 0 var(--c-edge)}
+h1{font-size:34px} h2{font-size:24px;margin-top:30px}
+.lines{background:var(--c-cream);border-radius:14px;padding:10px 16px;box-shadow:0 4px 0 var(--c-edge);max-width:880px}
+.lines li{margin:3px 0}
+.row{display:flex;gap:24px;align-items:flex-start;margin-top:16px;flex-wrap:wrap}
+.cap{color:var(--c-cream);font-weight:600;font-size:13px;margin:0 0 6px;text-shadow:0 1px 0 var(--c-edge)}
+.shot{border-radius:12px;box-shadow:0 4px 0 var(--c-edge);display:block}
+
+/* the quest card */
+.qcard{width:330px;background:var(--c-ink);color:var(--c-cream);border-radius:18px;padding:14px;box-shadow:0 5px 0 var(--c-edge)}
+.qhead{display:flex;align-items:center;gap:10px}
+.qhead img{width:58px;height:auto}
+.qtitle{font-family:var(--font-display);font-size:20px;line-height:1}
+.qcount{margin-left:auto;background:var(--c-ink-3);border-radius:99px;padding:2px 10px;font-weight:700;font-size:13px}
+.qhelp{width:22px;height:22px;border-radius:50%;background:var(--c-ink-3);display:grid;place-items:center;font-weight:700;font-size:13px}
+.bar{height:8px;background:var(--c-ink-3);border-radius:99px;margin:10px 0 12px;overflow:hidden}
+.bar i{display:block;height:100%;width:37.5%;background:var(--c-sun)}
+.qnow{background:var(--c-ink-2);border-radius:14px;padding:10px 12px}
+.qnow b{font-size:16px}
+.rew{display:flex;gap:10px;margin:6px 0 10px;font-weight:600;font-size:13px;flex-wrap:wrap}
+.rew span{display:inline-flex;align-items:center;gap:4px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.d-w{background:#9a6a3a}.d-f{background:var(--c-leaf)}.d-i{background:#a9a9a9}.d-g{background:var(--c-sun)}
+.btn{display:inline-block;border:0;border-radius:12px;padding:8px 16px;font:inherit;font-weight:700;color:var(--c-ink);background:var(--c-sun);
+  box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-edge)}
+.btn.dark{background:var(--c-ink-3);color:var(--c-cream);box-shadow:inset 0 3px 0 var(--c-ink-4),0 3px 0 var(--c-edge)}
+.btns{display:flex;gap:8px}
+.list{list-style:none;margin:12px 0 0;padding:0;font-size:14px}
+.list li{display:flex;align-items:center;gap:8px;padding:6px 2px;border-top:1px solid var(--c-ink-3)}
+.tick{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.t-done{background:var(--c-moss);color:var(--c-cream)}
+.t-claim{background:var(--c-sun);color:var(--c-ink)}
+.t-open{background:var(--c-ink-3);color:var(--c-dust)}
+.list .r{margin-left:auto;color:var(--c-dust);font-size:12px}
+.list .claim{margin-left:auto;padding:3px 10px;font-size:12px;border-radius:9px}
+.done-txt{color:var(--c-dust);text-decoration:line-through}
+
+/* phone */
+.phone{width:360px;background:var(--c-bone);border-radius:22px;padding:10px;box-shadow:0 5px 0 var(--c-edge)}
+.pres{display:flex;justify-content:space-between;background:var(--c-ink);color:var(--c-cream);border-radius:12px;padding:6px 10px;font-weight:600;font-size:13px}
+.pbar{display:flex;align-items:center;gap:8px;background:var(--c-ink);color:var(--c-cream);border-radius:14px;padding:6px 8px;margin-top:8px}
+.pbar img{width:34px}
+.pbar .t{font-size:13px;line-height:1.2}
+.pbar .t b{display:block;font-size:14px}
+.pbar .btn{margin-left:auto;padding:6px 12px;font-size:13px}
+.pvillage{height:230px;margin-top:8px;border-radius:14px;background:linear-gradient(#cfe3a0,#8db35a);display:grid;place-items:center;color:var(--c-ink-3);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Step 11: homepage + first steps</h1>
+
+<h2>1 · Homepage</h2>
+<ul class="lines">
+  <li>Someone who is not signed in sees this page instead of the bare sign-in box (same look as the mockup).</li>
+  <li>It lives at the lobby address, the one front door for all worlds. "Play free" opens Create account, "Sign in" opens Sign in.</li>
+  <li>The world list at the bottom shows the real open worlds (name, speed, players, age). Joining still needs an account.</li>
+</ul>
+<div class="row">
+  <div><p class="cap">Computer (1440 px)</p><img class="shot" src="home-1440.png" width="620" alt=""></div>
+  <div><p class="cap">Phone (360 px)</p><div class="shot" style="width:240px;height:1000px;overflow:hidden"><img src="home-360.png" width="400" alt=""></div></div>
+</div>
+
+<h2>2 · First steps (8 small tasks)</h2>
+<ul class="lines">
+  <li>A new player gets 8 short tasks: Lumber Camp 2, Farm 2, Town Hall 2, Barracks 2, train 5 Raiders, raid an abandoned village, open the report, join or found a tribe.</li>
+  <li>Each task ticks itself as soon as you start it (or if you already did it). You tap Claim and get a few resources: about 1,200 of each plus 100 gold for all 8 together.</li>
+  <li>The card sits on the village screen with Mags: top of the side column on a computer, a slim bar on the phone. It can be hidden, and it goes away after the last task.</li>
+</ul>
+<div class="row">
+  <div>
+    <p class="cap">Computer: village side column</p>
+    <div class="qcard">
+      <div class="qhead"><img src="../../../apps/web/src/art/mags.svg" alt=""><div class="qtitle">First steps</div><span class="qcount">3 / 8</span><span class="qhelp">?</span></div>
+      <div class="bar"><i></i></div>
+      <div class="qnow">
+        <div style="font-size:12px;color:var(--c-dust)">Next</div>
+        <b>Barracks to level 2</b>
+        <div class="rew"><span><i class="dot d-w"></i>250</span><span><i class="dot d-f"></i>200</span><span><i class="dot d-i"></i>200</span></div>
+        <div class="btns"><span class="btn">Show me</span></div>
+      </div>
+      <ul class="list">
+        <li><span class="tick t-done">✓</span><span class="done-txt">Lumber Camp 2</span></li>
+        <li><span class="tick t-done">✓</span><span class="done-txt">Farm 2</span></li>
+        <li><span class="tick t-claim">!</span>Town Hall 2<span class="btn claim">Claim</span></li>
+        <li><span class="tick t-open">4</span>Barracks 2<span class="r">250 · 200 · 200</span></li>
+        <li><span class="tick t-open">5</span>Train 5 Raiders<span class="r">+ 20 gold</span></li>
+        <li><span class="tick t-open">6</span>Raid an abandoned village</li>
+        <li><span class="tick t-open">7</span>Open the battle report<span class="r">+ 30 gold</span></li>
+        <li><span class="tick t-open">8</span>Join or found a tribe<span class="r">+ 50 gold</span></li>
+      </ul>
+    </div>
+  </div>
+  <div>
+    <p class="cap">Phone: slim bar above the village (tap opens the list)</p>
+    <div class="phone">
+      <div class="pres"><span>● 812</span><span>● 640</span><span>● 590</span><span>● 104</span></div>
+      <div class="pbar"><img src="../../../apps/web/src/art/mags.svg" alt=""><div class="t"><b>Town Hall 2 done</b>First steps 3 / 8</div><span class="btn">Claim</span></div>
+      <div class="pvillage">village</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

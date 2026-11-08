@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { GameError, HALL_OF_FAME_MAX_WORLDS, WORLD_ID_PATTERN, summarizeBadges, type EnterWorldResponse, type HallOfFameResponse, type LobbyWorldsResponse } from '@clanfire/engine';
+import { GameError, HALL_OF_FAME_MAX_WORLDS, PUBLIC_WORLDS_MAX, WORLD_ID_PATTERN, summarizeBadges, type EnterWorldResponse, type HallOfFameResponse, type LobbyWorldsResponse, type PublicWorldsResponse } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { signPass } from '../pass.ts';
 import { hallOfFameDtos } from '../finish-world.ts';
@@ -8,6 +8,15 @@ import { accountOf, requireAccount } from './auth.ts';
 export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.get('/api/worlds', { onRequest: requireAccount(ctx) }, async (): Promise<LobbyWorldsResponse> => ({
     worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path })),
+  }));
+
+  // Signed-out homepage strip. No input, no account data; only open or full worlds, a fixed few fields, capped. Covered by the
+  // global per-IP API limit like every other /api route.
+  app.get('/api/worlds/public', async (): Promise<PublicWorldsResponse> => ({
+    worlds: ctx.store
+      .listWorlds()
+      .flatMap((w) => (w.status === 'open' || w.status === 'full' ? [{ id: w.id, name: w.name, status: w.status, path: w.path, openedAt: w.createdAt }] : []))
+      .slice(0, PUBLIC_WORLDS_MAX),
   }));
 
   // No input at all: the Hall of Fame is the same for everyone who is signed in. Covered by the global per-IP API limit.

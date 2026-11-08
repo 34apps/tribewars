@@ -68,7 +68,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
         <section className="card rk-card" aria-labelledby="end-badges-title">
           <div className="title-row">
             <h2 id="end-badges-title" className="card-title">Your badges</h2>
-            <details className="help-pop on-light">
+            <details className="help-pop">
               <summary aria-label="About badges">?</summary>
               <p className="small">{BADGE_HELP}</p>
             </details>

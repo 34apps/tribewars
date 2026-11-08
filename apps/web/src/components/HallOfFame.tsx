@@ -13,7 +13,7 @@ export function HallOfFameList({ worlds }: { worlds: readonly HallOfFameEntryDto
     <section className="hof" aria-labelledby="hof-title">
       <div className="title-row">
         <h2 id="hof-title" className="lobby-title hof-title">Hall of Fame</h2>
-        <details className="help-pop on-light">
+        <details className="help-pop">
           <summary aria-label="About badges">?</summary>
           <p className="small">{BADGE_HELP}</p>
         </details>

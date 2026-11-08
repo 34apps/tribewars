@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
+  FirstStepsDto,
   Mission,
   MovementDto,
   OwnVillageDto,
@@ -117,6 +118,10 @@ export interface GameApi {
   refresh: () => Promise<void>;
   applyVillage: (v: OwnVillageDto) => void;
   applySend: (r: SendResponse) => void;
+  /** The First steps block of the state (undefined only against an old server). */
+  firstSteps: FirstStepsDto | undefined;
+  /** Apply a first-steps claim/hide response at once. */
+  applyFirstSteps: (fs: FirstStepsDto) => void;
   toast: (message: string, options?: ToastOptions) => void;
 }
 

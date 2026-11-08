@@ -15,7 +15,7 @@
 .cp-empty,
 .cp-from {
   margin: 0;
-  color: var(--c-cream-dim, rgba(247, 236, 212, 0.75));
+  color: var(--on-surface-muted);
   font-size: 0.9rem;
 }
 
