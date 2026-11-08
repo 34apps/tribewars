@@ -166,6 +166,7 @@ html:has(.home) body {
   display: grid;
   place-items: center;
   container-type: size;
+  position: relative;
   margin: 8px 0;
   /* The landscape paints past the village's box; this frame clips it, like a window onto the diorama. */
   overflow: hidden;
@@ -174,21 +175,53 @@ html:has(.home) body {
   box-shadow: 0 0 0 3px var(--edge-shadow), 0 6px 0 3px var(--edge-shadow);
 }
 
-.home-village-stage {
-  position: relative;
-  width: min(100cqw, 100cqh * var(--vb-ratio));
-  aspect-ratio: var(--vb-ratio);
-  opacity: 0;
-  transition: opacity 0.4s ease;
+.home-village-art {
+  /* The picture is the village box's width times --art-k (it also holds landscape round the box), centred in the
+     frame and cropped by it: the same framing the live scene had. */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(min(100cqw, 100cqh * var(--art-ratio)) * var(--art-k));
+  aspect-ratio: var(--art-aspect);
   pointer-events: none;
 }
 
-.home-village-stage.is-ready {
+/* The tiny preview, upscaled: blurred on its own layer so it reads as a soft glow, not big squares. */
+.home-village-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--art-ph) center / 100% 100% no-repeat;
+  filter: blur(18px) saturate(1.1);
+  transform: scale(1.03);
+}
+
+.home-village-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.home-village-art.is-ready .home-village-img {
   opacity: 1;
 }
 
-.home-village-stage .vv-svg {
-  pointer-events: none;
+/* Until the picture is there: a larger flame over the blurry preview. */
+.home-village-loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.home-village-art.is-ready .home-village-loader {
+  opacity: 0;
 }
 
 .home-foot {

@@ -69,7 +69,7 @@ try {
   for (const [w, h, mob] of [[1440, 900, false], [1280, 720, false], [360, 640, true], [360, 780, true]]) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mob ? 2 : 1, mobile: mob });
     await send('Page.navigate', { url: 'http://127.0.0.1:5199/lobby/' });
-    await waitFor(`document.querySelector('.home-village-stage[data-ready="true"]')`);
+    await waitFor(`document.querySelector('.home-village-art[data-ready="true"]')`);
     await waitFor(`document.querySelector('.home-world')`);
     await sleep(900); // fade-in
     const m = await evalJs(`({ sh: document.documentElement.scrollHeight, bsh: document.body.scrollHeight, ih: innerHeight, sw: document.documentElement.scrollWidth, iw: innerWidth })`);

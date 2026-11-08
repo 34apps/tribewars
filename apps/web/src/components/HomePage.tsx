@@ -1,14 +1,16 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PublicWorldDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { Flame } from './Flame.tsx';
+import HomeVillage from './HomeVillage.tsx';
 import './home.css';
-
-const HomeVillage = lazy(() => import('./HomeVillage.tsx'));
 
 /** Signed-out front page of the lobby: one screen, no scrolling. */
 export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: () => void }) {
   const [worlds, setWorlds] = useState<PublicWorldDto[]>([]);
+  /** The village picture has arrived: the logo flame stops flickering. */
+  const [villageReady, setVillageReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -26,7 +28,7 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
     <div className="home">
       <header className="home-bar">
         <span className="home-brand">
-          <Icon name="flame" size={30} />
+          <Flame size={30} loading={!villageReady} />
           Clanfire
         </span>
         <button type="button" className="btn home-signin-top" onClick={onSignIn}>
@@ -68,9 +70,7 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
         </section>
 
         <div className="home-hero">
-          <Suspense fallback={null}>
-            <HomeVillage />
-          </Suspense>
+          <HomeVillage onReady={() => setVillageReady(true)} />
         </div>
       </main>
 

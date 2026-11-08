@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { Icon } from '../art/Icon.tsx';
+import { Flame } from './Flame.tsx';
 
-function Logo() {
+function Logo({ loading = false }: { loading?: boolean }) {
   return (
     <div className="splash-logo" aria-hidden="true">
-      <Icon name="flame" size={44} />
+      <Flame size={44} loading={loading} />
     </div>
   );
 }
@@ -13,7 +13,7 @@ function Logo() {
 export function LoadingSplash({ text, children }: { text: string; children?: ReactNode }) {
   return (
     <div className="splash" role="status">
-      <Logo />
+      <Logo loading />
       <p>{text}</p>
       {children}
     </div>

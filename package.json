@@ -28,7 +28,8 @@
     "agent": "tsx scripts/agent/run.ts",
     "sim": "tsx scripts/sim/balance.ts",
     "sim:conquest": "tsx scripts/sim/conquest.ts",
-    "backup": "npm run backup -w @clanfire/server"
+    "backup": "npm run backup -w @clanfire/server",
+    "home:art": "npm run home:art -w @clanfire/web"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.316",

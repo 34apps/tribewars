@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "type-check": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test \"test/**/*.test.tsx\""
+    "test": "node --import tsx --test \"test/**/*.test.tsx\"",
+    "home:art": "node scripts/render-home-village.mjs"
   },
   "dependencies": {
     "@clanfire/engine": "*",

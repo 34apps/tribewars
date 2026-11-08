@@ -365,6 +365,54 @@ a.btn {
   vertical-align: -0.2em;
 }
 
+/* ---- Flame loader: the logo flame flickers while something loads ---------------------------------------- */
+
+.flame {
+  display: inline-grid;
+  place-items: center;
+}
+
+.flame.is-loading .icon {
+  transform-origin: 50% 88%;
+  animation:
+    flame-flicker 1.15s ease-in-out infinite,
+    flame-glow 1.7s ease-in-out infinite alternate;
+}
+
+@keyframes flame-flicker {
+  0%,
+  100% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+  15% {
+    transform: scale(0.93, 1.1) rotate(-3deg);
+  }
+  32% {
+    transform: scale(1.06, 0.95) rotate(2deg);
+  }
+  50% {
+    transform: scale(0.96, 1.08) rotate(-1.5deg);
+  }
+  72% {
+    transform: scale(1.04, 0.97) rotate(3deg);
+  }
+}
+
+@keyframes flame-glow {
+  from {
+    filter: drop-shadow(0 0 2px rgba(242, 179, 61, 0.35));
+  }
+  to {
+    filter: drop-shadow(0 0 9px rgba(242, 140, 40, 0.95));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame.is-loading .icon {
+    animation: none;
+  }
+}
+
 /* ---- Splash and auth ------------------------------------------------------------------------------ */
 
 .splash {

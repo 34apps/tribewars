@@ -1,40 +1,54 @@
-// The homepage's village: the real scene art (SceneArt from the in-game village) with every building at its max level,
-// village tier 3 (most landscape), the default 'tiles' landscape and the hearth burning. No game state, no labels, no
-// buttons, no build moments: a picture. Loaded lazily (HomePage) so the homepage's text paints first.
+// The homepage's village: a pre-rendered picture of the REAL scene (every building at max level), not the live scene art,
+// so it shows almost at once and the lobby bundle stays small. A tiny inlined placeholder paints with the first frame
+// (with the flame loader on top) and the sharp picture fades in over it.
+//
+// The pictures are generated: after building art, the landscape or the scene layout change, run `npm run home:art`
+// (scripts/render-home-village.mjs; src/dev/HomeVillageLive.tsx is what it photographs) and commit src/art/home-village/.
 
-import { useEffect, useState } from 'react';
-import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
-import { SCENE_VIEWBOX, buildingStage, loadSprite, spriteUrl, wallLook } from '../art/buildings.ts';
-import type { Stage } from '../art/buildings.ts';
-import { SceneArt } from '../views/village/VillageScene.tsx';
-import type { Arts } from '../views/village/VillageScene.tsx';
-import '../views/village/village.css';
+import { useEffect, useRef, useState } from 'react';
+import { HOME_ART } from '../art/home-village/index.ts';
+import { Flame } from './Flame.tsx';
 
-/** Every building at its max level: the grandest look, no queue work, nothing locked. */
-const MAX_ARTS = Object.fromEntries(
-  BUILDING_IDS.map((id) => {
-    const max = BUILDINGS[id].maxLevel;
-    return [id, { stage: id === 'wall' ? wallLook(max) : buildingStage(id, max), queued: false, active: false, locked: false }];
-  }),
-) as Arts;
+const { sources, stageW, stageH, frameW, frameH, placeholder } = HOME_ART;
+const SRC_SET = sources.map((s) => `${s.src} ${s.width}w`).join(', ');
+// The picture is shown at the scale the live scene had: the village box fills the hero frame (see .home-village-art).
+// ~ the hero frame is 64 % of the viewport on desktop and the full width on a phone.
+const SIZES = '(min-width: 900px) 64vw, 112vw';
 
-const VB = SCENE_VIEWBOX;
-const noBox = () => undefined;
-
-export default function HomeVillage() {
-  // Wait for the building drawings so the village fades in whole instead of popping in piece by piece.
+export default function HomeVillage({ onReady }: { onReady?: () => void }) {
   const [ready, setReady] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    let alive = true;
-    const urls = BUILDING_IDS.filter((id) => id !== 'wall').map((id) => spriteUrl(id, 4 as Stage));
-    void Promise.allSettled(urls.map((u) => loadSprite(u))).then(() => alive && setReady(true));
-    return () => {
-      alive = false;
-    };
+    // Already in the cache: onLoad may have fired before React attached it.
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setReady(true);
   }, []);
+  useEffect(() => {
+    if (ready) onReady?.();
+  }, [ready, onReady]);
+  const mid = sources[1] ?? sources[0]!;
   return (
-    <div className={`home-village-stage${ready ? ' is-ready' : ''}`} role="img" aria-label="A fully built Clanfire village" data-ready={ready ? 'true' : 'false'} style={{ '--vb-ratio': VB.w / VB.h } as React.CSSProperties}>
-      <SceneArt arts={MAX_ARTS} vb={VB} tier={3} wide landscape="tiles" selected={null} hearthOut={false} onBox={noBox} onPick={noBox} memoryKey="home" />
+    <div
+      className={`home-village-art${ready ? ' is-ready' : ''}`}
+      data-ready={ready ? 'true' : 'false'}
+      style={{ '--art-ratio': stageW / stageH, '--art-k': frameW / stageW, '--art-aspect': `${frameW} / ${frameH}`, '--art-ph': `url("${placeholder}")` } as React.CSSProperties}
+    >
+      <img
+        ref={imgRef}
+        className="home-village-img"
+        src={mid.src}
+        srcSet={SRC_SET}
+        sizes={SIZES}
+        width={frameW}
+        height={frameH}
+        alt="A fully built Clanfire village"
+        fetchPriority="high"
+        decoding="async"
+        onLoad={() => setReady(true)}
+        onError={() => setReady(true)}
+      />
+      <span className="home-village-loader" aria-hidden="true">
+        <Flame size={72} loading />
+      </span>
     </div>
   );
 }
