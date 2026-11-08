@@ -14,6 +14,7 @@ import {
   chieftainsNeeded,
   createNpcVillage,
   hasChosenSiege,
+  moraleFactor,
   normalizeUnits,
   occupierPopulation,
   totalUnits,
@@ -480,3 +481,35 @@ export function canShipTo(village: Pick<MapVillageDto, 'kind'> | undefined, isOw
 export function clearedSendForm(): { counts: Partial<Record<UnitId, string>>; siegePick: string; groupNote: null } {
   return { counts: {}, siegePick: '', groupNote: null };
 }
+
+// ---- Morale ---------------------------------------------------------------------------------------------
+
+/** My total points: the sum of my villages' points, like the rankings (computed from the settled states the client already has). */
+export function ownTotalPoints(villages: ReadonlyArray<{ state: Parameters<typeof villagePoints>[0] }>): number {
+  return villages.reduce((n, v) => n + villagePoints(v.state), 0);
+}
+
+/**
+ * Morale a send would meet if it arrived now: 0.75 or 1. Only an attack on a village owned by ANOTHER player (the map row carries
+ * the owner's public points); never an abandoned village, a relief attack, a scouting-only army or support. The server decides at arrival.
+ */
+export function moraleNow(opts: {
+  mission: Mission;
+  relief: boolean;
+  target: Pick<MapVillageDto, 'kind' | 'ownerPoints'> | null;
+  chosen: Partial<Units>;
+  ownPoints: number;
+  enabled: boolean;
+}): number {
+  const { mission, relief, target, chosen, ownPoints, enabled } = opts;
+  if (mission !== 'attack' || relief || !target || target.kind !== 'player' || typeof target.ownerPoints !== 'number') return 1;
+  const fighters = totalUnits(normalizeUnits(chosen)) - (chosen.pathfinder ?? 0);
+  if (fighters <= 0) return 1;
+  return moraleFactor(ownPoints, target.ownerPoints, enabled);
+}
+
+/** Help behind the "?" next to the Morale line. */
+export const MORALE_HELP = 'Attacking a player with under a third of your points: your army fights at 75% attack strength. Never against abandoned villages or sites.';
+
+/** "Morale 75%" for a factor below 1, else null. */
+export const moraleLabel = (factor: number | null | undefined): string | null => (typeof factor === 'number' && factor < 1 ? `Morale ${Math.round(factor * 100)}%` : null);

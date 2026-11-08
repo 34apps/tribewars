@@ -66,9 +66,9 @@ team conquest operations; long-term planning; a clear world goal.
 |---|---|---|---|
 | Resources | 3 + population | 4 (gold) + population | Keep; gold is ours. |
 | Troop upkeep | none | none (owner) | Same. **Food needs a use**: more food in costs. |
-| Per-world settings | ~100, many vary | **WorldConfig built 2026-11-05** (pace, protection, abandoned villages, conquest, domination, tribe size, feature flags, queues): `GAME_DESIGN` §19 | Done. Still constants: unit and building numbers, terrain. Reserved flags (morale, scavenging, paid speed-ups) have no feature yet. |
+| Per-world settings | ~100, many vary | **WorldConfig built 2026-11-05** (pace, protection, abandoned villages, conquest, domination, tribe size, feature flags, queues): `GAME_DESIGN` §19 | Done. Still constants: unit and building numbers, terrain. Reserved flags (scavenging, paid speed-ups) have no feature yet. |
 | Hero | paladin with skills and items | Chieftain figure (cosmetic) | Optional later; don't copy the paladin. |
-| Battle modifiers | luck, wall, morale, night, church, flags, tribe skills | luck, wall, troop ranks | Keep lean. Morale and night bonus out (owner). |
+| Battle modifiers | luck, wall, morale, night, church, flags, tribe skills | luck, wall, troop ranks | Keep lean. Morale in (owner 2026-11-08, simple step rule: `GAME_DESIGN` §7); night bonus still out. |
 | Scouting | scouts, watchtower | 5 intel tiers | Ours richer. Add **Lookouts** (our watchtower idea). |
 | Incoming attacks | visible at send, types guessed from travel time | being built (Run A) | Same idea. Add a **minimum attack size** so fake spam can't flood notifications. |
 | Conquest | loyalty hits, noble trains, ms timing, snipes | Chieftains + **hold** (hours) + Renown | **Ours is different and fairer** (less ms timing, defenders get hours). Keep. |

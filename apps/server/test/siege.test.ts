@@ -67,7 +67,7 @@ interface Ctx {
 
 /** A sandbox player (fixed march times) with raiders, Log Rams and Boulder Slings, next to an empty abandoned village with plain levels. */
 async function setup(troops: Partial<Units> = {}, extra: string[] = []): Promise<Ctx> {
-  const { app, clock } = await makeApp({ sandboxUsers: ['sieger', ...extra] });
+  const { app, clock } = await makeApp({ sandboxUsers: ['sieger', ...extra], worldConfig: { npc: { selfBuild: false }, features: { morale: false } } }); // morale has its own tests
   const p = await player(app, 'sieger');
   const homeId = strongHome(app, clock, p, { raider: 300, logram: 100, boulder: 100, ...troops });
   const target = clearedTarget(app, homeOf(app, p));

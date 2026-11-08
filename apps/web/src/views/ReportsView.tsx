@@ -13,7 +13,7 @@ import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { unitListText } from '../rules.ts';
-import { villageReportText } from '../villages.ts';
+import { moraleLabel, villageReportText } from '../villages.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
   const { showOnMap, player } = useGame();
@@ -199,6 +199,12 @@ function BattleDetail({ b }: { b: BattleReportData }) {
             <dt>Luck</dt>
             <dd className={b.luck >= 0 ? 'gain' : 'loss'}>{formatSignedPercent(b.luck)}</dd>
           </div>
+          {moraleLabel(b.morale) && (
+            <div>
+              <dt>Morale</dt>
+              <dd className="loss">{moraleLabel(b.morale)?.replace('Morale ', '')}</dd>
+            </div>
+          )}
           <div>
             <dt>Wall</dt>
             <dd>{b.wallLevel === null ? <span className="muted">Unknown</span> : b.wallLevel}</dd>

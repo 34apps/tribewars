@@ -10,6 +10,7 @@ import {
   createPlayerVillage,
   emptyUnits,
   normalizeUnits,
+  MORALE_ATTACK_FACTOR,
   resolveBattle,
 } from '@clanfire/engine';
 import type { BattleInput, BattleResult, BuildingId, ReportDto, UnitId, Units, VillageRanks, WorldSettings } from '@clanfire/engine';
@@ -88,6 +89,8 @@ export interface SimSetup {
   siegeTarget: BuildingId | null;
   /** Level of the picked building (not the Wall). */
   targetLevel: number;
+  /** Morale: the attacker fights at 75% (the player ticked it). */
+  morale?: boolean;
 }
 
 /** What one luck setting gives: the engine result plus the numbers the page shows. */
@@ -124,6 +127,7 @@ export function battleInput(setup: SimSetup, luck: number): BattleInput {
     noLoot: true,
     siegeTarget: setup.siegeTarget,
   };
+  if (setup.morale) input.moraleFactor = MORALE_ATTACK_FACTOR;
   if (setup.attackerRanks) input.attackerRanks = setup.attackerRanks;
   const defenderRanks = uniformBulwark(setup.defenderBulwark);
   if (defenderRanks) input.defenderRanks = defenderRanks;
@@ -169,11 +173,13 @@ export interface SimDraftData {
   support?: Partial<Units>;
   /** Defender's Wall level. */
   wall?: number;
+  /** Tick the Morale box. */
+  morale?: boolean;
 }
 
 /** The send form's chosen troops, nothing else (the defender is unknown there). */
-export function draftFromSend(chosen: Partial<Units>): SimDraftData {
-  return { attacker: { ...chosen } };
+export function draftFromSend(chosen: Partial<Units>, morale = false): SimDraftData {
+  return { attacker: { ...chosen }, ...(morale ? { morale: true } : {}) };
 }
 
 /**
@@ -188,6 +194,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     if (report.side === 'attack') draft.attacker = { ...normalizeUnits(b.attackerUnits) };
     if (b.defenderUnits) draft.defender = { ...normalizeUnits(b.defenderUnits) };
     if (b.supportUnits) draft.support = { ...normalizeUnits(b.supportUnits) };
+    if (typeof b.morale === 'number' && b.morale < 1) draft.morale = true;
     // The Wall before the Log Rams fired, when the report says so; otherwise the Wall as it counted.
     const wallHit = (b.siege ?? []).find((h) => h.building === 'wall');
     if (wallHit) draft.wall = wallHit.from;

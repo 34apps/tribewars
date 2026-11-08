@@ -33,6 +33,10 @@ import {
   strikeNeed,
   strikeWarning,
   abandonedStrength,
+  MORALE_HELP,
+  moraleLabel,
+  moraleNow,
+  ownTotalPoints,
   canShipTo,
   chainText,
   clearedSendForm,
@@ -85,7 +89,7 @@ export function SendForm({
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
   layout?: 'panel' | 'wide';
 }) {
-  const { live, now, settings, renown, village, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
+  const { live, now, settings, renown, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
@@ -120,6 +124,8 @@ export function SendForm({
   const partial: Partial<Units> = {};
   for (const u of UNIT_IDS) if (chosen[u] > 0) partial[u] = chosen[u];
   const mode = sendMode(mission, partial, target?.kind ?? null, relief);
+  const morale = moraleNow({ mission, relief, target, chosen: partial, ownPoints: ownTotalPoints(villages), enabled: rules.features.morale });
+  const moraleText = moraleLabel(morale);
   const check = checkSend(live, partial);
   const missionCheck = checkMission(mission, chosen);
   // The server computes the real time from the same rule and its own seed; this only shows it in advance.
@@ -358,9 +364,18 @@ export function SendForm({
       )}
       {showsSiegePicker(mission, chosen, rules.features.siege) && <SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />}
       {strikeOffer && <p className="wm-muted wm-send-hint">{strikeOffer}</p>}
+      {moraleText && total > 0 && (
+        <div className="title-row wm-morale">
+          <span className="wm-muted">{moraleText}</span>
+          <details className="help-pop">
+            <summary aria-label="About morale">?</summary>
+            <p className="small">{MORALE_HELP}</p>
+          </details>
+        </div>
+      )}
       {mission === 'attack' && total > 0 && (
         <p className="wm-muted">
-          <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial))}>
+          <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial, morale < 1))}>
             Simulate
           </button>
         </p>

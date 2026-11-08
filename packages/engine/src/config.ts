@@ -136,6 +136,13 @@ export const WALL_DEFENSE_PER_LEVEL = 15;
 export const BATTLE_LOSS_EXPONENT = 1.5;
 export const BATTLE_LUCK = 0.1;
 
+/**
+ * Morale (GAME_DESIGN battle section, owner 2026-11-08): a player attacking a village of a player with LESS than this share of the
+ * attacker's points (exactly the share = no morale) fights at MORALE_ATTACK_FACTOR of its attack strength.
+ */
+export const MORALE_SMALL_SHARE = 1 / 3;
+export const MORALE_ATTACK_FACTOR = 0.75;
+
 /** Abandoned villages. */
 export const NPC_MAX_LEVEL = 7;
 /** Share of abandoned villages per tier 1..5 (sums to 1). */

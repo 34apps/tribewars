@@ -118,12 +118,13 @@ export interface WorldConfig {
   tribe: {
     maxMembers: number;
   };
-  /** Optional rules. `morale`, `scavenging` and `paidSpeedups` are reserved: the flags exist and are published, the features are not built yet. */
+  /** Optional rules. `scavenging` and `paidSpeedups` are reserved: the flags exist and are published, the features are not built. */
   features: {
     /** Log Rams and Boulder Slings. Off: siege units cannot be trained and battles never lower buildings. */
     siege: boolean;
     /** Fire Shrines and the Great Fire on the map. Off: no sites are created or shown. */
     sites: boolean;
+    /** Attackers with 3 times the points of a player they hit fight at 75% strength. */
     morale: boolean;
     scavenging: boolean;
     paidSpeedups: boolean;
@@ -167,7 +168,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   },
   domination: DOMINATION_DEFAULTS,
   tribe: { maxMembers: TRIBE_MAX_MEMBERS },
-  features: { siege: true, sites: true, morale: false, scavenging: false, paidSpeedups: false },
+  features: { siege: true, sites: true, morale: true, scavenging: false, paidSpeedups: false },
   queues: { build: MAX_BUILD_QUEUE, research: MAX_RESEARCH_QUEUE, train: MAX_TRAIN_QUEUE },
 };
 
@@ -240,7 +241,7 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   num('tribe.maxMembers', 'tribe', 'Tribe size limit', 'count', 1, 200, true, 'Most members in one tribe.'),
   flag('features.siege', 'Siege (Log Rams, Boulder Slings)', 'Siege can lower Wall and buildings.'),
   flag('features.sites', 'Fire Shrines and the Great Fire', 'Bonus sites on the map.'),
-  flag('features.morale', 'Morale', 'Reserved: not built yet.'),
+  flag('features.morale', 'Morale', 'Attacking a player with under a third of your points: your army fights at 75% strength.'),
   flag('features.scavenging', 'Scavenging', 'Reserved: not built yet.'),
   flag('features.paidSpeedups', 'Paid speed-ups', 'Reserved: not built yet.'),
   num('queues.build', 'queues', 'Build queue', 'count', 1, 10, true, 'Build jobs per village.'),
@@ -257,7 +258,7 @@ export const worldConfigField = (path: string): WorldConfigField | undefined => 
 /**
  * What the operator may still change after the world has opened (it never breaks running games): the win condition, the tribe
  * size, and the reserved feature flags. Everything else (speeds, protection, conquest, abandoned villages, siege, sites,
- * queues) is fixed when the world opens. Each change is audit-logged.
+ * morale, queues) is fixed when the world opens. Each change is audit-logged.
  */
 export const WORLD_CONFIG_SAFE_AFTER_OPEN: readonly string[] = ['tribe.maxMembers', 'features.scavenging', 'features.paidSpeedups'];
 
@@ -364,6 +365,8 @@ export function withLegacyPlacement(config: WorldConfig): WorldConfig {
   c.npc.extraChance = NPC_RING_EXTRA_CHANCE;
   c.npc.startRingScale = 1;
   c.terrain.amount = 1;
+  // Morale arrived on 2026-11-08 with default on for new worlds; a world without the setting stored keeps fighting without it.
+  c.features.morale = false;
   return c;
 }
 

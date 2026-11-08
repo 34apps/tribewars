@@ -47,7 +47,7 @@ test('the result carries only the public map fields: no troops, resources or que
   const { alice } = await setup();
   const [v] = await found(alice.c, 'Rock', 'village');
   assert.ok(v);
-  const allowed = new Set(['id', 'name', 'x', 'y', 'kind', 'ownerName', 'points', 'protected', 'hearth', 'tribeTag', 'tribeId', 'ownerChieftain', 'relation']);
+  const allowed = new Set(['id', 'name', 'x', 'y', 'kind', 'ownerName', 'points', 'protected', 'hearth', 'tribeTag', 'tribeId', 'ownerChieftain', 'ownerPoints', 'relation']);
   for (const key of Object.keys(v)) assert.ok(allowed.has(key), `unexpected field ${key}`);
   // Same row the map shows for that tile.
   const map = await alice.c.get(`/api/map?x=${v.x}&y=${v.y}&w=1&h=1`);

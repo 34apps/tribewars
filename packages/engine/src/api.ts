@@ -495,6 +495,8 @@ export interface MapVillageDto extends Coords {
   relation: PlayerRelation | null;
   /** Present only when the viewer has banked Chieftains on this village (Chieftain chain, GAME_DESIGN 18.2); the viewer's own data. */
   chain?: ChainProgressDto;
+  /** Owner's total points (the same public points as the rankings); null for abandoned villages. The send form uses it to preview morale. */
+  ownerPoints?: number | null;
   /** Present (true) when this village holds its tribe's Tribe Store (public: anyone may raid it, GAME_DESIGN 18.5). Never the amounts. */
   tribeStore?: true;
 }
@@ -569,6 +571,8 @@ export interface BattleReportData {
   supportLosses: Units | null;
   /** The Wall as it counted in the battle (after the Log Rams' during-the-battle hit); null when hidden from a wiped-out attacker. */
   wallLevel: number | null;
+  /** Morale: the attacker's attack strength factor (0.75) when it applied (GAME_DESIGN battle section). Null or absent when it did not. */
+  morale?: number | null;
   /** Loot is always full: what the surviving units carry, up to the stock above the Vault. Includes `lootFromTribeStore`. */
   loot: Resources;
   /** Part of `loot` that came from the defender tribe's Tribe Store (the target was its store village, GAME_DESIGN 18.5). Absent when none. */

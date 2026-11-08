@@ -1276,6 +1276,22 @@ export class Store extends SqlBase {
     this.run('UPDATE villages SET points = ? WHERE id = ?', points, id);
   }
 
+  /** Total points (sum of village points, as in the rankings) of one player; 0 without villages. */
+  playerPoints(id: number): number {
+    const r = this.get('SELECT COALESCE(SUM(points), 0) AS total FROM villages WHERE owner_id = ?', id);
+    return r ? (r.total as number) : 0;
+  }
+
+  /** Total points for several players at once (map rows); players without villages are missing. */
+  playersPoints(ids: readonly number[]): Map<number, number> {
+    const out = new Map<number, number>();
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) return out;
+    const rows = this.all(`SELECT owner_id, SUM(points) AS total FROM villages WHERE owner_id IN (${unique.map(() => '?').join(',')}) GROUP BY owner_id`, ...unique);
+    for (const r of rows) out.set(r.owner_id as number, r.total as number);
+    return out;
+  }
+
   /** Every player with at least one village, best first (ties: name). Points = sum of village points. */
   playerRanking(): { id: number; username: string; tribeId: number | null; tribeTag: string | null; villages: number; points: number; mainX: number; mainY: number }[] {
     return this.all(

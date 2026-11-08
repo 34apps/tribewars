@@ -22,7 +22,15 @@ import { homeOf, runTo, strongHome, villagesOf } from './village-helpers.ts';
 /** Give the player a second village (created straight in the database, as step 2's founding and taking do). */
 function addVillage(app: App, clock: { now(): number }, p: P, x: number, y: number, name = 'Second'): number {
   const state = createPlayerVillage(clock.now());
-  return app.ctx.store.insertVillage(p.id, name, x, y, villagePoints(state), state);
+  // Villages are placed at random, so another player's home can sit on the wanted tile: step right until a tile is free
+  // (only then does the position differ, so tests that did not collide behave exactly as before).
+  for (let dx = 0; ; dx += 1) {
+    try {
+      return app.ctx.store.insertVillage(p.id, name, x + dx, y, villagePoints(state), state);
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message.includes('UNIQUE') || dx >= 20) throw e;
+    }
+  }
 }
 
 const list = async (c: Client) => {

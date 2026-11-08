@@ -2,7 +2,7 @@
 // even and good luck on the numbers typed here. No server call, no village changes. See apps/web/src/simulator.ts.
 
 import { useEffect, useMemo, useState } from 'react';
-import { BATTLE_LUCK, BUILDINGS, RANK_MAX, UNITS, UNIT_IDS, siegeEnabled } from '@clanfire/engine';
+import { BATTLE_LUCK, BUILDINGS, RANK_MAX, UNITS, UNIT_IDS, siegeEnabled, worldRules } from '@clanfire/engine';
 import type { BuildingId, UnitId, Units } from '@clanfire/engine';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
@@ -13,7 +13,7 @@ import { useGame } from '../game.ts';
 import { SIM_LUCKS, WALL_MAX, hasTroops, luckText, parseLevel, simulateAll, textFromUnits, unitsFromText } from '../simulator.ts';
 import type { SimOutcome, SimSetup } from '../simulator.ts';
 import { builtinGroups } from '../troopGroups.ts';
-import { siegeHitText, unitColumns } from '../villages.ts';
+import { MORALE_HELP, siegeHitText, unitColumns } from '../villages.ts';
 import './simulator.css';
 
 type Text = Partial<Record<UnitId, string>>;
@@ -160,6 +160,7 @@ export function SimulatorView() {
   const [supportOpen, setSupportOpen] = useState(false);
   const [wallText, setWallText] = useState('');
   const [useRanks, setUseRanks] = useState(false);
+  const [morale, setMorale] = useState(false);
   const [bulwarkOpen, setBulwarkOpen] = useState(false);
   const [bulwark, setBulwark] = useState(0);
   const [supportBulwark, setSupportBulwark] = useState(0);
@@ -177,6 +178,7 @@ export function SimulatorView() {
     setSupport(textFromUnits(simDraft.support ?? {}));
     setSupportOpen(hasTroops(simDraft.support ?? {}));
     setWallText(simDraft.wall !== undefined ? String(Math.max(0, Math.min(WALL_MAX, Math.floor(simDraft.wall)))) : '');
+    setMorale(simDraft.morale === true);
     setNote(null);
   }, [simDraft]);
 
@@ -184,6 +186,7 @@ export function SimulatorView() {
   const defender = useMemo(() => unitsFromText(theirs), [theirs]);
   const supportUnits = useMemo(() => unitsFromText(support), [support]);
   const siegeOn = siegeEnabled(settings);
+  const moraleOn = worldRules(settings).features.morale;
   const hasSling = attacker.boulder > 0;
   const target = (BUILDINGS as Record<string, unknown>)[siegePick] ? (siegePick as BuildingId) : null;
 
@@ -193,6 +196,7 @@ export function SimulatorView() {
     support: supportOpen ? supportUnits : unitsFromText({}),
     wall: parseLevel(wallText, WALL_MAX),
     attackerRanks: useRanks ? live.ranks : undefined,
+    morale: morale && moraleOn,
     defenderBulwark: bulwarkOpen ? bulwark : 0,
     supportBulwark: bulwarkOpen ? supportBulwark : 0,
     siegeTarget: hasSling ? target : null,
@@ -201,7 +205,7 @@ export function SimulatorView() {
   const outcomes = useMemo(
     () => simulateAll(setup, settings),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [attacker, defender, supportUnits, supportOpen, wallText, useRanks, live.ranks, bulwarkOpen, bulwark, supportBulwark, hasSling, siegePick, targetText, settings],
+    [attacker, defender, supportUnits, supportOpen, wallText, useRanks, morale, moraleOn, live.ranks, bulwarkOpen, bulwark, supportBulwark, hasSling, siegePick, targetText, settings],
   );
 
   const ready = hasTroops(attacker);
@@ -247,6 +251,18 @@ export function SimulatorView() {
               <input type="checkbox" role="switch" checked={useRanks} onChange={(e) => setUseRanks(e.target.checked)} />
               <span>Use my ranks (Might)</span>
             </label>
+            {moraleOn && (
+              <span className="sim-morale">
+                <label className="sim-switch">
+                  <input type="checkbox" role="switch" checked={morale} onChange={(e) => setMorale(e.target.checked)} />
+                  <span>Morale 75%</span>
+                </label>
+                <details className="help-pop">
+                  <summary aria-label="About morale">?</summary>
+                  <p className="small">{MORALE_HELP}</p>
+                </details>
+              </span>
+            )}
           </div>
           <TroopGroupBar
             builtins={builtins}

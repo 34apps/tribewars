@@ -167,6 +167,13 @@ Tests and the simulator pass their own seeds.
 
 `applyBattleToDefender(defender, result)` removes defender losses and the loot and applies the siege hits (win or loss).
 
+**Morale** (owner 2026-11-08, simple step rule; per-world flag `features.morale`, default on for new worlds). When a player's attack fights a village
+**owned by another player** whose owner has strictly less than `MORALE_SMALL_SHARE` (1/3) of the attacker's total points (the public ranking points, read by the
+server at the moment of the fight; exactly a third = no morale), the attacker's army fights at `MORALE_ATTACK_FACTOR` (0.75) attack strength: `A = (A_inf + A_cav) * 0.75 * (1 + luck)`.
+Defence and the loss formula are unchanged; siege effects follow the result the battle derives. Never for abandoned villages, map sites, the Pathfinder
+scouting duel or support. Engine: `moraleFactor(attackerPoints, defenderPoints, enabled)` and `BattleInput.moraleFactor` (clamped to 0.75..1); the report
+carries `morale: 0.75` when it applied. Players see "Morale 75%" in the send form, the battle report and the simulator.
+
 ## 8. Abandoned villages
 
 Computer-run villages for players to raid. They have `npc` info and no owner.
@@ -2124,12 +2131,11 @@ like every other duration.
 | `conquest` | `playersCanBeConquered` true, `renownBase` 1000, `renownGrowth` 1.6, `chainWindowHours` 2, `holdHours` 8, `holdHoursAbandoned` 2, `holdFailHours` 2, `lockHours` 24 |
 | `domination` | the six win-condition settings of §18.1 (moved into this object; `world_settings.domination` mirrors it) |
 | `tribe` | `maxMembers` 30 |
-| `features` | `siege` true, `sites` true, `morale` false, `scavenging` false, `paidSpeedups` false |
+| `features` | `siege` true, `sites` true, `morale` true, `scavenging` false, `paidSpeedups` false |
 | `queues` | `build` 2, `research` 2, `train` 5 |
 
 - **Flags.** `siege` off: Log Rams and Boulder Slings cannot be trained or researched and battles never lower buildings (the web hides them).
-  `sites` off: no Fire Shrines or Great Fire are created, the sites list is empty. `morale`, `scavenging` and `paidSpeedups` are **reserved**:
-  the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11). Morale and scavenging were cut by the owner (2026-11-08, 2026-11-06): their flags do nothing.
+  `sites` off: no Fire Shrines or Great Fire are created, the sites list is empty. `morale` on (default for new worlds): the rule in §7; a stored `false` stays off, and a world with no stored morale setting (created before 2026-11-08) runs without it; it is fixed once the world opens, like the other battle rules. `scavenging` and `paidSpeedups` are **reserved**: the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11). Scavenging was cut by the owner (2026-11-06): its flag does nothing.
 - **Ranges.** Every value has a range (`WORLD_CONFIG_FIELDS`); out-of-range or wrong-type values are refused when set and replaced by the default
   when a stored config is read (so a config written by an older version gets today's value for settings added later).
 - **Old worlds.** A database with no stored config runs on `worldConfigFromSettings` (defaults plus what the flat settings already said, e.g. its

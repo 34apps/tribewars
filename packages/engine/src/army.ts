@@ -5,6 +5,8 @@ import {
   BATTLE_LUCK,
   HEARTH_MAX_CHIEFTAINS,
   MAX_UNIT_COUNT,
+  MORALE_ATTACK_FACTOR,
+  MORALE_SMALL_SHARE,
   SCOUT_DEFENSE_FACTOR,
   SCOUT_LOSS_EXPONENT,
   SCOUT_UNIT,
@@ -226,6 +228,20 @@ export function waterFillLoot(capacity: number, stock: Resources): Resources {
 }
 
 /**
+ * Morale (owner 2026-11-08): 0.75 when the defending PLAYER has strictly less than a third of the attacker's points, else 1.
+ * Callers pass it only for villages owned by another player (never abandoned villages, sites, scouting, support). `enabled` is the
+ * world's `features.morale`. Bad numbers (NaN, negative) count as 0 points: an attacker with none gets 1, a defender with none
+ * (and an attacker with some) gets morale.
+ */
+export function moraleFactor(attackerPoints: number, defenderPoints: number, enabled: boolean): number {
+  if (!enabled) return 1;
+  const a = Number.isFinite(attackerPoints) && attackerPoints > 0 ? attackerPoints : 0;
+  const d = Number.isFinite(defenderPoints) && defenderPoints > 0 ? defenderPoints : 0;
+  if (a <= 0) return 1;
+  return d / a < MORALE_SMALL_SHARE ? MORALE_ATTACK_FACTOR : 1; // a ratio, so an exact third compares equal
+}
+
+/**
  * Deterministic battle for a seed. Does not change any village; see applyBattleToDefender.
  * Log Rams fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
  * With `s` of a world that has siege off (`features.siege` false) no siege step runs at all: the Wall stays as it is and
@@ -250,7 +266,9 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     else attackCavalry += power;
   }
   const attackRaw = attackInfantry + attackCavalry;
-  const attackPower = attackRaw * (1 + luck);
+  // Morale only weakens the attack (clamped to the allowed range); defence and the loss formula are untouched.
+  const morale = typeof input.moraleFactor === 'number' && Number.isFinite(input.moraleFactor) ? Math.max(MORALE_ATTACK_FACTOR, Math.min(1, input.moraleFactor)) : 1;
+  const attackPower = attackRaw * morale * (1 + luck);
 
   // Defenders are weighed against the mix of the attacking army (infantry vs cavalry).
   // Stationed support defends exactly like the village's own troops.

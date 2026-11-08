@@ -85,6 +85,7 @@ import {
   isSupportAllowed,
   UNITS,
   normalizeUnits,
+  moraleFactor,
   resolveBattle,
   splitLoot,
   vaultProtection,
@@ -512,9 +513,15 @@ export class GameService {
     // The store village: a won raid may also take up to a fifth of each Tribe Store resource (the Vault shelters only the stock).
     const storeRaid = strikeTry ? null : this.projects.raidPool(target, at);
 
+    // Morale: only a fight against a village OWNED BY ANOTHER PLAYER; points are read here, at the fight (server side, no client input).
+    const morale =
+      origin.ownerId !== null && target.ownerId !== null && origin.ownerId !== target.ownerId
+        ? moraleFactor(this.store.playerPoints(origin.ownerId), this.store.playerPoints(target.ownerId), worldRules(s).features.morale)
+        : 1;
     const result = resolveBattle({
       attackerUnits: fighters,
       defender: targetState,
+      ...(morale < 1 ? { moraleFactor: morale } : {}),
       support: contingents.map((c) => c.units),
       // Attacker and support use the ranks stamped when they left home; the defender's are its village's current ones.
       attackerRanks: m.ranks ?? undefined,
@@ -589,6 +596,7 @@ export class GameService {
       supportLosses: contingents.length > 0 ? sumUnits(supportLosses) : null,
       // The Wall as it counted in the battle (after the Log Rams' during hit); the Wall siege line below runs from before to after.
       wallLevel: result.wallDuring,
+      ...(morale < 1 ? { morale } : {}),
       loot: result.loot,
       ...(lootFromStore ? { lootFromTribeStore: lootFromStore } : {}),
       ...(hasSiegeUnits(fighters) ? { siege: result.siege ?? [] } : {}),
@@ -1595,6 +1603,7 @@ export class GameService {
       return { chain: { have, need: chieftainsNeeded(abandoned, points), endsAt: Math.min(...counted.map((e) => e.at)) + windowMs } };
     };
     const storeMarks = this.projects.storeMarkers(rows);
+    const ownerPoints = this.store.playersPoints(rows.flatMap((r) => (r.ownerId === null ? [] : [r.ownerId])));
     return rows.map((r): MapVillageDto => {
       const points = r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points;
       return {
@@ -1604,6 +1613,7 @@ export class GameService {
         y: r.y,
         kind: r.ownerId === null ? 'abandoned' : r.ownerId === player.id ? 'own' : 'player',
         ownerName: r.ownerName,
+        ownerPoints: r.ownerId === null ? null : (ownerPoints.get(r.ownerId) ?? 0),
         // Abandoned villages grow lazily and their stored points only refresh when raided: settle in memory (no write on GET).
         points,
         // A cold village (hearth out) is never shown as safe.

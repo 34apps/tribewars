@@ -355,6 +355,8 @@ export interface BattleInput {
   siegeTarget?: BuildingId | null;
   /** Defence factor applied to the defender's power (Wards at a held map site, GAME_DESIGN 18.5). Default 1. */
   defenceMultiplier?: number;
+  /** Morale: attack strength factor of the attacking army, 0.75 or 1 (default 1; clamped). See `moraleFactor`. */
+  moraleFactor?: number;
   /** More lootable stock beyond the village's own (a Tribe Store's share, GAME_DESIGN 18.5); the server splits the loot afterwards. */
   extraLootable?: Resources;
 }
