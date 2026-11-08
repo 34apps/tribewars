@@ -12,9 +12,9 @@ screen. Follow-up `945b3a7`: badges in tribe member lists, "This world" row on p
 
 ## Very next step
 
-Step 10 morale was CUT by the owner (2026-11-08). Next: plan step 11, **homepage + first-steps quests** (mockup
+Step 10 morale DONE 2026-11-08 (`4c95fc8`; owner first cut it, then asked for it). Next: plan step 11, **homepage + first-steps quests** (mockup
 `design/proposals/homepage/`; explain to the owner in 3 plain lines and get a yes first). Then 12 safety pass, 13 desktop check of
-every screen + staff route tests, 14 phone pass.
+every screen + staff route tests, 14 phone pass, 15 originality pass + own ideas (owner: at the end). Owner also wants to decide later on other small-player protection (longer beginner protection, or no attacks on very small players): NEXT_STEPS "Decisions".
 Note: `GAME_DESIGN` 18.2-18.6 is still duplicated (~857-1410 and ~1410-1950); edit both copies or merge them first.
 
 ## How the owner works (important)
