@@ -21,6 +21,7 @@ import { Chev } from '../village/FrameParts.tsx';
 import { RANKS_PER_PAGE, RANK_SECTIONS, averagePoints, pageItems, pageOfIndex, playerRows, renownRows, searchPlayers, searchTribes, tribeRows } from './frame-ranks-logic.ts';
 import type { RankSection } from './frame-ranks-logic.ts';
 import { TopThree } from './TopThree.tsx';
+import type { TopThreeItem } from './TopThree.tsx';
 import '../../frame-ranks.css';
 
 /** Remembered while the player moves between tabs (like the phone page). */
@@ -404,12 +405,12 @@ export function FrameRanks() {
   }
 
   // ---- Top three (of the list shown, before any search) ----
-  const top: Array<{ key: number; rank: number; name: string; sub: string }> =
+  const top: TopThreeItem[] =
     section === 'players'
-      ? playerAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, sub: `${formatInt(p.points)} pts` }))
+      ? playerAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, tag: p.tribe?.tag ?? null, value: formatInt(p.points), chieftain: p.playerId === meId ? player.chieftain : null }))
       : section === 'tribes'
-        ? tribeAll.slice(0, 3).map((t) => ({ key: t.id, rank: t.rank, name: t.name, sub: `[${t.tag}] · ${formatInt(t.points)} pts` }))
-        : renownAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, sub: `${formatInt(p.renown)} Renown` }));
+        ? tribeAll.slice(0, 3).map((t) => ({ key: t.id, rank: t.rank, name: t.name, tag: t.tag, value: formatInt(t.points), tribe: true }))
+        : renownAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, tag: p.tribe?.tag ?? null, value: formatInt(p.renown), chieftain: p.playerId === meId ? player.chieftain : null }));
   const pickTop = (key: number) => {
     if (section === 'players') setPicked({ kind: 'player', id: key });
     else if (section === 'tribes') setPicked({ kind: 'tribe', id: key });
@@ -532,7 +533,7 @@ export function FrameRanks() {
               </div>
             </div>
           </section>
-          <TopThree items={top} onPick={pickTop} />
+          <TopThree items={top} valueLabel={section === 'renown' ? 'Renown' : 'Points'} onPick={pickTop} />
           <section className="fv-pn frk-dom" aria-label="Domination">
             <div className="fv-ph">
               <h2>Domination</h2>

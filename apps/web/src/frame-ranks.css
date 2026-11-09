@@ -498,57 +498,96 @@
   min-height: 40px;
 }
 
-/* -- Top three (temporary look: swap with the new design, keep the height) -- */
+/* -- Top three (owner pick A: mini leaderboard) -- */
 .frk-t3 {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   height: 124px;
   box-sizing: border-box;
   margin: 0;
-  padding: 8px 12px;
+  padding: 2px 12px 4px;
   list-style: none;
 }
 
-.frk-t3 li {
-  flex: 1;
-  min-height: 0;
-}
-
-.frk-t3-b {
+.frk-t3-r {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  height: 100%;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--on-surface);
-  font: 700 15px/1.2 var(--font);
-  text-align: left;
-  cursor: pointer;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--edge-soft);
 }
 
-.frk-t3-b b {
+.frk-t3-r:first-child {
+  border-top: 0;
+}
+
+.frk-t3-av {
+  display: grid;
+  place-items: center;
+  flex: none;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-sun);
+  overflow: hidden;
+}
+
+.frk-t3-av img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.frk-t3-av.is-init {
+  background: var(--surface-3);
+  color: var(--c-ink);
+  font: 700 14px/1 var(--font);
+}
+
+.frk-t3-av.is-tag {
+  width: auto;
+  min-width: 32px;
+  padding: 0 7px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--c-ink);
+  font: 700 12px/1 var(--font);
+}
+
+.frk-t3-n {
   flex: 1;
   min-width: 0;
+  height: 36px;
   overflow: hidden;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.frk-t3-n {
-  display: inline-grid;
-  place-items: center;
+.frk-t3-g {
   flex: none;
-  width: 24px;
+  width: 60px;
+}
+
+.frk-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
   height: 24px;
-  border-radius: 50%;
-  background: var(--dark);
-  color: var(--on-dark);
-  font: 700 13px/1 var(--font);
+  padding: 0 10px 1px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--on-surface);
+  font: 700 13px/1.2 var(--font);
+}
+
+.frk-t3-v {
+  min-width: 64px;
+  font: 700 15.5px/1.2 var(--font);
+  text-align: right;
 }
 
 /* -- Domination -- */
