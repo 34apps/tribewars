@@ -1,12 +1,12 @@
 /* Page sheets: the content of every in-game page tab (Army, Reports, Mail, Tribe, Ranks, ...) inside the cream
-   `.page-sheet` that Shell draws over the village art. Everything is scoped under `.page-sheet` so Village and Map
+   `:is(.page-sheet, .fr-page)` that Shell draws over the village art. Everything is scoped under `:is(.page-sheet, .fr-page)` so Village and Map
    are untouched. Look: big toy icon + Bagel title, chunky gold sub-tabs, flat sections with small-caps labels,
    tile rows >= 48 px, filled tags. Tokens come from styles.css (semantic tokens only). */
 
 /* ---- The page inside the sheet: the sheet owns padding and width -------------------------------- */
 
-.page-sheet .page,
-.page-sheet .rk-stage {
+:is(.page-sheet, .fr-page) .page,
+:is(.page-sheet, .fr-page) .rk-stage {
   max-width: none;
   margin: 0;
   padding: 0;
@@ -15,27 +15,27 @@
   color: var(--on-surface);
 }
 
-.page-sheet .page > * + *,
-.page-sheet .rk-stage > * + * {
+:is(.page-sheet, .fr-page) .page > * + *,
+:is(.page-sheet, .fr-page) .rk-stage > * + * {
   margin-top: 0;
 }
 
 /* ---- PageHeader ----------------------------------------------------------------------------------- */
 
-.page-sheet .ph {
+:is(.page-sheet, .fr-page) .ph {
   display: grid;
   gap: 12px;
   margin: 0 0 16px;
 }
 
-.page-sheet .ph-row {
+:is(.page-sheet, .fr-page) .ph-row {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
 }
 
-.page-sheet .ph-token {
+:is(.page-sheet, .fr-page) .ph-token {
   flex: none;
   display: grid;
   place-items: center;
@@ -47,7 +47,7 @@
   box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo), 0 3px 0 var(--c-ink);
 }
 
-.page-sheet .ph-title {
+:is(.page-sheet, .fr-page) .ph-title {
   min-width: 0;
   margin: 0;
   padding-top: 3px;
@@ -59,7 +59,7 @@
   color: var(--heading);
 }
 
-.page-sheet .ph-count {
+:is(.page-sheet, .fr-page) .ph-count {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -74,7 +74,7 @@
   white-space: nowrap;
 }
 
-.page-sheet .ph-actions {
+:is(.page-sheet, .fr-page) .ph-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -83,7 +83,7 @@
   margin-left: auto;
 }
 
-.page-sheet .ph-tabs {
+:is(.page-sheet, .fr-page) .ph-tabs {
   display: flex;
   gap: 4px;
   padding: 4px;
@@ -96,11 +96,11 @@
   width: max-content;
 }
 
-.page-sheet .ph-tabs::-webkit-scrollbar {
+:is(.page-sheet, .fr-page) .ph-tabs::-webkit-scrollbar {
   display: none;
 }
 
-.page-sheet .ph-tab {
+:is(.page-sheet, .fr-page) .ph-tab {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -118,7 +118,7 @@
   touch-action: manipulation;
 }
 
-.page-sheet .ph-tab.is-active {
+:is(.page-sheet, .fr-page) .ph-tab.is-active {
   background: var(--c-sun);
   box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -3px 0 var(--c-sun-lo);
   outline: 2px solid var(--c-ink);
@@ -126,12 +126,12 @@
   color: var(--on-fill);
 }
 
-.page-sheet .ph-tab:disabled {
+:is(.page-sheet, .fr-page) .ph-tab:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.page-sheet .ph-badge {
+:is(.page-sheet, .fr-page) .ph-badge {
   display: inline-grid;
   place-items: center;
   min-width: 21px;
@@ -146,57 +146,57 @@
 }
 
 /* Tribe facts under the header: one calm strip. */
-.page-sheet .ph .facts {
+:is(.page-sheet, .fr-page) .ph .facts {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 22px;
   margin: 0;
 }
 
-.page-sheet .ph .facts > div {
+:is(.page-sheet, .fr-page) .ph .facts > div {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
 @media (max-width: 599px) {
-  .page-sheet .ph {
+  :is(.page-sheet, .fr-page) .ph {
     gap: 10px;
     margin-bottom: 12px;
   }
-  .page-sheet .ph-token {
+  :is(.page-sheet, .fr-page) .ph-token {
     width: 48px;
     height: 48px;
     border-radius: 15px;
   }
-  .page-sheet .ph-title {
+  :is(.page-sheet, .fr-page) .ph-title {
     font-size: 1.7rem;
   }
-  .page-sheet .ph-tabs {
+  :is(.page-sheet, .fr-page) .ph-tabs {
     width: 100%;
   }
-  .page-sheet .ph-tab {
+  :is(.page-sheet, .fr-page) .ph-tab {
     flex: 1 0 auto;
     padding: 0 12px 2px;
     font-size: 0.9rem;
   }
   /* The row of actions drops under the title on a phone instead of squeezing it. */
-  .page-sheet .ph-row {
+  :is(.page-sheet, .fr-page) .ph-row {
     flex-wrap: wrap;
   }
-  .page-sheet .ph-actions {
+  :is(.page-sheet, .fr-page) .ph-actions {
     flex: 1 0 100%;
     justify-content: flex-start;
     margin-left: 0;
   }
-  .page-sheet .ph-actions .btn {
+  :is(.page-sheet, .fr-page) .ph-actions .btn {
     flex: 1 1 auto;
   }
 }
 
 /* ---- Flat sections: no card in card, hairlines instead of borders ------------------------------- */
 
-.page-sheet .card {
+:is(.page-sheet, .fr-page) .card {
   margin: 0 0 20px;
   padding: 0;
   border: 0;
@@ -206,12 +206,12 @@
   color: var(--on-surface);
 }
 
-.page-sheet .card .card {
+:is(.page-sheet, .fr-page) .card .card {
   margin-bottom: 12px;
 }
 
-.page-sheet .card-title,
-.page-sheet .subtitle {
+:is(.page-sheet, .fr-page) .card-title,
+:is(.page-sheet, .fr-page) .subtitle {
   margin: 0 0 8px;
   font-family: var(--font);
   font-size: 0.78rem;
@@ -222,21 +222,21 @@
   color: var(--on-surface-muted);
 }
 
-.page-sheet .card-title .muted {
+:is(.page-sheet, .fr-page) .card-title .muted {
   text-transform: none;
   letter-spacing: 0;
 }
 
-.page-sheet .subsection {
+:is(.page-sheet, .fr-page) .subsection {
   margin-top: 14px;
 }
 
-.page-sheet .muted,
-.page-sheet .small {
+:is(.page-sheet, .fr-page) .muted,
+:is(.page-sheet, .fr-page) .small {
   color: var(--on-surface-muted);
 }
 
-.page-sheet .table thead th {
+:is(.page-sheet, .fr-page) .table thead th {
   background: none;
   color: var(--on-surface-muted);
   font-size: 0.72rem;
@@ -244,22 +244,22 @@
   text-transform: uppercase;
 }
 
-.page-sheet .table th,
-.page-sheet .table td {
+:is(.page-sheet, .fr-page) .table th,
+:is(.page-sheet, .fr-page) .table td {
   padding: 12px 8px;
   border-bottom: 1px solid var(--edge-soft);
 }
 
-.page-sheet .table tbody tr {
+:is(.page-sheet, .fr-page) .table tbody tr {
   min-height: 48px;
 }
 
-.page-sheet .table th.group {
+:is(.page-sheet, .fr-page) .table th.group {
   border-bottom: 1px solid var(--edge);
 }
 
 /* Filled tags, like the mockups. */
-.page-sheet .tag {
+:is(.page-sheet, .fr-page) .tag {
   display: inline-flex;
   align-items: center;
   min-height: 26px;
@@ -268,36 +268,36 @@
   font-size: 0.8rem;
   font-weight: 700;
 }
-.page-sheet .tag-ok { background: var(--c-leaf); color: var(--c-ink); }
-.page-sheet .tag-bad { background: var(--strip-danger); color: var(--on-strip); }
-.page-sheet .tag-warn { background: var(--c-sun); color: var(--c-ink); }
-.page-sheet .tag-info { background: var(--c-teal-hi); color: var(--c-ink); }
-.page-sheet .tag-muted { background: var(--surface-3); color: var(--on-surface); }
+:is(.page-sheet, .fr-page) .tag-ok { background: var(--c-leaf); color: var(--c-ink); }
+:is(.page-sheet, .fr-page) .tag-bad { background: var(--strip-danger); color: var(--on-strip); }
+:is(.page-sheet, .fr-page) .tag-warn { background: var(--c-sun); color: var(--c-ink); }
+:is(.page-sheet, .fr-page) .tag-info { background: var(--c-teal-hi); color: var(--c-ink); }
+:is(.page-sheet, .fr-page) .tag-muted { background: var(--surface-3); color: var(--on-surface); }
 
 /* Lists of rows used by several tabs: tile rows on the cream, >= 48 px. */
-.page-sheet .mail-item,
-.page-sheet .tribe-row,
-.page-sheet .relation-row,
-.page-sheet .movement {
+:is(.page-sheet, .fr-page) .mail-item,
+:is(.page-sheet, .fr-page) .tribe-row,
+:is(.page-sheet, .fr-page) .relation-row,
+:is(.page-sheet, .fr-page) .movement {
   border: 0;
   border-radius: 16px;
   background: var(--surface-2);
   color: var(--on-surface);
 }
 
-.page-sheet .mail-item {
+:is(.page-sheet, .fr-page) .mail-item {
   min-height: 56px;
   padding: 8px 14px;
 }
 
-.page-sheet .mail-item.is-selected,
-.page-sheet .rp-item.is-selected {
+:is(.page-sheet, .fr-page) .mail-item.is-selected,
+:is(.page-sheet, .fr-page) .rp-item.is-selected {
   outline: 2.5px solid var(--c-ink);
   outline-offset: -2.5px;
 }
 
-.page-sheet .mail-list,
-.page-sheet .tribe-list {
+:is(.page-sheet, .fr-page) .mail-list,
+:is(.page-sheet, .fr-page) .tribe-list {
   display: grid;
   gap: 5px;
   margin: 0;
@@ -305,12 +305,12 @@
   list-style: none;
 }
 
-.page-sheet .mail,
-.page-sheet .mail.has-pane {
+:is(.page-sheet, .fr-page) .mail,
+:is(.page-sheet, .fr-page) .mail.has-pane {
   gap: 16px;
 }
 
-.page-sheet .dot {
+:is(.page-sheet, .fr-page) .dot {
   flex: none;
   width: 9px;
   height: 9px;
@@ -320,21 +320,21 @@
 }
 
 /* Old tab bars that remain inside a page (none in the main tabs; kept calm for inner uses). */
-.page-sheet .subtabs {
+:is(.page-sheet, .fr-page) .subtabs {
   margin: 0 0 12px;
 }
 
-.page-sheet .subtab {
+:is(.page-sheet, .fr-page) .subtab {
   border: 2px solid var(--c-ink);
   border-radius: 999px;
   min-height: 40px;
 }
 
-.page-sheet .subtab.is-active {
+:is(.page-sheet, .fr-page) .subtab.is-active {
   background: var(--c-sun);
 }
 
-.page-sheet .segmented {
+:is(.page-sheet, .fr-page) .segmented {
   border: 2.5px solid var(--c-ink);
   border-radius: 999px;
   background: var(--surface-3);
@@ -342,14 +342,14 @@
   gap: 4px;
 }
 
-.page-sheet .segment {
+:is(.page-sheet, .fr-page) .segment {
   min-height: 40px;
   border: 0;
   border-radius: 999px;
   background: none;
 }
 
-.page-sheet .segment.is-active {
+:is(.page-sheet, .fr-page) .segment.is-active {
   background: var(--c-sun);
   color: var(--on-fill);
   outline: 2px solid var(--c-ink);
@@ -357,24 +357,24 @@
 }
 
 /* Rankings and world results sit directly in the sheet. */
-.page-sheet .rk-head {
+:is(.page-sheet, .fr-page) .rk-head {
   display: none;
 }
 
-.page-sheet .rk-sample {
+:is(.page-sheet, .fr-page) .rk-sample {
   min-height: 40px;
 }
 
-.page-sheet .rk-card,
-.page-sheet .end-winner {
+:is(.page-sheet, .fr-page) .rk-card,
+:is(.page-sheet, .fr-page) .end-winner {
   border: 0;
   background: none;
   box-shadow: none;
   padding: 0;
 }
 
-.page-sheet .tribe-title,
-.page-sheet .rk-stage .card-title {
+:is(.page-sheet, .fr-page) .tribe-title,
+:is(.page-sheet, .fr-page) .rk-stage .card-title {
   font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0;
@@ -384,18 +384,18 @@
 
 /* ---- Reports -------------------------------------------------------------------------------------- */
 
-.page-sheet .rp {
+:is(.page-sheet, .fr-page) .rp {
   display: grid;
   gap: 16px;
 }
 
-.page-sheet .rp:not(.has-detail) .rp-pane,
-.page-sheet .rp.has-detail .rp-list-col {
+:is(.page-sheet, .fr-page) .rp:not(.has-detail) .rp-pane,
+:is(.page-sheet, .fr-page) .rp.has-detail .rp-list-col {
   display: none;
 }
 
-.page-sheet .rp-label,
-.page-sheet .ar-label {
+:is(.page-sheet, .fr-page) .rp-label,
+:is(.page-sheet, .fr-page) .ar-label {
   margin: 0 0 8px;
   padding: 0 2px;
   font: 700 0.78rem/1.2 var(--font);
@@ -404,11 +404,11 @@
   color: var(--on-surface-muted);
 }
 
-.page-sheet .rp-group + .rp-group {
+:is(.page-sheet, .fr-page) .rp-group + .rp-group {
   margin-top: 16px;
 }
 
-.page-sheet .rp-list {
+:is(.page-sheet, .fr-page) .rp-list {
   display: grid;
   gap: 5px;
   margin: 0;
@@ -416,7 +416,7 @@
   list-style: none;
 }
 
-.page-sheet .rp-item {
+:is(.page-sheet, .fr-page) .rp-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -433,15 +433,15 @@
   touch-action: manipulation;
 }
 
-.page-sheet .rp-item.is-unread .rp-title {
+:is(.page-sheet, .fr-page) .rp-item.is-unread .rp-title {
   font-weight: 700;
 }
 
-.page-sheet .rp-item .dot-gap {
+:is(.page-sheet, .fr-page) .rp-item .dot-gap {
   background: none;
 }
 
-.page-sheet .rp-ic {
+:is(.page-sheet, .fr-page) .rp-ic {
   flex: none;
   display: grid;
   place-items: center;
@@ -451,12 +451,12 @@
   border-radius: 50%;
   background: var(--surface-3);
 }
-.page-sheet .rp-ic-ok { background: var(--c-teal-hi); }
-.page-sheet .rp-ic-bad { background: var(--c-terra-hi); }
-.page-sheet .rp-ic-sun { background: var(--c-sun); }
-.page-sheet .rp-ic-mute { background: var(--c-bone); }
+:is(.page-sheet, .fr-page) .rp-ic-ok { background: var(--c-teal-hi); }
+:is(.page-sheet, .fr-page) .rp-ic-bad { background: var(--c-terra-hi); }
+:is(.page-sheet, .fr-page) .rp-ic-sun { background: var(--c-sun); }
+:is(.page-sheet, .fr-page) .rp-ic-mute { background: var(--c-bone); }
 
-.page-sheet .rp-main {
+:is(.page-sheet, .fr-page) .rp-main {
   display: flex;
   flex: 1;
   align-items: baseline;
@@ -464,7 +464,7 @@
   min-width: 0;
 }
 
-.page-sheet .rp-title {
+:is(.page-sheet, .fr-page) .rp-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -472,14 +472,14 @@
   font-weight: 600;
 }
 
-.page-sheet .rp-coords {
+:is(.page-sheet, .fr-page) .rp-coords {
   flex: none;
   color: var(--on-surface-muted);
   font-size: 0.82rem;
   font-weight: 500;
 }
 
-.page-sheet .rp-when {
+:is(.page-sheet, .fr-page) .rp-when {
   flex: none;
   color: var(--on-surface-muted);
   font-size: 0.9rem;
@@ -487,40 +487,40 @@
   font-variant-numeric: tabular-nums;
 }
 
-.page-sheet .rp-chev {
+:is(.page-sheet, .fr-page) .rp-chev {
   flex: none;
   color: var(--on-surface-muted);
 }
 
-.page-sheet .rp-item .tag {
+:is(.page-sheet, .fr-page) .rp-item .tag {
   flex: none;
 }
 
-.page-sheet .rp-empty {
+:is(.page-sheet, .fr-page) .rp-empty {
   display: grid;
   place-items: center;
   min-height: 280px;
 }
 
-.page-sheet .rp-hint {
+:is(.page-sheet, .fr-page) .rp-hint {
   display: none;
   margin: 0;
   font-size: 1.05rem;
 }
 
 /* Detail */
-.page-sheet .rp-detail {
+:is(.page-sheet, .fr-page) .rp-detail {
   display: grid;
   gap: 14px;
   align-content: start;
   margin: 0;
 }
 
-.page-sheet .rp-detail > * {
+:is(.page-sheet, .fr-page) .rp-detail > * {
   margin: 0;
 }
 
-.page-sheet .rp-detail-title {
+:is(.page-sheet, .fr-page) .rp-detail-title {
   margin: 0 0 8px;
   font-family: var(--font-display);
   font-weight: 400;
@@ -530,28 +530,28 @@
   overflow-wrap: anywhere;
 }
 
-.page-sheet .rp-detail .report-meta {
+:is(.page-sheet, .fr-page) .rp-detail .report-meta {
   gap: 8px 12px;
 }
 
-.page-sheet .rp-detail .back {
+:is(.page-sheet, .fr-page) .rp-detail .back {
   justify-self: start;
 }
 
-.page-sheet .rp-losses {
+:is(.page-sheet, .fr-page) .rp-losses {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.page-sheet .rp-loss {
+:is(.page-sheet, .fr-page) .rp-loss {
   min-width: 0;
   padding: 12px 14px;
   border-radius: 18px;
   background: var(--surface-2);
 }
 
-.page-sheet .rp-loss-who {
+:is(.page-sheet, .fr-page) .rp-loss-who {
   margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -562,7 +562,7 @@
   color: var(--on-surface-muted);
 }
 
-.page-sheet .rp-loss-list {
+:is(.page-sheet, .fr-page) .rp-loss-list {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -570,14 +570,14 @@
   list-style: none;
 }
 
-.page-sheet .rp-loss-list li {
+:is(.page-sheet, .fr-page) .rp-loss-list li {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.page-sheet .rp-loss-pic {
+:is(.page-sheet, .fr-page) .rp-loss-pic {
   flex: none;
   display: grid;
   place-items: center;
@@ -589,7 +589,7 @@
   overflow: hidden;
 }
 
-.page-sheet .rp-loss-n {
+:is(.page-sheet, .fr-page) .rp-loss-n {
   font-family: var(--font-display);
   font-weight: 400;
   font-size: 1.9rem;
@@ -598,92 +598,92 @@
   color: var(--heading);
 }
 
-.page-sheet .rp-loss-name {
+:is(.page-sheet, .fr-page) .rp-loss-name {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--on-surface-muted);
   font-size: 0.9rem;
 }
 
-.page-sheet .rp-loss-none {
+:is(.page-sheet, .fr-page) .rp-loss-none {
   margin: 0;
   color: var(--on-surface-muted);
   font-weight: 600;
 }
 
 /* Village cards, notices, facts inside a detail */
-.page-sheet .side {
+:is(.page-sheet, .fr-page) .side {
   border: 0;
   border-radius: 16px;
   background: var(--surface-2);
 }
 
-.page-sheet .side.is-winner {
+:is(.page-sheet, .fr-page) .side.is-winner {
   background: var(--ok-bg);
 }
 
-.page-sheet .notice {
+:is(.page-sheet, .fr-page) .notice {
   border-radius: 16px;
 }
 
-.page-sheet .power-bar {
+:is(.page-sheet, .fr-page) .power-bar {
   background: var(--surface-3);
 }
 
 @media (min-width: 1024px) {
-  .page-sheet .rp {
+  :is(.page-sheet, .fr-page) .rp {
     grid-template-columns: 380px minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
 
-  .page-sheet .rp:not(.has-detail) .rp-pane,
-  .page-sheet .rp.has-detail .rp-list-col {
+  :is(.page-sheet, .fr-page) .rp:not(.has-detail) .rp-pane,
+  :is(.page-sheet, .fr-page) .rp.has-detail .rp-list-col {
     display: block;
   }
 
-  .page-sheet .rp-detail .back {
+  :is(.page-sheet, .fr-page) .rp-detail .back {
     display: none;
   }
 
-  .page-sheet .rp-hint {
+  :is(.page-sheet, .fr-page) .rp-hint {
     display: block;
   }
 }
 
 @media (max-width: 599px) {
-  .page-sheet .rp-coords {
+  :is(.page-sheet, .fr-page) .rp-coords {
     display: none;
   }
-  .page-sheet .rp-item {
+  :is(.page-sheet, .fr-page) .rp-item {
     gap: 6px;
     padding-right: 10px;
   }
-  .page-sheet .rp-item .tag {
+  :is(.page-sheet, .fr-page) .rp-item .tag {
     padding: 0 9px 1px;
     font-size: 0.78rem;
   }
-  .page-sheet .rp-loss-n {
+  :is(.page-sheet, .fr-page) .rp-loss-n {
     font-size: 1.6rem;
   }
-  .page-sheet .rp-losses {
+  :is(.page-sheet, .fr-page) .rp-losses {
     grid-template-columns: 1fr;
   }
 }
 
 /* ---- Army ----------------------------------------------------------------------------------------- */
 
-.page-sheet .ar-section {
+:is(.page-sheet, .fr-page) .ar-section {
   margin: 0 0 18px;
 }
 
-.page-sheet .ar-top {
+:is(.page-sheet, .fr-page) .ar-top {
   display: grid;
   gap: 4px;
 }
 
-.page-sheet .ar-troops,
-.page-sheet .mv-list {
+:is(.page-sheet, .fr-page) .ar-troops,
+:is(.page-sheet, .fr-page) .mv-list {
   display: grid;
   gap: 5px;
   margin: 0;
@@ -691,7 +691,7 @@
   list-style: none;
 }
 
-.page-sheet .ar-unit {
+:is(.page-sheet, .fr-page) .ar-unit {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -708,23 +708,23 @@
   touch-action: manipulation;
 }
 
-.page-sheet .ar-unit.is-zero {
+:is(.page-sheet, .fr-page) .ar-unit.is-zero {
   color: var(--on-surface-muted);
 }
 
-.page-sheet .ar-unit.is-zero .ar-pic {
+:is(.page-sheet, .fr-page) .ar-unit.is-zero .ar-pic {
   opacity: 0.6;
 }
 
-.page-sheet .ar-unit.is-locked {
+:is(.page-sheet, .fr-page) .ar-unit.is-locked {
   opacity: 0.6;
 }
 
-.page-sheet .ar-unit.is-locked .ar-pic {
+:is(.page-sheet, .fr-page) .ar-unit.is-locked .ar-pic {
   filter: grayscale(1);
 }
 
-.page-sheet .ar-pic {
+:is(.page-sheet, .fr-page) .ar-pic {
   flex: none;
   display: grid;
   place-items: center;
@@ -736,14 +736,14 @@
   overflow: hidden;
 }
 
-.page-sheet .ar-name {
+:is(.page-sheet, .fr-page) .ar-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.page-sheet .ar-chip {
+:is(.page-sheet, .fr-page) .ar-chip {
   flex: none;
   padding: 3px 10px 4px;
   border-radius: 999px;
@@ -754,12 +754,12 @@
   white-space: nowrap;
 }
 
-.page-sheet .ar-chip-train {
+:is(.page-sheet, .fr-page) .ar-chip-train {
   background: var(--c-teal-hi);
   color: var(--c-ink);
 }
 
-.page-sheet .ar-count {
+:is(.page-sheet, .fr-page) .ar-count {
   flex: none;
   margin-left: auto;
   padding-top: 3px;
@@ -771,25 +771,25 @@
   font-variant-numeric: tabular-nums;
 }
 
-.page-sheet .ar-unit.is-zero .ar-count {
+:is(.page-sheet, .fr-page) .ar-unit.is-zero .ar-count {
   color: var(--on-surface-muted);
 }
 
-.page-sheet .ar-count:has(.ar-locked) { padding-top: 0; }
+:is(.page-sheet, .fr-page) .ar-count:has(.ar-locked) { padding-top: 0; }
 
-.page-sheet .ar-locked {
+:is(.page-sheet, .fr-page) .ar-locked {
   font-family: var(--font-display);
   font-size: 1.15rem;
   color: var(--on-surface-muted);
 }
 
-.page-sheet .ar-none {
+:is(.page-sheet, .fr-page) .ar-none {
   margin: 0;
   padding: 0 2px;
 }
 
 /* Movement and training rows */
-.page-sheet .mv {
+:is(.page-sheet, .fr-page) .mv {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -799,14 +799,14 @@
   list-style: none;
 }
 
-.page-sheet .mv-head {
+:is(.page-sheet, .fr-page) .mv-head {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 48px;
 }
 
-.page-sheet .mv-ic {
+:is(.page-sheet, .fr-page) .mv-ic {
   flex: none;
   display: grid;
   place-items: center;
@@ -817,29 +817,29 @@
   background: var(--c-sun);
 }
 
-.page-sheet .mv-main {
+:is(.page-sheet, .fr-page) .mv-main {
   flex: 1;
   min-width: 0;
 }
 
-.page-sheet .mv-title {
+:is(.page-sheet, .fr-page) .mv-title {
   font-weight: 700;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.page-sheet .mv-prep,
-.page-sheet .mv-sub {
+:is(.page-sheet, .fr-page) .mv-prep,
+:is(.page-sheet, .fr-page) .mv-sub {
   color: var(--on-surface-muted);
   font-size: 0.86rem;
   font-weight: 500;
 }
 
-.page-sheet .mv-title .link {
+:is(.page-sheet, .fr-page) .mv-title .link {
   font-weight: 700;
 }
 
-.page-sheet .mv-time {
+:is(.page-sheet, .fr-page) .mv-time {
   flex: none;
   padding: 4px 11px 5px;
   border-radius: 999px;
@@ -850,46 +850,46 @@
   white-space: nowrap;
 }
 
-.page-sheet .mv.is-incoming {
+:is(.page-sheet, .fr-page) .mv.is-incoming {
   background: var(--strip-danger);
   color: var(--on-strip);
 }
 
-.page-sheet .mv.is-incoming .mv-ic {
+:is(.page-sheet, .fr-page) .mv.is-incoming .mv-ic {
   background: var(--c-sun);
 }
 
-.page-sheet .mv.is-incoming .mv-sub,
-.page-sheet .mv.is-incoming .mv-title .link,
-.page-sheet .mv.is-incoming .muted {
+:is(.page-sheet, .fr-page) .mv.is-incoming .mv-sub,
+:is(.page-sheet, .fr-page) .mv.is-incoming .mv-title .link,
+:is(.page-sheet, .fr-page) .mv.is-incoming .muted {
   color: var(--on-strip);
 }
 
-.page-sheet .mv.is-incoming .mv-time {
+:is(.page-sheet, .fr-page) .mv.is-incoming .mv-time {
   background: var(--surface);
   color: var(--on-surface);
 }
 
-.page-sheet .mv .progress {
+:is(.page-sheet, .fr-page) .mv .progress {
   height: 6px;
   margin: 0 6px;
 }
 
-.page-sheet .mv.is-incoming .progress {
+:is(.page-sheet, .fr-page) .mv.is-incoming .progress {
   background: rgba(0, 0, 0, 0.25);
   box-shadow: none;
 }
 
-.page-sheet .mv .movement-foot {
+:is(.page-sheet, .fr-page) .mv .movement-foot {
   padding: 0 6px 2px;
 }
 
-.page-sheet .mv-arrive {
+:is(.page-sheet, .fr-page) .mv-arrive {
   white-space: nowrap;
 }
 
 @media (min-width: 1024px) {
-  .page-sheet .ar-top {
+  :is(.page-sheet, .fr-page) .ar-top {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 28px;
     align-items: start;
@@ -897,63 +897,63 @@
 }
 
 @media (max-width: 599px) {
-  .page-sheet .ar-unit {
+  :is(.page-sheet, .fr-page) .ar-unit {
     gap: 8px;
     padding-right: 10px;
   }
-  .page-sheet .ar-count {
+  :is(.page-sheet, .fr-page) .ar-count {
     font-size: 1.5rem;
   }
 }
 
 /* The rest of the army page (command post, support, training): flat sections with a hairline above. */
-.page-sheet .ar-page > section,
-.page-sheet .ar-page > div > section.card {
+:is(.page-sheet, .fr-page) .ar-page > section,
+:is(.page-sheet, .fr-page) .ar-page > div > section.card {
   padding-top: 14px;
   border-top: 1px solid var(--edge-soft);
 }
 
-.page-sheet .ar-page .unit-card {
+:is(.page-sheet, .fr-page) .ar-page .unit-card {
   padding: 12px;
   border-radius: 18px;
   background: var(--surface-2);
 }
 
-.page-sheet .ar-page .unit-grid {
+:is(.page-sheet, .fr-page) .ar-page .unit-grid {
   gap: 12px;
 }
 
-.page-sheet .ar-page .movement.stationed {
+:is(.page-sheet, .fr-page) .ar-page .movement.stationed {
   padding: 8px 12px;
 }
 
-.page-sheet .ar-page .job {
+:is(.page-sheet, .fr-page) .ar-page .job {
   padding: 8px 12px;
   border-radius: 16px;
   background: var(--surface-2);
 }
 
 /* Grid tracks must be allowed to shrink below their content, or a long row pushes the sheet wider than a phone. */
-.page-sheet .rp,
-.page-sheet .rp-list,
-.page-sheet .ar-troops,
-.page-sheet .mv-list,
-.page-sheet .mail-list,
-.page-sheet .ar-top {
+:is(.page-sheet, .fr-page) .rp,
+:is(.page-sheet, .fr-page) .rp-list,
+:is(.page-sheet, .fr-page) .ar-troops,
+:is(.page-sheet, .fr-page) .mv-list,
+:is(.page-sheet, .fr-page) .mail-list,
+:is(.page-sheet, .fr-page) .ar-top {
   grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 1024px) {
-  .page-sheet .rp {
+  :is(.page-sheet, .fr-page) .rp {
     grid-template-columns: 380px minmax(0, 1fr);
   }
-  .page-sheet .ar-top {
+  :is(.page-sheet, .fr-page) .ar-top {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
 @media (max-width: 599px) {
-  .page-sheet .mv-arrive {
+  :is(.page-sheet, .fr-page) .mv-arrive {
     display: none;
   }
 }

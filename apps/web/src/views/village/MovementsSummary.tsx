@@ -4,7 +4,7 @@ import type { MovementDto } from '@clanfire/engine';
 import { formatCoords, formatDuration } from '../../format.ts';
 import { useGame } from '../../game.ts';
 
-function label(mv: MovementDto): string {
+export function movementLabel(mv: MovementDto): string {
   const where = formatCoords(mv.target.x, mv.target.y);
   const incoming = mv.direction === 'incoming';
   if (mv.kind === 'shipment') return incoming ? `Resources coming from ${formatCoords(mv.origin.x, mv.origin.y)}` : (mv.toTribeStore ? `Shipment to Tribe Store ${where}` : `Shipment to ${where}`);
@@ -15,7 +15,7 @@ function label(mv: MovementDto): string {
   return `${mv.target.ownerName ? 'Attack on' : 'Raid on'} ${where}`;
 }
 
-function cargo(mv: MovementDto): string {
+export function movementCargo(mv: MovementDto): string {
   let troops = 0;
   for (const n of Object.values(mv.units ?? {})) troops += n ?? 0;
   let loot = 0;
@@ -42,8 +42,8 @@ export function MovementsSummary({ compact = false, outgoingOnly = false }: { co
         {shown.map((mv) => (
           <li key={mv.id} className={`vv-moves-row${mv.direction === 'incoming' ? ' is-incoming' : ''}`}>
             <span className="vv-moves-what">
-              {label(mv)}
-              {cargo(mv) ? <span className="vv-moves-sub"> · {cargo(mv)}</span> : null}
+              {movementLabel(mv)}
+              {movementCargo(mv) ? <span className="vv-moves-sub"> · {movementCargo(mv)}</span> : null}
             </span>
             <strong className="vv-moves-time">{formatDuration(mv.arriveAt - now)}</strong>
           </li>

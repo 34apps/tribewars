@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { makeRenownInfo, settleVillage, worldPrefixOf } from '@clanfire/engine';
-import type { Mission, VillageListItemDto } from '@clanfire/engine';
+import { BUILDING_IDS, makeRenownInfo, settleVillage, worldPrefixOf } from '@clanfire/engine';
+import type { BuildingId, Mission, VillageListItemDto } from '@clanfire/engine';
 import { api } from './api.ts';
 import { markManualSignOut } from './lobby.ts';
+import { FrameShell } from './components/FrameShell.tsx';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { GameContext, MENU_PAGES, TABS } from './game.ts';
 import type { GameApi, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
+import { useIsDesktop } from './hooks/useLayout.ts';
 import { LiveProvider } from './hooks/useLive.tsx';
 import { useNow } from './hooks/useNow.ts';
 import { useWorldEnd } from './hooks/useWorldEnd.ts';
@@ -29,23 +31,42 @@ import { Icon } from './art/Icon.tsx';
 
 const StaffView = lazy(() => import('./views/StaffView.tsx'));
 
-function readTab(): Tab {
-  const h = window.location.hash.replace(/^#\/?/, '');
-  return (TABS as readonly string[]).includes(h) || (MENU_PAGES as readonly string[]).includes(h) ? (h as Tab) : 'village';
+interface Route {
+  tab: Tab;
+  /** Desktop building page (`#village/b/<id>`); the tab is then `village`. */
+  building: BuildingId | null;
 }
 
-function useTab(): [Tab, (t: Tab) => void] {
-  const [tab, setTab] = useState<Tab>(readTab);
+function readRoute(): Route {
+  const h = window.location.hash.replace(/^#\/?/, '');
+  const m = /^village\/b\/([a-z]+)$/.exec(h);
+  const id = m?.[1] ?? '';
+  if ((BUILDING_IDS as readonly string[]).includes(id)) return { tab: 'village', building: id as BuildingId };
+  const tab = (TABS as readonly string[]).includes(h) || (MENU_PAGES as readonly string[]).includes(h) ? (h as Tab) : 'village';
+  return { tab, building: null };
+}
+
+function useRoute(): [Route, (t: Tab) => void, (id: BuildingId | null) => void] {
+  const [route, setRoute] = useState<Route>(readRoute);
   useEffect(() => {
-    const onHash = () => setTab(readTab());
+    const onHash = () => setRoute(readRoute());
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   const navigate = useCallback((t: Tab) => {
     if (window.location.hash !== `#${t}`) window.location.hash = t;
-    setTab(t);
+    setRoute({ tab: t, building: null });
   }, []);
-  return [tab, navigate];
+  const openBuilding = useCallback((id: BuildingId | null) => {
+    const hash = id ? `#village/b/${id}` : '#village';
+    // Stepping from one building to the next replaces the history entry; Back always returns to the Village page.
+    if (window.location.hash !== hash) {
+      if (id && /^#village\/b\//.test(window.location.hash)) window.location.replace(hash);
+      else window.location.hash = hash.slice(1);
+    }
+    setRoute({ tab: 'village', building: id });
+  }, []);
+  return [route, navigate, openBuilding];
 }
 
 /** Keeps a screen mounted while hidden, on the last game state it saw: no re-renders, timers or animations while away. */
@@ -84,7 +105,8 @@ export function Game({ onSignedOut }: { onSignedOut: () => void }) {
 function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const store = useGameState(onSignedOut);
   const now = useNow(store.serverOffset);
-  const [tab, navigate] = useTab();
+  const [{ tab, building }, navigate, openBuilding] = useRoute();
+  const desktop = useIsDesktop();
   const { end: worldEnd, fresh: worldEndFresh } = useWorldEnd();
   // The first time the end becomes known (start-up or a live hint), land on the results; a refused order only shows the banner.
   // Someone who deliberately opened another screen (a deep link, the map) is left where they are.
@@ -249,6 +271,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       connectionError: store.error,
       tab,
       navigate,
+      building,
+      openBuilding,
       showOnMap,
       mapFocus,
       highlightMovementId,
@@ -260,7 +284,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       applyFirstSteps: store.applyFirstSteps,
       toast,
     };
-  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, store.applyFirstSteps, tab, navigate, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
 
   if (!ctx) {
     return (
@@ -278,32 +302,37 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     );
   }
 
+  const pages = (
+    <>
+      {tab === 'army' && <ArmyView />}
+      {tab === 'reports' && <ReportsView />}
+      {tab === 'mail' && <MailView />}
+      {tab === 'tribe' && <TribeView />}
+      {tab === 'ranks' && <RankingsView />}
+      {tab === 'support' && <SupportView />}
+      {tab === 'rules' && <WorldRulesView />}
+      {tab === 'simulator' && <SimulatorView />}
+      {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted">The world is still running.</p>)}
+      {tab === 'staff' && (
+        <Suspense fallback={<p className="muted">Loading…</p>}>
+          <StaffView />
+        </Suspense>
+      )}
+    </>
+  );
+  const isPage = tab !== 'village' && tab !== 'map';
+  // Desktop: the fixed 1440x900 frame (FrameShell); other tabs are plain pages inside it. Phone: HUD, dock and sheets over the village.
+  const Frame = desktop ? FrameShell : Shell;
+
   return (
     <GameContext.Provider value={ctx}>
-      <Shell onSignOut={signOut} onSignOutEverywhere={signOutEverywhere}>
+      <Frame onSignOut={signOut} onSignOutEverywhere={signOutEverywhere}>
         <KeepAlive active={tab === 'village'} value={ctx}>
-          <VillageView active={tab === 'village'} backdrop={tab !== 'village' && tab !== 'map'} />
+          <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
-        {tab !== 'village' && tab !== 'map' && (
-          <div className="page-sheet">
-            {tab === 'army' && <ArmyView />}
-            {tab === 'reports' && <ReportsView />}
-            {tab === 'mail' && <MailView />}
-            {tab === 'tribe' && <TribeView />}
-            {tab === 'ranks' && <RankingsView />}
-            {tab === 'support' && <SupportView />}
-            {tab === 'rules' && <WorldRulesView />}
-            {tab === 'simulator' && <SimulatorView />}
-            {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted">The world is still running.</p>)}
-            {tab === 'staff' && (
-              <Suspense fallback={<p className="muted">Loading…</p>}>
-                <StaffView />
-              </Suspense>
-            )}
-          </div>
-        )}
+        {isPage && (desktop ? <div className="fr-page">{pages}</div> : <div className="page-sheet">{pages}</div>)}
         {mapVisited.current && <MapView active={tab === 'map'} />}
-      </Shell>
+      </Frame>
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </GameContext.Provider>
   );

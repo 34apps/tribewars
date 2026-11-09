@@ -1,5 +1,5 @@
-// The in-game shell: a floating Game HUD (resources, village, bell, account) over every screen and a floating bottom dock.
-// Attack warnings live in ONE place (AlertCards); the bell opens a non-modal alerts sheet; phones get "More" for the rest.
+// The PHONE in-game shell: a floating HUD (resources, village, bell) over every screen and a floating bottom dock with "More".
+// Desktop uses the fixed 1440x900 frame instead (FrameShell.tsx). Attack warnings live in ONE place (AlertCards); the bell opens a non-modal alerts sheet.
 
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
@@ -9,12 +9,11 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { WORLD_ENDED_NOTICE, bannerText } from '../domination.ts';
-import { useGame, TABS } from '../game.ts';
+import { useGame } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
-import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 import { bellCounts } from '../notifications.ts';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
@@ -23,9 +22,9 @@ import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
-const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
-/** The five dock buttons on phones; Mail, Tribe and Ranks live in the More sheet there. */
+export const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
+export const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
+/** The dock buttons on phones; Mail, Tribe and Ranks live in the More sheet. */
 const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
 
 /** "+3k" style rate for the narrow phone chips ("per hour" is read out, not shown). */
@@ -37,7 +36,7 @@ function compactRate(perHour: number): string {
 }
 
 /** Population usage and its screen-reader text (shared by the HUD pill and the More sheet). */
-function usePopulation() {
+export function usePopulation() {
   const { live } = useGame();
   const pop = populationUsage(live);
   const cap = populationCap(live);
@@ -98,7 +97,7 @@ function Resources({ compact }: { compact?: boolean }) {
 }
 
 /** World end and connection notes: slim cards under the HUD row. */
-function AlertNotes() {
+export function AlertNotes() {
   const { navigate, connectionError, worldEnd, tab } = useGame();
   if (!worldEnd && !connectionError) return null;
   return (
@@ -123,23 +122,18 @@ function AlertNotes() {
   );
 }
 
-/**
- * Attacks and protection. `card` = the big floating attack card (village and map, desktop), `phone` = slim pills row,
- * `inline` = one-line attack pill + protection chip row under the HUD (page tabs, desktop).
- */
-function AlertCards({ layout }: { layout: 'card' | 'phone' | 'inline' }) {
+/** Attacks and protection on phones: one slim pills row under the HUD. */
+function AlertCards() {
   const { player, now, movements, viewMovement } = useGame();
-  const desktop = layout !== 'phone';
   const protectedLeft = player.protectedUntil - now;
   const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
   const who = first ? first.origin.ownerName || first.origin.name : '';
-  const where = first ? formatCoords(first.origin.x, first.origin.y) : '';
   const left = first ? formatDuration(first.arriveAt - now) : '';
   const protect =
     protectedLeft > 0 ? (
       <div className="hud-protect">
-        <Icon name="shield" size={desktop ? 22 : 18} />
+        <Icon name="shield" size={18} />
         <span>
           Protected <strong>{formatLeft(protectedLeft)}</strong>
         </span>
@@ -152,42 +146,14 @@ function AlertCards({ layout }: { layout: 'card' | 'phone' | 'inline' }) {
         {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} {left}
         <span className="hud-attack-who"> · {who}</span>
       </span>
-      {layout === 'inline' && <span aria-hidden="true">›</span>}
     </button>
   ) : null;
-  if (layout === 'inline') {
-    if (!pill && !protect) return null;
-    return (
-      <div className="hud-alerts-inline">
+  return (
+    <div className="hud-alerts">
+      <div className="hud-alert-row">
         {pill}
         {protect}
       </div>
-    );
-  }
-  return (
-    <div className="hud-alerts">
-      {first && desktop && (
-        <div className="hud-attack">
-          <Icon name="warning" size={32} />
-          <div className="hud-attack-text">
-            <strong className="hud-attack-title">{incoming.length > 1 ? `${incoming.length} attacks · next in ${left}` : `Attack in ${left}`}</strong>
-            <span className="hud-attack-sub">
-              {who} ({where})
-            </span>
-          </div>
-          <button type="button" className="btn btn-primary hud-attack-btn" onClick={() => viewMovement(first.id)}>
-            Show
-          </button>
-        </div>
-      )}
-      {desktop ? (
-        protect
-      ) : (
-        <div className="hud-alert-row">
-          {pill}
-          {protect}
-        </div>
-      )}
     </div>
   );
 }
@@ -329,7 +295,7 @@ function AccountItems({
   );
 }
 
-interface AccountActions {
+export interface AccountActions {
   onSignOut: () => void;
   onSignOutEverywhere: () => void;
   onChangeChieftain: () => void;
@@ -337,7 +303,7 @@ interface AccountActions {
 }
 
 /** Desktop: the round avatar button; opens the account menu. */
-function Who(actions: AccountActions) {
+export function Who(actions: AccountActions) {
   const { player, village } = useGame();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -443,9 +409,22 @@ function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => vo
   );
 }
 
+/** After the world ended the order screens (village, army, map) refuse their main buttons up front with a toast. Undefined when nothing is guarded. */
+export function useGuardOrders(): ((e: MouseEvent<HTMLElement>) => void) | undefined {
+  const { tab, worldEnd, toast } = useGame();
+  return worldEnd && (tab === 'village' || tab === 'army' || tab === 'map')
+    ? (e: MouseEvent<HTMLElement>) => {
+        const button = (e.target as HTMLElement).closest('button');
+        if (!button || button.closest('.wm-toolbar') || !(button.classList.contains('btn-primary') || button.type === 'submit')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toast(WORLD_ENDED_NOTICE, { kind: 'error' });
+      }
+    : undefined;
+}
+
 export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: ReactNode; onSignOut: () => void; onSignOutEverywhere: () => void }) {
-  const { tab, worldEnd, toast, now } = useGame();
-  const desktop = useMediaQuery(DESKTOP_QUERY);
+  const { tab, worldEnd, now } = useGame();
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -467,30 +446,17 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [desktop]);
-  // Leaving a layout closes what only exists in the other one.
-  useEffect(() => {
-    if (desktop) setMoreOpen(false);
-  }, [desktop]);
+  }, []);
 
   // After the world ended the server refuses every order. On the order screens (village, army, map) the main buttons say so
   // up front instead of waiting for the 403; reading, mail, chat and forum are untouched.
-  const guardOrders =
-    worldEnd && (tab === 'village' || tab === 'army' || tab === 'map')
-      ? (e: MouseEvent<HTMLElement>) => {
-          const button = (e.target as HTMLElement).closest('button');
-          if (!button || button.closest('.wm-toolbar') || !(button.classList.contains('btn-primary') || button.type === 'submit')) return;
-          e.preventDefault();
-          e.stopPropagation();
-          toast(WORLD_ENDED_NOTICE, { kind: 'error' });
-        }
-      : undefined;
+  const guardOrders = useGuardOrders();
   const bell = (
     <NotificationBell
       unread={counts.count}
       danger={counts.danger}
       open={bellOpen}
-      compact={!desktop}
+      compact
       onClick={() => {
         setMoreOpen(false);
         setBellOpen((o) => !o);
@@ -499,51 +465,32 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
   );
   return (
     <div className={`app app-${tab}${pageMode ? ' app-page' : ''}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
-      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'} hud-float`} ref={hudRef}>
-        {desktop ? (
-          <div className="hud-row">
-            <div className="hud-left">
-              <VillageBar />
-            </div>
-            <div className="hud-pill hud-resources">
-              <Resources />
-            </div>
-            <div className="hud-right">
-              {bell}
-              <Who {...actions} />
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="hud-row">
-              <Resources compact />
-              {bell}
-            </div>
-            <VillageBar />
-          </>
-        )}
+      <header className="hud hud-phone hud-float" ref={hudRef}>
+        <div className="hud-row">
+          <Resources compact />
+          {bell}
+        </div>
+        <VillageBar />
         <AlertNotes />
-        <AlertCards layout={desktop ? (pageMode ? 'inline' : 'card') : 'phone'} />
+        <AlertCards />
       </header>
       <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main" onClickCapture={guardOrders}>
         {children}
       </main>
       <nav className="dock" aria-label="Main">
-        {(desktop ? TABS : PHONE_TABS).map((t) => (
+        {PHONE_TABS.map((t) => (
           <DockButton key={t} tab={t} />
         ))}
-        {!desktop && (
-          <MoreButton
-            open={moreOpen}
-            onClick={() => {
-              setBellOpen(false);
-              setMoreOpen((o) => !o);
-            }}
-          />
-        )}
+        <MoreButton
+          open={moreOpen}
+          onClick={() => {
+            setBellOpen(false);
+            setMoreOpen((o) => !o);
+          }}
+        />
       </nav>
       {bellOpen && <NotificationsSheet store={notifications} onClose={() => setBellOpen(false)} />}
-      {moreOpen && !desktop && <MoreSheet onClose={() => setMoreOpen(false)} {...actions} />}
+      {moreOpen && <MoreSheet onClose={() => setMoreOpen(false)} {...actions} />}
       {settings && (
         <Suspense fallback={null}>
           <SettingsDialog onClose={() => setSettings(false)} />

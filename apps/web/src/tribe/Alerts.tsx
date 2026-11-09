@@ -9,7 +9,7 @@ import { formatAgo, formatClock, formatCoords, formatDuration } from '../format.
 import { useGame } from '../game.ts';
 import { pollMs } from '../hooks/live.ts';
 import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
-import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
+import { useIsDesktop } from '../hooks/useLayout.ts';
 import { Icon } from '../art/Icon.tsx';
 import { UNIT_ICON } from '../icons.ts';
 import { UNITS } from '@clanfire/engine';
@@ -88,7 +88,7 @@ function AlertRow({ a, level }: { a: TribeAlertDto; level: number }) {
 /** A tribe member's village whose hearth is out: who holds it and the clock. Chieftains only show up here, never in an attack row. */
 function HoldRow({ h }: { h: TribeHoldDto }) {
   const { villages, showOnMap, selectVillage, navigate } = useGame();
-  const desktop = useMediaQuery(DESKTOP_QUERY);
+  const desktop = useIsDesktop();
   const mine = villages.some((v) => v.id === h.village.villageId);
   const owner = mine ? 'you' : (h.village.ownerName ?? 'member');
   return (

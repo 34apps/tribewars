@@ -7,8 +7,10 @@ import { HoldCard } from '../components/HoldCard.tsx';
 import { formatDuration } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { useDockSpace } from '../hooks/useDockSpace.ts';
-import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
+import { useIsDesktop } from '../hooks/useLayout.ts';
 import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
+import { FrameVillage } from './village/FrameVillage.tsx';
+import { useBuild } from './village/useBuild.ts';
 import { FirstStepsCard, FirstStepsChip } from './village/FirstSteps.tsx';
 import { MovementsSummary, outgoingOnTheRoad } from './village/MovementsSummary.tsx';
 import { RenownCard, RenownChip } from './village/RenownCard.tsx';
@@ -16,24 +18,6 @@ import { VillageScene } from './village/VillageScene.tsx';
 import { DesignPreviewBar } from './village/DesignPreviewBar.tsx';
 import { designPreviewAllowed, useDesignPreview } from './village/designPreviewState.ts';
 import './village/village.css';
-
-function useBuild() {
-  const { village, applyVillage, refresh, toast } = useGame();
-  const [busy, setBusy] = useState(false);
-  async function build(id: BuildingId) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      applyVillage(await api.build(village.id, id));
-    } catch (e) {
-      toast(errorMessage(e), { kind: 'error' });
-    } finally {
-      setBusy(false);
-      void refresh();
-    }
-  }
-  return { busy, build: (id: BuildingId) => void build(id) };
-}
 
 type Panel = { kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | { kind: 'steps' } | { kind: 'road' } | null;
 
@@ -104,49 +88,12 @@ function panelTitle(panel: Panel): string {
   return panel.kind === 'building' ? BUILDINGS[panel.id].name : panel.kind === 'renown' ? 'Renown' : panel.kind === 'steps' ? 'First steps' : panel.kind === 'road' ? 'On the road' : 'Construction queue';
 }
 
-function DesktopVillage({ active, backdrop }: { active: boolean; backdrop: boolean }) {
-  const { village, player } = useGame();
+/** Desktop: the fixed-frame Village page (columns in village/FrameVillage.tsx); the notices sit in a slim line above the picture. */
+function DesktopVillage({ active }: { active: boolean }) {
+  const { player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
-  const [panel, setPanel] = useState<Panel>(null);
-  const { busy, build } = useBuild();
-  const selected = panel?.kind === 'building' ? panel.id : null;
-  useEffect(() => {
-    if (!active) setPanel(null);
-  }, [active]);
-  useEffect(() => {
-    if (!panel || !active) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPanel(null);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [panel, active]);
-  return (
-    <div className={`vv vv-desktop${backdrop ? ' vv-backdrop' : ''}`} hidden={!active && !backdrop} inert={backdrop} aria-hidden={backdrop || undefined}>
-      <section className="vv-board" aria-label={`${village.name}, village`}>
-        <h1 className="visually-hidden">{village.name}</h1>
-        <VillageScene mode="fit" selected={selected} onSelect={(id) => setPanel({ kind: 'building', id })} levelOverride={preview ? dp : null} />
-      </section>
-      <Notices compact={false} preview={preview} />
-      <div className="vv-chips vv-chips-left">
-        <FirstStepsChip onOpen={() => setPanel({ kind: 'steps' })} />
-      </div>
-      <div className={`vv-chips vv-chips-right${panel ? ' has-sheet' : ''}`}>
-        <RoadChip onClick={() => setPanel({ kind: 'road' })} />
-        <QueueChip onClick={() => setPanel({ kind: 'queue' })} />
-        <RenownChip onClick={() => setPanel({ kind: 'renown' })} />
-      </div>
-      {panel && (
-        <aside className="hud-sheet vv-dsheet" aria-label={panelTitle(panel)}>
-          <button type="button" className="hud-x vv-dsheet-x" onClick={() => setPanel(null)} aria-label="Close details">
-            <Icon name="close" size={20} />
-          </button>
-          <PanelContent panel={panel} busy={busy} build={build} setPanel={setPanel} headingId="bpanel-title" compact={false} />
-        </aside>
-      )}
-    </div>
-  );
+  return <FrameVillage active={active} notices={<Notices compact={false} preview={preview} />} levelOverride={preview ? dp : null} />;
 }
 
 function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean }) {
@@ -281,6 +228,6 @@ function HearthNotice({ compact }: { compact: boolean }) {
  * shows bright, inert and frozen behind the page sheet.
  */
 export const VillageView = memo(function VillageView({ active = true, backdrop = false }: { active?: boolean; backdrop?: boolean }) {
-  const desktop = useMediaQuery(DESKTOP_QUERY);
-  return desktop ? <DesktopVillage active={active} backdrop={backdrop} /> : <PhoneVillage active={active} backdrop={backdrop} />;
+  const desktop = useIsDesktop();
+  return desktop ? <DesktopVillage active={active} /> : <PhoneVillage active={active} backdrop={backdrop} />;
 });

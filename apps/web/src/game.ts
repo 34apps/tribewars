@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
+  BuildingId,
   FirstStepsDto,
   Mission,
   MovementDto,
@@ -111,6 +112,9 @@ export interface GameApi {
   connectionError: string | null;
   tab: Tab;
   navigate: (tab: Tab) => void;
+  /** Desktop: the building whose own page is open (route `#village/b/<id>`, the Village tab stays active); null on the Village page. */
+  building: BuildingId | null;
+  openBuilding: (id: BuildingId | null) => void;
   showOnMap: (x: number, y: number, options?: { mission?: Mission; ship?: boolean }) => void;
   mapFocus: MapFocus | null;
   highlightMovementId: number | null;

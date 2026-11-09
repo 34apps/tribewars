@@ -1,0 +1,589 @@
+// Generates mockups/{a,b,c}-{village,building,army,reports}-1440.html: four in-game pages as separate, see-at-once desktop
+// pages (1440x900, no page scroll, no inner scroll) in three frame options. Shared data + shared CSS; real icons from
+// tooling/icons.html (the game's Icon.tsx markup), real unit and building art (mockups/units, mockups/buildings).
+// Run: node tooling/gen.mjs   then: node tooling/shot.mjs   then: node tooling/board.mjs
+// Owner rule (2026-11-09): the game is ONE FIXED-SIZE FRAME (1440x900 here); it never shrinks or rearranges with the window.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const here = dirname(fileURLToPath(import.meta.url)); const OUT = join(here, '..', 'mockups');
+const raw = readFileSync(join(here, 'icons.html'), 'utf8'); const ICONS = {};
+for (const m of raw.matchAll(/<div data-n="(\w+)">(<svg[\s\S]*?<\/svg>)<\/div>/g)) ICONS[m[1]] = m[2];
+// Two small extra icons in the same toy style (ink outline, block shading): a cart for shipments, a spyglass for scouting.
+ICONS.cart = `<svg width="64" height="64" viewBox="0 0 32 32"><path d="M4 9h24l-2.5 11h-19z" fill="#C99A62" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"/><path d="M6.2 15h19.6" stroke="#8a5e33" stroke-width="1.6"/><path d="M9 9V6.5h6V9M17 9V5.5h6V9" fill="#F2B33D" stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="23.5" r="3.6" fill="#A39E94" stroke="#2B211C" stroke-width="1.8"/><circle cx="22" cy="23.5" r="3.6" fill="#A39E94" stroke="#2B211C" stroke-width="1.8"/></svg>`;
+ICONS.glass = `<svg width="64" height="64" viewBox="0 0 32 32"><g transform="rotate(-35 16 16)"><rect x="3" y="12.5" width="7" height="7" rx="1.5" fill="#B07D46" stroke="#2B211C" stroke-width="1.8"/><rect x="9.5" y="11" width="9" height="10" rx="1.5" fill="#F2B33D" stroke="#2B211C" stroke-width="1.8"/><rect x="18" y="9.5" width="9" height="13" rx="2" fill="#B07D46" stroke="#2B211C" stroke-width="1.8"/><ellipse cx="27.5" cy="16" rx="2" ry="6" fill="#7AD3CD" stroke="#2B211C" stroke-width="1.8"/><path d="M11 13v6" stroke="#ffdc7a" stroke-width="1.6" stroke-linecap="round"/></g></svg>`;
+const ic = (n, s = 24) => ICONS[n].replace('width="64" height="64"', `width="${s}" height="${s}"`);
+const chev = (s = 16, d = 'r') => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${{ r: 'M6 3l5 5-5 5', l: 'M10 3L5 8l5 5', d: 'M3 6l5 5 5-5', u: 'M3 10l5-5 5 5' }[d]}"/></svg>`;
+const xI = (s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>`;
+const av = (s = 44) => `<span class="ring" style="width:${s}px;height:${s}px"><img src="avatar.svg" width="${s}" height="${s}" alt=""></span>`;
+const pt = (u, s = 40) => `<img class="pt" src="units/${u}.svg" width="${s}" height="${s}" alt="">`;
+const fig = (u, w = 84, h = w) => `<img class="fg" src="crop/u-${u}.svg" style="width:${w}px;height:${h}px" alt="">`;
+const fmt = (n) => n.toLocaleString('en-US');
+const kf = (n) => (n >= 1000 ? (Math.round(n / 100) / 10).toFixed(1).replace(/\.0$/, '') + 'k' : String(n));
+const hms = (s) => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+
+/* ================= demo data (same in every option) ================= */
+const V = { name: 'Emberfold', xy: '412|388', pts: '1,284', clock: '15:05' };
+const CAP = 60000; const POP = [512, 640];
+const RES = [{ id: 'wood', n: 'Wood', a: 48200, r: 1025 }, { id: 'food', n: 'Food', a: 31400, r: 1875 }, { id: 'iron', n: 'Iron', a: 22800, r: 875 }, { id: 'gold', n: 'Gold', a: 15700, r: 350 }];
+const RK = ['wood', 'food', 'iron', 'gold'];
+const TABS = [['village', 'Village'], ['map', 'Map'], ['army', 'Army'], ['reports', 'Reports'], ['mail', 'Mail'], ['tribe', 'Tribe'], ['ranks', 'Ranks']];
+const BADGE = { army: '<span class="bd dot"></span>', reports: '<span class="bd dk">3</span>', mail: '<span class="bd dk">1</span>' };
+// Buildings: id, name, art file, level, max level, base cost, cost growth, base time (s), time growth, stage tops, what it gives, badge spot in scene.png
+const HALL_F = 0.95 ** 11; // Town Hall 12
+const BLD = [
+  ['hall', 'Town Hall', 'town-hall', 12, 20, [90, 80, 70, 0], 1.26, 600, 1.32, [5, 12], 'Builds 43% faster', [773, 410]],
+  ['lumber', 'Lumber Camp', 'lumber-camp', 14, 20, [50, 40, 30, 0], 1.25, 360, 1.3, [5, 12], '+1,025 wood/h', [307, 352]],
+  ['farm', 'Farm', 'farm', 15, 20, [60, 30, 30, 0], 1.25, 360, 1.3, [5, 12], '+1,875 food/h', [890, 604]],
+  ['mine', 'Iron Mine', 'iron-mine', 12, 20, [65, 45, 20, 0], 1.25, 420, 1.3, [5, 12], '+875 iron/h', [1277, 408]],
+  ['goldmine', 'Gold Mine', 'gold-mine', 8, 15, [150, 120, 180, 0], 1.3, 1500, 1.32, [5, 10], '+350 gold/h', [670, 211]],
+  ['market', 'Market', 'market', 5, 10, [100, 70, 60, 0], 1.27, 1200, 1.3, [3, 6], '5 traders', [628, 590]],
+  ['storehouse', 'Storehouse', 'storehouse', 11, 20, [70, 50, 40, 0], 1.24, 480, 1.3, [5, 12], 'Holds 60k each', [1057, 560]],
+  ['barracks', 'Barracks', 'barracks', 8, 20, [200, 150, 120, 0], 1.26, 900, 1.32, [5, 12], 'Trains foot troops', [483, 270]],
+  ['stables', 'Stables', 'stables', 4, 15, [260, 200, 300, 20], 1.27, 1800, 1.32, [5, 10], 'Trains riders', [1108, 326]],
+  ['drillyard', 'Drillyard', 'drillyard', 3, 10, [240, 180, 260, 15], 1.28, 1500, 1.32, [3, 6], 'Researches troops', [491, 472]],
+  ['bannerhall', 'Banner Hall', 'banner-hall', 1, 4, [1800, 2900, 1800, 100], 1.35, 72000, 1.32, [1, 2], 'Makes Chieftains', [938, 357]],
+  ['wall', 'Wall', 'wall', 9, 20, [100, 40, 60, 0], 1.26, 720, 1.32, [5, 12], '+45% defence', [1235, 562]],
+  ['vault', 'Hidden Vault', 'hidden-vault', 4, 10, [40, 50, 30, 0], 1.28, 540, 1.32, [3, 7], 'Hides 295 each', [845, 219]],
+].map(([id, n, art, lv, max, base, cg, bt, tg, tops, gives, spot]) => {
+  const next = id === 'barracks' ? 10 : id === 'storehouse' ? 12 : lv + 1;
+  const stage = lv <= tops[0] ? 1 : lv <= tops[1] ? 2 : lv < max ? 3 : 4;
+  return { id, n, art: `crop/b-${art}-${stage}.svg`, full: `buildings/${art}-${stage}.svg`, lv, max, gives, spot, next, cost: base.map((c) => Math.round(c * cg ** (next - 1))), time: bt * tg ** (next - 1) * HALL_F, pts: Math.round(4 + next * 1.1), st: id === 'barracks' ? 'build' : id === 'storehouse' ? 'queue' : 'up' };
+});
+const BB = Object.fromEntries(BLD.map((b) => [b.id, b]));
+// Units: id, name, at home, away, in training, role
+const UN = [['pikeman', 'Pikeman', 40, 8, 20, 'Defence vs riders'], ['guard', 'Shieldbearer', 25, 10, 0, 'Defence vs foot'], ['raider', 'Raider', 12, 4, 5, 'Attacker'], ['outrider', 'Outrider', 8, 0, 0, 'Fast rider'], ['knight', 'Knight', 6, 0, 2, 'Elite rider'], ['pathfinder', 'Pathfinder', 3, 0, 2, 'Scout'], ['chieftain', 'Chieftain', 2, 0, 0, 'Takes villages'], ['logram', 'Log Ram', 1, 0, 0, 'Breaks the Wall'], ['boulder', 'Boulder Sling', 0, 0, 0, 'Lowers buildings']].map(([id, n, home, away, tr, role]) => ({ id, n, home, away, tr, role }));
+// Barracks recruiting: cost per unit, train time at Barracks 8 (s), population, lock reason
+const FREE_POP = POP[1] - POP[0];
+const REC = [['pikeman', 'Pikeman', 'Defence · good vs riders', [30, 50, 30, 0], 175, 1], ['guard', 'Shieldbearer', 'Defence · good vs foot', [25, 70, 55, 0], 214, 1], ['raider', 'Raider', 'Attack · carries 30', [40, 80, 50, 0], 194, 1], ['pathfinder', 'Pathfinder', 'Scout · fastest', [15, 45, 30, 0], 117, 1], ['logram', 'Log Ram', 'Siege · breaks the Wall', [170, 220, 180, 4], 778, 3], ['boulder', 'Boulder Sling', 'Siege · hits a building', [140, 240, 220, 12], 972, 2, 'Research it at Drillyard 5 · you have 3']].map(([id, n, role, cost, t, pop, lock]) => {
+  const u = UN.find((x) => x.id === id);
+  return { id, n, role, cost, t, pop, lock, have: u.home, away: u.away, max: lock ? 0 : Math.floor(Math.min(...cost.map((c, i) => (c ? RES[i].a / c : 1e9)), FREE_POP / pop)), val: { raider: 10 }[id] || 0 };
+});
+const STAT = { pikeman: [10, 15, 45], guard: [15, 45, 25], raider: [40, 10, 5], pathfinder: [0, 2, 1], logram: [4, 6, 4], boulder: [6, 4, 3] };
+const TQ = [{ u: 'raider', c: 5, n: 'Raiders', left: '16:06', note: 'next in 3:10', done: '15:21', p: 38 }, { u: 'pikeman', c: 20, n: 'Pikemen', left: '58:20', note: 'starts after', done: '16:20' }, { u: 'pathfinder', c: 2, n: 'Pathfinders', left: '3:54', note: 'starts after', done: '16:24' }];
+const MOV = [
+  { k: 'atk', t: 'Attack from Tolvek', s: 'Cinderhold (405|381)', at: '15:23', cd: '18:42' },
+  { k: 'ret', t: 'Raid coming home', s: '4 Raiders · 450 loot', at: '15:17', cd: '12:30' },
+  { k: 'sup', t: 'Support to Maerwen', s: '10 Shieldbearers', at: '15:36', cd: '31:05' },
+];
+const MOVI = { atk: ['warning', 'm'], ret: ['army', 'r'], sup: ['shield', 'd'] };
+const RP = [
+  { g: 'Today', ty: 'battle', u: 1, who: 'Tolvek', t: 'Tolvek attacked Emberfold', p: '405|381', res: 'won', tm: '11:02' },
+  { ty: 'scout', u: 1, t: 'You scouted Cinderhold', p: '405|381', res: 'scout', tm: '10:15' },
+  { ty: 'battle', u: 1, t: 'Ironhart attacked Emberfold', p: '388|370', res: 'won', tm: '07:12' },
+  { ty: 'battle', t: 'You raided an abandoned village', p: '409|392', res: 'loot', tm: '06:40' },
+  { ty: 'support', t: 'Your support reached Maerwen', p: '415|384', res: 'sup', tm: '04:58' },
+  { ty: 'battle', t: 'Ysolde_K attacked Emberfold', p: '436|358', res: 'won', tm: '03:20' },
+  { ty: 'ship', t: 'Maerwen sent you 2,000 wood', p: '415|384', res: 'ship', tm: '01:47' },
+  { ty: 'battle', t: 'Brannoch attacked Emberfold', p: '403|387', res: 'won', tm: '00:31' },
+  { g: 'Yesterday', ty: 'battle', t: 'Tolvek attacked Emberfold', p: '405|381', res: 'lost', tm: '21:54' },
+  { ty: 'battle', t: 'You raided an abandoned village', p: '406|395', res: 'loot', tm: '19:30' },
+  { ty: 'scout', t: 'You scouted Ironhart', p: '388|370', res: 'scout', tm: '17:05' },
+  { ty: 'battle', t: 'Ironhart attacked Emberfold', p: '388|370', res: 'won', tm: '14:22' },
+];
+const RTYPE = [['all', 'All', 3, 47], ['battle', 'Battles', 2, 31], ['scout', 'Scouting', 1, 8], ['support', 'Support', 0, 5], ['ship', 'Shipments', 0, 3]];
+const RTI = { battle: 'army', scout: 'glass', support: 'shield', ship: 'cart' };
+const RTAG = { won: ['won', 'Won'], lost: ['lost', 'Lost'], loot: ['loot', '+450'], scout: ['tl', 'Scouted'], sup: ['mut', 'Arrived'], ship: ['mut', 'Received'] };
+const ATT = [['raider', 'Raider', 60, 60], ['outrider', 'Outrider', 20, 20], ['logram', 'Log Ram', 2, 2]];
+const DEF = [['pikeman', 'Pikeman', 48, 8], ['guard', 'Shieldbearer', 25, 3], ['knight', 'Knight', 6, 0]];
+const SEND = { pikeman: 0, guard: 0, raider: 8, outrider: 8 };
+
+/* ================= shared CSS ================= */
+const FONTS = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik:wght@400;500;600;700&display=swap">';
+const BASE = `
+html,body{margin:0}*,*::before,*::after{box-sizing:border-box}
+body{position:relative;width:1440px;height:900px;overflow:hidden;background-color:var(--page);background-image:repeating-linear-gradient(180deg,transparent 0 94px,var(--page-line) 94px 96px);color:var(--on-surface);font:14px/1.3 var(--font);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+svg{display:block;flex:none}img{display:block;flex:none}h1,h2,h3,p{margin:0;font-weight:400}b{font-weight:700}
+.ring{display:block;flex:none;border-radius:50%;border:2.5px solid var(--c-ink);background:var(--c-sun);overflow:hidden}.ring img{width:100%;height:100%}
+.bell{position:relative;flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:2.5px solid var(--c-ink);background:var(--surface);box-shadow:0 3px 0 var(--c-ink)}
+.acct{position:relative;display:flex;align-items:center;gap:4px;flex:none}.acct>svg{color:var(--on-surface-muted)}
+.bd{position:absolute;top:-6px;right:-7px;min-width:21px;height:21px;padding:0 5px 1px;border-radius:99px;border:2px solid var(--c-ink);display:grid;place-items:center;font:700 12px/1.2 var(--font);background:var(--dark);color:var(--on-dark)}
+.bd.red{background:var(--strip-danger);color:var(--on-strip)}.bd.dot{min-width:0;width:15px;height:15px;padding:0;top:-3px;right:-4px;background:var(--strip-danger)}
+/* resources with a thin storage fill */
+.rs{display:flex;align-items:center;gap:8px;white-space:nowrap}.rv{display:flex;flex-direction:column;gap:5px}
+.ra{display:flex;align-items:baseline;gap:6px}.ra b{font:700 16px/1.2 var(--font);color:var(--heading)}.ra small{font:600 13px/1.2 var(--font);color:var(--ok)}.ra small.m{color:var(--on-surface-muted)}
+.sf{display:block;width:100%;min-width:92px;height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(43,33,28,.18)}.sf i{display:block;height:100%;background:var(--c-moss);border-radius:99px}.sf i.hi{background:var(--c-sun-lo)}
+/* attack alert chip (red only for attacks) */
+.ach{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 1px 10px;border:2.5px solid var(--c-ink);border-radius:12px;background:var(--strip-danger);color:var(--on-strip);font:700 14px/1.2 var(--font);box-shadow:0 3px 0 var(--c-ink);white-space:nowrap;flex:none}
+.ach .cd{background:var(--c-cream);color:var(--c-ink)}
+/* panels */
+.pn{display:flex;flex-direction:column;min-height:0;background:var(--surface);border:2px solid var(--c-ink);border-radius:16px;box-shadow:0 3px 0 var(--c-ink);overflow:hidden}
+.ph{display:flex;align-items:center;gap:10px;height:42px;flex:none;padding:0 14px;border-bottom:2px solid var(--edge-soft)}
+.ph h2{font:400 18px/1.35 var(--font-display);color:var(--heading);padding-top:2px;white-space:nowrap}.ph .sp{flex:1}
+.lk{display:inline-flex;align-items:center;gap:3px;font:700 13.5px/1.2 var(--font);color:var(--link);white-space:nowrap}
+.cnt{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 7px 1px;border-radius:99px;background:var(--surface-3);font:700 13px/1.2 var(--font);color:var(--on-surface)}
+.up{font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted)}
+.mut{color:var(--on-surface-muted)}.sp{flex:1}
+/* small pieces */
+.pt{border-radius:50%;flex:none}.fg{flex:none;object-fit:contain;object-position:50% 100%}
+.th{width:40px;height:40px;object-fit:contain;object-position:50% 100%;flex:none}
+.tk{display:grid;place-items:center;flex:none;border-radius:50%;border:2.5px solid var(--c-ink);box-shadow:0 2px 0 var(--c-ink);width:36px;height:36px}
+.tk.d{background:var(--c-teal-hi)}.tk.r{background:var(--c-sun)}.tk.x{background:var(--c-terra-hi)}.tk.m{background:var(--c-cream)}.tk.c{background:var(--surface-3)}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 10px 1px;border-radius:99px;font:700 13px/1.2 var(--font);white-space:nowrap;flex:none}
+.tag.won{background:var(--c-leaf);color:var(--c-ink)}.tag.lost{background:var(--strip-danger);color:var(--on-strip)}.tag.loot{background:var(--c-sun);color:var(--c-ink)}.tag.mut{background:var(--surface-3);color:var(--on-surface)}.tag.tl{background:var(--c-teal-hi);color:var(--c-ink)}.tag.dk{background:var(--dark);color:var(--on-dark)}.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.cd{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:28px;padding:0 10px 1px;border-radius:99px;background:var(--c-ink);color:var(--on-dark);font:700 14px/1.2 var(--font);white-space:nowrap;flex:none}.cd.red{background:var(--strip-danger);color:var(--on-strip)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 16px 3px;border:2.5px solid var(--c-ink);border-radius:12px;background:var(--c-bone);box-shadow:inset 0 2px 0 #fff3dc,inset 0 -4px 0 var(--c-bone-shade),0 3px 0 var(--c-ink);font:700 14.5px/1.2 var(--font);color:var(--on-fill);white-space:nowrap;flex:none}
+.btn.g{background:var(--c-sun);box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-ink);font:400 16px/1.35 var(--font-display)}
+.btn.red{background:var(--strip-danger);color:var(--on-strip);box-shadow:inset 0 3px 0 #c9714c,inset 0 -4px 0 #7a361d,0 3px 0 var(--c-ink);font:400 16px/1.35 var(--font-display)}
+.btn.sm{min-height:36px;padding:0 12px 3px;font-size:13.5px;border-radius:11px}.btn.g.sm,.btn.red.sm{font-size:15px}
+.btn.ic{width:36px;min-height:36px;padding:0 0 2px}
+.btn.dis{background:var(--surface-3);color:var(--on-surface-muted);box-shadow:none;border-color:var(--edge);font:700 14px/1.2 var(--font)}
+.xb{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;border:2px solid var(--edge);background:var(--surface);color:var(--on-surface-muted);flex:none}
+.inp{display:inline-flex;align-items:center;justify-content:flex-end;width:68px;height:38px;padding:0 10px 1px;background:var(--input-bg);border:2px solid var(--edge);border-radius:10px;font:700 15px/1.2 var(--font);color:var(--on-surface);flex:none}.inp.z{color:#8a7a68;font-weight:500}.inp.on{border-color:var(--c-ink);box-shadow:0 0 0 3px var(--c-sun-hi)}
+.mx{display:inline-flex;align-items:center;height:36px;padding:0 2px;font:700 13.5px/1.2 var(--font);color:var(--link);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;flex:none}
+.bar{display:block;height:7px;border-radius:99px;background:var(--surface-3);overflow:hidden}.bar i{display:block;height:100%;background:var(--c-teal);border-radius:99px}
+.cost{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}.cost>span{display:inline-flex;align-items:center;gap:3px}.cost b{font:700 14px/1.2 var(--font);color:var(--heading)}
+.cost.sm b{font-size:13.5px}.cost.sm{gap:8px}
+.mt{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}.mt b{font:700 14.5px/1.2 var(--font);white-space:nowrap}.mt small{font:500 13px/1.2 var(--font);color:var(--on-surface-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* movement rows: incoming attack is a filled red row */
+.mv{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 10px 6px 9px;border-radius:12px;background:var(--surface-2)}
+.mv.atk{background:var(--strip-danger);color:var(--on-strip);border:2px solid var(--c-ink);box-shadow:0 2px 0 var(--c-ink)}.mv.atk .mt small{color:var(--on-strip);opacity:.92}.mv.atk .cd{background:var(--c-cream);color:var(--c-ink)}
+.mv .tk{width:34px;height:34px}.mc{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}.mv .at{font:600 13px/1.2 var(--font);color:var(--on-surface-muted);white-space:nowrap}.mv.atk .at{color:var(--on-strip)}
+.mvs{display:flex;flex-direction:column;gap:7px;padding:10px}
+/* framed village picture with level badges */
+.pic{position:relative;flex:none;border:2.5px solid var(--c-ink);border-radius:14px;overflow:hidden;background:#9cc46a}
+.scene{position:absolute;inset:0;background-image:url(scene.png);background-repeat:no-repeat}
+.lvb{position:absolute;display:grid;place-items:center;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;border-radius:50%;border:2.5px solid var(--c-ink);background:var(--c-sun);font:700 13px/1.2 var(--font);color:var(--c-ink);box-shadow:0 2px 0 var(--c-ink)}
+.lvb.bu{background:var(--c-teal-hi);width:auto;padding:0 6px;border-radius:99px;margin-left:-22px}
+.lvb.q{background:var(--c-cream)}
+.lvb.sel{outline:3px solid var(--c-cream);outline-offset:1px}
+.pcap{position:absolute;left:10px;bottom:10px;display:flex;gap:6px}
+.pcap span{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 1px;border-radius:9px;background:rgba(255,250,240,.94);border:2px solid var(--c-ink);font:700 13px/1.2 var(--font)}
+.qr{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 12px;border-top:1px solid var(--edge-soft)}.ph+.qr{border-top:0}
+.chf{display:flex;align-items:center;gap:8px;margin:auto 10px 10px;padding:6px 10px;border-radius:12px;background:var(--info-bg);font:600 13px/1.2 var(--font)}
+.logo{width:44px;height:44px;border-radius:14px;background:var(--c-sun);border:2.5px solid var(--c-ink);box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-ink);display:grid;place-items:center;flex:none}
+.sw{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;border:2px solid var(--edge);background:var(--surface-2);color:var(--on-surface);flex:none}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+/* quest card */
+.qc{display:flex;gap:12px;align-items:center;padding:12px 14px}.qc .mags{width:58px;height:64px;object-fit:contain;flex:none}
+.qline{font:700 14.5px/1.25 var(--font)}.qmeta{display:flex;align-items:center;gap:8px;margin-top:7px;font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}.qmeta .bar{flex:1}.qmeta .bar i{background:var(--c-moss)}
+`;
+const write = (name, cls, body, css = '') => writeFileSync(join(OUT, name + '.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1440"><title>${name}</title>${FONTS}<link rel="stylesheet" href="tokens.css"><style>${BASE}${css}</style></head><body class="${cls}">${body}</body></html>`);
+
+/* ================= shared components ================= */
+const resItem = (r) => `<div class="rs">${ic(r.id, 28)}<div class="rv"><span class="ra"><b>${kf(r.a)}</b><small>+${fmt(r.r)}/h</small></span><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span></div></div>`;
+const popItem = () => `<div class="rs">${ic('pop', 28)}<div class="rv"><span class="ra"><b>${POP[0]}</b><small class="m">/ ${POP[1]}</small></span><span class="sf" style="min-width:70px"><i class="hi" style="width:${Math.round((POP[0] / POP[1]) * 100)}%"></i></span></div></div>`;
+const bellAcct = () => `<span class="bell">${ic('bell', 24)}<span class="bd red">2</span></span><span class="acct">${av(44)}${chev(14, 'd')}</span>`;
+const attackChip = (short) => `<span class="ach">${ic('warning', 22)}<span>${short ? 'Attack' : 'Attack from Tolvek'}</span><span class="cd">18:42</span></span>`;
+const costEl = (c, o = {}) => `<span class="cost${o.sm ? ' sm' : ''}">${RK.map((r, i) => (c[i] || o.all ? `<span>${ic(r, o.s || 18)}<b>${o.full ? fmt(c[i]) : kf(c[i])}</b></span>` : '')).join('')}</span>`;
+const mvRow = (m) => `<div class="mv ${m.k}"><span class="tk ${MOVI[m.k][1]}">${ic(MOVI[m.k][0], 20)}</span><span class="mt"><b>${m.t}</b><small>${m.s}</small></span><span class="mc"><span class="cd">${m.cd}</span><span class="at">at ${m.at}</span></span></div>`;
+const qRows = (cls = 'qr') => `<div class="${cls}"><img class="th" src="${BB.barracks.art}" alt=""><span class="mt"><b>Barracks → 9</b><small>Building · done 15:47</small><span class="bar" style="margin-top:3px"><i style="width:46%"></i></span></span><span class="cd">42:10</span></div>
+<div class="${cls}"><img class="th" src="${BB.storehouse.art}" alt=""><span class="mt"><b>Storehouse → 12</b><small>Next · takes ${hms(BB.storehouse.time)}</small></span><span class="xb">${xI()}</span></div>`;
+const questCard = () => `<div class="qc"><img class="mags" src="mags.svg" alt=""><div style="flex:1;min-width:0"><div class="qline">Train 10 Pikemen at the Barracks</div><div class="qmeta"><span class="bar"><i style="width:62%"></i></span><span>5 of 8</span></div><div class="qmeta" style="margin-top:8px"><span>Reward: 500 of each</span><span class="sp"></span><span class="btn sm">Go</span></div></div></div>`;
+// Village picture: fit the ring wall into w x h, crop the rest; our own level badges sit on the baked-in ones.
+const sceneEl = (w, h, o = {}) => {
+  const s = Math.max(Math.min(w / (o.fit || 1400), h / 790), w / 1548, h / 896);
+  const cx = o.cx || 777, cy = o.cy || 500;
+  const bx = Math.min(0, Math.max(w - 1548 * s, w / 2 - cx * s)), by = Math.min(0, Math.max(h - 896 * s, h / 2 - cy * s));
+  const badges = o.badges === false ? '' : BLD.map((b) => { const x = b.spot[0] * s + bx, y = b.spot[1] * s + by; if (x < 14 || y < 14 || x > w - 14 || y > h - 14) return ''; const cls = b.st === 'build' ? ' bu' : b.st === 'queue' ? ' q' : ''; return `<span class="lvb${cls}${o.sel === b.id ? ' sel' : ''}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${b.st === 'build' ? `${b.lv}→9` : b.lv}</span>`; }).join('');
+  return `<div class="pic" style="width:${w + 5}px;height:${h + 5}px"><div class="scene" style="background-size:${(1548 * s).toFixed(1)}px auto;background-position:${bx.toFixed(1)}px ${by.toFixed(1)}px"></div>${badges}${o.cap || ''}</div>`;
+};
+const upBtn = (b, o = {}) => (b.st === 'build' ? `<span class="tag tl">${o.short ? '42:10' : 'Building · 42:10'}</span>` : b.st === 'queue' ? `<span class="tag mut">${o.short ? 'Next' : 'Next in queue'}</span>` : `<span class="btn g sm${o.icon ? ' ic' : ''}">${ic('upgrade', 16)}${o.icon ? '' : 'Upgrade'}</span>`);
+
+/* forces table + detail (reports) */
+const forceTable = (who, tagCls, rows) => `<div class="ft2"><div class="fth"><span class="tag ${tagCls}">${who}</span></div><table><thead><tr><th>Unit</th><th>Sent</th><th>Lost</th></tr></thead><tbody>${rows.map(([u, n, s, l]) => `<tr><td><span class="un">${pt(u, 30)}${n}</span></td><td>${s}</td><td class="${l ? 'ls' : 'z'}">${l ? '−' + l : '0'}</td></tr>`).join('')}</tbody></table></div>`;
+const FT_CSS = `.ft2{flex:1;min-width:0;border:2px solid var(--edge);border-radius:12px;overflow:hidden;background:var(--surface)}.fth{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;background:var(--surface-2);border-bottom:1px solid var(--edge-soft);font:700 14px/1.2 var(--font)}
+.ft2 table{width:100%;border-collapse:collapse}.ft2 th{font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted);text-align:right;padding:9px 10px 7px}.ft2 th:first-child{text-align:left}
+.ft2 td{height:42px;padding:0 10px;border-top:1px solid var(--edge-soft);text-align:right;font:700 15px/1.2 var(--font)}.ft2 td:first-child{text-align:left}.un{display:inline-flex;align-items:center;gap:8px;font:600 14px/1.2 var(--font)}.ft2 td.ls{color:var(--danger)}.ft2 td.z{color:var(--on-surface-muted)}`;
+const repHead = () => `<div class="rdh"><div class="rdt"><span class="tk d" style="width:44px;height:44px">${ic('shield', 26)}</span><div><h2>Tolvek attacked Emberfold</h2><div class="rdm"><span class="tag won">Won</span><span>Today 11:02</span><span>·</span><span>from Cinderhold (405|381)</span></div></div></div></div>`;
+const lootBox = () => `<div class="lootb"><span class="up">Loot</span><span class="lt">${RK.map((r) => `<span>${ic(r, 20)}<b>0</b></span>`).join('')}</span><span class="mut" style="font-size:13.5px">Tolvek took nothing</span></div>`;
+const REP_CSS = `${FT_CSS}
+.rdh{display:flex;align-items:flex-start;gap:12px}.rdt{display:flex;gap:12px;align-items:center}.rdh h2{font:400 24px/1.35 var(--font-display);color:var(--heading)}
+.rdm{display:flex;align-items:center;gap:8px;margin-top:7px;font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted)}
+.fts{display:flex;gap:12px}
+.lootb{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;background:var(--surface-2)}.lt{display:flex;gap:12px}.lt span{display:inline-flex;align-items:center;gap:4px;font:700 15px/1.2 var(--font)}
+.racts{display:flex;gap:10px;align-items:center}.rno{display:flex;flex-direction:column}.rno>div{display:flex;align-items:center;gap:10px;min-height:40px;border-top:1px solid var(--edge-soft);font:500 14px/1.3 var(--font)}.rno>div:first-child{border-top:0}
+.rsum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.rsum div{padding:10px 12px;border-radius:12px;background:var(--surface-2)}.rsum b{display:block;font:400 22px/1.35 var(--font-display);color:var(--heading);margin-top:6px}.rsum small{font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}`;
+const repSummary = () => `<div class="rsum"><div><span class="up">Tolvek lost</span><b>82 of 82</b><small>whole army</small></div><div><span class="up">You lost</span><b>11 of 79</b><small>14% of defenders</small></div><div><span class="up">Wall</span><b>Level 9</b><small>held, no damage</small></div></div>`;
+const repNotes = () => `<div class="rno"><div>${ic('shield', 20)}<span>Your <b>Wall 9</b> made your defenders 45% stronger.</span></div><div>${ic('warning', 20)}<span>Tolvek's 2 Log Rams fell before they reached the Wall.</span></div><div>${ic('village', 20)}<span>Cinderhold (405|381) is 9.9 fields away.</span><span class="sp"></span><span class="lk">Open on map ${chev(13)}</span></div></div>`;
+const repRowTag = (r) => { const [c, l] = RTAG[r.res]; return `<span class="tag ${c}">${l}</span>`; };
+const repIcon = (r, s = 32) => { const c = r.res === 'lost' ? 'x' : r.ty === 'battle' ? (r.res === 'loot' ? 'r' : 'd') : 'c'; const i = r.ty === 'battle' ? (r.res === 'loot' ? 'army' : 'shield') : RTI[r.ty]; return `<span class="tk ${c}" style="width:${s}px;height:${s}px">${ic(i, Math.round(s * 0.6))}</span>`; };
+const pager = () => `<div class="pgr"><span class="mut">1–12 of 47</span><span class="sp"></span><span class="lk" style="margin-right:6px">Mark all read</span><span class="pg-b off">${chev(16, 'l')}</span><span class="pg-b">${chev(16, 'r')}</span></div>`;
+const PG_CSS = `.pgr{display:flex;align-items:center;gap:8px;height:52px;flex:none;padding:0 12px 0 14px;border-top:2px solid var(--edge-soft);font:600 13.5px/1.2 var(--font)}.pg-b{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;border:2px solid var(--c-ink);background:var(--surface);box-shadow:0 2px 0 var(--c-ink)}.pg-b.off{border-color:var(--edge);color:var(--edge);box-shadow:none}`;
+
+/* send form pieces (army) */
+const sendUnits = (cols) => `<div class="su" style="grid-template-columns:repeat(${cols},1fr)">${UN.map((u) => { const v = SEND[u.id] || 0; const lock = u.home === 0; return `<div class="sx${lock ? ' off' : ''}">${pt(u.id, 32)}<span class="mt"><b>${u.n}</b><small>${lock ? 'none trained' : `<span class="all">all ${u.home}</span>`}</small></span>${lock ? '' : `<span class="inp${v ? ' on' : ' z'}">${v || 0}</span>`}</div>`; }).join('')}</div>`;
+const SEND_CSS = `.su{display:grid;gap:6px 10px}.sx{display:flex;align-items:center;gap:8px;min-height:46px;padding:4px 6px 4px 4px;border-radius:12px;background:var(--surface-2)}.sx .inp{width:58px}.sx .mt b{font-size:13.5px}.sx .mt small{font-size:13px}.sx.off{opacity:.5}.sx .all{color:var(--link);font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.tgt{display:flex;align-items:center;gap:10px}.tgt .inp{width:110px;justify-content:center;font-size:16px}.tgi{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:var(--info-bg);font:600 13.5px/1.3 var(--font);color:var(--on-surface)}.tgi b{font-weight:700}
+.trv{display:flex;align-items:center;gap:14px;font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted)}.trv b{font:700 16px/1.2 var(--font);color:var(--heading)}.trv>span{display:inline-flex;align-items:center;gap:6px}
+.sbtn{display:flex;gap:10px}.sbtn .btn{flex:1}`;
+const sendTarget = () => `<div class="tgt"><span class="up" style="width:54px">Target</span><span class="inp on">409|392</span><span class="btn sm">Pick on map</span><span class="lk" style="margin-left:auto">Simulator ${chev(13)}</span></div><div class="tgi">${ic('village', 22)}<span><b>Abandoned village (409|392)</b> · 42 points · 5.0 fields away · last raid 9h ago brought 450</span></div>`;
+const sendTravel = () => `<div class="trv"><span>${ic('time', 22)}<span>Travel</span><b>50:00</b></span><span>Lands <b>15:55</b></span><span>Home <b>16:45</b></span><span>Carries <b>800</b></span></div>`;
+const recentT = () => `<div class="rct"><span class="up">Recent targets</span><div class="rcl"><span class="rc on">${ic('village', 18)}409|392 <small>abandoned</small></span><span class="rc">${ic('village', 18)}406|395 <small>abandoned</small></span><span class="rc">${ic('army', 18)}405|381 <small>Tolvek</small></span></div></div>`;
+const RCT_CSS = `.rct{display:flex;flex-direction:column;gap:8px}.rcl{display:flex;gap:8px;flex-wrap:wrap}.rc{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px 1px 8px;border-radius:11px;border:2px solid var(--edge);background:var(--surface);font:700 14px/1.2 var(--font)}.rc small{font:500 13px/1.2 var(--font);color:var(--on-surface-muted)}.rc.on{border-color:var(--c-ink);background:var(--c-sun-hi)}`;
+const sendBtns = () => `<div class="sbtn"><span class="btn red">${ic('army', 20)}Attack</span><span class="btn">${ic('shield', 20)}Support</span></div>`;
+
+/* training summary + support (army) */
+const trainSum = () => `<div class="ts"><img class="th" src="${BB.barracks.art}" alt=""><span class="mt"><b>Barracks</b><small>27 units · 3 batches</small></span><span class="cd">1:18:20</span><span class="lk">Open ${chev(13)}</span></div><div class="ts"><img class="th" src="${BB.stables.art}" alt=""><span class="mt"><b>Stables</b><small>2 Knights · 1 batch</small></span><span class="cd">44:00</span><span class="lk">Open ${chev(13)}</span></div>`;
+const supHere = () => `<div class="ts">${pt('pikeman', 36)}<span class="mt"><b>15 Pikemen</b><small>from Maerwen · since yesterday</small></span><span class="btn sm">Send back</span></div>`;
+const supAway = () => `<div class="ts">${pt('guard', 36)}<span class="mt"><b>10 Shieldbearers</b><small>to Maerwen · lands 15:36</small></span><span class="btn sm">Recall</span></div><div class="ts">${pt('pikeman', 36)}<span class="mt"><b>8 Pikemen</b><small>at Corwin's, Ashby (418|392)</small></span><span class="btn sm">Recall</span></div>`;
+const TS_CSS = `.ts{display:flex;align-items:center;gap:10px;min-height:54px;padding:5px 14px;border-top:1px solid var(--edge-soft)}.ph+.ts,.up+.ts{border-top:0}.ts .th{width:34px;height:40px}`;
+const chiefLine = () => `<div class="chf">${pt('chieftain', 30)}<span><b>2 Chieftains ready</b> · can take an abandoned village</span></div>`;
+
+/* ======================================================================
+   A · CLASSIC TABS: fixed top bar + folder tabs; every page is its own 2–3 column layout inside one sheet
+   ====================================================================== */
+const A_CSS = `
+.tbA{position:absolute;left:0;top:0;right:0;height:68px;display:flex;align-items:center;gap:14px;padding:0 18px 0 14px;background:var(--surface);border-bottom:2.5px solid var(--c-ink);z-index:4}
+.logo{width:44px;height:44px;border-radius:14px;background:var(--c-sun);border:2.5px solid var(--c-ink);box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-ink);display:grid;place-items:center;flex:none}
+.vn b{display:block;font:400 23px/1.35 var(--font-display);color:var(--heading);padding-top:2px}.vn small{display:block;font:600 13px/1.2 var(--font);color:var(--on-surface-muted);margin-top:4px}
+.sw{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;border:2px solid var(--edge);background:var(--surface-2);color:var(--on-surface);flex:none}
+.resA{display:flex;align-items:center;gap:22px;margin-left:auto;padding:0 18px;height:52px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}
+.tabsA{position:absolute;left:0;right:0;top:68px;height:52px;display:flex;align-items:flex-end;gap:6px;padding:0 24px 0 26px;z-index:3}
+.ft{position:relative;display:flex;align-items:center;gap:8px;height:44px;padding:0 18px 2px 13px;border:2.5px solid var(--c-ink);border-bottom:0;border-radius:14px 14px 0 0;background:var(--surface-3);font:700 15px/1.2 var(--font);color:var(--on-surface-muted)}
+.ft{margin-bottom:2.5px}.ft svg{opacity:.85}.ft.on{background:var(--surface);color:var(--heading);height:52px;margin-bottom:0;padding-bottom:5px;font:400 17px/1.35 var(--font-display)}.ft.on svg{opacity:1}
+.ft .bd{top:-8px;right:-8px}.ft .bd.dot{top:-5px;right:-5px}
+.tabsA .ach{margin-left:auto;align-self:center;margin-top:4px}
+.sheetA{position:absolute;left:14px;right:14px;top:117.5px;bottom:14px;background:var(--surface);border:2.5px solid var(--c-ink);border-radius:18px;box-shadow:0 4px 0 var(--c-ink);padding:14px;z-index:2}
+.A .pn{border:2px solid var(--edge);border-radius:14px;box-shadow:0 3px 0 var(--edge-shadow)}.A .ph{background:var(--surface-2);border-bottom:2px solid var(--edge-soft)}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+.prow{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border-top:1px solid var(--edge-soft)}.ph+.prow{border-top:0}
+.prow .nm{width:44px;font:600 13.5px/1.2 var(--font)}.prow .pf{flex:1;display:flex;flex-direction:column;gap:5px}.prow .pf span:first-child{font:700 14.5px/1.2 var(--font)}.prow .pf .sf{min-width:0}
+.prow .rt{font:700 15px/1.2 var(--font);color:var(--ok);width:62px;text-align:right}
+.pfoot{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;background:var(--surface-2);border-top:1px solid var(--edge-soft);font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}.pfoot b{color:var(--heading)}
+.qr{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 12px;border-top:1px solid var(--edge-soft)}.ph+.qr{border-top:0}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px}.tc{display:flex;align-items:center;gap:7px;height:44px;padding:0 8px 0 4px;border-radius:12px;background:var(--surface-2)}.tc b{font:700 16px/1.2 var(--font)}.tc.off{opacity:.45}
+.blist{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);flex:1;min-height:0}
+.bl{display:flex;align-items:center;gap:10px;padding:0 12px 0 8px;border-top:1px solid var(--edge-soft);min-height:0}.bl:nth-child(-n+7){border-right:1px solid var(--edge-soft)}.bl:nth-child(1),.bl:nth-child(8){border-top:0}
+.bl .th{width:34px;height:40px}.bl .mt b{font-size:14px;display:flex;align-items:center;gap:6px}.lv{display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 6px 1px;border-radius:99px;background:var(--dark);color:var(--on-dark);font:700 13px/1.2 var(--font)}
+.bl .cost b{font-size:13px}.bl .cost{gap:7px}.bl .cost svg{width:16px;height:16px}.bl.tot{background:var(--surface-2)}
+.rn{display:flex;align-items:center;gap:12px;padding:12px 14px}.rn b.big{font:400 26px/1.35 var(--font-display);color:var(--heading)}
+`;
+const tabRowA = (act) => `<nav class="tabsA">${TABS.map(([i, l]) => `<span class="ft${i === act ? ' on' : ''}">${ic(i, 24)}${l}${BADGE[i] || ''}</span>`).join('')}${attackChip()}</nav>`;
+const topA = () => `<header class="tbA"><span class="logo">${ic('flame', 28)}</span><span class="vn"><b>${V.name}</b><small>${V.xy} · ${V.pts} points</small></span><span class="sw">${chev(16, 'd')}</span><div class="resA">${RES.map(resItem).join('')}${popItem()}</div>${bellAcct()}</header>`;
+const pageA = (name, act, content, css) => write(`a-${name}-1440`, 'A', `${topA()}${tabRowA(act)}<main class="sheetA">${content}</main>`, A_CSS + css);
+
+// A · Village
+{
+  const prod = `<div class="pn"><div class="ph"><h2>Production</h2><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">Storehouse 11 · cap 60k</span></div>${RES.map((r) => `<div class="prow">${ic(r.id, 26)}<span class="pf"><span>${fmt(r.a)} <span class="mut" style="font-weight:500;font-size:13px">/ 60k</span></span><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span></span><span class="rt">+${fmt(r.r)}<small>/h</small></span></div>`).join('')}<div class="prow">${ic('pop', 26)}<span class="pf"><span>${POP[0]} <span class="mut" style="font-weight:500;font-size:13px">/ ${POP[1]} people</span></span><span class="sf"><i class="hi" style="width:80%"></i></span></span><span class="rt" style="color:var(--on-surface-muted);font-size:13px">128 free</span></div></div>`;
+  const queue = `<div class="pn"><div class="ph"><h2>Build queue</h2><span class="sp"></span><span class="cnt">2 / 2</span></div>${qRows('qr')}</div>`;
+  const troops = `<div class="pn" style="flex:1"><div class="ph"><h2>Troops at home</h2><span class="sp"></span><span class="lk">Army ${chev(13)}</span></div><div class="tgrid">${UN.map((u) => `<div class="tc${u.home ? '' : ' off'}">${pt(u.id, 34)}<b>${u.home || '–'}</b></div>`).join('')}</div>${chiefLine()}</div>`;
+  const W = 754, Hh = 368;
+  const pic = sceneEl(W, Hh, { cap: `<div class="pcap"><span>${ic('village', 18)}Click a building to open its page</span></div>` });
+  const blist = `<div class="pn" style="flex:1"><div class="ph"><h2>Buildings</h2><span class="cnt">13</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">cost of the next level</span></div><div class="blist">${BLD.map((b) => `<div class="bl"><img class="th" src="${b.art}" alt=""><span class="mt"><b>${b.n}<span class="lv">${b.lv}</span></b>${b.st === 'up' ? costEl(b.cost, { sm: 1, s: 16 }) : `<small>${b.st === 'build' ? 'Upgrading to 9' : 'Queued: level 12'}</small>`}</span>${upBtn(b, { icon: 1, short: 1 })}</div>`).join('')}<div class="bl tot"><span class="mt"><b>All buildings</b><small>13 built · ${V.pts} points</small></span><span class="lk">Town Hall ${chev(13)}</span></div></div></div>`;
+  const moves = `<div class="pn"><div class="ph"><h2>Movements</h2><span class="cnt">3</span><span class="sp"></span><span class="lk">Army ${chev(13)}</span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div>`;
+  const quest = `<div class="pn"><div class="ph"><h2>First steps</h2><span class="sp"></span><span class="cnt">5 / 8</span></div>${questCard()}</div>`;
+  const facts = `<div class="pn" style="flex:1"><div class="ph"><h2>Village</h2></div><div class="vfacts"><div><span class="up">Points</span><b>${V.pts}</b></div><div><span class="up">Rank</span><b>#214</b></div><div class="rnw">${ic('renown', 30)}<span><span class="up">Renown</span><b>340</b></span><small>+12 today</small></div><div><span class="up">Tribe</span><b>EMB</b></div><div><span class="up">Villages</span><b>1</b></div></div></div>`;
+  pageA('village', 'village', `<div style="display:grid;grid-template-columns:296px 1fr 296px;gap:14px;height:100%"><div class="col">${prod}${queue}${troops}</div><div class="col">${pic}${blist}</div><div class="col">${moves}${quest}${facts}</div></div>`, `.chf{display:flex;align-items:center;gap:8px;margin:auto 10px 10px;padding:6px 10px;border-radius:12px;background:var(--info-bg);font:600 13px/1.2 var(--font)}
+.prow{height:42px}.prow .rt small{font-size:13px;font-weight:600;margin-left:1px}.prow .rt{width:84px}
+.vfacts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}.vfacts>div{padding:8px 12px;border-radius:12px;background:var(--surface-2)}.vfacts b{display:block;font:400 20px/1.35 var(--font-display);margin-top:4px;color:var(--heading)}
+.vfacts .rnw{grid-column:1/-1;display:flex;align-items:center;gap:10px}.rnw small{margin-left:auto;font:600 13px/1.2 var(--font);color:var(--ok)}`);
+}
+
+/* ---------- shared building-page pieces ---------- */
+const BAR = BB.barracks;
+const B10 = { cost: [1601, 1201, 961, 0], time: 900 * 1.32 ** 9 * HALL_F, pts: 11 };
+const upgradeBox = (o = {}) => `<div class="ubx"><div class="ubh"><span class="up">Next upgrade</span><b>Level 9 → 10</b></div><div class="ubc">${costEl(B10.cost, { full: 1, all: 1, s: 22 })}</div><div class="ubm"><span>${ic('time', 20)}<b>${hms(B10.time)}</b></span><span>+${B10.pts} points</span><span>+4 people</span></div><div class="ubb"><span class="btn dis">${ic('upgrade', 16)}Upgrade</span><span class="why">${ic('queue', 20)}<span>Queue full (2 of 2) · frees in <b>42:10</b></span></span></div></div>`;
+const UB_CSS = `.ubx{display:flex;flex-direction:column;gap:8px}.ubh{display:flex;align-items:baseline;gap:10px}.ubh b{font:400 19px/1.35 var(--font-display);color:var(--heading)}
+.ubc .cost{gap:16px}.ubc .cost b{font-size:15.5px}.ubm{display:flex;gap:16px;align-items:center;font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted)}.ubm>span{display:inline-flex;align-items:center;gap:5px}.ubm b{font:700 15px/1.2 var(--font);color:var(--heading)}
+.ubb{display:flex;align-items:center;gap:12px}.why{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font:600 13.5px/1.25 var(--font)}.why b{color:var(--c-ink)}`;
+const nowNext = () => `<div class="nn"><div class="nnh"><span></span><span class="up">Now · 8</span><span class="up">Level 9</span></div><div class="nnr"><span>Training speed</span><b>35% faster</b><b class="nx">39% faster</b></div><div class="nnr"><span>Raider takes</span><b>3:14</b><b class="nx">3:02</b></div><div class="nnr"><span>Points</span><b>64</b><b class="nx">73</b></div></div>`;
+const NN_CSS = `.nn{display:flex;flex-direction:column;padding:4px 14px 10px}.nnh,.nnr{display:grid;grid-template-columns:1fr 92px 104px;align-items:center;gap:8px}.nnh{height:32px}.nnh .up{text-align:right}.nnr{height:36px;border-top:1px solid var(--edge-soft);font:600 13.5px/1.2 var(--font)}.nnr b{text-align:right;font:700 14.5px/1.2 var(--font)}.nnr b.nx{color:var(--ok)}.mut2{color:var(--on-surface-muted)}`;
+const tqRows = (cls = 'tq') => TQ.map((q, i) => `<div class="${cls}">${pt(q.u, 38)}<span class="mt"><b>${q.c} ${q.n}</b><small>${i ? 'waits, ' : ''}done ${q.done}</small>${i ? '' : '<span class="bar" style="margin-top:3px"><i style="width:38%"></i></span>'}</span><span class="cd${i ? ' w' : ''}">${q.left}</span><span class="xb">${xI()}</span></div>`).join('');
+const TQ_CSS = `.tq{display:flex;align-items:center;gap:10px;min-height:58px;padding:6px 12px;border-top:1px solid var(--edge-soft)}.ph+.tq{border-top:0}.cd.w{background:var(--surface-3);color:var(--on-surface)}`;
+const magsTip = (t) => `<div class="tip"><img src="mags.svg" alt=""><span><b>Mags the Tinker:</b> ${t}</span></div>`;
+const TIP_CSS = `.tip{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--info-bg);font:500 13.5px/1.35 var(--font)}.tip img{width:40px;height:44px;object-fit:contain;flex:none}.tip b{font-weight:700}`;
+const TIPTXT = 'Raiders hit hard but defend badly. Keep Pikemen at home while your Raiders are out.';
+const recCost = (r) => costEl(r.cost, { full: 1, s: 18 });
+
+/* A · Building (Barracks) */
+{
+  const head = `<div class="bh pn"><div class="bart"><img src="${BAR.art}" alt=""></div><div class="bti"><div class="bnav"><span class="btn sm">${chev(14, 'l')}Village</span><span class="sw2"><span class="pg-b">${chev(16, 'l')}</span><span class="cur">${ic('village', 18)}Barracks<span class="mut">8 of 13</span>${chev(14, 'd')}</span><span class="pg-b">${chev(16, 'r')}</span></span></div><div class="bt"><h1>Barracks</h1><span class="tag dk">Level 8</span><span class="tag tl">Upgrading to 9 · 42:10</span></div><p class="bd2">Trains foot troops: Pikemen, Shieldbearers, Raiders, Pathfinders and siege. Every level trains them 6% faster.</p></div><div class="ubwrap">${upgradeBox()}</div></div>`;
+  const rows = REC.map((r) => `<tr class="${r.lock ? 'off' : ''}"><td><span class="ucell">${pt(r.id, 46)}<span class="mt"><b>${r.n}</b><small>${r.role}</small></span></span></td><td>${recCost(r)}</td><td class="num">${hms(r.t)}</td><td class="num"><b>${r.have}</b>${r.away ? `<small>+${r.away} away</small>` : ''}</td><td>${r.lock ? `<span class="lock">${ic('warning', 18)}<span>${r.lock}</span></span>` : `<span class="tr"><span class="inp${r.val ? ' on' : ' z'}">${r.val}</span><span class="mx">max ${r.max}</span><span class="btn g sm">Train</span></span>`}</td></tr>`).join('');
+  const rec = `<div class="pn" style="flex:1"><div class="ph"><h2>Recruit</h2><span class="mut" style="font:600 13.5px/1.2 var(--font)">${FREE_POP} free population</span><span class="sp"></span><span class="lk">Unit guide ${chev(13)}</span></div><table class="rt2"><colgroup><col style="width:262px"><col style="width:262px"><col style="width:84px"><col style="width:92px"><col></colgroup><thead><tr><th>Unit</th><th>Cost each</th><th class="num">Time each</th><th class="num">Have</th><th>How many</th></tr></thead><tbody>${rows}</tbody></table><div class="rtot"><span class="up">Selected</span><b>10 Raiders</b>${costEl([400, 800, 500, 0], { full: 1, s: 18 })}<span class="mut">${ic('time', 18)}</span><b>32:20</b><span class="sp"></span><span class="lk">Clear</span></div></div>`;
+  const side = `<div class="col" style="width:350px;flex:none"><div class="pn"><div class="ph"><h2>Training</h2><span class="cnt">3 / 5</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">all done 16:24</span></div>${tqRows()}</div><div class="pn"><div class="ph"><h2>Level 8 and 9</h2></div>${nowNext()}</div>${magsTip(TIPTXT)}</div>`;
+  pageA('building', 'village', `<div style="display:flex;flex-direction:column;gap:12px;height:100%">${head}<div style="display:flex;gap:14px;flex:1;min-height:0">${rec}${side}</div></div>`, `${UB_CSS}${NN_CSS}${TQ_CSS}${TIP_CSS}${PG_CSS}
+.bh{flex-direction:row;align-items:stretch;gap:18px;padding:12px 16px 12px 12px;flex:none}
+.bart{width:128px;height:128px;flex:none;display:grid;place-items:center;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.bart img{width:112px;height:112px;object-fit:contain}
+.bti{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;padding-top:0}.bnav{display:flex;align-items:center;gap:10px}
+.sw2{display:flex;align-items:center;gap:6px}.cur{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 12px;border-radius:10px;border:2px solid var(--edge);background:var(--surface);font:700 14px/1.2 var(--font)}.cur .mut{font-weight:500;font-size:13px}
+.bt{display:flex;align-items:center;gap:10px}.bt h1{font:400 36px/1.35 var(--font-display);color:var(--heading)}.bd2{font:500 14.5px/1.4 var(--font);color:var(--on-surface-muted)}
+.ubwrap{width:500px;flex:none;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}
+.rt2{width:100%;border-collapse:collapse;table-layout:fixed}.rt2 th{font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted);text-align:left;padding:10px 12px 8px;border-bottom:2px solid var(--edge-soft)}.rt2 th.num,.rt2 td.num{text-align:right}
+.rt2 td{height:64px;padding:0 12px;border-top:1px solid var(--edge-soft);font:600 14px/1.2 var(--font)}.rt2 tr:first-child td{border-top:0}.rt2 td.num b{display:block;font:700 16px/1.2 var(--font)}.rt2 td.num small{display:block;font:500 13px/1.2 var(--font);color:var(--on-surface-muted)}
+.ucell{display:flex;align-items:center;gap:10px}.ucell .mt b{font-size:15.5px}.tr{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.rt2 tr.off td{background:var(--surface-2)}.rt2 tr.off .pt,.rt2 tr.off .cost{opacity:.45;filter:grayscale(1)}.rt2 tr.off .ucell b{color:var(--on-surface-muted)}
+.lock{display:flex;align-items:center;gap:8px;justify-content:flex-end;font:600 13.5px/1.25 var(--font);color:var(--warn)}
+.rtot{display:flex;align-items:center;gap:12px;height:56px;margin-top:auto;padding:0 16px;background:var(--surface-2);border-top:2px solid var(--edge-soft);font:600 14px/1.2 var(--font)}.rtot b{font:700 15px/1.2 var(--font)}`);
+}
+
+/* A · Army */
+{
+  const home = `<div class="pn"><div class="ph"><h2>At home</h2><span class="sp"></span><span class="pchip">${ic('pop', 20)}<b>${POP[0]}</b> / ${POP[1]}</span></div>${UN.map((u) => `<div class="ur${u.home ? '' : ' off'}">${pt(u.id, 36)}<span class="mt"><b>${u.n}</b><small>${u.id === 'chieftain' ? 'ready to take a village' : u.home ? u.role : 'research at Drillyard 5'}</small></span>${u.away ? `<span class="tag mut">${u.away} away</span>` : ''}${u.tr ? `<span class="tag tl">+${u.tr}</span>` : ''}<span class="ct">${u.home || '–'}</span></div>`).join('')}</div>`;
+  const train = `<div class="pn" style="flex:1"><div class="ph"><h2>In training</h2></div>${trainSum()}</div>`;
+  const moves = `<div class="pn"><div class="ph"><h2>Movements</h2><span class="cnt">3</span><span class="sp"></span><span class="seg"><span class="sg on">All</span><span class="sg">In 1</span><span class="sg">Out 2</span></span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div>`;
+  const sup = `<div class="pn"><div class="ph"><h2>Support</h2></div><div class="sub up">Here in Emberfold</div>${supHere()}<div class="sub up">Your troops away</div>${supAway()}</div>`;
+  const sim = `<div class="pn simc" style="flex:1"><div class="simi">${ic('army', 30)}</div><span class="mt"><b>Battle simulator</b><small>Try a fight before you send it</small></span><span class="btn sm">Open</span></div>`;
+  const send = `<div class="pn" style="flex:1"><div class="ph"><h2>Send troops</h2><span class="sp"></span><span class="lk">Clear all</span></div><div class="sf2">${sendTarget()}<div class="up" style="margin-top:2px">Troops</div>${sendUnits(2)}${sendTravel()}${recentT()}${sendBtns()}</div></div>`;
+  pageA('army', 'army', `<div style="display:grid;grid-template-columns:372px 470px 1fr;gap:14px;height:100%"><div class="col">${home}${train}</div><div class="col">${moves}${sup}${sim}</div><div class="col">${send}</div></div>`, `${TS_CSS}${SEND_CSS}${RCT_CSS}
+.pchip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 1px 6px;border-radius:99px;background:var(--surface-3);font:600 13.5px/1.2 var(--font)}.pchip b{font-size:15px}
+.ur{display:flex;align-items:center;gap:9px;height:51px;padding:0 14px 0 10px;border-top:1px solid var(--edge-soft)}.ph+.ur{border-top:0}.ur .ct{min-width:40px;text-align:right;font:400 22px/1.35 var(--font-display);color:var(--heading)}.ur.off .pt{opacity:.45;filter:grayscale(1)}.ur.off .ct,.ur.off .mt b{color:var(--on-surface-muted)}.ur .mt b{font-size:14.5px}
+.seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:var(--surface-3)}.sg{display:inline-flex;align-items:center;height:30px;padding:0 10px 1px;border-radius:9px;font:700 13px/1.2 var(--font)}.sg.on{background:var(--surface);box-shadow:0 1px 0 var(--edge)}
+.sub{padding:10px 14px 2px}
+.simc{flex-direction:row;align-items:center;gap:12px;padding:12px 14px;max-height:76px}.simi{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:var(--surface-2);border:2px solid var(--edge-soft)}
+.sf2{display:flex;flex-direction:column;gap:12px;padding:12px 14px 14px;flex:1}.sf2 .sbtn{margin-top:auto}.sf2 .su{grid-template-columns:1fr 1fr}
+.sx .all{font:700 13px/1.2 var(--font);color:var(--link);text-decoration:underline}`);
+}
+
+/* A · Reports */
+{
+  const ftabs = `<div class="rft">${RTYPE.map(([k, l, u], i) => `<span class="rf${i ? '' : ' on'}">${k === 'all' ? ic('reports', 20) : ic(RTI[k], 20)}${l}${u ? `<i>${u}</i>` : ''}</span>`).join('')}</div>`;
+  const rows = RP.map((r, i) => `${r.g ? `<tr class="grp"><td colspan="5">${r.g}</td></tr>` : ''}<tr class="${i === 0 ? 'sel' : ''}${r.u ? ' unr' : ''}"><td class="ty">${repIcon(r, 30)}</td><td class="sb">${r.u ? '<span class="udot"></span>' : ''}${r.t}</td><td class="pl">${r.p}</td><td>${repRowTag(r)}</td><td class="tm">${r.tm}</td></tr>`).join('');
+  const list = `<div class="pn" style="width:790px;flex:none">${ftabs}<table class="rl"><thead><tr><th style="width:46px"></th><th>Report</th><th style="width:90px">Place</th><th style="width:96px">Result</th><th style="width:70px;text-align:right">Time</th></tr></thead><tbody>${rows}</tbody></table>${pager()}</div>`;
+  const det = `<div class="pn" style="flex:1"><div class="ph"><h2>Report</h2><span class="sp"></span><span class="pg-b">${chev(16, 'l')}</span><span class="pg-b">${chev(16, 'r')}</span></div><div class="rd">${repHead()}${repSummary()}<div class="fts">${forceTable('Tolvek · attacker', 'lost', ATT)}${forceTable('You · defender', 'won', DEF)}</div>${lootBox()}${repNotes()}<div class="racts"><span class="btn g">${ic('army', 18)}Simulate</span><span class="btn">Share</span><span class="sp"></span><span class="btn">Delete</span></div></div></div>`;
+  pageA('reports', 'reports', `<div style="display:flex;gap:14px;height:100%">${list}${det}</div>`, `${REP_CSS}${PG_CSS}
+.rft{display:flex;gap:6px;padding:10px 12px;background:var(--surface-2);border-bottom:2px solid var(--edge-soft);flex:none}.rf{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px 1px 11px;border-radius:11px;border:2px solid transparent;font:700 14px/1.2 var(--font);color:var(--on-surface-muted)}.rf.on{background:var(--surface);border-color:var(--c-ink);color:var(--heading);box-shadow:0 2px 0 var(--c-ink)}
+.rf i{font-style:normal;display:inline-grid;place-items:center;min-width:22px;height:21px;padding:0 6px 1px;border-radius:99px;background:var(--dark);color:var(--on-dark);font-size:13px}
+.rl{width:100%;border-collapse:collapse}.rl th{font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted);text-align:left;padding:9px 10px 7px}
+.rl td{height:42px;padding:0 10px;border-top:1px solid var(--edge-soft);font:500 14.5px/1.2 var(--font);white-space:nowrap}.rl td.ty{padding:0 6px 0 12px}.rl td.pl{color:var(--on-surface-muted);font-size:13.5px}.rl td.tm{text-align:right;color:var(--on-surface-muted);font-size:13.5px}
+.rl tr.unr td.sb{font-weight:700}.udot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}
+.rl tr.sel td{background:var(--c-sun-hi)}.rl tr.grp td{height:30px;background:var(--surface-2);font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted);padding-left:14px}
+.rd{display:flex;flex-direction:column;gap:14px;padding:14px 16px 16px;flex:1}.rd .racts{margin-top:auto}`);
+}
+
+/* ======================================================================
+   B · SIDE RAIL: fixed left navigation rail + slim top strip; pages are list + detail panes
+   ====================================================================== */
+const B_CSS = `
+.railB{position:absolute;left:0;top:0;bottom:0;width:94px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 0 14px;background:var(--surface);border-right:2.5px solid var(--c-ink);z-index:4}
+.railB .logo{margin-bottom:14px}
+.nv{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:78px;height:72px;border-radius:16px;border:2.5px solid transparent;font:700 13.5px/1.2 var(--font);color:var(--on-surface-muted)}
+.nv.on{background:var(--c-sun);border-color:var(--c-ink);color:var(--c-ink);box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-ink)}
+.nv .bd{top:2px;right:8px}.nv .bd.dot{top:6px;right:16px}
+.rfoot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:4px;font:600 13px/1.25 var(--font);color:var(--on-surface-muted);text-align:center}.rfoot b{font:700 15px/1.2 var(--font);color:var(--heading)}
+.stripB{position:absolute;left:94px;right:0;top:0;height:64px;display:flex;align-items:center;gap:18px;padding:0 16px 0 16px;background:var(--surface);border-bottom:2.5px solid var(--c-ink);z-index:3}
+.vsel{display:flex;align-items:center;gap:6px}.vbox{display:flex;align-items:center;gap:8px;height:44px;padding:0 10px 0 12px;border:2px solid var(--edge);border-radius:12px;background:var(--surface-2)}
+.vbox b{font:400 20px/1.35 var(--font-display);color:var(--heading)}.vbox small{font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}
+.resB{display:flex;align-items:center;gap:18px;margin-left:auto}
+.mainB{position:absolute;left:110px;right:16px;top:78px;bottom:16px}
+`;
+const railB = (act) => `<nav class="railB"><span class="logo">${ic('flame', 28)}</span>${TABS.map(([i, l]) => `<span class="nv${i === act ? ' on' : ''}">${ic(i, 30)}${l}${BADGE[i] || ''}</span>`).join('')}<div class="rfoot"><span>World 3</span><b>${V.clock}</b></div></nav>`;
+const stripB = () => `<header class="stripB"><span class="vsel"><span class="vbox">${ic('village', 22)}<b>${V.name}</b><small>${V.xy}</small>${chev(14, 'd')}</span></span><div class="resB">${RES.map(resItem).join('')}${popItem()}</div>${attackChip(true)}${bellAcct()}</header>`;
+const pageB = (name, act, content, css) => write(`b-${name}-1440`, 'B', `${railB(act)}${stripB()}<main class="mainB">${content}</main>`, B_CSS + css);
+const tileState = (b) => (b.st === 'build' ? `<span class="tst"><span class="tag tl">Upgrading to 9</span><span class="cd">42:10</span></span>` : b.st === 'queue' ? `<span class="tst"><span class="tag mut">Next in queue</span><span class="mut" style="font:600 13px/1.2 var(--font)">→ 12</span></span>` : costEl(b.cost, { sm: 1, s: 16 }));
+
+/* B · Village */
+{
+  const W = 781, Hh = 384;
+  const strip = `<div class="qstrip"><div class="qi"><img class="th" src="${BB.barracks.art}" alt=""><span class="mt"><b>Barracks → 9</b><span class="bar"><i style="width:46%"></i></span></span><span class="cd">42:10</span></div><div class="qi"><img class="th" src="${BB.storehouse.art}" alt=""><span class="mt"><b>Storehouse → 12</b><small>next · ${hms(BB.storehouse.time)}</small></span><span class="xb">${xI()}</span></div><div class="qi qq"><img class="mags" src="mags.svg" alt=""><span class="mt"><b>Train 10 Pikemen</b><small>First steps 5 of 8</small></span><span class="btn sm">Go</span></div></div>`;
+  const picP = `<div class="pn picp">${sceneEl(W, Hh, { sel: 'barracks' })}${strip}</div>`;
+  const prod = `<div class="pn" style="width:262px"><div class="ph"><h2>Per hour</h2><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">cap 60k</span></div>${RES.map((r) => `<div class="pr">${ic(r.id, 24)}<span class="pf"><b>${kf(r.a)}</b><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span></span><span class="rt">+${fmt(r.r)}</span></div>`).join('')}<div class="pr">${ic('pop', 24)}<span class="pf"><b>${POP[0]} <span class="mut" style="font-weight:500">/ ${POP[1]}</span></b><span class="sf"><i class="hi" style="width:80%"></i></span></span><span class="rt mu">128 free</span></div><div class="pr">${ic('renown', 24)}<span class="pf"><b>340 <span class="mut" style="font-weight:500">renown</span></b></span><span class="rt">+12</span></div></div>`;
+  const moves = `<div class="pn" style="flex:1"><div class="ph"><h2>Movements</h2><span class="cnt">3</span><span class="sp"></span><span class="lk">Army ${chev(13)}</span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div>`;
+  const troops = `<div class="pn" style="width:208px"><div class="ph"><h2>At home</h2></div><div class="tg3">${UN.map((u) => `<div class="tc3${u.home ? '' : ' off'}">${pt(u.id, 30)}<b>${u.home || '–'}</b></div>`).join('')}</div>${chiefLine().replace('<span><b>2 Chieftains ready</b> · can take an abandoned village</span>', '<span><b>2 Chieftains</b> ready</span>')}</div>`;
+  const tiles = `<div class="pn" style="flex:1"><div class="ph"><h2>Buildings</h2><span class="cnt">13</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">next level cost</span></div><div class="tiles">${BLD.map((b) => `<div class="btl${b.st === 'build' ? ' bu' : ''}"><span class="ba"><img src="${b.art}" alt=""><span class="lv">${b.lv}</span></span><span class="tn"><b>${b.n}</b></span><span class="tg">${b.gives}</span>${b.st === 'up' ? `<span class="btn g sm ic tup">${ic('upgrade', 16)}</span>` : ''}<span class="tbt">${tileState(b)}</span></div>`).join('')}<div class="btl tot"><span class="tn" style="grid-column:1/-1"><b>${V.pts} points</b></span><span class="tg" style="grid-column:1/-1">13 buildings · rank #214</span><span class="tbt"><span class="lk">Town Hall ${chev(13)}</span></span></div></div></div>`;
+  pageB('village', 'village', `<div style="display:flex;gap:14px;height:100%"><div class="col" style="width:790px;flex:none">${picP}<div style="display:flex;gap:12px;flex:1;min-height:0">${prod}${moves}${troops}</div></div>${tiles}</div>`, `
+.picp{flex:none}.picp .pic{border:0;border-bottom:2.5px solid var(--c-ink);border-radius:0}
+.qstrip{display:grid;grid-template-columns:1fr 1fr 1.15fr;height:64px}.qi{display:flex;align-items:center;gap:9px;padding:0 10px;border-left:2px solid var(--edge-soft);min-width:0}.qi:first-child{border-left:0}.qi .th{width:36px;height:36px}.qi .mags{width:34px;height:40px;object-fit:contain}.qi.qq{background:var(--surface-2)}
+.pr{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border-top:1px solid var(--edge-soft)}.ph+.pr{border-top:0}.pr .pf{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.pr .pf b{font:700 14.5px/1.2 var(--font)}.pr .sf{min-width:0}.pr .rt{font:700 14px/1.2 var(--font);color:var(--ok)}.pr .rt.mu{color:var(--on-surface-muted);font-size:13px}
+.tg3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:9px}.tc3{display:flex;align-items:center;gap:4px;height:40px;padding:0 4px 0 2px;border-radius:10px;background:var(--surface-2)}.tc3 b{font:700 14.5px/1.2 var(--font)}.tc3.off{opacity:.45}
+.chf{margin:auto 9px 9px}
+.tiles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:10px;flex:1;min-height:0}
+.btl{display:grid;grid-template-columns:48px minmax(0,1fr) 36px;grid-template-rows:24px 20px 1fr;column-gap:9px;padding:7px 8px 7px 6px;border-radius:13px;background:var(--surface-2);border:2px solid transparent;min-height:0}
+.btl .tup{grid-column:3;grid-row:1/3;align-self:start}.btl .ba{grid-row:1/3;grid-column:1;position:relative}.btl .ba img{width:48px;height:44px;object-fit:contain;object-position:50% 100%}.btl .ba .lv{position:absolute;right:-6px;bottom:0;border:2px solid var(--surface-2);height:22px}.btl .tn{grid-column:2;grid-row:1}.btl .tg{grid-column:2;grid-row:2}.tn{display:flex;align-items:center;gap:6px;min-width:0}.tn b{font:700 14.5px/1.2 var(--font);white-space:nowrap}
+.lv{display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 6px 1px;border-radius:99px;background:var(--dark);color:var(--on-dark);font:700 13px/1.2 var(--font)}
+.btl .tg{font:500 13px/1.2 var(--font);color:var(--on-surface-muted);white-space:nowrap}
+.tbt{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;align-self:end;min-height:24px}.tbt .cost svg{width:16px;height:16px}.tbt .cost{gap:9px}
+.tst{display:flex;align-items:center;gap:6px}.btl.bu{background:var(--info-bg)}.btl.tot{background:var(--surface);border:2px dashed var(--edge)}
+.mvs{padding:9px;gap:6px}.mv{min-height:54px}`);
+}
+
+/* B · Building (Barracks) */
+{
+  const nav = `<div class="pn" style="width:216px;flex:none"><div class="ph" style="padding:0 8px"><span class="btn sm" style="width:100%">${chev(14, 'l')}Village</span></div><div class="bnl">${BLD.map((b) => `<div class="bn${b.id === 'barracks' ? ' on' : ''}"><img class="th" src="${b.art}" alt=""><span class="mt"><b>${b.n}</b><small>${b.st === 'build' ? 'Level 8 → 9' : b.st === 'queue' ? 'Level 11 · next' : 'Level ' + b.lv}</small></span>${b.st === 'build' ? `<span class="dot2 t"></span>` : ''}</div>`).join('')}</div></div>`;
+  const head = `<div class="pn bhb"><div class="bart"><img src="${BAR.art}" alt=""></div><div class="bti"><div class="bt"><h1>Barracks</h1><span class="tag dk">Level 8</span></div><span class="tag tl" style="align-self:flex-start">Upgrading to 9 · 42:10</span><p class="bd2">Trains foot troops. Every level trains them 6% faster.</p>${nowNext()}</div><div class="ubwrap">${upgradeBox()}</div></div>`;
+  const card = (r) => `<div class="uc${r.lock ? ' off' : ''}"><div class="uch">${pt(r.id, 52)}<span class="mt"><b>${r.n}</b><small>${r.role}</small></span></div><div class="ucc">${RK.map((k, i) => `<span>${ic(k, 17)}<b>${r.cost[i]}</b></span>`).join('')}</div><div class="ucm"><span>${ic('time', 18)}<b>${hms(r.t)}</b></span><span>Have <b>${r.have}</b>${r.away ? ` <span class="mut">+${r.away} away</span>` : ''}</span></div><div class="ust">Attack <b>${STAT[r.id][0]}</b><span class="mut">·</span>Def <b>${STAT[r.id][1]}</b> foot · <b>${STAT[r.id][2]}</b> riders</div>${r.lock ? `<div class="lock">${ic('warning', 18)}<span>${r.lock}</span></div>` : `<div class="uca"><span class="inp${r.val ? ' on' : ' z'}">${r.val}</span><span class="mx">max ${r.max}</span><span class="btn g sm">Train</span></div>`}</div>`;
+  const rec = `<div class="pn" style="flex:1"><div class="ph"><h2>Recruit</h2><span class="mut" style="font:600 13.5px/1.2 var(--font)">${FREE_POP} free population</span><span class="sp"></span><span class="lk">Unit guide ${chev(13)}</span></div><div class="ucs">${REC.map(card).join('')}</div></div>`;
+  const side = `<div class="col" style="width:304px;flex:none"><div class="pn"><div class="ph"><h2>Training</h2><span class="cnt">3 / 5</span><span class="sp"></span></div>${tqRows()}<div class="tq em"><span class="es">4</span><span class="mut">Free slot</span></div><div class="tq em"><span class="es">5</span><span class="mut">Free slot</span></div><div class="tqf"><span class="mut">All done at</span><b>16:24</b><span class="sp"></span><span class="lk">Army ${chev(13)}</span></div></div><div class="pn"><div class="ph"><h2>Your order</h2></div><div class="ord"><div>${pt('raider', 36)}<b>10 Raiders</b><span class="sp"></span><span class="mut">32:20</span></div>${costEl([400, 800, 500, 0], { full: 1, s: 18 })}<span class="btn g" style="width:100%">Train 10 Raiders</span></div></div>${magsTip(TIPTXT)}</div>`;
+  pageB('building', 'village', `<div style="display:flex;gap:14px;height:100%">${nav}<div class="col" style="flex:1">${head}${rec}</div>${side}</div>`, `${UB_CSS}${NN_CSS}${TQ_CSS}${TIP_CSS}
+.bnl{display:flex;flex-direction:column;padding:6px;gap:2px;flex:1}.bn{display:flex;align-items:center;gap:8px;height:52px;padding:0 8px 0 4px;border-radius:12px;border:2px solid transparent}.bn .th{width:38px;height:40px}.bn .mt b{font-size:14px}.bn.on{background:var(--c-sun-hi);border-color:var(--c-ink);box-shadow:0 2px 0 var(--c-ink)}.dot2{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--c-ink)}.dot2.t{background:var(--c-teal-hi)}
+.bhb{flex-direction:row;gap:16px;padding:12px;flex:none}.bart{width:118px;height:118px;flex:none;display:grid;place-items:center;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.bart img{width:104px;height:104px;object-fit:contain}
+.bti{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}.bt{display:flex;align-items:center;gap:10px}.bt h1{font:400 32px/1.35 var(--font-display);color:var(--heading)}.bd2{font:500 14px/1.35 var(--font);color:var(--on-surface-muted)}
+.bti .nn{padding:0}.bti .nnh{height:24px}.bti .nnr{height:30px}.bti .nnh,.bti .nnr{grid-template-columns:1fr 84px 92px}
+.ubwrap{width:280px;flex:none;padding:12px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.ubwrap .cost{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.ubwrap .ubm{flex-wrap:wrap;gap:6px 14px}.ubwrap .ubb{flex-direction:column;align-items:stretch;gap:8px}.ubwrap .why{font-size:13px}
+.ucs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1fr;gap:10px;padding:10px;flex:1;min-height:0}
+.uc{display:flex;flex-direction:column;gap:8px;padding:9px 11px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.uch{display:flex;align-items:center;gap:10px}.uch .mt b{font-size:16px}
+.ucc{display:flex;justify-content:space-between}.ucc span{display:inline-flex;align-items:center;gap:4px}.ucc b{font:700 14px/1.2 var(--font)}
+.ucm{display:flex;justify-content:space-between;font:600 13.5px/1.2 var(--font)}.ucm>span{display:inline-flex;align-items:center;gap:5px}.ucm b{font:700 14.5px/1.2 var(--font)}
+.ust{display:flex;align-items:center;gap:4px;white-space:nowrap;font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}.ust b{font:700 14px/1.2 var(--font);color:var(--heading)}
+.uca{display:flex;align-items:center;gap:8px;margin-top:auto}.uca .inp{width:62px}.uca .btn{margin-left:auto}
+.uc.off{background:var(--surface-3)}.uc.off .pt,.uc.off .ucc{opacity:.45;filter:grayscale(1)}.lock{display:flex;align-items:center;gap:8px;margin-top:auto;padding:7px 9px;border-radius:10px;background:var(--warn-bg);font:600 13px/1.25 var(--font);color:var(--warn)}
+.tq.em{min-height:46px;gap:12px;font:600 13.5px/1.2 var(--font)}.es{display:grid;place-items:center;width:38px;height:30px;border-radius:9px;border:2px dashed var(--edge);font:700 13px/1.2 var(--font);color:var(--on-surface-muted)}.tqf{display:flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-top:2px solid var(--edge-soft);background:var(--surface-2);font:600 13.5px/1.2 var(--font)}.tqf b{font:700 15px/1.2 var(--font)}
+.ord{display:flex;flex-direction:column;gap:10px;padding:12px 14px}.ord>div{display:flex;align-items:center;gap:8px}.ord b{font:700 15px/1.2 var(--font)}`);
+}
+
+/* B · Army */
+{
+  const tile = (u) => `<div class="ut${u.home ? '' : ' off'}">${fig(u.id, 84, 84)}<div class="uti"><span class="ct">${u.home || '–'}</span><b>${u.n}</b><span class="utg">${u.id === 'chieftain' ? '<span class="tag tl">ready</span>' : ''}${u.away ? `<span class="tag mut">${u.away} away</span>` : ''}${u.tr ? `<span class="tag warn">+${u.tr} training</span>` : ''}${!u.home ? '<span class="mut" style="font:600 13px/1.2 var(--font)">Drillyard 5</span>' : ''}</span></div></div>`;
+  const grid = `<div class="pn" style="flex:1"><div class="ph"><h2>Troops</h2><span class="pchip">${ic('pop', 20)}<b>${POP[0]}</b> / ${POP[1]} people</span><span class="sp"></span><span class="lk">Barracks · 3 batches ${chev(13)}</span><span class="lk">Stables · 1 ${chev(13)}</span></div><div class="ugrid">${UN.map(tile).join('')}</div></div>`;
+  const sup = `<div class="pn" style="flex:none"><div class="ph"><h2>Support</h2></div><div class="sup2"><div><div class="up sub">Here in Emberfold</div>${supHere()}</div><div><div class="up sub">Your troops away</div>${supAway()}</div></div></div>`;
+  const moves = `<div class="pn"><div class="ph"><h2>Movements</h2><span class="cnt">3</span><span class="sp"></span><span class="seg"><span class="sg on">All</span><span class="sg">In 1</span><span class="sg">Out 2</span></span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div>`;
+  const send = `<div class="pn" style="flex:1"><div class="ph"><h2>Send troops</h2><span class="sp"></span><span class="lk">Clear</span></div><div class="sf2">${sendTarget()}${sendUnits(3)}${sendTravel()}${recentT()}${sendBtns()}</div></div>`;
+  pageB('army', 'army', `<div style="display:flex;gap:14px;height:100%"><div class="col" style="width:760px;flex:none">${grid}${sup}</div><div class="col" style="flex:1">${moves}${send}</div></div>`, `${TS_CSS}${SEND_CSS}${RCT_CSS}
+.pchip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 1px 6px;border-radius:99px;background:var(--surface-3);font:600 13.5px/1.2 var(--font)}.pchip b{font-size:15px}
+.ugrid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;padding:10px;flex:1;min-height:0}
+.ut{display:flex;align-items:center;gap:10px;padding:8px 12px 8px 6px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft);min-height:0}.ut .fg{width:84px;height:84px}
+.uti{display:flex;flex-direction:column;gap:3px;min-width:0}.ut .ct{font:400 34px/1.35 var(--font-display);color:var(--heading)}.uti b{font:700 15px/1.2 var(--font)}.utg{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.ut.off{background:var(--surface-3)}.ut.off .fg{opacity:.4;filter:grayscale(1)}.ut.off .ct{color:var(--on-surface-muted)}
+.sup2{display:grid;grid-template-columns:1fr 1fr}.sup2>div+div{border-left:2px solid var(--edge-soft)}.sub{padding:10px 14px 0}
+.seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:var(--surface-3)}.sg{display:inline-flex;align-items:center;height:30px;padding:0 10px 1px;border-radius:9px;font:700 13px/1.2 var(--font)}.sg.on{background:var(--surface);box-shadow:0 1px 0 var(--edge)}
+.sf2{display:flex;flex-direction:column;gap:9px;padding:10px 14px 12px;flex:1}.sf2 .sbtn{margin-top:auto}.sf2 .sx{padding:4px 5px 4px 9px;gap:6px}.sf2 .sx>.pt{display:none}.sf2 .sx .inp{width:56px}.sf2 .su{gap:6px}
+.sx .all{color:var(--link);font-weight:700;text-decoration:underline;text-underline-offset:2px}`);
+}
+
+/* B · Reports */
+{
+  const folders = `<div class="pn" style="width:224px;flex:none"><div class="ph"><h2>Reports</h2></div><div class="fl2">${RTYPE.map(([k, l, u, t], i) => `<div class="fo${i ? '' : ' on'}">${k === 'all' ? ic('reports', 24) : ic(RTI[k], 24)}<span class="mt"><b>${l}</b><small>${t} reports</small></span>${u ? `<span class="bdg">${u}</span>` : ''}</div>`).join('')}</div><div class="fla"><span class="btn sm">Mark all read</span><span class="btn sm">Delete read</span><span class="lk" style="margin-top:4px">${ic('army', 18)}Battle simulator</span></div></div>`;
+  const rows = RP.map((r, i) => `${r.g ? `<div class="grp up">${r.g}</div>` : ''}<div class="rr${i === 0 ? ' sel' : ''}${r.u ? ' unr' : ''}">${repIcon(r, 34)}<span class="mt"><b>${r.u ? '<span class="udot"></span>' : ''}${r.t}</b><small>${r.p} · ${r.tm}</small></span>${repRowTag(r)}</div>`).join('');
+  const list = `<div class="pn" style="width:540px;flex:none"><div class="ph"><h2>All reports</h2><span class="cnt">3 new</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">newest first</span></div><div class="rlist">${rows}</div>${pager()}</div>`;
+  const det = `<div class="pn" style="flex:1"><div class="ph"><span class="pg-b">${chev(16, 'l')}</span><span class="pg-b">${chev(16, 'r')}</span><span class="sp"></span><span class="btn sm">Share</span><span class="btn sm">Delete</span></div><div class="rd">${repHead()}<div class="fts">${forceTable('Tolvek · attacker', 'lost', ATT)}</div><div class="fts">${forceTable('You · defender', 'won', DEF)}</div>${lootBox()}<div class="racts"><span class="btn g" style="flex:1">${ic('army', 18)}Simulate this battle</span></div></div></div>`;
+  pageB('reports', 'reports', `<div style="display:flex;gap:14px;height:100%">${folders}${list}${det}</div>`, `${REP_CSS}${PG_CSS}
+.fl2{display:flex;flex-direction:column;gap:4px;padding:8px}.fo{display:flex;align-items:center;gap:10px;height:56px;padding:0 10px;border-radius:12px;border:2px solid transparent}.fo.on{background:var(--c-sun-hi);border-color:var(--c-ink);box-shadow:0 2px 0 var(--c-ink)}.fo .mt b{font-size:15px}
+.bdg{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 7px 1px;border-radius:99px;background:var(--dark);color:var(--on-dark);font:700 13px/1.2 var(--font)}
+.fla{display:flex;flex-direction:column;gap:8px;padding:12px;margin-top:auto;border-top:2px solid var(--edge-soft)}
+.rlist{flex:1;min-height:0;display:flex;flex-direction:column}.grp{display:flex;align-items:center;height:30px;padding:0 14px;background:var(--surface-2);border-top:1px solid var(--edge-soft)}.grp:first-child{border-top:0}
+.rr{display:flex;align-items:center;gap:10px;height:52px;padding:0 12px;border-top:1px solid var(--edge-soft)}.rr .mt b{font-weight:500}.rr.unr .mt b{font-weight:700}.rr.sel{background:var(--c-sun-hi)}
+.udot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}
+.rd{display:flex;flex-direction:column;gap:12px;padding:14px 14px 14px}.rd .rdh h2{font-size:22px}.rd .racts{margin-top:auto}.lootb{flex-wrap:wrap;gap:8px 14px}`);
+}
+
+/* ======================================================================
+   C · VILLAGE COLUMN: one top bar with tabs + resources; a fixed left village column (same on every page)
+   ====================================================================== */
+const C_CSS = `
+.topC{position:absolute;left:0;right:0;top:0;height:68px;display:flex;align-items:center;gap:12px;padding:0 16px 0 14px;background:var(--surface);border-bottom:2.5px solid var(--c-ink);z-index:4}
+.tabsC{display:flex;gap:4px;margin-left:6px}.tb{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:76px;height:56px;border-radius:14px;border:2.5px solid transparent;font:700 13px/1.2 var(--font);color:var(--on-surface-muted)}
+.tb.on{background:var(--c-sun);border-color:var(--c-ink);color:var(--c-ink);box-shadow:inset 0 3px 0 var(--c-sun-hi),inset 0 -4px 0 var(--c-sun-lo),0 3px 0 var(--c-ink)}.tb .bd{top:-2px;right:6px}.tb .bd.dot{top:3px;right:16px}
+.resC{display:flex;align-items:center;gap:16px;margin-left:auto}.resC .rv{gap:4px}.resC .ra{flex-direction:column;align-items:flex-start;gap:2px}.resC .sf{min-width:76px}
+.colC{position:absolute;left:0;top:68px;bottom:0;width:304px;display:flex;flex-direction:column;background:var(--surface);border-right:2.5px solid var(--c-ink);z-index:3}
+.cs{padding:10px 14px;border-top:2px solid var(--edge-soft)}.cs:first-child{border-top:0}.csh{display:flex;align-items:center;gap:8px;margin-bottom:8px}.csh h3{font:400 17px/1.35 var(--font-display);color:var(--heading)}
+.vhd{display:flex;align-items:center;gap:10px}.vhd b{display:block;font:400 22px/1.35 var(--font-display);color:var(--heading)}.vhd small{display:block;font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}
+.colC .pic{border-radius:12px}.mini{position:relative}.mini .go{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 10px 1px;border-radius:9px;background:rgba(255,250,240,.95);border:2px solid var(--c-ink);font:700 13px/1.2 var(--font)}
+.colC .qr{padding:4px 0;min-height:54px;border-top:1px solid var(--edge-soft)}.colC .qr:first-of-type{border-top:0}.colC .qr .th{width:34px;height:36px}
+.colC .mvs{padding:0;gap:6px}.colC .mv{min-height:52px}
+.cpr{display:flex;align-items:center;gap:8px;height:30px;font:600 13.5px/1.2 var(--font)}.cpr b{font:700 14.5px/1.2 var(--font)}.cpr .rt{margin-left:auto;font:700 14px/1.2 var(--font);color:var(--ok)}.cpr .sf{width:70px;min-width:0}
+.mainC{position:absolute;left:320px;right:16px;top:82px;bottom:16px}
+`;
+const topC = (act) => `<header class="topC"><span class="logo">${ic('flame', 28)}</span><nav class="tabsC">${TABS.map(([i, l]) => `<span class="tb${i === act ? ' on' : ''}">${ic(i, 26)}${l}${BADGE[i] || ''}</span>`).join('')}</nav><div class="resC">${RES.map(resItem).join('')}${popItem()}</div>${bellAcct()}</header>`;
+const colC = (onVillage) => `<aside class="colC"><div class="cs"><div class="vhd"><span style="flex:1"><b>${V.name}</b><small>${V.xy} · ${V.pts} points</small></span><span class="sw">${chev(16, 'd')}</span></div></div><div class="cs" style="padding-top:2px"><div class="mini">${sceneEl(270, 150, { badges: false })}${onVillage ? '' : `<span class="go">${ic('village', 16)}Village</span>`}</div></div><div class="cs"><div class="csh"><h3>Build queue</h3><span class="sp"></span><span class="cnt">2 / 2</span></div>${qRows('qr')}</div><div class="cs"><div class="csh"><h3>Movements</h3><span class="sp"></span><span class="cnt">3</span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div><div class="cs" style="flex:1"><div class="csh"><h3>Per hour</h3><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">cap 60k</span></div>${RES.map((r) => `<div class="cpr">${ic(r.id, 22)}<b>${kf(r.a)}</b><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span><span class="rt">+${fmt(r.r)}</span></div>`).join('')}</div></aside>`;
+const pageC = (name, act, content, css, onVillage) => write(`c-${name}-1440`, 'C', `${topC(act)}${colC(onVillage)}<main class="mainC">${content}</main>`, C_CSS + css);
+
+/* C · Village */
+{
+  const W = 716, Hh = 452;
+  const pic = sceneEl(W, Hh, { cap: `<div class="pcap"><span>${ic('village', 18)}Click a building to open its page</span></div>` });
+  const tbl = `<div class="pn" style="flex:1"><div class="ph"><h2>Buildings</h2><span class="cnt">13</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">next level</span></div><div class="bt2">${BLD.map((b) => `<div class="br"><img class="th" src="${b.art}" alt=""><span class="mt"><b>${b.n} <span class="lv">${b.lv}</span></b>${b.st === 'up' ? costEl(b.cost, { sm: 1, s: 16 }) : `<small>${b.st === 'build' ? 'Upgrading to 9 · 42:10' : 'Queued: level 12'}</small>`}</span>${b.st === 'up' ? `<span class="btn g sm">${ic('upgrade', 16)}Up</span>` : b.st === 'build' ? '<span class="tag tl">42:10</span>' : '<span class="tag mut">Next</span>'}</div>`).join('')}</div></div>`;
+  const troops = `<div class="pn"><div class="ph"><h2>Troops at home</h2><span class="sp"></span>${chiefLine().replace('class="chf"', 'class="chf in"').replace('<span><b>2 Chieftains ready</b> · can take an abandoned village</span>', '<span><b>2 Chieftains</b> ready</span>')}<span class="lk">Army ${chev(13)}</span></div><div class="trow">${UN.map((u) => `<div class="tq3${u.home ? '' : ' off'}">${pt(u.id, 38)}<b>${u.home || '–'}</b></div>`).join('')}</div></div>`;
+  const quest = `<div class="pn" style="flex:1.4"><div class="ph"><h2>First steps</h2><span class="sp"></span><span class="cnt">5 / 8</span></div>${questCard()}</div>`;
+  const ren = `<div class="pn" style="flex:1"><div class="ph"><h2>Renown</h2></div><div class="rn2">${ic('renown', 36)}<span><b>340</b><small>+12 today · Banner Hall 1</small></span></div><div class="rn3"><span class="up">Rank</span><b>#214</b><span class="up" style="margin-left:14px">Pop</span><b>${POP[0]}/${POP[1]}</b></div></div>`;
+  pageC('village', 'village', `<div style="display:flex;gap:14px;height:100%"><div class="col" style="width:721px;flex:none">${pic}${troops}<div style="display:flex;gap:12px;flex:1;min-height:0">${quest}${ren}</div></div>${tbl}</div>`, `
+.bt2{display:flex;flex-direction:column;flex:1}.br{display:flex;align-items:center;gap:9px;flex:1;padding:0 10px 0 8px;border-top:1px solid var(--edge-soft);min-height:0}.br:first-child{border-top:0}.br .th{width:36px;height:38px}.br .mt b{font-size:14px;display:flex;align-items:center;gap:6px}.br .cost svg{width:16px;height:16px}.br .cost{gap:7px}.br .cost b{font-size:13px}
+.lv{display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 6px 1px;border-radius:99px;background:var(--dark);color:var(--on-dark);font:700 13px/1.2 var(--font)}
+.trow{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;padding:10px}.tq3{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 5px;border-radius:12px;background:var(--surface-2)}.tq3 b{font:700 15px/1.2 var(--font)}.tq3.off{opacity:.45}
+.chf.in{margin:0 4px 0 0;padding:3px 10px 3px 4px}
+.rn2{display:flex;align-items:center;gap:12px;padding:12px 14px 4px}.rn2 b{display:block;font:400 28px/1.35 var(--font-display);color:var(--heading)}.rn2 small{font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}.rn3{display:flex;align-items:center;gap:8px;padding:8px 14px 12px}.rn3 b{font:700 15px/1.2 var(--font)}`, true);
+}
+
+/* C · Building (Barracks) */
+{
+  const head = `<div class="pn bhc"><div class="bart"><img src="${BAR.art}" alt=""></div><div class="bti"><div class="bnav"><span class="btn sm">${chev(14, 'l')}Village</span><span class="pg-b">${chev(16, 'l')}</span><span class="cur">${ic('village', 18)}Barracks ${chev(14, 'd')}</span><span class="pg-b">${chev(16, 'r')}</span></div><div class="bt"><h1>Barracks</h1><span class="tag dk">Level 8</span><span class="tag tl">Upgrading to 9 · 42:10</span></div><p class="bd2">Trains foot troops. Every level trains them 6% faster.</p><div class="nnl"><span>Training speed</span><b>35% faster</b>${chev(13)}<b class="nx">39% at level 9</b><span class="sep"></span><span>Points</span><b>64</b>${chev(13)}<b class="nx">73</b></div></div><div class="ubwrap">${upgradeBox()}</div></div>`;
+  const row = (r) => `<div class="wr${r.lock ? ' off' : ''}">${fig(r.id, 70, 70)}<span class="mt" style="flex:none;width:170px"><b>${r.n}</b><small>${r.role}</small></span><span class="wc">${recCost(r)}<span class="wm">${ic('time', 16)}${hms(r.t)}<span class="mut">·</span>have <b>${r.have}</b></span></span>${r.lock ? `<span class="lock">${ic('warning', 18)}<span>${r.lock}</span></span>` : `<span class="tr"><span class="inp${r.val ? ' on' : ' z'}">${r.val}</span><span class="mx">max ${r.max}</span><span class="btn g sm">Train</span></span>`}</div>`;
+  const rec = `<div class="pn" style="flex:1"><div class="ph"><h2>Recruit</h2><span class="mut" style="font:600 13.5px/1.2 var(--font)">${FREE_POP} free population</span><span class="sp"></span><span class="lk">Unit guide ${chev(13)}</span></div><div class="wrs">${REC.map(row).join('')}</div></div>`;
+  const side = `<div class="col" style="width:330px;flex:none"><div class="pn"><div class="ph"><h2>Training</h2><span class="cnt">3 / 5</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">done 16:24</span></div>${tqRows()}</div><div class="pn"><div class="ph"><h2>Your order</h2></div><div class="ord"><div>${pt('raider', 36)}<b>10 Raiders</b><span class="sp"></span><span class="mut">32:20</span></div>${costEl([400, 800, 500, 0], { full: 1, s: 18 })}<span class="btn g" style="width:100%">Train 10 Raiders</span></div></div>${magsTip(TIPTXT)}</div>`;
+  pageC('building', 'village', `<div style="display:flex;flex-direction:column;gap:12px;height:100%">${head}<div style="display:flex;gap:12px;flex:1;min-height:0">${rec}${side}</div></div>`, `${UB_CSS}${TQ_CSS}${TIP_CSS}${PG_CSS}
+.bhc{flex-direction:row;gap:16px;padding:12px;flex:none}.bart{width:122px;height:122px;flex:none;display:grid;place-items:center;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.bart img{width:108px;height:108px;object-fit:contain}
+.bti{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}.bnav{display:flex;align-items:center;gap:8px}.cur{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 12px;border-radius:10px;border:2px solid var(--edge);background:var(--surface);font:700 14px/1.2 var(--font)}
+.bt{display:flex;align-items:center;gap:10px}.bt h1{font:400 32px/1.35 var(--font-display);color:var(--heading)}.bd2{font:500 14px/1.35 var(--font);color:var(--on-surface-muted)}
+.ubwrap{width:432px;flex:none;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}
+.wrs{display:flex;flex-direction:column;flex:1;min-height:0}.wr{display:flex;align-items:center;gap:12px;flex:1;padding:0 14px 0 8px;border-top:1px solid var(--edge-soft);min-height:0}.wr:first-child{border-top:0}.wr .mt b{font-size:16px}
+.wc{display:flex;flex-direction:column;gap:6px;flex:1}.wm{display:inline-flex;align-items:center;gap:5px;font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted)}.wm b{color:var(--heading)}
+.tr{display:flex;align-items:center;gap:8px}.wr.off{background:var(--surface-2)}.wr.off .fg,.wr.off .cost{opacity:.4;filter:grayscale(1)}.lock{display:flex;align-items:center;gap:8px;max-width:250px;font:600 13.5px/1.25 var(--font);color:var(--warn)}
+.ord{display:flex;flex-direction:column;gap:10px;padding:12px 14px}.ord>div{display:flex;align-items:center;gap:8px}.ord b{font:700 15px/1.2 var(--font)}
+.nnl{display:flex;align-items:center;gap:7px;height:36px;padding:0 12px;border-radius:10px;background:var(--surface-2);font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted);align-self:flex-start}.nnl b{font:700 14.5px/1.2 var(--font);color:var(--heading)}.nnl b.nx{color:var(--ok)}.nnl svg{color:var(--on-surface-muted)}.nnl .sep{width:1px;height:18px;background:var(--edge);margin:0 6px}`);
+}
+
+/* C · Army */
+{
+  const muster = `<div class="pn"><div class="ph"><h2>At home</h2><span class="pchip">${ic('pop', 20)}<b>${POP[0]}</b> / ${POP[1]} people</span><span class="sp"></span><span class="lk">Battle simulator ${chev(13)}</span></div><div class="mus">${UN.map((u) => `<div class="mu${u.home ? '' : ' off'}">${fig(u.id, 92, 84)}<span class="ct">${u.home || '–'}</span><b>${u.n}</b><span class="mtg">${u.id === 'chieftain' ? '<span class="tag tl">ready</span>' : ''}${u.away ? `<span class="tag mut">${u.away} away</span>` : ''}${u.tr ? `<span class="tag warn">+${u.tr}</span>` : ''}${!u.home ? '<span class="tag mut">locked</span>' : ''}</span></div>`).join('')}</div></div>`;
+  const send = `<div class="pn" style="flex:1"><div class="ph"><h2>Send troops</h2><span class="sp"></span><span class="lk">Clear</span></div><div class="sf2">${sendTarget()}${sendUnits(3)}${sendTravel()}${recentT()}${sendBtns()}</div></div>`;
+  const side = `<div class="col" style="width:420px;flex:none"><div class="pn"><div class="ph"><h2>Support</h2></div><div class="up sub">Here in Emberfold</div>${supHere()}<div class="up sub">Your troops away</div>${supAway()}</div><div class="pn" style="flex:1"><div class="ph"><h2>In training</h2></div>${trainSum()}${chiefLine()}</div></div>`;
+  pageC('army', 'army', `<div style="display:flex;flex-direction:column;gap:12px;height:100%">${muster}<div style="display:flex;gap:12px;flex:1;min-height:0">${send}${side}</div></div>`, `${TS_CSS}${SEND_CSS}${RCT_CSS}
+.pchip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 1px 6px;border-radius:99px;background:var(--surface-3);font:600 13.5px/1.2 var(--font)}.pchip b{font-size:15px}
+.mus{display:grid;grid-template-columns:repeat(9,1fr);gap:8px;padding:10px}.mu{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px 8px;border-radius:14px;background:var(--surface-2)}.mu .ct{font:400 26px/1.35 var(--font-display);color:var(--heading)}.mu b{font:700 13.5px/1.2 var(--font);white-space:nowrap}.mtg{display:flex;gap:4px;margin-top:4px;height:24px}
+.mu.off .fg{opacity:.4;filter:grayscale(1)}.mu.off .ct{color:var(--on-surface-muted)}
+.sub{padding:10px 14px 0}
+.sf2{display:flex;flex-direction:column;gap:11px;padding:12px 14px 14px;flex:1}.sf2 .sbtn{margin-top:auto}
+.sx .all{color:var(--link);font-weight:700;text-decoration:underline;text-underline-offset:2px}`);
+}
+
+/* C · Reports */
+{
+  const chips = `<div class="rch">${RTYPE.map(([k, l, u], i) => `<span class="rc2${i ? '' : ' on'}">${l}${u ? `<i>${u}</i>` : ''}</span>`).join('')}</div>`;
+  const rows = RP.map((r, i) => `${r.g ? `<div class="grp up">${r.g}</div>` : ''}<div class="rr${i === 0 ? ' sel' : ''}${r.u ? ' unr' : ''}">${repIcon(r, 30)}<span class="rtx">${r.u ? '<span class="udot"></span>' : ''}${r.t}</span><span class="rp">${r.p}</span>${repRowTag(r)}<span class="rtm">${r.tm}</span></div>`).join('');
+  const list = `<div class="pn" style="width:600px;flex:none">${chips}<div class="rlist">${rows}</div>${pager()}</div>`;
+  const det = `<div class="pn" style="flex:1"><div class="ph"><h2>Report</h2><span class="sp"></span><span class="pg-b">${chev(16, 'l')}</span><span class="pg-b">${chev(16, 'r')}</span></div><div class="rd">${repHead()}${forceTable('Tolvek · attacker', 'lost', ATT)}${forceTable('You · defender', 'won', DEF)}${lootBox()}${repNotes()}<div class="racts"><span class="btn g">${ic('army', 18)}Simulate</span><span class="btn">Share</span><span class="sp"></span><span class="btn">Delete</span></div></div></div>`;
+  pageC('reports', 'reports', `<div style="display:flex;gap:12px;height:100%">${list}${det}</div>`, `${REP_CSS}${PG_CSS}
+.rch{display:flex;gap:6px;padding:10px;border-bottom:2px solid var(--edge-soft);flex:none}.rc2{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 13px 1px;border-radius:99px;background:var(--surface-3);font:700 14px/1.2 var(--font)}.rc2.on{background:var(--dark);color:var(--on-dark)}
+.rc2 i{font-style:normal;display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px 1px;border-radius:99px;background:var(--strip-danger);color:var(--on-strip);font-size:13px}
+.rlist{flex:1;min-height:0;display:flex;flex-direction:column}.grp{display:flex;align-items:center;height:30px;padding:0 14px;background:var(--surface-2);border-top:1px solid var(--edge-soft)}.grp:first-child{border-top:0}
+.rr{display:flex;align-items:center;gap:10px;height:49px;padding:0 12px;border-top:1px solid var(--edge-soft);font:500 14.5px/1.2 var(--font);white-space:nowrap}.rr.unr .rtx{font-weight:700}.rr.sel{background:var(--c-sun-hi)}.rtx{flex:1;min-width:0}.rp{width:70px;color:var(--on-surface-muted);font-size:13.5px}.rtm{width:44px;text-align:right;color:var(--on-surface-muted);font-size:13.5px}.rr .tag{width:84px;justify-content:center}
+.udot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}
+.rd{display:flex;flex-direction:column;gap:9px;padding:12px 14px 14px;flex:1}.rd .rdh h2{font-size:22px}.rd .racts{margin-top:auto}.lootb{flex-wrap:wrap;gap:8px 14px}.rno>div{min-height:34px;font-size:13.5px}`);
+}
+
+/* ======================================================================
+   MIX (owner, step 1 = Village): A's fixed top bar + folder tabs, with C's village column and C's village parts in the sheet.
+   On the Village page the column drops its mini picture (the big picture sits right beside it).
+   ====================================================================== */
+{
+  const W = 680, Hh = 414;
+  const pic = sceneEl(W, Hh, { cap: `<div class="pcap"><span>${ic('village', 18)}Click a building to open its page</span></div>` });
+  const vcol = `<aside class="pn vcol"><div class="cs"><div class="csh"><h3>Build queue</h3><span class="sp"></span><span class="cnt">2 / 2</span></div>${qRows('qr')}</div><div class="cs"><div class="csh"><h3>Movements</h3><span class="sp"></span><span class="cnt">3</span><span class="lk" style="margin-left:6px">Army ${chev(13)}</span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div><div class="cs" style="flex:1"><div class="csh"><h3>Per hour</h3><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">Storehouse 11</span></div>${RES.map((r) => `<div class="cpr">${ic(r.id, 24)}<b>${kf(r.a)}</b><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span><span class="rt">+${fmt(r.r)}</span></div>`).join('')}<div class="cpr">${ic('pop', 24)}<b>${POP[0]}</b><span class="sf"><i class="hi" style="width:80%"></i></span><span class="rt mu">of ${POP[1]}</span></div><div class="cap">Each resource holds up to <b>60,000</b> · wood full in <b>11h</b></div></div></aside>`;
+  const tbl = `<div class="pn" style="flex:1"><div class="ph"><h2>Buildings</h2><span class="cnt">13</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">next level</span></div><div class="bt2">${BLD.map((b) => `<div class="br"><img class="th" src="${b.art}" alt=""><span class="mt"><b>${b.n} <span class="lv">${b.lv}</span></b>${b.st === 'up' ? costEl(b.cost, { sm: 1, s: 16 }) : `<small>${b.st === 'build' ? 'Upgrading to 9 · 42:10' : 'Queued: level 12'}</small>`}</span>${b.st === 'up' ? `<span class="btn g sm">${ic('upgrade', 16)}Up</span>` : b.st === 'build' ? '<span class="tag tl">42:10</span>' : '<span class="tag mut">Next</span>'}</div>`).join('')}</div></div>`;
+  const troops = `<div class="pn"><div class="ph"><h2>Troops at home</h2><span class="sp"></span>${chiefLine().replace('class="chf"', 'class="chf in"').replace('<span><b>2 Chieftains ready</b> · can take an abandoned village</span>', '<span><b>2 Chieftains</b> ready</span>')}<span class="lk">Army ${chev(13)}</span></div><div class="trow">${UN.map((u) => `<div class="tq3${u.home ? '' : ' off'}">${pt(u.id, 38)}<b>${u.home || '–'}</b></div>`).join('')}</div></div>`;
+  const quest = `<div class="pn" style="flex:1.4"><div class="ph"><h2>First steps</h2><span class="sp"></span><span class="cnt">5 / 8</span></div>${questCard()}</div>`;
+  const ren = `<div class="pn" style="flex:1"><div class="ph"><h2>Renown</h2></div><div class="rn2">${ic('renown', 36)}<span><b>340</b><small>+12 today · Banner Hall 1</small></span></div><div class="rn3"><span class="up">Rank</span><b>#214</b><span class="up" style="margin-left:14px">Points</span><b>${V.pts}</b></div></div>`;
+  // After First steps is finished: one wider Standing card. Today's Renown uses real sources only (GAME_DESIGN §18.2):
+  // one Feast = FEAST_RENOWN 10, Market level 5 finished = round(0.25 x 5^1.25) = 2.
+  const standing = `<div class="pn" style="flex:1"><div class="ph"><h2>Standing</h2><span class="sp"></span><span class="up">Renown today</span><span class="gain">${ic('renown', 16)}+10 Feast at the Banner Hall</span><span class="gain">${ic('upgrade', 14)}+2 Market level 5</span></div><div class="stb"><div class="stren">${ic('renown', 40)}<span><b>340</b><small>+12 today</small></span></div><div class="stf"><span class="up">Rank</span><b>#214</b></div><div class="stf"><span class="up">Points</span><b>${V.pts}</b></div><div class="stf"><span class="up">Tribe</span><b>EMB</b></div><div class="stf"><span class="up">Villages</span><b>1</b></div></div></div>`;
+  const STAND_CSS = `.gain{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 1px 7px;border-radius:99px;background:var(--ok-bg);font:600 13px/1.2 var(--font);color:var(--ok);white-space:nowrap}
+.stb{display:flex;align-items:center;gap:12px;padding:0 16px;flex:1}.stren{display:flex;align-items:center;gap:12px;width:196px;flex:none}.stren b{display:block;font:400 30px/1.35 var(--font-display);color:var(--heading)}.stren small{display:block;font:600 13.5px/1.2 var(--font);color:var(--ok)}
+.stf{flex:1;display:flex;flex-direction:column;gap:5px;padding:10px 14px;border-radius:12px;background:var(--surface-2)}.stf b{font:400 20px/1.35 var(--font-display);color:var(--heading)}`;
+  const page = (name, bottom, css = '') => write(name, 'A', `${topA()}${tabRowA('village')}<main class="sheetA"><div style="display:flex;gap:14px;height:100%">${vcol}<div class="col" style="width:${W + 5}px;flex:none">${pic}${troops}<div style="display:flex;gap:12px;flex:1;min-height:0">${bottom}</div></div>${tbl}</div></main>`, MIX_CSS + css);
+  const MIX_CSS = `${A_CSS}
+.vcol{width:304px;flex:none}.vcol .cs{display:flex;flex-direction:column;padding:14px 14px 14px;border-top:2px solid var(--edge-soft)}.vcol .cs:first-child{border-top:0}
+.csh{display:flex;align-items:center;gap:8px;margin-bottom:8px}.csh h3{font:400 18px/1.35 var(--font-display);color:var(--heading)}
+.vcol .qr{padding:4px 0;min-height:60px}.vcol .csh+.qr{border-top:0}.vcol .qr .th{width:38px;height:40px}
+.vcol .mvs{padding:0;gap:8px}
+.cpr{display:flex;align-items:center;gap:10px;height:36px;font:600 13.5px/1.2 var(--font)}.cpr b{width:48px;font:700 15px/1.2 var(--font)}.cpr .sf{flex:1;min-width:0}.cpr .rt{width:60px;text-align:right;font:700 14px/1.2 var(--font);color:var(--ok)}.cpr .rt.mu{color:var(--on-surface-muted);font-weight:600;font-size:13.5px}
+.cap{margin-top:auto;padding:9px 11px;border-radius:11px;background:var(--surface-2);font:600 13px/1.35 var(--font);color:var(--on-surface-muted)}.cap b{color:var(--heading)}
+.bt2{display:flex;flex-direction:column;flex:1}.br{display:flex;align-items:center;gap:9px;flex:1;padding:0 10px 0 8px;border-top:1px solid var(--edge-soft);min-height:0}.br:first-child{border-top:0}.br .th{width:36px;height:38px}.br .mt b{font-size:14px;display:flex;align-items:center;gap:6px}.br .cost svg{width:16px;height:16px}.br .cost{gap:7px}.br .cost b{font-size:13px}
+.trow{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;padding:10px}.tq3{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 5px;border-radius:12px;background:var(--surface-2)}.tq3 b{font:700 15px/1.2 var(--font)}.tq3.off{opacity:.45}
+.chf.in{margin:0 4px 0 0;padding:3px 10px 3px 4px}
+.qc{padding:10px 14px}
+.rn2{display:flex;align-items:center;gap:12px;padding:12px 14px 4px}.rn2 b{display:block;font:400 28px/1.35 var(--font-display);color:var(--heading)}.rn2 small{font:600 13px/1.2 var(--font);color:var(--on-surface-muted)}.rn3{display:flex;align-items:center;gap:8px;padding:8px 14px 12px}.rn3 b{font:700 15px/1.2 var(--font)}`;
+  page('mix-village-1440', `${quest}${ren}`);
+  page('mix-village-done-1440', standing, STAND_CSS);
+
+  /* Mix · Building (Barracks): A's bar + tabs (Village tab active, "Village › Barracks" trail), C's village column (with the
+     mini picture that opens the Village page) and C's Barracks body; A's quick building switch. */
+  const vcolB = `<aside class="pn vcol cmp"><div class="cs"><div class="mini">${sceneEl(267, 108, { badges: false })}<span class="go">${ic('village', 16)}Open village</span></div></div><div class="cs"><div class="csh"><h3>Build queue</h3><span class="sp"></span><span class="cnt">2 / 2</span></div>${qRows('qr')}</div><div class="cs"><div class="csh"><h3>Movements</h3><span class="sp"></span><span class="cnt">3</span><span class="lk" style="margin-left:6px">Army ${chev(13)}</span></div><div class="mvs">${MOV.map(mvRow).join('')}</div></div><div class="cs" style="flex:1"><div class="csh"><h3>Per hour</h3><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">cap 60k</span></div>${RES.map((r) => `<div class="cpr">${ic(r.id, 24)}<b>${kf(r.a)}</b><span class="sf"><i style="width:${Math.round((r.a / CAP) * 100)}%"></i></span><span class="rt">+${fmt(r.r)}</span></div>`).join('')}</div></aside>`;
+  const ubox = `<div class="ubx"><div class="ubh"><span class="up">Next upgrade</span><b>Level 9 → 10</b><span class="sp"></span><span class="ubp">+${B10.pts} points</span><span class="ubp">+4 people</span></div><div class="ubc">${costEl(B10.cost, { full: 1, all: 1, s: 22 })}<span class="ubt">${ic('time', 20)}<b>${hms(B10.time)}</b></span></div><div class="ubb"><span class="btn dis">${ic('upgrade', 16)}Upgrade</span><span class="why">${ic('queue', 20)}<span>Queue full (2 of 2) · frees in <b>42:10</b></span></span></div></div>`;
+  const headB = `<div class="pn bhm"><div class="bart"><img src="${BAR.art}" alt=""></div><div class="bti"><div class="bnav"><span class="crumb"><span class="lk">${ic('village', 18)}Village</span>${chev(13)}<b>Barracks</b></span><span class="sp"></span><span class="pg-b">${chev(16, 'l')}</span><span class="cur"><img class="th" style="width:24px;height:24px" src="${BAR.art}" alt="">Barracks<span class="mut">8 of 13</span>${chev(14, 'd')}</span><span class="pg-b">${chev(16, 'r')}</span></div><div class="bt"><h1>Barracks</h1><span class="tag dk">Level 8</span><span class="tag tl">Upgrading to 9 · 42:10</span></div><div class="nnl"><span>Trains foot troops</span><span class="sep"></span><span>Training speed</span><b>35% faster</b>${chev(13)}<b class="nx">39% at level 9</b></div></div><div class="ubwrap">${ubox}</div></div>`;
+  const rowB = (r) => `<div class="wr${r.lock ? ' off' : ''}">${fig(r.id, 62, 62)}<span class="mt" style="flex:none;width:164px"><b>${r.n}</b><small>${r.role}</small></span><span class="wc">${recCost(r)}<span class="wm">${ic('time', 16)}${hms(r.t)}<span class="mut">·</span>have <b>${r.have}</b>${r.away ? `<span class="mut">+${r.away} away</span>` : ''}</span></span>${r.lock ? `<span class="lock">${ic('warning', 18)}<span>${r.lock}</span></span>` : `<span class="tr"><span class="inp${r.val ? ' on' : ' z'}">${r.val}</span><span class="mx">max ${r.max}</span><span class="btn g sm">Train</span></span>`}</div>`;
+  const recB = `<div class="pn" style="flex:1"><div class="ph"><h2>Recruit</h2><span class="mut" style="font:600 13.5px/1.2 var(--font)">${FREE_POP} free population</span><span class="sp"></span><span class="lk">Unit guide ${chev(13)}</span></div><div class="wrs">${REC.map(rowB).join('')}</div></div>`;
+  const sideB = `<div class="col" style="width:316px;flex:none"><div class="pn"><div class="ph"><h2>Training</h2><span class="cnt">3 / 5</span><span class="sp"></span><span class="mut" style="font:600 13px/1.2 var(--font)">done 16:24</span></div>${tqRows()}</div><div class="pn"><div class="ph"><h2>Your order</h2></div><div class="ord"><div>${pt('raider', 36)}<b>10 Raiders</b><span class="sp"></span><span class="mut">32:20</span></div>${costEl([400, 800, 500, 0], { full: 1, s: 18 })}<span class="btn g" style="width:100%">Train 10 Raiders</span></div></div>${magsTip(TIPTXT)}</div>`;
+  write('mix-building-1440', 'A', `${topA()}${tabRowA('village')}<main class="sheetA"><div style="display:flex;gap:14px;height:100%">${vcolB}<div class="col" style="flex:1">${headB}<div style="display:flex;gap:12px;flex:1;min-height:0">${recB}${sideB}</div></div></div></main>`, `${MIX_CSS}${UB_CSS}${TQ_CSS}${TIP_CSS}${PG_CSS}
+.vcol.cmp .cs{padding:11px 14px}.vcol.cmp .csh{margin-bottom:5px}.vcol.cmp .qr{min-height:54px}.vcol.cmp .mvs{gap:6px}.vcol.cmp .mv{min-height:52px}.vcol.cmp .cpr{height:30px}
+.mini{position:relative}.mini .pic{border-radius:12px}.mini .go{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:5px;height:36px;padding:0 11px 1px 9px;border-radius:10px;background:rgba(255,250,240,.96);border:2px solid var(--c-ink);box-shadow:0 2px 0 var(--c-ink);font:700 13.5px/1.2 var(--font)}
+.bhm{flex-direction:row;gap:16px;padding:12px;flex:none}.bart{width:108px;height:108px;flex:none;display:grid;place-items:center;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.bart img{width:96px;height:96px;object-fit:contain}
+.bti{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}.bnav{display:flex;align-items:center;gap:6px}.crumb{display:inline-flex;align-items:center;gap:6px;height:38px;font:700 14.5px/1.2 var(--font);color:var(--on-surface-muted)}.crumb b{color:var(--heading)}.crumb .lk{font-size:14.5px;gap:5px}
+.cur{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 10px 0 7px;border-radius:10px;border:2px solid var(--edge);background:var(--surface);font:700 14px/1.2 var(--font);white-space:nowrap}.cur .mut{font-weight:500;font-size:13px}
+.bt{display:flex;align-items:center;gap:10px}.bt h1{font:400 32px/1.35 var(--font-display);color:var(--heading)}
+.nnl{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:10px;background:var(--surface-2);font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted);align-self:flex-start;white-space:nowrap}.nnl b{font:700 14.5px/1.2 var(--font);color:var(--heading)}.nnl b.nx{color:var(--ok)}.nnl svg{color:var(--on-surface-muted)}.nnl .sep{width:1px;height:18px;background:var(--edge);margin:0 5px}
+.ubwrap{width:430px;flex:none;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge-soft)}.ubh .ubp{font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted)}.ubc{display:flex;align-items:center;gap:14px}.ubc .cost{gap:12px}.ubt{display:inline-flex;align-items:center;gap:5px;margin-left:auto}.ubt b{font:700 15px/1.2 var(--font)}
+.wrs{display:flex;flex-direction:column;flex:1;min-height:0}.wr{display:flex;align-items:center;gap:12px;flex:1;padding:0 14px 0 8px;border-top:1px solid var(--edge-soft);min-height:0}.wr:first-child{border-top:0}.wr .mt b{font-size:16px}
+.wc{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}.wm{display:inline-flex;align-items:center;gap:5px;font:600 13.5px/1.2 var(--font);color:var(--on-surface-muted);white-space:nowrap}.wm b{color:var(--heading)}
+.tr{display:flex;align-items:center;gap:8px}.wr.off{background:var(--surface-2)}.wr.off .fg,.wr.off .cost{opacity:.4;filter:grayscale(1)}.lock{display:flex;align-items:center;gap:8px;max-width:230px;font:600 13.5px/1.25 var(--font);color:var(--warn)}
+.ord{display:flex;flex-direction:column;gap:10px;padding:12px 14px}.ord>div{display:flex;align-items:center;gap:8px}.ord b{font:700 15px/1.2 var(--font)}`);
+}
+console.log('ok', Object.keys(ICONS).length);

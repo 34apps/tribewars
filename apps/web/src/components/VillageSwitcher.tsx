@@ -3,7 +3,7 @@
 // current village everywhere. With only one village the pill is a plain label (Rename lives in the account menu).
 
 import { useEffect, useRef, useState } from 'react';
-import { RESOURCE_IDS } from '@clanfire/engine';
+import { RESOURCE_IDS, villagePoints } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { formatCompact, formatCoords, formatInt } from '../format.ts';
@@ -68,8 +68,9 @@ export function RenameVillage({ onDone }: { onDone?: () => void }) {
   );
 }
 
-export function VillageBar() {
-  const { village, villages, villageList, selectVillage, now, navigate, tab } = useGame();
+/** `frame`: the desktop top bar's look (name over coordinates and points, a chevron button); same list, same actions. */
+export function VillageBar({ frame = false }: { frame?: boolean }) {
+  const { village, villages, villageList, selectVillage, now, navigate, tab, live } = useGame();
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,7 +92,16 @@ export function VillageBar() {
   }, [open]);
 
   // One village: a plain name pill (no list to open). Several: the same pill opens the switcher.
+  const nameBlock = (
+    <span className="fr-vname">
+      <b>{village.name}</b>
+      <small>
+        {formatCoords(village.x, village.y)} · {formatInt(villagePoints(live))} points
+      </small>
+    </span>
+  );
   if (villages.length < 2) {
+    if (frame) return nameBlock;
     return (
       <div className="hud-pill hud-village is-static">
         <Icon name="flame" size={28} />
@@ -123,7 +133,30 @@ export function VillageBar() {
   const currentBadges = current ? villageBadges(current, now) : [];
 
   return (
-    <div className="hud-village-wrap" ref={ref}>
+    <div className={`hud-village-wrap${frame ? ' fr-vwrap' : ''}`} ref={ref}>
+      {frame ? (
+        <button
+          type="button"
+          className={`fr-vbtn${village.hearth ? ' is-cold' : ''}`}
+          aria-expanded={open}
+          aria-haspopup="true"
+          aria-label={`${villageLabel(village)}, ${villages.length} villages. Switch village`}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {nameBlock}
+          {currentBadges.map((b) => (
+            <span key={b.kind} className={`tag ${BADGE_TAG[b.kind]} hud-village-tag`}>
+              {b.text}
+            </span>
+          ))}
+          {attacked > 0 && <span className="tag tag-bad hud-village-tag">{attacked === 1 ? '1 other attacked' : `${attacked} others attacked`}</span>}
+          <span className="fr-sw" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d={open ? 'M3 10l5-5 5 5' : 'M3 6l5 5 5-5'} />
+            </svg>
+          </span>
+        </button>
+      ) : (
       <button
         type="button"
         className={`hud-pill hud-village${village.hearth ? ' is-cold' : ''}`}
@@ -145,6 +178,7 @@ export function VillageBar() {
           {open ? '▴' : '▾'}
         </span>
       </button>
+      )}
       {open && (
         <div className="vsw-pop" role="group" aria-label="My villages">
           <ul className="vsw-list">

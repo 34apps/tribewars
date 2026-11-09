@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -122 140 190" width="280" height="380"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- rock mound -->
+<path d="M-34 13L0 30L-2 -1.9L-9 -5.2L-16 -3.5L-22 -7.4L-28 -6.2Z" fill="#A9B4BE"/>
+<path d="M0 30L34 13L30 -4.1L24 -6.2L18 -3.5L10 -6.8L4 -3.0L-2 -1.9Z" fill="#6C7782"/>
+<path d="M-28 -6.2L-22 -7.4L-16 -3.5L-9 -5.2L-2 -1.9L4 -3.0L10 -6.8L18 -3.5L24 -6.2L30 -4.1L22 -10.7L0 -16.2L-20 -11.8Z" fill="#C3CCD4"/>
+<path d="M-30 6L-20 10L-22 14M-8 -2L-12 6M24 0L16 6L18 12M10 -6L14 -2" fill="none" stroke-width="1.100" opacity=".55"/>
+<path d="M-31 8L-27 5L-23 9L-27 11Z" fill="#B5533C" stroke-width="1.100"/><path d="M-27 5L-23 9L-27 11Z" fill="#8A3A2A" stroke="none"/><path d="M14 5L18 2L22 6L18 8Z" fill="#B5533C" stroke-width="1.100"/><path d="M18 2L22 6L18 8Z" fill="#8A3A2A" stroke="none"/><!-- timber-propped mouth -->
+<g transform="matrix(1 .5 0 -1 0 30)"><rect x="-26" y="0" width="14" height="15" fill="#1E1A18"/><path d="M-23 6L-23 4M-17 11L-17 9" fill="none" stroke="#B5533C" stroke-width="1.300"/>
+<rect x="-28.500" y="0" width="3.500" height="17" fill="#C99A62"/><rect x="-13" y="0" width="3.500" height="17" fill="#8E6539"/><rect x="-30" y="15" width="22" height="4" fill="#B98F5E"/><path d="M-26 15L-23 15L-26 11M-13 15L-16 15L-13 11" fill="#8E6539" stroke-width="1"/>
+<path d="M-30 17L-28 21M-8 17L-10 21" fill="none" stroke-width="1.6"/></g>
+<!-- rails and wooden cart -->
+<path d="M-27.950 17.980L-13.950 24.980M-31.200 19.600L-17.200 26.600M-34.450 21.200L-20.450 28.200M-37.700 22.900L-23.700 29.900" fill="none" stroke="#7A5530" stroke-width="2.400"/>
+<path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke-width="3.200"/><path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke="#C8C3B8" stroke-width="1.400"/><g transform="translate(0 0)"><path d="M-37.650 24.250L-30.650 27.750V21.750L-37.650 18.250Z" fill="#C99A62"/><path d="M-30.650 27.750L-22.650 23.750V17.750L-30.650 21.750Z" fill="#8E6539"/><path d="M-30.650 21.750L-22.650 17.750L-29.650 14.250L-37.650 18.250Z" fill="#3A2A1C"/>
+<path d="M-35 17.400L-32.500 12.400L-28.500 14L-25.500 12L-23.500 16.900L-29 19.400Z" fill="#B5533C" stroke-width="1.300"/><path d="M-32.500 12.400L-28.500 14L-30 16.900Z" fill="#D9704F" stroke="none"/>
+<circle cx="-35.500" cy="26.400" r="1.800" fill="#3A3430" stroke-width="1"/><circle cx="-32" cy="28.300" r="1.800" fill="#3A3430" stroke-width="1"/></g>
+<!-- ore heap, pick, lantern post -->
+<path d="M12 30L15 24L21 22L27 25L28 30L20 33Z" fill="#8C98A3" stroke-width="1.400"/><path d="M15 24L21 22L19 28Z" fill="#C3CCD4" stroke="none"/><path d="M28 30L27 25L23 28Z" fill="#5F6A75" stroke="none"/>
+<path d="M17 23L20 18L25 19L26 24L22 26Z" fill="#B5533C" stroke-width="1.300"/><path d="M20 18L25 19L22 22Z" fill="#D9704F" stroke="none"/>
+<path d="M6 42L18 36" fill="none" stroke-width="3.200"/><path d="M6 42L18 36" fill="none" stroke="#C99A62" stroke-width="1.400"/><path d="M13 33.500L20 35L22.500 39L18 37.500Z" fill="#8C98A3" stroke-width="1.100"/><path d="M13 33.500L20 35L18 37.500Z" fill="#D8DCE0" stroke="none"/>
+<path d="M-8 34V12" fill="none" stroke-width="4"/><path d="M-8 34V12" fill="none" stroke="#8E6539" stroke-width="1.800"/><path d="M-8 14H-2" fill="none" stroke-width="3"/><path d="M-8 14H-2" fill="none" stroke="#8E6539" stroke-width="1.200"/>
+<path d="M-4.500 15V19H0.500V15Z" fill="#FFB03A" stroke-width="1.200"/><path d="M-5.500 15H1.500L-2 12Z" fill="#5E3F22" stroke-width="1"/><circle cx="-2" cy="17" r="1" fill="#FFF1B8" stroke="none"/>
+</g></svg>

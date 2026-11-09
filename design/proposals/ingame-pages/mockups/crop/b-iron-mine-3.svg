@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-63.86 -76.56 128.52 143.52" width="257" height="287"><path d="M-59.8 26L0 55.9L0 62.9L-59.8 33Z" fill="#5E8C3A" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M59.8 26L0 55.9L0 62.9L59.8 33Z" fill="#3A5E27" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><path d="M0 -3.9L59.8 26L0 55.9L-59.8 26Z" fill="#A6C964" stroke="#2B211C" stroke-width="1.8" stroke-linejoin="round"></path><ellipse cx="6" cy="30" rx="54.6" ry="27.3" fill="#2B211C" opacity="0.14"></ellipse>
+<g stroke="#2B211C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-46.8 22L0 45.4L0 49.4L-46.8 26Z" fill="#8E6539" stroke-width="2"/><path d="M46.8 22L0 45.4L0 49.4L46.8 26Z" fill="#5E3F22" stroke-width="2"/><path d="M0 -1.4L46.8 22L0 45.4L-46.8 22Z" fill="#B98F5E" stroke-width="2"/>
+<!-- rock mound -->
+<path d="M-34 13L0 30L-2 -14.0L-9 -20.0L-16 -17.0L-22 -24.0L-28 -22.0Z" fill="#A9B4BE"/>
+<path d="M0 30L34 13L30 -18.0L24 -22.0L18 -17.0L10 -23.0L4 -16.0L-2 -14.0Z" fill="#6C7782"/>
+<path d="M-28 -22.0L-22 -24.0L-16 -17.0L-9 -20.0L-2 -14.0L4 -16.0L10 -23.0L18 -17.0L24 -22.0L30 -18.0L22 -30.0L0 -40.0L-20 -32.0Z" fill="#C3CCD4"/>
+<path d="M-30 -4L-20 2L-22 12M-6 -2L-10 8M26 -4L16 4L18 14M8 0L12 10M-14 -26L-4 -30L4 -24" fill="none" stroke-width="1.100" opacity=".55"/>
+<path d="M-33 12L-29 9L-25 13L-29 15Z" fill="#B5533C" stroke-width="1.100"/><path d="M-29 9L-25 13L-29 15Z" fill="#8A3A2A" stroke="none"/><path d="M14 5L18 2L22 6L18 8Z" fill="#B5533C" stroke-width="1.100"/><path d="M18 2L22 6L18 8Z" fill="#8A3A2A" stroke="none"/><path d="M24 -12L28 -15L32 -11L28 -9Z" fill="#B5533C" stroke-width="1.100"/><path d="M28 -15L32 -11L28 -9Z" fill="#8A3A2A" stroke="none"/><!-- stone-arched portal -->
+<g transform="matrix(1 .5 0 -1 0 30)"><rect x="-31" y="0" width="24" height="23" fill="#D9C7A0"/><path d="M-31 8H-7M-31 16H-7M-24 0V8M-14 8V16M-26 16V23M-12 16V23" fill="none" stroke="#8E7A5A" stroke-width=".8" opacity=".6"/>
+<path d="M-27 0V13Q-19 25 -11 13V0Z" fill="#8C98A3"/><path d="M-24.500 0V13Q-19 21.500 -13.500 13V0Z" fill="#1E1A18"/><path d="M-25 7L-25 5M-16 14L-16 12" fill="none" stroke="#B5533C" stroke-width="1.300"/>
+<path d="M-21.500 22.500L-19 26L-16.500 22.500Z" fill="#F2B33D" stroke-width="1.100"/>
+<rect x="-32" y="23" width="26" height="3.500" fill="#A9B4BE"/><circle cx="-30" cy="24.800" r=".9" fill="#F2B33D" stroke="none"/><circle cx="-19" cy="24.800" r=".9" fill="#F2B33D" stroke="none"/><circle cx="-8" cy="24.800" r=".9" fill="#F2B33D" stroke="none"/>
+<circle cx="-5.500" cy="15" r="2.300" fill="#FFB03A" stroke-width="1"/></g>
+<!-- rails, cart -->
+<path d="M-27.950 17.980L-13.950 24.980M-31.200 19.600L-17.200 26.600M-34.450 21.200L-20.450 28.200M-37.700 22.900L-23.700 29.900" fill="none" stroke="#7A5530" stroke-width="2.400"/>
+<path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke-width="3.200"/><path d="M-24 18L-37 24.500M-14 23L-27 29.500" fill="none" stroke="#C8C3B8" stroke-width="1.400"/><g transform="translate(0 0)"><path d="M-37.650 24.250L-30.650 27.750V21.750L-37.650 18.250Z" fill="#8C98A3"/><path d="M-30.650 27.750L-22.650 23.750V17.750L-30.650 21.750Z" fill="#5F6A75"/><path d="M-30.650 21.750L-22.650 17.750L-29.650 14.250L-37.650 18.250Z" fill="#1E1A18"/>
+<path d="M-35 17.400L-32.500 12.400L-28.500 14L-25.500 12L-23.500 16.900L-29 19.400Z" fill="#B5533C" stroke-width="1.300"/><path d="M-32.500 12.400L-28.500 14L-30 16.900Z" fill="#D9704F" stroke="none"/>
+<circle cx="-35.500" cy="26.400" r="1.800" fill="#3A3430" stroke-width="1"/><circle cx="-32" cy="28.300" r="1.800" fill="#3A3430" stroke-width="1"/></g>
+<!-- timber headframe with big wheel -->
+<path d="M-24 -20L-14 -62M0 -22L-14 -62" fill="none" stroke-width="6"/><path d="M-24 -20L-14 -62" fill="none" stroke="#C99A62" stroke-width="3.200"/><path d="M0 -22L-14 -62" fill="none" stroke="#8E6539" stroke-width="3.200"/>
+<path d="M-20.500 -35L-6.500 -35M-18 -45L-10.500 -45" fill="none" stroke-width="3.400"/><path d="M-20.500 -35L-6.500 -35M-18 -45L-10.500 -45" fill="none" stroke="#B98F5E" stroke-width="1.400"/>
+<circle cx="-14" cy="-64" r="8.5" fill="#C3CCD4" stroke-width="1.5"/><path d="M-21.0 -64H-7.0M-14 -71.0V-57.0M-19.1 -69.1L-8.9 -58.9M-19.1 -58.9L-8.9 -69.1" fill="none" stroke="#5F6A75" stroke-width="1"/><circle cx="-14" cy="-64" r="1.6" fill="#2B211C" stroke="none"/>
+<path d="M-5.500 -64V-34" fill="none" stroke="#E8DCC0" stroke-width="1.100"/><path d="M-9 -34H-2L-3 -28H-8Z" fill="#6C7782" stroke-width="1.300"/>
+<!-- brick smelter, chimney, smoke -->
+<path d="M20 5L25 7.500V-32L20 -34.500Z" fill="#C4623A"/><path d="M25 7.500L30 5V-34.500L25 -32Z" fill="#8A3A2A"/><path d="M20 -8L25 -5.500M20 -20L25 -17.500M25 -5.500L30 -8M25 -17.500L30 -20" fill="none" stroke-width=".8" opacity=".5"/>
+<path d="M25 -32L19.5 -34.75V-38.25L25 -35.5Z" fill="#8C98A3"/><path d="M25 -32L30.5 -34.75V-38.25L25 -35.5Z" fill="#5F6A75"/><path d="M25 -35.5L19.5 -38.25L25.0 -41.0L30.5 -38.25Z" fill="#6C7782"/><circle cx="25" cy="-44" r="3.5" fill="#E3E6E9" stroke-width="1" opacity="0.9"/><circle cx="29" cy="-51" r="4.5" fill="#E3E6E9" stroke-width="1" opacity="0.8"/><circle cx="26" cy="-58" r="5.5" fill="#E3E6E9" stroke-width="1" opacity="0.7"/>
+<!-- smelter body -->
+<path d="M30 34L14 26.0V11.0L30 19Z" fill="#C4623A"/><path d="M30 34L40 29.0V14.0L30 19Z" fill="#8A3A2A"/><path d="M30 19L14 11.0L24 6.0L40 14.0Z" fill="#7A8591"/>
+<g transform="matrix(1 .5 0 -1 0 19)"><path d="M23 0V5Q26.500 11 30 5V0Z" fill="#FFB03A" stroke-width="1.100"/><path d="M25 0V3.500Q26.500 6 28 3.500V0Z" fill="#FFE08A" stroke="none"/><path d="M15 6H30" fill="none" stroke="#5E3F22" stroke-width="1" opacity=".5"/></g>
+<!-- water trough -->
+<path d="M12 46L-3 38.5V33.5L12 41Z" fill="#C99A62" stroke-width="1.300"/><path d="M12 46L18 43.0V38.0L12 41Z" fill="#8E6539" stroke-width="1.300"/><path d="M12 41L-3 33.5L3 30.5L18 38.0Z" fill="#2F9AA0" stroke-width="1.300"/><path d="M2 42L9 45.500" fill="none" stroke="#9CE0E3" stroke-width="1"/></g></svg>

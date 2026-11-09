@@ -20,7 +20,7 @@ import {
 import { useGame } from '../../game.ts';
 
 /** Claim + hide for the village shown now, with the "some won't fit" check against its stock and storage. */
-function useFirstSteps(onShowBuilding: (id: BuildingId) => void) {
+export function useFirstSteps(onShowBuilding: (id: BuildingId) => void) {
   const { village, live, firstSteps, applyFirstSteps, applyVillage, refresh, toast, navigate } = useGame();
   const [busy, setBusy] = useState<string | null>(null);
   const cap = storageCap(live);
