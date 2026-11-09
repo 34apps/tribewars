@@ -8,12 +8,12 @@ import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRank
 import { api, errorMessage } from '../../api.ts';
 import { ChieftainAvatar } from '../../art/Chieftain.tsx';
 import { Icon } from '../../art/Icon.tsx';
-import { DominationBar } from '../../components/DominationBar.tsx';
 import { barWidth, dominationHeadline, leaderLine, percentText } from '../../domination.ts';
 import { formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import { useDomination } from '../../hooks/useDomination.ts';
 import { Dialog } from '../army/FrameArmy.tsx';
+import { DominationRoad } from './DominationRoad.tsx';
 import { ProfileExtras } from '../ProfileExtras.tsx';
 import { makeSample } from '../rankingsSample.ts';
 import { paging, pageSlice } from '../reports/frame-reports-logic.ts';
@@ -27,6 +27,11 @@ import '../../frame-ranks.css';
 /** Remembered while the player moves between tabs (like the phone page). */
 let lastSection: RankSection = 'players';
 let lastSample: boolean | null = null;
+
+/** Other pages (the Tribe page's Domination tile) open Ranks on the Domination tab. */
+export function openRanksDomination(): void {
+  lastSection = 'domination';
+}
 
 function Medal({ rank }: { rank: number }) {
   if (rank > 3) return <span className="frk-rn">{rank}</span>;
@@ -159,7 +164,6 @@ export function FrameRanks() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [picked, setPicked] = useState<{ kind: 'player' | 'tribe'; id: number } | null>(null);
-  const [domOpen, setDomOpen] = useState(false);
   const [me, setMe] = useState<PlayerProfileDto | null>(null);
   const sample = useMemo(makeSample, []);
   const dom = useDomination();
@@ -251,7 +255,7 @@ export function FrameRanks() {
   const myTribeId = player.tribe?.id ?? null;
   const myRow = playerAll.find((p) => p.playerId === meId) ?? null;
   const myRenownRow = renownAll.find((p) => p.playerId === meId) ?? null;
-  const pageLoading = section === 'renown' ? !renown && !renownError : !players || !tribes;
+  const pageLoading = section === 'domination' ? false : section === 'renown' ? !renown && !renownError : !players || !tribes;
   const failure = section === 'renown' ? renownError : error;
 
   const switchSection = (s: RankSection) => {
@@ -447,6 +451,8 @@ export function FrameRanks() {
           ))}
         </nav>
         <span className="fv-sp" />
+        {section !== 'domination' && (
+        <>
         <label className="frk-srch">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
             <circle cx="8.5" cy="8.5" r="5.5" />
@@ -476,7 +482,12 @@ export function FrameRanks() {
           <i aria-hidden="true" />
           <span>Sample data</span>
         </label>
+        </>
+        )}
       </div>
+      {section === 'domination' ? (
+        <DominationRoad status={dom.status} otherTribes={tribes ? Math.max(0, tribes.length - (dom.status?.topTribes.length ?? 0)) : null} reload={dom.reload} error={dom.error} />
+      ) : (
       <div className="frk-body">
         <section className="fv-pn frk-list" id="rank-panel" role="tabpanel" aria-label={RANK_SECTIONS.find((s) => s.id === section)?.label}>
           {failure ? (
@@ -538,7 +549,7 @@ export function FrameRanks() {
             <div className="fv-ph">
               <h2>Domination</h2>
               <span className="fv-sp" />
-              <button type="button" className="fv-btn" disabled={!dom.status} onClick={() => setDomOpen(true)}>
+              <button type="button" className="fv-btn" disabled={!dom.status} onClick={() => switchSection('domination')}>
                 Details
               </button>
             </div>
@@ -573,12 +584,8 @@ export function FrameRanks() {
           </section>
         </div>
       </div>
-      {pop && <Pop data={pop} onClose={() => setPicked(null)} />}
-      {domOpen && dom.status && (
-        <Dialog title="Domination" onClose={() => setDomOpen(false)}>
-          <DominationBar status={dom.status} />
-        </Dialog>
       )}
+      {pop && <Pop data={pop} onClose={() => setPicked(null)} />}
     </div>
   );
 }

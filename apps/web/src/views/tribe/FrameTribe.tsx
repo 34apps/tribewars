@@ -1,24 +1,20 @@
 // The desktop Tribe page inside the fixed 1440 x 900 frame (owner-approved pictures mix-tribe2-1440 and mix-tribe-members-1440): a tribe
 // header (tag, name, recruitment line, stat tiles), the sub-tab row, then the section. All nine sub-tabs are fixed-size pages (pictures
-// mix-tribe*-1440). Without a tribe: the finder (a growing page). Phones keep TribeView.
+// mix-tribe*-1440). Without a tribe: FrameNoTribe (also a fixed page). Phones keep TribeView.
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
-import { Icon } from '../../art/Icon.tsx';
-import { DominationCard } from '../../components/DominationBar.tsx';
 import { PageHeader } from '../../components/PageHeader.tsx';
 import { formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import type { TribeTarget } from '../../game.ts';
-import { useSites } from '../../hooks/useSites.ts';
-import { tribeBonusLine } from '../../sites.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
 import { TribeContext } from '../../tribe/context.ts';
 import type { TribeApi } from '../../tribe/context.ts';
-import { Finder } from '../../tribe/Finder.tsx';
 import { PublicTribe } from '../../tribe/PublicTribe.tsx';
 import { useMyTribe } from '../../tribe/useMyTribe.ts';
+import { FrameNoTribe } from './FrameNoTribe.tsx';
 import { FrameTribeAlerts } from './FrameTribeAlerts.tsx';
 import { FrameTribeChat } from './FrameTribeChat.tsx';
 import { FrameTribeDiplomacy } from './FrameTribeDiplomacy.tsx';
@@ -44,22 +40,6 @@ const SECTION_LABEL: Record<TribeSection, string> = {
   forum: 'Forum',
   log: 'Log',
 };
-
-/** The Fire-site Renown bonus and the Domination bar, as on the phone; shown under the growing sub-tabs. */
-function WorldGoal() {
-  const { myBonus } = useSites(useRules().features.sites);
-  const line = tribeBonusLine(myBonus);
-  return (
-    <>
-      <DominationCard compact />
-      {line && (
-        <p className="site-bonus" role="status">
-          <Icon name="flame" size={18} className="inline-icon" /> {line}
-        </p>
-      )}
-    </>
-  );
-}
 
 function TribeHeader({ tribe }: { tribe: TribeDto }) {
   const maxMembers = useRules().tribe.maxMembers;
@@ -215,11 +195,7 @@ export function FrameTribe() {
   } else {
     body = (
       <TribeContext.Provider value={api}>
-        <Flow>
-          <PageHeader icon="tribe" title="Tribes" />
-          <Finder />
-          <WorldGoal />
-        </Flow>
+        <FrameNoTribe />
       </TribeContext.Provider>
     );
   }
