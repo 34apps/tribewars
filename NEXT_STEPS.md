@@ -5,6 +5,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 ## In-game layout redo (owner, 2026-11-09) — FIRST
 - Done: fixed 1440x900 desktop frame + Village page (`e801164`). Owner tests in the preview, then push. Pictures and tooling: `design/proposals/ingame-pages/` (mix-* = owner's mixes).
 - Done: building pages + BuildState control (`2006728`). Waiting on owner: backdrop (A toy landscape / B plain paper, B built); Army built (`154244d`). Reports pictures (`mix-reports*`) waiting for OK, then build.
+- **New rule from the owner (2026-11-09), not built:** at the top scouting rank (Keen 5, GAME_DESIGN §15) a successful scout report also shows ONE line: the TOTAL number of troops the target village has outside the village (away / supporting elsewhere), no per-unit breakdown. Needs engine (intel filter) + server + tests + GAME_DESIGN §15 in the same commit.
 - Polish: Army "Slings hit" picker is a plain select under the travel line; Boulder Sling send not tried end to end.
 - Then, one page at a time (pictures → owner picks pieces → build): Army, Reports, then Mail, Tribe, Ranks, Map; then the phone (360) version. Old width-based CSS of not-yet-redone pages still applies inside the frame.
 - Small: attack name cut off in the left Movements row; renown gained today needs data the client doesn't have; Alerts sheet overlaps the tab row; `045929b` (phone chip band) unpushed and not approved.
