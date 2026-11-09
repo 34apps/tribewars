@@ -18,6 +18,7 @@ import { TerrainCache } from '../map/terrain.ts';
 import { Legend } from '../map/Legend.tsx';
 import { TilePanel } from '../map/TilePanel.tsx';
 import '../map/map.css';
+import '../frame-map.css';
 
 const TAP_SLOP_MOUSE = 4;
 const TAP_SLOP_TOUCH = 9;
@@ -218,7 +219,20 @@ export function MapView({ active }: { active: boolean }) {
       const w = wrap.clientWidth;
       const h = wrap.clientHeight;
       const dpr = Math.min(3, window.devicePixelRatio || 1);
+      const prevW = sizeRef.current.w;
       sizeRef.current = { w, h, dpr };
+      // Desktop frame: the side panel opening or closing resizes the stage. Keep the map where it was (the stage is anchored at
+      // its left edge), and if the selected tile would end up under the panel, bring it back into view.
+      if (prevW > 0 && w > 0 && prevW !== w && document.documentElement.classList.contains('layout-desktop')) {
+        const v = viewRef.current;
+        panBy(v, (prevW - w) / 2, 0);
+        const sel = selectedRef.current;
+        if (sel && w < prevW) {
+          const p = toScreen(v, { w, h }, sel.x, sel.y);
+          if (p.x > w - 90) panBy(v, w / 2 - p.x, 0);
+        }
+        clampView(v, radius);
+      }
       canvas.width = Math.max(1, Math.round(w * dpr));
       canvas.height = Math.max(1, Math.round(h * dpr));
       schedule();
@@ -234,7 +248,7 @@ export function MapView({ active }: { active: boolean }) {
       window.clearTimeout(marchTimer.current);
       dirtyRef.current = false;
     };
-  }, [schedule]);
+  }, [schedule, radius]);
 
   // New map data -> redraw (and refresh the panel). Stale chunks are re-requested every few seconds while visible.
   useEffect(() => {

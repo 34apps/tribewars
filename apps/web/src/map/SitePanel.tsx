@@ -1,7 +1,7 @@
 // Panel for a tapped site (Great Fire / Fire Shrine): who holds it, its state, garrison, calm time, the Renown it gives,
 // my troops there, and the normal send form aimed at the site's tile (attack to take it, support to hold it).
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { UNITS, UNIT_IDS, distance } from '@clanfire/engine';
 import type { Coords, Mission, SiteDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -20,7 +20,7 @@ import {
   stateText,
 } from '../sites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
-import { SendForm } from './TilePanel.tsx';
+import { SendForm, useFitPanel } from './TilePanel.tsx';
 import { TERRAIN_NAME } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -42,6 +42,8 @@ const SITE_HINTS: Partial<Record<Mission, string>> = {
 
 export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClose }: Props) {
   const { village: mine, player, now, viewTribe, navigate, refresh, toast, worldEnd } = useGame();
+  const panelRef = useRef<HTMLElement>(null);
+  useFitPanel(panelRef);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const tile: Coords = { x: site.x, y: site.y };
@@ -72,7 +74,7 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
   }
 
   return (
-    <aside className="wm-panel" aria-label="Selected site">
+    <aside ref={panelRef} className="wm-panel is-site" aria-label="Selected site">
       <div className="wm-panel-grip" aria-hidden="true" />
       <header className="wm-panel-head">
         <div className="wm-panel-titles">

@@ -1,0 +1,869 @@
+/* DESKTOP Map page inside the fixed 1440 x 900 frame (owner pick A, 2026-11-09): big map left, a fixed-width side panel right while a place
+   is selected (nothing selected = the map takes the full width). Everything keys on the `layout-desktop` root class, so the phone map
+   (map.css) is untouched. Parchment semantic tokens only. The panel never scrolls: the map controls sit on the map. */
+
+html.layout-desktop .wm {
+  align-items: stretch;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-stage {
+  position: relative;
+  top: auto;
+  height: auto;
+}
+
+/* ---- Map controls: one column top right, the key bottom left ---- */
+html.layout-desktop .wm-zoom {
+  top: 14px;
+  right: 14px;
+  gap: 10px;
+}
+
+html.layout-desktop .wm-legend {
+  left: 14px;
+  bottom: 14px;
+  gap: 10px;
+}
+
+html.layout-desktop .wm-stage .wm-btn-icon {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 14px;
+  border: 2.5px solid var(--c-ink);
+  background: var(--surface);
+  color: var(--c-ink);
+  box-shadow: 0 3px 0 var(--c-ink);
+}
+
+html.layout-desktop .wm-stage .wm-btn-icon:hover {
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-stage .wm-btn-icon.wm-btn-sun,
+html.layout-desktop .wm-stage .wm-btn-icon.wm-btn-sun:hover {
+  background: var(--c-sun);
+}
+
+html.layout-desktop .wm-stage .wm-btn-icon:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--c-ink);
+}
+
+html.layout-desktop .wm-go-pop {
+  right: 58px;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--edge), 0 3px 0 var(--edge-shadow);
+}
+
+html.layout-desktop .wm-go-pop .wm-btn {
+  min-height: 40px;
+  padding: 0 14px 2px;
+  background: var(--c-sun);
+  font-size: 14px;
+}
+
+html.layout-desktop .wm-go-pop .wm-input {
+  width: 72px;
+  height: 40px;
+  font-size: 15px;
+}
+
+html.layout-desktop .wm-go-error {
+  font-size: 13px;
+}
+
+html.layout-desktop .wm-legend-card {
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 2px var(--edge), 0 3px 0 var(--edge-shadow);
+}
+
+html.layout-desktop .wm-legend-body {
+  max-height: 640px;
+}
+
+html.layout-desktop .wm-tip {
+  font-size: 13px;
+}
+
+/* ---- Buttons: the same family as the other frame pages (.fv-btn) ---- */
+html.layout-desktop .wm-panel .wm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px 3px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 11px;
+  background: var(--c-bone);
+  box-shadow: inset 0 2px 0 #fff3dc, inset 0 -4px 0 var(--c-bone-shade), 0 3px 0 var(--c-ink);
+  color: var(--on-fill);
+  font: 700 13.5px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-panel .wm-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 0 #fff3dc, inset 0 -4px 0 var(--c-bone-shade), 0 1px 0 var(--c-ink);
+}
+
+html.layout-desktop .wm-panel .wm-btn-sun,
+html.layout-desktop .wm-panel .wm-btn-sun:hover {
+  background: var(--c-sun);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo), 0 3px 0 var(--c-ink);
+}
+
+html.layout-desktop .wm-panel .wm-btn-big {
+  min-height: 50px;
+  border-radius: 14px;
+  font: 400 19px/1.35 var(--font-display);
+}
+
+html.layout-desktop .wm-panel .wm-btn-big .wm-ico {
+  width: 22px;
+  height: 22px;
+}
+
+html.layout-desktop .wm-panel .wm-btn:disabled {
+  background: var(--surface-3);
+  color: var(--on-surface-muted);
+  border-color: var(--edge);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+html.layout-desktop .wm-panel .wm-btn-big:disabled {
+  background: var(--c-sun);
+  color: var(--on-fill);
+  border-color: var(--c-ink);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo), 0 3px 0 var(--c-ink);
+  filter: saturate(0.4) brightness(1.04);
+}
+
+html.layout-desktop .wm-panel .wm-btn-small {
+  min-height: 36px;
+}
+
+/* ---- The panel ---- */
+html.layout-desktop .wm-panel {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  align-self: stretch;
+  width: 432px;
+  max-height: none;
+  overflow: hidden;
+  gap: 6px;
+  padding: 12px 16px 14px;
+  border: 0;
+  border-left: 2.5px solid var(--c-ink);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+html.layout-desktop .wm-panel-head {
+  gap: 10px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--on-surface);
+}
+
+html.layout-desktop .wm-panel-head h2 {
+  margin: 0 0 3px;
+  color: var(--heading);
+  font: 400 22px/1.3 var(--font-display);
+}
+
+html.layout-desktop .wm-owner {
+  gap: 4px 8px;
+  font: 600 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-owner-name {
+  font-weight: 600;
+}
+
+html.layout-desktop .wm-dim {
+  color: var(--on-surface-muted);
+}
+
+html.layout-desktop .wm-tag {
+  min-height: 28px;
+  border: 0;
+  background: var(--c-plum);
+  color: var(--on-dark);
+  font: 700 13px/1 var(--font);
+}
+
+html.layout-desktop .wm-allegiance {
+  margin-left: 0;
+  padding: 3px 10px 4px;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  filter: brightness(1.7);
+}
+
+html.layout-desktop .wm-site-state {
+  color: #cdba98;
+  filter: none;
+}
+
+html.layout-desktop .wm-site-state.is-awake {
+  color: var(--c-sun);
+}
+
+html.layout-desktop .wm-panel .wm-close {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+html.layout-desktop .wm-panel .wm-ship-btn {
+  min-height: 36px;
+  padding: 0 10px 3px;
+  font-size: 13.5px;
+}
+
+/* Stage card: the village drawing, its growth stage and ring. */
+html.layout-desktop .wm-stagecard {
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  padding: 6px 12px 6px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+html.layout-desktop .wm-stagecard .wm-thumb {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+  background: #a6c964;
+  box-sizing: border-box;
+}
+
+html.layout-desktop .wm-stagecard .wm-thumb img {
+  width: 88px;
+  height: 108px;
+  margin: -26px 0 0 -14px;
+}
+
+html.layout-desktop .wm-stagecard .wm-thumb .wm-glyph-fit {
+  width: 60px;
+  margin: 0;
+}
+
+html.layout-desktop .wm-stagecard-kicker {
+  color: var(--on-surface-muted);
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.06em;
+}
+
+html.layout-desktop .wm-stagecard-name {
+  margin: 3px 0;
+  color: var(--heading);
+  font: 700 15px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-stagecard-al {
+  color: var(--on-surface-muted);
+  font: 600 13.5px/1.2 var(--font);
+}
+
+/* Facts: small tiles, label over value. */
+html.layout-desktop .wm-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+html.layout-desktop .wm-facts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-facts dt {
+  color: var(--on-surface-muted);
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+html.layout-desktop .wm-facts dd {
+  color: var(--heading);
+  font: 700 15px/1.2 var(--font);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+html.layout-desktop .wm-facts > .wm-fact-wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+html.layout-desktop .wm-fact-sub {
+  display: inline;
+  margin-left: 6px;
+  color: var(--on-surface-muted);
+  font: 600 13.5px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-strength {
+  display: flex;
+  align-items: center;
+}
+
+html.layout-desktop .wm-strength.is-weak,
+html.layout-desktop .wm-strength.is-medium,
+html.layout-desktop .wm-strength.is-strong {
+  color: var(--heading);
+}
+
+html.layout-desktop .wm-strength-tag {
+  padding: 2px 10px 3px;
+  border-radius: 99px;
+  font: 700 13px/1.3 var(--font);
+}
+
+html.layout-desktop .is-weak .wm-strength-tag {
+  background: var(--c-leaf);
+}
+
+html.layout-desktop .is-medium .wm-strength-tag {
+  background: var(--c-sun-hi);
+}
+
+html.layout-desktop .is-strong .wm-strength-tag {
+  background: var(--c-terra-hi);
+}
+
+html.layout-desktop .wm-protected {
+  color: var(--info);
+}
+
+html.layout-desktop .wm-note,
+html.layout-desktop .wm-error {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 11px;
+  font: 600 13.5px/1.35 var(--font);
+}
+
+html.layout-desktop .wm-note {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+html.layout-desktop .wm-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+html.layout-desktop .wm-muted {
+  color: var(--on-surface-muted);
+  font: 600 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-link {
+  color: var(--link);
+  font: 700 14px/1.3 var(--font);
+}
+
+/* Contingents at a site (Call back) */
+html.layout-desktop .wm-contingents {
+  margin: 0;
+  gap: 6px;
+}
+
+html.layout-desktop .wm-contingent {
+  padding: 6px 8px 6px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--surface-2);
+  font: 600 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-contingent .wm-btn {
+  min-height: 36px;
+}
+
+/* ---- Send form ---- */
+html.layout-desktop .wm-send-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+html.layout-desktop .wm-panel.is-ship .wm-send-panel {
+  display: none;
+}
+
+html.layout-desktop .wm-send-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+html.layout-desktop .wm-send-top .segmented {
+  flex: 1;
+  min-width: 0;
+}
+
+html.layout-desktop .wm-send-title {
+  flex: 1;
+  color: var(--heading);
+  font: 400 19px/1.3 var(--font-display);
+}
+
+html.layout-desktop .wm-panel .segmented {
+  gap: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-3);
+}
+
+html.layout-desktop .wm-panel .segment {
+  min-height: 38px;
+  border-radius: 11px;
+  color: var(--on-surface-muted);
+  font: 700 15px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-panel .segment.is-active {
+  border: 2.5px solid var(--c-ink);
+  background: var(--c-sun);
+  box-shadow: inset 0 2px 0 var(--c-sun-hi), inset 0 -3px 0 var(--c-sun-lo);
+  color: var(--on-fill);
+}
+
+html.layout-desktop .wm-panel .help-pop summary {
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
+  color: var(--on-surface-muted);
+  font-size: 16px;
+}
+
+html.layout-desktop .wm-send-top .help-pop {
+  position: static;
+  flex: none;
+}
+
+html.layout-desktop .wm-send-top .help-pop p {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--edge), 0 4px 0 var(--edge-shadow);
+  color: var(--on-surface);
+  font: 600 13.5px/1.4 var(--font);
+}
+
+html.layout-desktop .wm-panel .title-row + * {
+  margin-top: 0;
+}
+
+html.layout-desktop .wm-morale .help-pop summary {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+/* Troop groups: chips; Save / Manage / Clear are plain links on the right. */
+html.layout-desktop .wm-groups {
+  gap: 4px;
+}
+
+html.layout-desktop .wm-groups-row {
+  align-items: center;
+  gap: 6px;
+}
+
+html.layout-desktop .wm-chip {
+  min-height: 36px;
+  padding: 0 10px 1px;
+  border: 2px solid var(--edge);
+  border-radius: 11px;
+  background: var(--surface);
+  font: 700 13.5px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-chip:hover {
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-chip:active {
+  background: var(--c-sun-hi);
+  border-color: var(--c-ink);
+}
+
+html.layout-desktop .wm-chip-saved {
+  background: var(--surface);
+}
+
+html.layout-desktop .wm-chip.wm-chip-tool {
+  min-height: 36px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+html.layout-desktop .wm-chip.wm-chip-tool:disabled {
+  color: var(--on-surface-muted);
+  background: none;
+}
+
+html.layout-desktop .wm-groups-row .wm-chip-tool:last-child {
+  margin-left: auto;
+}
+
+html.layout-desktop .wm-groups-label {
+  font-size: 14px;
+}
+
+html.layout-desktop .wm-groups .wm-groups-name {
+  height: 36px;
+}
+
+/* Troops at home: two columns, icon + name + "all N", the field on the right. */
+html.layout-desktop .wm-ugrid {
+  gap: 5px 8px;
+}
+
+html.layout-desktop .wm-ucard {
+  grid-template-columns: 32px minmax(0, 1fr) 52px;
+  gap: 0 6px;
+  min-height: 42px;
+  padding: 4px 6px 4px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-ucard.has {
+  background: #f9e6ae;
+}
+
+html.layout-desktop .wm-ucard .wm-uico {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--edge);
+}
+
+html.layout-desktop .wm-uname {
+  font: 700 13px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-uhave {
+  color: var(--link);
+  font: 700 13px/1.2 var(--font);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+html.layout-desktop .wm-uhave::before {
+  content: 'all ';
+}
+
+html.layout-desktop .wm-ucard .wm-input {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  width: 52px;
+  height: 36px;
+  margin: 0;
+  padding: 0 4px;
+  border: 2px solid var(--c-ink);
+  border-radius: 10px;
+  background: var(--input-bg);
+  font: 700 15px var(--font);
+  text-align: center;
+}
+
+html.layout-desktop .wm-ucard .wm-input:placeholder-shown {
+  border-color: var(--edge);
+}
+
+html.layout-desktop .wm-sline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+html.layout-desktop .wm-sline > p:only-child {
+  margin-left: auto;
+}
+
+html.layout-desktop .wm-send-hint {
+  font: 600 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-sum-slow {
+  font: 600 13px/1.3 var(--font);
+}
+
+/* Foot: Travel / Arrives / Carry tiles and the big Send button, pinned to the bottom of the panel. */
+html.layout-desktop .wm-send-foot {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+html.layout-desktop .wm-send-foot .wm-sum {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 0;
+}
+
+html.layout-desktop .wm-sum > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 11px;
+  background: var(--info-bg);
+  text-align: left;
+}
+
+html.layout-desktop .wm-sum > div:last-child:not(:first-child) {
+  text-align: left;
+}
+
+html.layout-desktop .wm-sum dt {
+  color: var(--info);
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+html.layout-desktop .wm-sum dd {
+  color: var(--heading);
+  font: 700 16px/1.2 var(--font);
+  white-space: nowrap;
+}
+
+html.layout-desktop .wm-send-foot .wm-why,
+html.layout-desktop .wm-why {
+  margin: 0;
+  color: var(--on-surface-muted);
+  font: 600 13px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-send-foot .wm-btn-big {
+  min-height: 50px;
+}
+
+html.layout-desktop .wm-select {
+  height: 40px;
+  border: 2px solid var(--c-ink);
+  border-radius: 10px;
+  background: var(--input-bg);
+  font: 600 14px var(--font);
+}
+
+html.layout-desktop .wm-siege label {
+  font: 700 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-siege p {
+  font-size: 13px;
+}
+
+html.layout-desktop .wm-test summary::before {
+  content: '\25B8';
+  display: inline-block;
+  width: 14px;
+  transition: transform 0.12s;
+}
+
+html.layout-desktop .wm-test[open] summary::before {
+  transform: rotate(90deg);
+}
+
+html.layout-desktop .wm-test summary {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 13px;
+}
+
+html.layout-desktop .wm-test-body {
+  font-size: 13px;
+}
+
+/* Resources form (Send res.): replaces the troop form while open. */
+html.layout-desktop .wm-send {
+  gap: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+html.layout-desktop .wm-units {
+  gap: 6px;
+}
+
+html.layout-desktop .wm-units li {
+  grid-template-columns: minmax(0, 1fr) 76px auto;
+  padding: 4px 6px 4px 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+html.layout-desktop .wm-units label {
+  font: 700 14px/1.2 var(--font);
+}
+
+html.layout-desktop .wm-units .wm-input {
+  grid-column: auto;
+  grid-row: auto;
+  width: 76px;
+  height: 36px;
+  border: 2px solid var(--c-ink);
+  border-radius: 10px;
+  background: var(--input-bg);
+  font: 700 15px var(--font);
+  text-align: center;
+}
+
+html.layout-desktop .wm-facts-send {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html.layout-desktop .wm-terrain-time dd small,
+html.layout-desktop .wm-terrain-time small {
+  font-size: 13px;
+}
+
+html.layout-desktop .wm-slow {
+  color: var(--accent);
+}
+
+/* ---- Tight: the panel's content was taller than the panel (see useFitPanel), so nothing scrolls: fold and trim. ---- */
+html.layout-desktop .wm-panel.is-tight {
+  gap: 4px;
+  padding-top: 10px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-panel-head h2 {
+  margin-bottom: 0;
+  font-size: 20px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-stagecard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  padding: 5px 12px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-stagecard .wm-thumb,
+html.layout-desktop .wm-panel.is-tight .wm-stagecard-al {
+  display: none;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-stagecard-name {
+  margin: 0;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-facts {
+  gap: 4px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-facts > div {
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  padding: 3px 10px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-facts > div:not(.wm-fact-wide) {
+  flex-direction: column;
+  gap: 0;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-ucard {
+  min-height: 40px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-ugrid {
+  gap: 4px 8px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-send-foot .wm-sum > div {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-send-foot .wm-btn-big {
+  min-height: 46px;
+}
+
+/* ---- Map key: text at least 13 px ---- */
+html.layout-desktop .wm-legend h3 {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+html.layout-desktop .wm-legend-body {
+  color: var(--on-surface);
+  font: 500 14px/1.3 var(--font);
+}
+
+html.layout-desktop .wm-legend-stages b {
+  font-size: 14px;
+}
+
+html.layout-desktop .wm-legend-stages small {
+  font-size: 13px;
+}
+
+html.layout-desktop .wm-legend-banners li {
+  font-size: 14px;
+}

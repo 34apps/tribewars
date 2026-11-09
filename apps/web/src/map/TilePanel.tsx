@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, checkMission, checkSend, distance, emptyUnits, mapStage, ruinStage, totalUnits, travelPreview } from '@clanfire/engine';
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -10,6 +11,7 @@ import { useTroopGroups } from '../hooks/useTroopGroups.ts';
 import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
+import { useIsDesktop } from '../hooks/useLayout.ts';
 import { MISSION_NAME } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
 import { Segmented } from '../tribe/bits.tsx';
@@ -53,6 +55,31 @@ import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
 import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 import type { TerrainCache } from './terrain.ts';
 
+/**
+ * Desktop frame: the side panel never scrolls. If its content is taller than the panel (a rare mix: nine unit kinds, warnings, a
+ * long site list), it gets `is-tight` and the CSS folds the art card into one line and trims spacing. Measured from the DOM so every
+ * state of the form counts; toggled on the element itself (no re-render).
+ */
+export function useFitPanel(ref: RefObject<HTMLElement | null>) {
+  const desktop = useIsDesktop();
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!desktop || !el) return;
+    const fit = () => {
+      el.classList.remove('is-tight');
+      if (el.scrollHeight > el.clientHeight + 1) el.classList.add('is-tight');
+    };
+    fit();
+    const mo = new MutationObserver(fit);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener('input', fit);
+    return () => {
+      mo.disconnect();
+      el.removeEventListener('input', fit);
+    };
+  }, [desktop, ref]);
+}
+
 interface Props {
   tile: Coords;
   village: MapVillageDto | undefined;
@@ -91,6 +118,7 @@ export function SendForm({
 }) {
   const { live, now, settings, renown, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
+  const desktop = useIsDesktop();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
   // A Found send starts with the Chieftain already chosen.
@@ -240,39 +268,63 @@ export function SendForm({
       {mode === 'found' && chieftainHome ? ' His Renown is already paid.' : ''}
     </>
   );
+  const simulateLink = (
+    <p className="wm-muted">
+      <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial, morale < 1))}>
+        Simulate
+      </button>
+    </p>
+  );
   const strikeOffer = offerStrike ? (
     <>
       Strike: +{strikeNeeds} Chieftain{strikeNeeds === 1 ? '' : 's'} + escort
     </>
   ) : null;
 
+  const helpPop = (
+    <details className="help-pop">
+      <summary aria-label="How sending works">?</summary>
+      <p className="small">{hint}</p>
+    </details>
+  );
+  const missionSwitch =
+    missions.length > 1 ? (
+      <Segmented
+        label="Mission"
+        value={mission}
+        options={missions.map((m) => ({ value: m, label: m === 'attack' && reliefTarget ? RELIEF_LABEL : MISSION_NAME[m] }))}
+        onChange={(m) => {
+          setError(null);
+          setGroupNote(null);
+          setSiegePick('');
+          setChosenMission(m);
+        }}
+      />
+    ) : null;
+
   return (
     <form
-      className={compact ? 'wm-send wm-send-panel' : 'wm-send'}
+      className={compact ? `wm-send wm-send-panel${listed.length > 8 ? ' is-dense' : ''}` : 'wm-send'}
       onSubmit={(e) => {
         e.preventDefault();
         void send();
       }}
     >
-      <div className="title-row">
-        {(!compact || missions.length < 2) && <h3 className="wm-send-title">{title}</h3>}
-        <details className="help-pop">
-          <summary aria-label="How sending works">?</summary>
-          <p className="small">{hint}</p>
-        </details>
-      </div>
-      {missions.length > 1 && (
-        <Segmented
-          label="Mission"
-          value={mission}
-          options={missions.map((m) => ({ value: m, label: m === 'attack' && reliefTarget ? RELIEF_LABEL : MISSION_NAME[m] }))}
-          onChange={(m) => {
-            setError(null);
-            setGroupNote(null);
-            setSiegePick('');
-            setChosenMission(m);
-          }}
-        />
+      {desktop && compact ? (
+        // Desktop frame: the mission switch and its "?" share one row (the "?" opens as a popover over the chips).
+        <div className="wm-send-top">
+          {missions.length < 2 && <h3 className="wm-send-title">{title}</h3>}
+          {missionSwitch}
+          {helpPop}
+        </div>
+      ) : (
+        <>
+          <div className="title-row">
+            {(!compact || missions.length < 2) && <h3 className="wm-send-title">{title}</h3>}
+            {helpPop}
+          </div>
+          {missionSwitch}
+        </>
       )}
       {listed.length === 0 ? (
         <p className="wm-muted">
@@ -363,7 +415,13 @@ export function SendForm({
         </>
       )}
       {showsSiegePicker(mission, chosen, rules.features.siege) && <SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />}
-      {strikeOffer && <p className="wm-muted wm-send-hint">{strikeOffer}</p>}
+      {desktop && compact && (strikeOffer || (mission === 'attack' && total > 0)) && (
+        <div className="wm-sline">
+          {strikeOffer && <p className="wm-muted wm-send-hint">{strikeOffer}</p>}
+          {mission === 'attack' && total > 0 && simulateLink}
+        </div>
+      )}
+      {!(desktop && compact) && strikeOffer && <p className="wm-muted wm-send-hint">{strikeOffer}</p>}
       {moraleText && total > 0 && (
         <div className="title-row wm-morale">
           <span className="wm-muted">{moraleText}</span>
@@ -373,13 +431,7 @@ export function SendForm({
           </details>
         </div>
       )}
-      {mission === 'attack' && total > 0 && (
-        <p className="wm-muted">
-          <button type="button" className="wm-link" onClick={() => openSimulator(draftFromSend(partial, morale < 1))}>
-            Simulate
-          </button>
-        </p>
-      )}
+      {!(desktop && compact) && mission === 'attack' && total > 0 && simulateLink}
 
       {compact ? (
         <>
@@ -533,6 +585,9 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [askedShip]);
   const canShip = canShipTo(village, isOwn, isCurrent);
+  const desktop = useIsDesktop();
+  const panelRef = useRef<HTMLElement>(null);
+  useFitPanel(panelRef);
   const relation = village && !isOwn && village.kind === 'player' ? village.relation : null;
   const tribeId = village && !isOwn ? village.tribeId : null;
   const missions: Mission[] = village ? missionsFor(village, { playerId: player.id, currentVillageId: mine.id }) : free ? ['found'] : [];
@@ -554,7 +609,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const occupiers = hearth && claimant && village ? myOccupierPopulation(stationed.abroad, village.id) : undefined;
 
   return (
-    <aside className="wm-panel" aria-label="Selected tile">
+    <aside ref={panelRef} className={`wm-panel${shipOpen && village && canShip ? ' is-ship' : ''}`} aria-label="Selected tile">
       <div className="wm-panel-grip" aria-hidden="true" />
       <header className="wm-panel-head">
         <div className="wm-panel-titles">
@@ -586,7 +641,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
             aria-expanded={shipOpen}
             onClick={() => setShipOpenFor(shipOpen ? null : shipKey)}
           >
-            Send res.
+            {desktop && shipOpen ? 'Troops' : 'Send res.'}
           </button>
         )}
         <button type="button" className="wm-btn wm-btn-icon wm-close" onClick={onClose} aria-label="Close panel">
@@ -634,7 +689,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           <div className="wm-fact-wide">
             <dt>Strength</dt>
             <dd className={`wm-strength is-${strength.band}`}>
-              {strength.band[0]!.toUpperCase() + strength.band.slice(1)}
+              <span className="wm-strength-tag">{strength.band[0]!.toUpperCase() + strength.band.slice(1)}</span>
               <span className="wm-fact-sub">≤ {strength.maxTroops} troops</span>
             </dd>
           </div>
