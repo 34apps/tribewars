@@ -1,4 +1,4 @@
-// Headless Chrome screenshots of mockups/{a,b,c,mix}-<page>-1440.html -> ../<name>.png (1440x900 @1x), with fit checks:
+// Headless Chrome screenshots of mockups/{a,b,c,mix}-<page>-1440.html (and ranks-top3-{a,b,c}-1440.html) -> ../<name>.png (1440x900 @1x), with fit checks:
 //   H-SCROLL / V-SCROLL  the document is wider than 1440 or taller than 900
 //   SCROLL               an element whose content is taller (or wider) than its box (scrollHeight > clientHeight)
 //   OUT                  an element that sticks out of the 1440x900 window
@@ -43,7 +43,7 @@ const CHECK = `(() => {
     const fs = parseFloat(getComputedStyle(e).fontSize); const badge = e.closest('.bd,.lvb');
     if (fs < (badge ? 11.5 : 12.9)) out.push('SMALL ' + fs + 'px ' + name(e));
   }
-  for (const e of document.querySelectorAll('.btn,.inp,.tb,.nv,.ft,.mx,.sw,.pg-b')) { const r = e.getBoundingClientRect(); if (r.height < 35.5) out.push('CONTROL ' + Math.round(r.height) + 'px ' + name(e)); }
+  for (const e of document.querySelectorAll('.btn,.inp,.tb,.nv,.ft,.mx,.sw,.pg-b,.mb,.gch,.hlp')) { const r = e.getBoundingClientRect(); if (r.height < 35.5) out.push('CONTROL ' + Math.round(r.height) + 'px ' + name(e)); }
   for (const i of document.images) if (!i.naturalWidth) out.push('IMG ' + i.getAttribute('src'));
   return { out: [...new Set(out)], fonts: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family).filter((v, i, a) => a.indexOf(v) === i).join(',') };
 })()`;
@@ -53,7 +53,7 @@ try {
   await send('Page.enable'); await send('Runtime.enable');
   const fi = process.argv.indexOf('--file');
   const f = fi < 0 ? (process.argv.slice(2).find((a) => !a.startsWith('--')) || '') : '';
-  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:[abc]|mix)-(village|building|army|reports|mail|tribe)\d?(?:-done|-big|-scout|-compose|-members|-alerts|-diplomacy|-projects|-recruit|-chat|-forum|-log)?-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
+  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:(?:[abc]|mix)-(village|building|army|reports|mail|tribe|ranks|map)\d?(?:-done|-big|-scout|-compose|-members|-alerts|-diplomacy|-projects|-recruit|-chat|-forum|-log)?|ranks-top3-[abc])-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
   for (const n of names) {
     await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: pathToFileURL(join(MOCK, n + '.html')).href });

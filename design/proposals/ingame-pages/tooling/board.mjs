@@ -128,6 +128,27 @@ boards.push(['board-tribe-tabs', `<h1>Tribe sub-tabs in the mix · desktop 1440 
   ['mix-tribe-log-1440.png', 'Log', 'Everything that happened in the tribe, 11 per page.'],
   ['mix-tribe2-1440.png', 'Overview (approved)', 'For comparison: the calm Overview.'],
 ].map(([f, lab, line], i) => `<div><span class="lab s${i === 7 ? ' now' : ' mix'}">${lab}</span><div class="mini" style="margin-top:8px">${line}</div><div class="fr" style="width:524px"><img src="${f}" style="width:520px"></div></div>`).join('')}</div>`]);
+// Ranks and Map (full width, A's top bar and tabs): two options each, side by side.
+const pair = (name, title, sub, items) => boards.push([name, `<h1>${title}</h1><div class="sub">${sub}</div><div class="g2">${items.map(([f, lab, line]) => `<div><span class="lab">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
+pair('board-ranks', 'Ranks page · desktop 1440 × 900', "A's top bar and tabs, full width. Only what today's Rankings has: Players / Tribes / Renown, top three, search, Jump to me, 20 per page, Domination bar. Nothing scrolls.", [
+  ['a-ranks-1440.png', 'A · Big rows', 'Top three, the world numbers and Domination in a band on top; the 20 places of a page as two columns of 10 big rows. Shown after Jump to me (your row lit).'],
+  ['b-ranks-1440.png', 'B · List + your card', 'One list of all 20 places on the left; on the right a card with your own rank and player facts, then the top three and Domination.'],
+]);
+pair('board-map', 'Map page · desktop 1440 × 900', "A's top bar and tabs, full width. Same map controls as today (zoom, centre on my village, go to x|y; map key closed). An abandoned village is selected; nothing scrolls.", [
+  ['a-map-1440.png', 'A · Side panel', 'Big map on the left; the selected place opens in a panel on the right: details, mission, troop groups, troops at home, travel and Send.'],
+  ['b-map-1440.png', 'B · Bottom strip', 'The map runs the full width; the selected place opens as one strip under it: details | mission and all troops in a row | travel and Send.'],
+]);
+// Ranks B · Top three card: today's plaques ("now") and three redraws, as close-ups of B's right column (x 975–1418, y 196–880).
+{
+  const Z = 1.25, X0 = 975, Y0 = 196, CW = 443, CH = 684;
+  const crop = (f) => `<div class="fr" style="width:${Math.round(CW * Z) + 4}px;height:${Math.round(CH * Z) + 4}px;position:relative"><img src="${f}" style="position:absolute;width:${1440 * Z}px;left:${-X0 * Z}px;top:${-Y0 * Z}px"></div>`;
+  boards.push(['board-ranks-top3', `<h1>Ranks B · the Top three card</h1><div class="sub">Close-ups of the right column at 1.25×, same data everywhere. Each option is drawn in the full page at 1440 × 900 (ranks-top3-a/b/c-1440.png) and still fits with no scrolling.</div><div style="display:grid;grid-template-columns:repeat(4,${Math.round(CW * Z) + 4}px);gap:34px 36px">${[
+    ['b-ranks-1440.png', 'Now', 'Three tan plaques with crowns; they read like heavy buttons.', ' now'],
+    ['ranks-top3-a-1440.png', 'A · Mini leaderboard', 'Three calm rows: medal, portrait, name, tribe tag, points on the right.', ''],
+    ['ranks-top3-b-1440.png', 'B · Toy podium', 'Three small stone steps, 2-1-3, portraits standing on them; name and points under.', ''],
+    ['ranks-top3-c-1440.png', 'C · Winner first', 'The leader big, with tribe and lead over #2; #2 and #3 small side by side.', ''],
+  ].map(([f, lab, line, cls]) => `<div><span class="lab${cls}">${lab}</span><div class="line" style="max-width:${Math.round(CW * Z)}px">${line}</div>${crop(f)}</div>`).join('')}</div>`]);
+}
 const only = process.argv[2] || '';
 const PROFILE = '/private/tmp/claude-501/ingame-pages-board'; rmSync(PROFILE, { recursive: true, force: true });
 const PORT = 9492;
