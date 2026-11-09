@@ -8,6 +8,7 @@ import { FrameShell } from './components/FrameShell.tsx';
 import { Shell } from './components/Shell.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
+import { toastTtl } from './components/toastKind.ts';
 import { GameContext, MENU_PAGES, TABS } from './game.ts';
 import type { GameApi, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
@@ -26,6 +27,7 @@ import { MapView } from './views/MapView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { FrameRanks } from './views/ranks/FrameRanks.tsx';
+import { FrameSimulator } from './views/simulator/FrameSimulator.tsx';
 import { FrameReports } from './views/reports/FrameReports.tsx';
 import { FrameMail } from './views/mail/FrameMail.tsx';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
@@ -95,8 +97,6 @@ function readSelectedVillage(): number | null {
 }
 
 const MAX_TOASTS = 2;
-const TOAST_MS = 4000;
-const TOAST_LONG_MS = 8000;
 
 /** The signed-in app. Mounted only while signed in, so the live socket lives and dies with the session. */
 export function Game({ onSignedOut }: { onSignedOut: () => void }) {
@@ -172,12 +172,12 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
 
   const toast = useCallback((message: string, options?: ToastOptions) => {
     const id = ++toastId.current;
-    const kind = options?.kind ?? 'ok';
+    const kind = options?.kind ?? 'success';
     // Newest win: at most MAX_TOASTS on screen, older ones drop.
     setToasts((list) => [...list.slice(1 - MAX_TOASTS), { id, message, kind, action: options?.action }]);
-    // Errors and toasts with an action stay a little longer (they can also be closed by hand).
-    const ttl = kind === 'error' || options?.action ? TOAST_LONG_MS : TOAST_MS;
-    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), ttl);
+    // Errors stay until closed; the rest fade (a toast with an action stays a little longer).
+    const ttl = toastTtl(kind, !!options?.action);
+    if (ttl !== null) window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), ttl);
   }, []);
   const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
@@ -316,7 +316,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       {tab === 'ranks' && (desktop ? <FrameRanks /> : <RankingsView />)}
       {tab === 'support' && <SupportView />}
       {tab === 'rules' && <WorldRulesView />}
-      {tab === 'simulator' && <SimulatorView />}
+      {tab === 'simulator' && (desktop ? <FrameSimulator /> : <SimulatorView />)}
       {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted">The world is still running.</p>)}
       {tab === 'staff' && (
         <Suspense fallback={<p className="muted">Loading…</p>}>

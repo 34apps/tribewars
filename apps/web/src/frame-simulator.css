@@ -1,0 +1,737 @@
+/* The DESKTOP Battle simulator (views/simulator/FrameSimulator.tsx) in the fixed 1440 x 900 frame. Picture: design/proposals/ingame-pages/
+   sim-a-1440.png (owner pick "A · three columns"). Panels reuse .fv-pn / .fv-ph / .fv-btn from frame.css. Nothing scrolls. */
+
+.frame.fr-tab-simulator {
+  height: 900px;
+  overflow: hidden;
+}
+
+.frame.fr-tab-simulator:not(.is-fixed) .fr-sheet {
+  flex: 1;
+  min-height: 0;
+}
+
+.fr-page:has(> .fsm) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+
+.fsm {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fsm-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+  height: 48px;
+}
+
+.fsm-head h1 {
+  margin: 0;
+  padding-top: 2px;
+  font: 400 26px/1.35 var(--font-display);
+  color: var(--heading);
+}
+
+.fsm-tk {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-terra-hi);
+  box-shadow: 0 3px 0 var(--c-ink);
+  color: var(--c-ink);
+}
+
+.fsm-sub {
+  font: 500 15px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.fsm-sp {
+  flex: 1;
+}
+
+.fsm-cols {
+  display: grid;
+  grid-template-columns: 430px 420px minmax(0, 1fr);
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.fsm-pn {
+  min-height: 0;
+}
+
+.fsm-pn .fv-ph {
+  height: 52px;
+}
+
+.fsm-pn button:focus-visible,
+.fsm-pn select:focus-visible,
+.fsm-pn input:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 2px;
+}
+
+/* ---- shared bits ---- */
+.fsm-wt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fsm-wt b {
+  font: 700 15px/1.2 var(--font);
+  color: var(--heading);
+}
+
+.fsm-wt small,
+.fsm-un small {
+  font: 500 13px/1.25 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.fsm-in {
+  box-sizing: border-box;
+  flex: none;
+  width: 76px;
+  height: 38px;
+  margin: 0;
+  padding: 0 8px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--on-surface);
+  font: 700 16px/1 var(--font);
+  text-align: right;
+}
+
+.fsm-in:placeholder-shown {
+  color: var(--on-surface-muted);
+}
+
+.fsm-in.is-on {
+  border-color: var(--c-ink);
+}
+
+.fsm-in.is-sup {
+  border-style: dashed;
+}
+
+.fsm-ul,
+.fsm-nm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: 600 14px/1.2 var(--font);
+  color: var(--heading);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fsm-nm {
+  min-height: 0;
+  font: 700 15px/1.2 var(--font);
+}
+
+.fsm-ul:hover span,
+.fsm-nm:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--edge);
+  text-underline-offset: 3px;
+}
+
+/* ---- Your army ---- */
+.fsm-groups {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  flex: none;
+  padding: 8px 14px 4px;
+}
+
+.fsm-groups .fv-up {
+  margin-right: 2px;
+}
+
+.fsm-groups .wm-groups,
+.fsm-groups > div {
+  display: contents;
+}
+
+.fsm-groups .wm-chip {
+  min-height: 36px;
+  padding: 0 12px 1px;
+  border: 2px solid var(--edge);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--on-surface);
+  font: 700 13.5px/1.2 var(--font);
+  cursor: pointer;
+}
+
+.fsm-groups .wm-chip[aria-pressed='true'] {
+  background: var(--c-sun-hi);
+  border-color: var(--c-ink);
+}
+
+.fsm-n {
+  white-space: nowrap;
+}
+
+.fsm-note {
+  margin: 0;
+  padding: 0 14px;
+}
+
+.fsm-rows {
+  display: grid;
+  grid-auto-rows: minmax(40px, 1fr);
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 10px;
+  list-style: none;
+}
+
+.fsm-rows > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 6px;
+  border-radius: 12px;
+}
+
+.fsm-rows > li:nth-child(odd) {
+  background: var(--surface-2);
+}
+
+.fsm-rows:not(.is-def) > li.is-on {
+  background: color-mix(in srgb, var(--c-sun-hi) 60%, var(--surface));
+}
+
+.fsm-un {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fsm-siege {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 6px 14px;
+  border-top: 2px solid var(--edge-soft);
+  background: var(--surface-2);
+}
+
+.fsm-siege > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.fsm-opt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  flex: none;
+  min-height: 52px;
+  padding: 6px 14px;
+  border-top: 2px solid var(--edge-soft);
+  background: var(--surface-2);
+}
+
+.fsm-opt.is-b {
+  border-top-width: 1px;
+}
+
+.fsm-sw {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  font: 700 14.5px/1.2 var(--font);
+  color: var(--heading);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fsm-sw input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fsm-sw i {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 26px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 99px;
+  background: var(--surface-3);
+}
+
+.fsm-sw i::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--c-ink);
+  transition: transform 0.12s;
+}
+
+.fsm-sw input:checked + i {
+  background: var(--c-moss);
+}
+
+.fsm-sw input:checked + i::after {
+  transform: translateX(20px);
+}
+
+.fsm-sw input:focus-visible + i {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 2px;
+}
+
+/* ---- Defender ---- */
+.fsm-from {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 500 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+}
+
+.fsm-wall {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 8px 14px;
+  border-bottom: 2px solid var(--edge-soft);
+}
+
+.fsm-wall .fsm-wt {
+  flex: 1;
+}
+
+.fsm-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fsm-step .fv-btn {
+  width: 40px;
+  padding: 0 0 3px;
+  font-size: 18px;
+}
+
+.fsm-wi {
+  box-sizing: border-box;
+  width: 56px;
+  height: 38px;
+  padding: 0 4px;
+  border: 2px solid var(--c-ink);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--heading);
+  font: 700 17px/1 var(--font);
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.fsm-dh,
+.fsm-rows.is-def > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 88px;
+  align-items: center;
+  gap: 8px;
+}
+
+.fsm-dh {
+  flex: none;
+  padding: 8px 24px 0 16px;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+  text-align: right;
+}
+
+.fsm-dh span:first-child {
+  text-align: left;
+}
+
+.fsm-rows.is-def > li .fsm-in {
+  width: 88px;
+}
+
+.fsm-bw {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 14px;
+  border-top: 2px solid var(--edge-soft);
+  background: var(--surface-2);
+}
+
+.fsm-bw .fsm-wt {
+  flex: 1;
+}
+
+.fsm-sel {
+  box-sizing: border-box;
+  width: 120px;
+  height: 38px;
+  padding: 0 6px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--on-surface);
+  font: 600 13.5px/1.2 var(--font);
+}
+
+/* ---- Result ---- */
+.fsm-rb {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 12px 14px;
+}
+
+.fsm-luck {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px 8px;
+  border: 2px solid var(--edge-soft);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.fsm-lh {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fsm-lh .fsm-wt {
+  flex: 1;
+}
+
+.fsm-lh .fsm-wt b {
+  font: 400 19px/1.3 var(--font-display);
+}
+
+.fsm-lv {
+  display: grid;
+  place-items: center;
+  min-width: 76px;
+  height: 42px;
+  padding: 0 10px 1px;
+  border-radius: 12px;
+  background: var(--c-ink);
+  color: var(--on-dark);
+  font: 400 22px/1.2 var(--font-display);
+}
+
+.fsm-range {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  margin: 2px 0 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fsm-range::-webkit-slider-runnable-track {
+  height: 12px;
+  border: 2px solid var(--c-ink);
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--c-terra-hi), var(--surface-3) 50%, var(--c-leaf));
+}
+
+.fsm-range::-moz-range-track {
+  height: 8px;
+  border: 2px solid var(--c-ink);
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--c-terra-hi), var(--surface-3) 50%, var(--c-leaf));
+}
+
+.fsm-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 32px;
+  height: 32px;
+  margin-top: -12px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-sun);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), 0 3px 0 var(--c-ink);
+}
+
+.fsm-range::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-sun);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), 0 3px 0 var(--c-ink);
+}
+
+.fsm-range:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 2px;
+  border-radius: 99px;
+}
+
+.fsm-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 -6px;
+}
+
+.fsm-ticks button {
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  cursor: pointer;
+}
+
+.fsm-ticks button.is-on {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.fsm-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.fsm-empty b {
+  font: 400 20px/1.3 var(--font-display);
+  color: var(--heading);
+}
+
+.fsm-vd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 10px 14px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--c-ink);
+  color: var(--c-ink);
+}
+
+.fsm-vd.is-win {
+  background: var(--c-leaf);
+}
+
+.fsm-vd.is-lose {
+  background: var(--danger-bg);
+}
+
+.fsm-vt {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fsm-vt b {
+  font: 400 22px/1.3 var(--font-display);
+}
+
+.fsm-vt small {
+  font: 600 14px/1.25 var(--font);
+}
+
+.fsm-vp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font: 600 13.5px/1.2 var(--font);
+}
+
+.fsm-vp span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fsm-vp b {
+  min-width: 44px;
+  text-align: right;
+  font: 700 16px/1.2 var(--font);
+}
+
+.fsm-lt {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.fsm-lt th,
+.fsm-lt td {
+  padding: 0 10px;
+  text-align: right;
+  font: 700 15px/1.2 var(--font);
+}
+
+.fsm-lt tbody tr:not(.fsm-gh) > * {
+  height: var(--fsm-row, 33px);
+  border-top: 1px solid var(--edge-soft);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.fsm-lt th[scope='row'] {
+  text-align: left;
+}
+
+.fsm-lt .fsm-gh > * {
+  height: 24px;
+  background: var(--surface-2);
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.fsm-lt .fsm-gh > :first-child {
+  text-align: left;
+  color: var(--heading);
+}
+
+.fsm-lt .is-loss {
+  color: var(--danger);
+}
+
+.fsm-lt .is-zero,
+.fsm-siegeres .is-zero {
+  color: var(--on-surface-muted);
+}
+
+.fsm-lt tr.is-sup > * {
+  background: var(--ok-bg);
+}
+
+.fsm-lt .fsm-ul {
+  min-height: 0;
+  height: 100%;
+  font-size: 14px;
+}
+
+.fsm-siegeres {
+  margin: 0;
+  padding: 0 4px;
+  list-style: none;
+  font: 600 13.5px/1.35 var(--font);
+}
+
+.fsm-fx {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  flex: none;
+}
+
+.fsm-fx > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.fsm-fx b {
+  font: 400 20px/1.3 var(--font-display);
+  color: var(--heading);
+  white-space: nowrap;
+}
+
+.fsm-fx small {
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+/* Many units: one row per unit, village and support together. */
+.fsm-lt.is-merged th,
+.fsm-lt.is-merged td {
+  padding: 0 6px;
+  font-size: 14px;
+}
+
+.fsm-lt.is-merged .fsm-gh > * {
+  height: 24px;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+
+.fsm-lt.is-merged .fsm-gc {
+  text-align: center;
+  color: var(--heading);
+  border-left: 2px solid var(--edge-soft);
+}
+
+.fsm-lt.is-merged td:nth-child(5) {
+  border-left: 2px solid var(--edge-soft);
+}

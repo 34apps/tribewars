@@ -57,7 +57,8 @@ export interface MapFocus {
 }
 
 export interface ToastOptions {
-  kind?: 'ok' | 'error';
+  /** success (default; 'ok' is the older name), info, warning, error. */
+  kind?: 'ok' | 'success' | 'info' | 'warning' | 'error';
   action?: { label: string; onClick: () => void };
 }
 

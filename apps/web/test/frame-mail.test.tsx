@@ -55,3 +55,49 @@ test('thread items: day dividers, mine vs theirs, subject only when it changes',
   const it = threadItems(ms, NOW, 1);
   assert.deepEqual(it.map((i) => (i.kind === 'day' ? i.label : `${i.mail.id}${i.mine ? 'm' : ''}${i.showSubject ? 's' : ''}`)), ['Yesterday', '1s', '2m', 'Today', '3s', '4']);
 });
+
+import { searchCandidates, seenLabel } from '../src/views/mail/frame-mail-logic.ts';
+import { errorToast, normalizeKind, toastTtl, toastRole } from '../src/components/toastKind.ts';
+
+test('player search: prefix first, then contains, no duplicates, never myself', () => {
+  const pool = [
+    { playerId: 1, name: 'Corwin', tag: 'EMB' },
+    { playerId: 2, name: 'Marcor', tag: null },
+    { playerId: 3, name: 'cora', tag: 'THN' },
+    { playerId: 4, name: 'Me', tag: null },
+    { playerId: 5, name: 'CORWIN', tag: 'X' },
+  ];
+  assert.deepEqual(searchCandidates('cor', pool, 'Me').map((c) => c.playerId), [1, 3, 2]);
+  assert.deepEqual(searchCandidates('  ', pool, 'Me'), []);
+  assert.deepEqual(searchCandidates('me', pool, 'Me'), []);
+  assert.equal(searchCandidates('c', pool, 'Me', 2).length, 2);
+});
+
+test('seen label shows only what the data says', () => {
+  const ago = () => '2h ago';
+  assert.deepEqual(seenLabel({ online: true }, ago), { text: 'online', online: true });
+  assert.deepEqual(seenLabel({ lastActive: 5 }, ago), { text: '2h ago', online: false });
+  assert.equal(seenLabel({}, ago), null);
+});
+
+test('toast kinds: ok means success; errors stay until closed; roles', () => {
+  assert.equal(normalizeKind(undefined), 'success');
+  assert.equal(normalizeKind('ok'), 'success');
+  assert.equal(normalizeKind('warning'), 'warning');
+  assert.equal(toastTtl('error', false), null);
+  assert.equal(toastTtl('success', false), 4000);
+  assert.equal(toastTtl('info', true), 8000);
+  assert.equal(toastRole('error'), 'alert');
+  assert.equal(toastRole('info'), 'status');
+});
+
+test('population_full becomes a warning with a Farm action; other errors stay errors', () => {
+  let went = 0;
+  const t = errorToast('population_full', 'x', { farm: () => void went++ });
+  assert.equal(t.kind, 'warning');
+  assert.equal(t.action?.label, 'Farm');
+  t.action?.onClick();
+  assert.equal(went, 1);
+  assert.equal(errorToast('not_found', 'x', { farm: () => undefined }).kind, 'error');
+  assert.equal(errorToast('population_full', 'x', {}).kind, 'error');
+});

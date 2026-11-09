@@ -14,7 +14,8 @@ import {
   populationUsage,
 } from '@clanfire/engine';
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
-import { api, errorMessage } from '../api.ts';
+import { ApiRequestError, api, errorMessage } from '../api.ts';
+import { errorToast } from '../components/toastKind.ts';
 import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
@@ -468,7 +469,7 @@ function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: (
 }
 
 function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: TrainingBuildingId; busy: boolean; setBusy: (b: boolean) => void }) {
-  const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
+  const { live, now, settings, village, applyVillage, refresh, toast, navigate, openBuilding } = useGame();
   const def = UNITS[unit];
   const role = UNIT_ROLE[unit];
   const info = useUnitInfo();
@@ -493,7 +494,13 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
       toast(`Training ${formatInt(count)} ${def.name}`);
       setText('');
     } catch (e) {
-      toast(errorMessage(e), { kind: 'error' });
+      const fix = errorToast(e instanceof ApiRequestError ? e.code : undefined, errorMessage(e), {
+        farm: () => {
+          navigate('village');
+          openBuilding('farm');
+        },
+      });
+      toast(errorMessage(e), fix);
     } finally {
       setBusy(false);
       void refresh();

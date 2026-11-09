@@ -321,9 +321,11 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
             const away = live.away[unit] ?? 0;
             return (
               <li key={unit} className={`fv-wr${off ? ' is-off' : ''}`}>
-                <UnitFigure unit={unit} size={84} className="fv-fg" />
+                <button type="button" className="uc-lab uc-pic" onClick={() => info.open(unit)} aria-haspopup="dialog" aria-label={`About the ${u.name}`} {...info.bind(unit)}>
+                  <UnitFigure unit={unit} size={84} className="fv-fg" />
+                </button>
                 <span className="fv-mt fv-wname">
-                  <button type="button" className="fv-unitname" onClick={() => info.open(unit)} aria-haspopup="dialog">
+                  <button type="button" className="fv-unitname" onClick={() => info.open(unit)} aria-haspopup="dialog" {...info.bind(unit)}>
                     {u.name}
                   </button>
                   <small>

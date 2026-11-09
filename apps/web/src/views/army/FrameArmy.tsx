@@ -27,6 +27,7 @@ import { SiegePicker } from '../../components/Siege.tsx';
 import { TroopGroupBar } from '../../components/TroopGroups.tsx';
 import { ChieftainPanel } from '../../components/ChieftainPanel.tsx';
 import { useUnitInfo } from '../../components/UnitInfo.tsx';
+import { takePendingSend } from '../../simulator.ts';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import { useTroopGroups } from '../../hooks/useTroopGroups.ts';
@@ -182,7 +183,7 @@ function MusterPanel() {
                 className={`fa-mu${none ? ' is-off' : ''}`}
                 onClick={() => info.open(u)}
                 aria-haspopup="dialog"
-                title={locked ? `${UNITS[u].name}: needs ${requirementText(unmetRequirements(live.buildings, UNITS[u].requires))}` : `About the ${UNITS[u].name}`}
+                {...info.bind(u)}
               >
                 <UnitFigure unit={u} size={76} className="fa-fg" />
                 <span className="fa-ct">{formatInt(home)}</span>
@@ -230,7 +231,7 @@ function SendPanel() {
   const [picked, setPicked] = useState<MapVillageDto | null | undefined>(undefined); // undefined = nothing looked up yet; null = free land
   const [looking, setLooking] = useState(false);
   const [lookError, setLookError] = useState<string | null>(null);
-  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
+  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>(() => takePendingSend(live.troops));
   const [busy, setBusy] = useState<Go | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentTarget[]>(() => loadRecent(recentKey));
@@ -239,6 +240,7 @@ function SendPanel() {
   const [groupNote, setGroupNote] = useState<string | null>(null);
   const [suggest, setSuggest] = useState<MapVillageDto[] | null>(null);
   const savedGroups = useTroopGroups();
+  const unitInfo = useUnitInfo();
   const seq = useRef(0);
   const nseq = useRef(0);
 
@@ -531,15 +533,16 @@ function SendPanel() {
           <Icon name={target?.kind === 'player' ? 'army' : 'village'} size={22} />
           <span>{infoText}</span>
         </div>
+        {unitInfo.dialog}
         <ul className="fa-su" aria-label="Troops to send">
           {shown.map((u) => {
             const home = live.troops[u] ?? 0;
             return (
               <li key={u} className={`fa-sx${home === 0 ? ' is-off' : ''}`}>
                 <span className="fv-mt">
-                  <label htmlFor={`fa-n-${u}`}>
+                  <button type="button" className="uc-lab fa-uname" onClick={() => unitInfo.open(u)} aria-haspopup="dialog" {...unitInfo.bind(u)}>
                     <b>{UNITS[u].name}</b>
-                  </label>
+                  </button>
                   {home === 0 ? (
                     <small>none at home</small>
                   ) : (
@@ -551,6 +554,7 @@ function SendPanel() {
                 {home > 0 && (
                   <input
                     id={`fa-n-${u}`}
+                    aria-label={`${UNITS[u].name} to send`}
                     className={`fa-inp${chosen[u] > 0 ? ' is-on' : ''}`}
                     type="number"
                     inputMode="numeric"

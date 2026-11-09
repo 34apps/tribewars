@@ -1,0 +1,429 @@
+/* Unit info cards on the DESKTOP (components/UnitInfo.tsx). Pictures: design/proposals/ingame-pages/unitcard-a-1440.png (small hover card)
+   and unitcard-b-1440.png (big click card). Light Parchment tokens only. The phone keeps the old dialog (.uinfo-dialog in army.css). */
+
+.uc-role {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 24px;
+  padding: 0 10px 1px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--c-ink);
+  font: 700 13px/1.2 var(--font);
+  white-space: nowrap;
+}
+.uc-role-atk,
+.uc-role-cav {
+  background: var(--c-terra-hi);
+}
+.uc-role-def {
+  background: var(--c-teal-hi);
+}
+.uc-role-scout {
+  background: var(--c-leaf);
+}
+.uc-role-elite {
+  background: var(--c-sun-hi);
+}
+.uc-role-siege {
+  background: var(--c-bone-shade);
+}
+
+.uc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: 700 13.5px/1.2 var(--font);
+  color: var(--link);
+  cursor: pointer;
+}
+
+/* ---- Small card ---- */
+.uc-tip {
+  position: fixed;
+  z-index: 2000;
+  width: 384px;
+  background: var(--surface);
+  border: 2.5px solid var(--c-ink);
+  border-radius: 16px;
+  box-shadow: 0 4px 0 var(--c-ink), 0 14px 30px rgba(43, 33, 28, 0.28);
+  color: var(--on-surface);
+}
+.uc-tip::before {
+  content: '';
+  position: absolute;
+  left: var(--uc-arrow, 40px);
+  top: -11px;
+  width: 18px;
+  height: 18px;
+  background: var(--surface-2);
+  border-left: 2.5px solid var(--c-ink);
+  border-top: 2.5px solid var(--c-ink);
+  transform: rotate(45deg);
+}
+.uc-tip.is-above::before {
+  top: auto;
+  bottom: -11px;
+  background: var(--surface);
+  border: 0;
+  border-right: 2.5px solid var(--c-ink);
+  border-bottom: 2.5px solid var(--c-ink);
+}
+.uc-tip-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 8px;
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--edge-soft);
+  border-radius: 13px 13px 0 0;
+}
+.uc-tip-t {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.uc-tip-n {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.uc-tip-n b {
+  font: 400 22px/1.3 var(--font-display);
+  color: var(--heading);
+}
+.uc-tip-t small {
+  font: 600 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-tip-g {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  padding: 10px 14px;
+}
+.uc-tip-g > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px 0 7px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font: 600 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+}
+.uc-tip-g b {
+  margin-left: auto;
+  font: 700 16px/1.2 var(--font);
+  color: var(--heading);
+}
+.uc-tip-g b small {
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-tip-c {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px 10px;
+}
+.uc-tip-ti {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font: 600 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-tip-ti b {
+  color: var(--heading);
+  font-size: 14.5px;
+}
+.uc-tip-w {
+  margin: 0 14px 10px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: var(--info-bg);
+  font: 500 14px/1.4 var(--font);
+}
+.uc-tip-f {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 10px 0 14px;
+  border-top: 2px solid var(--edge-soft);
+  font: 600 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+/* ---- Big card ---- */
+dialog.uc-big {
+  width: 1000px;
+  max-width: calc(100vw - 24px);
+  height: 600px;
+  max-height: calc(100vh - 24px);
+  margin: auto;
+  padding: 0;
+  display: none;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: 2.5px solid var(--c-ink);
+  border-radius: 20px;
+  box-shadow: 0 5px 0 var(--c-ink), 0 20px 50px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+dialog.uc-big[open] {
+  display: flex;
+}
+dialog.uc-big::backdrop {
+  background: var(--scrim);
+}
+.uc-big-s {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  width: 340px;
+  background: var(--surface-2);
+  border-right: 2px solid var(--edge-soft);
+}
+.uc-stage {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  width: 280px;
+  height: 300px;
+}
+.uc-stage::before {
+  content: '';
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  bottom: 6px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--c-leaf);
+  border: 2.5px solid var(--c-ink);
+  box-shadow: 0 5px 0 var(--c-moss);
+}
+.uc-stage .ufig,
+.uc-stage svg {
+  position: relative;
+  margin-bottom: 22px;
+}
+.uc-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.uc-ic,
+.uc-x {
+  width: 40px;
+  padding: 0 0 3px;
+}
+.uc-big-r {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px 24px;
+}
+.uc-big-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.uc-big-h h2 {
+  margin: 0;
+  padding-top: 2px;
+  font: 400 34px/1.4 var(--font-display);
+  color: var(--heading);
+}
+.uc-big-w {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--info-bg);
+  font: 500 16px/1.45 var(--font);
+}
+.uc-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.uc-bars-n {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.uc-bar {
+  display: grid;
+  grid-template-columns: 190px 1fr 44px 150px;
+  align-items: center;
+  gap: 10px;
+}
+.uc-bar-l {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 15px/1.2 var(--font);
+}
+.uc-bar-t {
+  height: 16px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  border: 2px solid var(--c-ink);
+  overflow: hidden;
+}
+.uc-bar-t i {
+  display: block;
+  height: 100%;
+  background: var(--c-terra-hi);
+}
+.uc-bar b {
+  font: 700 18px/1.2 var(--font);
+  text-align: right;
+}
+.uc-bar small {
+  font: 500 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-facts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.uc-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.uc-facts b {
+  font: 400 24px/1.4 var(--font-display);
+  color: var(--heading);
+}
+.uc-facts small {
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-cost {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--edge-soft);
+}
+.uc-cost .cost {
+  font-size: 16px;
+}
+.uc-cost-n {
+  font: 500 14px/1.3 var(--font);
+  color: var(--on-surface-muted);
+  text-align: right;
+}
+.uc-cost-n.is-lock {
+  color: var(--danger);
+}
+.uc-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.uc-all .fv-up {
+  margin-right: 6px;
+}
+.uc-all-u {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.uc-all-u.is-on {
+  background: var(--c-sun-hi);
+  border-color: var(--c-ink);
+}
+.uc-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 2px solid var(--edge-soft);
+}
+.uc-stock {
+  font: 500 14.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+.uc-stock b {
+  color: var(--heading);
+}
+
+.uc-big button:focus-visible,
+.uc-tip button:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 2px;
+}
+
+/* A unit's picture or name that opens the card: a plain button that looks like the text around it. The tap area is at least 36 px
+   high without changing the row height (negative margin). */
+.uc-lab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: -6px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.uc-lab:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--edge);
+  text-underline-offset: 3px;
+}
+.uc-lab:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 1px;
+}
+.uc-pic {
+  margin: 0;
+  min-height: 0;
+}
+.uc-pic:hover {
+  text-decoration: none;
+}
+.uc-lab.fa-uname {
+  display: block;
+  margin: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

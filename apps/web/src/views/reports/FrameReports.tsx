@@ -12,6 +12,7 @@ import { BuildingArt } from '../../art/BuildingArt.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
+import { UnitInfoButton } from '../../components/UnitInfo.tsx';
 import { formatCoords, formatInt, formatSignedPercent } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { useLiveTopic } from '../../hooks/useLive.tsx';
@@ -179,8 +180,10 @@ function ForcesTable({ rows, supportRows, attName, defName, supportLabel, densit
   const line = (r: ForceRow) => (
     <tr key={`${r.support ? 's' : 'm'}-${r.unit}`} className={r.support ? 'sp' : undefined}>
       <th scope="row">
-        <Pt unit={r.unit} size={density === 'compact' ? 20 : 24} />
-        {UNITS[r.unit].name}
+        <UnitInfoButton unit={r.unit} className="uc-lab">
+          <Pt unit={r.unit} size={density === 'compact' ? 20 : 24} />
+          {UNITS[r.unit].name}
+        </UnitInfoButton>
       </th>
       <td>{r.support ? <span className="frp-dash">–</span> : <Num value={r.sent} />}</td>
       <td>{r.support ? <span className="frp-dash">–</span> : <Num value={r.lost} loss />}</td>
@@ -444,8 +447,10 @@ function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] })
                     {troopRows.map((u) => (
                       <tr key={u}>
                         <th scope="row">
-                          <Pt unit={u} />
-                          {UNITS[u].name}
+                          <UnitInfoButton unit={u} className="uc-lab">
+                            <Pt unit={u} />
+                            {UNITS[u].name}
+                          </UnitInfoButton>
                         </th>
                         <td><b>{approx}{formatInt(troops[u])}</b></td>
                       </tr>
@@ -509,8 +514,10 @@ function UnitsTable({ units }: { units: Units }) {
         {rows.map((id) => (
           <tr key={id}>
             <th scope="row">
-              <Pt unit={id} />
-              {UNITS[id].name}
+              <UnitInfoButton unit={id} className="uc-lab">
+                <Pt unit={id} />
+                {UNITS[id].name}
+              </UnitInfoButton>
             </th>
             <td><b>{formatInt(u[id])}</b></td>
           </tr>

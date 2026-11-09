@@ -64,3 +64,40 @@ export function threadItems(mails: MailDto[], now: number, myId: number): Thread
 
 /** "14:53": 24-hour clock, like the approved picture. */
 export const letterTime = (ts: number): string => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+// ---- "Who to write to" picker --------------------------------------------------------------------------------------
+
+export interface Candidate {
+  playerId: number;
+  name: string;
+  tag: string | null;
+}
+
+/** Names starting with the text first, then names containing it; the player themself is left out. At most `limit`. */
+export function searchCandidates(query: string, pool: Candidate[], myName: string, limit = 8): Candidate[] {
+  const q = query.trim().toLowerCase();
+  if (q === '') return [];
+  const seen = new Set<string>();
+  const starts: Candidate[] = [];
+  const inside: Candidate[] = [];
+  for (const c of pool) {
+    const n = c.name.toLowerCase();
+    if (n === myName.toLowerCase() || seen.has(n)) continue;
+    const at = n.indexOf(q);
+    if (at < 0) continue;
+    seen.add(n);
+    (at === 0 ? starts : inside).push(c);
+  }
+  return [...starts, ...inside].slice(0, limit);
+}
+
+/** "last mail 12m ago" for a conversation row. */
+export const lastMailLabel = (ago: string): string => `last mail ${ago}`;
+
+/** "online", "2h ago" or null (the member's activity is only known to players with the right to see it; never invent it). */
+export function seenLabel(m: { online?: boolean | undefined; lastActive?: number | undefined }, ago: (ts: number) => string): { text: string; online: boolean } | null {
+  if (m.online) return { text: 'online', online: true };
+  return m.lastActive === undefined ? null : { text: ago(m.lastActive), online: false };
+}
+
+export const ROLE_LABEL: Record<string, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };

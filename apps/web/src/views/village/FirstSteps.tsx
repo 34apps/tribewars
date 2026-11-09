@@ -48,7 +48,7 @@ export function useFirstSteps(onShowBuilding: (id: BuildingId) => void) {
     setBusy('hide');
     try {
       applyFirstSteps(await api.setFirstStepsHidden(true));
-      toast('First steps hidden. Bring them back in Settings.');
+      toast('First steps hidden. Bring them back in Settings.', { kind: 'info' });
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {

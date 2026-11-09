@@ -5,7 +5,14 @@ import { test } from 'node:test';
 import { BATTLE_LUCK, UNITS, emptyUnits, normalizeUnits, resolveBattle } from '@clanfire/engine';
 import type { BattleReportData, ReportDto, ScoutReportData, Units } from '@clanfire/engine';
 import {
+  LUCK_PCT_MAX,
   SIM_LUCKS,
+  comeHome,
+  luckFromPercent,
+  mightText,
+  percentFromLuck,
+  setPendingSend,
+  takePendingSend,
   battleInput,
   draftFromReport,
   draftFromSend,
@@ -161,7 +168,7 @@ test('prefill from a scout report: only a success shows troops and Wall; other r
       scout: { scout: battle().attacker, target: battle().defender, success, scoutsSent: 3, scoutsLost: 0, defenderScouts: 0, defenderScoutsLost: 0, intel },
     });
   const intel = { resources: battle().loot, troops: units({ guard: 12 }), wallLevel: 4, buildings: null } as ScoutReportData['intel'];
-  assert.deepEqual(draftFromReport(scout(true, intel)), { defender: units({ guard: 12 }), wall: 4 });
+  assert.deepEqual(draftFromReport(scout(true, intel)), { defender: units({ guard: 12 }), wall: 4, source: `from your scouting of ${battle().defender.name}` });
   assert.equal(draftFromReport(scout(false, null)), null);
   assert.equal(draftFromReport(scout(true, { ...intel!, troops: null, wallLevel: null })), null);
   assert.equal(draftFromReport(report('attack', { battle: battle({ outcome: 'called_off' }) })), null);
@@ -172,4 +179,35 @@ test('prefill from the send form: my chosen troops only, defender stays empty', 
   const d = draftFromSend({ raider: 12 });
   assert.deepEqual(d, { attacker: { raider: 12 } });
   assert.equal(d.defender, undefined);
+});
+
+test('luck slider: the range is the engine luck, any value in it runs the real battle', () => {
+  assert.equal(LUCK_PCT_MAX, Math.round(BATTLE_LUCK * 100));
+  assert.equal(luckFromPercent(-LUCK_PCT_MAX), -BATTLE_LUCK);
+  assert.equal(luckFromPercent(5), 0.05);
+  assert.equal(luckFromPercent(99), BATTLE_LUCK);
+  assert.equal(luckFromPercent(Number.NaN), 0);
+  assert.equal(percentFromLuck(0.05), 5);
+  const s = setup();
+  const at = simulate(s, luckFromPercent(-5));
+  assert.equal(at.luck, -0.05);
+  const direct = resolveBattle(battleInput(s, -0.05));
+  assert.equal(at.result.attackPower, direct.attackPower);
+  // more luck never makes the attack weaker
+  assert.ok(simulate(s, luckFromPercent(7)).result.attackPower >= at.result.attackPower);
+});
+
+test('mightText names the unit with the most Might ranks in the army; comeHome counts survivors', () => {
+  const ranks = { raider: { might: 2, bulwark: 0, keen: 0 }, knight: { might: 5, bulwark: 0, keen: 0 } };
+  assert.equal(mightText(ranks, units({ raider: 5 })), 'Raider Might 2 · +10% attack');
+  assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Knight Might 5 · +25% attack');
+  assert.equal(mightText(ranks, units({ pikeman: 5 })), null);
+  assert.equal(mightText(undefined, units({ raider: 5 })), null);
+  assert.deepEqual(comeHome(units({ raider: 10, knight: 2 }), units({ raider: 3 })), { home: 3, sent: 12 });
+});
+
+test('send hand-over: read once, only what is at home', () => {
+  setPendingSend(units({ raider: 10, knight: 3 }));
+  assert.deepEqual(takePendingSend(units({ raider: 4 })), { raider: '4' });
+  assert.deepEqual(takePendingSend(units({ raider: 4 })), {});
 });

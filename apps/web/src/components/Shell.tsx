@@ -418,7 +418,7 @@ export function useGuardOrders(): ((e: MouseEvent<HTMLElement>) => void) | undef
         if (!button || button.closest('.wm-toolbar') || !(button.classList.contains('btn-primary') || button.type === 'submit')) return;
         e.preventDefault();
         e.stopPropagation();
-        toast(WORLD_ENDED_NOTICE, { kind: 'error' });
+        toast(WORLD_ENDED_NOTICE, { kind: 'warning' });
       }
     : undefined;
 }

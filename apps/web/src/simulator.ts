@@ -4,6 +4,7 @@
 import {
   BATTLE_LUCK,
   BUILDINGS,
+  RANK_BONUS,
   RANK_MAX,
   UNITS,
   UNIT_IDS,
@@ -26,6 +27,57 @@ export const SIM_LUCKS = [
 export function luckText(luck: number): string {
   const pct = Math.round(luck * 1000) / 10;
   return `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)}%`;
+}
+
+/** The luck slider's range in whole percent, from the engine's BATTLE_LUCK (never typed in here). */
+export const LUCK_PCT_MAX = Math.round(BATTLE_LUCK * 100);
+
+/** Slider percent (-10..10) to the luck fraction the engine takes; out-of-range and broken values are pulled into the real range. */
+export function luckFromPercent(pct: number): number {
+  const p = Number.isFinite(pct) ? Math.max(-LUCK_PCT_MAX, Math.min(LUCK_PCT_MAX, pct)) : 0;
+  return Math.round(p * 10) / 1000;
+}
+
+/** Luck fraction back to slider percent. */
+export const percentFromLuck = (luck: number): number => Math.round(luck * 1000) / 10;
+
+/** "Raider Might 2 · +10% attack": the army's unit with the most Might ranks. Null when the ranks give the army nothing. */
+export function mightText(ranks: VillageRanks | undefined, army: Partial<Units>): string | null {
+  let best: { unit: UnitId; rank: number } | null = null;
+  for (const u of UNIT_IDS) {
+    const r = ranks?.[u]?.might ?? 0;
+    if ((army[u] ?? 0) > 0 && r > (best?.rank ?? 0)) best = { unit: u, rank: r };
+  }
+  return best ? `${UNITS[best.unit].name} Might ${best.rank} · +${Math.round(best.rank * RANK_BONUS * 100)}% attack` : null;
+}
+
+/** How many of the sent units survive: { home, sent } (units, not carry). */
+export function comeHome(sent: Units, survivors: Units): { home: number; sent: number } {
+  let a = 0;
+  let b = 0;
+  for (const u of UNIT_IDS) {
+    a += sent[u];
+    b += Math.min(sent[u], survivors[u]);
+  }
+  return { home: b, sent: a };
+}
+
+// A hand-over from the simulator to the Army page's send form ("Send this army"): module memory, read once.
+let pendingSend: Units | null = null;
+export function setPendingSend(units: Units): void {
+  pendingSend = { ...units };
+}
+/** The army waiting for the send form (cleared by reading it); only what is at home is kept. */
+export function takePendingSend(home: Partial<Units>): Partial<Record<UnitId, string>> {
+  const p = pendingSend;
+  pendingSend = null;
+  const out: Partial<Record<UnitId, string>> = {};
+  if (!p) return out;
+  for (const u of UNIT_IDS) {
+    const n = Math.min(p[u], Math.floor(home[u] ?? 0));
+    if (n > 0) out[u] = String(n);
+  }
+  return out;
 }
 
 /** Most of one unit a field accepts. */
@@ -175,6 +227,8 @@ export interface SimDraftData {
   wall?: number;
   /** Tick the Morale box. */
   morale?: boolean;
+  /** Where the defender numbers come from, as a phrase for the Defender panel ("from your scouting of Cinderhold"). */
+  source?: string;
 }
 
 /** The send form's chosen troops, nothing else (the defender is unknown there). */
@@ -195,6 +249,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     if (b.defenderUnits) draft.defender = { ...normalizeUnits(b.defenderUnits) };
     if (b.supportUnits) draft.support = { ...normalizeUnits(b.supportUnits) };
     if (typeof b.morale === 'number' && b.morale < 1) draft.morale = true;
+    if (b.defenderUnits && b.defender?.name) draft.source = `from the battle report on ${b.defender.name}`;
     // The Wall before the Log Rams fired, when the report says so; otherwise the Wall as it counted.
     const wallHit = (b.siege ?? []).find((h) => h.building === 'wall');
     if (wallHit) draft.wall = wallHit.from;
@@ -206,6 +261,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     const draft: SimDraftData = {};
     if (s.intel.troops) draft.defender = { ...normalizeUnits(s.intel.troops) };
     if (typeof s.intel.wallLevel === 'number') draft.wall = s.intel.wallLevel;
+    if (draft.defender && s.target?.name) draft.source = `from your scouting of ${s.target.name}`;
     return draft.defender || draft.wall !== undefined ? draft : null;
   }
   return null;

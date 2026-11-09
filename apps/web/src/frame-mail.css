@@ -510,3 +510,202 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* -- Who to write to (compose: middle column) -- */
+.frm-who {
+  width: 340px;
+  flex: none;
+}
+
+.frm-sr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 12px 14px 4px;
+  padding: 0 12px;
+  height: 44px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--on-surface-muted);
+}
+
+.frm-sr:focus-within {
+  border-color: var(--c-teal-hi);
+}
+
+.frm-sr svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.frm-sr input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font: 500 15px/1.3 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-pkl {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+.frm-sh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 14px 4px;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.frm-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.frm-pk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 14px;
+  border: 0;
+  border-top: 1px solid var(--edge-soft);
+  background: none;
+  font: 500 14.5px/1.25 var(--font);
+  color: var(--on-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.frm-pk:hover {
+  background: var(--c-sun-hi);
+}
+
+.frm-pk:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: -3px;
+}
+
+.frm-pkb {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.frm-pkb b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frm-pks {
+  font-size: 13px;
+  color: var(--on-surface-muted);
+}
+
+.frm-pks.on {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.frm-pks.on::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--c-moss);
+}
+
+.frm-role {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px 1px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--on-fill);
+  font: 700 13px/1.2 var(--font);
+}
+
+.frm-role.r-officer,
+.frm-role.r-leader {
+  background: var(--c-teal-hi);
+}
+
+/* -- The "To" chip -- */
+.frm-to {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 4px 8px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+
+.frm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px 0 5px;
+  border: 2px solid var(--edge);
+  border-radius: 99px;
+  background: var(--surface-2);
+  font: 500 15px/1.2 var(--font);
+}
+
+.frm-chx {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.frm-chx svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.frm-chx:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+}
+
+.frm-form {
+  min-width: 0;
+}

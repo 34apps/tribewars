@@ -5,6 +5,7 @@ import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/en
 import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
+import { useUnitInfo } from '../components/UnitInfo.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { TroopGroupBar } from '../components/TroopGroups.tsx';
 import { useTroopGroups } from '../hooks/useTroopGroups.ts';
@@ -122,6 +123,7 @@ export function SendForm({
   const { live, now, settings, renown, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
   const desktop = useIsDesktop();
+  const unitInfo = useUnitInfo();
   const fallback: Mission = missions[0] ?? 'attack';
   const [chosenMission, setChosenMission] = useState<Mission>(preferred && missions.includes(preferred) ? preferred : fallback);
   // A Found send starts with the Chieftain already chosen.
@@ -386,13 +388,25 @@ export function SendForm({
             ))}
           </div>
         ) : (
+        <>
+        {desktop && unitInfo.dialog}
         <ul className="wm-ugrid">
           {listed.map((u) => {
             const n = chosen[u];
             return (
               <li key={u} className={n > 0 ? 'wm-ucard has' : 'wm-ucard'}>
-                <UnitFigure unit={u} pose="icon" size={34} className="wm-uico" />
-                <label className="wm-uname" htmlFor={`send-${u}`}>
+                {desktop ? (
+                  <button type="button" className="wm-ubtn" aria-label={`About the ${UNITS[u].name}`} aria-haspopup="dialog" onClick={() => unitInfo.open(u)} {...unitInfo.bind(u)}>
+                    <UnitFigure unit={u} pose="icon" size={34} className="wm-uico" />
+                  </button>
+                ) : (
+                  <UnitFigure unit={u} pose="icon" size={34} className="wm-uico" />
+                )}
+                <label
+                  className="wm-uname"
+                  htmlFor={`send-${u}`}
+                  {...(desktop ? { ...unitInfo.bind(u), onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); unitInfo.open(u); } } : {})}
+                >
                   {UNITS[u].name}
                 </label>
                 <button type="button" className="wm-link wm-uhave" title="At home" onClick={() => fillAll(u)} aria-label={`Fill all ${formatInt(live.troops[u])} ${UNITS[u].name}`}>
@@ -414,6 +428,7 @@ export function SendForm({
             );
           })}
         </ul>
+        </>
         )}
         </>
       )}

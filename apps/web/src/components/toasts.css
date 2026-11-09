@@ -1,0 +1,126 @@
+/* Toasts: one family, four kinds (owner-approved picture toast-a-1440). Light tinted card, dark text, round badge, optional action, close.
+   Desktop: stacked bottom right INSIDE the 1440 column. Phone: bottom, full width minus gutters, above the dock. */
+
+.toasts.toasts {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--dock-space, 96px) + 4px);
+  width: auto;
+  z-index: 60;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+html.layout-desktop .toasts.toasts {
+  left: auto;
+  right: max(26px, calc(50vw - 694px));
+  bottom: 28px;
+  width: min(440px, calc(100vw - 52px));
+}
+
+.toast {
+  --t-bg: var(--info-bg);
+  --t-edge: #4a9aa0;
+  --t-badge: var(--info);
+  --t-glyph: #fff8e8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 8px 8px 14px;
+  border: 2px solid var(--t-edge);
+  border-radius: 14px;
+  background: var(--t-bg);
+  color: var(--on-surface);
+  font: 500 15px/1.3 var(--font);
+  box-shadow: 0 3px 0 var(--t-edge), 0 8px 20px rgba(80, 56, 28, 0.22);
+  pointer-events: auto;
+}
+
+.toast-error {
+  --t-bg: var(--danger-bg);
+  --t-edge: #c9704c;
+  --t-badge: var(--strip-danger);
+}
+
+.toast-warning {
+  --t-bg: var(--warn-bg);
+  --t-edge: #c99a2e;
+  --t-badge: var(--c-sun);
+  --t-glyph: var(--c-ink);
+}
+
+.toast-success {
+  --t-bg: var(--ok-bg);
+  --t-edge: #7ea24a;
+  --t-badge: var(--ok);
+}
+
+.toast-badge {
+  flex: none;
+}
+
+.tb-fill {
+  fill: var(--t-badge);
+}
+
+.tb-glyph {
+  fill: none;
+  stroke: var(--t-glyph);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tb-dot {
+  fill: var(--t-glyph);
+}
+
+.toast-msg {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.toast-act {
+  flex: none;
+  min-width: 56px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 2px solid var(--t-edge);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--on-surface);
+  font: 700 14px/1 var(--font);
+  box-shadow: 0 2px 0 var(--t-edge);
+  cursor: pointer;
+}
+
+.toast-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 250, 240, 0.7);
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.toast-close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.toast-act:focus-visible,
+.toast-close:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: 2px;
+}
