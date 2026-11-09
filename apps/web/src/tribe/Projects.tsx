@@ -17,8 +17,8 @@ import { useTribe } from './context.ts';
 
 const POLL_MS = 30_000;
 
-const PROJECT_NAME: Record<TribeProjectId, string> = { roads: 'Roads', watchtower: 'Watchtower', wards: 'Wards' };
-const PROJECT_ICON: Record<TribeProjectId, IconName> = { roads: 'road', watchtower: 'watchtower', wards: 'ward' };
+export const PROJECT_NAME: Record<TribeProjectId, string> = { roads: 'Roads', watchtower: 'Watchtower', wards: 'Wards' };
+export const PROJECT_ICON: Record<TribeProjectId, IconName> = { roads: 'road', watchtower: 'watchtower', wards: 'ward' };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
@@ -77,15 +77,14 @@ function StoreBars({ d }: { d: TribeProjectsResponse }) {
   );
 }
 
-export function Projects() {
-  const { now, showOnMap } = useGame();
+/** Data, polling and actions of the Projects section; the phone page and the desktop frame page both use it. */
+export function useTribeProjects() {
+  const { now } = useGame();
   const { confirm } = useTribe();
   const [d, setD] = useState<TribeProjectsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pick, setPick] = useState('');
-  const [moving, setMoving] = useState(false);
   const seq = useRef(0);
   const applied = useRef(0);
 
@@ -147,6 +146,31 @@ export function Projects() {
     if (ok) await act(() => api.cancelProject());
   }
 
+  return { d, error, actionError, busy, load, act, cancel, now };
+}
+
+/** Why a project cannot be started right now (only a specific reason is shown on a card), or null. */
+export function startReason(d: TribeProjectsResponse, p: TribeProjectOptionDto): string | null {
+  if (p.nextCost === null) return 'Fully built.';
+  if (d.running) return 'Another project is being built.';
+  const short = RESOURCE_IDS.find((r) => d.store[r] < (p.nextCost?.[r] ?? 0));
+  return short ? `Need more ${RESOURCE_NAME[short].toLowerCase()}` : null;
+}
+
+/** Why the caller cannot send resources to the store right now, or null. */
+export function giveReasonOf(d: TribeProjectsResponse, now: number, clock: (ts: number, now: number) => string = formatClock): string | null {
+  if (!d.storeVillage) return 'No store village yet.';
+  if (d.myGiveFrom !== null && d.myGiveFrom > now) return `You can give from ${clock(d.myGiveFrom, now)}.`;
+  if (d.myDailyLeft <= 0) return 'Daily limit reached.';
+  return null;
+}
+
+export function Projects() {
+  const { showOnMap } = useGame();
+  const { d, error, actionError, busy, load, act, cancel, now } = useTribeProjects();
+  const [pick, setPick] = useState('');
+  const [moving, setMoving] = useState(false);
+
   if (!d) {
     return error ? (
       <section className="card">
@@ -160,19 +184,8 @@ export function Projects() {
 
   const home = d.storeVillage;
   const waitingChange = d.storeVillageChangeableAt !== null && d.storeVillageChangeableAt > now;
-  let giveReason: string | null = null;
-  if (!home) giveReason = 'No store village yet.';
-  else if (d.myGiveFrom !== null && d.myGiveFrom > now) giveReason = `You can give from ${formatClock(d.myGiveFrom, now)}.`;
-  else if (d.myDailyLeft <= 0) giveReason = 'Daily limit reached.';
+  const giveReason = giveReasonOf(d, now);
   const showPick = d.canManage && (!home || moving);
-
-  /** Only a specific reason is shown on a card (the store is short of a resource). */
-  function startReason(p: TribeProjectOptionDto): string | null {
-    if (!d || p.nextCost === null) return 'Fully built.';
-    if (d.running) return 'Another project is being built.';
-    const short = RESOURCE_IDS.find((r) => d.store[r] < (p.nextCost?.[r] ?? 0));
-    return short ? `Need more ${RESOURCE_NAME[short].toLowerCase()}` : null;
-  }
 
   return (
     <>
@@ -284,7 +297,7 @@ export function Projects() {
         {d.running && d.canManage && <p className="muted small pad-bottom">One project at a time.</p>}
         <ul className="project-grid">
           {d.projects.map((p) => {
-            const reason = startReason(p);
+            const reason = startReason(d, p);
             const now1 = shortEffect(p.project, p.effectNow);
             const next = p.effectNext !== null ? shortNext(p.project, p.effectNext) : null;
             const maxed = p.nextCost === null;

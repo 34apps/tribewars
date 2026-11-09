@@ -86,3 +86,81 @@ export function formatHms(ms: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${Math.floor(total / 3600)}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
 }
+
+// ---- The seven other sub-tabs (pictures mix-tribe-{alerts,diplomacy,projects,recruit,chat,forum,log}-1440) ----
+
+/** Rows per page where a list must fit the fixed 900 px frame (nothing scrolls inside a panel). */
+export const ALERTS_PER_PAGE = 4;
+export const HOLDS_PER_PAGE = 2;
+export const RELATIONS_PER_PAGE = 6;
+export const PROPOSALS_PER_PAGE = 2;
+export const APPLICATIONS_PER_PAGE = 5;
+export const INVITES_PER_PAGE = 5;
+export const THREADS_PER_PAGE = 6;
+export const LOG_PER_PAGE = 11;
+export const LEDGER_TOTALS_SHOWN = 6;
+export const LEDGER_LATEST_SHOWN = 3;
+
+const KIND_SECTION: Record<DiplomacyKind, string> = { ally: 'Allies', nap: 'Non-aggression', enemy: 'Enemies' };
+
+/** Relations in the order allies, non-aggression, enemies (each group keeps its given order). */
+export function sortRelations<T extends Pick<TribeRelationDto, 'kind'>>(list: T[]): T[] {
+  return KIND_ORDER.flatMap((k) => list.filter((r) => r.kind === k));
+}
+
+/** The section heading a relation row starts ("Allies", ...), or null when the previous row has the same kind. */
+export function relationSection(list: Pick<TribeRelationDto, 'kind'>[], i: number): string | null {
+  const cur = list[i];
+  if (!cur) return null;
+  return i === 0 || list[i - 1]?.kind !== cur.kind ? KIND_SECTION[cur.kind] : null;
+}
+
+/** The Watchtower's three levels as the lines of the info panel; `on` = the level is built. */
+export function watchtowerSteps(level: number): Array<{ n: number; text: string; on: boolean }> {
+  const text = ['Rough size of the army: small, medium, large or huge', 'Its slowest unit, so you know when it lands', 'About how many troops, rounded'];
+  return text.map((t, i) => ({ n: i + 1, text: t, on: level >= i + 1 }));
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+/** "Today 15:05", "Yesterday 22:10", "7 Nov 20:15" (24-hour clock, local time): the log and the forum posts. */
+export function logTime(ts: number, now: number): string {
+  const d = new Date(ts);
+  const today = new Date(now);
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  if (sameDay(d, today)) return `Today ${hm}`;
+  if (sameDay(d, new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 12))) return `Yesterday ${hm}`;
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${hm}`;
+}
+
+/** "[ASH] Ashen Pact". */
+export const tribeTagName = (o: { tag: string; name: string }) => `[${o.tag}] ${o.name}`;
+
+/** Whether a scrolling list sits at (or within `slack` px of) its end. */
+export function atEnd(el: { scrollHeight: number; scrollTop: number; clientHeight: number }, slack = 48): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < slack;
+}
+
+/** The thread list's page: which of the loaded threads to show, and whether a next page exists (loaded or still on the server). */
+export function threadPaging(loaded: number, page: number, serverHasMore: boolean, perPage = THREADS_PER_PAGE): { page: number; from: number; to: number; hasNext: boolean; needsFetch: boolean } {
+  const pages = Math.max(1, Math.ceil(loaded / perPage));
+  const p = Math.min(Math.max(0, page), pages - 1);
+  const to = Math.min(loaded, (p + 1) * perPage);
+  const moreLoaded = p < pages - 1;
+  return { page: p, from: loaded === 0 ? 0 : p * perPage + 1, to, hasNext: moreLoaded || serverHasMore, needsFetch: !moreLoaded && serverHasMore };
+}
+
+/** "15:23" today, else "Tue 15:23" (24-hour clock): when an attack lands. */
+export function landsAt(ts: number, now: number): string {
+  const d = new Date(ts);
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return sameDay(d, new Date(now)) ? hm : `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${hm}`;
+}
+
+/** "14:02" today, else "7 Nov 14:02" (24-hour clock): the time next to a chat message. */
+export function chatClock(ts: number, now: number): string {
+  const d = new Date(ts);
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return sameDay(d, new Date(now)) ? hm : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${hm}`;
+}

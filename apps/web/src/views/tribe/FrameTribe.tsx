@@ -1,6 +1,6 @@
 // The desktop Tribe page inside the fixed 1440 x 900 frame (owner-approved pictures mix-tribe2-1440 and mix-tribe-members-1440): a tribe
-// header (tag, name, recruitment line, stat tiles), the sub-tab row, then the section. Overview and Members are fixed-size pages; the other
-// sections show today's components under the same header and may grow the page for now. Without a tribe: the finder. Phones keep TribeView.
+// header (tag, name, recruitment line, stat tiles), the sub-tab row, then the section. All nine sub-tabs are fixed-size pages (pictures
+// mix-tribe*-1440). Without a tribe: the finder (a growing page). Phones keep TribeView.
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -13,22 +13,21 @@ import { useGame, useRules } from '../../game.ts';
 import type { TribeTarget } from '../../game.ts';
 import { useSites } from '../../hooks/useSites.ts';
 import { tribeBonusLine } from '../../sites.ts';
-import { Alerts } from '../../tribe/Alerts.tsx';
-import { Chat } from '../../tribe/Chat.tsx';
 import { useConfirm } from '../../tribe/Confirm.tsx';
 import { TribeContext } from '../../tribe/context.ts';
 import type { TribeApi } from '../../tribe/context.ts';
-import { Diplomacy } from '../../tribe/Diplomacy.tsx';
 import { Finder } from '../../tribe/Finder.tsx';
-import { Forum } from '../../tribe/Forum.tsx';
-import { Log } from '../../tribe/Log.tsx';
-import { LookoutSection } from '../../tribe/Lookout.tsx';
-import { Projects } from '../../tribe/Projects.tsx';
 import { PublicTribe } from '../../tribe/PublicTribe.tsx';
-import { Recruit } from '../../tribe/Recruit.tsx';
 import { useMyTribe } from '../../tribe/useMyTribe.ts';
+import { FrameTribeAlerts } from './FrameTribeAlerts.tsx';
+import { FrameTribeChat } from './FrameTribeChat.tsx';
+import { FrameTribeDiplomacy } from './FrameTribeDiplomacy.tsx';
+import { FrameTribeForum } from './FrameTribeForum.tsx';
+import { FrameTribeLog } from './FrameTribeLog.tsx';
 import { FrameTribeMembers } from './FrameTribeMembers.tsx';
 import { FrameTribeOverview } from './FrameTribeOverview.tsx';
+import { FrameTribeProjects } from './FrameTribeProjects.tsx';
+import { FrameTribeRecruit } from './FrameTribeRecruit.tsx';
 import type { TribeSection } from './FrameTribeOverview.tsx';
 import { RECRUITMENT_LINE, shortDate } from './frame-tribe-logic.ts';
 import { setTribeFixed } from './tribe-fixed.ts';
@@ -103,10 +102,10 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
   const section: TribeSection = sections.includes(chosen) ? chosen : 'overview';
-  const fixed = section === 'overview' || section === 'members';
+  // Every sub-tab is a fixed 900 px page (nothing scrolls except the chat list and the open forum thread).
   useLayoutEffect(() => {
-    setTribeFixed(fixed);
-  }, [fixed]);
+    setTribeFixed(true);
+  }, []);
 
   const badges: Partial<Record<TribeSection, number>> = {
     alerts: tribeAlerts,
@@ -120,7 +119,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   };
 
   return (
-    <div className={`frt${fixed ? ' frt-fixed' : ' frt-flow'}`}>
+    <div className="frt frt-fixed">
       <TribeHeader tribe={tribe} />
       <nav className="frt-subs" role="tablist" aria-label="Tribe sections">
         {sections.map((s) => (
@@ -146,29 +145,19 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
       <div id="tribe-panel" role="tabpanel" aria-labelledby={`tab-${section}`} className="frt-body">
         {section === 'overview' && <FrameTribeOverview tribe={tribe} role={role} onOpen={go} />}
         {section === 'members' && <FrameTribeMembers tribe={tribe} role={role} />}
-        {!fixed && (
-          <div className="page frt-old">
-            {section === 'alerts' && (
-              <>
-                <Alerts />
-                <LookoutSection />
-              </>
-            )}
-            {section === 'diplomacy' && <Diplomacy tribe={tribe} role={role} />}
-            {section === 'projects' && <Projects />}
-            {section === 'recruit' && <Recruit tribe={tribe} role={role} />}
-            {section === 'chat' && <Chat />}
-            {section === 'forum' && <Forum />}
-            {section === 'log' && <Log />}
-            <WorldGoal />
-          </div>
-        )}
+        {section === 'alerts' && <FrameTribeAlerts onOpen={go} />}
+        {section === 'diplomacy' && <FrameTribeDiplomacy tribe={tribe} role={role} />}
+        {section === 'projects' && <FrameTribeProjects tribe={tribe} role={role} />}
+        {section === 'recruit' && <FrameTribeRecruit tribe={tribe} role={role} />}
+        {section === 'chat' && <FrameTribeChat />}
+        {section === 'forum' && <FrameTribeForum />}
+        {section === 'log' && <FrameTribeLog />}
       </div>
     </div>
   );
 }
 
-/** Pages that are not the fixed Overview / Members: they grow the frame (and the page scrolls). */
+/** The finder, the loading state and a public tribe page: not fixed pages, they grow the frame (and the page scrolls). */
 function Flow({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     setTribeFixed(false);

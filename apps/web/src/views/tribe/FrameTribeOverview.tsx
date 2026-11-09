@@ -25,10 +25,11 @@ export type TribeSection = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'pr
 const ALERT_POLL_MS = 10_000;
 
 /** Attacks and cold villages of the tribe, like the Alerts section (same endpoint, same refresh rules). */
-function useAlertFeed() {
+export function useAlertFeed() {
   const { tribeAlerts } = useGame();
   const [alerts, setAlerts] = useState<TribeAlertDto[] | null>(null);
   const [holds, setHolds] = useState<TribeHoldDto[]>([]);
+  const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
   const applied = useRef(0);
@@ -40,6 +41,7 @@ function useAlertFeed() {
       applied.current = my;
       setAlerts([...res.alerts].sort((a, b) => a.arriveAt - b.arriveAt));
       setHolds(sortHolds(res.holds ?? []));
+      setLevel(res.watchtowerLevel ?? 0);
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
@@ -56,7 +58,7 @@ function useAlertFeed() {
     return () => window.clearInterval(id);
   }, [load, every]);
   useLiveTopic('tribe', () => void load());
-  return { alerts, holds, error, retry: () => void load() };
+  return { alerts, holds, level, error, retry: () => void load() };
 }
 
 function AlertsPanel({ onOpen }: { onOpen: (s: TribeSection) => void }) {
@@ -228,7 +230,7 @@ function ForumPanel({ onOpen }: { onOpen: (s: TribeSection) => void }) {
 }
 
 /** The last chat messages and a way to send one: the same endpoints and refresh rules as the Chat section. */
-function useChatFeed() {
+export function useChatFeed() {
   const [messages, setMessages] = useState<ChatMessageDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const lastId = useRef(0);

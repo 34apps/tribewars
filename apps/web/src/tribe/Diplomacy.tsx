@@ -10,24 +10,23 @@ import { KindBadge, Segmented, TribeLabel } from './bits.tsx';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
 
-const KIND_OPTIONS = [
+export const KIND_OPTIONS = [
   { value: 'ally', label: 'Alliance' },
   { value: 'nap', label: 'NAP' },
   { value: 'enemy', label: 'Enemy' },
 ] as const;
 
-const KIND_HINT: Record<DiplomacyKind, string> = {
+export const KIND_HINT: Record<DiplomacyKind, string> = {
   ally: 'Needs their accept.',
   nap: 'Needs their accept.',
   enemy: 'Instant.',
 };
 
-function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) {
-  const { now, settings } = useGame();
-  const { busy, run, confirm, openTribe } = useTribe();
-  const ending = r.endsAt !== null;
+/** Cancel a pact (after a confirm that explains the notice) or end a war. Shared by the phone list and the desktop frame page. */
+export function useCancelRelation(r: TribeRelationDto): () => Promise<void> {
+  const { settings } = useGame();
+  const { run, confirm } = useTribe();
   const pact = r.kind !== 'enemy';
-
   async function cancel() {
     if (pact) {
       const ok = await confirm({
@@ -44,6 +43,16 @@ function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) 
     }
     await run(() => api.cancelRelation(r.id), { ok: pact ? 'Notice started.' : 'War ended.' });
   }
+  return cancel;
+}
+
+function RelationRow({ r, canEdit }: { r: TribeRelationDto; canEdit: boolean }) {
+  const { now } = useGame();
+  const { busy, openTribe } = useTribe();
+  const ending = r.endsAt !== null;
+  const pact = r.kind !== 'enemy';
+
+  const cancel = useCancelRelation(r);
 
   return (
     <li className={`relation-row${ending ? ' is-ending' : ''}`}>
@@ -117,7 +126,8 @@ function ProposalRow({ p, canEdit, relations }: { p: DiplomacyProposalDto; canEd
   );
 }
 
-function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
+/** State and submit of the "New relation" form; shared by the phone card and the desktop frame page. */
+export function useProposeForm(tribe: MemberProps['tribe']) {
   const { data, busy, run, confirm } = useTribe();
   const [tag, setTag] = useState('');
   const [kind, setKind] = useState<DiplomacyKind>('ally');
@@ -153,8 +163,12 @@ function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
     setError(err);
     if (!err) setTag('');
   }
-
   const submitLabel = kind === 'enemy' ? 'Declare enemy' : kind === 'ally' ? 'Propose alliance' : 'Propose NAP';
+  return { tag, setTag, kind, setKind, error, setError, why, allies, naps, submit, submitLabel, busy };
+}
+
+function ProposeForm({ tribe }: Pick<MemberProps, 'tribe'>) {
+  const { tag, setTag, kind, setKind, error, setError, why, allies, naps, submit, submitLabel, busy } = useProposeForm(tribe);
   return (
     <form className="card stack" onSubmit={(e) => void submit(e)} aria-labelledby="dip-new">
       <h2 id="dip-new" className="card-title">New relation</h2>

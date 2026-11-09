@@ -1,4 +1,4 @@
-// Tribe page screenshots (1440 Overview, Members, a growing sub-tab, phone unchanged) on the demo seed with a tribe of 18.
+// Tribe page screenshots (1440: all nine sub-tabs, plus a chat post and a forum reply as action checks; 360 phone unchanged) on the demo seed with a tribe of 18.
 // usage: node tribe-shot.mjs <outDir>   (needs the preview at PREVIEW_URL, default http://localhost:5174/?demo)
 import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'node:fs';
@@ -31,6 +31,8 @@ async function connect() {
   await new Promise((r) => ws.addEventListener('open', r));
   ws.addEventListener('message', (e) => {
     const m = JSON.parse(e.data);
+    if (m.method === 'Page.frameNavigated') console.log('NAV', m.params.frame.url);
+    if (m.method === 'Runtime.consoleAPICalled' && ['error'].includes(m.params.type)) console.log('CONSOLE', m.params.args.map((a) => a.value ?? a.description).join(' ').slice(0, 300));
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
   });
 }
@@ -94,6 +96,16 @@ const SEED_TRIBE = `(async () => {
   }
   for (const nm of ['Maerwen', 'Saffi', 'Ysolde_K']) ctx.tribes.setRole(me, named(nm).id, 'officer', t);
   ctx.tribes.updateSettings(me, { recruitment: 'application' }, t);
+  try {
+    const applicants = [['Wrenna', 'wren', 1980, 'I live south of Ashby and can guard your flank. Active every evening.'], ['Orrick', 'corwen', 860, 'New player, happy to send to the store and learn.'], ['Khorzan', 'old-orm', 3120, 'Left my old tribe; looking for an active one.']];
+    for (const [name, ch, pts, msg] of applicants) {
+      const id = ctx.store.insertPlayer(name, 'bot', t - 5 * D, 0, ch);
+      let x = myV.x + 14, y = myV.y - 6; while (ctx.store.villageExistsAt(x, y)) { x += 1; }
+      ctx.store.insertVillage(id, name + "'s village", x, y, pts, donor.state);
+      ctx.tribes.apply(ctx.store.getPlayer(id), tid, msg, t - (2 + applicants.findIndex((a) => a[0] === name)) * H);
+    }
+    for (const nm of ['Mira_of_Vale', 'Tolvek']) { try { ctx.tribes.invite(me, nm, t); } catch (e) { console.log('invite', nm, e.message); } }
+  } catch (e) { console.log('recruit seed', e.message); }
   const chat = [['Saffi', 'Tolvek is out again, 2 attacks on the way.', 40], ['Maerwen', 'Sending 15 Pikemen to Emberfold now.', 38], ['Corwin', 'His second one hits me. Anyone near Ashby?', 35], ['Barley', 'I can send 10 Guards, give me a minute.', 33], ['Maerwen', 'Thanks all. Wall is 9, holding.', 30]];
   for (const [who, text, mins] of chat) ctx.tribes.chatPost(named(who), text, t - mins * 60000);
   const boards = ctx.forum.boards(me, t).boards; const b0 = (boards.find((b) => b.postRule === 'members') ?? boards[1]).id;
@@ -107,7 +119,17 @@ const SEED_TRIBE = `(async () => {
   }
   ctx.tribes.diplomacy(me, 'ASH', 'enemy', t);
   for (const [tag, kind, leader] of [['MIST', 'ally', 'Mira_of_Vale'], ['EMBR', 'nap', 'Brannoch']]) { const r = ctx.tribes.diplomacy(me, tag, kind, t); const pr = r.proposals.find((p) => p.other.tag === tag); if (pr) ctx.tribes.acceptProposal(named(leader), pr.id, t); }
-  ctx.store.projects.ensure(tid); ctx.store.projects.setLevel(tid, 'roads', 1); ctx.store.projects.setLevel(tid, 'watchtower', 2);
+  ctx.store.projects.ensure(tid);
+  try {
+    const bw = ctx.store.villagesOfPlayer(named('Maerwen').id)[0];
+    ctx.store.projects.setVillage(tid, bw.id, t - 5 * D);
+    ctx.store.projects.setResources(tid, { wood: 168400, food: 142900, iron: 131250, gold: 38600 });
+    for (const [who, amt, ago] of [['Maerwen', 214000, 70], ['Saffi', 188500, 50], ['Corwin', 142000, 30], ['Barley', 96400, 20], ['Orrin', 61200, 12], ['Hild', 18000, 6]]) {
+      const q = amt / 4; ctx.store.projects.insertLedger(tid, named(who).id, who, { wood: q, food: q, iron: q, gold: q }, t - ago * H);
+    }
+    ctx.store.projects.insertLedger(tid, named('Corwin').id, 'Corwin', { wood: 3000, food: 3000, iron: 3000, gold: 3000 }, t - 2 * H);
+    ctx.store.projects.insertLedger(tid, named('Saffi').id, 'Saffi', { wood: 5000, food: 5000, iron: 5000, gold: 5000 }, t - 5 * H);
+  } catch (e) { console.log('store seed', e.message); } ctx.store.projects.setLevel(tid, 'roads', 1); ctx.store.projects.setLevel(tid, 'watchtower', 2);
   ctx.store.projects.insertRun({ tribeId: tid, project: 'watchtower', level: 3, startedAt: t - 20 * H, endsAt: t + 31.2 * H, cost: { wood: 0, food: 0, iron: 0, gold: 0 } });
   const tolvek = ctx.store.villagesOfPlayer(named('Tolvek').id)[0];
   const corwinV = ctx.store.villagesOfPlayer(named('Corwin').id)[0];
@@ -139,8 +161,33 @@ try {
   await clickSub('Overview'); await sleep(800);
   await evalJs(`[...document.querySelectorAll('.frt-about .fv-lk')][0].click()`); await sleep(800); await shot('tribe-about-1440.png');
   await evalJs(`document.querySelector('dialog[open] .fv-btn')?.click()`); await sleep(400);
-  await clickSub('Diplomacy'); await sleep(1500); await metrics('tribe diplomacy'); await shot('tribe-diplomacy-1440.png', true);
-  await clickSub('Chat'); await sleep(1500); await metrics('tribe chat'); await shot('tribe-chat-1440.png', true);
+  // Every other sub-tab: no page scroll, no scrollbars in panels (chat list and forum thread excepted), nothing cut off.
+  const inner = () => evalJs(`(() => { const out = []; for (const e of document.querySelectorAll('.frt *')) { const cs = getComputedStyle(e); if (!['auto','scroll'].includes(cs.overflowY) && !['auto','scroll'].includes(cs.overflowX)) continue; if (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1) out.push(e.className + ' ' + e.scrollWidth + 'x' + e.scrollHeight + ' in ' + e.clientWidth + 'x' + e.clientHeight); } return out.join(' | ') || 'none'; })()`).then((r) => console.log('scrollers with overflow:', r));
+  const clip = () => evalJs(`(() => { const out = []; for (const p of document.querySelectorAll('.frt .fv-pn')) { if (getComputedStyle(p).overflow !== 'hidden') continue; const pr = p.getBoundingClientRect(); for (const e of p.querySelectorAll('*')) { if (e.closest('.frt-cl, .frt-posts')) continue; const r = e.getBoundingClientRect(); if (r.width && r.height && (r.bottom > pr.bottom - 1 || r.right > pr.right + 1)) out.push(e.className + ':' + (e.textContent || '').slice(0, 20)); } } return out.slice(0, 8).join(' | ') || 'nothing clipped'; })()`).then((r) => console.log('clipped:', r));
+  for (const [label, file] of [['Alerts', 'alerts'], ['Diplomacy', 'diplomacy'], ['Projects', 'projects'], ['Recruit', 'recruit'], ['Chat', 'chat'], ['Forum', 'forum'], ['Log', 'log']]) {
+    await clickSub(label); await sleep(2200);
+    await metrics('tribe ' + file); await inner(); await clip(); await shot(`tribe-${file}-1440.png`);
+    if (file === 'chat') {
+      await evalJs(`(() => { const i = document.querySelector('#frt-chat-full'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'Checking the new chat page.'); i.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+      await evalJs(`document.querySelector('.frt-chatp .frt-ci button[type=submit]').click()`); await sleep(1500);
+      console.log('chat posted:', await evalJs(`[...document.querySelectorAll('.frt-cm')].some(e => e.textContent.includes('Checking the new chat page.'))`));
+      await shot('tribe-chat-posted-1440.png');
+    }
+    if (file === 'forum') {
+      await evalJs(`(() => { const i = document.querySelector('#frt-reply'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'Reply from the new forum page.'); i.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+      await evalJs(`document.querySelector('.frt-rb button[type=submit]').click()`); await sleep(2000);
+      console.log('forum replied:', await evalJs(`[...document.querySelectorAll('.frt-po')].some(e => e.textContent.includes('Reply from the new forum page.'))`));
+      await shot('tribe-forum-replied-1440.png');
+    }
+    if (file === 'recruit') {
+      await waitFor(`document.querySelector('.frt-ar .fv-btn')`, 10000);
+      await evalJs(`document.querySelector('.frt-ar .fv-btn:not(.fv-btn-g)').click()`); await sleep(1200);
+      console.log('applications left after decline:', await evalJs(`document.querySelectorAll('.frt-ar').length`));
+    }
+    if (file === 'log') {
+      await evalJs(`[...document.querySelectorAll('.frt-pgr .fv-pg')][1].click()`); await sleep(500); await shot('tribe-log-page2-1440.png');
+    }
+  }
   await size(360, 780, true); await sleep(3000);
   console.log('layout', await evalJs(`document.documentElement.className`));
   await evalJs(`location.hash = 'tribe'`); await sleep(3000);
