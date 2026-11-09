@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import type { PublicWorldDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { useMediaQuery, PHONE_QUERY } from '../hooks/useMediaQuery.ts';
 import { Flame } from './Flame.tsx';
 import HomeVillage from './HomeVillage.tsx';
+import { LogoPill } from './LogoPill.tsx';
 import './home.css';
 
-/** Signed-out front page of the lobby: one screen, no scrolling. */
+/** Signed-out front page of the lobby: one screen, no scrolling. Phone: the "game launcher" (picture, bottom sheet). */
 export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: () => void }) {
+  const phone = useMediaQuery(PHONE_QUERY);
   const [worlds, setWorlds] = useState<PublicWorldDto[]>([]);
+  /** Worlds open to join (the phone's "N worlds open now" line); 0 hides the line, also when the call fails. */
+  const [openCount, setOpenCount] = useState(0);
   /** The village picture has arrived: the logo flame stops flickering. */
   const [villageReady, setVillageReady] = useState(false);
 
@@ -16,13 +21,50 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
     let alive = true;
     // A failed call just hides the strip.
     api.lobbyPublicWorlds().then(
-      (r) => alive && setWorlds(r.worlds.slice(0, 3)),
+      (r) => {
+        if (!alive) return;
+        setWorlds(r.worlds.slice(0, 3));
+        setOpenCount(r.worlds.filter((w) => w.status === 'open').length);
+      },
       () => undefined,
     );
     return () => {
       alive = false;
     };
   }, []);
+
+  if (phone) {
+    return (
+      <div className="lp-home">
+        <div className="lp-hero">
+          <HomeVillage onReady={() => setVillageReady(true)} />
+        </div>
+        <header className="lp-top">
+          <LogoPill loading={!villageReady} />
+        </header>
+        <main className="lp-sheet">
+          <div className="lp-grab" aria-hidden="true" />
+          <h1 className="lp-h1">
+            Build a village.
+            <br />
+            <em>Raid the world.</em>
+          </h1>
+          <p className="lp-sub">Free strategy in your browser.</p>
+          <button type="button" className="btn btn-primary lp-big" onClick={onPlay}>
+            Play free
+          </button>
+          <button type="button" className="btn btn-ghost lp-ghost" onClick={onSignIn}>
+            I have an account
+          </button>
+          {openCount > 0 && (
+            <p className="lp-foot">
+              {openCount === 1 ? '1 world open now' : `${openCount} worlds open now`} · No download
+            </p>
+          )}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="home">

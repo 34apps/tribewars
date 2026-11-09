@@ -5,7 +5,7 @@ import { afterEach, test } from 'node:test';
 import { isLobbyPath } from '@clanfire/engine';
 import type { LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, lobbyApiBase, safeWorldPath, withApiBase } from '../src/api.ts';
-import { daysAgoLabel, enterWorld, groupWorlds, worldButtonLabel } from '../src/lobby.ts';
+import { TENT_COLOURS, daysAgoLabel, enterWorld, groupWorlds, lobbyRouteHash, lobbyScreen, parseLobbyHash, startedLabel, tentColour, worldButtonLabel } from '../src/lobby.ts';
 import { isLobbyWorld, loadWorldInfo, resetWorldInfoCache } from '../src/hooks/useWorldInfo.ts';
 
 interface Call {
@@ -187,14 +187,76 @@ test('finished worlds say "View results", the others "Play"', () => {
   for (const s of ['open', 'full', 'closed'] as const) assert.equal(worldButtonLabel(s), 'Play');
 });
 
-test('homepage worlds: yours (last played first), joinable, results; closed worlds are left out', () => {
-  const w = (id: string, status: LobbyWorldDto['status'], lastPlayedAt: number | null): LobbyWorldDto => ({ id, name: id, status, path: `/w/${id}/`, lastPlayedAt });
-  const list = [w('a', 'open', 100), w('b', 'open', null), w('c', 'full', 300), w('d', 'full', null), w('e', 'finished', 50), w('f', 'closed', 10), w('g', 'closed', null)];
+test('lobby worlds: yours, results, the newest open ones to join, and the unplayed ones for All worlds; closed worlds are left out', () => {
+  const w = (id: string, status: LobbyWorldDto['status'], lastPlayedAt: number | null, openedAt = 0): LobbyWorldDto => ({ id, name: id, status, path: `/w/${id}/`, lastPlayedAt, openedAt });
+  const list = [
+    w('a', 'open', 100, 10),
+    w('b', 'open', null, 20),
+    w('c', 'full', 300, 30),
+    w('d', 'full', null, 40),
+    w('e', 'finished', 50, 5),
+    w('f', 'closed', 10),
+    w('g', 'closed', null),
+    w('h', 'open', null, 60),
+    w('i', 'open', null, 50),
+    w('j', 'open', null, 70),
+    w('k', 'finished', null, 1),
+  ];
   const g = groupWorlds(list);
-  assert.deepEqual(g.yours.map((x) => x.id), ['c', 'a']);
-  assert.deepEqual(g.join.map((x) => x.id), ['b', 'd']);
-  assert.deepEqual(g.results.map((x) => x.id), ['e']);
-  assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 'the input is not changed');
+  assert.deepEqual(g.yours.map((x) => x.id), ['c', 'a'], 'played and running, last played first');
+  assert.deepEqual(g.results.map((x) => x.id), ['e'], 'played and finished');
+  assert.deepEqual(g.join.map((x) => x.id), ['j', 'h', 'i'], 'the 3 newest open worlds not played');
+  assert.deepEqual(g.others.open.map((x) => x.id), ['j', 'h', 'i', 'b'], 'newest first');
+  assert.deepEqual(g.others.full.map((x) => x.id), ['d']);
+  assert.deepEqual(g.others.finished.map((x) => x.id), ['k']);
+  assert.equal(g.otherCount, 6, 'only worlds never played are counted');
+  assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'], 'the input is not changed');
+});
+
+test('lobby worlds: a lobby that sends no start date still lists worlds (list order) and shows no "Started" line', () => {
+  const w = (id: string): LobbyWorldDto => ({ id, name: id, status: 'open', path: `/w/${id}/`, lastPlayedAt: null }) as LobbyWorldDto;
+  assert.deepEqual(groupWorlds([w('x'), w('y')]).join.map((r) => r.id), ['x', 'y']);
+  assert.equal(startedLabel(undefined), null);
+  assert.equal(startedLabel(Number.NaN), null);
+});
+
+test('"Started N days ago" line', () => {
+  const day = 86_400_000;
+  assert.equal(startedLabel(100 * day - 5, 100 * day), 'Started today');
+  assert.equal(startedLabel(99 * day, 100 * day), 'Started 1 day ago');
+  assert.equal(startedLabel(81 * day, 100 * day), 'Started 19 days ago');
+});
+
+test('lobby address: #signin, #signup and #worlds are routes; anything else is the front page', () => {
+  assert.equal(parseLobbyHash('#signin'), 'signin');
+  assert.equal(parseLobbyHash('#signup'), 'signup');
+  assert.equal(parseLobbyHash('#worlds'), 'worlds');
+  assert.equal(parseLobbyHash('signin'), 'signin', 'the "#" is optional');
+  for (const other of ['', '#', '#home', '#Signin', '#signin/extra', '#worlds?x=1', '#%73ignin', '# signin', '#__proto__', '#constructor']) {
+    assert.equal(parseLobbyHash(other), 'home', JSON.stringify(other));
+  }
+  assert.equal(lobbyRouteHash('home'), '');
+  for (const r of ['signin', 'signup', 'worlds'] as const) assert.equal(parseLobbyHash(lobbyRouteHash(r)), r, 'a route survives the round trip');
+});
+
+test('lobby screens: signed out sees the front page or the form; signed in never sees the form; #worlds needs an account', () => {
+  assert.equal(lobbyScreen('home', false), 'home');
+  assert.equal(lobbyScreen('signin', false), 'form-login');
+  assert.equal(lobbyScreen('signup', false), 'form-register');
+  assert.equal(lobbyScreen('worlds', false), 'home', 'signed out, #worlds falls back to the front page');
+  assert.equal(lobbyScreen('home', true), 'your-worlds');
+  assert.equal(lobbyScreen('signin', true), 'your-worlds');
+  assert.equal(lobbyScreen('signup', true), 'your-worlds');
+  assert.equal(lobbyScreen('worlds', true), 'all-worlds');
+});
+
+test('tent colour: the same world always gets the same colour, from the fixed set', () => {
+  for (const id of ['w1', 'w2', 'hollow-marsh', '', 'x'.repeat(200)]) {
+    assert.equal(tentColour(id), tentColour(id));
+    assert.ok((TENT_COLOURS as readonly string[]).includes(tentColour(id)));
+  }
+  const used = new Set(Array.from({ length: 40 }, (_, i) => tentColour(`w${i}`)));
+  assert.ok(used.size >= 3, 'worlds spread over several colours');
 });
 
 test('world age: "today", "1 day ago", "N days ago"', () => {

@@ -20,13 +20,17 @@ test('worlds: needs sign-in, then lists in sort order with status and path', asy
   const res = await c.get(WORLDS);
   ok(res);
   // insertion order = sort order (each new world goes last)
-  assert.deepEqual(res.json<LobbyWorldsResponse>(), {
-    worlds: [
+  const worlds = res.json<LobbyWorldsResponse>().worlds;
+  // openedAt is the day the world was added to the lobby (the same for every account).
+  assert.ok(worlds.every((w) => Number.isFinite(w.openedAt) && w.openedAt >= 0));
+  assert.deepEqual(
+    worlds.map(({ openedAt: _openedAt, ...rest }) => rest),
+    [
       { id: 'w2', name: 'Second world', status: 'open', path: '/w/w2/', lastPlayedAt: null },
       { id: 'w1', name: 'First world', status: 'full', path: '/w/w1/', lastPlayedAt: null },
       { id: 'old', name: 'Closed world', status: 'closed', path: '/w/old/', lastPlayedAt: null },
     ],
-  });
+  );
 });
 
 test('worlds: a finished world is listed with its status', async () => {

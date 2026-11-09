@@ -91,6 +91,7 @@
 .resstrip,
 .bottomnav,
 .home-bar,
+.aw-bar,
 .who-menu {
   --surface-2: var(--bar-2);
   --edge-soft: var(--bar-line);

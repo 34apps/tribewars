@@ -298,16 +298,6 @@ html:has(.home:not(.home-in)) body {
   font-weight: 500;
 }
 
-/* Short phones: the headline and buttons matter more than the sub line. */
-@media (max-height: 700px) {
-  .home-bar {
-    min-height: 48px;
-  }
-  .home-title {
-    font-size: clamp(1.2rem, 5.6vw, 1.6rem);
-  }
-}
-
 @media (min-width: 900px) {
   .home-bar {
     min-height: 64px;
@@ -419,15 +409,6 @@ html:has(.home:not(.home-in)) body {
   }
 }
 
-/* Tall phones: room for the sub line. */
-@media (max-width: 899px) and (min-height: 760px) {
-  .home-sub {
-    display: block;
-    margin: 8px 0 0;
-    font-size: 0.95rem;
-  }
-}
-
 /* ---- Signed-in "Your worlds" page ------------------------------------------------------------------------------ */
 
 .home-who {
@@ -442,7 +423,7 @@ html:has(.home:not(.home-in)) body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 6.5em;
+  max-width: 14em;
   font-weight: 700;
 }
 
@@ -451,18 +432,6 @@ html:has(.home:not(.home-in)) body {
   white-space: nowrap;
 }
 
-/* Small phones: the welcome card already says the name; a cut-off copy in the bar only adds noise. */
-@media (max-width: 599px) {
-  .home-who-name {
-    display: none;
-  }
-}
-
-@media (min-width: 600px) {
-  .home-who-name {
-    max-width: 14em;
-  }
-}
 
 .home-link:disabled {
   color: var(--on-surface-muted);

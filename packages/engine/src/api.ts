@@ -1957,6 +1957,8 @@ export interface LobbyWorldDto {
   path: string;
   /** When this account last entered the world, ms since epoch; null = never. Only the signed-in account's own history. */
   lastPlayedAt: number | null;
+  /** When the world was added to the lobby, ms since epoch (same value as PublicWorldDto.openedAt). Not per-account. */
+  openedAt: number;
 }
 
 export interface LobbyWorldsResponse {

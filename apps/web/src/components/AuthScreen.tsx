@@ -1,9 +1,11 @@
 import { Suspense, lazy, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 import type { AuthRequest, LobbyChangePasswordRequest } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
+import { PHONE_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
+import { LogoPill } from './LogoPill.tsx';
 
 const ChieftainPicker = lazy(() => import('./ChieftainPicker.tsx'));
 
@@ -28,8 +30,34 @@ export function newPasswordProblem(password: string, username: string, min: numb
   return null;
 }
 
-export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login', onBack }: { onAuthed: () => void; calls?: AuthCalls; initialMode?: Mode; /** Lobby homepage: a small link back to it. */ onBack?: () => void }) {
+export function AuthScreen({
+  onAuthed,
+  calls = WORLD_CALLS,
+  initialMode = 'login',
+  onBack,
+  hero,
+  onModeChange,
+}: {
+  onAuthed: () => void;
+  calls?: AuthCalls;
+  initialMode?: Mode;
+  /** Lobby homepage: a small link back to it (a round button on the phone's picture strip). */
+  onBack?: () => void;
+  /** Lobby on a phone: the village picture for the strip on top ("launcher" look). The world servers' own screen passes none. */
+  hero?: ReactNode;
+  /** Lobby: the tab was switched by the visitor (the address follows). */
+  onModeChange?: (mode: Mode) => void;
+}) {
+  const phone = useMediaQuery(PHONE_QUERY);
+  /** Lobby on a phone: picture strip, then the form as a bottom sheet. Everything else is the plain centred card. */
+  const sheet = phone && onBack !== undefined && hero !== undefined;
   const [mode, setMode] = useState<Mode>(initialMode);
+  // Back / Forward between #signin and #signup (the lobby passes the mode again): follow it.
+  const [seenInitial, setSeenInitial] = useState(initialMode);
+  if (seenInitial !== initialMode) {
+    setSeenInitial(initialMode);
+    setMode(initialMode);
+  }
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -191,15 +219,35 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
   }
 
   return (
-    <div className="auth">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <span className="auth-crest" aria-hidden="true">
-            <Icon name="flame" size={52} />
-          </span>
-          <h1>Clanfire</h1>
-          <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
+    <div className={`auth${sheet ? ' auth-sheet' : ''}`}>
+      {sheet && (
+        <div className="lp-strip">
+          <div className="lp-strip-art">{hero}</div>
+          <div className="lp-strip-top">
+            <button type="button" className="lp-round" aria-label="Back to the start page" onClick={onBack}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+            </button>
+            <LogoPill />
+          </div>
         </div>
+      )}
+      <div className="auth-card">
+        {sheet ? (
+          <>
+            <div className="lp-grab" aria-hidden="true" />
+            <h1 className="lp-title">{register ? 'Join Clanfire' : 'Welcome back'}</h1>
+          </>
+        ) : (
+          <div className="auth-brand">
+            <span className="auth-crest" aria-hidden="true">
+              <Icon name="flame" size={52} />
+            </span>
+            <h1>Clanfire</h1>
+            <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
+          </div>
+        )}
 
         <div className="auth-tabs" role="tablist" aria-label="Account">
           <button
@@ -210,6 +258,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
               setMode('login');
               setStep('account');
               setError(null);
+              onModeChange?.('login');
             }}
             type="button"
           >
@@ -223,6 +272,7 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
               setMode('register');
               setStep('account');
               setError(null);
+              onModeChange?.('register');
             }}
             type="button"
           >
@@ -278,17 +328,19 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
           </button>
         </form>
 
-        {onBack && (
+        {onBack && !sheet && (
           <button type="button" className="auth-back" onClick={onBack}>
             <span aria-hidden="true">←</span> Back
           </button>
         )}
 
-        <ul className="auth-blurb">
-          <li><Icon name="food" size={26} /> Build</li>
-          <li><Icon name="army" size={26} /> Raid</li>
-          <li><Icon name="shield" size={26} /> Protected start</li>
-        </ul>
+        {!sheet && (
+          <ul className="auth-blurb">
+            <li><Icon name="food" size={26} /> Build</li>
+            <li><Icon name="army" size={26} /> Raid</li>
+            <li><Icon name="shield" size={26} /> Protected start</li>
+          </ul>
+        )}
       </div>
     </div>
   );

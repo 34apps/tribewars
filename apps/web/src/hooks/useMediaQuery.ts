@@ -15,3 +15,6 @@ export function useMediaQuery(query: string): boolean {
 
 /** Desktop layout (top bar, sidebar) from 1024 px; below that the phone layout. */
 export const DESKTOP_QUERY = '(min-width: 1024px)';
+
+/** Lobby phone layout (launcher style): below 900 px. From 900 px the desktop lobby layouts are used. */
+export const PHONE_QUERY = '(max-width: 899px)';

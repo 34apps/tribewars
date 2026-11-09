@@ -1,9 +1,10 @@
-// Headless Chrome CDP screenshots of the lobby homepage (vite dev + faked /lobby/api).
+// Headless Chrome CDP screenshots of the lobby (vite dev + faked /lobby/api).
 // usage: node home-shot.mjs <outDir>   (needs vite dev on 127.0.0.1:5199:  cd apps/web && npx vite --host 127.0.0.1 --port 5199 --strictPort)
-// Signed out at 360x640, 390x844, 1280x720, 1440x900 (out-<w>x<h>.png); signed in (account with 2 badges; worlds: 1 played,
-// 2 new, 1 full, 1 finished) at 360x640, 390x844, 1280x720, 1440x900 (in-<w>x<h>.png); the chieftain overlay after
-// "Play free" at 360x640 and 1280x720 (chieftain-<w>x<h>.png); the Hall of Fame dialog (hall-1440x900.png).
-// Prints, per shot, the page scroller's (.home) scrollHeight vs clientHeight.
+// Fake data = the mobile-lobby mockups: account with 2 badges; worlds: 2 played (1 running, 1 finished), 9 open, 2 full and
+// 3 finished that were never played; the public list has the same open and full worlds.
+// Shots (out/<name>-<w>x<h>.png): phone 360x640 and 390x844: home, signin, signup, worlds, allworlds (worlds and allworlds
+// also as <name>-full-<w>x<h>.png, the whole page); desktop 1440x900: home, worlds, allworlds; 1280x720: worlds; plus the account menu (menu-390x844.png) and the
+// Hall of Fame dialog (hall-1440x900.png). Prints, per shot, whether the page scrolls (page scrollHeight vs clientHeight).
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -52,21 +53,22 @@ async function waitFor(expr, ms = 30000) {
 }
 const now = Date.now();
 const DAY = 86400000;
-const PUBLIC_WORLDS = { worlds: [
-  { id: 'w4', name: 'Hollow Marsh', status: 'open', path: '/w/w4/', openedAt: now - 3 * DAY },
-  { id: 'w5', name: 'Cinder Vale', status: 'open', path: '/w/w5/', openedAt: now - 9 * DAY },
-  { id: 'w6', name: 'Ashfall', status: 'full', path: '/w/w6/', openedAt: now - 20 * DAY },
+const OPEN = [['Emberfall', 1], ['Thornwick', 2], ['Cinder Vale', 5], ['Mistral Reach', 6], ['Ravenmoor', 8], ['Saltmarsh', 11], ['Duskhollow', 13], ['Greywater', 16], ['Stonebrook', 19]];
+const FULL = [['Ashfall', 25], ['Brackenmoor', 31]];
+const DONE = [['Old Cairn', 90], ['Frostgate', 120], ['Last Ember', 150]];
+const slug = (n) => n.toLowerCase().replace(/[^a-z]+/g, '-');
+const mk = (n, status, days, played) => ({ id: slug(n), name: n, status, path: `/w/${slug(n)}/`, openedAt: now - days * DAY, lastPlayedAt: played === null ? null : now - played * DAY });
+const LOBBY_WORLDS = { worlds: [
+  mk('Hollow Marsh', 'open', 30, 2),
+  mk('First Light', 'finished', 80, 40),
+  ...OPEN.map(([n, d]) => mk(n, 'open', d, null)),
+  ...FULL.map(([n, d]) => mk(n, 'full', d, null)),
+  ...DONE.map(([n, d]) => mk(n, 'finished', d, null)),
 ] };
+const PUBLIC_WORLDS = { worlds: [...OPEN.map(([n, d]) => ({ id: slug(n), name: n, status: 'open', path: `/w/${slug(n)}/`, openedAt: now - d * DAY })), ...FULL.map(([n, d]) => ({ id: slug(n), name: n, status: 'full', path: `/w/${slug(n)}/`, openedAt: now - d * DAY }))] };
 const ACCOUNT = { id: 1, username: 'Rowan_the_Red', chieftain: 'old-orm', staffRole: null, badges: [
   { worldId: 'w1', worldName: 'First Light', badge: 'champion', place: null, endedAt: now - 40 * DAY },
   { worldId: 'w2', worldName: 'Second Spark', badge: 'top10', place: 4, endedAt: now - 20 * DAY },
-] };
-const LOBBY_WORLDS = { worlds: [
-  { id: 'w4', name: 'Hollow Marsh', status: 'open', path: '/w/w4/', lastPlayedAt: now - 2 * DAY },
-  { id: 'w5', name: 'Cinder Vale', status: 'open', path: '/w/w5/', lastPlayedAt: null },
-  { id: 'w7', name: 'Emberfall', status: 'open', path: '/w/w7/', lastPlayedAt: null },
-  { id: 'w6', name: 'Ashfall', status: 'full', path: '/w/w6/', lastPlayedAt: null },
-  { id: 'w1', name: 'First Light', status: 'finished', path: '/w/w1/', lastPlayedAt: now - 50 * DAY },
 ] };
 const HALL = { worlds: [
   { worldId: 'w1', worldName: 'First Light', endedAt: now - 40 * DAY, kind: 'domination', winner: { tag: 'EMB', name: 'The Embers' },
@@ -88,45 +90,51 @@ try {
     else if (u.includes('/worlds')) { body = LOBBY_WORLDS; status = 200; }
     send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: status, responseHeaders: [{ name: 'content-type', value: 'application/json' }], body: json(body) }).catch(() => {});
   });
-  const SIZES = [[360, 640, true], [390, 844, true], [1280, 720, false], [1440, 900, false]];
-  async function open(w, h, mob) {
+  /** Open a lobby address fresh (hash routes: /lobby/#signin ...) and wait until the screen is drawn. */
+  async function open(w, h, mob, hash, ready) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mob ? 2 : 1, mobile: mob });
-    await send('Page.navigate', { url: 'http://127.0.0.1:5199/lobby/' });
-    await waitFor(`document.querySelector('.home-village-art[data-ready="true"]') || !document.querySelector('.home-hero') || getComputedStyle(document.querySelector('.home-hero')).display === 'none'`);
+    await send('Page.navigate', { url: 'about:blank' });
+    await send('Page.navigate', { url: 'http://127.0.0.1:5199/lobby/' + hash });
+    await waitFor(ready);
+    await waitFor(`!document.querySelector('.home-village-art') || document.querySelector('.home-village-art[data-ready="true"]')`);
     await sleep(900); // fade-in
   }
-  async function shot(name, w, h) {
-    const m = await evalJs(`(() => { const e = document.querySelector('.home') || document.documentElement; const d = document.documentElement; const hero = document.querySelector('.home-hero'); const r = hero ? hero.getBoundingClientRect() : { width: 0, height: 0 }; const card = document.querySelector('.home-welcome'); const inner = card ? [card, ...card.querySelectorAll('*')].some((x) => { const c = getComputedStyle(x); return /(auto|scroll)/.test(c.overflowY) && x.scrollHeight > x.clientHeight + 1; }) : false; return { sh: e.scrollHeight, ch: e.clientHeight, psh: d.scrollHeight, pch: d.clientHeight, sw: d.scrollWidth, cw: d.clientWidth, hero: Math.round(r.width) + 'x' + Math.round(r.height), inner }; })()`);
-    const r = await send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(join(OUT, `${name}-${w}x${h}.png`), Buffer.from(r.data, 'base64'));
-    console.log(`${name} ${w}x${h}`, `.home ${m.sh}/${m.ch}`, `page ${m.psh}/${m.pch}`, m.psh <= m.pch ? 'NO-PAGE-SCROLL' : `PAGE-SCROLLS(+${m.psh - m.pch})`, `village=${m.hero}`, m.sw <= m.cw ? '' : 'H-SCROLL', m.inner ? 'INNER-SCROLLBAR' : '');
+  async function shot(name, w, h, mob, full = false) {
+    const m = await evalJs(`(() => { const d = document.documentElement; const inner = [...document.querySelectorAll('body *')].some((x) => { const c = getComputedStyle(x); return /(auto|scroll)/.test(c.overflowY) && x.clientHeight > 0 && x.scrollHeight > x.clientHeight + 1 && x !== d && x !== document.body; }); return { psh: d.scrollHeight, pch: d.clientHeight, sw: d.scrollWidth, cw: d.clientWidth, inner, hash: location.hash }; })()`);
+    // Full page: capture beyond the viewport (the layout keeps the real window height, so media queries do not change).
+    const r = full && m.psh > h
+      ? await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: w, height: m.psh, scale: 1 } })
+      : await send('Page.captureScreenshot', { format: 'png' });
+    const file = `${name}${full ? '-full' : ''}-${w}x${h}.png`;
+    writeFileSync(join(OUT, file), Buffer.from(r.data, 'base64'));
+    console.log(file.padEnd(28), `page ${m.psh}/${m.pch}`, m.psh <= m.pch ? 'NO-PAGE-SCROLL' : `PAGE-SCROLLS(+${m.psh - m.pch})`, m.sw <= m.cw ? '' : 'H-SCROLL', m.inner ? 'INNER-SCROLLBOX' : '', m.hash);
   }
-  for (const [w, h, mob] of [[360, 640, true], [390, 844, true], [1440, 900, false]]) {
+  const READY = {
+    home: `document.querySelector('.lp-foot, .home-world')`,
+    form: `document.querySelector('input[name=username]')`,
+    worlds: `document.querySelector('.lp-sheet-in .wrow, .home-welcome .home-world')`,
+    all: `document.querySelector('.aw-list .wrow')`,
+  };
+  for (const [w, h] of [[360, 640], [390, 844]]) {
     signedIn = false;
-    await open(w, h, mob);
-    await waitFor(`document.querySelector('.home-world')`);
-    await shot('out', w, h);
-  }
-  for (const [w, h, mob] of [[360, 640, true], [1440, 900, false]]) {
-    signedIn = false;
-    await open(w, h, mob);
-    await evalJs(`document.querySelector('.home-play').click()`);
-    await waitFor(`document.querySelector('input[name=username]')`);
-    await sleep(500);
-    await shot('auth', w, h);
-  }
-  for (const [w, h, mob] of SIZES) {
+    await open(w, h, true, '', READY.home); await shot('home', w, h, true);
+    await open(w, h, true, '#signin', READY.form); await shot('signin', w, h, true);
+    await open(w, h, true, '#signup', READY.form); await shot('signup', w, h, true);
     signedIn = true;
-    await open(w, h, mob);
-    await waitFor(`document.querySelector('.home-welcome .home-world')`);
-    await shot('in', w, h);
+    await open(w, h, true, '', READY.worlds); await shot('worlds', w, h, true); await shot('worlds', w, h, true, true);
+    if (w === 390) { await evalJs(`document.querySelector('.lp-avatar').click()`); await waitFor(`document.querySelector('.lp-menu')`); await sleep(200); await shot('menu', w, h, true); }
+    await open(w, h, true, '#worlds', READY.all); await shot('allworlds', w, h, true); await shot('allworlds', w, h, true, true);
   }
-  // Hall of Fame dialog, signed in, desktop.
+  signedIn = false;
+  await open(1440, 900, false, '', READY.home); await shot('home', 1440, 900, false);
   signedIn = true;
-  await open(1440, 900, false);
-  await waitFor(`document.querySelector('.home-hall')`);
+  await open(1440, 900, false, '', READY.worlds); await shot('worlds', 1440, 900, false);
+  await open(1440, 900, false, '#worlds', READY.all); await shot('allworlds', 1440, 900, false);
+  await open(1280, 720, false, '', READY.worlds); await shot('worlds', 1280, 720, false);
+  // Hall of Fame dialog, signed in, desktop.
+  await open(1440, 900, false, '', READY.worlds);
   await evalJs(`document.querySelector('.home-hall').click()`);
   await waitFor(`document.querySelector('.hof-dialog .hof-card')`);
   await sleep(300);
-  await shot('hall', 1440, 900);
+  await shot('hall', 1440, 900, false);
 } catch (e) { console.error(e); } finally { chrome.kill(); }

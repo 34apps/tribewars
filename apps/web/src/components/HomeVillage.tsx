@@ -30,7 +30,7 @@ export default function HomeVillage({ onReady }: { onReady?: () => void }) {
     <div
       className={`home-village-art${ready ? ' is-ready' : ''}`}
       data-ready={ready ? 'true' : 'false'}
-      style={{ '--art-ratio': stageW / stageH, '--art-k': frameW / stageW, '--art-aspect': `${frameW} / ${frameH}`, '--art-ph': `url("${placeholder}")` } as React.CSSProperties}
+      style={{ '--art-ratio': stageW / stageH, '--art-k': frameW / stageW, '--art-wh': frameW / frameH, '--art-aspect': `${frameW} / ${frameH}`, '--art-ph': `url("${placeholder}")` } as React.CSSProperties}
     >
       <img
         ref={imgRef}

@@ -9,7 +9,7 @@ export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.get('/api/worlds', { onRequest: requireAccount(ctx) }, async (req): Promise<LobbyWorldsResponse> => {
     // lastPlayedAt is the signed-in account's own history only (keyed on the session's account id, no input).
     const played = ctx.store.lastEntered(accountOf(req).id);
-    return { worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path, lastPlayedAt: played.get(w.id) ?? null })) };
+    return { worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path, lastPlayedAt: played.get(w.id) ?? null, openedAt: w.createdAt })) };
   });
 
   // Signed-out homepage strip. No input, no account data; only open or full worlds, a fixed few fields, capped. Covered by the

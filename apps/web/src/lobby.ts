@@ -20,22 +20,97 @@ export function daysAgoLabel(then: number, now: number = Date.now()): string {
   return d === 0 ? 'today' : d === 1 ? '1 day ago' : `${d} days ago`;
 }
 
-/** The signed-in homepage's three groups. Closed worlds are left out. */
+/** How many unplayed worlds the "Join a world" strip shows (the newest open ones); the rest are on the All worlds page. */
+export const JOIN_STRIP_MAX = 3;
+
+/** Worlds the account has never entered, by state (closed worlds are never listed). Newest first. */
+export interface OtherWorlds {
+  open: LobbyWorldDto[];
+  full: LobbyWorldDto[];
+  finished: LobbyWorldDto[];
+}
+
+/** The signed-in page's lists. Closed worlds are left out. */
 export interface WorldGroups {
   /** Entered before and still running (open or full), last played first. */
   yours: LobbyWorldDto[];
-  /** Never entered: open ones can be joined, full ones are shown as Full. */
-  join: LobbyWorldDto[];
-  /** Ended worlds (read-only), for "View results". */
+  /** Entered before and ended, last played first: "Results". */
   results: LobbyWorldDto[];
+  /** The newest open worlds never entered (at most JOIN_STRIP_MAX). */
+  join: LobbyWorldDto[];
+  /** Every world never entered, for the All worlds page. */
+  others: OtherWorlds;
+  /** Size of `others`: the number in "All worlds (N)". */
+  otherCount: number;
+}
+
+/** Newest first; a world with no start date (an older lobby) keeps its place at the end, in list order. */
+function newestFirst(list: LobbyWorldDto[]): LobbyWorldDto[] {
+  return list
+    .map((w, i) => ({ w, i }))
+    .sort((a, b) => (Number.isFinite(b.w.openedAt) ? b.w.openedAt : 0) - (Number.isFinite(a.w.openedAt) ? a.w.openedAt : 0) || a.i - b.i)
+    .map((x) => x.w);
 }
 
 export function groupWorlds(worlds: readonly LobbyWorldDto[]): WorldGroups {
-  const yours = worlds.filter((w) => (w.status === 'open' || w.status === 'full') && w.lastPlayedAt !== null);
-  yours.sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
-  const join = worlds.filter((w) => (w.status === 'open' || w.status === 'full') && w.lastPlayedAt === null);
-  const results = worlds.filter((w) => w.status === 'finished');
-  return { yours, join, results };
+  const running = (w: LobbyWorldDto) => w.status === 'open' || w.status === 'full';
+  const byLastPlayed = (a: LobbyWorldDto, b: LobbyWorldDto) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0);
+  const yours = worlds.filter((w) => running(w) && w.lastPlayedAt !== null).sort(byLastPlayed);
+  const results = worlds.filter((w) => w.status === 'finished' && w.lastPlayedAt !== null).sort(byLastPlayed);
+  const unplayed = worlds.filter((w) => w.lastPlayedAt === null);
+  const others: OtherWorlds = {
+    open: newestFirst(unplayed.filter((w) => w.status === 'open')),
+    full: newestFirst(unplayed.filter((w) => w.status === 'full')),
+    finished: newestFirst(unplayed.filter((w) => w.status === 'finished')),
+  };
+  return { yours, results, join: others.open.slice(0, JOIN_STRIP_MAX), others, otherCount: others.open.length + others.full.length + others.finished.length };
+}
+
+/** "Started today", "Started 1 day ago", ... A lobby that sends no date gives null (the row shows no line). */
+export function startedLabel(openedAt: number | undefined, now: number = Date.now()): string | null {
+  return typeof openedAt === 'number' && Number.isFinite(openedAt) ? `Started ${daysAgoLabel(openedAt, now)}` : null;
+}
+
+/** The lobby page's screens, kept in the address after the "#" so Back, Forward and a reload land on the right one. */
+export type LobbyRoute = 'home' | 'signin' | 'signup' | 'worlds';
+
+/** "#signin", "#signup", "#worlds" (also without the "#"); anything else is the front page. Never throws. */
+export function parseLobbyHash(hash: string): LobbyRoute {
+  switch (hash.replace(/^#/, '')) {
+    case 'signin':
+      return 'signin';
+    case 'signup':
+      return 'signup';
+    case 'worlds':
+      return 'worlds';
+    default:
+      return 'home';
+  }
+}
+
+/** The "#..." part for a route ('' for the front page). */
+export function lobbyRouteHash(route: LobbyRoute): string {
+  return route === 'home' ? '' : `#${route}`;
+}
+
+export type LobbyScreen = 'home' | 'form-login' | 'form-register' | 'your-worlds' | 'all-worlds';
+
+/** Which screen a route shows. Signed in: the form routes lead to Your worlds. Signed out: #worlds falls back to the front page. */
+export function lobbyScreen(route: LobbyRoute, signedIn: boolean): LobbyScreen {
+  if (signedIn) return route === 'worlds' ? 'all-worlds' : 'your-worlds';
+  if (route === 'signin') return 'form-login';
+  if (route === 'signup') return 'form-register';
+  return 'home';
+}
+
+/** The tent tile colours (Parchment-friendly toy palette; CSS variables of the raw palette). */
+export const TENT_COLOURS = ['--c-moss', '--c-teal', '--c-terra', '--c-plum', '--c-sun'] as const;
+
+/** A world always gets the same colour: a small hash of its id picks one. */
+export function tentColour(worldId: string): (typeof TENT_COLOURS)[number] {
+  let h = 0;
+  for (let i = 0; i < worldId.length; i++) h = (h * 31 + worldId.charCodeAt(i)) >>> 0;
+  return TENT_COLOURS[h % TENT_COLOURS.length]!;
 }
 
 const MANUAL_SIGN_OUT_KEY = 'clanfire.manualSignOut';
