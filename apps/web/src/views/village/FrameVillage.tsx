@@ -52,7 +52,7 @@ function TroopsPanel() {
           return (
             <li key={u} className={`fv-tq${n === 0 ? ' is-off' : ''}`} aria-label={`${n} ${UNITS[u].name}`} title={UNITS[u].name}>
               <UnitFigure unit={u} pose="icon" size={38} />
-              <b>{n > 0 ? formatInt(n) : '–'}</b>
+              <b>{formatInt(n)}</b>
             </li>
           );
         })}

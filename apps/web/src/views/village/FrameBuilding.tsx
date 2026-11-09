@@ -4,7 +4,7 @@
 // the Town Hall lists every building; Drillyard and Banner Hall show their own panels; the rest show their next levels.
 // All numbers come from the engine; every action calls the same endpoint as the Army page and the Village list.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   BUILDINGS,
@@ -78,10 +78,22 @@ function sumCost(list: Resources[]): Resources {
 
 export function MiniVillage() {
   const { village, openBuilding } = useGame();
+  // The scene is ~200 ms of SVG work to mount: draw the page first, then the picture (keeps tab switches instant).
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let t = 0;
+    const raf = requestAnimationFrame(() => {
+      t = window.setTimeout(() => setReady(true), 0);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
+  }, []);
   return (
     <div className="fv-cs fv-minicell">
       <div className="fv-minipic" role="img" aria-label={`${village.name}, village`}>
-        <VillageScene mode="fit" selected={null} onSelect={() => undefined} />
+        {ready && <VillageScene mode="fit" selected={null} onSelect={() => undefined} />}
       </div>
       <button type="button" className="fv-go" onClick={() => openBuilding(null)}>
         <Icon name="village" size={16} />

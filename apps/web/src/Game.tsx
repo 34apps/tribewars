@@ -336,7 +336,11 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
           <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
         {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
-        {mapVisited.current && <MapView active={tab === 'map'} />}
+        {mapVisited.current && (
+          <KeepAlive active={tab === 'map'} value={ctx}>
+            <MapView active={tab === 'map'} />
+          </KeepAlive>
+        )}
       </Frame>
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </GameContext.Provider>

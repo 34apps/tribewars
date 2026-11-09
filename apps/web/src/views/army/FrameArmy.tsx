@@ -185,7 +185,7 @@ function MusterPanel() {
                 title={locked ? `${UNITS[u].name}: needs ${requirementText(unmetRequirements(live.buildings, UNITS[u].requires))}` : `About the ${UNITS[u].name}`}
               >
                 <UnitFigure unit={u} size={76} className="fa-fg" />
-                <span className="fa-ct">{locked ? '–' : formatInt(home)}</span>
+                <span className="fa-ct">{formatInt(home)}</span>
                 <b>{UNITS[u].name}</b>
                 <span className="fa-mtg">
                   {u === 'chieftain' && home > 0 && <span className="fv-tag fa-tag-teal">ready</span>}

@@ -168,7 +168,6 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
-      <div className="frame-band" aria-hidden="true" />
       <div className={`frame fr-tab-${tab}${fixed ? ' is-fixed' : ''}${worldEnd ? ' is-ended' : ''}`}>
         <header className="fr-top">
           <button type="button" className="fr-logo" aria-label="Village" onClick={() => navigate('village')}>

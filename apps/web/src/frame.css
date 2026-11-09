@@ -27,18 +27,6 @@ html.layout-desktop .toasts {
   overflow-x: clip;
 }
 
-/* The top bar's band may stretch edge to edge; its contents stay in the 1440 column. */
-.frame-band {
-  position: absolute;
-  z-index: 3;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 68px;
-  background: var(--surface);
-  border-bottom: 2.5px solid var(--c-ink);
-}
-
 .frame {
   --hud-h: 68px;
   position: relative;
@@ -74,10 +62,13 @@ html.layout-desktop .toasts {
   top: 0;
   right: 0;
   height: 68px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 0 18px 0 14px;
+  background: var(--surface);
+  border-bottom: 2.5px solid var(--c-ink);
 }
 
 .fr-logo {
@@ -373,16 +364,20 @@ html.layout-desktop .toasts {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 4px 0 0 auto;
+  margin: 0 0 0 auto;
+  padding: 0 0 0 12px;
   align-self: center;
+  position: relative;
+  top: 0;
 }
 
 .fr-ach {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
-  padding: 0 6px 1px 10px;
+  height: 38px;
+  margin-right: 6px;
+  padding: 0 5px 1px 10px;
   border: 2.5px solid var(--c-ink);
   border-radius: 12px;
   background: var(--strip-danger);
