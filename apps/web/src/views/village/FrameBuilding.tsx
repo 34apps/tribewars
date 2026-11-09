@@ -634,7 +634,7 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                   <DrillyardPanel part="ranks" />
                 </PanelBox>
               ) : id === 'bannerhall' ? (
-                <PanelBox title="Banner Hall">
+                <PanelBox title="Banner Hall" fit>
                   <BannerHallPanel />
                 </PanelBox>
               ) : (

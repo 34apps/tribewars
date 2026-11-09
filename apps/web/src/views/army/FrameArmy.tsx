@@ -23,14 +23,18 @@ import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
+import { SiegePicker } from '../../components/Siege.tsx';
+import { TroopGroupBar } from '../../components/TroopGroups.tsx';
 import { ChieftainPanel } from '../../components/ChieftainPanel.tsx';
 import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
+import { useTroopGroups } from '../../hooks/useTroopGroups.ts';
 import { useTribeWaymarks } from '../../hooks/useWaymarks.ts';
 import { MISSION_ICON, MISSION_NAME } from '../../icons.ts';
 import { ALLEGIANCE_STYLE, allegianceOf } from '../../map/allegiance.ts';
 import { requirementText, unmetRequirements } from '../../rules.ts';
+import { builtinGroups, fillFromGroup, shortNote } from '../../troopGroups.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
 import {
   SEND_MODE_SENT,
@@ -39,15 +43,19 @@ import {
   moraleLabel,
   moraleNow,
   ownTotalPoints,
+  selectableUnits,
   sendMode,
+  showsSiegePicker,
+  siegeTargetFor,
   strikeWarning,
 } from '../../villages.ts';
 import { RecallSome } from '../ArmyView.tsx';
 import { Chev, LeftColumn, clockShort, pluralUnit } from '../village/FrameParts.tsx';
 import { MiniVillage } from '../village/FrameBuilding.tsx';
-import { lookupWindow, parseCoords, villageAt } from './command-post-logic.ts';
+import { SEARCH_MAX, lookupWindow, parseCoords, resultRows, searchHint, searchText, villageAt } from './command-post-logic.ts';
 import { addRecent, filterMovements, loadRecent, moveCounts, saveRecent, sortMovements, splitSupportRows, takeRows } from './frame-army-logic.ts';
 import type { MoveFilter, RecentKind, RecentTarget } from './frame-army-logic.ts';
+import '../../map/map.css';
 import '../../frame-army.css';
 
 /** Rows a panel shows before "+N more" (what fits the 900 px frame). */
@@ -226,11 +234,43 @@ function SendPanel() {
   const [busy, setBusy] = useState<Go | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentTarget[]>(() => loadRecent(recentKey));
+  const [siegePick, setSiegePick] = useState('');
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [groupNote, setGroupNote] = useState<string | null>(null);
+  const [suggest, setSuggest] = useState<MapVillageDto[] | null>(null);
+  const savedGroups = useTroopGroups();
   const seq = useRef(0);
+  const nseq = useRef(0);
 
+  // The field takes x|y or a village / player name: anything with a letter is a name.
+  const isName = /[^\d\s|,;()+-]/.test(text);
   const parsed = parseCoords(text);
-  const tile: Coords | null = parsed.ok ? parsed.coords : null;
-  const hint = !parsed.ok ? parsed.message : '';
+  const tile: Coords | null = !isName && parsed.ok ? parsed.coords : null;
+  const hint = isName ? searchHint(text) : !parsed.ok ? parsed.message : '';
+
+  // Name search (village names and player names, nearest first), debounced like the Command post.
+  useEffect(() => {
+    nseq.current += 1;
+    const id = nseq.current;
+    const q = isName ? searchText(text) : null;
+    if (q === null) {
+      setSuggest(null);
+      return undefined;
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const [a, b] = await Promise.all([api.searchVillages(q, 'village', village.id), api.searchVillages(q, 'player', village.id)]);
+        if (id !== nseq.current) return;
+        const seen = new Set<number>();
+        setSuggest([...a.villages, ...b.villages].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true))));
+      } catch (e) {
+        if (id !== nseq.current) return;
+        setSuggest(null);
+        setLookError(errorMessage(e));
+      }
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [text, isName, village.id]);
 
   // Debounced lookup of the tile (the same map query as the Command post). Every change drops the answer of the one before.
   useEffect(() => {
@@ -290,7 +330,7 @@ function SendPanel() {
   /** Why this button cannot be used (null = it can). Same checks as the map's send form. */
   function blocked(mission: Go): string | null {
     if (worldEnd) return 'World ended';
-    if (!tile) return 'Enter the target (x|y)';
+    if (!tile) return isName ? 'Pick a village from the list' : 'Enter a target (x|y or a name)';
     if (!known) return looking ? 'Looking…' : 'Looking up the target…';
     if (isCurrent) return 'Your troops leave from here';
     if (!allowed.includes(mission)) {
@@ -314,22 +354,44 @@ function SendPanel() {
   const breaksProtection = !relief && target?.kind === 'player' && player.protectedUntil > now && total > 0;
   const warning = total > 0 && allowed.includes('attack') ? (mode === 'strike' ? strikeWarning(chosen, target?.kind !== 'player', target?.points ?? 0) : breaksProtection ? 'Attacking ends your protection' : null) : null;
   // One line above the buttons: a server error, else the reason the main button is off, else a warning.
-  const why = error ?? (hint || lookError) ?? (attackWhy && supportWhy ? attackWhy : null) ?? warning;
+  const why = error ?? (hint || lookError) ?? (attackWhy && supportWhy ? attackWhy : null) ?? warning ?? groupNote;
   const whyTone = error || lookError ? 'bad' : warning && !(attackWhy && supportWhy) ? 'warn' : 'mut';
 
   function setCount(u: UnitId, value: string) {
     setError(null);
+    setGroupNote(null);
     setCounts((c) => ({ ...c, [u]: value }));
+    if (u === 'boulder' && !(Number.isInteger(Number(value)) && Number(value) > 0)) setSiegePick('');
   }
+
+  function pickSuggestion(v: MapVillageDto) {
+    setSuggest(null);
+    setText(`${v.x}|${v.y}`);
+  }
+
+  const groupVisible = selectableUnits(relief ? 'relieve' : 'attack', live.troops, rules.features.siege);
+  function applyGroup(units: Partial<Units>) {
+    const fill = fillFromGroup(units, groupVisible, live.troops);
+    setError(null);
+    setCounts(fill.counts);
+    if (!fill.counts.boulder) setSiegePick('');
+    setGroupNote(Object.keys(fill.counts).length === 0 ? 'None at home' : shortNote(fill.short));
+    setGroupsOpen(false);
+  }
+  const siegeOn = showsSiegePicker('attack', chosen, rules.features.siege) && allowed.includes('attack');
+  const rows = suggest ? resultRows(suggest, village).slice(0, 5) : [];
 
   async function go(mission: Go) {
     if (busy || !tile || (mission === 'attack' ? attackWhy : supportWhy)) return;
     setBusy(mission);
     setError(null);
     try {
-      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission });
+      const targetBuilding = rules.features.siege ? siegeTargetFor(mission, partial, siegePick) : undefined;
+      const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...(targetBuilding ? { targetBuilding } : {}) });
       applySend(res);
       setCounts({});
+      setSiegePick('');
+      setGroupNote(null);
       const list = addRecent(recent, recentOf(target, tile));
       setRecent(list);
       saveRecent(recentKey, list);
@@ -353,7 +415,7 @@ function SendPanel() {
   const style = target ? ALLEGIANCE_STYLE[allegianceOf(target)] : null;
   let infoText: string;
   let infoTone = '';
-  if (!tile) infoText = hint || 'Type the coordinates of a village, or pick one on the map.';
+  if (!tile) infoText = hint || (isName ? (suggest && suggest.length === 0 ? 'No match' : 'Looking…') : 'Type x|y or a village or player name, or pick one on the map.');
   else if (lookError) infoText = lookError;
   else if (!known) infoText = 'Looking…';
   else if (!target) infoText = `Free land (${formatCoords(tile.x, tile.y)}). Nothing to send here.`;
@@ -383,22 +445,43 @@ function SendPanel() {
             Simulator <Chev />
           </button>
         )}
+        <button type="button" className="fv-lk" onClick={() => setGroupsOpen(true)} aria-haspopup="dialog">
+          Troop groups
+        </button>
         <button
           type="button"
           className="fv-lk"
           onClick={() => {
             setCounts({});
             setError(null);
+            setSiegePick('');
+            setGroupNote(null);
           }}
           disabled={total === 0}
         >
           Clear
         </button>
       </div>
+      {groupsOpen && (
+        <Dialog title="Troop groups" onClose={() => setGroupsOpen(false)}>
+          <TroopGroupBar
+            builtins={builtinGroups({ visible: groupVisible, home: live.troops, mission: 'attack', relief, target, minPopulation: target?.hearth?.minPopulation })}
+            store={savedGroups}
+            chosen={partial}
+            total={total}
+            onApply={applyGroup}
+          />
+        </Dialog>
+      )}
       <form
         className="fa-sf"
         onSubmit={(e) => {
           e.preventDefault();
+          // Enter on a name with exactly one hit picks it; otherwise it sends (attack, else support).
+          if (isName) {
+            if (rows.length === 1 && rows[0]) pickSuggestion(rows[0].village);
+            return;
+          }
           void go(attackWhy ? 'support' : 'attack');
         }}
       >
@@ -412,14 +495,34 @@ function SendPanel() {
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="12|-40"
+            placeholder="12|-40 or name"
             inputMode="text"
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            maxLength={24}
+            maxLength={SEARCH_MAX + 8}
             aria-invalid={hint !== ''}
           />
+          {rows.length > 0 && (
+            <ul className="fa-sug" aria-label="Search results">
+              {rows.map(({ village: v, distance: d }) => (
+                <li key={v.id}>
+                  <button type="button" className="fa-sugb" onClick={() => pickSuggestion(v)}>
+                    <span className="fa-dot" style={{ background: ALLEGIANCE_STYLE[allegianceOf(v)].ring }} aria-hidden="true" />
+                    <b>{v.name}</b>
+                    <span className="fv-mut">
+                      {v.ownerName ?? 'Abandoned'}
+                      {v.tribeTag ? ` [${v.tribeTag}]` : ''}
+                    </span>
+                    <span className="fa-sugw">
+                      {formatCoords(v.x, v.y)}
+                      {d !== null && <small>{d.toFixed(1)} fields</small>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <button type="button" className="fv-btn sm" onClick={() => (tile ? showOnMap(tile.x, tile.y) : navigate('map'))}>
             Pick on map
           </button>
@@ -483,6 +586,11 @@ function SendPanel() {
           ) : null}
           {moraleLabel(morale) && total > 0 && <span className="fa-mor">{moraleLabel(morale)}</span>}
         </div>
+        {siegeOn ? (
+          <div className="fa-siege">
+            <SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />
+          </div>
+        ) : (
         <div className="fa-rct">
           <span className="fv-up">Recent targets</span>
           <div className="fa-rcl">
@@ -500,6 +608,7 @@ function SendPanel() {
             })}
           </div>
         </div>
+        )}
         <p className={`fa-why is-${whyTone}`} role={error || lookError ? 'alert' : undefined}>
           {why ?? ' '}
         </p>

@@ -633,3 +633,95 @@
 .fa-db .recall-form {
   padding: 8px;
 }
+
+/* -- name search suggestions (drawn over the form, so the panel never changes height) -- */
+.fa-tgt {
+  position: relative;
+}
+
+.fa-sug {
+  position: absolute;
+  z-index: 5;
+  left: 72px;
+  top: 100%;
+  width: 360px;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  border: 2px solid var(--c-ink);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--c-ink);
+}
+
+.fa-sugb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: 600 13.5px/1.2 var(--font);
+  color: var(--on-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fa-sugb:hover,
+.fa-sugb:focus-visible {
+  background: var(--surface-2);
+}
+
+.fa-sugb b {
+  font-weight: 700;
+}
+
+.fa-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.fa-sugw {
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+  text-align: right;
+}
+
+.fa-sugw small {
+  font: 500 12px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+/* Boulder Sling target: one compact row where the recent targets sit */
+.fa-siege .wm-siege {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.fa-siege .wm-siege p {
+  margin: 0;
+}
+
+.fa-siege {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+}
+
+/* Banner Hall box: tighter so Feast and Chieftain always fit without scrolling */
+.fv-boxin.is-fit .bh .bh-go {
+  min-height: 44px;
+}
+
+.fv-boxin.is-fit .bh .bh-stepper {
+  margin: 4px 0;
+}

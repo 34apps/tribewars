@@ -124,7 +124,7 @@ const SEED_ARMY = `(async () => {
   const others = [];
   for (let id = 1; id < 3000 && others.length < 4; id++) { const v = ctx.store.getVillage(id); if (v && v.ownerId && v.ownerId !== me.id) others.push(v); }
   const mk = (unit, count, done, per, startAt) => ({ unit, count, done, perUnitMs: per, startAt });
-  const t = { pikeman: 40, guard: 25, raider: 12, outrider: 8, knight: 6, pathfinder: 3, chieftain: 2, logram: 1, boulder: 0 };
+  const t = { pikeman: 40, guard: 25, raider: 12, outrider: 8, knight: 6, pathfinder: 3, chieftain: 2, logram: 1, boulder: 2 };
   const away = { pikeman: 8, guard: 10, raider: 4, outrider: 0, knight: 0, pathfinder: 0, chieftain: 0, logram: 0, boulder: 0 };
   const b = { ...rec.state.buildings, hall: 10, barracks: 8, stables: 3, drillyard: 5, bannerhall: 2, storehouse: 12 };
   const tq = { ...rec.state.trainQueues, barracks: [mk('raider', 5, 1, 194000, now - 300000), mk('pikeman', 20, 0, 175000, now + 700000)], stables: [mk('knight', 2, 0, 600000, now - 100000)] };
@@ -184,6 +184,13 @@ try {
   await metrics('1440 army'); await overflow('.fa');
   console.log('doc', await evalJs(`document.documentElement.scrollWidth + 'x' + document.documentElement.scrollHeight`));
   await shot('army-1440.png');
+  // name search, then Boulder Slings typed (building picker), then back to the plain form
+  await setInput('#fa-target', 'Tolvek'); await sleep(2000); await shot('army-search-1440.png');
+  console.log('suggestions', await evalJs(`[...document.querySelectorAll('.fa-sugb')].length`));
+  if (tgt) { await setInput('#fa-target', tgt); await sleep(1500); }
+  await setInput('#fa-n-boulder', '2'); await sleep(1200); await shot('army-boulder-1440.png');
+  await metrics('1440 army boulder'); await overflow('.fa-send');
+  await setInput('#fa-n-boulder', '0'); await sleep(500);
   // a real send: Attack with the filled form, then the recent-target chip appears
   console.log('click attack', await clickText('.fa-go .fa-red', 'Attack')); await sleep(2500);
   console.log('after send', await evalJs(`JSON.stringify({ chips: [...document.querySelectorAll('.fa-rc')].map(e => e.textContent), moves: document.querySelectorAll('.fa-moves .fa-mv').length, why: document.querySelector('.fa-why')?.textContent, toasts: [...document.querySelectorAll('[role=status],[role=alert]')].map(e => e.textContent).slice(0,3) })`));
@@ -200,6 +207,9 @@ try {
   await overflow('.fv');
   await evalJs(`(() => { const b = [...document.querySelectorAll('.fv-bpick')].find(e => e.getAttribute('aria-label').startsWith('Drillyard, level')); if (b) b.click(); })()`);
   await sleep(2000); await metrics('1440 drillyard'); await overflow('.fv'); await shot('building-drillyard-1440.png');
+  await evalJs(`location.hash = 'village'`); await sleep(800);
+  await evalJs(`(() => { const b = [...document.querySelectorAll('.fv-bpick')].find(e => e.getAttribute('aria-label').startsWith('Banner Hall, level')); if (b) b.click(); })()`);
+  await sleep(2000); await metrics('1440 bannerhall'); await shot('building-bannerhall-1440.png');
   // phone, unchanged
   await size(360, 780, true); await send('Page.reload'); await sleep(3500);
   await waitFor(`document.querySelector('.vv-hit')`, 60000).catch(() => console.log('no vv-hit on phone')); await sleep(1500);
