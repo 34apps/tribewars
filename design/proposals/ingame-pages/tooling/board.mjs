@@ -104,6 +104,20 @@ boards.push(['board-mix-army2', `<h1>Army page, mix version 2 · desktop 1440 ×
   ['Mix', 'army', 'Mix 1', "A's bar and tabs; smaller troop row; a movements table, support and a narrow send form."],
   ['Mix', 'army2', "Mix 2: A's tabs + C's Army body", "A's bar and tabs; C's big troop row; send troops left; Movements (attack first, in red) above Support on the right; training in the left column."],
 ].map(([k, pg, lab, line], i) => `<div><span class="lab${i ? ' mix' : ''}">${lab}</span><div class="line">${line}</div>${frame(k, pg, 940)}</div>`).join('')}</div>`]);
+boards.push(['board-mix-reports2', `<h1>Reports: bigger battle and scouting, before and after</h1><div class="sub">Left: the first try (with the village column). Right: the new version: no village column, a clearer battle panel, both siege kinds at once, and the top scouting rank line.</div><div class="g2">${[
+  ['mix-reports-big-1440.png', 'Before · big battle', 'Village column on the left; Battle, Siege and Loot as small plain boxes.'],
+  ['mix-reports2-big-1440.png', 'After · big battle', 'Full width. Head-to-head strength bar with the winner, chips for luck, wall and renown, siege as before → after level chips, loot as four tiles.'],
+  ['mix-reports-scout-1440.png', 'Before · scouting', 'Village column on the left; resources, troops and buildings in a narrow column.'],
+  ['mix-reports2-scout-1440.png', 'After · scouting', 'Full width; plus one new line at the top scouting rank: the total of the village\'s troops outside it.'],
+].map(([f, lab, line], i) => `<div><span class="lab${i % 2 ? ' mix' : ' now'}">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
+boards.push(['board-mix-mail', `<h1>Mail page in the mix · desktop 1440 × 900</h1><div class="sub">A's top bar and tabs, full width like Reports. Only what the game's Mail has today: Inbox and Sent, New mail, Reply, Report, Delete, and the write form with its emoji buttons. A and B have no Mail page, so the two Mix states are shown.</div><div class="g2">${[
+  ['mix-mail-1440.png', 'Mix · message open', 'Inbox list with unread dot, sender, time, subject and first line; 10 per page with arrows. The open message beside it with Reply, Report and Delete.'],
+  ['mix-mail-compose-1440.png', 'Mix · writing a mail', 'New mail (or Reply) turns the right side into the form: To, Subject, Message, emoji buttons, a letter count and Send.'],
+].map(([f, lab, line]) => `<div><span class="lab mix">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
+boards.push(['board-mix-mail2', `<h1>Mail: letters vs conversations</h1><div class="sub">Mix 1 opens one letter at a time. Mix 2 groups mail by player: the whole exchange as letter cards, theirs left and yours right; only this thread pane scrolls.</div><div class="g2">${[
+  ['mix-mail-1440.png', 'Mix 1 · one letter at a time', 'Inbox / Sent list; the open letter beside it with Reply, Report and Delete.'],
+  ['mix-mail2-1440.png', 'Mix 2 · conversations', 'One row per player with unread count; the thread scrolls (scrollbar shows the middle of a long exchange); a reply box stays at the bottom.'],
+].map(([f, lab, line], i) => `<div><span class="lab${i ? ' mix' : ' now'}">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
 const only = process.argv[2] || '';
 const PROFILE = '/private/tmp/claude-501/ingame-pages-board'; rmSync(PROFILE, { recursive: true, force: true });
 const PORT = 9492;

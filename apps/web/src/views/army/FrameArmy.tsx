@@ -65,7 +65,7 @@ const DEBOUNCE_MS = 300;
 
 // ---- Small shared bits -----------------------------------------------------------------------------------------------
 
-function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dlg = ref.current;

@@ -40,7 +40,7 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
-function reportIcon(r: ReportSummaryDto): IconName {
+export function reportIcon(r: ReportSummaryDto): IconName {
   if (r.type === 'village') return 'chieftain';
   if (r.type === 'shipment') return MISSION_ICON.shipment;
   if (r.type === 'scout') return MISSION_ICON.scout;
@@ -49,7 +49,7 @@ function reportIcon(r: ReportSummaryDto): IconName {
 }
 
 /** Colour of the round icon token: green-teal good news, terracotta bad news, gold for your own raids, bone for neutral. */
-function reportTone(r: ReportSummaryDto): 'ok' | 'bad' | 'sun' | 'mute' {
+export function reportTone(r: ReportSummaryDto): 'ok' | 'bad' | 'sun' | 'mute' {
   if (r.outcome === 'called_off' || r.type === 'support') return 'mute';
   if (r.type === 'shipment') return 'sun';
   if (!r.won && r.side !== 'support') return 'bad';
@@ -74,7 +74,7 @@ function OutcomeTag({ report }: { report: ReportSummaryDto }) {
   return <span className={`tag ${report.won ? 'tag-ok' : 'tag-bad'}`}>{report.won ? 'Won' : 'Lost'}</span>;
 }
 
-function metaText(report: ReportSummaryDto): string {
+export function metaText(report: ReportSummaryDto): string {
   if (report.type === 'village') return report.side === 'attack' ? 'Claim' : 'Village';
   if (report.type === 'scout') return report.side === 'attack' ? 'Scouted' : 'Spotted';
   if (report.type === 'shipment') return report.side === 'shipment' ? 'Arrived' : '';

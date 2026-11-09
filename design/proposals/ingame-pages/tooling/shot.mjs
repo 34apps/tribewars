@@ -5,6 +5,7 @@
 //   SMALL                text under 13 px (badge counts of 12 px are allowed), CONTROL = a button/input under 36 px tall
 //   IMG                  an image that failed to load
 //   (text cut off with an ellipsis counts as SCROLL-X with no tolerance)
+//   One owner-approved exception: an element marked data-scroll-ok (the mail thread pane) may scroll; its content is not OUT-checked.
 // Usage: node tooling/shot.mjs [name filter] [--file other.html] [--no-png = check only]   Exit code 1 if any check failed.
 import { spawn } from 'node:child_process';
 import { writeFileSync, rmSync, readdirSync } from 'node:fs';
@@ -31,10 +32,10 @@ const CHECK = `(() => {
   for (const e of document.querySelectorAll('body, body *')) {
     if (e.closest('svg') || e.tagName === 'IMG' || e.tagName === 'BR') continue;
     const cs = getComputedStyle(e); if (cs.display === 'inline' || cs.display === 'none') continue;
-    if (e.scrollHeight > e.clientHeight + 1 && e.clientHeight > 0) out.push('SCROLL ' + name(e) + ' ' + e.scrollHeight + '>' + e.clientHeight);
+    if (e.scrollHeight > e.clientHeight + 1 && e.clientHeight > 0 && !e.hasAttribute('data-scroll-ok')) out.push('SCROLL ' + name(e) + ' ' + e.scrollHeight + '>' + e.clientHeight);
     if (e.scrollWidth > e.clientWidth + (cs.textOverflow === 'ellipsis' ? 0 : 1) && e.clientWidth > 0 && cs.overflowX !== 'visible') out.push('SCROLL-X ' + name(e) + ' ' + e.scrollWidth + '>' + e.clientWidth);
     const r = e.getBoundingClientRect();
-    if (r.width > 0 && !e.closest('.scene') && (r.right > ${W} + 1 || r.left < -1 || r.bottom > ${H} + 1 || r.top < -1)) out.push('OUT ' + name(e));
+    if (r.width > 0 && !e.closest('.scene') && !e.closest('[data-scroll-ok]') && (r.right > ${W} + 1 || r.left < -1 || r.bottom > ${H} + 1 || r.top < -1)) out.push('OUT ' + name(e));
   }
   for (const e of document.querySelectorAll('body *')) {
     if (e.closest('svg')) continue;
@@ -52,7 +53,7 @@ try {
   await send('Page.enable'); await send('Runtime.enable');
   const fi = process.argv.indexOf('--file');
   const f = fi < 0 ? (process.argv.slice(2).find((a) => !a.startsWith('--')) || '') : '';
-  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:[abc]|mix)-(village|building|army|reports)\d?(?:-done|-big|-scout)?-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
+  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:[abc]|mix)-(village|building|army|reports|mail)\d?(?:-done|-big|-scout|-compose)?-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
   for (const n of names) {
     await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: pathToFileURL(join(MOCK, n + '.html')).href });
