@@ -92,39 +92,34 @@ try {
   async function open(w, h, mob) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mob ? 2 : 1, mobile: mob });
     await send('Page.navigate', { url: 'http://127.0.0.1:5199/lobby/' });
-    await waitFor(`document.querySelector('.home-village-art[data-ready="true"]')`);
+    await waitFor(`document.querySelector('.home-village-art[data-ready="true"]') || !document.querySelector('.home-hero') || getComputedStyle(document.querySelector('.home-hero')).display === 'none'`);
     await sleep(900); // fade-in
   }
   async function shot(name, w, h) {
-    const m = await evalJs(`(() => { const e = document.querySelector('.home'); return { sh: e.scrollHeight, ch: e.clientHeight, sw: e.scrollWidth, cw: e.clientWidth, hero: Math.round(document.querySelector('.home-hero').getBoundingClientRect().height) }; })()`);
+    const m = await evalJs(`(() => { const e = document.querySelector('.home') || document.documentElement; const d = document.documentElement; const hero = document.querySelector('.home-hero'); const r = hero ? hero.getBoundingClientRect() : { width: 0, height: 0 }; const card = document.querySelector('.home-welcome'); const inner = card ? [card, ...card.querySelectorAll('*')].some((x) => { const c = getComputedStyle(x); return /(auto|scroll)/.test(c.overflowY) && x.scrollHeight > x.clientHeight + 1; }) : false; return { sh: e.scrollHeight, ch: e.clientHeight, psh: d.scrollHeight, pch: d.clientHeight, sw: d.scrollWidth, cw: d.clientWidth, hero: Math.round(r.width) + 'x' + Math.round(r.height), inner }; })()`);
     const r = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, `${name}-${w}x${h}.png`), Buffer.from(r.data, 'base64'));
-    console.log(`${name} ${w}x${h}`, `scrollHeight=${m.sh} clientHeight=${m.ch}`, m.sh <= m.ch ? 'NO-SCROLL' : `SCROLLS(+${m.sh - m.ch})`, `village=${m.hero}px`, m.sw <= m.cw ? '' : 'H-SCROLL');
+    console.log(`${name} ${w}x${h}`, `.home ${m.sh}/${m.ch}`, `page ${m.psh}/${m.pch}`, m.psh <= m.pch ? 'NO-PAGE-SCROLL' : `PAGE-SCROLLS(+${m.psh - m.pch})`, `village=${m.hero}`, m.sw <= m.cw ? '' : 'H-SCROLL', m.inner ? 'INNER-SCROLLBAR' : '');
   }
-  for (const [w, h, mob] of SIZES) {
+  for (const [w, h, mob] of [[360, 640, true], [390, 844, true], [1440, 900, false]]) {
     signedIn = false;
     await open(w, h, mob);
     await waitFor(`document.querySelector('.home-world')`);
     await shot('out', w, h);
+  }
+  for (const [w, h, mob] of [[360, 640, true], [1440, 900, false]]) {
+    signedIn = false;
+    await open(w, h, mob);
+    await evalJs(`document.querySelector('.home-play').click()`);
+    await waitFor(`document.querySelector('input[name=username]')`);
+    await sleep(500);
+    await shot('auth', w, h);
   }
   for (const [w, h, mob] of SIZES) {
     signedIn = true;
     await open(w, h, mob);
     await waitFor(`document.querySelector('.home-welcome .home-world')`);
     await shot('in', w, h);
-  }
-  // The chieftain step after "Play free" (valid name and password).
-  signedIn = false;
-  for (const [w, h, mob] of [[360, 640, true], [1280, 720, false]]) {
-    await open(w, h, mob);
-    await waitFor(`document.querySelector('.auth-inline input[name=username]')`);
-    // React-controlled inputs: use the native setter and an input event.
-    await evalJs(`(() => { const set = (n, v) => { const i = document.querySelector('.auth-inline input[name=' + n + ']'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })); }; set('username', 'Rowan_the_Red'); set('password', 'a long enough secret'); })()`);
-    await sleep(200);
-    await evalJs(`document.querySelector('.auth-inline form button[type=submit]').click()`);
-    await waitFor(`document.querySelector('.auth-overlay .cp-tile, .auth-overlay .cp-grid')`);
-    await sleep(900);
-    await shot('chieftain', w, h);
   }
   // Hall of Fame dialog, signed in, desktop.
   signedIn = true;

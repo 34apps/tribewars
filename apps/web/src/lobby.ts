@@ -9,9 +9,6 @@ export function worldButtonLabel(status: WorldStatus): string {
 }
 
 const DAY_MS = 86_400_000;
-/** A world counts as "New" for its first week. */
-export const NEW_WORLD_DAYS = 7;
-
 /** Whole days between two moments (never negative). */
 function daysBetween(then: number, now: number): number {
   return Math.max(0, Math.floor((now - then) / DAY_MS));
@@ -21,11 +18,6 @@ function daysBetween(then: number, now: number): number {
 export function daysAgoLabel(then: number, now: number = Date.now()): string {
   const d = daysBetween(then, now);
   return d === 0 ? 'today' : d === 1 ? '1 day ago' : `${d} days ago`;
-}
-
-/** The small "New" tag: the world opened less than a week ago. */
-export function isNewWorld(openedAt: number, now: number = Date.now()): boolean {
-  return now - openedAt < NEW_WORLD_DAYS * DAY_MS;
 }
 
 /** The signed-in homepage's three groups. Closed worlds are left out. */

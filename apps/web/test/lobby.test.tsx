@@ -5,7 +5,7 @@ import { afterEach, test } from 'node:test';
 import { isLobbyPath } from '@clanfire/engine';
 import type { LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, lobbyApiBase, safeWorldPath, withApiBase } from '../src/api.ts';
-import { daysAgoLabel, enterWorld, groupWorlds, isNewWorld, worldButtonLabel } from '../src/lobby.ts';
+import { daysAgoLabel, enterWorld, groupWorlds, worldButtonLabel } from '../src/lobby.ts';
 import { isLobbyWorld, loadWorldInfo, resetWorldInfoCache } from '../src/hooks/useWorldInfo.ts';
 
 interface Call {
@@ -197,13 +197,11 @@ test('homepage worlds: yours (last played first), joinable, results; closed worl
   assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 'the input is not changed');
 });
 
-test('world age: "today", "1 day ago", "N days ago"; New for the first week', () => {
+test('world age: "today", "1 day ago", "N days ago"', () => {
   const day = 86_400_000;
   const now = 100 * day;
   assert.equal(daysAgoLabel(now - 3600_000, now), 'today');
   assert.equal(daysAgoLabel(now + 5000, now), 'today', 'a clock a little ahead is still today');
   assert.equal(daysAgoLabel(now - day, now), '1 day ago');
   assert.equal(daysAgoLabel(now - 9 * day - 5, now), '9 days ago');
-  assert.equal(isNewWorld(now - 6 * day, now), true);
-  assert.equal(isNewWorld(now - 7 * day, now), false);
 });

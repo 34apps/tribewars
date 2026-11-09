@@ -1,51 +1,68 @@
-// The account area of the lobby homepage: open worlds for visitors, and for a signed-in account the welcome card with
-// "Your worlds", "Join a world" and the Hall of Fame dialog.
+// Signed-in lobby page: top bar, the welcome card (your worlds, join a world, Hall of Fame) and, on desktop, the village.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { summarizeBadges } from '@clanfire/engine';
-import type { HallOfFameEntryDto, LobbyAccountDto, LobbyWorldDto, PublicWorldDto } from '@clanfire/engine';
+import type { HallOfFameEntryDto, LobbyAccountDto, LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { BADGE_HELP, BadgeRow } from './Badges.tsx';
+import { Flame } from './Flame.tsx';
 import { HallOfFameList } from './HallOfFame.tsx';
-import { daysAgoLabel, enterWorld, groupWorlds, isNewWorld, worldButtonLabel } from '../lobby.ts';
+import HomeVillage from './HomeVillage.tsx';
+import { daysAgoLabel, enterWorld, groupWorlds, worldButtonLabel } from '../lobby.ts';
+import './home.css';
 
-/** Signed-out visitors: the open worlds, each with a "New" tag, its age and a Join button (which opens the New player tab). */
-export function OpenWorlds({ worlds, onJoin }: { worlds: readonly PublicWorldDto[]; onJoin: () => void }) {
-  if (worlds.length === 0) return null;
-  const now = Date.now();
+/**
+ * The page after sign-in. Phone: no picture, the card fills the width and the page scrolls. Desktop: the card on the
+ * left, the village in the same frame as the front page on the right.
+ */
+export function WorldsHome({ account, onSignedOut }: { account: LobbyAccountDto; onSignedOut: () => void }) {
+  const [villageReady, setVillageReady] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [opening, setOpening] = useState(false);
+
+  async function signOut(everywhere: boolean) {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      // "Everywhere" ends every lobby session of the account; world sessions follow within 12 hours (the link's tooltip says so).
+      await (everywhere ? api.lobbyLogoutAll() : api.lobbyLogout());
+    } catch {
+      // The cookie may already be gone; show the signed-out page either way.
+    }
+    onSignedOut();
+  }
+
   return (
-    <section className="home-worlds-wrap" aria-labelledby="home-open-worlds">
-      <h2 className="home-sec-title" id="home-open-worlds">
-        Open worlds
-      </h2>
-      <ul className="home-worlds">
-        {worlds.map((w) => (
-          <li key={w.id} className="home-world">
-            <span className="home-world-text">
-              <span className="home-world-name">
-                {w.name}
-                {isNewWorld(w.openedAt, now) && <span className="home-tag-new">New</span>}
-              </span>
-              <span className="home-world-meta">Started {daysAgoLabel(w.openedAt, now)}</span>
-            </span>
-            {w.status === 'open' ? (
-              <button type="button" className="btn home-join" onClick={onJoin} aria-label={`Join ${w.name}`}>
-                Join
-              </button>
-            ) : (
-              <span className="home-world-full">Full</span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className="home home-in">
+      <header className="home-bar">
+        <span className="home-brand">
+          <Flame size={30} loading={!villageReady} />
+          Clanfire
+        </span>
+        <span className="home-who">
+          <strong className="home-who-name">{account.username}</strong>
+          <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={() => void signOut(false)}>
+            Sign out
+          </button>
+        </span>
+      </header>
+
+      <main className="home-main">
+        <div className="home-copy">
+          <WelcomeCard account={account} signingOut={signingOut} onSignOutEverywhere={() => void signOut(true)} onSignedOut={onSignedOut} onBusy={setOpening} />
+        </div>
+        <div className="home-hero">
+          <HomeVillage onReady={() => setVillageReady(true)} />
+        </div>
+      </main>
+    </div>
   );
 }
 
 type WorldList = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; worlds: LobbyWorldDto[] };
 
-/** Signed-in card. The sign-out calls live in the page (the top bar has the main button); "everywhere" is the link at the bottom. */
-export function WelcomeCard({
+/** Welcome card. The sign-out calls live in the page (the top bar has the main button); "everywhere" is the link at the bottom. */
+function WelcomeCard({
   account,
   signingOut,
   onSignOutEverywhere,
@@ -64,8 +81,6 @@ export function WelcomeCard({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hall, setHall] = useState(false);
-  /** Phone: "Join a world" shows two rows until "+N more" is pressed. */
-  const [moreJoin, setMoreJoin] = useState(false);
   const badges = useMemo(() => summarizeBadges(account.badges ?? []), [account.badges]);
 
   useEffect(() => {
@@ -138,7 +153,7 @@ export function WelcomeCard({
         ) : (
           <button
             type="button"
-            className="btn home-join"
+            className={`btn home-join${w.lastPlayedAt !== null && w.status !== 'finished' ? ' btn-primary' : ''}`}
             disabled={busyId !== null || signingOut}
             aria-label={busy ? undefined : `${w.status === 'open' && w.lastPlayedAt === null ? 'Join' : worldButtonLabel(w.status)} ${w.name}`}
             onClick={() => void play(w)}
@@ -195,15 +210,8 @@ export function WelcomeCard({
 
       {groups && groups.join.length > 0 && (
         <div className="home-group">
-          <div className="home-group-head">
-            <h3 className="home-sec-title">Join a world</h3>
-            {!moreJoin && groups.join.length > 2 && (
-              <button type="button" className="btn btn-small home-more" onClick={() => setMoreJoin(true)}>
-                +{groups.join.length - 2} more
-              </button>
-            )}
-          </div>
-          <ul className={`home-worlds home-worlds-join${moreJoin ? ' is-open' : ''}`}>{groups.join.map((w) => row(w, null, w.status === 'full'))}</ul>
+          <h3 className="home-sec-title">Join a world</h3>
+          <ul className="home-worlds">{groups.join.map((w) => row(w, null, w.status === 'full'))}</ul>
         </div>
       )}
 

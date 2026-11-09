@@ -1,5 +1,5 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import { Suspense, lazy, useState } from 'react';
+import type { FormEvent } from 'react';
 import { DEFAULT_CHIEFTAIN } from '@clanfire/engine';
 import type { AuthRequest, LobbyChangePasswordRequest } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
@@ -28,50 +28,7 @@ export function newPasswordProblem(password: string, username: string, min: numb
   return null;
 }
 
-/** A full-screen sheet on phones, a centred dialog from 640 px: used by the inline variant for the steps after the form. */
-function OverlayDialog({ labelledBy, onClose, children }: { labelledBy: string; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-  useEffect(() => {
-    const dlg = ref.current;
-    if (!dlg) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (!dlg.open) dlg.showModal();
-    return () => {
-      if (dlg.open) dlg.close();
-      previous?.focus?.();
-    };
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="auth-overlay"
-      aria-labelledby={labelledBy}
-      onCancel={(e) => {
-        e.preventDefault();
-        closeRef.current();
-      }}
-    >
-      {children}
-    </dialog>
-  );
-}
-
-export interface AuthScreenProps {
-  onAuthed: () => void;
-  calls?: AuthCalls;
-  initialMode?: Mode;
-  /** Lobby homepage: a small link back to it. */
-  onBack?: () => void;
-  /** Homepage card: only the tabs and the form (no crest, tagline or blurb); the later steps open in an overlay. */
-  inline?: boolean;
-  /** Inline only: a new `n` switches to `mode` and focuses the username field (the top bar's "Sign in", a world's "Join"). */
-  request?: { mode: Mode; n: number };
-}
-
-export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login', onBack, inline = false, request }: AuthScreenProps) {
-  const usernameRef = useRef<HTMLInputElement>(null);
+export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login', onBack }: { onAuthed: () => void; calls?: AuthCalls; initialMode?: Mode; /** Lobby homepage: a small link back to it. */ onBack?: () => void }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -84,17 +41,6 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
   /** Set when sign-in said the password must be replaced: the form then asks for a new one. */
   const [changing, setChanging] = useState(false);
   const [newPassword, setNewPassword] = useState('');
-
-  // The homepage asks for a tab (and the username field) from outside.
-  useEffect(() => {
-    if (!request) return;
-    setMode(request.mode);
-    setStep('account');
-    setChanging(false);
-    setError(null);
-    usernameRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request?.n]);
 
   const register = mode === 'register';
   const passwordMin = calls.passwordMin ?? 8;
@@ -165,174 +111,81 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
     }
   }
 
-  const changeCard = (
-    <div className="auth-card">
-      <div className="auth-brand">
-        <h1 id="auth-change-title">Choose a new password</h1>
-        <p className="auth-tagline">Old password no longer meets the rules.</p>
-      </div>
-      <form onSubmit={submitChange} className="auth-form" noValidate>
-        <label className="field">
-          <span>New password</span>
-          <input
-            type="password"
-            name="new-password"
-            autoComplete="new-password"
-            maxLength={128}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            aria-describedby="new-password-hint"
-            autoFocus
-            required
-          />
-          <small id="new-password-hint" className="hint">
-            Min {passwordMin} characters. Not common, no username.
-          </small>
-        </label>
-        <div className="form-error" role="alert" aria-live="assertive">
-          {error}
-        </div>
-        <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-          {busy ? 'Please wait…' : 'Save and sign in'}
-        </button>
-        <button
-          className="btn btn-block"
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            setChanging(false);
-            setPassword('');
-            setError(null);
-          }}
-        >
-          Cancel
-        </button>
-      </form>
-    </div>
-  );
-
-  const chieftainCard = (
-    <div className="auth-card auth-card-wide">
-      <div className="auth-step-head">
-        <button type="button" className="btn btn-icon" aria-label="Back to account details" disabled={busy} onClick={() => setStep('account')}>
-          <span aria-hidden="true">←</span>
-        </button>
-        <div>
-          <p className="auth-step-count">Step 2 of 2</p>
-          <h1 className="auth-step-title" id="auth-chief-title">Chieftain</h1>
+  if (changing) {
+    return (
+      <div className="auth">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <h1>Choose a new password</h1>
+            <p className="auth-tagline">Old password no longer meets the rules.</p>
+          </div>
+          <form onSubmit={submitChange} className="auth-form" noValidate>
+            <label className="field">
+              <span>New password</span>
+              <input
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                maxLength={128}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                aria-describedby="new-password-hint"
+                autoFocus
+                required
+              />
+              <small id="new-password-hint" className="hint">
+                Min {passwordMin} characters. Not common, no username.
+              </small>
+            </label>
+            <div className="form-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+            <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+              {busy ? 'Please wait…' : 'Save and sign in'}
+            </button>
+            <button
+              className="btn btn-block"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setChanging(false);
+                setPassword('');
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </form>
         </div>
       </div>
-      <Suspense fallback={<p className="muted auth-step-loading" role="status">Loading chieftains…</p>}>
-        <ChieftainPicker value={chieftain} onChange={setChieftain} welcome disabled={busy} />
-      </Suspense>
-      <div className="auth-step-foot">
-        <div className="form-error" role="alert" aria-live="assertive">
-          {error}
-        </div>
-        <button type="button" className="btn btn-primary btn-block btn-lead" disabled={busy} onClick={() => void leadClan()}>
-          {busy ? 'Please wait…' : 'Lead your clan'}
-        </button>
-      </div>
-    </div>
-  );
-
-  if (!inline) {
-    if (changing) return <div className="auth">{changeCard}</div>;
-    if (register && step === 'chieftain') return <div className="auth">{chieftainCard}</div>;
+    );
   }
 
-  const tabs = (
-    <div className="auth-tabs" role="tablist" aria-label="Account">
-      {(inline ? (['register', 'login'] as const) : (['login', 'register'] as const)).map((m) => {
-        const active = mode === m;
-        return (
-          <button
-            key={m}
-            role="tab"
-            aria-selected={active}
-            className={active ? 'is-active' : ''}
-            onClick={() => {
-              setMode(m);
-              setStep('account');
-              setError(null);
-            }}
-            type="button"
-          >
-            {m === 'login' ? 'Sign in' : inline ? 'New player' : 'Create account'}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const form = (
-    <form onSubmit={submit} className="auth-form" noValidate>
-      <label className="field">
-        <span className={inline ? 'visually-hidden' : undefined}>Username</span>
-        <input
-          ref={usernameRef}
-          placeholder={inline ? 'Username' : undefined}
-          type="text"
-          name="username"
-          autoComplete="username"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={20}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          aria-describedby={register ? 'username-hint' : undefined}
-          required
-        />
-        {register && (
-          <small id="username-hint" className="hint">
-            3-20 letters, digits, _
-          </small>
-        )}
-      </label>
-      <label className="field">
-        <span className={inline ? 'visually-hidden' : undefined}>Password</span>
-        <input
-          placeholder={inline ? 'Password' : undefined}
-          type="password"
-          name="password"
-          autoComplete={register ? 'new-password' : 'current-password'}
-          maxLength={128}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          aria-describedby={register ? 'password-hint' : undefined}
-          required
-        />
-        {register && (
-          <small id="password-hint" className="hint">
-            {passwordMin > 8 ? `Min ${passwordMin} characters. Not common, no username.` : 'Min 8 characters.'}
-          </small>
-        )}
-      </label>
-      <div className="form-error" role="alert" aria-live="assertive">
-        {error}
-      </div>
-      <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-        {busy ? 'Please wait…' : register ? (inline ? 'Play free' : 'Next') : 'Sign in'}
-      </button>
-    </form>
-  );
-
-  if (inline) {
+  if (register && step === 'chieftain') {
     return (
-      <div className="auth-inline">
-        {tabs}
-        {form}
-        {changing && (
-          <OverlayDialog labelledBy="auth-change-title" onClose={() => setChanging(false)}>
-            {changeCard}
-          </OverlayDialog>
-        )}
-        {!changing && register && step === 'chieftain' && (
-          <OverlayDialog labelledBy="auth-chief-title" onClose={() => !busy && setStep('account')}>
-            {chieftainCard}
-          </OverlayDialog>
-        )}
+      <div className="auth">
+        <div className="auth-card auth-card-wide">
+          <div className="auth-step-head">
+            <button type="button" className="btn btn-icon" aria-label="Back to account details" disabled={busy} onClick={() => setStep('account')}>
+              <span aria-hidden="true">←</span>
+            </button>
+            <div>
+              <p className="auth-step-count">Step 2 of 2</p>
+              <h1 className="auth-step-title">Chieftain</h1>
+            </div>
+          </div>
+          <Suspense fallback={<p className="muted auth-step-loading" role="status">Loading chieftains…</p>}>
+            <ChieftainPicker value={chieftain} onChange={setChieftain} welcome disabled={busy} />
+          </Suspense>
+          <div className="auth-step-foot">
+            <div className="form-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+            <button type="button" className="btn btn-primary btn-block btn-lead" disabled={busy} onClick={() => void leadClan()}>
+              {busy ? 'Please wait…' : 'Lead your clan'}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -348,8 +201,82 @@ export function AuthScreen({ onAuthed, calls = WORLD_CALLS, initialMode = 'login
           <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
         </div>
 
-        {tabs}
-        {form}
+        <div className="auth-tabs" role="tablist" aria-label="Account">
+          <button
+            role="tab"
+            aria-selected={!register}
+            className={!register ? 'is-active' : ''}
+            onClick={() => {
+              setMode('login');
+              setStep('account');
+              setError(null);
+            }}
+            type="button"
+          >
+            Sign in
+          </button>
+          <button
+            role="tab"
+            aria-selected={register}
+            className={register ? 'is-active' : ''}
+            onClick={() => {
+              setMode('register');
+              setStep('account');
+              setError(null);
+            }}
+            type="button"
+          >
+            Create account
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="auth-form" noValidate>
+          <label className="field">
+            <span>Username</span>
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={20}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              aria-describedby={register ? 'username-hint' : undefined}
+              required
+            />
+            {register && (
+              <small id="username-hint" className="hint">
+                3-20 letters, digits, _
+              </small>
+            )}
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              name="password"
+              autoComplete={register ? 'new-password' : 'current-password'}
+              maxLength={128}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-describedby={register ? 'password-hint' : undefined}
+              required
+            />
+            {register && (
+              <small id="password-hint" className="hint">
+                {passwordMin > 8 ? `Min ${passwordMin} characters. Not common, no username.` : 'Min 8 characters.'}
+              </small>
+            )}
+          </label>
+          <div className="form-error" role="alert" aria-live="assertive">
+            {error}
+          </div>
+          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+            {busy ? 'Please wait…' : register ? 'Next' : 'Sign in'}
+          </button>
+        </form>
 
         {onBack && (
           <button type="button" className="auth-back" onClick={onBack}>
