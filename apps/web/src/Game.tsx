@@ -25,6 +25,7 @@ import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
+import { FrameRanks } from './views/ranks/FrameRanks.tsx';
 import { FrameReports } from './views/reports/FrameReports.tsx';
 import { FrameMail } from './views/mail/FrameMail.tsx';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
@@ -312,7 +313,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
       {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
       {tab === 'tribe' && (desktop ? <FrameTribe /> : <TribeView />)}
-      {tab === 'ranks' && <RankingsView />}
+      {tab === 'ranks' && (desktop ? <FrameRanks /> : <RankingsView />)}
       {tab === 'support' && <SupportView />}
       {tab === 'rules' && <WorldRulesView />}
       {tab === 'simulator' && <SimulatorView />}
