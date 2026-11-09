@@ -3,7 +3,10 @@
 Current open work and decisions only (history goes in `CHANGELOG.md`). Newest priorities first.
 
 ## In-game layout redo (owner, 2026-11-09) — FIRST
-- Owner rejected the floating Game HUD + one-sheet page tabs: wants each feature on its own page that shows everything at once on a desktop browser (no long scroll, no inner scroll), like classic browser strategy games (structure only, original look). Pictures first (Village overview, a building page, Army, Reports at 1440 + 360), he picks, he tests before push. Local commit `045929b` (phone chip band) is unpushed and not approved. Details: `docs/HANDOFF.md`.
+- Done: fixed 1440x900 desktop frame + Village page (`e801164`). Owner tests in the preview, then push. Pictures and tooling: `design/proposals/ingame-pages/` (mix-* = owner's mixes).
+- Waiting on owner: backdrop around the frame (A toy landscape / B plain paper, B built for now); Barracks mix (`mix-building-1440.png`) OK? Then build it as the template for every building page (recruiting moves from Army to Barracks/Stables).
+- Then, one page at a time (pictures → owner picks pieces → build): Army, Reports, then Mail, Tribe, Ranks, Map; then the phone (360) version. Old width-based CSS of not-yet-redone pages still applies inside the frame.
+- Small: attack name cut off in the left Movements row; renown gained today needs data the client doesn't have; Alerts sheet overlaps the tab row; `045929b` (phone chip band) unpushed and not approved.
 
 ## Decisions for the owner
 - **Small-player protection, the other ways (owner 2026-11-08: "might be good too, decide on it").** Besides morale: (a) longer beginner protection (already exists, just longer), (b) a hard rule that big players cannot attack very small ones at all. Owner to decide later; each is a short proposal first.
