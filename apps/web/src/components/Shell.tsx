@@ -28,12 +28,12 @@ const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 
 /** The five dock buttons on phones; Mail, Tribe and Ranks live in the More sheet there. */
 const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
 
-/** "+3k/h" style rate for the narrow phone chips. */
+/** "+3k" style rate for the narrow phone chips ("per hour" is read out, not shown). */
 function compactRate(perHour: number): string {
   const r = Math.round(perHour);
   const abs = Math.abs(r);
-  if (abs < 1000) return formatRate(r);
-  return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k/h`;
+  if (abs < 1000) return formatRate(r).replace(/\/h$/, '');
+  return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k`;
 }
 
 /** Population usage and its screen-reader text (shared by the HUD pill and the More sheet). */
@@ -62,7 +62,7 @@ function Resources({ compact }: { compact?: boolean }) {
         return (
           <li key={r} className={cls}>
             <span className="token" aria-hidden="true">
-              <Icon name={RESOURCE_ICON[r]} size={compact ? 20 : 26} />
+              <Icon name={RESOURCE_ICON[r]} size={compact ? 18 : 26} />
             </span>
             <span className="hres-text">
               <span className="hres-amount">
@@ -74,7 +74,10 @@ function Resources({ compact }: { compact?: boolean }) {
                   {ratio >= 0.999 ? ' (full)' : ''}
                 </span>
               </span>
-              <span className="hres-rate">{compact ? compactRate(rate) : formatRate(rate)}</span>
+              <span className="hres-rate">
+                {compact ? compactRate(rate) : formatRate(rate)}
+                {compact && <span className="visually-hidden"> per hour</span>}
+              </span>
             </span>
           </li>
         );
