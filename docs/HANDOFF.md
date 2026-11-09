@@ -11,17 +11,20 @@ New direction, built page by page from picture boards in `design/proposals/ingam
   Phone vs desktop chosen by DEVICE (`hooks/useLayout.ts`, root `layout-desktop|layout-phone`- Top bar + folder tabs (`components/FrameShell.tsx`, `frame.css`). **Desktop pass complete**, all LOCAL commits, NOT pushed:
   Village (`e801164`), building pages + `BuildState` buttons (`2006728`), Army (`da78726`, `154244d`), Reports (`7864e30`),
   Mail conversations (API `7778277`, screen `89fc824`, `9958155`), Tribe all 9 sub-tabs (`c404c1e`, `bd5ae29`),
-  Ranks B + Top three A mini leaderboard (`bf7042e`, `77cb68f`), Map A side panel (`e8401ef`). Older unpushed `045929b`
+  Ranks B + Top three A (`bf7042e`, `77cb68f`), Map A (`e8401ef`), round-1 fixes + simulator, unit card, toasts,
+  Mail picker, no-tribe, Domination (`f802505`…`45063fd`). Older unpushed `045929b`
   (phone chip band, not approved).
 - Phone layout is unchanged everywhere (old HUD/dock) — its redesign comes next.
 
 ## Very next steps
 
-1. Owner tests every desktop page in the preview (http://localhost:5174); fix what he reports; push to main only after his OK.
-2. Phone (360) pass: draw each new page at 360 (design agent, opus, one at a time) → owner picks → build (implementer, sonnet).
-3. Small leftovers listed in NEXT_STEPS "In-game layout redo" → "Small (desktop pages)".
+1. Owner test round 2 in the preview (http://localhost:5174; PREVIEW → Fill with sample data). Round 1 fixes and his picks
+   (simulator A, unit card A+B, toasts A, Mail picker A, no-tribe A, Domination B) are built: `f802505`…`45063fd`.
+   Fix what he reports; push to main only after his OK.
+2. Phone (360) pass: draw each new page at 360 (design agent, opus, one at a time) → owner picks → build.
+3. Small leftovers: NEXT_STEPS "In-game layout redo" → "Small (desktop pages)".
 4. Later (NEXT_STEPS): scout rule "total troops outside" at top Keen; report sharing; Boulder Sling stored-target check;
-   backdrop choice (toy landscape vs plain paper — plain built).
+   backdrop choice (toy landscape vs plain paper — plain built); Contacts list in Mail only if the owner asks (option B, NEW).
 
 ## How pages are made (repeat this)
 
