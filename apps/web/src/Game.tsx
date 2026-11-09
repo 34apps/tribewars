@@ -20,6 +20,7 @@ import { WorldRulesView } from './views/WorldRulesView.tsx';
 import { SimulatorView } from './views/SimulatorView.tsx';
 import type { SimDraftData } from './simulator.ts';
 import { ArmyView } from './views/ArmyView.tsx';
+import { FrameArmy } from './views/army/FrameArmy.tsx';
 import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
@@ -304,7 +305,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
 
   const pages = (
     <>
-      {tab === 'army' && <ArmyView />}
+      {tab === 'army' && (desktop ? <FrameArmy /> : <ArmyView />)}
       {tab === 'reports' && <ReportsView />}
       {tab === 'mail' && <MailView />}
       {tab === 'tribe' && <TribeView />}
@@ -330,7 +331,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         <KeepAlive active={tab === 'village'} value={ctx}>
           <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
-        {isPage && (desktop ? <div className="fr-page">{pages}</div> : <div className="page-sheet">{pages}</div>)}
+        {isPage && (desktop ? <div className={`fr-page${tab === 'army' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Frame>
       <Toasts toasts={toasts} onDismiss={dismissToast} />

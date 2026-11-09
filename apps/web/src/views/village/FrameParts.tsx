@@ -6,13 +6,14 @@ import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
   RESOURCE_IDS,
+  UNITS,
   buildingCost,
   populationCap,
   populationUsage,
   productionPerHour,
   storageCap,
 } from '@clanfire/engine';
-import type { BuildingId, MovementDto } from '@clanfire/engine';
+import type { BuildingId, MovementDto, UnitId } from '@clanfire/engine';
 import { BuildingArt } from '../../art/BuildingArt.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
@@ -21,6 +22,7 @@ import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, for
 import { useGame, useRules } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { requirementText } from '../../rules.ts';
+import { queueDoneAt, queueUnitsLeft } from '../army/frame-army-logic.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { movementCargo, movementLabel } from './MovementsSummary.tsx';
 import { buildingInfo } from './buildingInfo.ts';
@@ -30,6 +32,14 @@ export function clockShort(ts: number, now: number): string {
   const d = new Date(ts);
   const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === new Date(now).toDateString() ? t : `${d.toLocaleDateString([], { weekday: 'short' })} ${t}`;
+}
+
+/** "Raiders", "Pikemen": the plural of a unit's name (by its own rule: ends in man -> men, else + s). */
+export function pluralUnit(u: UnitId): string {
+  const n = UNITS[u].name;
+  if (/man$/.test(n)) return `${n.slice(0, -3)}men`;
+  if (/(s|x)$/.test(n)) return n;
+  return `${n}s`;
 }
 
 export function Panel({ title, count, children, className = '' }: { title: string; count?: ReactNode; children: ReactNode; className?: string }) {
@@ -92,7 +102,7 @@ export function QueueSection({ onPick }: { onPick: (id: BuildingId) => void }) {
                 <b>
                   {def.name} → {job.targetLevel}
                 </b>
-                <small>{started ? `Building · done ${clockShort(job.finishAt, now)}` : `Next · takes ${formatDuration(total)}`}</small>
+                <small>{started ? `Done at ${clockShort(job.finishAt, now)}` : `Next · takes ${formatDuration(total)}`}</small>
                 {started && (
                   <span className="fv-bar" aria-hidden="true">
                     <i style={{ width: `${Math.max(0, Math.min(1, (now - job.startAt) / total)) * 100}%` }} />
@@ -120,7 +130,9 @@ export function QueueSection({ onPick }: { onPick: (id: BuildingId) => void }) {
   );
 }
 
+/** Rows of the left column's Movements block: 3 on the Village page, 2 where the mini village picture takes the room. */
 const MOVE_SHOWN = 3;
+const MOVE_SHOWN_CMP = 2;
 
 function moveIcon(mv: MovementDto): { icon: IconName; tone: string } {
   if (mv.kind === 'shipment') return { icon: 'chest', tone: 'm' };
@@ -130,7 +142,7 @@ function moveIcon(mv: MovementDto): { icon: IconName; tone: string } {
   return mv.direction === 'incoming' ? { icon: 'warning', tone: 'm' } : { icon: 'send', tone: 'x' };
 }
 
-export function MovementsSection() {
+export function MovementsSection({ compact = false }: { compact?: boolean }) {
   const { movements, now, navigate, viewMovement } = useGame();
   const list = movements
     .filter((m) => m.arriveAt > now)
@@ -139,7 +151,7 @@ export function MovementsSection() {
       const ib = b.direction === 'incoming' && b.kind === 'attack' ? 0 : 1;
       return ia - ib || a.arriveAt - b.arriveAt;
     });
-  const shown = list.slice(0, MOVE_SHOWN);
+  const shown = list.slice(0, compact ? MOVE_SHOWN_CMP : MOVE_SHOWN);
   return (
     <div className="fv-cs">
       <div className="fv-csh">
@@ -175,6 +187,47 @@ export function MovementsSection() {
         })}
         {list.length > shown.length && <span className="fv-more">+{list.length - shown.length} more in Army</span>}
       </div>
+    </div>
+  );
+}
+
+const TRAIN_HOUSES = ['barracks', 'stables', 'bannerhall'] as const;
+
+/** The Army page's middle block: one line per building that is training troops (what, done at) with a link to that building's page. */
+export function TrainingSection({ onPick }: { onPick: (id: BuildingId) => void }) {
+  const { live, now } = useGame();
+  const rows = TRAIN_HOUSES.flatMap((b) => {
+    const queue = live.trainQueues[b];
+    const doneAt = queueDoneAt(queue);
+    if (doneAt === null) return [];
+    const kinds = [...new Set(queue.map((j) => j.unit))];
+    const left = queueUnitsLeft(queue);
+    const first = kinds[0];
+    const what = kinds.length === 1 && first ? `${formatInt(left)} ${left === 1 ? UNITS[first].name : pluralUnit(first)}` : `${formatInt(left)} units`;
+    return [{ b, what, doneAt }];
+  });
+  return (
+    <div className="fv-cs">
+      <div className="fv-csh">
+        <h3>Training</h3>
+        <span className="fv-sp" />
+        {rows.length > 0 && <span className="fv-cnt">{rows.length}</span>}
+      </div>
+      {rows.length === 0 && <p className="fv-empty">Nobody is being trained.</p>}
+      {rows.map(({ b, what, doneAt }) => (
+        <div key={b} className="fv-qr fv-trn">
+          <BuildingArt id={b} level={1} building size={40} className="fv-th" />
+          <span className="fv-mt">
+            <b>{BUILDINGS[b].name}</b>
+            <small>
+              {what} · done {clockShort(doneAt, now)}
+            </small>
+          </span>
+          <button type="button" className="fv-lk" onClick={() => onPick(b)} aria-label={`Open the ${BUILDINGS[b].name}`}>
+            Open <Chev />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -240,12 +293,12 @@ export function PerHourSection() {
 }
 
 /** The left column of both pages. `top` (the mini village picture on a building's page) sits above the queue; `compact` tightens it to fit. */
-export function LeftColumn({ onPick, top }: { onPick: (id: BuildingId) => void; top?: ReactNode }) {
+export function LeftColumn({ onPick, top, middle = 'movements' }: { onPick: (id: BuildingId) => void; top?: ReactNode; middle?: 'movements' | 'training' }) {
   return (
     <aside className={`fv-pn fv-left${top ? ' is-cmp' : ''}`} aria-label="Queue, movements and production">
       {top}
       <QueueSection onPick={onPick} />
-      <MovementsSection />
+      {middle === 'training' ? <TrainingSection onPick={onPick} /> : <MovementsSection compact={!!top} />}
       <PerHourSection />
     </aside>
   );

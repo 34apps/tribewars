@@ -2174,3 +2174,47 @@ button.bs {
   padding: 0 8px 1px;
   font-size: 13px;
 }
+
+/* The compact column (mini picture on top) has no room for the storage note once a few movements are listed. */
+.fv-left.is-cmp .fv-cap {
+  display: none;
+}
+
+/* -- left column: long names wrap to two lines instead of being cut ("Attack from Brai...", "Building · don...") -- */
+.fv-mv .fv-mt b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.fv-qr .fv-mt b,
+.fv-qr .fv-mt small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.2;
+}
+
+.fv-qr .fv-mt b {
+  display: block;
+}
+
+.fv-qr .fv-mt small {
+  text-wrap: balance;
+}
+
+/* -- Drillyard ranks: nothing scrolls inside a panel; a reason ("not enough iron") stays on one line -- */
+.fv-boxin.is-fit {
+  overflow: hidden;
+}
+
+.drill-compact .drill-why {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

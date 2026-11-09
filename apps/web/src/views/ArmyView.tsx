@@ -261,7 +261,7 @@ function TrainingSummary() {
 
 // ---- Support (stationed troops) -----------------------------------------------------------------------
 
-function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onRecall: (units: Partial<Units>) => void }) {
+export function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onRecall: (units: Partial<Units>) => void }) {
   const have = normalizeUnits(s.units);
   const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
   const present = UNIT_IDS.filter((u) => have[u] > 0);

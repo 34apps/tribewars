@@ -1,0 +1,635 @@
+/* The DESKTOP Army page (views/army/FrameArmy.tsx) inside the fixed 1440 x 900 frame. It reuses the Village page's pieces (.fv-pn panels,
+   .fv-ph headers, the left column) and adds what is new (.fa-*). Nothing scrolls: rows are single lines, panels show a few rows and a
+   "+N more" link. Mockup: design/proposals/ingame-pages/mix-army2-1440.png. */
+
+.fr-page.is-fill {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+
+.fa {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fa-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fa-bottom {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  min-height: 0;
+}
+
+.fa .fv-btn.sm {
+  min-height: 36px;
+  padding: 0 11px 3px;
+}
+
+.fa .fv-lk:disabled {
+  color: var(--on-surface-muted);
+  cursor: default;
+}
+
+/* -- At home -- */
+.fa-muster {
+  flex: none;
+}
+
+.fa-pchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px 1px 6px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  font: 600 13.5px/1.2 var(--font);
+  white-space: nowrap;
+}
+
+.fa-pchip b {
+  font-size: 15px;
+}
+
+.fa-chs {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  margin-right: 8px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--info-bg);
+  font: 500 13.5px/1.2 var(--font);
+  color: var(--on-surface);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fa-sim {
+  gap: 5px;
+}
+
+.fa-mus {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+}
+
+.fa-mus li {
+  min-width: 0;
+}
+
+.fa-mu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 3px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.fa-fg {
+  margin: -2px 0;
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+.fa-ct {
+  font: 400 26px/1.35 var(--font-display);
+  color: var(--heading);
+}
+
+.fa-mu b {
+  font: 700 13.5px/1.2 var(--font);
+  white-space: nowrap;
+}
+
+.fa-mtg {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  margin-top: 5px;
+}
+
+.fa-mu.is-off .fa-fg {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.fa-mu.is-off .fa-ct {
+  color: var(--on-surface-muted);
+}
+
+.fa-tag-warn {
+  background: var(--c-sun);
+  color: var(--c-ink);
+}
+
+.fa-tag-teal {
+  background: var(--c-teal-hi);
+  color: var(--c-ink);
+}
+
+.fa-tag-mut {
+  background: var(--surface-3);
+  color: var(--on-surface-muted);
+}
+
+/* -- Send troops -- */
+.fa-send {
+  flex: 1;
+}
+
+.fa-sf {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 14px 12px;
+}
+
+.fa-tgt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fa-tgt .fv-up {
+  width: 62px;
+  white-space: nowrap;
+}
+
+.fa-inp {
+  box-sizing: border-box;
+  width: 54px;
+  height: 36px;
+  padding: 0 4px 1px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--surface);
+  font: 700 15px/1.2 var(--font);
+  color: var(--on-surface);
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.fa-inp::-webkit-outer-spin-button,
+.fa-inp::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.fa-inp.is-on,
+.fa-inp:focus-visible {
+  border-color: var(--c-ink);
+  background: var(--c-sun-hi);
+  outline: none;
+}
+
+.fa-inp-t {
+  width: 118px;
+  height: 40px;
+  font-size: 16px;
+  border-color: var(--c-ink);
+}
+
+.fa-tgi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--info-bg);
+  font: 600 13.5px/1.3 var(--font);
+  color: var(--on-surface);
+}
+
+.fa-tgi.is-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.fa-tgi svg {
+  flex: none;
+}
+
+.fa-tgi span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fa-su {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fa-sx {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 5px 4px 8px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.fa-sx .fa-inp {
+  flex: none;
+  width: 48px;
+}
+
+.fa-sx.is-off {
+  opacity: 0.5;
+}
+
+.fa-sx .fv-mt {
+  gap: 1px;
+}
+
+.fa-sx label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fa-sx .fv-mt b {
+  font-size: 13px;
+}
+
+.fa-all {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 700 13px/1.2 var(--font);
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.fa-trv {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+  height: 28px;
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+}
+
+.fa-trv b {
+  font: 700 15px/1.2 var(--font);
+  color: var(--heading);
+}
+
+.fa-trv > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fa-mor {
+  color: var(--warn);
+}
+
+.fa-rct {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fa-rcl {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-height: 38px;
+  overflow: hidden;
+}
+
+.fa-rcl .fv-mut {
+  align-self: center;
+}
+
+.fa-rc {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px 1px 8px;
+  border: 2px solid var(--edge);
+  border-radius: 11px;
+  background: var(--surface);
+  font: 700 14px/1.2 var(--font);
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.fa-rc small {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 500 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.fa-rc.is-on {
+  border-color: var(--c-ink);
+  background: var(--c-sun-hi);
+}
+
+.fa-why {
+  margin: auto 0 0;
+  min-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 13.5px/1.3 var(--font);
+}
+
+.fa-why.is-mut {
+  color: var(--on-surface-muted);
+}
+
+.fa-why.is-warn {
+  color: var(--warn);
+}
+
+.fa-why.is-bad {
+  color: var(--c-terra);
+}
+
+.fa-go {
+  display: flex;
+  gap: 10px;
+}
+
+.fa-go .fv-btn {
+  flex: 1;
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.fa-red {
+  background: var(--strip-danger);
+  color: var(--on-strip);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 3px 0 var(--c-ink);
+}
+
+.fa-red:disabled {
+  background: var(--surface-3);
+  color: var(--on-surface-muted);
+  box-shadow: none;
+}
+
+/* -- Movements and Support -- */
+.fa-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+  width: 520px;
+  min-height: 0;
+}
+
+.fa-moves {
+  flex: none;
+}
+
+.fa-support {
+  flex: 1;
+}
+
+.fa-seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-3);
+}
+
+.fa-sg {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px 1px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: 700 13px/1.2 var(--font);
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.fa-sg.is-on {
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--edge);
+}
+
+.fa-mvs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.fa-mv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 10px 0 9px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.fa-mv.is-hl {
+  outline: 3px solid var(--c-teal-hi);
+}
+
+.fa-mv.is-atk {
+  border: 2px solid var(--c-ink);
+  background: var(--strip-danger);
+  color: var(--on-strip);
+  box-shadow: 0 2px 0 var(--c-ink);
+}
+
+.fa-mv.is-atk .fv-mt b,
+.fa-mv.is-atk .fv-mt small,
+.fa-mv.is-atk .fv-at,
+.fa-mv.is-atk .fa-na {
+  color: var(--on-strip);
+}
+
+.fa-mv.is-atk .fv-cd {
+  background: var(--c-cream);
+  color: var(--c-ink);
+}
+
+.fa-mv .fv-mt {
+  gap: 2px;
+}
+
+.fa-mact {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 84px;
+}
+
+.fa-na {
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  text-align: right;
+}
+
+.fa-cnc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.fa-cnc small {
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+}
+
+.fa-pad {
+  padding: 12px 14px;
+}
+
+.fa-sg2 {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 14px 0;
+}
+
+.fa-sg2 + .fa-sg2 {
+  border-top: 2px solid var(--edge-soft);
+}
+
+.fa-sg2 .fv-up {
+  padding: 2px 0 4px;
+}
+
+.fa-sg2 ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fa-sr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 3px 0;
+  border-top: 1px solid var(--edge-soft);
+}
+
+.fa-sg2 ul > .fa-sr:first-child {
+  border-top: 0;
+}
+
+.fa-sact {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 92px;
+}
+
+.fa-some {
+  font-size: 13px;
+}
+
+/* -- the "+N more" dialogs -- */
+.confirm.fa-dialog {
+  width: min(640px, calc(100vw - 24px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.fa-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.fa-dh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: none;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--edge-soft);
+}
+
+.fa-dh h2 {
+  margin: 0;
+  font: 400 20px/1.35 var(--font-display);
+  color: var(--heading);
+}
+
+.fa-db {
+  min-height: 0;
+  padding: 6px 6px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fa-db .fa-mvs {
+  padding: 8px;
+}
+
+.fa-db .fa-mv .fv-mt,
+.fa-db .fa-mv .fv-mt b,
+.fa-db .fa-mv .fv-mt small {
+  min-width: 0;
+}
+
+.fa-db .recall-form {
+  padding: 8px;
+}

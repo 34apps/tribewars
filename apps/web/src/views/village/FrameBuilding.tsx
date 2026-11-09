@@ -38,7 +38,7 @@ import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
-import { BuildingRow, Chev, LeftColumn, clockShort } from './FrameParts.tsx';
+import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
 import { VillageScene } from './VillageScene.tsx';
 import { useBuildingInfo, whyText } from './buildingInfo.ts';
 import type { BuildingInfo } from './buildingInfo.ts';
@@ -76,7 +76,7 @@ function sumCost(list: Resources[]): Resources {
 
 // ---- Left column: mini village ---------------------------------------------------------------------------------
 
-function MiniVillage() {
+export function MiniVillage() {
   const { village, openBuilding } = useGame();
   return (
     <div className="fv-cs fv-minicell">
@@ -467,14 +467,6 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
   );
 }
 
-/** "Raiders", "Pikemen": the plural of a unit's name (by its own rule: ends in man -> men, else + s). */
-function pluralUnit(u: UnitId): string {
-  const n = UNITS[u].name;
-  if (/man$/.test(n)) return `${n.slice(0, -3)}men`;
-  if (/(s|x)$/.test(n)) return n;
-  return `${n}s`;
-}
-
 // ---- Other buildings ---------------------------------------------------------------------------------------------
 
 /** "What it does": the description and the effect now and at the next level. */
@@ -582,13 +574,13 @@ function HallList({ busy, build }: { busy: boolean; build: (id: BuildingId) => v
   );
 }
 
-function PanelBox({ title, children }: { title: string; children: ReactNode }) {
+function PanelBox({ title, children, fit = false }: { title: string; children: ReactNode; fit?: boolean }) {
   return (
     <section className="fv-pn fv-boxed" aria-label={title}>
       <div className="fv-ph">
         <h2>{title}</h2>
       </div>
-      <div className="fv-boxin">{children}</div>
+      <div className={`fv-boxin${fit ? ' is-fit' : ''}`}>{children}</div>
     </section>
   );
 }
@@ -638,7 +630,7 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
               {id === 'hall' ? (
                 <HallList busy={busy} build={build} />
               ) : id === 'drillyard' ? (
-                <PanelBox title="Training Points and ranks">
+                <PanelBox title="Training Points and ranks" fit>
                   <DrillyardPanel part="ranks" />
                 </PanelBox>
               ) : id === 'bannerhall' ? (
