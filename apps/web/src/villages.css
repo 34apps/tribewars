@@ -1,59 +1,7 @@
 /* Several villages (step 2): village bar and switcher, cold-village (hearth out) cards, Chieftain panel.
    Toy Diorama tokens only (docs/ART_DIRECTION.md). Base rules target 360 px; no inner scrollbars except the switcher menu. */
 
-/* ---- Village bar under the top bar -------------------------------------------------------------------- */
-
-.vbar-wrap {
-  position: relative;
-  flex: none;
-  margin: 0 8px 6px;
-}
-
-.vbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  width: 100%;
-  min-height: 44px;
-  padding: 4px 12px;
-  border: 2px solid var(--c-ink);
-  border-radius: 999px;
-  background: var(--c-bone);
-  box-shadow: inset 0 2px 0 #fff3dc, inset 0 -3px 0 var(--c-bone-shade);
-  color: var(--on-fill);
-  font-size: 0.92rem;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.vbar.is-cold {
-  background: #d9d3c6;
-  box-shadow: inset 0 2px 0 #f0ece2, inset 0 -3px 0 #a39e94;
-}
-
-.vbar-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vbar-coords {
-  color: var(--on-surface-muted);
-  font-weight: 600;
-}
-
-.vbar-tag {
-  flex: none;
-}
-
-.vbar-chev {
-  margin-left: auto;
-  padding-left: 6px;
-}
+/* ---- Village pill in the HUD: see hud.css (the switcher list below is anchored to .hud-village-wrap) ---- */
 
 .vsw-pop {
   position: absolute;
@@ -206,12 +154,6 @@
   .vsw-pop {
     right: auto;
     width: 460px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .vbar-wrap {
-    margin: 8px 16px 6px;
   }
 }
 

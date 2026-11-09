@@ -23,9 +23,16 @@ function cargo(mv: MovementDto): string {
   return [troops > 0 ? `${troops} troops` : '', loot > 0 ? `loot ${Math.round(loot)}` : ''].filter(Boolean).join(' · ');
 }
 
-export function MovementsSummary({ compact = false }: { compact?: boolean }) {
+/** My own outgoing and returning movements still on the road (what the "On the road" chip counts). Incoming ones are the attack card and the alerts. */
+export function outgoingOnTheRoad(movements: readonly MovementDto[], now: number): MovementDto[] {
+  return movements.filter((m) => m.direction === 'outgoing' && m.arriveAt > now).sort((a, b) => a.arriveAt - b.arriveAt);
+}
+
+export function MovementsSummary({ compact = false, outgoingOnly = false }: { compact?: boolean; outgoingOnly?: boolean }) {
   const { movements, now } = useGame();
-  const list = movements.filter((m) => m.arriveAt > now).sort((a, b) => a.arriveAt - b.arriveAt);
+  const list = outgoingOnly
+    ? outgoingOnTheRoad(movements, now)
+    : movements.filter((m) => m.arriveAt > now).sort((a, b) => a.arriveAt - b.arriveAt);
   if (list.length === 0) return null;
   const shown = list.slice(0, compact ? 3 : 6);
   return (

@@ -20,9 +20,10 @@ Owner's direction (2026-11-02). Read before any visual work.
 ## UI colours: Parchment (owner, 2026-11-08)
 Warm paper page (`--page` #f6ecd6, very faint board lines), cream panels (`--surface` #fffaf0, rows `--surface-2`, wells
 `--surface-3`) with dark ink text (`--on-surface`, `--on-surface-muted`), a soft tan edge and bottom shadow
-(`--edge`, `--edge-soft`, `--edge-shadow`), white inputs (`--input-bg`), honey top bar / resource strip / bottom tab bar
-(`--bar*`, text `--on-bar`), gold primary buttons. Small dark pieces (`--dark` with `--on-dark`: tags, "?" buttons,
-selected map tabs) and the Attack strip (`--strip-danger` with `--on-strip`) stay strong. Village and map art is unchanged.
+(`--edge`, `--edge-soft`, `--edge-shadow`), white inputs (`--input-bg`), gold primary buttons. **Game HUD shell (owner, 2026-11-09):** no top bar or tab bar; cream floating pills
+(village name, resources, bell, avatar), a floating bottom dock (7 tabs desktop, 5 + More on phones) and full-bleed village art
+(`apps/web/src/hud.css`; pictures `design/proposals/ingame-clarity/`). The `--bar*` tokens remain for leftover honey pieces. Small dark pieces (`--dark` with `--on-dark`: tags, "?" buttons,
+selected map tabs) and the Attack card/pill (`--strip-danger` with `--on-strip`) stay strong. Village and map art is unchanged.
 All tokens live in `:root` of `apps/web/src/styles.css` next to the raw palette; rules use the semantic names, never
 `--c-*` for panel or text colours. The bars re-point the same tokens to honey values (one block under `:root`).
 Every text is at least 4.5:1 on its background (disabled buttons excepted). The pilot pictures and tooling are in

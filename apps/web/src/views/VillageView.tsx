@@ -4,13 +4,14 @@ import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
-import { formatCoords, formatDuration } from '../format.ts';
+import { formatDuration } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
+import { useDockSpace } from '../hooks/useDockSpace.ts';
 import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
-import { Advisor, BuildQueue, BuildingPanel, Production } from './village/Panels.tsx';
-import { FirstStepsBar, FirstStepsCard } from './village/FirstSteps.tsx';
-import { MovementsSummary } from './village/MovementsSummary.tsx';
-import { RenownBadge, RenownCard, RenownChip } from './village/RenownCard.tsx';
+import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
+import { FirstStepsCard, FirstStepsChip } from './village/FirstSteps.tsx';
+import { MovementsSummary, outgoingOnTheRoad } from './village/MovementsSummary.tsx';
+import { RenownCard, RenownChip } from './village/RenownCard.tsx';
 import { VillageScene } from './village/VillageScene.tsx';
 import { DesignPreviewBar } from './village/DesignPreviewBar.tsx';
 import { designPreviewAllowed, useDesignPreview } from './village/designPreviewState.ts';
@@ -34,68 +35,127 @@ function useBuild() {
   return { busy, build: (id: BuildingId) => void build(id) };
 }
 
+type Panel = { kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | { kind: 'steps' } | { kind: 'road' } | null;
+
+/** Queue chip: used slots and the running timer. */
+function QueueChip({ onClick }: { onClick: () => void }) {
+  const { live, now } = useGame();
+  const maxQueue = useRules().queues.build;
+  const jobs = live.buildQueue;
+  const first = jobs[0];
+  return (
+    <button type="button" className="vv-queuechip" onClick={onClick} aria-label={`Construction queue, ${jobs.length} of ${maxQueue} slots used`}>
+      <Icon name="queue" size={22} />
+      <span>
+        {jobs.length}/{maxQueue}
+      </span>
+      {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
+    </button>
+  );
+}
+
+/** "On the road" chip: only while some of my own troops or shipments are travelling. */
+function RoadChip({ onClick }: { onClick: () => void }) {
+  const { movements, now } = useGame();
+  const n = outgoingOnTheRoad(movements, now).length;
+  if (n === 0) return null;
+  return (
+    <button type="button" className="vv-queuechip vv-roadchip" onClick={onClick} aria-label={`${n} of my armies on the road. Open details.`}>
+      <Icon name="send" size={22} />
+      <span>{n} on the road</span>
+    </button>
+  );
+}
+
+/** Notices that float under the HUD: abandoned villages, a cold hearth, the design preview bar. */
+function Notices({ compact, preview }: { compact: boolean; preview: boolean }) {
+  return (
+    <div className="vv-notices">
+      <AbandonedNotice />
+      <HearthNotice compact={compact} />
+      {preview && <DesignPreviewBar inline />}
+    </div>
+  );
+}
+
+function PanelContent({ panel, busy, build, setPanel, headingId, compact }: { panel: NonNullable<Panel>; busy: boolean; build: (id: BuildingId) => void; setPanel: (p: Panel) => void; headingId: string; compact: boolean }) {
+  const pickBuilding = (id: BuildingId) => setPanel({ kind: 'building', id });
+  switch (panel.kind) {
+    case 'building':
+      return (
+        <>
+          <BuildingPanel id={panel.id} busy={busy} onBuild={build} headingId={headingId} onPick={pickBuilding} />
+          <Advisor id={panel.id} compact={compact} />
+        </>
+      );
+    case 'queue':
+      return <BuildQueue onPick={pickBuilding} />;
+    case 'renown':
+      return <RenownCard />;
+    case 'steps':
+      return <FirstStepsCard sheet={compact} onShowBuilding={pickBuilding} />;
+    case 'road':
+      return <MovementsSummary outgoingOnly />;
+  }
+}
+
+function panelTitle(panel: Panel): string {
+  if (!panel) return '';
+  return panel.kind === 'building' ? BUILDINGS[panel.id].name : panel.kind === 'renown' ? 'Renown' : panel.kind === 'steps' ? 'First steps' : panel.kind === 'road' ? 'On the road' : 'Construction queue';
+}
+
 function DesktopVillage() {
   const { village, player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
-  const [selected, setSelected] = useState<BuildingId | null>('hall');
+  const [panel, setPanel] = useState<Panel>(null);
   const { busy, build } = useBuild();
+  const selected = panel?.kind === 'building' ? panel.id : null;
   useEffect(() => {
-    if (!selected) return;
+    if (!panel) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelected(null);
+      if (e.key === 'Escape') setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selected]);
+  }, [panel]);
   return (
     <div className="vv vv-desktop">
-      <section className="vv-board" aria-labelledby="vv-title">
-        <div className="vv-board-head">
-          <h1 id="vv-title" className="vv-title">
-            {village.name}
-          </h1>
-          <div className="vv-sub">
-            {formatCoords(village.x, village.y)}
-            {player.tribe ? ` · ${player.tribe.name} [${player.tribe.tag}]` : ''}
-          </div>
-          {preview && <DesignPreviewBar />}
-        </div>
-        <RenownBadge />
-        <VillageScene mode="fit" selected={selected} onSelect={setSelected} levelOverride={preview ? dp : null} />
-        <Production />
+      <section className="vv-board" aria-label={`${village.name}, village`}>
+        <h1 className="visually-hidden">{village.name}</h1>
+        <VillageScene mode="fit" selected={selected} onSelect={(id) => setPanel({ kind: 'building', id })} levelOverride={preview ? dp : null} />
       </section>
-      <aside className="vv-side" aria-label="Village details">
-        <MovementsSummary />
-        <FirstStepsCard onShowBuilding={setSelected} />
-        {selected ? (
-          <>
-            <button type="button" className="btn btn-small vv-side-close" onClick={() => setSelected(null)} aria-label="Close building details">
-              <Icon name="close" size={16} /> Close
-            </button>
-            <BuildingPanel id={selected} busy={busy} onBuild={build} headingId="bpanel-title" onPick={setSelected} />
-          </>
-        ) : (
-          <p className="muted vv-side-hint">Pick a building</p>
-        )}
-        <BuildQueue onPick={setSelected} />
-        <RenownCard />
-        {selected && <Advisor id={selected} />}
-      </aside>
+      <Notices compact={false} preview={preview} />
+      <div className="vv-chips vv-chips-left">
+        <FirstStepsChip onOpen={() => setPanel({ kind: 'steps' })} />
+      </div>
+      <div className={`vv-chips vv-chips-right${panel ? ' has-sheet' : ''}`}>
+        <RoadChip onClick={() => setPanel({ kind: 'road' })} />
+        <QueueChip onClick={() => setPanel({ kind: 'queue' })} />
+        <RenownChip onClick={() => setPanel({ kind: 'renown' })} />
+      </div>
+      {panel && (
+        <aside className="hud-sheet vv-dsheet" aria-label={panelTitle(panel)}>
+          <button type="button" className="hud-x vv-dsheet-x" onClick={() => setPanel(null)} aria-label="Close details">
+            <Icon name="close" size={20} />
+          </button>
+          <PanelContent panel={panel} busy={busy} build={build} setPanel={setPanel} headingId="bpanel-title" compact={false} />
+        </aside>
+      )}
     </div>
   );
 }
 
 function PhoneVillage() {
-  const { village, live, now, player } = useGame();
-  const maxQueue = useRules().queues.build;
+  const { player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
-  const [sheet, setSheet] = useState<{ kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 'renown' } | { kind: 'steps' } | null>(null);
+  const [sheet, setSheet] = useState<Panel>(null);
   const [panned, setPanned] = useState(false);
   const [sheetH, setSheetH] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
+  const dock = useDockSpace();
   const { busy, build } = useBuild();
 
   useLayoutEffect(() => {
@@ -121,55 +181,39 @@ function PhoneVillage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [sheet]);
 
-  const jobs = live.buildQueue;
-  const first = jobs[0];
   const selected = sheet?.kind === 'building' ? sheet.id : null;
-  const sheetTitle = sheet?.kind === 'building' ? BUILDINGS[sheet.id].name : sheet?.kind === 'renown' ? 'Renown' : sheet?.kind === 'steps' ? 'First steps' : 'Construction queue';
+  const sheetTitle = panelTitle(sheet);
 
   return (
     <div className="vv vv-phone">
-      <FirstStepsBar onOpen={() => setSheet({ kind: 'steps' })} />
       <div className="vv-phone-main">
+        <h1 className="visually-hidden">Village</h1>
         <VillageScene
           mode="pan"
           levelOverride={preview ? dp : null}
           selected={selected}
           onSelect={(id) => setSheet({ kind: 'building', id })}
-          bottomInset={sheetH}
+          bottomInset={dock + sheetH}
           onPanned={() => setPanned(true)}
         />
-        <div className={`vv-namepill${sheet ? ' is-hidden' : ''}`}>
-          <Icon name="flame" size={18} />
-          <h1 className="vv-namepill-name">{village.name}</h1>
-          <span className="vv-namepill-xy">{formatCoords(village.x, village.y)}</span>
-        </div>
-        {!sheet && (
-          <div className="vv-moves-float">
-            <MovementsSummary compact />
-          </div>
-        )}
+        <Notices compact preview={preview} />
         {!panned && !sheet && (
           <div className="vv-draghint" aria-hidden="true">
             <Icon name="drag" size={22} />
           </div>
         )}
         {!sheet && (
-          <button
-            type="button"
-            className="vv-queuechip"
-            onClick={() => setSheet({ kind: 'queue' })}
-            aria-label={`Construction queue, ${jobs.length} of ${maxQueue} slots used`}
-          >
-            <Icon name="queue" size={20} />
-            <span>
-              {jobs.length}/{maxQueue}
-            </span>
-            {first && now >= first.startAt && <strong>{formatDuration(first.finishAt - now)}</strong>}
-          </button>
+          <div className="vv-chips vv-chips-phone">
+            <FirstStepsChip onOpen={() => setSheet({ kind: 'steps' })} />
+            <div className="vv-chips-phone-right">
+              <RoadChip onClick={() => setSheet({ kind: 'road' })} />
+              <QueueChip onClick={() => setSheet({ kind: 'queue' })} />
+              <RenownChip onClick={() => setSheet({ kind: 'renown' })} />
+            </div>
+          </div>
         )}
-        {!sheet && <RenownChip onClick={() => setSheet({ kind: 'renown' })} />}
         {sheet && (
-          <div className="vv-sheet dark" ref={sheetRef} role="dialog" aria-modal="false" aria-label={sheetTitle}>
+          <div className="vv-sheet" ref={sheetRef} role="dialog" aria-modal="false" aria-label={sheetTitle}>
             <div className="vv-sheet-top" tabIndex={-1} ref={headRef}>
               <span className="vv-grip" aria-hidden="true" />
               <button type="button" className="vv-sheet-close" onClick={() => setSheet(null)} aria-label="Close">
@@ -177,24 +221,11 @@ function PhoneVillage() {
               </button>
             </div>
             <div className="vv-sheet-body">
-              {sheet.kind === 'building' ? (
-                <>
-                  <BuildingPanel id={sheet.id} busy={busy} onBuild={build} headingId="sheet-title" onPick={(b) => setSheet({ kind: 'building', id: b })} />
-                  <Advisor id={sheet.id} compact />
-                </>
-              ) : sheet.kind === 'renown' ? (
-                <RenownCard />
-              ) : sheet.kind === 'steps' ? (
-                <FirstStepsCard sheet onShowBuilding={(id) => setSheet({ kind: 'building', id })} />
-              ) : (
-                <BuildQueue onPick={(id) => setSheet({ kind: 'building', id })} />
-              )}
+              <PanelContent panel={sheet} busy={busy} build={build} setPanel={setSheet} headingId="sheet-title" compact />
             </div>
           </div>
         )}
       </div>
-      {/* In its own strip under the scene (not floating), so it never covers the village. */}
-      {preview && <DesignPreviewBar inline />}
     </div>
   );
 }
@@ -215,11 +246,11 @@ function AbandonedNotice() {
       .finally(() => setBusy(false));
   };
   return (
-    <div className="notice notice-block" role="status" style={{ margin: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="notice notice-block vv-abandoned" role="status">
       <div>
         Away {days}: {n.villages === 1 ? '1 village' : `${n.villages} villages`} abandoned. You get a new village with beginner protection.
       </div>
-      <button className="btn btn-primary" style={{ minHeight: 40, alignSelf: 'flex-start' }} onClick={dismiss} disabled={busy}>
+      <button className="btn btn-primary vv-abandoned-btn" onClick={dismiss} disabled={busy}>
         Got it
       </button>
     </div>
@@ -239,11 +270,5 @@ function HearthNotice({ compact }: { compact: boolean }) {
 
 export function VillageView() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  return (
-    <>
-      <AbandonedNotice />
-      <HearthNotice compact={!desktop} />
-      {desktop ? <DesktopVillage /> : <PhoneVillage />}
-    </>
-  );
+  return desktop ? <DesktopVillage /> : <PhoneVillage />;
 }

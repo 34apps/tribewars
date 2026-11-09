@@ -19,7 +19,9 @@ import {
   lastAnnouncedKey,
   notificationBody,
   notificationTitle,
+  bellCounts,
   readLastAnnounced,
+  splitNotifications,
   requestBrowserAlerts,
   shownNotifications,
   showBrowserAlert,
@@ -210,26 +212,45 @@ test('the bell shows an unread badge, red for attacks, and nothing when all is r
   assert.equal(text(calm).trim(), '99+');
 });
 
-test('the list shows kind, from and to, send and arrival, a Show button, and no unit list', () => {
+test('the list splits into On the way and Earlier: one button row each, name and coordinates, countdown or ago, no Sent/Arrived lines', () => {
   const items = [
     note(3, { kind: 'incoming_support', origin: { villageId: 8, name: 'Pine Ford', ownerName: 'Isla', x: 1, y: 2 } }),
     note(2),
-    note(1, { kind: 'incoming_resources', read: true, arriveAt: NOW - 120_000 }),
+    note(1, { kind: 'incoming_resources', read: true, arriveAt: NOW - 4 * 3_600_000, origin: { villageId: 9, name: 'Mill', ownerName: null, x: -4, y: 21 } }),
   ];
   const html = renderToString(createElement(NotificationList, { items, now: NOW, onOpen: () => {} }));
   const plain = text(html);
-  assert.match(plain, /Incoming support/);
-  assert.match(plain, /Incoming attack/);
-  assert.match(plain, /Incoming resources/);
-  assert.match(plain, /from Isla, Pine Ford \( ?1\|2 ?\) to Home/);
-  assert.match(plain, /from Brann, Oak Hollow \( ?12\|34 ?\) to Home/);
+  assert.ok(plain.indexOf('On the way') < plain.indexOf('Earlier'), 'sections in order');
+  assert.match(plain, /Isla \( ?1\|2 ?\)/);
+  assert.match(plain, /Brann \( ?12\|34 ?\)/);
+  assert.match(plain, /Mill \( ?-4\|21 ?\)/, 'village name when there is no owner');
   assert.match(plain, /1:00:00/, 'live countdown');
-  assert.match(plain, /Arrives /);
-  assert.match(plain, /arrived/);
-  assert.equal((html.match(/>Show</g) ?? []).length, 3);
-  assert.ok(html.indexOf('Pine Ford') < html.indexOf('Oak Hollow'), 'newest first');
+  assert.match(plain, /4h ago/);
+  assert.ok(!/Sent |Arrives |Arrived |>Show</.test(plain), 'no Sent/Arrived lines, no per-row Show button');
+  assert.equal((html.match(/<button /g) ?? []).length, 3, 'one button per row');
+  assert.ok(!/ to Home/.test(plain), 'no target village when the player has one village');
   assert.ok(!/pikeman|logram|boulder|troops|units|army size/i.test(plain), 'never any unit list');
-  assert.match(html, /notif is-unread is-attack/);
+  assert.match(html, /nrow is-attack is-unread/);
+  assert.match(html, /nrow is-calm is-unread/);
+  assert.match(html, /nrow is-past/);
+  const several = text(renderToString(createElement(NotificationList, { items, now: NOW, onOpen: () => {}, multiVillage: true })));
+  assert.match(several, /Brann \( ?12\|34 ?\) to Home/, 'target village with several villages');
+});
+
+test('On the way is soonest first, Earlier newest first; the bell counts only unread rows still on the way', () => {
+  const items = [
+    note(1, { arriveAt: NOW + 600_000 }),
+    note(2, { arriveAt: NOW + 60_000, kind: 'incoming_support' }),
+    note(3, { arriveAt: NOW - 1000, read: false }),
+    note(4, { arriveAt: NOW + 120_000, read: true }),
+    note(5, { arriveAt: NOW - 9_000_000 }),
+  ];
+  const s = splitNotifications(items, NOW);
+  assert.deepEqual(s.onTheWay.map((n) => n.id), [2, 4, 1]);
+  assert.deepEqual(s.earlier.map((n) => n.id), [5, 3]);
+  assert.deepEqual(bellCounts(items, NOW), { count: 2, danger: true });
+  assert.deepEqual(bellCounts([note(2, { arriveAt: NOW + 60_000, kind: 'incoming_support' })], NOW), { count: 1, danger: false });
+  assert.deepEqual(bellCounts([note(3, { arriveAt: NOW - 1000 })], NOW), { count: 0, danger: false });
 });
 
 test('the list is capped at the newest 20 and says so; empty shows a calm line', () => {
@@ -237,14 +258,15 @@ test('the list is capped at the newest 20 and says so; empty shows a calm line',
   assert.equal(shownNotifications(many).length, NOTIFICATIONS_SHOWN);
   assert.equal(shownNotifications(many)[0].id, 35);
   const html = renderToString(createElement(NotificationList, { items: many, now: NOW, onOpen: () => {} }));
-  assert.equal((html.match(/<li /g) ?? []).length, NOTIFICATIONS_SHOWN);
+  assert.equal((html.match(/<li>/g) ?? []).length, NOTIFICATIONS_SHOWN);
   assert.match(text(html), /Showing the newest 20 of 35/);
   assert.match(text(renderToString(createElement(NotificationList, { items: [], now: NOW, onOpen: () => {} }))), /No warnings yet/);
 });
 
 test('"Turn on browser alerts" shows only while the browser can still be asked', () => {
   const box = (state: 'unsupported' | 'default' | 'granted' | 'denied') => renderToString(createElement(BrowserAlertsBox, { state, onEnable: () => {} }));
-  assert.match(box('default'), /<button[^>]*>Turn on browser alerts<\/button>/);
+  assert.match(box('default'), /<button[^>]*aria-label="Turn on browser alerts"[^>]*>Turn on<\/button>/);
+  assert.match(text(box('default')), /Browser alerts off . Turn on/);
   for (const s of ['unsupported', 'granted', 'denied'] as const) assert.ok(!box(s).includes('<button'), s);
   assert.match(text(box('unsupported')), /cannot show alerts/);
   assert.match(text(box('denied')), /blocked/);

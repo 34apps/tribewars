@@ -1,12 +1,12 @@
-// Village switcher (docs/GAME_DESIGN.md 18.2, step 2): a slim bar under the top bar names the current village; tapping it opens
+// Village switcher (docs/GAME_DESIGN.md 18.2, step 2): the village pill in the HUD names the current village; tapping it opens
 // the list of all my villages (name, coordinates, points, hearth, incoming attack, protection, stock). Choosing one makes it the
-// current village everywhere. Hidden while there is only one village (then Rename lives in the account menu).
+// current village everywhere. With only one village the pill is a plain label (Rename lives in the account menu).
 
 import { useEffect, useRef, useState } from 'react';
 import { RESOURCE_IDS } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
-import { formatCompact, formatInt } from '../format.ts';
+import { formatCompact, formatCoords, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { orderVillages, renameProblem, villageBadges, villageLabel } from '../villages.ts';
@@ -90,7 +90,16 @@ export function VillageBar() {
     };
   }, [open]);
 
-  if (villages.length < 2) return null;
+  // One village: a plain name pill (no list to open). Several: the same pill opens the switcher.
+  if (villages.length < 2) {
+    return (
+      <div className="hud-pill hud-village is-static">
+        <Icon name="flame" size={28} />
+        <span className="hud-village-name">{village.name}</span>
+        <span className="hud-village-xy">{formatCoords(village.x, village.y)}</span>
+      </div>
+    );
+  }
 
   // Rows come from GET /api/villages; until it arrives the state response gives names and coordinates.
   const rows = orderVillages(
@@ -114,25 +123,25 @@ export function VillageBar() {
   const currentBadges = current ? villageBadges(current, now) : [];
 
   return (
-    <div className="vbar-wrap" ref={ref}>
+    <div className="hud-village-wrap" ref={ref}>
       <button
         type="button"
-        className={`vbar${village.hearth ? ' is-cold' : ''}`}
+        className={`hud-pill hud-village${village.hearth ? ' is-cold' : ''}`}
         aria-expanded={open}
         aria-haspopup="true"
         aria-label={`${villageLabel(village)}, ${villages.length} villages. Switch village`}
         onClick={() => setOpen((o) => !o)}
       >
-        <Icon name="village" size={22} />
-        <span className="vbar-name">{village.name}</span>
-        <span className="vbar-coords">({village.x}|{village.y})</span>
+        <Icon name="flame" size={28} />
+        <span className="hud-village-name">{village.name}</span>
+        <span className="hud-village-xy">{formatCoords(village.x, village.y)}</span>
         {currentBadges.map((b) => (
-          <span key={b.kind} className={`tag ${BADGE_TAG[b.kind]} vbar-tag`}>
+          <span key={b.kind} className={`tag ${BADGE_TAG[b.kind]} hud-village-tag`}>
             {b.text}
           </span>
         ))}
-        {attacked > 0 && <span className="tag tag-bad vbar-tag">{attacked === 1 ? '1 other attacked' : `${attacked} others attacked`}</span>}
-        <span className="vbar-chev" aria-hidden="true">
+        {attacked > 0 && <span className="tag tag-bad hud-village-tag">{attacked === 1 ? '1 other attacked' : `${attacked} others attacked`}</span>}
+        <span className="hud-village-chev" aria-hidden="true">
           {open ? '▴' : '▾'}
         </span>
       </button>

@@ -22,6 +22,28 @@ export function shownNotifications(list: readonly NotificationDto[]): Notificati
   return [...list].sort((a, b) => b.id - a.id).slice(0, NOTIFICATIONS_SHOWN);
 }
 
+export interface NotificationSections {
+  /** Still travelling (arriveAt in the future), soonest first. */
+  onTheWay: NotificationDto[];
+  /** Already arrived, newest first. */
+  earlier: NotificationDto[];
+}
+
+/** The shown rows split into "On the way" and "Earlier" (docs/GAME_DESIGN.md 18.10). */
+export function splitNotifications(list: readonly NotificationDto[], now: number): NotificationSections {
+  const shown = shownNotifications(list);
+  return {
+    onTheWay: shown.filter((n) => n.arriveAt > now).sort((a, b) => a.arriveAt - b.arriveAt),
+    earlier: shown.filter((n) => n.arriveAt <= now),
+  };
+}
+
+/** What the bell counts: unread rows still on the way (arrived rows never keep the bell lit). Red when one of them is an attack. */
+export function bellCounts(list: readonly NotificationDto[], now: number): { count: number; danger: boolean } {
+  const open = list.filter((n) => !n.read && n.arriveAt > now);
+  return { count: open.length, danger: open.some((n) => n.kind === 'incoming_attack') };
+}
+
 /** "14:05" in the player's locale. */
 export function arrivalClock(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

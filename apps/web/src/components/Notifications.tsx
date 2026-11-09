@@ -1,24 +1,26 @@
-// Bell + notification sheet (docs/GAME_DESIGN.md 18.10): who sent what to which of my villages, when it left and when it lands.
-// Never a unit list (the API has none). On phones the dialog is a full-width sheet at the top, on desktop a panel under the bell.
+// Bell + alerts sheet (docs/GAME_DESIGN.md 18.10): who is coming, from where, and when it lands. Never a unit list (the API has none).
+// The sheet is not a modal: no scrim, the village stays bright. Desktop: a cream sheet floating at the right that grows with its rows
+// (the page scrolls, no inner scrollbar). Phone: a bottom sheet with a grab handle.
 
 import { useEffect, useRef, useState } from 'react';
 import type { NotificationDto } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
-import { formatAgo, formatClock, formatCoords, formatDuration } from '../format.ts';
+import type { IconName } from '../art/Icon.tsx';
+import { formatAgo, formatCoords, formatDuration } from '../format.ts';
 import { useGame } from '../game.ts';
 import type { NotificationsStore } from '../hooks/useNotifications.ts';
-import { NOTIFICATIONS_SHOWN, NOTIFICATION_LABEL, shownNotifications } from '../notifications.ts';
+import { NOTIFICATIONS_SHOWN, NOTIFICATION_LABEL, splitNotifications } from '../notifications.ts';
 import type { BrowserAlertState } from '../notifications.ts';
 
-const KIND_TAG: Record<NotificationDto['kind'], string> = { incoming_attack: 'tag-bad', incoming_support: 'tag-ok', incoming_resources: 'tag-ok' };
+const KIND_ICON: Record<NotificationDto['kind'], IconName> = { incoming_attack: 'warning', incoming_support: 'support', incoming_resources: 'chest' };
 
-/** The bell button with its unread badge (red while an unread attack is in the list). */
-export function NotificationBell({ unread, danger, onClick, compact }: { unread: number; danger: boolean; onClick: () => void; compact?: boolean }) {
+/** The round bell button with its badge (red while an unread attack is still on the way). `unread` counts only rows still on the way. */
+export function NotificationBell({ unread, danger, onClick, compact, open }: { unread: number; danger: boolean; onClick: () => void; compact?: boolean; open?: boolean }) {
   const label = unread > 0 ? `Notifications, ${unread} unread` : 'Notifications';
   return (
-    <button type="button" className={`bell${compact ? ' bell-compact' : ''}`} aria-label={label} title="Notifications" onClick={onClick}>
+    <button type="button" className={`bell${compact ? ' bell-compact' : ''}${open ? ' is-open' : ''}`} aria-label={label} aria-expanded={open ?? undefined} title="Notifications" onClick={onClick}>
       <span className="bell-token" aria-hidden="true">
-        <Icon name="bell" size={compact ? 22 : 24} />
+        <Icon name="bell" size={compact ? 22 : 26} />
       </span>
       {unread > 0 && (
         <span className={`badge${danger ? ' badge-danger' : ''}`} aria-hidden="true">
@@ -29,85 +31,104 @@ export function NotificationBell({ unread, danger, onClick, compact }: { unread:
   );
 }
 
-/** "Turn on browser alerts" and what each browser state means. The permission prompt only ever comes from this button. */
+/** "Browser alerts off · Turn on" and what each browser state means. The permission prompt only ever comes from this button. */
 export function BrowserAlertsBox({ state, onEnable }: { state: BrowserAlertState; onEnable: () => void }) {
   return (
     <div className="notif-alerts">
       {state === 'default' && (
-        <>
-          <button type="button" className="btn btn-small" onClick={onEnable}>
-            Turn on browser alerts
+        <p>
+          Browser alerts off <span aria-hidden="true">·</span>{' '}
+          <button type="button" className="notif-link" aria-label="Turn on browser alerts" onClick={onEnable}>
+            Turn on
           </button>
-        </>
+        </p>
       )}
-      {state === 'granted' && <p className="muted">Browser alerts are on.</p>}
-      {state === 'denied' && <p className="muted" title="Allow notifications for this site in your browser settings.">Browser alerts blocked.</p>}
-      {state === 'unsupported' && <p className="muted">This browser cannot show alerts.</p>}
+      {state === 'granted' && <p>Browser alerts are on.</p>}
+      {state === 'denied' && <p title="Allow notifications for this site in your browser settings.">Browser alerts blocked.</p>}
+      {state === 'unsupported' && <p>This browser cannot show alerts.</p>}
     </div>
   );
 }
 
-function NotificationRow({ n, now, onOpen }: { n: NotificationDto; now: number; onOpen: (n: NotificationDto) => void }) {
+function NotificationRow({ n, now, multiVillage, onOpen }: { n: NotificationDto; now: number; multiVillage: boolean; onOpen: (n: NotificationDto) => void }) {
   const left = n.arriveAt - now;
-  const owner = n.origin.ownerName ? `${n.origin.ownerName}, ` : '';
+  const onWay = left > 0;
+  const who = n.origin.ownerName || n.origin.name;
+  const coords = formatCoords(n.origin.x, n.origin.y);
+  const when = onWay ? formatDuration(left) : formatAgo(n.arriveAt, now);
+  const tone = onWay ? (n.kind === 'incoming_attack' ? 'is-attack' : 'is-calm') : 'is-past';
+  const label = `${NOTIFICATION_LABEL[n.kind]} from ${who} (${coords})${multiVillage ? ` to ${n.target.name}` : ''}, ${onWay ? `arrives in ${when}` : `arrived ${when}`}. Show`;
   return (
-    <li className={`notif${n.read ? '' : ' is-unread'}${n.kind === 'incoming_attack' ? ' is-attack' : ''}`}>
-      <div className="notif-head">
-        <span className={`tag ${KIND_TAG[n.kind]}`}>{NOTIFICATION_LABEL[n.kind]}</span>
-        <span className="notif-time">
-          <strong>{left > 0 ? formatDuration(left) : 'arrived'}</strong>
+    <li>
+      <button type="button" className={`nrow ${tone}${n.read ? '' : ' is-unread'}`} aria-label={label} onClick={() => onOpen(n)}>
+        <span className="nrow-ico" aria-hidden="true">
+          <Icon name={KIND_ICON[n.kind]} size={22} />
         </span>
-      </div>
-      <p className="notif-line">
-        from {owner}
-        <strong>{n.origin.name}</strong> ({formatCoords(n.origin.x, n.origin.y)}) to <strong>{n.target.name}</strong>
-      </p>
-      <div className="notif-foot">
-        <span>
-          Sent {formatClock(n.departAt, now)}
-          <br />
-          {left > 0 ? `Arrives ${formatClock(n.arriveAt, now)}` : `Arrived ${formatAgo(n.arriveAt, now)}`}
+        <span className="nrow-who" aria-hidden="true">
+          <strong>{who}</strong> <span className="nrow-xy">({coords})</span>
+          {multiVillage && <span className="nrow-to"> to {n.target.name}</span>}
         </span>
-        <button type="button" className="btn btn-small" onClick={() => onOpen(n)}>
-          Show
-        </button>
-      </div>
+        <span className="nrow-time" aria-hidden="true">
+          {when}
+        </span>
+        <svg className="nrow-chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </li>
   );
 }
 
-/** The list itself (newest rows only). Presentational: the dialog feeds it. */
-export function NotificationList({ items, now, onOpen }: { items: readonly NotificationDto[]; now: number; onOpen: (n: NotificationDto) => void }) {
-  const shown = shownNotifications(items);
-  if (shown.length === 0) {
+/** The list itself (newest rows only), split into "On the way" and "Earlier". Presentational: the sheet feeds it. */
+export function NotificationList({ items, now, onOpen, multiVillage = false }: { items: readonly NotificationDto[]; now: number; onOpen: (n: NotificationDto) => void; multiVillage?: boolean }) {
+  const { onTheWay, earlier } = splitNotifications(items, now);
+  if (onTheWay.length + earlier.length === 0) {
     return <p className="muted">No warnings yet.</p>;
   }
+  const section = (title: string, rows: NotificationDto[]) =>
+    rows.length > 0 && (
+      <section className="notif-section" aria-label={title}>
+        <h3 className="notif-label">{title}</h3>
+        <ul className="notif-list">
+          {rows.map((n) => (
+            <NotificationRow key={n.id} n={n} now={now} multiVillage={multiVillage} onOpen={onOpen} />
+          ))}
+        </ul>
+      </section>
+    );
   return (
     <>
-      <ul className="notif-list" aria-label="Notifications">
-        {shown.map((n) => (
-          <NotificationRow key={n.id} n={n} now={now} onOpen={onOpen} />
-        ))}
-      </ul>
+      {section('On the way', onTheWay)}
+      {section('Earlier', earlier)}
       {items.length > NOTIFICATIONS_SHOWN && <p className="muted">Showing the newest {NOTIFICATIONS_SHOWN} of {items.length}.</p>}
     </>
   );
 }
 
-export default function NotificationsDialog({ store, onClose }: { store: NotificationsStore; onClose: () => void }) {
+export default function NotificationsSheet({ store, onClose }: { store: NotificationsStore; onClose: () => void }) {
   const { now, village, villages, selectVillage, viewMovement } = useGame();
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const dlg = ref.current;
-    if (!dlg) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (!dlg.open) dlg.showModal();
-    return () => {
-      if (dlg.open) dlg.close();
-      previous?.focus?.();
+    ref.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
     };
+    // Outside tap closes; a tap on the bell is the bell's own toggle.
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (ref.current && t && !ref.current.contains(t) && !t.closest('.bell')) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+      previous?.focus?.({ preventScroll: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function open(n: NotificationDto) {
@@ -124,31 +145,21 @@ export default function NotificationsDialog({ store, onClose }: { store: Notific
   }
 
   return (
-    <dialog
-      ref={ref}
-      className="confirm notif-dialog"
-      aria-labelledby="notif-dialog-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === ref.current) onClose();
-      }}
-    >
-      <h2 id="notif-dialog-title" className="card-title">
-        Notifications{store.unread > 0 ? ` (${store.unread} unread)` : ''}
-      </h2>
-      <BrowserAlertsBox state={store.alerts} onEnable={() => void store.enableAlerts()} />
-      <NotificationList items={store.items} now={now} onOpen={open} />
-      <div className="confirm-actions">
-        <button type="button" className="btn" disabled={busy || store.unread === 0} onClick={() => void markAll()}>
+    <div ref={ref} className="hud-sheet notif-sheet" role="dialog" aria-modal="false" aria-labelledby="notif-sheet-title" tabIndex={-1}>
+      <span className="hud-grip" aria-hidden="true" />
+      <div className="notif-head">
+        <h2 id="notif-sheet-title" className="notif-title">
+          Alerts
+        </h2>
+        <button type="button" className="notif-link" disabled={busy || store.unread === 0} onClick={() => void markAll()}>
           Mark all read
         </button>
-        <button type="button" className="btn" onClick={onClose}>
-          Close
+        <button type="button" className="hud-x" onClick={onClose} aria-label="Close alerts">
+          <Icon name="close" size={20} />
         </button>
       </div>
-    </dialog>
+      <NotificationList items={store.items} now={now} onOpen={open} multiVillage={villages.length > 1} />
+      <BrowserAlertsBox state={store.alerts} onEnable={() => void store.enableAlerts()} />
+    </div>
   );
 }

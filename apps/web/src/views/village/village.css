@@ -39,56 +39,6 @@ th[scope='row'] {
   display: flex;
 }
 
-.vv-desktop {
-  gap: 16px;
-  padding: 14px 16px 16px;
-}
-
-.vv-board {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  border-radius: 22px;
-  background-color: var(--surface-2);
-  box-shadow:
-    inset 0 0 0 3px var(--c-ink),
-    inset 0 6px 0 var(--edge);
-  overflow: hidden;
-}
-
-.vv-board-head {
-  position: absolute;
-  left: 22px;
-  top: 18px;
-  z-index: 3;
-  /* Leaves room for the Renown badge in the opposite corner. */
-  max-width: calc(100% - 44px - 210px);
-  /* Same toy panel as the phone name pill, so the name stays readable over the busy map-tile landscape. */
-  padding: 10px 16px 9px;
-  border: 2.5px solid var(--c-ink);
-  border-radius: 16px;
-  background: var(--c-sun);
-  box-shadow: 0 3px 0 var(--c-ink);
-  pointer-events: none;
-}
-
-.vv-title {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 30px;
-  line-height: 1;
-  color: var(--on-fill);
-}
-
-.vv-sub {
-  margin-top: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--on-fill);
-}
-
 .vv-legend {
   position: absolute;
   right: 20px;
@@ -117,42 +67,6 @@ th[scope='row'] {
   height: 26px;
   border: 0;
   box-shadow: none;
-}
-
-.vv-side {
-  flex: none;
-  width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 0;
-  padding-bottom: 6px;
-}
-
-/* Desktop: no scrollbar inside the side panel. The whole village page scrolls instead
-   (.main-village below), and the board stretches to the panel's height. */
-.main-village:has(.vv-desktop) {
-  overflow-y: auto;
-  overflow-x: hidden;
-  container-type: size;
-}
-
-.vv-desktop {
-  flex: none;
-  min-height: 100%;
-  align-items: flex-start;
-}
-
-/* The board keeps exactly one screen of height and stays in view while the panel scrolls. */
-.vv-desktop > .vv-board {
-  position: sticky;
-  top: 14px;
-  flex: 1;
-  height: calc(100cqh - 30px);
-}
-
-.vv-side > * {
-  min-width: 0;
 }
 
 /* ---- Scene ---- */
@@ -1003,45 +917,7 @@ th[scope='row'] {
   display: inline;
 }
 
-.vv-namepill {
-  position: absolute;
-  left: 10px;
-  top: 8px;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: calc(100% - 20px);
-  padding: 4px 12px 4px 6px;
-  border: 2.5px solid var(--c-ink);
-  border-radius: 999px;
-  background: var(--c-sun);
-  box-shadow: 0 3px 0 var(--c-ink);
-  pointer-events: none;
-}
-
 /* While a building's sheet is open the sheet names it; the pill would cover the selected building's label (owner, iPhone). */
-.vv-namepill.is-hidden {
-  visibility: hidden;
-}
-
-.vv-namepill-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 15px;
-  color: var(--on-fill);
-}
-
-.vv-namepill-xy {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--on-fill);
-  white-space: nowrap;
-}
-
 .vv-draghint {
   position: absolute;
   right: 10px;
@@ -1387,12 +1263,6 @@ th[scope='row'] {
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .vv-side {
-    width: 360px;
-  }
-}
-
 /* Scene life: chimney smoke, walking workers, mine carts. Decoration only, never clickable. */
 .vv-life {
   pointer-events: none;
@@ -1527,7 +1397,7 @@ th[scope='row'] {
   }
 }
 
-/* Armies on the road (village summary) and the desktop side-panel close button. */
+/* Armies on the road (the "On the road" sheet). */
 .vv-moves {
   display: flex;
   flex-direction: column;
@@ -1568,56 +1438,7 @@ th[scope='row'] {
   font-variant-numeric: tabular-nums;
 }
 
-.vv-moves-float {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 58px;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.vv-side-close {
-  align-self: flex-end;
-}
-
 /* ---- Renown: board badge (desktop), chip (phone), card ---- */
-.vv-renown-badge {
-  position: absolute;
-  right: 20px;
-  top: 18px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 200px;
-  padding: 6px 14px 6px 8px;
-  border: 2.5px solid var(--c-ink);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 3px 0 var(--c-ink);
-  color: var(--on-fill);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.vv-renown-badge-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.15;
-}
-
-.vv-renown-badge-text strong {
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-}
-
-.vv-renown-badge-next {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
 .vv-renownchip {
   position: absolute;
   right: 10px;
@@ -2325,48 +2146,3 @@ th[scope='row'] {
 }
 
 /* Phone bar: honey strip under the Attack / Protected strips, above the village. */
-.fs-bar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 0;
-  background: var(--bar);
-  color: var(--on-bar);
-  box-shadow: inset 0 -2px 0 var(--bar-line);
-}
-
-.fs-bar-main {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 48px;
-  padding: 2px 8px;
-  border: 0;
-  background: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.fs-bar-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 1.25;
-}
-
-.fs-bar-text strong {
-  font-size: 13px;
-}
-
-.fs-bar-next {
-  overflow: hidden;
-  color: var(--on-bar-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}

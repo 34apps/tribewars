@@ -2103,8 +2103,8 @@ army moves at its **slowest unit**, so a slow Chieftain or a Log Ram shows up in
 within the 2-minute window removes it again. API: `GET /api/notifications` (newest first, at most 100, unread count) and
 `POST /api/notifications/read` (all, or the given ids). The live hub sends the `notifications` topic. The notification carries the same
 fields as the movement above and never the units. The web client shows an in-game list (bell in the shell) and, **only after the
-player presses a button** ("Turn on browser alerts" in the notification list), a browser `Notification` for each new one while the page
-is open (it never asks for permission automatically). Native push comes with the mobile app, later.
+player presses a button** ("Turn on" next to "Browser alerts off" at the bottom of the alerts list), a browser `Notification` for each new one while the page
+is open (it never asks for permission automatically). Native push comes with the mobile app, later. The list (a non-modal sheet under the bell, "Game HUD" shell, 2026-11-09) splits into **On the way** (`arriveAt` still ahead, soonest first) and **Earlier** (newest first, one tappable row each), and the bell counts only **unread items still on the way** (red while one of them is an attack); the only attack warning on screen is one card (phone: one pill) under the HUD.
 
 ### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
 

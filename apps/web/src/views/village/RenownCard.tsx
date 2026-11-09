@@ -1,10 +1,10 @@
-// Renown in the village view: a compact readout (desktop badge on the board, phone chip under the scene) and the card with
+// Renown in the village view: a compact readout (a chip over the village art) and the card with
 // the numbers. Renown limits how many villages a player may own (docs/GAME_DESIGN.md section 18.2). Display only: the
 // server keeps the numbers.
 
 import { Icon } from '../../art/Icon.tsx';
 import { ProgressBar } from '../../components/ui.tsx';
-import { formatCompact, formatInt } from '../../format.ts';
+import { formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { renownProgress, renownToGo } from '../../renown.ts';
 
@@ -13,29 +13,15 @@ function summary(balance: number, next: number): string {
   return `Renown ${formatInt(balance)}. Next village costs ${formatInt(next)} Renown.`;
 }
 
-/** Desktop: a small pill in the corner of the board. Balance, and what the next village costs. Not interactive. */
-export function RenownBadge() {
-  const { renown } = useGame();
-  return (
-    <div className="vv-renown-badge" title={summary(renown.balance, renown.nextVillageCost)} role="group" aria-label={summary(renown.balance, renown.nextVillageCost)}>
-      <Icon name="renown" size={26} />
-      <span className="vv-renown-badge-text" aria-hidden="true">
-        <strong>{formatInt(renown.balance)}</strong> Renown
-        <span className="vv-renown-badge-next">next village: {formatInt(renown.nextVillageCost)}</span>
-      </span>
-    </div>
-  );
-}
-
-/** Phone: a chip (icon, balance / next village's price) that opens the card in the bottom sheet. 44 px tall. */
+/** A chip (icon, balance / next village's price) that opens the card in the sheet. 44 px tall. */
 export function RenownChip({ onClick }: { onClick: () => void }) {
   const { renown } = useGame();
   return (
     <button type="button" className="vv-renownchip" onClick={onClick} aria-label={`${summary(renown.balance, renown.nextVillageCost)} Open Renown details.`}>
       <Icon name="renown" size={22} />
       <span aria-hidden="true">
-        <strong>{formatCompact(renown.balance)}</strong>
-        <span className="vv-renownchip-next">/{formatCompact(renown.nextVillageCost)}</span>
+        <strong>{formatInt(renown.balance)}</strong>
+        <span className="vv-renownchip-next">/{formatInt(renown.nextVillageCost)}</span>
       </span>
     </button>
   );

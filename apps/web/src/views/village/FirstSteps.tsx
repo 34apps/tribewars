@@ -1,5 +1,5 @@
-// First steps (docs/GAME_DESIGN.md section 20): the starter-task card (desktop side column, phone bottom sheet) and the slim
-// phone bar. The server decides what is done and what a claim adds; this shows it and calls the two endpoints.
+// First steps (docs/GAME_DESIGN.md section 20): the starter-task card (desktop floating sheet, phone bottom sheet) and the
+// corner chip. The server decides what is done and what a claim adds; this shows it and calls the two endpoints.
 
 import { useState } from 'react';
 import type { BuildingId, FirstStepDto } from '@clanfire/engine';
@@ -141,31 +141,25 @@ export function FirstStepsCard({ onShowBuilding, sheet = false }: { onShowBuildi
   );
 }
 
-/** Phone: a slim bar under the strips and above the village. Tap opens the card; Claim takes the first waiting reward. */
-export function FirstStepsBar({ onOpen }: { onOpen: () => void }) {
-  const { firstSteps, busy, claim } = useFirstSteps(() => undefined);
+/** A gold chip in the bottom-left corner of the village: "Steps 5/8" (+ " · Claim" while a reward waits). Tap opens the card. */
+export function FirstStepsChip({ onOpen }: { onOpen: () => void }) {
+  const { firstSteps } = useGame();
   if (!firstStepsVisible(firstSteps)) return null;
   const total = firstSteps.steps.length;
   const done = doneCount(firstSteps);
   const next = nextOpenStep(firstSteps);
   const waiting = claimableSteps(firstSteps);
-  const line = next ? FIRST_STEP_LABEL[next.id] : `${done} done`;
   return (
-    <div className="fs-bar">
-      <button type="button" className="fs-bar-main" onClick={onOpen} aria-label={`First steps, ${done} of ${total} done. ${next ? `Next: ${line}.` : ''} Open details.`}>
-        <Mags size={30} className="fs-mags" />
-        <span className="fs-bar-text" aria-hidden="true">
-          <strong>
-            First steps {done} / {total}
-          </strong>
-          <span className="fs-bar-next">{next ? `Next: ${line}` : line}</span>
-        </span>
-      </button>
-      {waiting[0] && (
-        <button type="button" className="btn btn-primary btn-small fs-claim" onClick={() => claim(waiting[0]!)} disabled={busy !== null}>
-          {busy === waiting[0].id ? '...' : waiting.length > 1 ? `Claim (${waiting.length})` : 'Claim'}
-        </button>
-      )}
-    </div>
+    <button
+      type="button"
+      className="vv-stepschip"
+      onClick={onOpen}
+      aria-label={`First steps, ${done} of ${total} done. ${waiting.length > 0 ? `${waiting.length} to claim.` : next ? `Next: ${FIRST_STEP_LABEL[next.id]}.` : ''} Open details.`}
+    >
+      <span aria-hidden="true">
+        Steps {done}/{total}
+        {waiting.length > 0 ? ' · Claim' : ''}
+      </span>
+    </button>
   );
 }

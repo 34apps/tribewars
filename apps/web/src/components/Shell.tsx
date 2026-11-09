@@ -1,5 +1,8 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+// The in-game shell: a floating Game HUD (resources, village, bell, account) over every screen and a floating bottom dock.
+// Attack warnings live in ONE place (AlertCards); the bell opens a non-modal alerts sheet; phones get "More" for the rest.
+
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { RESOURCE_IDS, populationCap, populationUsage, productionPerHour, storageCap } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
@@ -11,15 +14,21 @@ import type { NavTab as Tab } from '../game.ts';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
+import { DESKTOP_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
-import NotificationsDialog, { NotificationBell } from './Notifications.tsx';
+import { bellCounts } from '../notifications.ts';
+import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
 const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
-/** "+3k/h" style rate for the narrow phone strip. */
+const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
+/** The five dock buttons on phones; Mail, Tribe and Ranks live in the More sheet there. */
+const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
+
+/** "+3k/h" style rate for the narrow phone chips. */
 function compactRate(perHour: number): string {
   const r = Math.round(perHour);
   const abs = Math.abs(r);
@@ -27,179 +36,281 @@ function compactRate(perHour: number): string {
   return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k/h`;
 }
 
-const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
+/** Population usage and its screen-reader text (shared by the HUD pill and the More sheet). */
+function usePopulation() {
+  const { live } = useGame();
+  const pop = populationUsage(live);
+  const cap = populationCap(live);
+  const ratio = cap > 0 ? pop.total / cap : 0;
+  const label = `Population ${formatInt(pop.total)} of ${formatInt(cap)}${ratio >= 0.9 ? (ratio >= 0.999 ? ' (full)' : ' (almost full)') : ''}`;
+  return { total: pop.total, cap, ratio, label };
+}
 
-/** Wood/food/iron/gold counters: amount/cap, rate, fill bar. `compact` (phone strip) hides cap and bar via CSS. */
+/** Wood/food/iron/gold: icon, compact amount and a small rate line. `compact` = the phone chips (no population; it lives in More). */
 function Resources({ compact }: { compact?: boolean }) {
   const { live, settings } = useGame();
   const cap = storageCap(live);
   const net = productionPerHour(live, settings);
-  const pop = populationUsage(live);
-  const popCap = populationCap(live);
-  const popRatio = popCap > 0 ? pop.total / popCap : 0;
-  const popLabel = `Population ${formatInt(pop.total)} of ${formatInt(popCap)}${popRatio >= 0.9 ? (popRatio >= 0.999 ? ' (full)' : ' (almost full)') : ''}`;
+  const pop = usePopulation();
   return (
-    <ul className="resources" aria-label="Resources">
+    <ul className={`hud-res${compact ? ' is-compact' : ''}`} aria-label="Resources">
       {RESOURCE_IDS.map((r) => {
         const amount = Math.floor(live.resources[r] + 1e-9);
         const ratio = cap > 0 ? live.resources[r] / cap : 0;
-        const nearFull = ratio >= 0.9;
-        const full = ratio >= 0.999;
         const rate = net[r];
-        const cls = [
-          'res',
-          nearFull ? 'is-near-full' : '',
-          full ? 'is-full' : '',
-          Math.round(rate) === 0 ? 'is-zero' : '',
-        ]
-          .filter(Boolean)
-          .join(' ');
+        const cls = ['hres', ratio >= 0.9 ? 'is-near-full' : '', ratio >= 0.999 ? 'is-full' : '', Math.round(rate) === 0 ? 'is-zero' : ''].filter(Boolean).join(' ');
         return (
           <li key={r} className={cls}>
             <span className="token" aria-hidden="true">
-              <Icon name={RESOURCE_ICON[r]} size={compact ? 20 : 24} />
+              <Icon name={RESOURCE_ICON[r]} size={compact ? 20 : 26} />
             </span>
-            <span className="res-text">
-              <span className="res-amount">
+            <span className="hres-text">
+              <span className="hres-amount">
                 <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
                 <span title={formatInt(amount)}>{formatCompact(amount)}</span>
-                <span className="res-cap">
-                  <span aria-hidden="true"> /</span>
-                  <span className="visually-hidden"> of </span>
-                  {formatInt(cap)}
-                  {full && <span className="visually-hidden"> (full)</span>}
+                <span className="visually-hidden">
+                  {' '}
+                  of {formatInt(cap)}
+                  {ratio >= 0.999 ? ' (full)' : ''}
                 </span>
               </span>
-              <span className="res-sub">
-                <span className="res-meter" aria-hidden="true">
-                  <span style={{ width: `${Math.min(100, ratio * 100)}%` }} />
-                </span>
-                <span className="res-rate">
-                  {compact ? compactRate(rate) : formatRate(rate)}
-                </span>
-              </span>
+              <span className="hres-rate">{compact ? compactRate(rate) : formatRate(rate)}</span>
             </span>
           </li>
         );
       })}
-      <li className={`res res-pop${popRatio >= 0.9 ? ' is-near-full' : ''}${popRatio >= 0.999 ? ' is-full' : ''}`} aria-label={popLabel}>
-        <span className="token" aria-hidden="true">
-          <Icon name="pop" size={compact ? 20 : 24} />
-        </span>
-        <span className="res-text">
-          <span className="res-amount" aria-hidden="true">
-            {formatInt(pop.total)}
-            <span className="res-cap"> / {formatInt(popCap)}</span>
+      {!compact && (
+        <li className={`hres hres-pop${pop.ratio >= 0.9 ? ' is-near-full' : ''}${pop.ratio >= 0.999 ? ' is-full' : ''}`} aria-label={pop.label}>
+          <span className="token" aria-hidden="true">
+            <Icon name="pop" size={26} />
           </span>
-          <span className="res-sub" aria-hidden="true">
-            <span className="res-meter">
-              <span style={{ width: `${Math.min(100, popRatio * 100)}%` }} />
-            </span>
-            <span className="res-rate">Pop</span>
+          <span className="hres-text" aria-hidden="true">
+            <span className="hres-amount">{formatInt(pop.total)}</span>
+            <span className="hres-rate">of {formatInt(pop.cap)}</span>
           </span>
-        </span>
-      </li>
+        </li>
+      )}
     </ul>
   );
 }
 
-function Strip() {
-  const { player, now, movements, navigate, connectionError, worldEnd, tab } = useGame();
+/** The one place attacks, protection, world end and connection problems show: floating cards (desktop) / pills (phone) under the HUD. */
+function AlertCards({ desktop }: { desktop: boolean }) {
+  const { player, now, movements, navigate, viewMovement, connectionError, worldEnd, tab } = useGame();
   const protectedLeft = player.protectedUntil - now;
-  const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').sort((a, b) => a.arriveAt - b.arriveAt);
+  const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
+  const who = first ? first.origin.ownerName || first.origin.name : '';
+  const where = first ? formatCoords(first.origin.x, first.origin.y) : '';
+  const left = first ? formatDuration(first.arriveAt - now) : '';
+  const protect =
+    protectedLeft > 0 ? (
+      <div className="hud-protect">
+        <Icon name="shield" size={desktop ? 22 : 18} />
+        <span>
+          Protected <strong>{formatLeft(protectedLeft)}</strong>
+        </span>
+      </div>
+    ) : null;
   return (
-    <>
+    <div className="hud-alerts">
       {worldEnd && (
-        <div className="strip strip-ended" role="status">
+        <div className="hud-note hud-ended" role="status">
           <Icon name="flame" size={22} />
           <span>{bannerText(worldEnd)} Orders closed.</span>
           {tab !== 'results' && (
-            <button type="button" className="btn btn-small strip-ended-btn" onClick={() => navigate('results')}>
+            <button type="button" className="btn btn-small hud-note-btn" onClick={() => navigate('results')}>
               See results
             </button>
           )}
         </div>
       )}
       {connectionError && (
-        <div className="strip strip-warn" role="status">
+        <div className="hud-note hud-warn" role="status">
           <span>Connection problem. Retrying…</span>
         </div>
       )}
-      {first && (
-        <button className="strip strip-danger" onClick={() => navigate('army')}>
-          <Icon name="warning" size={22} />
-          <span>
-            {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} ·{' '}
-            <strong>{formatDuration(first.arriveAt - now)}</strong>
-          </span>
-        </button>
-      )}
-      {protectedLeft > 0 && (
-        <div className="strip strip-protect">
-          <Icon name="shield" size={22} />
-          <span>
-            Protected <strong>{formatLeft(protectedLeft)}</strong>
-          </span>
+      {first && desktop && (
+        <div className="hud-attack">
+          <Icon name="warning" size={32} />
+          <div className="hud-attack-text">
+            <strong className="hud-attack-title">{incoming.length > 1 ? `${incoming.length} attacks · next in ${left}` : `Attack in ${left}`}</strong>
+            <span className="hud-attack-sub">
+              {who} ({where})
+            </span>
+          </div>
+          <button type="button" className="btn btn-primary hud-attack-btn" onClick={() => viewMovement(first.id)}>
+            Show
+          </button>
         </div>
       )}
-    </>
+      {desktop ? (
+        protect
+      ) : (
+        <div className="hud-alert-row">
+          {first && (
+            <button type="button" className="hud-attack-pill" onClick={() => viewMovement(first.id)} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Show`}>
+              <Icon name="warning" size={20} />
+              <span className="hud-attack-pill-text">
+                {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} {left} · {who}
+              </span>
+            </button>
+          )}
+          {protect}
+        </div>
+      )}
+    </div>
   );
 }
 
-function TabButton({ tab, variant }: { tab: Tab; variant: 'top' | 'bottom' }) {
-  const { tab: current, navigate, unreadReports, unreadMail, tribeInvites, tribeAlerts, movements } = useGame();
+/** Small filled number on a dock button: red for attacks, dark for unread counts. */
+function DockBadge({ n, danger, label }: { n: number; danger?: boolean; label: string }) {
+  if (n <= 0) return null;
+  return (
+    <span className={`dbadge${danger ? ' is-danger' : ''}`} aria-label={label}>
+      {n > 99 ? '99+' : n}
+    </span>
+  );
+}
+
+function DockButton({ tab }: { tab: Tab }) {
+  const { tab: current, navigate, unreadReports, unreadMail, tribeInvites, tribeAlerts, movements, now } = useGame();
   const active = current === tab;
-  const incoming = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack').length : 0;
-  const badge = tab === 'reports' ? unreadReports : tab === 'mail' ? unreadMail : tab === 'tribe' ? tribeInvites + tribeAlerts : incoming;
+  const attacks = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).length : 0;
   const tribeLabel = [
     tribeAlerts > 0 ? `${tribeAlerts} attack ${tribeAlerts === 1 ? 'alert' : 'alerts'}` : '',
     tribeInvites > 0 ? `${tribeInvites} ${tribeInvites === 1 ? 'invitation' : 'invitations'}` : '',
   ]
     .filter(Boolean)
     .join(', ');
-  const badgeLabel = tab === 'reports' ? `${badge} unread` : tab === 'mail' ? `${badge} unread mail` : tab === 'tribe' ? tribeLabel : `${badge} incoming`;
-  // Red for attacks (yours or your tribe's); invitations alone stay calm.
-  const danger = tab === 'army' || (tab === 'tribe' && tribeAlerts > 0);
-  const iconSize = variant === 'top' ? (active ? 28 : 25) : active ? 26 : 23;
   return (
-    <button
-      className={`tab tab-${variant}${active ? ' is-active' : ''}`}
-      aria-current={active ? 'page' : undefined}
-      title={TAB_LABEL[tab]}
-      onClick={() => navigate(tab)}
-    >
-      <span className="tab-token" aria-hidden="true">
-        <Icon name={TAB_ICON[tab]} size={iconSize} />
+    <button type="button" className={`dbtn${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={TAB_LABEL[tab]} onClick={() => navigate(tab)}>
+      <span className="dbtn-ico" aria-hidden="true">
+        <Icon name={TAB_ICON[tab]} size={30} />
       </span>
-      <span className="tab-label">{TAB_LABEL[tab]}</span>
-      {badge > 0 && (
-        <span className={`badge${danger ? ' badge-danger' : ''}`} aria-label={badgeLabel}>
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
+      <span className="dbtn-label">{TAB_LABEL[tab]}</span>
+      {tab === 'army' && <DockBadge n={attacks} danger label={`${attacks} incoming`} />}
+      {tab === 'reports' && <DockBadge n={unreadReports} label={`${unreadReports} unread`} />}
+      {tab === 'mail' && <DockBadge n={unreadMail} label={`${unreadMail} unread mail`} />}
+      {tab === 'tribe' && <DockBadge n={tribeInvites + tribeAlerts} danger={tribeAlerts > 0} label={tribeLabel} />}
     </button>
   );
 }
 
-/** Chieftain avatar + name [TAG]; opens a small menu with the village, Change chieftain and Sign out. */
-function Who({
+function MoreButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  const { player, tab, unreadMail, tribeInvites, tribeAlerts } = useGame();
+  const n = unreadMail + tribeInvites + tribeAlerts;
+  const inMore = tab !== 'village' && tab !== 'map' && tab !== 'army' && tab !== 'reports';
+  return (
+    <button type="button" className={`dbtn dbtn-more${open || inMore ? ' is-active' : ''}`} aria-expanded={open} aria-haspopup="dialog" aria-current={inMore ? 'page' : undefined} title="More" onClick={onClick}>
+      <span className="dbtn-ico dbtn-avatar" aria-hidden="true">
+        <ChieftainAvatar id={player.chieftain} size={30} eager />
+      </span>
+      <span className="dbtn-label">More</span>
+      <DockBadge n={n} label={`${n} unread in Mail and Tribe`} />
+    </button>
+  );
+}
+
+/** The account items (rename, chieftain, rules, simulator, support, staff, settings, household, worlds, sign out). */
+function AccountItems({
+  onDone,
   onSignOut,
   onSignOutEverywhere,
   onChangeChieftain,
   onSettings,
-  compact,
 }: {
+  onDone: () => void;
   onSignOut: () => void;
   onSignOutEverywhere: () => void;
   onChangeChieftain: () => void;
   onSettings: () => void;
-  compact?: boolean;
 }) {
-  const { player, village, villages, tribeChanged, toast, navigate } = useGame();
-  const [open, setOpen] = useState(false);
+  const { player, villages, tribeChanged, toast, navigate } = useGame();
   const [renaming, setRenaming] = useState(false);
   const worldInfo = useWorldInfo();
+  const go = (fn: () => void) => () => {
+    onDone();
+    fn();
+  };
+  return (
+    <div className="acct-items">
+      {/* With several villages Rename sits in the village list; with one it lives here. */}
+      {villages.length < 2 &&
+        (renaming ? (
+          <div className="acct-wide">
+            <RenameVillage onDone={() => setRenaming(false)} />
+          </div>
+        ) : (
+          <button type="button" className="btn btn-block" onClick={() => setRenaming(true)}>
+            Rename village
+          </button>
+        ))}
+      <button type="button" className="btn btn-block" onClick={go(onChangeChieftain)}>
+        Change chieftain
+      </button>
+      <button type="button" className="btn btn-block" onClick={go(() => navigate('rules'))}>
+        World rules
+      </button>
+      <button type="button" className="btn btn-block" onClick={go(() => navigate('simulator'))}>
+        Battle simulator
+      </button>
+      <button type="button" className="btn btn-block" onClick={go(() => navigate('support'))}>
+        Contact support
+      </button>
+      {player.staffRole && (
+        <button type="button" className="btn btn-block" onClick={go(() => navigate('staff'))}>
+          Staff tools
+        </button>
+      )}
+      <button type="button" className="btn btn-block" onClick={go(onSettings)}>
+        Settings
+      </button>
+      <label className="muted acct-wide acct-household">
+        <input
+          type="checkbox"
+          checked={player.householdShared}
+          onChange={(e) => {
+            const shared = e.target.checked;
+            api
+              .setHousehold(shared)
+              .then(() => {
+                tribeChanged();
+                toast(shared ? 'Household shared.' : 'Household unshared.');
+              })
+              .catch((err) => toast(errorMessage(err)));
+          }}
+        />
+        <span title="Accounts in the same household can't send troops to each other.">Shared household</span>
+      </label>
+      {isLobbyWorld(worldInfo) && (
+        <a className="btn btn-block" href={LOBBY_URL}>
+          Worlds
+        </a>
+      )}
+      <button type="button" className="btn btn-block" onClick={onSignOut}>
+        Sign out
+      </button>
+      {isLobbyWorld(worldInfo) && (
+        <button type="button" className="btn btn-block" title="Ends all sessions on every device." onClick={onSignOutEverywhere}>
+          Sign out everywhere
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface AccountActions {
+  onSignOut: () => void;
+  onSignOutEverywhere: () => void;
+  onChangeChieftain: () => void;
+  onSettings: () => void;
+}
+
+/** Desktop: the round avatar button; opens the account menu. */
+function Who(actions: AccountActions) {
+  const { player, village } = useGame();
+  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -219,21 +330,8 @@ function Who({
   const tag = player.tribe ? `[${player.tribe.tag}]` : '';
   return (
     <div className="who" ref={ref}>
-      <button
-        className="who-button"
-        aria-expanded={open}
-        aria-label={`${player.username}${tag ? ` ${tag}` : ''}, account`}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="avatar-ring">
-          <ChieftainAvatar id={player.chieftain} size={compact ? 40 : 46} eager />
-        </span>
-        {!compact && (
-          <span className="who-text" aria-hidden="true">
-            <span className="who-name">{player.username}</span>
-            {tag && <span className="who-tag">{tag}</span>}
-          </span>
-        )}
+      <button type="button" className="hud-avatar" aria-expanded={open} aria-label={`${player.username}${tag ? ` ${tag}` : ''}, account`} onClick={() => setOpen((o) => !o)}>
+        <ChieftainAvatar id={player.chieftain} size={48} eager />
       </button>
       {open && (
         <div className="who-menu">
@@ -243,116 +341,107 @@ function Who({
               {village.name} ({formatCoords(village.x, village.y)})
             </div>
           </div>
-          {/* With several villages Rename sits in the village bar's list; with one it lives here. */}
-          {villages.length < 2 &&
-            (renaming ? (
-              <RenameVillage onDone={() => setRenaming(false)} />
-            ) : (
-              <button className="btn btn-block" onClick={() => setRenaming(true)}>
-                Rename village
-              </button>
-            ))}
-          <button
-            className="btn btn-block"
-            onClick={() => {
-              setOpen(false);
-              onChangeChieftain();
-            }}
-          >
-            Change chieftain
-          </button>
-          <button
-            className="btn btn-block"
-            onClick={() => {
-              setOpen(false);
-              navigate('rules');
-            }}
-          >
-            World rules
-          </button>
-          <button
-            className="btn btn-block"
-            onClick={() => {
-              setOpen(false);
-              navigate('simulator');
-            }}
-          >
-            Battle simulator
-          </button>
-          <button
-            className="btn btn-block"
-            onClick={() => {
-              setOpen(false);
-              navigate('support');
-            }}
-          >
-            Contact support
-          </button>
-          {player.staffRole && (
-            <button
-              className="btn btn-block"
-              onClick={() => {
-                setOpen(false);
-                navigate('staff');
-              }}
-            >
-              Staff tools
-            </button>
-          )}
-          <button
-            className="btn btn-block"
-            onClick={() => {
-              setOpen(false);
-              onSettings();
-            }}
-          >
-            Settings
-          </button>
-          <label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <input
-              type="checkbox"
-              checked={player.householdShared}
-              onChange={(e) => {
-                const shared = e.target.checked;
-                api
-                  .setHousehold(shared)
-                  .then(() => {
-                    tribeChanged();
-                    toast(shared ? 'Household shared.' : 'Household unshared.');
-                  })
-                  .catch((err) => toast(errorMessage(err)));
-              }}
-            />
-            <span title="Accounts in the same household can't send troops to each other.">Shared household</span>
-          </label>
-          {isLobbyWorld(worldInfo) && (
-            <a className="btn btn-block" href={LOBBY_URL}>
-              Worlds
-            </a>
-          )}
-          <button className="btn btn-block" onClick={onSignOut}>
-            Sign out
-          </button>
-          {isLobbyWorld(worldInfo) && (
-            <button className="btn btn-block" title="Ends all sessions on every device." onClick={onSignOutEverywhere}>
-              Sign out everywhere
-            </button>
-          )}
+          <AccountItems onDone={() => setOpen(false)} {...actions} />
         </div>
       )}
     </div>
   );
 }
 
+/** Phone: bottom sheet behind the More button: population, Mail / Tribe / Ranks, and the account items. */
+function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => void }) {
+  const { player, village, navigate, unreadMail, tribeInvites, tribeAlerts } = useGame();
+  const ref = useRef<HTMLDivElement>(null);
+  const pop = usePopulation();
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    ref.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (ref.current && t && !ref.current.contains(t) && !t.closest('.dbtn-more')) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+      previous?.focus?.({ preventScroll: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const tag = player.tribe ? `[${player.tribe.tag}]` : '';
+  const row = (tab: Tab, badge: number, danger = false) => (
+    <button type="button" className="more-row" onClick={() => { onClose(); navigate(tab); }}>
+      <span className="more-row-ico" aria-hidden="true">
+        <Icon name={TAB_ICON[tab]} size={28} />
+      </span>
+      <span className="more-row-label">{TAB_LABEL[tab]}</span>
+      <DockBadge n={badge} danger={danger} label={tab === 'mail' ? `${badge} unread mail` : `${badge} invitations or alerts`} />
+    </button>
+  );
+  return (
+    <div ref={ref} className="hud-sheet more-sheet" role="dialog" aria-modal="false" aria-label="More" tabIndex={-1}>
+      <span className="hud-grip" aria-hidden="true" />
+      <div className="more-head">
+        <span className="more-avatar" aria-hidden="true">
+          <ChieftainAvatar id={player.chieftain} size={48} eager />
+        </span>
+        <div className="more-who">
+          <strong>
+            {player.username} {tag && <span className="who-tag">{tag}</span>}
+          </strong>
+          <span className="more-sub">
+            {village.name} ({formatCoords(village.x, village.y)}) ·{' '}
+            <span className={`more-pop${pop.ratio >= 0.9 ? ' is-near-full' : ''}`} aria-label={pop.label}>
+              <Icon name="pop" size={16} className="inline-icon" /> <span aria-hidden="true">{formatInt(pop.total)} / {formatInt(pop.cap)}</span>
+            </span>
+          </span>
+        </div>
+        <button type="button" className="hud-x" onClick={onClose} aria-label="Close menu">
+          <Icon name="close" size={20} />
+        </button>
+      </div>
+      <div className="more-rows">
+        {row('mail', unreadMail)}
+        {row('tribe', tribeInvites + tribeAlerts, tribeAlerts > 0)}
+        {row('ranks', 0)}
+      </div>
+      <AccountItems onDone={onClose} {...actions} />
+    </div>
+  );
+}
+
 export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: ReactNode; onSignOut: () => void; onSignOutEverywhere: () => void }) {
-  const { tab, worldEnd, toast } = useGame();
+  const { tab, worldEnd, toast, now } = useGame();
+  const desktop = useMediaQuery(DESKTOP_QUERY);
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [hudH, setHudH] = useState(72);
+  const hudRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications();
-  const bell = (compact?: boolean) => (
-    <NotificationBell unread={notifications.unread} danger={notifications.unreadAttacks > 0} onClick={() => setBellOpen(true)} compact={compact} />
-  );
+  const counts = bellCounts(notifications.items, now);
+  const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
+
+  // The HUD floats; pages and the map pad themselves by its measured height (it grows when an attack card shows).
+  useLayoutEffect(() => {
+    const el = hudRef.current;
+    if (!el) return;
+    const measure = () => setHudH(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [desktop]);
+  // Leaving a layout closes what only exists in the other one.
+  useEffect(() => {
+    if (desktop) setMoreOpen(false);
+  }, [desktop]);
+
   // After the world ended the server refuses every order. On the order screens (village, army, map) the main buttons say so
   // up front instead of waiting for the 403; reading, mail, chat and forum are untouched.
   const guardOrders =
@@ -365,38 +454,64 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
           toast(WORLD_ENDED_NOTICE, { kind: 'error' });
         }
       : undefined;
+  const bell = (
+    <NotificationBell
+      unread={counts.count}
+      danger={counts.danger}
+      open={bellOpen}
+      compact={!desktop}
+      onClick={() => {
+        setMoreOpen(false);
+        setBellOpen((o) => !o);
+      }}
+    />
+  );
   return (
-    <div className={`app app-${tab}${worldEnd ? ' is-ended' : ''}`}>
-      <header className="topbar">
-        <div className="brand">
-          <Icon name="flame" size={32} />
-          Clanfire
-        </div>
-        <nav className="toptabs" aria-label="Main">
-          {TABS.map((t) => (
-            <TabButton key={t} tab={t} variant="top" />
-          ))}
-        </nav>
-        <Resources />
-        {bell()}
-        <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} />
+    <div className={`app app-${tab}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
+      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'}`} ref={hudRef}>
+        {desktop ? (
+          <div className="hud-row">
+            <div className="hud-left">
+              <VillageBar />
+            </div>
+            <div className="hud-pill hud-resources">
+              <Resources />
+            </div>
+            <div className="hud-right">
+              {bell}
+              <Who {...actions} />
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="hud-row">
+              <Resources compact />
+              {bell}
+            </div>
+            <VillageBar />
+          </>
+        )}
+        <AlertCards desktop={desktop} />
       </header>
-      <div className="resstrip">
-        <Who onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere} onChangeChieftain={() => setChoosing(true)} onSettings={() => setSettings(true)} compact />
-        <Resources compact />
-        {bell(true)}
-      </div>
-      <Strip />
-      <VillageBar />
       <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main" onClickCapture={guardOrders}>
         {children}
       </main>
-      <nav className="bottomnav" aria-label="Main">
-        {TABS.map((t) => (
-          <TabButton key={t} tab={t} variant="bottom" />
+      <nav className="dock" aria-label="Main">
+        {(desktop ? TABS : PHONE_TABS).map((t) => (
+          <DockButton key={t} tab={t} />
         ))}
+        {!desktop && (
+          <MoreButton
+            open={moreOpen}
+            onClick={() => {
+              setBellOpen(false);
+              setMoreOpen((o) => !o);
+            }}
+          />
+        )}
       </nav>
-      {bellOpen && <NotificationsDialog store={notifications} onClose={() => setBellOpen(false)} />}
+      {bellOpen && <NotificationsSheet store={notifications} onClose={() => setBellOpen(false)} />}
+      {moreOpen && !desktop && <MoreSheet onClose={() => setMoreOpen(false)} {...actions} />}
       {settings && (
         <Suspense fallback={null}>
           <SettingsDialog onClose={() => setSettings(false)} />
