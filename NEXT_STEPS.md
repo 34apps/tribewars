@@ -4,7 +4,8 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 
 ## In-game layout redo (owner, 2026-11-09) — FIRST
 - Done: fixed 1440x900 desktop frame + Village page (`e801164`). Owner tests in the preview, then push. Pictures and tooling: `design/proposals/ingame-pages/` (mix-* = owner's mixes).
-- Waiting on owner: backdrop around the frame (A toy landscape / B plain paper, B built for now); Barracks mix (`mix-building-1440.png`) OK? Then build it as the template for every building page (recruiting moves from Army to Barracks/Stables).
+- Done: building pages + BuildState control (`2006728`). Waiting on owner: backdrop (A toy landscape / B plain paper, B built); Army v2 picture (`mix-army2-1440.png`) OK? Then build it and drop training from Army.
+- Drillyard ranks keep an inner scroll as a safety net (owner dislikes inner scroll) — make it fit instead.
 - Then, one page at a time (pictures → owner picks pieces → build): Army, Reports, then Mail, Tribe, Ranks, Map; then the phone (360) version. Old width-based CSS of not-yet-redone pages still applies inside the frame.
 - Small: attack name cut off in the left Movements row; renown gained today needs data the client doesn't have; Alerts sheet overlaps the tab row; `045929b` (phone chip band) unpushed and not approved.
 
