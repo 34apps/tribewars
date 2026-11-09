@@ -2,6 +2,7 @@
 // header (title, Players / Tribes / Renown, search, sample switch), one 20-row table on the left with paging, and on the right
 // the "You" card, Top three and the Domination bar. Same data, search, paging and pop-ups as the phone's RankingsView. Phones keep RankingsView.
 
+import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankDto, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
@@ -250,7 +251,8 @@ export function FrameRanks() {
   const tRows = useMemo(() => searchTribes(tribeAll, query), [tribeAll, query]);
   const rRows = useMemo(() => searchPlayers(renownAll, query), [renownAll, query]);
   const rows: Array<PlayerRankDto | TribeSummaryDto | RenownRankDto> = section === 'players' ? pRows : section === 'tribes' ? tRows : rRows;
-  const pg = paging(rows.length, page, RANKS_PER_PAGE);
+  const perPage = RANKS_PER_PAGE + useExtraRows(29);
+  const pg = paging(rows.length, page, perPage);
 
   const myTribeId = player.tribe?.id ?? null;
   const myRow = playerAll.find((p) => p.playerId === meId) ?? null;
@@ -270,7 +272,7 @@ export function FrameRanks() {
     setQuery('');
     const list = section === 'players' ? playerAll : section === 'tribes' ? tribeAll : renownAll;
     const idx = list.findIndex((r) => ('playerId' in r ? r.playerId === meId : r.id === myTribeId));
-    if (idx >= 0) setPage(pageOfIndex(idx));
+    if (idx >= 0) setPage(pageOfIndex(idx, perPage));
   };
   const canJump = section === 'tribes' ? tribeAll.some((t) => t.id === myTribeId) : section === 'players' ? myRow !== null : myRenownRow !== null;
 
@@ -336,7 +338,7 @@ export function FrameRanks() {
   let table: ReactNode = null;
   let summary = '';
   if (section === 'players') {
-    const slice = pageSlice(pRows, page, RANKS_PER_PAGE);
+    const slice = pageSlice(pRows, page, perPage);
     summary = sumText(pg.from, pg.to, pRows.length, `players${query.trim() ? '' : ` · average ${formatInt(averagePoints(playerAll))} points`}`);
     table = (
       <Table
@@ -358,7 +360,7 @@ export function FrameRanks() {
       </Table>
     );
   } else if (section === 'tribes') {
-    const slice = pageSlice(tRows, page, RANKS_PER_PAGE);
+    const slice = pageSlice(tRows, page, perPage);
     summary = sumText(pg.from, pg.to, tRows.length, 'tribes');
     table = (
       <Table
@@ -385,7 +387,7 @@ export function FrameRanks() {
       </Table>
     );
   } else {
-    const slice = pageSlice(rRows, page, RANKS_PER_PAGE);
+    const slice = pageSlice(rRows, page, perPage);
     summary = sumText(pg.from, pg.to, rRows.length, 'players');
     table = (
       <Table

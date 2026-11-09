@@ -1,9 +1,9 @@
-// The DESKTOP in-game shell (owner, 2026-11-09): one fixed 1440x900 frame, centred, never scaled or reflowed. A fixed top bar (village,
+// The DESKTOP in-game shell (owner, 2026-11-09, revised): fills the whole window, minimum 1440x900 (a smaller window scrolls, never squeezed). A fixed top bar (village,
 // resources with storage fill, population, bell, account), a row of folder tabs and one cream sheet that holds the page. A smaller window
-// scrolls; a bigger one shows the backdrop (frame.css, one block). Menu-only pages (support, rules, simulator, staff, results) are
+// scrolls; a bigger one grows the frame and the pages stretch (frame.css). Menu-only pages (support, rules, simulator, staff, results) are
 // reached from the account menu. Phones use Shell.tsx.
 
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { RESOURCE_IDS, productionPerHour, storageCap } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
@@ -19,6 +19,7 @@ import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell
 import type { AccountActions } from './Shell.tsx';
 import { VillageBar } from './VillageSwitcher.tsx';
 import { useTribeFixed } from '../views/tribe/tribe-fixed.ts';
+import { MiniVillage } from '../views/village/FrameBuilding.tsx';
 import '../frame.css';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
@@ -159,11 +160,18 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  // Draw the small village once while idle, off-screen, so building pages and Army show it at once (see MiniVillage).
+  const [warming, setWarming] = useState(false);
+  const warmDone = useCallback(() => setWarming(false), []);
+  useEffect(() => {
+    const t = window.setTimeout(() => setWarming(true), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const notifications = useNotifications();
   const counts = bellCounts(notifications.items, now);
   const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
   const guardOrders = useGuardOrders();
-  // Village, map, army, reports, mail and the Tribe Overview / Members keep the frame exactly 900 px tall (no page scroll); every other page may grow it for now.
+  // Village, map, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
   const tribeFixed = useTribeFixed();
   const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
@@ -187,6 +195,11 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
         <main className={`fr-sheet${tab === 'map' ? ' is-map' : ''}${tab === 'village' ? ' is-village' : ''}`} id="main" onClickCapture={guardOrders}>
           {children}
         </main>
+        {warming && (
+          <div className="fv-left" aria-hidden="true" style={{ position: 'fixed', left: -9999, top: 0, visibility: 'hidden', pointerEvents: 'none' }}>
+            <MiniVillage warm onWarm={warmDone} />
+          </div>
+        )}
         {bellOpen && <NotificationsSheet store={notifications} onClose={() => setBellOpen(false)} />}
       </div>
       {settings && (

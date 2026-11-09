@@ -1,6 +1,7 @@
 // The Log sub-tab of the desktop Tribe page (picture: design/proposals/ingame-pages/mix-tribe-log-1440.png): the tribe's events, newest
 // first, 11 to a page. The server sends the last 50 with the tribe data.
 
+import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useGame } from '../../game.ts';
 import { useTribe } from '../../tribe/context.ts';
 import { LOG_PER_PAGE, logTime } from './frame-tribe-logic.ts';
@@ -9,7 +10,7 @@ import { PageButtons, usePaged } from './frame-tribe-bits.tsx';
 export function FrameTribeLog() {
   const { data } = useTribe();
   const { now } = useGame();
-  const log = usePaged(data.events, LOG_PER_PAGE);
+  const log = usePaged(data.events, LOG_PER_PAGE + useExtraRows(40));
   const { pg } = log;
   return (
     <section className="fv-pn frt-grow frt-logp" aria-label="Tribe log">

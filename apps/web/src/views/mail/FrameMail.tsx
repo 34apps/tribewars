@@ -2,6 +2,7 @@
 // (All / Unread, paging instead of scrolling), the letters with the chosen person on the right as a thread (the one place that
 // scrolls), a reply box at the bottom, and a compose form for new mail. Phones keep MailView.
 
+import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { MAIL_BODY_MAX, MAIL_SUBJECT_MAX } from '@clanfire/engine';
@@ -96,8 +97,9 @@ function ListPanel({
   retry: () => void;
 }) {
   const filtered = useMemo(() => filterConversations(all ?? [], filter), [all, filter]);
-  const pg = paging(filtered.length, page, MAIL_PEOPLE_PER_PAGE);
-  const rows = pageSlice(filtered, pg.page, MAIL_PEOPLE_PER_PAGE);
+  const perPage = MAIL_PEOPLE_PER_PAGE + useExtraRows(66);
+  const pg = paging(filtered.length, page, perPage);
+  const rows = pageSlice(filtered, pg.page, perPage);
   // Fetch the portraits of the people on show (cached; a failure just keeps the initial).
   const [, bump] = useState(0);
   useEffect(() => {

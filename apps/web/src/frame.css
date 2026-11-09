@@ -1,5 +1,6 @@
-/* The DESKTOP in-game frame (owner, 2026-11-09): ONE fixed 1440 x 900 frame, centred, top-aligned. It never shrinks, reflows or scales:
-   a smaller window gets normal scrollbars and the frame is cut off, a bigger one shows the backdrop. Everything here keys on the
+/* The DESKTOP in-game frame (owner, 2026-11-09, revised): fills the WHOLE window, minimum 1440 x 900. A smaller window gets normal
+   scrollbars (never squeezed or rearranged); a bigger one grows the frame and the pages stretch (extra width to the main column,
+   extra height to the lists and pictures). Everything here keys on the
    `layout-desktop` root class / the .frame elements (FrameShell.tsx), never on the window width. Parchment semantic tokens only.
    Pieces: backdrop, top bar, folder tabs, the cream sheet, the Village page (.fv-*), plain pages and the map inside the sheet. */
 
@@ -31,9 +32,9 @@ html.layout-desktop .toasts {
   --hud-h: 68px;
   position: relative;
   box-sizing: border-box;
-  width: 1440px;
-  min-height: 900px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: max(900px, 100vh);
+  margin: 0;
   padding: 117.5px 14px 14px;
   display: flex;
   flex-direction: column;
@@ -41,7 +42,7 @@ html.layout-desktop .toasts {
 }
 
 .frame.is-fixed {
-  height: 900px;
+  height: max(900px, 100vh);
   overflow: hidden;
 }
 
@@ -500,10 +501,9 @@ html.layout-desktop .toasts {
 
 .fv-centre {
   display: flex;
-  flex: none;
+  flex: 1;
   flex-direction: column;
   gap: 12px;
-  width: 685px;
   min-width: 0;
   min-height: 0;
 }
@@ -967,6 +967,7 @@ html.layout-desktop .toasts {
   border-radius: 14px;
   background: #9cc46a;
   overflow: hidden;
+  contain: layout paint style;
 }
 
 /* The scene covers the frame; the landscape the village paints past its box fills any gap. */
@@ -1182,7 +1183,8 @@ html.layout-desktop .toasts {
 
 /* -- buildings list -- */
 .fv-blist {
-  flex: 1;
+  flex: none;
+  width: 395px;
 }
 
 .fv-bt {
@@ -1371,6 +1373,15 @@ button.bs {
 
 .fv-minipic .vv-fit .vv-stage {
   width: max(100cqw, 100cqh * var(--vb-ratio));
+}
+
+.fv-minishot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
 }
 
 .fv-minipic .vv-hits {
@@ -1705,7 +1716,6 @@ button.bs {
 }
 
 .fv-recruit {
-  align-self: flex-start;
   max-height: 100%;
 }
 
@@ -1725,7 +1735,7 @@ button.bs {
   gap: 12px;
   flex: 1 1 88px;
   min-height: 70px;
-  max-height: 96px;
+  max-height: 124px;
   padding: 0 14px 0 8px;
   border-top: 1px solid var(--edge-soft);
 }

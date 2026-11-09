@@ -1,6 +1,7 @@
 // The Members sub-tab of the desktop Tribe page (picture: design/proposals/ingame-pages/mix-tribe-members-1440.png): the members as a
 // table with paging (nothing scrolls), the picked member's actions in a side panel, and the Leaving card.
 
+import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useMemo, useState } from 'react';
 import { canTribe } from '@clanfire/engine';
 import type { TribeMemberDto } from '@clanfire/engine';
@@ -117,8 +118,9 @@ export function FrameTribeMembers({ tribe, role }: MemberProps) {
   const [picked, setPicked] = useState<number | null>(null);
   const manageable = (m: TribeMemberDto) => memberFlags(role, m, m.playerId === player.id).hasActions;
   const current = pickedMember(sorted, picked, manageable);
-  const pg = paging(sorted.length, page, MEMBERS_PER_PAGE);
-  const rows = pageSlice(sorted, pg.page, MEMBERS_PER_PAGE);
+  const perPage = MEMBERS_PER_PAGE + useExtraRows(44);
+  const pg = paging(sorted.length, page, perPage);
+  const rows = pageSlice(sorted, pg.page, perPage);
   const showActivity = sorted.some((m) => m.lastActive !== undefined);
   return (
     <div className="frt-mem">

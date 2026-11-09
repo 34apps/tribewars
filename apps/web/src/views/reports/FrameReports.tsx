@@ -3,6 +3,7 @@
 // the same data the phone's ReportsView shows. No village column, no scrolling: long tables use compact rows or a "+N more" dialog.
 // Phones keep ReportsView.
 
+import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
@@ -24,7 +25,7 @@ import { moraleLabel, siegeHitText, villageReportText } from '../../villages.ts'
 import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
 import { reportIcon, reportTone } from '../ReportsView.tsx';
-import { REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
+import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
 import type { ReportFilter } from './frame-reports-logic.ts';
 import '../../frame-reports.css';
 
@@ -714,8 +715,9 @@ function ListPanel({
   retry: () => void;
 }) {
   const filtered = useMemo(() => filterReports(list ?? [], filter), [list, filter]);
-  const pg = paging(filtered.length, page);
-  const groups = groupByDay(pageSlice(filtered, pg.page), now);
+  const perPage = REPORTS_PER_PAGE + useExtraRows(44);
+  const pg = paging(filtered.length, page, perPage);
+  const groups = groupByDay(pageSlice(filtered, pg.page, perPage), now);
   return (
     <section className="fv-pn frp-list" aria-label="All reports">
       <div className="frp-chs" role="group" aria-label="Report type">
