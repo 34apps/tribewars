@@ -7,7 +7,7 @@ Written 2026-11-09, updated after the desktop pass (in-game pages redesign). Rea
 
 Owner rejected the floating Game HUD ("scrollview on each tab is really bad … separate pages … see at once").
 New direction, built page by page from picture boards in `design/proposals/ingame-pages/` (`mix-*` = owner's picks):
-- **Desktop = one fixed 1440x900 frame**, centred; smaller window → browser scrollbars, never reflow (owner rule).
+- **Desktop fills the whole window** (min 1440x900; smaller → browser scrollbars, never squeeze). NOT a centred column — owner was angry about empty edges (`63522e5`).
   Phone vs desktop chosen by DEVICE (`hooks/useLayout.ts`, root `layout-desktop|layout-phone`- Top bar + folder tabs (`components/FrameShell.tsx`, `frame.css`). **Desktop pass complete**, all LOCAL commits, NOT pushed:
   Village (`e801164`), building pages + `BuildState` buttons (`2006728`), Army (`da78726`, `154244d`), Reports (`7864e30`),
   Mail conversations (API `7778277`, screen `89fc824`, `9958155`), Tribe all 9 sub-tabs (`c404c1e`, `bd5ae29`),
