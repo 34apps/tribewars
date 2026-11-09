@@ -33,6 +33,7 @@ import {
 } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
+import { fillSampleData, type SampleDataResponse } from '../sample-data.ts';
 
 const idParams = {
   type: 'object',
@@ -218,6 +219,13 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.post('/api/sandbox/clear-army', auth, async (req): Promise<GameStateResponse> => {
     const res = ctx.game.sandboxClearArmy(playerOf(req), req.nowMs);
     req.log.warn({ playerId: playerOf(req).id, action: 'clear-army' }, 'sandbox action');
+    return res;
+  });
+
+  // Test mode: fill the caller's own account with sample reports, mail, tribe, troops and marches (idempotent, sandbox accounts only).
+  app.post('/api/sandbox/sample-data', auth, async (req): Promise<SampleDataResponse> => {
+    const res = fillSampleData(ctx, playerOf(req), req.nowMs);
+    req.log.warn({ playerId: playerOf(req).id, action: 'sample-data', created: res.created }, 'sandbox action');
     return res;
   });
 

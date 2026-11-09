@@ -77,6 +77,16 @@ async function boot(): Promise<void> {
       if (timer !== undefined) window.clearTimeout(timer);
       void flush().finally(() => window.location.reload());
     },
+    onSampleData: async () => {
+      // The route is the real sandbox one (this preview allows every account); it fills the signed-in player only.
+      const res = await fetch('/api/sandbox/sample-data', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      if (!res.ok) throw new Error(res.status === 401 ? 'sign in first' : `server said ${res.status}`);
+      const out = (await res.json()) as { created: boolean };
+      dirty = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void flush().finally(() => window.location.reload());
+      return out.created ? 'Done. Reloading\u2026' : 'Already filled. Nothing changed.';
+    },
     onReset: () => {
       resetting = true;
       if (timer !== undefined) window.clearTimeout(timer);

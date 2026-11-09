@@ -9,6 +9,8 @@ export interface PillOptions {
   onShowcase: (stage: 1 | 2 | 3 | 4) => void;
   /** "Try look animations": open the level bar under the village (pick a building, jump between its looks, replay). */
   onLookTester: () => void;
+  /** "Fill with sample data": reports of every kind, mail, a tribe, troops and marches for the signed-in player. Resolves to a short status line. */
+  onSampleData: () => Promise<string>;
 }
 
 const CSS = `
@@ -113,7 +115,33 @@ export function mountPill(opts: PillOptions): Pill {
   animNote.textContent = 'Opens a bar on the village: all buildings or one, Look 1\u20134, Replay. Nothing is saved.';
   anim.append(animTitle, animBtn, animNote);
 
-  menu.append(about, warn, sec, anim, reset, confirmNote, confirmBtn);
+  const fill = document.createElement('div');
+  fill.className = 'pv-sec';
+  const fillTitle = document.createElement('b');
+  fillTitle.textContent = 'Sample data';
+  const fillBtn = document.createElement('button');
+  fillBtn.className = 'pv-btn';
+  fillBtn.type = 'button';
+  fillBtn.textContent = 'Fill with sample data';
+  const fillNote = document.createElement('p');
+  fillNote.className = 'pv-note';
+  fillNote.textContent = 'Adds reports of every kind, mail, a tribe (chat, forum, diplomacy, projects), troops at home, away and incoming. Safe to press twice.';
+  fillBtn.addEventListener('click', () => {
+    fillBtn.disabled = true;
+    fillNote.textContent = 'Filling\u2026';
+    opts.onSampleData().then(
+      (msg) => {
+        fillNote.textContent = msg;
+      },
+      (err: unknown) => {
+        fillBtn.disabled = false;
+        fillNote.textContent = `Could not fill: ${err instanceof Error ? err.message : 'unknown error'}`;
+      },
+    );
+  });
+  fill.append(fillTitle, fillBtn, fillNote);
+
+  menu.append(about, warn, sec, anim, fill, reset, confirmNote, confirmBtn);
   root.append(chip, menu);
 
   const setOpen = (open: boolean): void => {
