@@ -37,7 +37,8 @@ const TRACKS: readonly { id: RankTrack; name: string; hint: string }[] = [
 const trackApplies = (unit: UnitId, track: RankTrack) =>
   track === 'keen' ? unit === SCOUT_UNIT : track === 'might' ? unit !== SCOUT_UNIT : true;
 
-export function DrillyardPanel() {
+/** `part` splits the panel for the desktop building page (research in the side column, ranks in the main area); omitted = everything. */
+export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
   const { confirm, dialog } = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -82,7 +83,9 @@ export function DrillyardPanel() {
   if (level < 1) return null;
 
   return (
-    <div className="drill">
+    <div className={`drill${part ? ' drill-compact' : ''}`}>
+      {part !== 'ranks' && (
+        <>
       <h3 className="eyebrow">
         Research · queue {queue.length}/{limit}
       </h3>
@@ -146,15 +149,19 @@ export function DrillyardPanel() {
           );
         })}
       </ul>
+        </>
+      )}
 
-      <h3 className="eyebrow">Training Points</h3>
+      {part !== 'research' && (
+        <>
+      <h3 className="eyebrow drill-ptitle">Training Points</h3>
       <div className="drill-points">
         <span>
           <strong>{formatInt(Math.max(0, total - spent))}</strong> free · {formatInt(spent)}/{formatInt(total)}
         </span>
         <ProgressBar value={total > 0 ? spent / total : 0} label="Training Points spent" />
       </div>
-      <ul className="drill-list">
+      <ul className="drill-list drill-units">
         {trained.map((u) => {
           const def = UNITS[u];
           return (
@@ -227,6 +234,8 @@ export function DrillyardPanel() {
           );
         })}
       </ul>
+        </>
+      )}
       {dialog}
       {cancel.dialog}
     </div>

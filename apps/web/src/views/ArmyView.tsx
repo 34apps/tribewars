@@ -7,14 +7,11 @@ import {
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
-  checkTrain,
   emptyUnits,
-  isResearched,
   normalizeUnits,
   POP_PER_UNIT,
   populationCap,
   populationUsage,
-  trainTimeMs,
 } from '@clanfire/engine';
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -32,8 +29,8 @@ import '../army.css';
 import { MISSION_ICON, MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
-import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
-import { HEARTH_OUT_REASON } from '../villages.ts';
+import { requirementText, unitListText, unmetRequirements } from '../rules.ts';
+import { trainRowState } from './trainRow.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
@@ -476,24 +473,17 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   const role = UNIT_ROLE[unit];
   const info = useUnitInfo();
   const [text, setText] = useState('');
-  const unmet = unmetRequirements(live.buildings, def.requires);
-  const locked = unmet.length > 0;
-  const parsed = text.trim() === '' ? 0 : Number(text);
-  const count = Number.isInteger(parsed) ? Math.max(0, Math.min(MAX_TRAIN_BATCH, parsed)) : 0;
-  const perUnit = trainTimeMs(unit, live, settings);
-  const max = locked ? 0 : maxTrainable(live, unit, now, settings);
-  const check = checkTrain(live, unit, Math.max(1, count), now, settings);
-  const queueFull = live.trainQueues[building].length >= useRules().queues.train;
-
-  let reason: string | null = null;
-  if (village.hearth) reason = HEARTH_OUT_REASON;
-  else if (locked) reason = `Needs ${requirementText(unmet)}`;
-  else if (!isResearched(live, unit)) reason = 'Research in Drillyard';
-  else if (queueFull) reason = 'Queue full';
-  else if (count < 1) reason = max < 1 ? 'Cannot afford one' : 'Enter amount';
-  else if (!check.ok) reason = reasonText(check, unmet);
-
-  const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * Math.max(1, count)])) as typeof def.cost;
+  const rules = useRules();
+  const { unmet, locked, count, perUnitMs: perUnit, max, reason, batchCost } = trainRowState({
+    live,
+    unit,
+    building,
+    text,
+    now,
+    settings,
+    trainQueueLimit: rules.queues.train,
+    hearthOut: !!village.hearth,
+  });
 
   async function train() {
     if (busy || reason) return;

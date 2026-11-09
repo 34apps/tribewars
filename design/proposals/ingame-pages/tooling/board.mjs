@@ -81,14 +81,24 @@ for (const [page, name] of PAGES) {
       C: 'Left village column; building card and upgrade box on top; one wide row per unit with its full figure; queue on the right.',
       Mix: "A's top bar and tabs with a Village › Barracks trail and a ‹ 8 of 13 › switch; C's village column and C's Barracks body.",
     },
+    army: {
+      A: 'Three columns: troops at home | movements and support | send troops.',
+      C: 'Left village column with movements; a muster row of all nine figures, then send troops and support side by side.',
+      Mix: "A's top bar and tabs; C's village column (with training per building) and muster row; a movements table, support and send troops.",
+    },
   };
-  const TITLE = { village: 'Village page, step 1 of the mix', building: 'Barracks page, step 2 of the mix' };
-  const SUB = { village: "A and C as before, and the new Mix: A's tabs on top, C's village parts below. Same data; nothing scrolls.", building: "A and C as before, and the new Mix: A's tabs on top, C's village column and Barracks body below. Same data; nothing scrolls." };
-  for (const page of ['village', 'building']) {
+  const TITLE = { village: 'Village page, step 1 of the mix', building: 'Barracks page, step 2 of the mix', army: 'Army page, step 3 of the mix' };
+  const SUB = { village: "A and C as before, and the new Mix: A's tabs on top, C's village parts below. Same data; nothing scrolls.", building: "A and C as before, and the new Mix: A's tabs on top, C's village column and Barracks body below. Same data; nothing scrolls.", army: "A and C as before, and the new Mix: troops and trips only (recruiting lives on the Barracks and Stables pages). Same data; nothing scrolls." };
+  for (const page of ['village', 'building', 'army']) {
     const cells = ['A', 'C', 'Mix'].map((k) => `<div><span class="lab${k === 'Mix' ? ' mix' : ''}">${LAB[k]}</span><div class="line">${MIXLINE[page][k]}</div>${frame(k, page, 940)}</div>`).join('');
     boards.push([`board-mix-${page}`, `<h1>${TITLE[page]} · desktop 1440 × 900</h1><div class="sub">${SUB[page]}</div><div class="g3">${cells}</div>`]);
   }
 }
+boards.push(['board-mix-army2', `<h1>Army page, mix version 2 · desktop 1440 × 900</h1><div class="sub">C (the owner's favourite body), the first Mix, and Mix 2: C's big troop row and send panel, with Movements and Support in their own clear panels. Nothing scrolls.</div><div class="g3">${[
+  ['C', 'army', LAB.C, 'Left village column with movements; big troop row, then send troops and support side by side.'],
+  ['Mix', 'army', 'Mix 1', "A's bar and tabs; smaller troop row; a movements table, support and a narrow send form."],
+  ['Mix', 'army2', "Mix 2: A's tabs + C's Army body", "A's bar and tabs; C's big troop row; send troops left; Movements (attack first, in red) above Support on the right; training in the left column."],
+].map(([k, pg, lab, line], i) => `<div><span class="lab${i ? ' mix' : ''}">${lab}</span><div class="line">${line}</div>${frame(k, pg, 940)}</div>`).join('')}</div>`]);
 const only = process.argv[2] || '';
 const PROFILE = '/private/tmp/claude-501/ingame-pages-board'; rmSync(PROFILE, { recursive: true, force: true });
 const PORT = 9492;

@@ -12,3 +12,16 @@ export const UNIT_ROLE: Record<UnitId, { label: string; tone: 'def' | 'atk' | 's
   logram: { label: 'Siege', tone: 'siege' },
   boulder: { label: 'Siege', tone: 'siege' },
 };
+
+/** The short second half of a recruit row's role line ("Defence · good vs riders"). Our own wording; the numbers are in the unit guide. */
+export const UNIT_HINT: Record<UnitId, string> = {
+  pikeman: 'good vs riders',
+  guard: 'good vs foot',
+  raider: 'hits hard',
+  pathfinder: 'fastest',
+  outrider: 'carries loot',
+  knight: 'attack and defence',
+  chieftain: 'takes villages',
+  logram: 'breaks the Wall',
+  boulder: 'hits a building',
+};

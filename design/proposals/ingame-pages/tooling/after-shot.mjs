@@ -91,6 +91,24 @@ const SEED = `(async () => {
   return { me: me.username, others: others.length };
 })()`;
 
+// Second seed: levels and queues chosen so every state of the building control shows (Up, can't afford, upgrading, Max, Locked).
+const SEED2 = (jobs, train) => `(async () => {
+  const ctx = window.clanfirePreview.ctx;
+  const st = await (await fetch('/api/state')).json();
+  const rec = ctx.store.villagesOfPlayer(st.player.id)[0];
+  const now = Date.now();
+  const ids = Object.keys(rec.state.buildings);
+  const lv = { hall: 10, lumber: 20, farm: 5, mine: 2, goldmine: 3, market: ${jobs} > 1 ? 4 : 1, storehouse: 12, barracks: 8, stables: 3, drillyard: 5, bannerhall: ${jobs} > 1 ? 2 : 0, wall: 1, vault: 2 };
+  const b = {}; for (const k of ids) b[k] = lv[k] ?? 1;
+  const queue = [{ building: 'barracks', targetLevel: 9, startAt: now - 3600000, finishAt: now + 2530000 }];
+  if (${jobs} > 1) queue.push({ building: 'storehouse', targetLevel: 13, startAt: now + 2530000, finishAt: now + 2530000 + 4893000 });
+  const mk = (unit, count, done, per, startAt) => ({ unit, count, done, perUnitMs: per, startAt });
+  const tq = ${train} ? { ...rec.state.trainQueues, barracks: [mk('raider', 5, 1, 194000, now - 300000), mk('pikeman', 20, 0, 175000, now + 700000), mk('pathfinder', 2, 0, 117000, now + 4200000)] } : { ...rec.state.trainQueues, barracks: [] };
+  const t = { ...rec.state.troops }; for (const k of Object.keys(t)) t[k] = 0; Object.assign(t, { pikeman: 40, guard: 25, raider: 12, pathfinder: 3, logram: 1 });
+  const s2 = { ...rec.state, buildings: b, buildQueue: queue, trainQueues: tq, troops: t, lastUpdate: now, resources: { wood: 9800, food: 8200, iron: 500, gold: 120 } };
+  ctx.store.saveVillage(rec.id, s2, 80);
+  return Object.keys(s2).join(',');
+})()`;
 
 const click = async (x, y) => { for (const t of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type: t, x, y, button: 'left', clickCount: 1 }); await sleep(900); };
 const key = async (k, code, vk) => { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk }); await sleep(400); };
@@ -106,6 +124,7 @@ try {
   await waitFor(`window.clanfirePreview && document.querySelector('nav, .shell, header')`, 60000);
   await sleep(2500);
   console.log('seed', JSON.stringify(await evalJs(SEED)));
+  console.log('seed2', await evalJs(SEED2(1, true)));
   await tab('army'); await tab('village'); await sleep(2500);
   await waitFor(`/48\\.2k/.test(document.body.innerText)`, 40000).catch(() => console.log('WARN seeded numbers not shown'));
   await sleep(1500); await metrics('1440 village'); await shot('village-1440.png');
@@ -115,10 +134,23 @@ try {
   await evalJs(`document.querySelector('.frame .bell').click()`); await sleep(300);
   await evalJs(`document.querySelector('.frame .hud-avatar').click()`); await sleep(900); await shot('account-1440.png');
   await evalJs(`document.querySelector('.frame .hud-avatar').click()`); await sleep(300);
-  // building page
-  await evalJs(`(() => { const b = [...document.querySelectorAll('.fv-bpick')].find(e => /^Barracks, level/.test(e.getAttribute('aria-label'))); if (b) b.click(); })()`);
-  await sleep(1500); console.log('hash', await evalJs('location.hash')); await metrics('1440 building'); await shot('building-1440.png');
-  await evalJs(`(() => { const b = [...document.querySelectorAll('.fv-bpick')].find(e => /^Town Hall, level/.test(e.getAttribute('aria-label'))); })()`);
+  // building pages (queue full: two build jobs)
+  console.log('seed3', await evalJs(SEED2(2, true))); await sleep(12000);
+  const openB = async (name, file) => {
+    await evalJs(`(() => { const b = [...document.querySelectorAll('.fv-bpick')].find(e => e.getAttribute('aria-label').startsWith(${JSON.stringify(name + ', level')})); if (b) b.click(); })()`);
+    await sleep(2000); console.log('hash', await evalJs('location.hash'));
+    console.log('doc', await evalJs(`(() => { const d = document.documentElement; return d.scrollWidth + 'x' + d.scrollHeight + ' frame ' + JSON.stringify(document.querySelector('.frame').getBoundingClientRect().toJSON()); })()`));
+    await metrics('1440 ' + file); await shot(file);
+    console.log('overflow', await evalJs(`(() => { const out=[]; for (const e of document.querySelectorAll('.fv *')) { const p = e.closest('.fv-pn'); if (!p || e===p) continue; const a=e.getBoundingClientRect(), b=p.getBoundingClientRect(); if (a.width>0 && (a.bottom>b.bottom+1||a.right>b.right+1)) out.push((typeof e.className==='string'?e.className:e.tagName)+' '+Math.round(a.bottom-b.bottom)+','+Math.round(a.right-b.right)); } return out.slice(0,12).join(' | '); })()`));
+    await evalJs(`location.hash = 'village'`); await sleep(900);
+  };
+  await openB('Barracks', 'building-1440.png');
+  await openB('Stables', 'building-stables-1440.png');
+  await openB('Town Hall', 'building-townhall-1440.png');
+  await openB('Farm', 'building-farm-1440.png');
+  await openB('Drillyard', 'building-drillyard-1440.png');
+  await openB('Banner Hall', 'building-bannerhall-1440.png');
+  await evalJs(`location.hash = 'village/b/barracks'`); await sleep(1500);
   await key('Escape', 'Escape', 27); console.log('hash after esc', await evalJs('location.hash'));
   for (const t of ['army', 'reports', 'map']) {
     await tab(t); await sleep(1500); await metrics('1440 ' + t); await shot(`${t}-1440.png`);

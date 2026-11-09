@@ -52,7 +52,7 @@ try {
   await send('Page.enable'); await send('Runtime.enable');
   const fi = process.argv.indexOf('--file');
   const f = fi < 0 ? (process.argv.slice(2).find((a) => !a.startsWith('--')) || '') : '';
-  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:[abc]|mix)-(village|building|army|reports)(?:-done)?-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
+  const names = fi >= 0 ? [basename(process.argv[fi + 1], '.html')] : readdirSync(MOCK).filter((x) => /^(?:[abc]|mix)-(village|building|army|reports)\d?(?:-done)?-1440\.html$/.test(x) && x.includes(f)).map((x) => x.replace('.html', '')).sort();
   for (const n of names) {
     await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: pathToFileURL(join(MOCK, n + '.html')).href });
