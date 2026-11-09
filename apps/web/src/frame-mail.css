@@ -1,0 +1,512 @@
+/* The DESKTOP Mail page (views/mail/FrameMail.tsx) in the fixed 1440 x 900 frame: people left, the thread with one person right.
+   Only the thread scrolls. Picture: design/proposals/ingame-pages/mix-mail2-1440.png. Panels reuse .fv-pn / .fv-ph from frame.css. */
+
+.fr-page.is-fill > .frm {
+  flex: 1;
+}
+
+.frm {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.frm-list {
+  width: 452px;
+  flex: none;
+}
+
+.frm-detail {
+  flex: 1;
+}
+
+.frm-pad {
+  padding: 10px 14px;
+  margin: 0;
+}
+
+/* -- List -- */
+.frm-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--edge-soft);
+}
+
+.frm-seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 2px solid var(--edge-soft);
+  border-radius: 99px;
+  background: var(--surface);
+}
+
+.frm-sg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 1px;
+  border: 0;
+  border-radius: 99px;
+  background: none;
+  color: var(--on-surface);
+  font: 700 14px/1.2 var(--font);
+  cursor: pointer;
+}
+
+.frm-sg.on {
+  background: var(--dark);
+  color: var(--on-dark);
+}
+
+.frm-sg i,
+.frm-cnt {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px 1px;
+  border-radius: 99px;
+  background: var(--strip-danger);
+  color: var(--on-strip);
+  font: 700 13px/1.2 var(--font);
+}
+
+.frm-rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.frm-rr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 66px;
+  flex: none;
+  padding: 0 14px;
+  border: 0;
+  border-top: 1px solid var(--edge-soft);
+  background: none;
+  font: 500 14.5px/1.25 var(--font);
+  color: var(--on-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.frm-rows > :first-child {
+  border-top: 0;
+}
+
+.frm-rr:hover {
+  background: var(--surface-2);
+}
+
+.frm-rr.sel {
+  background: var(--c-sun-hi);
+}
+
+.frm-rr:focus-visible,
+.frm-sg:focus-visible,
+.frm-eb:focus-visible,
+.frm-th:focus-visible {
+  outline: 3px solid var(--c-teal-hi);
+  outline-offset: -3px;
+}
+
+.frm-av {
+  flex: none;
+  border-radius: 50%;
+}
+
+.frm-ini {
+  display: inline-grid;
+  place-items: center;
+  background: var(--c-bone);
+  border: 2px solid var(--edge);
+  box-sizing: border-box;
+  color: var(--on-fill);
+  font: 400 19px/1 var(--font-display);
+}
+
+.frm-rb {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.frm-rl {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.frm-rl b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 15.5px/1.2 var(--font);
+}
+
+.frm-rt {
+  flex: none;
+  font: 600 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.frm-rp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-surface-muted);
+  font: 500 14px/1.25 var(--font);
+}
+
+.frm-rr.unr .frm-rp {
+  color: var(--on-surface);
+  font-weight: 700;
+}
+
+.frm-pgr {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px 0 14px;
+  border-top: 2px solid var(--edge-soft);
+}
+
+.frm-pgr .fv-pg:disabled {
+  border-color: var(--edge);
+  color: var(--edge);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* -- Thread -- */
+.frm-dh {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--edge-soft);
+}
+
+.frm-dt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.frm-dt h2 {
+  margin: 0;
+  font: 400 22px/1.3 var(--font-display);
+  color: var(--heading);
+}
+
+.frm-ds {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.frm-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px 1px;
+  border-radius: 99px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font: 700 12.5px/1.2 var(--font);
+}
+
+.frm-del {
+  border-color: var(--strip-danger);
+  color: var(--strip-danger);
+  box-shadow: 0 3px 0 var(--strip-danger);
+  background: var(--surface);
+}
+
+.frm-del:disabled {
+  color: var(--on-surface-muted);
+}
+
+.frm-th {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.frm-day {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.frm-day::before,
+.frm-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--edge-soft);
+}
+
+.frm-ltr {
+  box-sizing: border-box;
+  align-self: flex-start;
+  flex: none;
+  max-width: min(640px, 72%);
+  padding: 10px 16px 9px;
+  border: 2px solid var(--edge);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--edge-shadow);
+}
+
+.frm-ltr.mine {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--c-sun-hi) 55%, var(--surface));
+}
+
+.frm-lh {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.frm-lh b {
+  font: 700 15.5px/1.3 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-lt {
+  margin-left: auto;
+  font: 600 13.5px/1.3 var(--font);
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+}
+
+.frm-lb {
+  margin: 6px 0 0;
+  font: 500 16px/1.45 var(--font);
+  color: var(--on-surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.frm-rep {
+  display: block;
+  margin: 4px 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 700 13.5px/1.2 var(--font);
+  color: var(--link);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.frm-older {
+  text-align: center;
+}
+
+/* -- Reply box -- */
+.frm-reply {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex: none;
+  padding: 12px 14px 14px;
+  border-top: 2px solid var(--edge-soft);
+  background: var(--surface-2);
+}
+
+.frm-rbox {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.frm-subj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.frm-subj input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: 700 13.5px/1.2 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-rbox textarea {
+  box-sizing: border-box;
+  width: 100%;
+  height: 52px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  resize: none;
+  font: 500 16px/1.4 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-rbox input:focus,
+.frm-rbox textarea:focus {
+  outline: none;
+}
+
+.frm-rbox:focus-within {
+  border-color: var(--c-teal-hi);
+}
+
+.frm-rside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+}
+
+.frm-count {
+  font: 700 13.5px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.frm-count.over {
+  color: var(--strip-danger);
+}
+
+/* -- Compose -- */
+.frm-cmp {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px 18px 16px;
+}
+
+.frm-f {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.frm-f > span {
+  font: 700 13px/1.2 var(--font);
+  color: var(--on-surface-muted);
+}
+
+.frm-f input,
+.frm-f textarea {
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  background: var(--surface);
+  font: 500 16px/1.4 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-f input:focus,
+.frm-f textarea:focus {
+  outline: none;
+  border-color: var(--c-teal-hi);
+}
+
+.frm-fgrow {
+  flex: 1;
+  min-height: 0;
+}
+
+.frm-fgrow textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+}
+
+.frm-emo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: none;
+}
+
+.frm-eb {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid var(--edge-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.frm-cfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+}
+
+.frm-conf {
+  padding: 14px 18px 12px;
+  font: 500 15px/1.45 var(--font);
+  color: var(--on-surface);
+}
+
+.frm-conf p {
+  margin: 0 0 14px;
+}
+
+.frm-conf-b {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -26,6 +26,7 @@ import { MapView } from './views/MapView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { FrameReports } from './views/reports/FrameReports.tsx';
+import { FrameMail } from './views/mail/FrameMail.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
 import { SupportView } from './views/SupportView.tsx';
@@ -308,7 +309,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     <>
       {tab === 'army' && (desktop ? <FrameArmy /> : <ArmyView />)}
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
-      {tab === 'mail' && <MailView />}
+      {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
       {tab === 'tribe' && <TribeView />}
       {tab === 'ranks' && <RankingsView />}
       {tab === 'support' && <SupportView />}
@@ -332,7 +333,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         <KeepAlive active={tab === 'village'} value={ctx}>
           <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
-        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
+        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Frame>
       <Toasts toasts={toasts} onDismiss={dismissToast} />

@@ -26,7 +26,10 @@ import type {
   GameStateResponse,
   InviteRequest,
   MailBox,
+  MailConversationReadResponse,
+  MailConversationsResponse,
   MailDto,
+  MailThreadResponse,
   MailListResponse,
   MapResponse,
   SearchVillagesBy,
@@ -326,6 +329,14 @@ export const api = {
   sites: () => request<SitesResponse>('GET', '/api/sites'),
   /** My own newest scout report with building levels on a village (Boulder Sling picker); both fields null when none. */
   scouted: (villageId: number) => request<ScoutedResponse>('GET', `/api/scouted/${villageId}`),
+  /** Mail as conversations (one row per person), newest first, 20 per page. */
+  mailConversations: (page = 0) => request<MailConversationsResponse>('GET', `/api/mail/conversations?page=${page}`),
+  /** The letters with one player, both directions, newest first. */
+  mailThread: (playerId: number, before?: number, limit = 30) =>
+    request<MailThreadResponse>('GET', `/api/mail/conversation/${playerId}?limit=${limit}${before === undefined ? '' : `&before=${before}`}`),
+  markConversationRead: (playerId: number) => request<MailConversationReadResponse>('POST', `/api/mail/conversation/${playerId}/read`, {}),
+  /** Hides the whole conversation for me only. */
+  deleteConversation: (playerId: number) => request<void>('POST', `/api/mail/conversation/${playerId}/delete`, {}),
   mail: (id: number) => request<MailDto>('GET', `/api/mail/${id}`),
   sendMail: (body: SendMailRequest) => request<MailDto>('POST', '/api/mail', body),
   deleteMail: (id: number) => request<void>('DELETE', `/api/mail/${id}`),

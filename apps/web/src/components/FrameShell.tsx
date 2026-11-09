@@ -162,8 +162,8 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const counts = bellCounts(notifications.items, now);
   const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
   const guardOrders = useGuardOrders();
-  // Village, map, army and reports keep the frame exactly 900 px tall (no page scroll); every other page may grow it for now.
-  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports';
+  // Village, map, army, reports and mail keep the frame exactly 900 px tall (no page scroll); every other page may grow it for now.
+  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail';
   return (
     <div className="frame-root">
       <div className="frame-band" aria-hidden="true" />
