@@ -9,6 +9,7 @@ import { SiegePicker } from '../components/Siege.tsx';
 import { TroopGroupBar } from '../components/TroopGroups.tsx';
 import { useTroopGroups } from '../hooks/useTroopGroups.ts';
 import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
+import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
@@ -73,9 +74,11 @@ export function useFitPanel(ref: RefObject<HTMLElement | null>) {
     const mo = new MutationObserver(fit);
     mo.observe(el, { childList: true, subtree: true, characterData: true });
     el.addEventListener('input', fit);
+    el.addEventListener('toggle', fit, true);
     return () => {
       mo.disconnect();
       el.removeEventListener('input', fit);
+      el.removeEventListener('toggle', fit, true);
     };
   }, [desktop, ref]);
 }
@@ -483,22 +486,12 @@ export function SendForm({
       )}
       {player.sandbox && (
         <details className="wm-test wm-muted">
-          <summary>Test mode</summary>
+          <summary>Test only (just you see this)</summary>
           <div className="wm-test-body">
+            <p className="wm-test-help">Trip takes this long. Blank = normal time.</p>
             <div className="wm-test-row">
-              <input
-                className="wm-input"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={86400}
-                step={1}
-                placeholder="Way out (s)"
-                aria-label="Test mode: seconds on the way out"
-                value={outSecs}
-                onChange={(e) => setOutSecs(e.target.value)}
-              />
-              {fights && (
+              <label className="wm-test-field">
+                <span>Seconds out</span>
                 <input
                   className="wm-input"
                   type="number"
@@ -506,11 +499,24 @@ export function SendForm({
                   min={0}
                   max={86400}
                   step={1}
-                  placeholder="Way home (s)"
-                  aria-label="Test mode: seconds on the way home"
-                  value={backSecs}
-                  onChange={(e) => setBackSecs(e.target.value)}
+                  value={outSecs}
+                  onChange={(e) => setOutSecs(e.target.value)}
                 />
+              </label>
+              {fights && (
+                <label className="wm-test-field">
+                  <span>Seconds home</span>
+                  <input
+                    className="wm-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={86400}
+                    step={1}
+                    value={backSecs}
+                    onChange={(e) => setBackSecs(e.target.value)}
+                  />
+                </label>
               )}
             </div>
           </div>
@@ -641,7 +647,8 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
             aria-expanded={shipOpen}
             onClick={() => setShipOpenFor(shipOpen ? null : shipKey)}
           >
-            {desktop && shipOpen ? 'Troops' : 'Send res.'}
+            <Icon name={desktop && shipOpen ? 'army' : 'chest'} size={20} className="wm-ship-ico" />
+            <span>{desktop && shipOpen ? 'Troops' : 'Send resources'}</span>
           </button>
         )}
         <button type="button" className="wm-btn wm-btn-icon wm-close" onClick={onClose} aria-label="Close panel">

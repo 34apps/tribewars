@@ -232,8 +232,49 @@ html.layout-desktop .wm-panel .wm-close {
 
 html.layout-desktop .wm-panel .wm-ship-btn {
   min-height: 36px;
-  padding: 0 10px 3px;
-  font-size: 13.5px;
+  padding: 0 14px 3px 10px;
+  font-size: 14px;
+}
+
+/* Header: the place name gets the full line (close button beside it), the Send resources button sits below. */
+html.layout-desktop .wm-panel-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+html.layout-desktop .wm-panel-head .wm-panel-titles {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+html.layout-desktop .wm-panel-head .wm-close {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+html.layout-desktop .wm-panel-head .wm-ship-btn {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: start;
+}
+
+html.layout-desktop .wm-test {
+  padding: 0 10px 8px;
+  border: 2px dashed var(--edge);
+  border-radius: 12px;
+}
+
+html.layout-desktop .wm-test:not([open]) {
+  padding-bottom: 0;
+}
+
+html.layout-desktop .wm-test-body {
+  gap: 6px;
+}
+
+html.layout-desktop .wm-test-field {
+  font-size: 13px;
 }
 
 /* Stage card: the village drawing, its growth stage and ring. */
@@ -866,4 +907,8 @@ html.layout-desktop .wm-legend-stages small {
 
 html.layout-desktop .wm-legend-banners li {
   font-size: 14px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-test-help {
+  display: none;
 }

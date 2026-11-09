@@ -57,7 +57,7 @@ function sameDay(a: Date, b: Date): boolean {
 export function formatClock(ts: number, now: number): string {
   const d = new Date(ts);
   const today = new Date(now);
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   if (sameDay(d, today)) return time;
   const tomorrow = new Date(now + 86_400_000);
   if (sameDay(d, tomorrow)) return `tomorrow ${time}`;
@@ -82,7 +82,7 @@ export function formatSignedPercent(fraction: number): string {
   return `${p < 0 ? '−' : '+'}${Math.abs(p).toFixed(1)}%`;
 }
 
-const timeHm = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' });
+const timeHm = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const weekdayShort = new Intl.DateTimeFormat([], { weekday: 'short' });
 const dayMonth = new Intl.DateTimeFormat([], { day: 'numeric', month: 'short' });
 

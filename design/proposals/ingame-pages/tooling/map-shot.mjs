@@ -135,6 +135,7 @@ try {
   if (targets.player) {
     await goTo(targets.player.x, targets.player.y); await sleep(500);
     await metrics('player'); await check('player'); await shot('map-player-1440.png');
+    console.log('testmode', await evalJs(`(() => { const d = document.querySelector('.wm-test'); if (!d) return false; d.open = true; return true; })()`)); await sleep(400); await shot('map-testmode-1440.png');
   }
   await goTo(targets.own.x, targets.own.y); await sleep(500);
   await metrics('own'); await check('own'); await shot('map-own-1440.png');

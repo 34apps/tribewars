@@ -273,7 +273,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 9px;
+  gap: 12px;
   min-height: 0;
   padding: 12px 14px 14px;
 }
@@ -366,6 +366,7 @@
 .frp-grid {
   display: flex;
   flex: 1;
+  align-items: flex-start;
   gap: 12px;
   min-height: 0;
 }
@@ -375,15 +376,21 @@
   flex: none;
   flex-direction: column;
   align-items: flex-start;
+  align-self: flex-start;
   gap: 6px;
   width: 430px;
+  box-sizing: border-box;
+  padding: 6px 12px 10px;
+  border: 2px solid var(--edge-soft);
+  border-radius: 14px;
+  background: var(--surface-2);
 }
 
 .frp-col {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 

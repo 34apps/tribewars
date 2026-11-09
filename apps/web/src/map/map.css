@@ -1297,3 +1297,21 @@
     padding-bottom: calc(var(--dock-space, 96px) + 8px);
   }
 }
+
+.wm-ship-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wm-test-help {
+  margin: 0;
+}
+
+.wm-test-field {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  font-weight: 700;
+}
