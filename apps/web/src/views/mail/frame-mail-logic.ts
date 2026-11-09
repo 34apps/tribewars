@@ -62,5 +62,5 @@ export function threadItems(mails: MailDto[], now: number, myId: number): Thread
   return out;
 }
 
-/** "14:53" in the viewer's locale. */
-export const letterTime = (ts: number): string => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+/** "14:53": 24-hour clock, like the approved picture. */
+export const letterTime = (ts: number): string => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
