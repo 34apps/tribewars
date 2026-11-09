@@ -2,10 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { WORLD_STATUSES, isLobbyPath } from '@clanfire/engine';
+import { isLobbyPath } from '@clanfire/engine';
 import type { LobbyWorldDto } from '@clanfire/engine';
 import { ApiRequestError, api, lobbyApiBase, safeWorldPath, withApiBase } from '../src/api.ts';
-import { WORLD_STATUS_LABEL, enterWorld, sortWorlds, worldButtonLabel } from '../src/lobby.ts';
+import { daysAgoLabel, enterWorld, groupWorlds, isNewWorld, worldButtonLabel } from '../src/lobby.ts';
 import { isLobbyWorld, loadWorldInfo, resetWorldInfoCache } from '../src/hooks/useWorldInfo.ts';
 
 interface Call {
@@ -129,7 +129,7 @@ test('a failed world info request is not cached', async () => {
   assert.equal(calls.length, 1);
 });
 
-const world: LobbyWorldDto = { id: 'w1', name: 'World 1', status: 'open', path: '/w/w1/' };
+const world: LobbyWorldDto = { id: 'w1', name: 'World 1', status: 'open', path: '/w/w1/', lastPlayedAt: null };
 const PASS = 'PAYLOAD.SIGNATURE';
 
 test('enterWorld asks the lobby, posts the pass in the body to the world, then navigates', async () => {
@@ -182,19 +182,28 @@ test('enterWorld surfaces API errors and does not navigate', async () => {
   assert.deepEqual(went, []);
 });
 
-test('world status labels cover every status', () => {
-  assert.equal(WORLD_STATUS_LABEL.open, 'Open');
-  assert.match(WORLD_STATUS_LABEL.full, /returning only/);
-  assert.equal(WORLD_STATUS_LABEL.closed, 'Closed');
-  assert.equal(WORLD_STATUS_LABEL.finished, 'Finished');
-  for (const s of WORLD_STATUSES) assert.ok(WORLD_STATUS_LABEL[s], s);
-});
-
-test('finished worlds say "View results" and sort below running ones, keeping the lobby order otherwise', () => {
+test('finished worlds say "View results", the others "Play"', () => {
   assert.equal(worldButtonLabel('finished'), 'View results');
   for (const s of ['open', 'full', 'closed'] as const) assert.equal(worldButtonLabel(s), 'Play');
-  const w = (id: string, status: LobbyWorldDto['status']): LobbyWorldDto => ({ id, name: id, status, path: `/w/${id}/` });
-  const list = [w('a', 'finished'), w('b', 'open'), w('c', 'finished'), w('d', 'closed'), w('e', 'full')];
-  assert.deepEqual(sortWorlds(list).map((x) => x.id), ['b', 'd', 'e', 'a', 'c']);
-  assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e'], 'the input is not changed');
+});
+
+test('homepage worlds: yours (last played first), joinable, results; closed worlds are left out', () => {
+  const w = (id: string, status: LobbyWorldDto['status'], lastPlayedAt: number | null): LobbyWorldDto => ({ id, name: id, status, path: `/w/${id}/`, lastPlayedAt });
+  const list = [w('a', 'open', 100), w('b', 'open', null), w('c', 'full', 300), w('d', 'full', null), w('e', 'finished', 50), w('f', 'closed', 10), w('g', 'closed', null)];
+  const g = groupWorlds(list);
+  assert.deepEqual(g.yours.map((x) => x.id), ['c', 'a']);
+  assert.deepEqual(g.join.map((x) => x.id), ['b', 'd']);
+  assert.deepEqual(g.results.map((x) => x.id), ['e']);
+  assert.deepEqual(list.map((x) => x.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 'the input is not changed');
+});
+
+test('world age: "today", "1 day ago", "N days ago"; New for the first week', () => {
+  const day = 86_400_000;
+  const now = 100 * day;
+  assert.equal(daysAgoLabel(now - 3600_000, now), 'today');
+  assert.equal(daysAgoLabel(now + 5000, now), 'today', 'a clock a little ahead is still today');
+  assert.equal(daysAgoLabel(now - day, now), '1 day ago');
+  assert.equal(daysAgoLabel(now - 9 * day - 5, now), '9 days ago');
+  assert.equal(isNewWorld(now - 6 * day, now), true);
+  assert.equal(isNewWorld(now - 7 * day, now), false);
 });

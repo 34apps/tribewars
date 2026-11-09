@@ -1955,6 +1955,8 @@ export interface LobbyWorldDto {
   status: WorldStatus;
   /** Public URL path of the world's page, always "/..../" (e.g. "/w/w1/"). The world's API is `${path}api/...`. */
   path: string;
+  /** When this account last entered the world, ms since epoch; null = never. Only the signed-in account's own history. */
+  lastPlayedAt: number | null;
 }
 
 export interface LobbyWorldsResponse {

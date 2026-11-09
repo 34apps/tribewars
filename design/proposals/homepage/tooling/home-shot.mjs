@@ -1,6 +1,9 @@
-// Headless Chrome CDP screenshots of the signed-out lobby homepage (vite dev + faked /lobby/api), at four sizes.
+// Headless Chrome CDP screenshots of the lobby homepage (vite dev + faked /lobby/api).
 // usage: node home-shot.mjs <outDir>   (needs vite dev on 127.0.0.1:5199:  cd apps/web && npx vite --host 127.0.0.1 --port 5199 --strictPort)
-// Saves home-1440x900.png, home-1280x720.png, home-360x640.png, home-360x780.png and prints scrollHeight vs innerHeight per size.
+// Signed out at 360x640, 390x844, 1280x720, 1440x900 (out-<w>x<h>.png); signed in (account with 2 badges; worlds: 1 played,
+// 2 new, 1 full, 1 finished) at 360x640, 390x844, 1280x720, 1440x900 (in-<w>x<h>.png); the chieftain overlay after
+// "Play free" at 360x640 and 1280x720 (chieftain-<w>x<h>.png); the Hall of Fame dialog (hall-1440x900.png).
+// Prints, per shot, the page scroller's (.home) scrollHeight vs clientHeight.
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -48,11 +51,28 @@ async function waitFor(expr, ms = 30000) {
   throw new Error('timeout waiting for ' + expr);
 }
 const now = Date.now();
-const WORLDS = { worlds: [
-  { id: 'w4', name: 'Hollow Marsh', status: 'open', path: '/w/w4/', openedAt: now - 3 * 86400000 },
-  { id: 'w5', name: 'Cinder Vale', status: 'open', path: '/w/w5/', openedAt: now - 9 * 86400000 },
-  { id: 'w6', name: 'Ashfall', status: 'full', path: '/w/w6/', openedAt: now - 20 * 86400000 },
+const DAY = 86400000;
+const PUBLIC_WORLDS = { worlds: [
+  { id: 'w4', name: 'Hollow Marsh', status: 'open', path: '/w/w4/', openedAt: now - 3 * DAY },
+  { id: 'w5', name: 'Cinder Vale', status: 'open', path: '/w/w5/', openedAt: now - 9 * DAY },
+  { id: 'w6', name: 'Ashfall', status: 'full', path: '/w/w6/', openedAt: now - 20 * DAY },
 ] };
+const ACCOUNT = { id: 1, username: 'Rowan_the_Red', chieftain: 'old-orm', staffRole: null, badges: [
+  { worldId: 'w1', worldName: 'First Light', badge: 'champion', place: null, endedAt: now - 40 * DAY },
+  { worldId: 'w2', worldName: 'Second Spark', badge: 'top10', place: 4, endedAt: now - 20 * DAY },
+] };
+const LOBBY_WORLDS = { worlds: [
+  { id: 'w4', name: 'Hollow Marsh', status: 'open', path: '/w/w4/', lastPlayedAt: now - 2 * DAY },
+  { id: 'w5', name: 'Cinder Vale', status: 'open', path: '/w/w5/', lastPlayedAt: null },
+  { id: 'w7', name: 'Emberfall', status: 'open', path: '/w/w7/', lastPlayedAt: null },
+  { id: 'w6', name: 'Ashfall', status: 'full', path: '/w/w6/', lastPlayedAt: null },
+  { id: 'w1', name: 'First Light', status: 'finished', path: '/w/w1/', lastPlayedAt: now - 50 * DAY },
+] };
+const HALL = { worlds: [
+  { worldId: 'w1', worldName: 'First Light', endedAt: now - 40 * DAY, kind: 'domination', winner: { tag: 'EMB', name: 'The Embers' },
+    topPlayers: [{ rank: 1, name: 'Rowan_the_Red', tribeTag: 'EMB', points: 12840 }, { rank: 2, name: 'Mags', tribeTag: null, points: 9120 }, { rank: 3, name: 'Tinker', tribeTag: 'EMB', points: 7005 }] },
+] };
+let signedIn = false;
 const json = (o) => Buffer.from(JSON.stringify(o)).toString('base64');
 try {
   await connect();
@@ -62,19 +82,56 @@ try {
     const m = JSON.parse(e.data);
     if (m.method !== 'Fetch.requestPaused') return;
     const u = m.params.request.url; let body = { error: 'not_found' }; let status = 404;
-    if (u.includes('/auth/me')) { body = { account: null }; status = 200; }
-    else if (u.includes('/worlds/public')) { body = WORLDS; status = 200; }
+    if (u.includes('/auth/me')) { body = { account: signedIn ? ACCOUNT : null }; status = 200; }
+    else if (u.includes('/worlds/public')) { body = PUBLIC_WORLDS; status = 200; }
+    else if (u.includes('/hall-of-fame')) { body = HALL; status = 200; }
+    else if (u.includes('/worlds')) { body = LOBBY_WORLDS; status = 200; }
     send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: status, responseHeaders: [{ name: 'content-type', value: 'application/json' }], body: json(body) }).catch(() => {});
   });
-  for (const [w, h, mob] of [[1440, 900, false], [1280, 720, false], [360, 640, true], [360, 780, true]]) {
+  const SIZES = [[360, 640, true], [390, 844, true], [1280, 720, false], [1440, 900, false]];
+  async function open(w, h, mob) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mob ? 2 : 1, mobile: mob });
     await send('Page.navigate', { url: 'http://127.0.0.1:5199/lobby/' });
     await waitFor(`document.querySelector('.home-village-art[data-ready="true"]')`);
-    await waitFor(`document.querySelector('.home-world')`);
     await sleep(900); // fade-in
-    const m = await evalJs(`({ sh: document.documentElement.scrollHeight, bsh: document.body.scrollHeight, ih: innerHeight, sw: document.documentElement.scrollWidth, iw: innerWidth })`);
-    const r = await send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(join(OUT, `home-${w}x${h}.png`), Buffer.from(r.data, 'base64'));
-    console.log(`${w}x${h}`, `scrollHeight=${m.sh} body=${m.bsh} innerHeight=${m.ih}`, m.sh <= m.ih ? 'NO-SCROLL' : 'SCROLLS', `scrollWidth=${m.sw} innerWidth=${m.iw}`, m.sw <= m.iw ? '' : 'H-SCROLL');
   }
+  async function shot(name, w, h) {
+    const m = await evalJs(`(() => { const e = document.querySelector('.home'); return { sh: e.scrollHeight, ch: e.clientHeight, sw: e.scrollWidth, cw: e.clientWidth, hero: Math.round(document.querySelector('.home-hero').getBoundingClientRect().height) }; })()`);
+    const r = await send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, `${name}-${w}x${h}.png`), Buffer.from(r.data, 'base64'));
+    console.log(`${name} ${w}x${h}`, `scrollHeight=${m.sh} clientHeight=${m.ch}`, m.sh <= m.ch ? 'NO-SCROLL' : `SCROLLS(+${m.sh - m.ch})`, `village=${m.hero}px`, m.sw <= m.cw ? '' : 'H-SCROLL');
+  }
+  for (const [w, h, mob] of SIZES) {
+    signedIn = false;
+    await open(w, h, mob);
+    await waitFor(`document.querySelector('.home-world')`);
+    await shot('out', w, h);
+  }
+  for (const [w, h, mob] of SIZES) {
+    signedIn = true;
+    await open(w, h, mob);
+    await waitFor(`document.querySelector('.home-welcome .home-world')`);
+    await shot('in', w, h);
+  }
+  // The chieftain step after "Play free" (valid name and password).
+  signedIn = false;
+  for (const [w, h, mob] of [[360, 640, true], [1280, 720, false]]) {
+    await open(w, h, mob);
+    await waitFor(`document.querySelector('.auth-inline input[name=username]')`);
+    // React-controlled inputs: use the native setter and an input event.
+    await evalJs(`(() => { const set = (n, v) => { const i = document.querySelector('.auth-inline input[name=' + n + ']'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })); }; set('username', 'Rowan_the_Red'); set('password', 'a long enough secret'); })()`);
+    await sleep(200);
+    await evalJs(`document.querySelector('.auth-inline form button[type=submit]').click()`);
+    await waitFor(`document.querySelector('.auth-overlay .cp-tile, .auth-overlay .cp-grid')`);
+    await sleep(900);
+    await shot('chieftain', w, h);
+  }
+  // Hall of Fame dialog, signed in, desktop.
+  signedIn = true;
+  await open(1440, 900, false);
+  await waitFor(`document.querySelector('.home-hall')`);
+  await evalJs(`document.querySelector('.home-hall').click()`);
+  await waitFor(`document.querySelector('.hof-dialog .hof-card')`);
+  await sleep(300);
+  await shot('hall', 1440, 900);
 } catch (e) { console.error(e); } finally { chrome.kill(); }

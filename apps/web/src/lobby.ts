@@ -3,22 +3,47 @@
 import type { LobbyWorldDto, WorldStatus } from '@clanfire/engine';
 import { ApiRequestError, api, safeWorldPath } from './api.ts';
 
-export const WORLD_STATUS_LABEL: Record<WorldStatus, string> = {
-  open: 'Open',
-  full: 'Full · returning only',
-  closed: 'Closed',
-  finished: 'Finished',
-};
-
 /** Card button text: a finished world is only for looking at the results. */
 export function worldButtonLabel(status: WorldStatus): string {
   return status === 'finished' ? 'View results' : 'Play';
 }
 
-/** Running worlds first, finished ones below; the lobby's own order is kept inside each group (stable sort). */
-export function sortWorlds(worlds: readonly LobbyWorldDto[]): LobbyWorldDto[] {
-  const rank = (w: LobbyWorldDto): number => (w.status === 'finished' ? 1 : 0);
-  return [...worlds].sort((a, b) => rank(a) - rank(b));
+const DAY_MS = 86_400_000;
+/** A world counts as "New" for its first week. */
+export const NEW_WORLD_DAYS = 7;
+
+/** Whole days between two moments (never negative). */
+function daysBetween(then: number, now: number): number {
+  return Math.max(0, Math.floor((now - then) / DAY_MS));
+}
+
+/** "today", "1 day ago", "5 days ago". */
+export function daysAgoLabel(then: number, now: number = Date.now()): string {
+  const d = daysBetween(then, now);
+  return d === 0 ? 'today' : d === 1 ? '1 day ago' : `${d} days ago`;
+}
+
+/** The small "New" tag: the world opened less than a week ago. */
+export function isNewWorld(openedAt: number, now: number = Date.now()): boolean {
+  return now - openedAt < NEW_WORLD_DAYS * DAY_MS;
+}
+
+/** The signed-in homepage's three groups. Closed worlds are left out. */
+export interface WorldGroups {
+  /** Entered before and still running (open or full), last played first. */
+  yours: LobbyWorldDto[];
+  /** Never entered: open ones can be joined, full ones are shown as Full. */
+  join: LobbyWorldDto[];
+  /** Ended worlds (read-only), for "View results". */
+  results: LobbyWorldDto[];
+}
+
+export function groupWorlds(worlds: readonly LobbyWorldDto[]): WorldGroups {
+  const yours = worlds.filter((w) => (w.status === 'open' || w.status === 'full') && w.lastPlayedAt !== null);
+  yours.sort((a, b) => (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0));
+  const join = worlds.filter((w) => (w.status === 'open' || w.status === 'full') && w.lastPlayedAt === null);
+  const results = worlds.filter((w) => w.status === 'finished');
+  return { yours, join, results };
 }
 
 const MANUAL_SIGN_OUT_KEY = 'clanfire.manualSignOut';

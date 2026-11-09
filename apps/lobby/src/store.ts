@@ -371,6 +371,25 @@ export class Store {
     return this.run('DELETE FROM account_badges WHERE account_id = ? AND world_id = ? AND badge = ?', accountId, worldId, badge).changes > 0;
   }
 
+  /** Remember that the account entered the world (first and latest time). */
+  recordWorldEntry(accountId: number, worldId: string, now: number): void {
+    this.run(
+      `INSERT INTO account_worlds (account_id, world_id, first_entered, last_entered) VALUES (?, ?, ?, ?)
+         ON CONFLICT (account_id, world_id) DO UPDATE SET last_entered = excluded.last_entered`,
+      accountId,
+      worldId,
+      now,
+      now,
+    );
+  }
+
+  /** world id -> when the account last entered it (ms since epoch). Own account only. */
+  lastEntered(accountId: number): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const r of this.all('SELECT world_id, last_entered FROM account_worlds WHERE account_id = ?', accountId)) out.set(String(r.world_id), Number(r.last_entered));
+    return out;
+  }
+
   accountExists(id: number): boolean {
     return this.get('SELECT 1 AS x FROM accounts WHERE id = ?', id) !== undefined;
   }

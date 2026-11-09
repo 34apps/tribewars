@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { LobbyAccountDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
-import { AuthScreen } from './AuthScreen.tsx';
-import type { Mode } from './AuthScreen.tsx';
 import { HomePage } from './HomePage.tsx';
 import type { AuthCalls } from './AuthScreen.tsx';
 import { ErrorSplash, LoadingSplash } from './Splash.tsx';
-import { WorldPicker } from './WorldPicker.tsx';
 
 const LOBBY_CALLS: AuthCalls = { login: api.lobbyLogin, register: api.lobbyRegister, changePassword: api.lobbyChangePassword, passwordMin: 10 };
 
-/** Root of the lobby page (/lobby/): sign in or create the one account, then pick a world. */
+/** Root of the lobby page (/lobby/): one homepage; sign in or create the one account there, then pick a world. */
 export function LobbyApp() {
   const [account, setAccount] = useState<LobbyAccountDto | null | 'loading'>('loading');
   const [bootError, setBootError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  /** Signed out: the homepage (null) or the form in one of its two modes. */
-  const [authMode, setAuthMode] = useState<Mode | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,9 +37,5 @@ export function LobbyApp() {
 
   if (bootError) return <ErrorSplash message={bootError} onRetry={reload} />;
   if (account === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
-  if (account === null) {
-    if (authMode === null) return <HomePage onPlay={() => setAuthMode('register')} onSignIn={() => setAuthMode('login')} />;
-    return <AuthScreen key={authMode} calls={LOBBY_CALLS} onAuthed={reload} initialMode={authMode} onBack={() => setAuthMode(null)} />;
-  }
-  return <WorldPicker account={account} onSignedOut={signedOut} />;
+  return <HomePage account={account} calls={LOBBY_CALLS} onAuthed={reload} onSignedOut={signedOut} />;
 }

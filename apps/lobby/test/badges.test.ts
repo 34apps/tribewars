@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { HallOfFameResponse, LobbyMeResponse } from '@clanfire/engine';
 import { HALL_OF_FAME_MAX_WORLDS } from '@clanfire/engine';
 import { runAdmin } from '../src/admin-ops.ts';
-import { openDatabase } from '../src/db.ts';
+import { SCHEMA_VERSION, openDatabase } from '../src/db.ts';
 import { Store } from '../src/store.ts';
 import { PUBLIC_KEY, PASSWORD, addWorld, errorOf, makeApp, ok, register, nextIp, Client } from './helpers.ts';
 import { verifyPass } from '../src/pass.ts';
@@ -243,8 +243,36 @@ test('db: v3 database upgrades to v4 with the badge tables', () => {
     db.exec('DROP TABLE account_badges; DROP TABLE hall_of_fame; PRAGMA user_version = 3');
     db.close();
     const again = openDatabase(file);
-    assert.equal((again.prepare('PRAGMA user_version').get() as { user_version: number }).user_version, 4);
+    assert.equal((again.prepare('PRAGMA user_version').get() as { user_version: number }).user_version, SCHEMA_VERSION);
     assert.equal((again.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('account_badges','hall_of_fame')").get() as { n: number }).n, 2);
+    again.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('db: v4 database upgrades to v5 with the account_worlds table', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-lobby-v5-'));
+  try {
+    const file = join(dir, 'l.sqlite');
+    const db = openDatabase(file);
+    db.exec('DROP TABLE account_worlds; PRAGMA user_version = 4');
+    // Entries made before v5 live only in the audit log; the upgrade copies them (first and latest time per world).
+    db.exec("INSERT INTO accounts (username, username_lower, password_hash, created_at) VALUES ('Ann', 'ann', 'x', 1)");
+    const aid = Number((db.prepare("SELECT id FROM accounts WHERE username_lower = 'ann'").get() as { id: number }).id);
+    const audit = db.prepare("INSERT INTO audit_log (at, actor_id, action, target_account, detail) VALUES (?, ?, 'enter', ?, ?)");
+    audit.run(100, aid, aid, 'w1');
+    audit.run(300, aid, aid, 'w1');
+    audit.run(200, aid, aid, 'w2');
+    db.close();
+    const again = openDatabase(file);
+    assert.equal((again.prepare('PRAGMA user_version').get() as { user_version: number }).user_version, SCHEMA_VERSION);
+    assert.equal((again.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'account_worlds'").get() as { n: number }).n, 1);
+    const rows = again.prepare('SELECT world_id, first_entered, last_entered FROM account_worlds WHERE account_id = ? ORDER BY world_id').all(aid);
+    assert.deepEqual(rows.map((r) => ({ ...r })), [
+      { world_id: 'w1', first_entered: 100, last_entered: 300 },
+      { world_id: 'w2', first_entered: 200, last_entered: 200 },
+    ]);
     again.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -6,9 +6,11 @@ import { hallOfFameDtos } from '../finish-world.ts';
 import { accountOf, requireAccount } from './auth.ts';
 
 export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
-  app.get('/api/worlds', { onRequest: requireAccount(ctx) }, async (): Promise<LobbyWorldsResponse> => ({
-    worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path })),
-  }));
+  app.get('/api/worlds', { onRequest: requireAccount(ctx) }, async (req): Promise<LobbyWorldsResponse> => {
+    // lastPlayedAt is the signed-in account's own history only (keyed on the session's account id, no input).
+    const played = ctx.store.lastEntered(accountOf(req).id);
+    return { worlds: ctx.store.listWorlds().map((w) => ({ id: w.id, name: w.name, status: w.status, path: w.path, lastPlayedAt: played.get(w.id) ?? null })) };
+  });
 
   // Signed-out homepage strip. No input, no account data; only open or full worlds, a fixed few fields, capped. Covered by the
   // global per-IP API limit like every other /api route.
@@ -47,6 +49,8 @@ export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
     // returning players may always enter (a finished world is read-only, to look at the results).
     const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole, bdg: summarizeBadges(ctx.store.accountBadges(account.id)) }, ctx.signingKey, req.nowMs);
     ctx.store.audit({ at: req.nowMs, actorId: account.id, actorIp: req.ip, action: 'enter', targetAccount: account.id, detail: world.id });
+    // Only a successful entry is remembered (every refusal above throws first).
+    ctx.store.recordWorldEntry(account.id, world.id, req.nowMs);
     return { pass, path: world.path, expiresAt: claims.exp };
   });
 }

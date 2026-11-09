@@ -1,4 +1,5 @@
-/* Signed-out lobby homepage: exactly one screen, never a page scrollbar. */
+/* The lobby homepage (visitors and signed-in accounts): made to fit one screen. `.home` is the scroller, so if a short
+   screen or an open phone keyboard leaves too little room it scrolls instead of trapping a field. */
 
 html:has(.home),
 html:has(.home) body {
@@ -11,7 +12,9 @@ html:has(.home) body {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -38,8 +41,8 @@ html:has(.home) body {
 }
 
 .home-main {
-  flex: 1;
-  min-height: 0;
+  /* At least as tall as its content (the village keeps its minimum), taller when the screen allows. */
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   padding: 8px 14px 0;
@@ -49,22 +52,6 @@ html:has(.home) body {
   /* Phone: the copy's parts join the page's column so the village can sit between headline and buttons. */
   display: contents;
   text-align: center;
-}
-
-.home-tag {
-  order: 0;
-  display: none;
-  align-self: flex-start;
-  margin: 0 0 12px;
-  padding: 5px 12px;
-  border-radius: 99px;
-  background: var(--dark);
-  color: var(--on-dark);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  box-shadow: 0 3px 0 var(--edge-shadow);
 }
 
 .home-title {
@@ -77,6 +64,7 @@ html:has(.home) body {
   line-height: 1.08;
   letter-spacing: 0.01em;
   color: var(--on-surface);
+  text-wrap: balance;
 }
 
 .home-title em {
@@ -94,43 +82,30 @@ html:has(.home) body {
   color: var(--on-surface);
 }
 
-.btn.home-play {
-  order: 4;
-  width: 100%;
-  min-height: 56px;
-  margin-top: 8px;
-  font-size: 1.3rem;
-  border-radius: 18px;
-}
-
-.home-chips {
-  order: 5;
-  display: none;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-chips li {
+.home-who {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 16px 0 12px;
-  border-radius: 99px;
-  background: var(--surface-3);
-  color: var(--on-surface);
-  font-weight: 700;
-  font-size: 1rem;
+  gap: 10px;
+  min-width: 0;
 }
 
-.home-already {
-  margin: 0;
-  order: 6;
-  text-align: center;
-  font-weight: 500;
-  font-size: 0.95rem;
+.home-who-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 6.5em;
+  font-weight: 700;
+}
+
+.home-who .btn {
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .home-who-name {
+    max-width: 14em;
+  }
 }
 
 .home-link {
@@ -148,21 +123,341 @@ html:has(.home) body {
   touch-action: manipulation;
 }
 
-.home-trust {
-  display: none;
-  text-align: center;
-  margin: 0;
-  order: 7;
+.home-link:disabled {
+  color: var(--on-surface-muted);
+  cursor: not-allowed;
+}
+
+.home-link-small {
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+/* ---- Account card: chunky parchment panel ---- */
+
+.home-card,
+.home-worlds-wrap {
+  text-align: left;
+}
+
+.home-card {
+  order: 4;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
+}
+
+.auth-inline .auth-tabs {
+  margin-bottom: 8px;
+}
+
+.auth-inline .auth-tabs button {
+  font-size: 1rem;
+}
+
+.auth-inline .auth-form {
+  gap: 8px;
+}
+
+.auth-inline .field input {
+  min-height: 48px;
+}
+
+.auth-inline .form-error {
+  min-height: 0;
+}
+
+.auth-inline .btn-primary {
+  min-height: 54px;
+  font-size: 1.25rem;
+  border-radius: 16px;
+}
+
+/* On a phone the hints stay for screen readers only: the room is needed. */
+@media (max-width: 899px) {
+  .auth-inline .hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* The steps after the form: a full-screen sheet on phones, a centred dialog from 640 px. */
+.auth-overlay {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.auth-overlay::backdrop {
+  background: var(--scrim);
+}
+
+.auth-overlay .auth-card {
+  max-width: none;
+  min-height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.auth-overlay .auth-step-foot {
+  border-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .auth-overlay {
+    width: min(660px, calc(100vw - 32px));
+    height: auto;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    border-radius: 22px;
+    box-shadow: 0 6px 0 var(--edge-shadow), 0 18px 50px rgba(43, 33, 28, 0.35);
+  }
+
+  .auth-overlay .auth-card {
+    min-height: 0;
+    border-radius: 22px;
+  }
+
+  .auth-overlay .auth-step-foot {
+    border-radius: 0 0 22px 22px;
+  }
+}
+
+/* ---- World lists ---- */
+
+.home-worlds-wrap {
+  order: 5;
+  min-width: 0;
+}
+
+.home-sec-title {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--on-surface-muted);
+}
+
+.home-worlds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-world {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 2px 4px 2px 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 3px 0 var(--edge-shadow);
+}
+
+.home-world-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.home-world-name {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.home-world-meta {
+  font-size: 0.78rem;
+  line-height: 1.2;
+  color: var(--on-surface-muted);
+}
+
+.home-world-error {
+  min-height: 0;
+  font-size: 0.8rem;
+}
+
+.home-tag-new {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.btn.home-join {
+  flex: none;
+  min-height: 44px;
+  background: var(--c-sun);
+  box-shadow: inset 0 2px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo);
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.btn.home-join:disabled {
+  background: var(--edge-soft);
+  box-shadow: inset 0 -4px 0 var(--edge);
+}
+
+.home-world-full {
+  flex: none;
+  margin-right: 8px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--edge-soft);
+  color: var(--on-surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Phone: the first two worlds (three on a tall phone); the heading is for screen readers. */
+@media (max-width: 899px) {
+  .home-worlds-wrap .home-sec-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .home-worlds-wrap .home-world:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) and (min-height: 760px) {
+  .home-worlds-wrap .home-world:nth-child(3) {
+    display: flex;
+  }
+}
+
+/* ---- Signed-in welcome card ---- */
+
+.home-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.home-welcome-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home-welcome-title {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.2rem;
+  line-height: 1.15;
+  color: var(--on-surface);
+}
+
+.home-welcome-title strong {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.home-hall {
+  flex: none;
+}
+
+.home-badges {
+  min-width: 0;
+}
+
+.home-group {
+  min-width: 0;
+}
+
+.home-group .home-world {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--edge-soft);
+}
+
+.home-note {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.home-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+}
+
+.confirm.hof-dialog {
+  width: min(960px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hof-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+.hof-dialog .lobby-grid {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
 /* The village fills whatever height is left; its box is always there, so nothing jumps when the drawing arrives. */
 .home-hero {
   order: 3;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 0;
+  /* Phone: the village shrinks to what is left, but never below this. */
+  min-height: 140px;
   display: grid;
   place-items: center;
   container-type: size;
@@ -224,81 +519,36 @@ html:has(.home) body {
   opacity: 0;
 }
 
+/* The footer line is for desktop only. */
 .home-foot {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 0 14px 10px;
-}
-
-.home-worlds {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-world {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 48px;
-  padding: 2px 4px 2px 12px;
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--on-surface);
-  box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
-}
-
-.home-world:nth-child(n + 3) {
   display: none;
-}
-
-.home-world-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 700;
-  font-size: 0.92rem;
-}
-
-.home-join {
-  flex: none;
-  min-height: 44px;
-  background: var(--c-sun);
-  box-shadow: inset 0 2px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo);
-  font-family: var(--font-display);
-  font-weight: 400;
-}
-
-.home-world-full {
-  flex: none;
-  margin-right: 8px;
-  padding: 3px 10px;
-  border-radius: 99px;
-  background: var(--edge-soft);
-  color: var(--on-surface-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .home-copy-line {
-  display: none;
   color: var(--on-surface-muted);
   font-weight: 500;
 }
 
-/* Short phones: the headline and buttons matter more than the sub line. */
+@media (max-width: 899px) {
+  .home-copy > .home-title {
+    order: 1;
+  }
+  .home-copy > .home-sub {
+    order: 2;
+  }
+  .home-copy > .home-card {
+    order: 4;
+  }
+  .home-copy > .home-worlds-wrap {
+    order: 5;
+    margin: 8px 0 6px;
+  }
+  .home-welcome {
+    margin-bottom: 8px;
+  }
+}
+
+/* Short phones: the headline and the card matter more than the sub line. */
 @media (max-height: 700px) {
   .home-bar {
     min-height: 48px;
@@ -317,33 +567,29 @@ html:has(.home) body {
   .home-main {
     flex-direction: row;
     align-items: stretch;
-    gap: 24px;
+    gap: 28px;
     padding: 12px 28px 0;
   }
 
   .home-copy {
-    flex: 0 0 min(40%, 540px);
+    flex: 0 0 min(46%, 600px);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: flex-start;
+    gap: 12px;
     text-align: left;
-    padding-bottom: 24px;
+    padding-bottom: 8px;
   }
 
   .home-title,
-  .home-sub,
-  .home-already,
-  .home-trust {
+  .home-sub {
+    order: 0;
     text-align: left;
   }
 
-  .home-tag {
-    display: inline-block;
-  }
-
   .home-title {
-    font-size: clamp(2.6rem, 4.4vw, 4.4rem);
+    margin: 0;
+    font-size: clamp(2rem, 3.6vw, 3.4rem);
     line-height: 1.04;
   }
 
@@ -353,69 +599,64 @@ html:has(.home) body {
 
   .home-sub {
     display: block;
-    max-width: 28em;
-    font-size: 1.2rem;
+    margin: 0;
+    max-width: 30em;
+    font-size: 1.05rem;
   }
 
-  .home-chips {
-    display: flex;
-    margin-top: 22px;
+  .home-card,
+  .home-worlds-wrap {
+    order: 0;
   }
 
-  .btn.home-play {
-    align-self: flex-start;
-    width: auto;
-    min-height: 84px;
-    margin-top: 26px;
-    padding: 0 72px 4px;
-    font-size: 2.1rem;
-    border-radius: 26px;
+  .home-card {
+    padding: 14px;
   }
 
-  .home-already {
-    margin-top: 6px;
+  .auth-inline .auth-form {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+    align-items: start;
   }
 
-  .home-trust {
-    display: block;
-    margin-top: 4px;
+  .auth-inline .auth-form .form-error,
+  .auth-inline .auth-form .btn {
+    grid-column: 1 / -1;
+  }
+
+  .auth-inline .hint {
+    font-size: 0.8rem;
+  }
+
+  .home-worlds {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .home-worlds-wrap .home-sec-title {
+    margin-bottom: 8px;
   }
 
   .home-hero {
     order: 0;
     flex: 1 1 0;
-    margin: 4px 0 14px;
+    min-height: 320px;
+    margin: 4px 0 8px;
   }
 
   .home-foot {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    padding: 4px 28px 16px;
-  }
-
-  .home-worlds {
-    width: auto;
-    gap: 10px;
-  }
-
-  .home-worlds {
-    flex-direction: row;
-  }
-
-  .home-world {
-    flex: none;
-    min-width: 230px;
-  }
-
-  .home-world:nth-child(n + 3) {
-    display: flex;
-  }
-
-  .home-copy-line {
     display: block;
     flex: none;
+    padding: 0 28px 8px;
+    text-align: right;
+  }
+}
+
+/* Short desktop windows: the sub line makes room. */
+@media (min-width: 900px) and (max-height: 860px) {
+  .home-sub {
+    display: none;
   }
 }
 
@@ -425,5 +666,77 @@ html:has(.home) body {
     display: block;
     margin: 8px 0 0;
     font-size: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-village-img,
+  .home-village-loader {
+    transition: none;
+  }
+}
+
+.home-more {
+  display: none;
+}
+
+.home-group-head .home-sec-title {
+  margin-bottom: 6px;
+}
+
+/* Signed in on a phone: the welcome line replaces the headline; rows are tight; extra joinable worlds fold away. */
+@media (max-width: 899px) {
+  .home-in .home-title,
+  .home-in .home-sub {
+    display: none;
+  }
+
+  .home-welcome {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .home-welcome .home-world {
+    min-height: 48px;
+  }
+
+  .home-welcome .home-world-text {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+  }
+
+  .home-worlds-join:not(.is-open) .home-world:nth-child(n + 3) {
+    display: none;
+  }
+
+  .home-more {
+    display: inline-flex;
+  }
+
+  .home-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .home-group-head .home-sec-title {
+    margin: 0;
+  }
+
+  .home-welcome .home-worlds {
+    gap: 4px;
+  }
+
+  .home-welcome {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 599px) {
+  .home-who-name {
+    display: none;
   }
 }

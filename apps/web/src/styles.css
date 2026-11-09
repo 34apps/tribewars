@@ -813,52 +813,7 @@ a.btn {
   gap: 10px;
 }
 
-/* ---- Lobby: world picker (the page scrolls; no inner scrollbars) ---------------------------------- */
-
-.lobby {
-  display: grid;
-  gap: 16px;
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: calc(14px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
-}
-
-.lobby-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 10px 14px;
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
-}
-
-.lobby-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: auto;
-}
-
-.lobby-brand-name {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--heading);
-}
-
-.lobby-who {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: var(--on-surface-muted);
-}
-
-.lobby-who strong {
-  color: var(--on-surface);
-  font-weight: 700;
-}
+/* ---- Lobby: Hall of Fame cards (the homepage itself is in components/home.css) ---- */
 
 .lobby-title {
   font-family: var(--font-display);
@@ -866,17 +821,6 @@ a.btn {
   font-size: 2rem;
   line-height: 1.1;
   color: var(--on-fill);
-}
-
-.lobby-note {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
-  font-weight: 600;
 }
 
 .lobby-grid {
@@ -913,16 +857,6 @@ a.btn {
   color: var(--on-surface);
 }
 
-.lobby-card-note {
-  flex: 1;
-  color: var(--on-surface-muted);
-  font-size: 0.93rem;
-}
-
-.lobby-card-error:empty {
-  display: none;
-}
-
 .world-status {
   display: inline-block;
   padding: 2px 10px;
@@ -954,10 +888,6 @@ a.btn {
 }
 
 @media (min-width: 640px) {
-  .lobby {
-    padding: calc(22px + env(safe-area-inset-top)) 22px calc(32px + env(safe-area-inset-bottom));
-  }
-
   .lobby-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

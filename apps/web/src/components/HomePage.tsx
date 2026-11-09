@@ -1,72 +1,90 @@
-import { useEffect, useState } from 'react';
-import type { PublicWorldDto } from '@clanfire/engine';
+import { useCallback, useEffect, useState } from 'react';
+import type { LobbyAccountDto, PublicWorldDto } from '@clanfire/engine';
 import { api } from '../api.ts';
-import { Icon } from '../art/Icon.tsx';
 import { Flame } from './Flame.tsx';
 import HomeVillage from './HomeVillage.tsx';
+import { AuthScreen } from './AuthScreen.tsx';
+import type { AuthCalls, Mode } from './AuthScreen.tsx';
+import { OpenWorlds, WelcomeCard } from './HomeAccount.tsx';
 import './home.css';
 
-/** Signed-out front page of the lobby: one screen, no scrolling. */
-export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: () => void }) {
+/**
+ * The lobby's one front page, for visitors and signed-in accounts: top bar, headline, the village picture, and an
+ * account card (sign-in / new player, or the welcome card with the worlds). One screen on desktop and phone; the page
+ * scrolls only as a fallback so a phone keyboard can never trap a field.
+ */
+export function HomePage({ account, calls, onAuthed, onSignedOut }: { account: LobbyAccountDto | null; calls: AuthCalls; onAuthed: () => void; onSignedOut: () => void }) {
   const [worlds, setWorlds] = useState<PublicWorldDto[]>([]);
   /** The village picture has arrived: the logo flame stops flickering. */
   const [villageReady, setVillageReady] = useState(false);
+  /** Asks the card for a tab and the username field (top bar "Sign in", a world's "Join"). */
+  const [request, setRequest] = useState<{ mode: Mode; n: number }>({ mode: 'register', n: 0 });
+  const [signingOut, setSigningOut] = useState(false);
+  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
+    if (account) return;
     let alive = true;
-    // A failed call just hides the strip.
+    // A failed call just hides the list.
     api.lobbyPublicWorlds().then(
-      (r) => alive && setWorlds(r.worlds.slice(0, 3)),
+      (r) => alive && setWorlds(r.worlds),
       () => undefined,
     );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [account]);
+
+  const ask = useCallback((mode: Mode) => setRequest((r) => ({ mode, n: r.n + 1 })), []);
+
+  async function signOut(everywhere: boolean) {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      // "Everywhere" ends every lobby session of the account; world sessions follow within 12 hours (the link's tooltip says so).
+      await (everywhere ? api.lobbyLogoutAll() : api.lobbyLogout());
+    } catch {
+      // The cookie may already be gone; show the signed-out page either way.
+    }
+    onSignedOut();
+  }
 
   return (
-    <div className="home">
+    <div className={`home${account ? ' home-in' : ''}`}>
       <header className="home-bar">
         <span className="home-brand">
           <Flame size={30} loading={!villageReady} />
           Clanfire
         </span>
-        <button type="button" className="btn home-signin-top" onClick={onSignIn}>
-          Sign in
-        </button>
+        {account ? (
+          <span className="home-who">
+            <strong className="home-who-name">{account.username}</strong>
+            <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={() => void signOut(false)}>
+              Sign out
+            </button>
+          </span>
+        ) : (
+          <button type="button" className="btn home-signin-top" onClick={() => ask('login')}>
+            Sign in
+          </button>
+        )}
       </header>
 
       <main className="home-main">
         <section className="home-copy">
-          <p className="home-tag">Free browser strategy</p>
           <h1 className="home-title">
             Build a village. Train an army. <em>Raid the world.</em>
           </h1>
           <p className="home-sub">A free strategy game in your browser. Grow from a campfire to a fortress with your tribe.</p>
-          <button type="button" className="btn btn-primary home-play" onClick={onPlay}>
-            Play free
-          </button>
-          <ul className="home-chips" aria-label="What you do">
-            <li>
-              <Icon name="village" size={20} />
-              Build
-            </li>
-            <li>
-              <Icon name="raider" size={20} />
-              Raid
-            </li>
-            <li>
-              <Icon name="tribe" size={20} />
-              Tribe
-            </li>
-          </ul>
-          <p className="home-already">
-            Already playing?{' '}
-            <button type="button" className="home-link" onClick={onSignIn}>
-              Sign in
-            </button>
-          </p>
-          <p className="home-trust">No download · Phone and computer · Free</p>
+
+          {account ? (
+            <WelcomeCard account={account} signingOut={signingOut} onSignOutEverywhere={() => void signOut(true)} onSignedOut={onSignedOut} onBusy={setOpening} />
+          ) : (
+            <div className="home-card">
+              <AuthScreen inline calls={calls} initialMode="register" onAuthed={onAuthed} request={request} />
+            </div>
+          )}
+          {!account && <OpenWorlds worlds={worlds} onJoin={() => ask('register')} />}
         </section>
 
         <div className="home-hero">
@@ -75,22 +93,6 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
       </main>
 
       <footer className="home-foot">
-        {worlds.length > 0 && (
-          <ul className="home-worlds" aria-label="Open worlds">
-            {worlds.map((w) => (
-              <li key={w.id} className="home-world">
-                <span className="home-world-name">{w.name}</span>
-                {w.status === 'open' ? (
-                  <button type="button" className="btn home-join" onClick={onPlay} aria-label={`Join ${w.name}`}>
-                    Join
-                  </button>
-                ) : (
-                  <span className="home-world-full">Full</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
         <small className="home-copy-line">© 2026 Clanfire</small>
       </footer>
     </div>

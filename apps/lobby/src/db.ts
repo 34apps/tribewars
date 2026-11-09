@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /**
  * The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
@@ -112,6 +112,16 @@ CREATE TABLE IF NOT EXISTS hall_of_fame (
 );
 CREATE INDEX IF NOT EXISTS idx_hall_of_fame_ended ON hall_of_fame(ended_at);
 
+-- v5: which worlds an account has entered (homepage "Your worlds"). Written only by POST /api/worlds/:id/enter after it
+-- succeeded; own data only. Additive table: older databases get it on the next start. Rows go with the account (cascade).
+CREATE TABLE IF NOT EXISTS account_worlds (
+  account_id    INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  world_id      TEXT    NOT NULL,
+  first_entered INTEGER NOT NULL,
+  last_entered  INTEGER NOT NULL,
+  PRIMARY KEY (account_id, world_id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   at             INTEGER NOT NULL,
@@ -142,7 +152,15 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
   migrateWorldsTable(db); // before SCHEMA: an old worlds table is replaced, a missing one is created by SCHEMA
+  const before = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
   db.exec(SCHEMA);
+  // v5: fill "Your worlds" for players who entered worlds before it existed, from the append-only audit log.
+  if (before > 0 && before < 5) {
+    db.exec(`INSERT OR IGNORE INTO account_worlds (account_id, world_id, first_entered, last_entered)
+      SELECT target_account, detail, MIN(at), MAX(at) FROM audit_log
+      WHERE action = 'enter' AND target_account IS NOT NULL AND target_account IN (SELECT id FROM accounts)
+      GROUP BY target_account, detail`);
+  }
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
 }

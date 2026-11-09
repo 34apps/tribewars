@@ -22,9 +22,9 @@ test('worlds: needs sign-in, then lists in sort order with status and path', asy
   // insertion order = sort order (each new world goes last)
   assert.deepEqual(res.json<LobbyWorldsResponse>(), {
     worlds: [
-      { id: 'w2', name: 'Second world', status: 'open', path: '/w/w2/' },
-      { id: 'w1', name: 'First world', status: 'full', path: '/w/w1/' },
-      { id: 'old', name: 'Closed world', status: 'closed', path: '/w/old/' },
+      { id: 'w2', name: 'Second world', status: 'open', path: '/w/w2/', lastPlayedAt: null },
+      { id: 'w1', name: 'First world', status: 'full', path: '/w/w1/', lastPlayedAt: null },
+      { id: 'old', name: 'Closed world', status: 'closed', path: '/w/old/', lastPlayedAt: null },
     ],
   });
 });
@@ -252,4 +252,30 @@ test('public worlds: an empty lobby gives an empty list, and the list is capped'
   assert.deepEqual((await new Client(app).get('/lobby/api/worlds/public')).json(), { worlds: [] });
   for (let i = 0; i < PUBLIC_WORLDS_MAX + 3; i++) addWorld(app, `x${i}`);
   assert.equal((await new Client(app).get('/lobby/api/worlds/public')).json<PublicWorldsResponse>().worlds.length, PUBLIC_WORLDS_MAX);
+});
+
+test('worlds: lastPlayedAt is null until the account enters, then set and updated; others do not see it; a refused enter records nothing', async () => {
+  const { app, clock } = await makeApp();
+  addWorld(app, 'w1', 'Open');
+  addWorld(app, 'w2', 'Shut', 'closed');
+  const alice = await register(app, 'Alice');
+  const bob = await register(app, 'Bob');
+  const last = async (c: Client, id: string) => (await c.get(WORLDS)).json<LobbyWorldsResponse>().worlds.find((w) => w.id === id)?.lastPlayedAt;
+
+  assert.equal(await last(alice, 'w1'), null);
+
+  const t1 = clock.now();
+  ok(await alice.post(enter('w1'), {}));
+  assert.equal(await last(alice, 'w1'), t1);
+  assert.equal(await last(bob, 'w1'), null);
+
+  clock.advance(5 * MINUTE);
+  ok(await alice.post(enter('w1'), {}));
+  assert.equal(await last(alice, 'w1'), t1 + 5 * MINUTE);
+
+  errorOf(await alice.post(enter('w2'), {}), 403, 'forbidden');
+  errorOf(await alice.post(enter('nope'), {}), 404, 'not_found');
+  assert.equal(await last(alice, 'w2'), null);
+  const rows = app.ctx.store.lastEntered(1);
+  assert.deepEqual([...rows.keys()], ['w1']);
 });
