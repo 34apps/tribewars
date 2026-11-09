@@ -138,6 +138,29 @@ pair('board-map', 'Map page · desktop 1440 × 900', "A's top bar and tabs, full
   ['a-map-1440.png', 'A · Side panel', 'Big map on the left; the selected place opens in a panel on the right: details, mission, troop groups, troops at home, travel and Send.'],
   ['b-map-1440.png', 'B · Bottom strip', 'The map runs the full width; the selected place opens as one strip under it: details | mission and all troops in a row | travel and Send.'],
 ]);
+// Owner feedback 2026-11-09 (tooling/more-pages.mjs): simulator, unit card, toasts, mail recipients, tribe without a tribe, Domination.
+pair('board-sim', 'Battle simulator · desktop 1440 × 900', "Everything on one screen and the luck is yours to set. Same army in both: a saved group of 82 against Cinderhold (Wall 6, 15 Pikemen of support). All results are the game's real battle rule; luck runs from −10% to +10%.", [
+  ['sim-a-1440.png', 'A · Three columns', 'Your army | Defender | Result. A luck slider sits on top of the result; the result is one clear answer (who wins, losses per unit for both sides, Wall after, what survivors can carry). Shown at −5%: a narrow win.'],
+  ['sim-b-1440.png', 'B · Figures + luck ladder', 'Both armies as rows of figures on top. Below, all five luck steps at once (−10% loses, the rest win) with what comes home; click one to see its full result beside it. Shown at 0%.'],
+]);
+pair('board-unitcard', 'Unit info card · over the Army page', 'Hover or click any unit picture or name: Army, Barracks and Stables, map send form, simulator, reports. The game\'s own numbers.', [
+  ['unitcard-a-1440.png', 'A · Small hover card', 'Pops up next to the picture while the pointer rests on it: all numbers in a 2 × 3 grid, cost and training time, one line on what it is good for, and a link to the full card.'],
+  ['unitcard-b-1440.png', 'B · Big click card', 'A click opens one card over the dimmed page: the figure on a stage, bars against the strongest unit, speed, carry, people, training, cost, all nine units to flip through, and Train.'],
+]);
+pair('board-toast', 'Alerts (toasts) · their own design', 'One family in four kinds: error, warning, success, info. Each has its own colour and badge, short text, an optional button and a close. All four are shown at once only for this picture; the texts are the game\'s own messages.', [
+  ['toast-a-1440.png', 'A · Soft cards, bottom right', 'Light tinted cards with dark text (easy to read) and a coloured badge, stacked bottom right where toasts sit today. Calm; the error stays until closed.'],
+  ['toast-b-1440.png', 'B · Bold pills, top centre', 'Strong filled pills with light text (dark text on the yellow warning), dropping from under the tabs; a thin line shows when each one fades. Louder, and never over the Send button.'],
+]);
+pair('board-mailto', 'Mail · choosing who to write to', 'The game has no friends list. What it does have: the players you have mailed with, your tribe members (with role) and a player search. A mail still goes to one player.', [
+  ['mailto-a-1440.png', 'A · Picker column', 'A “Who to write to” column between the list and the form: search any player, recent conversations, your tribe with roles and who is online. Click a name and it fills To.'],
+  ['mailto-b-1440.png', 'B · Choose band + Contacts (NEW)', 'Under To, one band: search with suggestions as you type, then Contacts | Recent | Tribe side by side. Contacts (players you pin) is a NEW feature, marked NEW, for you to decide.'],
+]);
+boards.push(['board-tribe-more', `<h1>Tribe without a tribe, and the Domination screen</h1><div class="sub">Top: the Tribe tab when you are in no tribe (same header style as the member pages). Bottom: Domination details, opened from the Domination bar; drawn as a new Domination switch on Ranks. Only rules the game has.</div><div class="g2">${[
+  ['notribe-a-1440.png', 'A · List + side column', 'All tribes in one ranked table with Join / Apply / Invite only / Full right on each row; your invitations, your applications (1 of 3) and Found a tribe (needs Town Hall 3) beside it.'],
+  ['notribe-b-1440.png', 'B · List | tribe page | invites', 'Pick a tribe on the left and its page opens in the middle (numbers, about, top members) with the application message ready to send; invitations and Found a tribe on the right.'],
+  ['domination-a-1440.png', 'A · The race', 'Each big tribe as a long bar against the 75% line (yours lit); the four conditions with ticks and progress; what happens when a tribe wins.'],
+  ['domination-b-1440.png', 'B · The road', 'The whole world in one bar, split by tribe, with the 75% line; four stepping stones to the end of the world (1 of 4 done); what the end brings.'],
+].map(([f, lab, line]) => `<div><span class="lab">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
 // Ranks B · Top three card: today's plaques ("now") and three redraws, as close-ups of B's right column (x 975–1418, y 196–880).
 {
   const Z = 1.25, X0 = 975, Y0 = 196, CW = 443, CH = 684;

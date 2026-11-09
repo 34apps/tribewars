@@ -966,5 +966,7 @@ My Wall is at level 9 and I am moving wood into it now. I will keep the Raiders 
 .lg2{width:100%;border-collapse:collapse}.lg2 th{font:700 13px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--on-surface-muted);text-align:left;padding:10px 22px 6px}.lg2 td{height:40px;padding:0 22px;border-top:1px solid var(--edge-soft);font:500 16px/1.2 var(--font)}.lg2 td.mut{font-size:14.5px}`);
   // Ranks and Map (two options each) live in their own file; it gets the shared pieces from here.
   (await import('./ranks-map.mjs')).default({ write, topA, tabRowA, ic, chev, xI, fmt, pt, MIX_CSS, T_CSS, TT_CSS, SEND_CSS, UN, SEND });
+  // Simulator, unit card, toasts, mail recipient picker, tribe without a tribe, Domination (two options each); builds on pages above.
+  (await import('./more-pages.mjs')).default({ write, topA, tabRowA, ic, chev, xI, fmt, pt, fig, MIX_CSS, T_CSS, TT_CSS, BB, costEl, UN });
 }
 console.log('ok', Object.keys(ICONS).length);
