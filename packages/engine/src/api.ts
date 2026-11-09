@@ -1089,6 +1089,13 @@ export interface AdvisorAskResponse {
 // GET    /api/mail/:id                        -> 200 MailDto (the recipient reading it marks it read)
 // POST   /api/mail  body SendMailRequest      -> 201 MailDto
 // DELETE /api/mail/:id                        -> 204 (hides it for the caller only); not_found for strangers
+// Conversations (one row per other player; both directions; mails you deleted are left out):
+// GET    /api/mail/conversations?page=0       -> 200 MailConversationsResponse (20 per page, newest first)
+// GET    /api/mail/conversation/:playerId?before=<mailId>&limit=<1..50, default 30> -> 200 MailThreadResponse
+//        (full letters, newest first; no side effects; no mail with that player = empty list)
+// POST   /api/mail/conversation/:playerId/read   (empty body) -> 200 MailConversationReadResponse
+//        (marks that player's unread letters to you as read)
+// POST   /api/mail/conversation/:playerId/delete (empty body) -> 204 (hides every letter of it for you only)
 
 export type MailBox = 'inbox' | 'sent';
 
@@ -1114,6 +1121,44 @@ export interface MailListResponse {
   mails: MailSummaryDto[];
   /** Pass as `before` to get the next page; null on the last page. */
   nextBefore: number | null;
+  unread: number;
+}
+
+export interface MailConversationDto {
+  playerId: number;
+  player: string;
+  lastMailId: number;
+  lastSubject: string;
+  /** First characters of the last letter's body. */
+  lastPreview: string;
+  lastAt: number;
+  /** True when the caller wrote the last letter. */
+  lastFromMe: boolean;
+  /** Letters from that player to the caller that are unread. */
+  unread: number;
+}
+
+export interface MailConversationsResponse {
+  conversations: MailConversationDto[];
+  /** Conversations in all, for paging. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** All unread mail of the caller (same as the inbox badge). */
+  unread: number;
+}
+
+export interface MailThreadResponse {
+  /** Newest first. */
+  mails: MailDto[];
+  /** Pass as `before` for older letters; null when there are no more. */
+  nextBefore: number | null;
+}
+
+export interface MailConversationReadResponse {
+  /** Letters newly marked read by this call. */
+  marked: number;
+  /** All unread mail of the caller afterwards. */
   unread: number;
 }
 

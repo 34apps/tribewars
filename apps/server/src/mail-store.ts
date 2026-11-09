@@ -17,6 +17,17 @@ export interface MailRow {
   deletedByRecipient: boolean;
 }
 
+export interface ConversationRow {
+  playerId: number;
+  player: string;
+  lastMailId: number;
+  lastSubject: string;
+  lastBody: string;
+  lastAt: number;
+  lastFromMe: boolean;
+  unread: number;
+}
+
 const SELECT = `SELECT m.id, m.from_player, m.to_player, m.subject, m.body, m.created_at, m.read_at,
        m.deleted_by_sender, m.deleted_by_recipient, f.username AS from_name, t.username AS to_name
   FROM mail m
@@ -90,5 +101,68 @@ export class MailStore extends SqlBase {
     const col = side === 'sender' ? 'deleted_by_sender' : 'deleted_by_recipient';
     this.run(`UPDATE mail SET ${col} = 1 WHERE id = ?`, id);
     this.run('DELETE FROM mail WHERE id = ? AND deleted_by_sender = 1 AND deleted_by_recipient = 1', id);
+  }
+
+  /** One page of conversations (one row per other player), newest last-letter first. Hidden letters are ignored. */
+  conversations(me: number, limit: number, offset: number): ConversationRow[] {
+    const rows = this.all(
+      `WITH v AS (
+         SELECT id, CASE WHEN from_player = ? THEN to_player ELSE from_player END AS other,
+                CASE WHEN to_player = ? AND read_at IS NULL THEN 1 ELSE 0 END AS unread
+           FROM mail WHERE (from_player = ? AND deleted_by_sender = 0) OR (to_player = ? AND deleted_by_recipient = 0)),
+       g AS (SELECT other, MAX(id) AS last_id, SUM(unread) AS unread FROM v GROUP BY other ORDER BY last_id DESC LIMIT ? OFFSET ?)
+       SELECT g.other, g.last_id, g.unread, p.username, m.subject, m.body, m.created_at, m.from_player
+         FROM g JOIN players p ON p.id = g.other JOIN mail m ON m.id = g.last_id ORDER BY g.last_id DESC`,
+      me, me, me, me, limit, offset,
+    );
+    return rows.map((r) => ({
+      playerId: r.other as number,
+      player: r.username as string,
+      lastMailId: r.last_id as number,
+      lastSubject: r.subject as string,
+      lastBody: r.body as string,
+      lastAt: r.created_at as number,
+      lastFromMe: (r.from_player as number) === me,
+      unread: r.unread as number,
+    }));
+  }
+
+  conversationCount(me: number): number {
+    const r = this.get(
+      `SELECT COUNT(DISTINCT CASE WHEN from_player = ? THEN to_player ELSE from_player END) AS n
+         FROM mail WHERE (from_player = ? AND deleted_by_sender = 0) OR (to_player = ? AND deleted_by_recipient = 0)`,
+      me, me, me,
+    );
+    return (r?.n as number) ?? 0;
+  }
+
+  /** Letters between `me` and `other` that `me` has not hidden, newest first (by id), keyset-paged. */
+  thread(me: number, other: number, before: number | null, limit: number): MailRow[] {
+    const cursor = before === null ? '' : 'AND m.id < ?';
+    const sql = `${SELECT}
+      WHERE ((m.from_player = ? AND m.to_player = ? AND m.deleted_by_sender = 0)
+          OR (m.from_player = ? AND m.to_player = ? AND m.deleted_by_recipient = 0)) ${cursor}
+      ORDER BY m.id DESC LIMIT ?`;
+    const rows = before === null ? this.all(sql, me, other, other, me, limit) : this.all(sql, me, other, other, me, before, limit);
+    return rows.map(toRow);
+  }
+
+  /** Mark every unread letter from `other` to `me` read; returns how many changed. */
+  markConversationRead(me: number, other: number, t: number): number {
+    return this.run(
+      'UPDATE mail SET read_at = ? WHERE from_player = ? AND to_player = ? AND read_at IS NULL AND deleted_by_recipient = 0',
+      t, other, me,
+    ).changes;
+  }
+
+  /** Hide every letter between the two for `me` only; rows hidden by both sides are removed. */
+  hideConversation(me: number, other: number): void {
+    this.run('UPDATE mail SET deleted_by_sender = 1 WHERE from_player = ? AND to_player = ?', me, other);
+    this.run('UPDATE mail SET deleted_by_recipient = 1 WHERE from_player = ? AND to_player = ?', other, me);
+    this.run(
+      `DELETE FROM mail WHERE deleted_by_sender = 1 AND deleted_by_recipient = 1
+         AND ((from_player = ? AND to_player = ?) OR (from_player = ? AND to_player = ?))`,
+      me, other, other, me,
+    );
   }
 }

@@ -2,16 +2,21 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   MAIL_BODY_MAX,
+  MAIL_CONV_PAGE_SIZE,
   MAIL_INBOX_KEEP,
   MAIL_MIN_GAP_MS,
   MAIL_PAGE_SIZE,
   MAIL_PER_HOUR,
   MAIL_PER_MINUTE,
   MAIL_SUBJECT_MAX,
+  MAIL_THREAD_MAX,
+  type MailConversationReadResponse,
+  type MailConversationsResponse,
   type MailDto,
   type MailListResponse,
+  type MailThreadResponse,
 } from '@clanfire/engine';
-import { HOUR, errorOf, makeApp, ok } from './helpers.ts';
+import { Client, HOUR, errorOf, makeApp, ok } from './helpers.ts';
 import { newPlayer, type P } from './tribe-helpers.ts';
 
 const send = (p: P, to: string, body: unknown, subject: unknown = '') => p.c.post('/api/mail', { to, subject, body });
@@ -221,4 +226,172 @@ test('mail: hourly cap per sender; recovers after the hour', async () => {
   errorOf(await send(a, 'bob', 'over'), 429, 'rate_limited');
   clock.advance(HOUR);
   ok(await send(a, 'bob', 'back'), 201);
+});
+
+// ---- Conversations -------------------------------------------------------------------------------------
+
+const convs = async (p: P, page = 0): Promise<MailConversationsResponse> => {
+  const res = await p.c.get(`/api/mail/conversations?page=${page}`);
+  ok(res);
+  return res.json<MailConversationsResponse>();
+};
+const thread = async (p: P, other: number, qs = ''): Promise<MailThreadResponse> => {
+  const res = await p.c.get(`/api/mail/conversation/${other}${qs}`);
+  ok(res);
+  return res.json<MailThreadResponse>();
+};
+
+test('mail conversations: grouping, order, unread, preview, no side effects on read of thread', async () => {
+  const { app, clock } = await makeApp();
+  const a = await newPlayer(app, 'alice');
+  const b = await newPlayer(app, 'bob');
+  const c = await newPlayer(app, 'carol');
+  const tick = () => clock.advance(MAIL_MIN_GAP_MS);
+  ok(await send(b, 'alice', 'b1', 'S1'), 201);
+  tick();
+  ok(await send(a, 'bob', 'a1', 'S2'), 201);
+  tick();
+  ok(await send(b, 'alice', 'b2', 'S3'), 201);
+  tick();
+  ok(await send(c, 'alice', 'x'.repeat(500), 'S4'), 201);
+  tick();
+  ok(await send(a, 'carol', 'a-to-c', 'S5'), 201);
+  tick();
+  ok(await send(b, 'alice', 'b3', 'S6'), 201);
+
+  const r = await convs(a);
+  assert.equal(r.total, 2);
+  assert.equal(r.pageSize, MAIL_CONV_PAGE_SIZE);
+  assert.deepEqual(r.conversations.map((x) => [x.player, x.lastSubject, x.lastFromMe, x.unread]), [
+    ['bob', 'S6', false, 3],
+    ['carol', 'S5', true, 1],
+  ]);
+  assert.equal(r.unread, 4);
+
+  // Bob's side: alice's one letter is unread; his own letters are not counted.
+  const rb = await convs(b);
+  assert.deepEqual(rb.conversations.map((x) => [x.player, x.lastFromMe, x.unread]), [['alice', true, 1]]);
+
+  // The thread: both directions, newest first, full body, and reading it changes nothing.
+  const t = await thread(a, b.id);
+  assert.deepEqual(t.mails.map((m) => m.body), ['b3', 'b2', 'a1', 'b1']);
+  assert.equal(t.nextBefore, null);
+  assert.ok(t.mails.some((m) => !m.read));
+  assert.equal(await unread(a), 4, 'GET thread does not mark read');
+});
+
+test('mail conversations: preview is capped like the list preview', async () => {
+  const { app } = await makeApp();
+  const a = await newPlayer(app, 'alice');
+  const b = await newPlayer(app, 'bob');
+  ok(await send(b, 'alice', 'y'.repeat(1000)), 201);
+  const r = await convs(a);
+  const inbox = await box(a, 'inbox');
+  assert.equal(r.conversations[0]!.lastPreview, inbox.mails[0]!.preview);
+  assert.ok(r.conversations[0]!.lastPreview.length < 1000);
+});
+
+test('mail conversations: paging over conversations and thread before/limit', async () => {
+  const { app, clock } = await makeApp();
+  const a = await newPlayer(app, 'alice');
+  const others: P[] = [];
+  const total = MAIL_CONV_PAGE_SIZE + 3;
+  for (let i = 0; i < total; i++) others.push(await newPlayer(app, `play${i}`));
+  for (const o of others) {
+    ok(await send(o, 'alice', 'hi'), 201);
+    clock.advance(60_000 / MAIL_PER_MINUTE + 1);
+  }
+  const p0 = await convs(a, 0);
+  const p1 = await convs(a, 1);
+  assert.equal(p0.total, total);
+  assert.equal(p0.conversations.length, MAIL_CONV_PAGE_SIZE);
+  assert.equal(p1.conversations.length, 3);
+  assert.equal(p0.conversations[0]!.player, `play${total - 1}`, 'newest first');
+  assert.equal(new Set([...p0.conversations, ...p1.conversations].map((x) => x.playerId)).size, total);
+  assert.equal((await convs(a, 5)).conversations.length, 0);
+
+  const b = others[0]!;
+  for (let i = 0; i < 6; i++) {
+    ok(await send(b, 'alice', `m${i}`), 201);
+    clock.advance(MAIL_MIN_GAP_MS + 1000);
+  }
+  const first = await thread(a, b.id, '?limit=4');
+  assert.deepEqual(first.mails.map((m) => m.body), ['m5', 'm4', 'm3', 'm2']);
+  assert.equal(first.nextBefore, first.mails[3]!.id);
+  const second = await thread(a, b.id, `?limit=4&before=${first.nextBefore}`);
+  assert.deepEqual(second.mails.map((m) => m.body), ['m1', 'm0', 'hi']);
+  assert.equal(second.nextBefore, null);
+});
+
+test('mail conversations: strangers see nothing; read marks only that player; delete is per side', async () => {
+  const { app, clock } = await makeApp();
+  const a = await newPlayer(app, 'alice');
+  const b = await newPlayer(app, 'bob');
+  const c = await newPlayer(app, 'carol');
+  const d = await newPlayer(app, 'dave');
+  ok(await send(b, 'alice', 'from-bob-1'), 201);
+  clock.advance(MAIL_MIN_GAP_MS);
+  ok(await send(b, 'alice', 'from-bob-2'), 201);
+  clock.advance(MAIL_MIN_GAP_MS);
+  ok(await send(c, 'alice', 'from-carol'), 201);
+  clock.advance(MAIL_MIN_GAP_MS);
+  ok(await send(a, 'bob', 'to-bob'), 201);
+
+  // A third player sees nothing of alice/bob, and an unknown id is just empty.
+  assert.deepEqual((await thread(d, a.id)).mails, []);
+  assert.deepEqual((await thread(d, b.id)).mails, []);
+  assert.deepEqual((await thread(a, 999999)).mails, []);
+  assert.equal((await convs(d)).total, 0);
+  const none = await d.c.post(`/api/mail/conversation/${a.id}/read`, {});
+  ok(none);
+  assert.equal(none.json<MailConversationReadResponse>().marked, 0);
+  assert.equal(await unread(a), 3);
+
+  // Carol's mail stays unread when alice reads bob's conversation.
+  const rd = await a.c.post(`/api/mail/conversation/${b.id}/read`, {});
+  ok(rd);
+  assert.deepEqual(rd.json<MailConversationReadResponse>(), { marked: 2, unread: 1 });
+  assert.equal(await unread(a), 1);
+  assert.equal((await convs(a)).conversations.find((x) => x.player === 'carol')!.unread, 1);
+  assert.equal((await thread(a, b.id)).mails.find((m) => m.body === 'from-bob-1')!.read, true);
+  assert.equal((await thread(b, a.id)).mails.find((m) => m.body === 'to-bob')!.read, false, 'bob has not read alice');
+
+  // Delete hides for alice only.
+  const del = await a.c.post(`/api/mail/conversation/${b.id}/delete`, {});
+  assert.equal(del.statusCode, 204);
+  assert.deepEqual((await thread(a, b.id)).mails, []);
+  assert.deepEqual((await convs(a)).conversations.map((x) => x.player), ['carol']);
+  assert.deepEqual((await thread(b, a.id)).mails.map((m) => m.body), ['to-bob', 'from-bob-2', 'from-bob-1']);
+  assert.equal((await convs(b)).conversations[0]!.player, 'alice');
+  // A new letter after the delete starts the thread again, without the old ones.
+  clock.advance(MAIL_MIN_GAP_MS);
+  ok(await send(b, 'alice', 'fresh'), 201);
+  assert.deepEqual((await thread(a, b.id)).mails.map((m) => m.body), ['fresh']);
+  // Deleting also hides sent mails for bob's side only when bob deletes; a stranger deleting changes nothing.
+  assert.equal((await d.c.post(`/api/mail/conversation/${b.id}/delete`, {})).statusCode, 204);
+  assert.equal((await thread(b, a.id)).mails.length, 4);
+  assert.equal((await b.c.post(`/api/mail/conversation/${a.id}/delete`, {})).statusCode, 204);
+  assert.deepEqual((await thread(b, a.id)).mails, []);
+});
+
+test('mail conversations: validation and auth', async () => {
+  const { app } = await makeApp();
+  const a = await newPlayer(app, 'alice');
+  for (const url of ['/api/mail/conversation/abc', '/api/mail/conversation/-1', '/api/mail/conversation/1.5', '/api/mail/conversation/1?limit=0',
+    `/api/mail/conversation/1?limit=${MAIL_THREAD_MAX + 1}`, '/api/mail/conversation/1?limit=x', '/api/mail/conversation/1?before=x', '/api/mail/conversation/1?extra=1',
+    '/api/mail/conversations?page=-1', '/api/mail/conversations?page=x', '/api/mail/conversations?extra=1']) {
+    errorOf(await a.c.get(url), 400, 'invalid_input');
+  }
+  for (const act of ['read', 'delete']) {
+    errorOf(await a.c.post(`/api/mail/conversation/abc/${act}`, {}), 400, 'invalid_input');
+    errorOf(await a.c.post(`/api/mail/conversation/1/${act}`, { x: 1 }), 400, 'invalid_input');
+  }
+  ok(await a.c.get(`/api/mail/conversation/1?limit=${MAIL_THREAD_MAX}`));
+
+  const anon = new Client(app, '10.9.9.9');
+  for (const [m, url] of [['get', '/api/mail/conversations'], ['get', '/api/mail/conversation/1'], ['post', '/api/mail/conversation/1/read'], ['post', '/api/mail/conversation/1/delete']] as const) {
+    assert.equal((await (m === 'get' ? anon.get(url) : anon.post(url, {}))).statusCode, 401, url);
+  }
+  // Cross-site post is refused.
+  errorOf(await a.c.post('/api/mail/conversation/1/read', {}, { origin: 'http://evil.example' }), 403, 'forbidden');
 });

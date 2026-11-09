@@ -789,6 +789,10 @@ export const MAIL_PER_HOUR = 60;
 /** Mails per list page and characters of body shown in the list preview. */
 export const MAIL_PAGE_SIZE = 30;
 export const MAIL_PREVIEW_CHARS = 120;
+/** Conversations per page, and letters per thread page (default and cap). */
+export const MAIL_CONV_PAGE_SIZE = 20;
+export const MAIL_THREAD_DEFAULT = 30;
+export const MAIL_THREAD_MAX = 50;
 
 // ---- Support and moderation (tickets, reports, mutes, templates) ---------------------------------------------
 export const TICKET_SUBJECT_MAX = 120;
