@@ -19,7 +19,7 @@ import {
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
-import { PopulationLine } from '../components/PopulationLine.tsx';
+import { PageHeader } from '../components/PageHeader.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
@@ -29,7 +29,7 @@ import { UnitFigure } from '../art/UnitFigure.tsx';
 import { timePerTileMs, useUnitInfo } from '../components/UnitInfo.tsx';
 import { UNIT_ROLE } from '../unitRole.ts';
 import '../army.css';
-import { MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { MISSION_ICON, MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
 import { maxTrainable, reasonText, requirementText, unitListText, unmetRequirements } from '../rules.ts';
@@ -37,47 +37,41 @@ import { HEARTH_OUT_REASON } from '../villages.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
-function TroopsTable() {
+function TroopsList() {
   const { live } = useGame();
   const info = useUnitInfo();
   const training = emptyUnits();
   for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
+  const used = populationUsage(live).total;
+  const cap = populationCap(live);
   return (
-    <section className="card" aria-labelledby="troops-title">
-      <h2 id="troops-title" className="card-title">Troops</h2>
-      <div className="table-wrap">
-        <table className="table troops">
-          <thead>
-            <tr>
-              <th scope="col">Unit</th>
-              <th scope="col" className="num">At home</th>
-              <th scope="col" className="num">Away</th>
-              <th scope="col" className="num">Training</th>
-            </tr>
-          </thead>
-          <tbody>
-            {UNIT_IDS.map((u) => {
-              const none = live.troops[u] + live.away[u] + training[u] === 0;
-              return (
-                <tr key={u} className={none ? 'is-zero' : ''}>
-                  <th scope="row">
-                    <button type="button" className="unit-link" onClick={() => info.open(u)} aria-haspopup="dialog" title={`About the ${UNITS[u].name}`}>
-                      <span className="unit-round" aria-hidden="true">
-                        <UnitFigure unit={u} pose="icon" size={34} />
-                      </span>
-                      <span>{UNITS[u].name}</span>
-                    </button>
-                  </th>
-                  <td className="num">{formatInt(live.troops[u])}</td>
-                  <td className="num">{formatInt(live.away[u])}</td>
-                  <td className="num">{formatInt(training[u])}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <PopulationLine used={populationUsage(live).total} cap={populationCap(live)} />
+    <section className="ar-section" aria-labelledby="troops-title">
+      <h2 id="troops-title" className="ar-label">Troops · {formatInt(used)}/{formatInt(cap)}</h2>
+      <ul className="ar-troops">
+        {UNIT_IDS.map((u) => {
+          const none = live.troops[u] + live.away[u] + training[u] === 0;
+          const locked = none && unmetRequirements(live.buildings, UNITS[u].requires).length > 0;
+          return (
+            <li key={u}>
+              <button
+                type="button"
+                className={`ar-unit${none ? ' is-zero' : ''}${locked ? ' is-locked' : ''}`}
+                onClick={() => info.open(u)}
+                aria-haspopup="dialog"
+                title={`About the ${UNITS[u].name}`}
+              >
+                <span className="ar-pic" aria-hidden="true">
+                  <UnitFigure unit={u} pose="icon" size={38} />
+                </span>
+                <span className="ar-name">{UNITS[u].name}</span>
+                {live.away[u] > 0 && <span className="ar-chip">{formatInt(live.away[u])} away</span>}
+                {training[u] > 0 && <span className="ar-chip ar-chip-train">+{formatInt(training[u])} training</span>}
+                <span className="ar-count">{locked ? <span className="ar-locked">Locked</span> : formatInt(live.troops[u])}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
       {info.dialog}
     </section>
   );
@@ -155,52 +149,53 @@ function MovementRow({ m }: { m: MovementDto }) {
     tagClass = KIND_TAG[m.kind];
     if (m.kind === 'return') preposition = 'from';
   }
-  const title = (
-    <>
-      <span className={`tag ${tagClass}`}>{label}</span> {preposition}{' '}
-      {incoming && m.origin.ownerName ? `${m.origin.ownerName}, ` : ''}
-      <VillageLink v={other} />
-    </>
-  );
+  const who = incoming && m.origin.ownerName ? `${m.origin.ownerName}, ` : '';
+  const title = attackIn ? `${m.origin.ownerName ?? other.name} attacks` : label;
+  const icon = attackIn ? 'warning' : m.kind === 'return' ? MISSION_ICON.return : MISSION_ICON[m.kind];
 
   let foot: string;
-  if (attackIn) foot = 'Army size unknown';
+  if (attackIn) foot = 'size unknown';
   else foot = m.units ? unitListText(m.units) : '';
 
   return (
     <li
       ref={ref}
-      className={`movement${attackIn ? ' is-incoming' : ''}${supportIn ? ' is-support' : ''}${highlighted ? ' is-highlight' : ''}`}
+      className={`movement mv${attackIn ? ' is-incoming' : ''}${supportIn ? ' is-support' : ''}${highlighted ? ' is-highlight' : ''}`}
     >
-      <div className="movement-head">
-        <span className="movement-title">{title}</span>
-        <span className="movement-time">
-          <strong>{left > 0 ? formatDuration(left) : 'arriving…'}</strong>
+      <div className="mv-head">
+        <span className="mv-ic" aria-hidden="true">
+          <Icon name={icon} size={24} />
         </span>
+        <div className="mv-main">
+          <div className="mv-title">
+            <span className="visually-hidden">{label}: </span>
+            {attackIn ? title : <>{title} <span className="mv-prep">{preposition} {who}</span></>}
+            <VillageLink v={other} />
+          </div>
+          <div className="mv-sub">
+            {foot}
+            {(m.kind === 'return' || m.kind === 'shipment') &&
+              (lootItems.length > 0 ? (
+                <>
+                  {foot ? ' ' : ''}
+                  {m.kind === 'shipment' ? '' : '· Loot: '}
+                  {lootItems.map((r) => (
+                    <span key={r} className="loot-item">
+                      <Icon name={RESOURCE_ICON[r]} size={16} className="inline-icon" />
+                      <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
+                      {formatInt(cargo?.[r] ?? 0)}{' '}
+                    </span>
+                  ))}
+                </>
+              ) : carriers ? (
+                <> · No loot</>
+              ) : null)}
+            <span className="mv-arrive"> · arrives {formatClock(m.arriveAt, now)}</span>
+          </div>
+        </div>
+        <strong className="mv-time">{left > 0 ? formatDuration(left) : 'arriving…'}</strong>
       </div>
       <ProgressBar value={(now - m.departAt) / total} tone={attackIn ? 'danger' : supportIn ? 'ok' : 'brand'} label="Movement progress" />
-      <div className="movement-foot">
-        <span>
-          {foot}
-          {(m.kind === 'return' || m.kind === 'shipment') &&
-            (lootItems.length > 0 ? (
-              <>
-                {' '}
-                {m.kind === 'shipment' ? '' : '· Loot: '}
-                {lootItems.map((r) => (
-                  <span key={r} className="loot-item">
-                    <Icon name={RESOURCE_ICON[r]} size={16} className="inline-icon" />
-                    <span className="visually-hidden">{RESOURCE_NAME[r]} </span>
-                    {formatInt(cargo?.[r] ?? 0)}{' '}
-                  </span>
-                ))}
-              </>
-            ) : carriers ? (
-              <> · No loot</>
-            ) : null)}
-        </span>
-        <span className="muted">arrives {formatClock(m.arriveAt, now)}</span>
-      </div>
       {cancelLeft > 0 && (
         <div className="movement-foot">
           <button className="btn btn-small" disabled={cancelling} onClick={() => void cancel()} title="Troops come back in the time already travelled">
@@ -222,17 +217,47 @@ function Movements() {
   const { movements } = useGame();
   const sorted = [...movements].sort((a, b) => movementRank(a) - movementRank(b) || a.arriveAt - b.arriveAt);
   return (
-    <section className="card" aria-labelledby="mov-title">
-      <h2 id="mov-title" className="card-title">Movements</h2>
+    <section className="ar-section" aria-labelledby="mov-title">
+      <h2 id="mov-title" className="ar-label">Moving</h2>
       {sorted.length === 0 ? (
-        <p className="muted">No movements.</p>
+        <p className="muted ar-none">No movements.</p>
       ) : (
-        <ul className="movement-list">
+        <ul className="movement-list mv-list">
           {sorted.map((m) => (
             <MovementRow key={m.id} m={m} />
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** One calm line per batch in the barracks, stables and banner hall: what is coming next and when. */
+function TrainingSummary() {
+  const { live, now } = useGame();
+  const jobs = (['barracks', 'stables', 'bannerhall'] as const).flatMap((b) => live.trainQueues[b].map((j) => ({ ...j, b })));
+  if (jobs.length === 0) return null;
+  return (
+    <section className="ar-section" aria-labelledby="trainsum-title">
+      <h2 id="trainsum-title" className="ar-label">Training</h2>
+      <ul className="mv-list">
+        {jobs.map((j, i) => {
+          const started = now >= j.startAt;
+          const nextAt = j.startAt + (j.done + 1) * j.perUnitMs;
+          return (
+            <li key={`${j.b}-${j.unit}-${j.startAt}-${i}`} className="mv mv-train">
+              <div className="mv-head">
+                <span className="ar-pic" aria-hidden="true"><UnitFigure unit={j.unit} pose="icon" size={38} /></span>
+                <div className="mv-main">
+                  <div className="mv-title">{formatInt(j.count - j.done)} {UNITS[j.unit].name}</div>
+                  <div className="mv-sub">{started ? `next in ${formatDuration(Math.max(0, nextAt - now))}` : `starts in ${formatDuration(j.startAt - now)}`}</div>
+                </div>
+                <strong className="mv-time">{formatDuration(Math.max(0, (started ? nextAt : j.startAt) - now))}</strong>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -626,24 +651,49 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
   );
 }
 
+function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export function ArmyView() {
-  const { openSimulator } = useGame();
+  const { openSimulator, live } = useGame();
+  const used = populationUsage(live).total;
+  const cap = populationCap(live);
   return (
-    <div className="page">
-      <div className="army-head">
-        <h1 className="page-title">Army</h1>
-        <button type="button" className="btn btn-small" onClick={() => openSimulator()}>
-          Battle simulator
-        </button>
+    <div className="page ar-page">
+      <PageHeader
+        icon="army"
+        title="Army"
+        count={`${formatInt(used)} / ${formatInt(cap)}`}
+        actions={
+          <>
+            <button type="button" className="btn btn-primary btn-small" onClick={() => scrollToId('army-command')}>
+              Send troops
+            </button>
+            <button type="button" className="btn btn-small" onClick={() => scrollToId('army-training')}>
+              Train
+            </button>
+            <button type="button" className="btn btn-small" onClick={() => openSimulator()}>
+              Battle simulator
+            </button>
+          </>
+        }
+      />
+      <div className="ar-top">
+        <TroopsList />
+        <div className="ar-side">
+          <Movements />
+          <TrainingSummary />
+        </div>
       </div>
-      <div className="army-top">
-        <TroopsTable />
-        <Movements />
+      <div id="army-command">
+        <CommandPost />
       </div>
-      <CommandPost />
       <SupportPanel />
-      <TrainingPanel building="barracks" />
-      <TrainingPanel building="stables" />
+      <div id="army-training">
+        <TrainingPanel building="barracks" />
+        <TrainingPanel building="stables" />
+      </div>
       <ChieftainPanel />
     </div>
   );

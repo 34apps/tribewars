@@ -2,6 +2,7 @@
 // Tribe names open the public tribe page (Tribe tab). Sample data can be switched on to try the screen out.
 
 import { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '../components/PageHeader.tsx';
 import type { ReactNode } from 'react';
 import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -662,8 +663,10 @@ export function RankingsView() {
   return (
     <div className="page rk-stage">
       <Backdrop />
-      <div className="rk-head">
-        <h1 className="page-title">Rankings</h1>
+      <PageHeader
+        icon="ranks"
+        title="Rankings"
+        actions={
         <label className="rk-sample">
           <input
             type="checkbox"
@@ -675,25 +678,16 @@ export function RankingsView() {
           />
           <span>Sample data</span>
         </label>
-      </div>
-      <DominationCard compact />
-      <div className="subtabs" role="tablist" aria-label="Rankings">
-        {sections.map((s) => (
-          <button
-            key={s}
-            role="tab"
-            aria-selected={section === s}
-            aria-controls="rank-panel"
-            className={`subtab${section === s ? ' is-active' : ''}`}
-            onClick={() => {
-              lastSection = s;
-              setSection(s);
-            }}
-          >
-            {SECTION_LABEL[s]}
-          </button>
-        ))}
-      </div>
+        }
+        tabs={sections.map((s) => ({ key: s, label: SECTION_LABEL[s] }))}
+        activeTab={section}
+        onTab={(k) => {
+          lastSection = k as Section;
+          setSection(k as Section);
+        }}
+        tabsLabel="Rankings"
+        panelId="rank-panel"
+      />
       <section className="card rk-card" id="rank-panel" role="tabpanel">
         {showSample && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
         {section === 'renown' ? (
@@ -714,6 +708,7 @@ export function RankingsView() {
           <Tribes real={tribes} sample={showSample ? sample.tribes : null} />
         )}
       </section>
+      <DominationCard compact />
     </div>
   );
 }

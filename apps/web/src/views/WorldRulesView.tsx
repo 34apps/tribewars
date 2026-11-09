@@ -1,6 +1,7 @@
 // "World rules": the published rules of this world (GET /api/world/config), read-only. Reached from the account menu. One column on
 // a phone, two or three columns of cards on wide screens; the page scrolls (no inner scrollbars).
 
+import { PageHeader } from '../components/PageHeader.tsx';
 import type { WorldConfigResponse } from '@clanfire/engine';
 import { formatDate } from '../format.ts';
 import { useWorldConfigState } from '../hooks/useWorldConfig.ts';
@@ -23,7 +24,7 @@ export function WorldRulesPanel({ state }: { state: WorldConfigState }) {
   const walk = speed * config.pace.unitSpeed;
   return (
     <div className="page rules-page">
-      <h1 className="page-title">World rules</h1>
+      <PageHeader icon="sign" title="World rules" />
 
       {status === 'loading' && <p className="muted" role="status">Loading…</p>}
       {status === 'failed' && (

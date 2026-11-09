@@ -1317,21 +1317,13 @@ button.hud-village {
 }
 
 /* ---- Page mode: every tab except Village and Map ----------------------------------------------------------------------
-   One solid header band (content scrolls under it), a docked bottom bar on phones, one centred page container. */
+   Owner pick "A · Panel over the village" (2026-11-09, design/proposals/page-tabs): the same floating HUD and dock as the village, the village
+   art bright and inert behind, and ONE cream sheet (.page-sheet, Game.tsx) holding the screen. The PAGE scrolls; the sheet grows with its content. */
 
-.hud-page {
-  gap: 6px;
-  padding-bottom: 10px;
-  background: var(--page);
-  box-shadow: 0 1px 0 var(--edge), 0 8px 14px -8px rgba(43, 33, 28, 0.28);
-  pointer-events: auto;
-}
-
+/* Attack pill + Protected chip on page tabs: one slim row under the HUD (desktop; phones use .hud-alert-row). */
 .hud-alerts-inline {
   display: flex;
-  flex: 1 1 0;
   align-items: center;
-  justify-content: center;
   gap: 10px;
   min-width: 0;
   pointer-events: none;
@@ -1352,138 +1344,99 @@ button.hud-village {
   box-shadow: 0 3px 0 var(--c-ink);
 }
 
-@media (min-width: 1024px) {
-  .hud-page.hud-desktop {
-    gap: 8px;
-    padding-top: 10px;
-    padding-bottom: 12px;
-  }
-
-  .hud-page.hud-desktop .hud-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .hud-page .hud-left {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 330px;
-  }
-
-  .hud-page .hud-pill {
-    min-height: 48px;
-    padding: 0 16px 2px 10px;
-    box-shadow: 0 4px 0 var(--c-ink);
-  }
-
-  .hud-page .hud-village-name {
-    font-size: 20px;
-  }
-
-  .hud-page .hud-resources {
-    flex: none;
-    padding: 4px 18px;
-  }
-
-  .hud-page .hud-resources .hud-res {
-    gap: 14px;
-  }
-
-  .hud-page .bell,
-  .hud-page .hud-avatar {
-    width: 48px;
-    height: 48px;
-    box-shadow: 0 4px 0 var(--c-ink);
-  }
-
-  .hud-page .hud-right {
-    flex: none;
-    margin-left: auto;
-    gap: 10px;
-  }
-
-  .hud-page .who-menu,
-  .hud-page .hud-village-wrap .vsw-pop {
-    top: calc(100% + 14px);
-  }
+/* The page scrolls (not .main): html is the scroller on every width. */
+html:has(.app.app-page) {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-/* Medium desktops: drop who is attacking from the pill. Below ~1140 px the alerts take their own slim row. */
-@media (min-width: 1024px) and (max-width: 1359px) {
-  .hud-page .hud-attack-who {
-    display: none;
-  }
-}
-
-@media (min-width: 1024px) and (max-width: 1139px) {
-  .hud-page.hud-desktop .hud-row {
-    flex-wrap: wrap;
-  }
-
-  .hud-page .hud-alerts-inline {
-    order: 9;
-    flex: 1 0 100%;
-    justify-content: flex-start;
-  }
-
-  .hud-page .hud-attack-who {
-    display: inline;
-  }
-}
-
-/* Phone: a tighter stack on the solid band. */
-.hud-phone.hud-page {
-  gap: 6px;
-  padding-bottom: 10px;
-}
-
-.hud-phone.hud-page .hud-alert-row {
-  gap: 8px;
+.app.app-page {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
 }
 
 .app-page .main {
-  padding-top: calc(var(--hud-h, 72px) + 16px);
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  min-height: 100dvh;
+  padding: calc(var(--hud-h, 72px) + 28px) 8px 0;
 }
 
-/* Dock: on phones it is a solid band on the bottom edge with rounded top corners, so nothing peeks out below it. */
-@media (max-width: 1023px) {
-  .app-page {
-    --dock-space: calc(env(safe-area-inset-bottom) + 92px);
+/* The village behind a page tab: bright, no blur, nothing to click; its own chips and sheets stay hidden and it stands still. */
+.vv.vv-backdrop {
+  display: block;
+  visibility: visible;
+  content-visibility: visible;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.vv-backdrop *,
+.vv-backdrop *::before,
+.vv-backdrop *::after {
+  animation-play-state: paused !important;
+  pointer-events: none !important;
+}
+
+.vv-backdrop .vv-chips,
+.vv-backdrop .vv-notices,
+.vv-backdrop .vv-draghint,
+.vv-backdrop .vv-dsheet,
+.vv-backdrop .vv-sheet,
+.vv-backdrop .vv-legend {
+  display: none;
+}
+
+/* The sheet. Phone: nearly full width, rounded top, a strip of village above it, runs on under the floating dock. */
+.page-sheet {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(100dvh - var(--hud-h, 72px) - 28px);
+  margin: 0 auto;
+  padding: 14px 14px calc(var(--dock-space) + 12px);
+  border: 3px solid var(--c-ink);
+  border-bottom: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: 0 -4px 0 rgba(43, 33, 28, 0.3);
+  overflow-wrap: anywhere;
+  /* safety net: a too-wide child must never make the whole page scroll sideways */
+  overflow-x: clip;
+}
+
+/* Legacy page container inside the sheet: the sheet already provides width and padding. */
+.page-sheet .page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 1024px) {
+  .app-page .main {
+    min-height: 0;
+    padding: calc(var(--hud-h, 72px) + 12px) 0 0;
   }
 
-  .dock.dock-page {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
-    border-width: 3px 0 0;
-    border-radius: 24px 24px 0 0;
-    box-shadow: 0 -4px 0 var(--edge-shadow), 0 -8px 18px rgba(43, 33, 28, 0.12);
+  .page-sheet {
+    width: min(980px, calc(100vw - 64px));
+    min-height: 0;
+    padding: 20px 24px 24px;
+    border-bottom: 3px solid var(--c-ink);
+    border-radius: 30px;
+    box-shadow: 0 6px 0 var(--c-ink);
+    /* the end of the sheet clears the floating dock */
+    margin-bottom: var(--dock-space);
   }
-}
-
-/* The page container: centred, one gutter, title row under the header. */
-.page {
-  max-width: 1180px;
-  padding: 0 16px 24px;
-}
-
-@media (min-width: 768px) {
-  .page {
-    padding: 0 16px 32px;
-  }
-}
-
-.page > .page-title,
-.rk-head .page-title {
-  margin: 0 0 14px;
-}
-
-.app-page .main > .page > .page-title:first-child,
-.app-page .main > .page > .army-head,
-.app-page .main > .page > .rk-head {
-  margin-top: 0;
 }
 
 /* Stray badge: the inline count badge inside tab labels must not pick up the bell's absolute position. */

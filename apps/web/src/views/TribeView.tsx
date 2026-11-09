@@ -1,8 +1,9 @@
 // Tribe tab: find/found a tribe when tribeless, or the member area (overview, members, diplomacy, recruit, chat, log).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
+import { PageHeader } from '../components/PageHeader.tsx';
 import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
 import { useSites } from '../hooks/useSites.ts';
@@ -76,15 +77,6 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
   const section: Section = sections.includes(chosen) ? chosen : 'overview';
-  // On phones the sub-tabs are one scrollable chip row: keep the active chip in view.
-  const tabsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const row = tabsRef.current;
-    const chip = row?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (!row || !chip) return;
-    const left = chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2;
-    row.scrollTo?.({ left: Math.max(0, left) });
-  }, [section]);
 
   const badges: Partial<Record<Section, number>> = {
     alerts: tribeAlerts,
@@ -95,38 +87,25 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
 
   return (
     <>
-      <header className="card tribe-head">
-        <h1 className="page-title tribe-title"><TribeLabel tag={tribe.tag} name={tribe.name} /></h1>
+      <PageHeader
+        icon="tribe"
+        title={<TribeLabel tag={tribe.tag} name={tribe.name} />}
+        tabs={sections.map((s) => ({ key: s, label: SECTION_LABEL[s], badge: badges[s] ?? 0, id: `tab-${s}` }))}
+        activeTab={section}
+        onTab={(k) => {
+          lastSection = k as Section;
+          setChosen(k as Section);
+        }}
+        tabsLabel="Tribe sections"
+        panelId="tribe-panel"
+      >
         <dl className="facts tribe-stats">
           <div><dt>Rank</dt><dd>#{tribe.rank}</dd></div>
           <div><dt>Points</dt><dd>{formatInt(tribe.points)}</dd></div>
           <div><dt>Members</dt><dd>{tribe.members}/{maxMembers}</dd></div>
           <div><dt>Your role</dt><dd><RoleBadge role={role} /><span className="visually-hidden"> {ROLE_NAME[role]}</span></dd></div>
         </dl>
-      </header>
-
-      <div className="subtabs" role="tablist" aria-label="Tribe sections" ref={tabsRef}>
-        {sections.map((s) => {
-          const n = badges[s] ?? 0;
-          return (
-            <button
-              key={s}
-              role="tab"
-              id={`tab-${s}`}
-              aria-selected={section === s}
-              aria-controls="tribe-panel"
-              className={`subtab${section === s ? ' is-active' : ''}`}
-              onClick={() => {
-                lastSection = s;
-                setChosen(s);
-              }}
-            >
-              {SECTION_LABEL[s]}
-              {n > 0 && <span className="badge badge-inline" aria-label={`${n} waiting`}>{n}</span>}
-            </button>
-          );
-        })}
-      </div>
+      </PageHeader>
 
       <div id="tribe-panel" role="tabpanel" aria-labelledby={`tab-${section}`}>
         {section === 'alerts' && (
@@ -170,12 +149,18 @@ export function TribeView() {
   let body;
   if (!data || !api) {
     body = store.error ? (
-      <div className="card">
-        <p className="form-error" role="alert">{store.error}</p>
-        <button className="btn" onClick={() => void store.reload()}>Retry</button>
-      </div>
+      <>
+        <PageHeader icon="tribe" title="Tribe" />
+        <div className="card">
+          <p className="form-error" role="alert">{store.error}</p>
+          <button className="btn" onClick={() => void store.reload()}>Retry</button>
+        </div>
+      </>
     ) : (
-      <p className="muted" role="status">Loading…</p>
+      <>
+        <PageHeader icon="tribe" title="Tribe" />
+        <p className="muted" role="status">Loading…</p>
+      </>
     );
   } else if (viewing) {
     body = (
@@ -192,7 +177,7 @@ export function TribeView() {
   } else {
     body = (
       <TribeContext.Provider value={api}>
-        <h1 className="page-title">Tribes</h1>
+        <PageHeader icon="tribe" title="Tribes" />
         <Finder />
       </TribeContext.Provider>
     );
@@ -200,8 +185,8 @@ export function TribeView() {
 
   return (
     <div className="page tribe-page">
-      {!viewing && <WorldGoal />}
       {body}
+      {!viewing && <WorldGoal />}
       {dialog}
     </div>
   );

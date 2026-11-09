@@ -282,21 +282,25 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     <GameContext.Provider value={ctx}>
       <Shell onSignOut={signOut} onSignOutEverywhere={signOutEverywhere}>
         <KeepAlive active={tab === 'village'} value={ctx}>
-          <VillageView active={tab === 'village'} />
+          <VillageView active={tab === 'village'} backdrop={tab !== 'village' && tab !== 'map'} />
         </KeepAlive>
-        {tab === 'army' && <ArmyView />}
-        {tab === 'reports' && <ReportsView />}
-        {tab === 'mail' && <MailView />}
-        {tab === 'tribe' && <TribeView />}
-        {tab === 'ranks' && <RankingsView />}
-        {tab === 'support' && <SupportView />}
-        {tab === 'rules' && <WorldRulesView />}
-        {tab === 'simulator' && <SimulatorView />}
-        {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted page">The world is still running.</p>)}
-        {tab === 'staff' && (
-          <Suspense fallback={<p className="muted page">Loading…</p>}>
-            <StaffView />
-          </Suspense>
+        {tab !== 'village' && tab !== 'map' && (
+          <div className="page-sheet">
+            {tab === 'army' && <ArmyView />}
+            {tab === 'reports' && <ReportsView />}
+            {tab === 'mail' && <MailView />}
+            {tab === 'tribe' && <TribeView />}
+            {tab === 'ranks' && <RankingsView />}
+            {tab === 'support' && <SupportView />}
+            {tab === 'rules' && <WorldRulesView />}
+            {tab === 'simulator' && <SimulatorView />}
+            {tab === 'results' && (worldEnd ? <WorldEndView end={worldEnd} /> : <p className="muted">The world is still running.</p>)}
+            {tab === 'staff' && (
+              <Suspense fallback={<p className="muted">Loading…</p>}>
+                <StaffView />
+              </Suspense>
+            )}
+          </div>
         )}
         {mapVisited.current && <MapView active={tab === 'map'} />}
       </Shell>

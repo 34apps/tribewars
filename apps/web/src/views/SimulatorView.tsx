@@ -1,6 +1,7 @@
 // Battle simulator page (account menu, #simulator): try a fight before sending. Client only: it runs the real engine battle at bad,
 // even and good luck on the numbers typed here. No server call, no village changes. See apps/web/src/simulator.ts.
 
+import { PageHeader } from '../components/PageHeader.tsx';
 import { useEffect, useMemo, useState } from 'react';
 import { BATTLE_LUCK, BUILDINGS, RANK_MAX, UNITS, UNIT_IDS, siegeEnabled, worldRules } from '@clanfire/engine';
 import type { BuildingId, UnitId, Units } from '@clanfire/engine';
@@ -226,13 +227,11 @@ export function SimulatorView() {
     <div className="page sim-page">
       <header className="sim-head">
         <div>
-          <div className="title-row">
-            <h1 className="page-title">Battle simulator</h1>
-            <details className="help-pop">
-              <summary aria-label="How the simulator works">?</summary>
-              <p className="small">Same battle rule as the real thing. Nothing is sent.</p>
-            </details>
-          </div>
+          <PageHeader icon="army" title="Battle simulator" />
+          <details className="help-pop">
+            <summary aria-label="How the simulator works">?</summary>
+            <p className="small">Same battle rule as the real thing. Nothing is sent.</p>
+          </details>
         </div>
         {ready && lead && <UnitFigure unit={lead} pose={even.result.attackerWon ? 'victory' : 'defeated'} size={72} className="sim-hero" />}
       </header>

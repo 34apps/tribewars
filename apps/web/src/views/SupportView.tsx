@@ -1,6 +1,7 @@
 // "Contact support": the player's own tickets (list + thread) and a form to open a new one.
 // The server decides everything (ownership, limits, mute rules); this screen only shows and sends.
 
+import { PageHeader } from '../components/PageHeader.tsx';
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { PLAYER_TICKET_CATEGORIES, TICKET_BODY_MAX, TICKET_SUBJECT_MAX } from '@clanfire/engine';
@@ -201,7 +202,7 @@ export function SupportView() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Contact support</h1>
+      <PageHeader icon="mail" title="Contact support" />
       <div className={`mail${pane.kind !== 'none' ? ' has-pane' : ''}`}>
         <section className="card mail-list-card" aria-label="Your requests">
           <div className="mail-toolbar">

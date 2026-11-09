@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { draftFromReport } from '../simulator.ts';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, VillageRefDto, VillageReportData } from '@clanfire/engine';
+import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
@@ -13,6 +13,9 @@ import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
 import { unitListText } from '../rules.ts';
+import { PageHeader } from '../components/PageHeader.tsx';
+import { UnitFigure } from '../art/UnitFigure.tsx';
+import { DAY_GROUP_LABEL, formatShortAgo, groupByDay, reportLine } from '../reports.ts';
 import { moraleLabel, villageReportText } from '../villages.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
@@ -37,22 +40,21 @@ function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   return <span className={loss ? 'loss' : undefined}>{loss ? '−' : ''}{formatInt(value)}</span>;
 }
 
-const TYPE_NAME: Record<ReportSummaryDto['type'], string> = { battle: 'Battle', scout: 'Scout', support: 'Support', shipment: 'Shipment', village: 'Village' };
-const SIDE_NAME: Record<ReportSummaryDto['side'], string> = {
-  attack: 'Attack',
-  defense: 'Defense',
-  support: 'Support attacked',
-  shipment: 'Resources',
-};
-// Village reports use side 'attack' for the claimant or founder and 'defense' for the owner; the sub-line names the event instead.
-const VILLAGE_SIDE_NAME: Record<ReportSummaryDto['side'], string> = { attack: 'Claim', defense: 'Village', support: 'Village', shipment: 'Village' };
-
 function reportIcon(r: ReportSummaryDto): IconName {
   if (r.type === 'village') return 'chieftain';
   if (r.type === 'shipment') return MISSION_ICON.shipment;
   if (r.type === 'scout') return MISSION_ICON.scout;
   if (r.type === 'support' || r.side === 'support') return MISSION_ICON.support;
   return r.side === 'attack' ? MISSION_ICON.attack : 'shield';
+}
+
+/** Colour of the round icon token: green-teal good news, terracotta bad news, gold for your own raids, bone for neutral. */
+function reportTone(r: ReportSummaryDto): 'ok' | 'bad' | 'sun' | 'mute' {
+  if (r.outcome === 'called_off' || r.type === 'support') return 'mute';
+  if (r.type === 'shipment') return 'sun';
+  if (!r.won && r.side !== 'support') return 'bad';
+  if (r.side === 'attack' && r.type === 'battle') return 'sun';
+  return r.side === 'support' ? 'mute' : 'ok';
 }
 
 /** What happened, from the report owner's point of view. */
@@ -97,7 +99,41 @@ function CalledOffDetail({ b }: { b: BattleReportData }) {
   );
 }
 
+function sumUnits(a: Units | null, b: Units | null): Units | null {
+  if (!a && !b) return null;
+  const out = normalizeUnits(a ?? {});
+  if (b) for (const u of UNIT_IDS) out[u] += normalizeUnits(b)[u];
+  return out;
+}
+
+/** Big loss numbers with unit portraits: one card per side. */
+function LossCard({ who, lost }: { who: string; lost: Units | null }) {
+  const rows = lost ? UNIT_IDS.filter((u) => lost[u] > 0) : [];
+  return (
+    <div className="rp-loss">
+      <div className="rp-loss-who">{who} lost</div>
+      {lost === null ? (
+        <p className="muted">Unknown</p>
+      ) : rows.length === 0 ? (
+        <p className="rp-loss-none">No losses</p>
+      ) : (
+        <ul className="rp-loss-list">
+          {rows.map((u) => (
+            <li key={u}>
+              <span className="rp-loss-pic" aria-hidden="true"><UnitFigure unit={u} pose="icon" size={40} /></span>
+              <strong className="rp-loss-n">−{formatInt(lost[u])}</strong>
+              <span className="rp-loss-name">{UNITS[u].name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function BattleDetail({ b }: { b: BattleReportData }) {
+  const { player } = useGame();
+  const sideName = (v: VillageRefDto) => (v.ownerName !== null && v.ownerName === player.username ? 'You' : v.ownerName ?? 'Abandoned village');
   const defenderKnown = b.defenderUnits !== null;
   const att = normalizeUnits(b.attackerUnits);
   const attLost = normalizeUnits(b.attackerLosses);
@@ -117,7 +153,13 @@ function BattleDetail({ b }: { b: BattleReportData }) {
         <VillageCell role="Defender" v={b.defender} won={!b.attackerWon} />
       </div>
 
+      <div className="rp-losses" aria-label="Losses">
+        <LossCard who={sideName(b.attacker)} lost={attLost} />
+        <LossCard who={sideName(b.defender)} lost={defLost ? sumUnits(defLost, supLost) : null} />
+      </div>
+
       <section className="subsection" aria-label="Forces">
+        <h3 className="subtitle">Forces</h3>
         <div className="table-wrap">
           <table className="table battle">
             <thead>
@@ -508,12 +550,12 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
   const { now, openSimulator } = useGame();
   const draft = draftFromReport(report);
   return (
-    <article className="card report-detail" aria-labelledby="report-title">
+    <article className="rp-detail" aria-labelledby="report-title">
       <button className="btn btn-small back" onClick={onBack}>
         ← Reports
       </button>
       <header className="report-head">
-        <h2 id="report-title" className="card-title">{report.title}</h2>
+        <h2 id="report-title" className="rp-detail-title">{report.title}</h2>
         <div className="report-meta">
           <OutcomeTag report={report} />
           <span className="muted">{metaText(report)} · {formatClock(report.createdAt, now)}</span>
@@ -528,6 +570,14 @@ function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => voi
       )}
       <ReportBody report={report} />
     </article>
+  );
+}
+
+function Chevron() {
+  return (
+    <svg className="rp-chev" viewBox="0 0 12 20" width="10" height="16" aria-hidden="true">
+      <path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -586,14 +636,12 @@ export function ReportsView() {
   }, [selected, refresh]);
 
   const showDetail = selected !== null;
+  const groups = list ? groupByDay(list, now) : [];
   return (
-    <div className="page">
-      <h1 className="page-title">Reports</h1>
-      <div className={`reports${showDetail ? ' has-detail' : ''}`}>
-        <section className="card report-list-card" aria-labelledby="rl-title">
-          <h2 id="rl-title" className="card-title">
-            All reports <span className="muted">{unreadReports > 0 ? `${unreadReports} unread` : ''}</span>
-          </h2>
+    <div className="page rp-page">
+      <PageHeader icon="reports" title="Reports" count={unreadReports > 0 ? `${unreadReports} new` : undefined} />
+      <div className={`rp${showDetail ? ' has-detail' : ''}`}>
+        <section className="rp-list-col" aria-label="All reports">
           {listError && (
             <p className="form-error" role="alert">
               {listError} <button className="link" onClick={() => void loadList()}>Retry</button>
@@ -603,39 +651,44 @@ export function ReportsView() {
           {list !== null && list.length === 0 && (
             <p className="muted">No reports yet.</p>
           )}
-          {list !== null && list.length > 0 && (
-            <ul className="report-list">
-              {list.map((r) => (
-                <li key={r.id}>
-                  <button
-                    className={`report-item${r.read ? '' : ' is-unread'}${selected === r.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelected(r.id)}
-                    aria-current={selected === r.id ? 'true' : undefined}
-                  >
-                    <span className="report-icon" aria-hidden="true">
-                      <Icon name={reportIcon(r)} size={26} />
-                    </span>
-                    <span className="report-main">
-                      <span className="report-title">
-                        {!r.read && <span className="dot" aria-label="Unread" />}
-                        {r.title}
-                      </span>
-                      <span className="muted report-sub">
-                        {TYPE_NAME[r.type]} · {(r.type === 'village' ? VILLAGE_SIDE_NAME : SIDE_NAME)[r.side]} · {formatAgo(r.createdAt, now)}
-                      </span>
-                    </span>
-                    <OutcomeTag report={r} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {groups.map(({ group, items }) => (
+            <div key={group} className="rp-group">
+              <h2 className="rp-label">{DAY_GROUP_LABEL[group]}</h2>
+              <ul className="rp-list">
+                {items.map((r) => {
+                  const line = reportLine(r.title);
+                  return (
+                    <li key={r.id}>
+                      <button
+                        className={`rp-item${r.read ? '' : ' is-unread'}${selected === r.id ? ' is-selected' : ''}`}
+                        onClick={() => setSelected(r.id)}
+                        aria-current={selected === r.id ? 'true' : undefined}
+                        title={r.title}
+                      >
+                        <span className={`rp-ic rp-ic-${reportTone(r)}`} aria-hidden="true">
+                          <Icon name={reportIcon(r)} size={24} />
+                        </span>
+                        {!r.read ? <span className="dot" role="img" aria-label="Unread" /> : <span className="dot dot-gap" aria-hidden="true" />}
+                        <span className="rp-main">
+                          <span className="rp-title">{line.text}</span>
+                          {line.coords && <span className="rp-coords">({line.coords})</span>}
+                        </span>
+                        <span className="rp-when">{formatShortAgo(r.createdAt, now)}</span>
+                        <OutcomeTag report={r} />
+                        <Chevron />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </section>
 
-        <div className="report-pane">
+        <div className="rp-pane">
           {report && <ReportDetail report={report} onBack={() => setSelected(null)} />}
           {!report && showDetail && (
-            <div className="card">
+            <div className="rp-detail">
               <button className="btn btn-small back" onClick={() => setSelected(null)}>
                 ← Reports
               </button>
@@ -643,8 +696,8 @@ export function ReportsView() {
             </div>
           )}
           {!showDetail && (
-            <div className="card report-empty">
-              <p className="muted report-hint">Pick a report.</p>
+            <div className="rp-empty">
+              <p className="muted rp-hint">Pick a report.</p>
             </div>
           )}
         </div>

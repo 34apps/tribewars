@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from '../../web/src/App.tsx';
 import '../../web/src/styles.css';
 import '../../web/src/hud.css';
+import '../../web/src/pages.css';
 import './preview.css';
 import { createBackend, type Backend } from './backend.ts';
 import { botTick, seedBots } from './bots.ts';

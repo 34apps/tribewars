@@ -1,6 +1,7 @@
 // World-end screen: the winner, the frozen Domination bar and the final tribe and player tables (top 50 of each).
 // Reached from the banner every screen shows once the world has ended; the page scrolls, no inner scrollbars.
 
+import { PageHeader } from '../components/PageHeader.tsx';
 import { useMemo } from 'react';
 import { BADGE_KINDS } from '@clanfire/engine';
 import type { WorldEndDto } from '@clanfire/engine';
@@ -34,7 +35,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
 
   return (
     <div className="page rk-stage end-stage">
-      <h1 className="page-title">World results</h1>
+      <PageHeader icon="renown" title="World results" />
 
       <section className="card rk-card end-winner" aria-labelledby="end-winner-title">
         <div className="title-row">

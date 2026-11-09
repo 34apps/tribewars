@@ -58,7 +58,7 @@ export function PublicTribe({ target, onBack }: { target: TribeTarget; onBack: (
       {tribe && (
         <>
           <section className="card" aria-labelledby="pub-title">
-            <h1 id="pub-title" className="page-title tribe-title"><TribeLabel tag={tribe.tag} name={tribe.name} /></h1>
+            <h2 id="pub-title" className="card-title tribe-title"><TribeLabel tag={tribe.tag} name={tribe.name} /></h2>
             <dl className="facts">
               <div><dt>Rank</dt><dd>#{tribe.rank}</dd></div>
               <div><dt>Points</dt><dd>{formatInt(tribe.points)}</dd></div>

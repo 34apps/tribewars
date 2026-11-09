@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PageHeader } from '../components/PageHeader.tsx';
 import type { FormEvent } from 'react';
 import { MAIL_BODY_MAX, MAIL_SUBJECT_MAX } from '@clanfire/engine';
 import type { MailBox, MailDto, MailSummaryDto } from '@clanfire/engine';
@@ -223,22 +224,25 @@ export function MailView() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Mail</h1>
+      <PageHeader
+        icon="mail"
+        title="Mail"
+        actions={
+          <button type="button" className="btn btn-primary btn-small" onClick={() => setPane({ kind: 'compose', to: '', subject: '' })}>
+            New mail
+          </button>
+        }
+        tabs={[
+          { key: 'inbox', label: 'Inbox', badge: unreadMail, badgeLabel: `${unreadMail} unread` },
+          { key: 'sent', label: 'Sent' },
+        ]}
+        activeTab={box}
+        onTab={(k) => switchBox(k as MailBox)}
+        tabsLabel="Mailbox"
+        tabsRole="group"
+      />
       <div className={`mail${pane.kind !== 'none' ? ' has-pane' : ''}`}>
         <section className="card mail-list-card" aria-label="Mailbox">
-          <div className="mail-toolbar">
-            <div className="segmented mail-boxes" role="group" aria-label="Mailbox">
-              <button type="button" className={`segment${box === 'inbox' ? ' is-active' : ''}`} aria-pressed={box === 'inbox'} onClick={() => switchBox('inbox')}>
-                Inbox{unreadMail > 0 ? ` (${unreadMail})` : ''}
-              </button>
-              <button type="button" className={`segment${box === 'sent' ? ' is-active' : ''}`} aria-pressed={box === 'sent'} onClick={() => switchBox('sent')}>
-                Sent
-              </button>
-            </div>
-            <button type="button" className="btn btn-primary" onClick={() => setPane({ kind: 'compose', to: '', subject: '' })}>
-              New mail
-            </button>
-          </div>
           {listError && (
             <p className="form-error" role="alert">
               {listError}{' '}

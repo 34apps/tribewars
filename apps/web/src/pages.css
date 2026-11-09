@@ -1,0 +1,959 @@
+/* Page sheets: the content of every in-game page tab (Army, Reports, Mail, Tribe, Ranks, ...) inside the cream
+   `.page-sheet` that Shell draws over the village art. Everything is scoped under `.page-sheet` so Village and Map
+   are untouched. Look: big toy icon + Bagel title, chunky gold sub-tabs, flat sections with small-caps labels,
+   tile rows >= 48 px, filled tags. Tokens come from styles.css (semantic tokens only). */
+
+/* ---- The page inside the sheet: the sheet owns padding and width -------------------------------- */
+
+.page-sheet .page,
+.page-sheet .rk-stage {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--on-surface);
+}
+
+.page-sheet .page > * + *,
+.page-sheet .rk-stage > * + * {
+  margin-top: 0;
+}
+
+/* ---- PageHeader ----------------------------------------------------------------------------------- */
+
+.page-sheet .ph {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.page-sheet .ph-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.page-sheet .ph-token {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 17px;
+  background: var(--c-sun);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -4px 0 var(--c-sun-lo), 0 3px 0 var(--c-ink);
+}
+
+.page-sheet .ph-title {
+  min-width: 0;
+  margin: 0;
+  padding-top: 3px;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.05;
+  color: var(--heading);
+}
+
+.page-sheet .ph-count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px 1px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--on-surface);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.page-sheet .ph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.page-sheet .ph-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+  width: max-content;
+}
+
+.page-sheet .ph-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.page-sheet .ph-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 18px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--on-surface);
+  font: 700 0.95rem/1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.page-sheet .ph-tab.is-active {
+  background: var(--c-sun);
+  box-shadow: inset 0 3px 0 var(--c-sun-hi), inset 0 -3px 0 var(--c-sun-lo);
+  outline: 2px solid var(--c-ink);
+  outline-offset: -2px;
+  color: var(--on-fill);
+}
+
+.page-sheet .ph-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-sheet .ph-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px 1px;
+  border-radius: 999px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Tribe facts under the header: one calm strip. */
+.page-sheet .ph .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0;
+}
+
+.page-sheet .ph .facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+@media (max-width: 599px) {
+  .page-sheet .ph {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .page-sheet .ph-token {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+  .page-sheet .ph-title {
+    font-size: 1.7rem;
+  }
+  .page-sheet .ph-tabs {
+    width: 100%;
+  }
+  .page-sheet .ph-tab {
+    flex: 1 0 auto;
+    padding: 0 12px 2px;
+    font-size: 0.9rem;
+  }
+  /* The row of actions drops under the title on a phone instead of squeezing it. */
+  .page-sheet .ph-row {
+    flex-wrap: wrap;
+  }
+  .page-sheet .ph-actions {
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+  .page-sheet .ph-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---- Flat sections: no card in card, hairlines instead of borders ------------------------------- */
+
+.page-sheet .card {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--on-surface);
+}
+
+.page-sheet .card .card {
+  margin-bottom: 12px;
+}
+
+.page-sheet .card-title,
+.page-sheet .subtitle {
+  margin: 0 0 8px;
+  font-family: var(--font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .card-title .muted {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.page-sheet .subsection {
+  margin-top: 14px;
+}
+
+.page-sheet .muted,
+.page-sheet .small {
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .table thead th {
+  background: none;
+  color: var(--on-surface-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-sheet .table th,
+.page-sheet .table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.page-sheet .table tbody tr {
+  min-height: 48px;
+}
+
+.page-sheet .table th.group {
+  border-bottom: 1px solid var(--edge);
+}
+
+/* Filled tags, like the mockups. */
+.page-sheet .tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 11px 1px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.page-sheet .tag-ok { background: var(--c-leaf); color: var(--c-ink); }
+.page-sheet .tag-bad { background: var(--strip-danger); color: var(--on-strip); }
+.page-sheet .tag-warn { background: var(--c-sun); color: var(--c-ink); }
+.page-sheet .tag-info { background: var(--c-teal-hi); color: var(--c-ink); }
+.page-sheet .tag-muted { background: var(--surface-3); color: var(--on-surface); }
+
+/* Lists of rows used by several tabs: tile rows on the cream, >= 48 px. */
+.page-sheet .mail-item,
+.page-sheet .tribe-row,
+.page-sheet .relation-row,
+.page-sheet .movement {
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+}
+
+.page-sheet .mail-item {
+  min-height: 56px;
+  padding: 8px 14px;
+}
+
+.page-sheet .mail-item.is-selected,
+.page-sheet .rp-item.is-selected {
+  outline: 2.5px solid var(--c-ink);
+  outline-offset: -2.5px;
+}
+
+.page-sheet .mail-list,
+.page-sheet .tribe-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-sheet .mail,
+.page-sheet .mail.has-pane {
+  gap: 16px;
+}
+
+.page-sheet .dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin: 0;
+  border-radius: 50%;
+  background: var(--strip-danger);
+}
+
+/* Old tab bars that remain inside a page (none in the main tabs; kept calm for inner uses). */
+.page-sheet .subtabs {
+  margin: 0 0 12px;
+}
+
+.page-sheet .subtab {
+  border: 2px solid var(--c-ink);
+  border-radius: 999px;
+  min-height: 40px;
+}
+
+.page-sheet .subtab.is-active {
+  background: var(--c-sun);
+}
+
+.page-sheet .segmented {
+  border: 2.5px solid var(--c-ink);
+  border-radius: 999px;
+  background: var(--surface-3);
+  padding: 4px;
+  gap: 4px;
+}
+
+.page-sheet .segment {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+}
+
+.page-sheet .segment.is-active {
+  background: var(--c-sun);
+  color: var(--on-fill);
+  outline: 2px solid var(--c-ink);
+  outline-offset: -2px;
+}
+
+/* Rankings and world results sit directly in the sheet. */
+.page-sheet .rk-head {
+  display: none;
+}
+
+.page-sheet .rk-sample {
+  min-height: 40px;
+}
+
+.page-sheet .rk-card,
+.page-sheet .end-winner {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.page-sheet .tribe-title,
+.page-sheet .rk-stage .card-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--heading);
+}
+
+/* ---- Reports -------------------------------------------------------------------------------------- */
+
+.page-sheet .rp {
+  display: grid;
+  gap: 16px;
+}
+
+.page-sheet .rp:not(.has-detail) .rp-pane,
+.page-sheet .rp.has-detail .rp-list-col {
+  display: none;
+}
+
+.page-sheet .rp-label,
+.page-sheet .ar-label {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  font: 700 0.78rem/1.2 var(--font);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .rp-group + .rp-group {
+  margin-top: 16px;
+}
+
+.page-sheet .rp-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-sheet .rp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 5px 12px 5px 6px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  font: 600 0.95rem/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.page-sheet .rp-item.is-unread .rp-title {
+  font-weight: 700;
+}
+
+.page-sheet .rp-item .dot-gap {
+  background: none;
+}
+
+.page-sheet .rp-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--surface-3);
+}
+.page-sheet .rp-ic-ok { background: var(--c-teal-hi); }
+.page-sheet .rp-ic-bad { background: var(--c-terra-hi); }
+.page-sheet .rp-ic-sun { background: var(--c-sun); }
+.page-sheet .rp-ic-mute { background: var(--c-bone); }
+
+.page-sheet .rp-main {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-sheet .rp-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.page-sheet .rp-coords {
+  flex: none;
+  color: var(--on-surface-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.page-sheet .rp-when {
+  flex: none;
+  color: var(--on-surface-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-sheet .rp-chev {
+  flex: none;
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .rp-item .tag {
+  flex: none;
+}
+
+.page-sheet .rp-empty {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+}
+
+.page-sheet .rp-hint {
+  display: none;
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+/* Detail */
+.page-sheet .rp-detail {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  margin: 0;
+}
+
+.page-sheet .rp-detail > * {
+  margin: 0;
+}
+
+.page-sheet .rp-detail-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: var(--heading);
+  overflow-wrap: anywhere;
+}
+
+.page-sheet .rp-detail .report-meta {
+  gap: 8px 12px;
+}
+
+.page-sheet .rp-detail .back {
+  justify-self: start;
+}
+
+.page-sheet .rp-losses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.page-sheet .rp-loss {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+
+.page-sheet .rp-loss-who {
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 0.75rem/1.2 var(--font);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .rp-loss-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-sheet .rp-loss-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.page-sheet .rp-loss-pic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-teal-hi);
+  overflow: hidden;
+}
+
+.page-sheet .rp-loss-n {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.9rem;
+  line-height: 1;
+  padding-top: 3px;
+  color: var(--heading);
+}
+
+.page-sheet .rp-loss-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--on-surface-muted);
+  font-size: 0.9rem;
+}
+
+.page-sheet .rp-loss-none {
+  margin: 0;
+  color: var(--on-surface-muted);
+  font-weight: 600;
+}
+
+/* Village cards, notices, facts inside a detail */
+.page-sheet .side {
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.page-sheet .side.is-winner {
+  background: var(--ok-bg);
+}
+
+.page-sheet .notice {
+  border-radius: 16px;
+}
+
+.page-sheet .power-bar {
+  background: var(--surface-3);
+}
+
+@media (min-width: 1024px) {
+  .page-sheet .rp {
+    grid-template-columns: 380px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .page-sheet .rp:not(.has-detail) .rp-pane,
+  .page-sheet .rp.has-detail .rp-list-col {
+    display: block;
+  }
+
+  .page-sheet .rp-detail .back {
+    display: none;
+  }
+
+  .page-sheet .rp-hint {
+    display: block;
+  }
+}
+
+@media (max-width: 599px) {
+  .page-sheet .rp-coords {
+    display: none;
+  }
+  .page-sheet .rp-item {
+    gap: 6px;
+    padding-right: 10px;
+  }
+  .page-sheet .rp-item .tag {
+    padding: 0 9px 1px;
+    font-size: 0.78rem;
+  }
+  .page-sheet .rp-loss-n {
+    font-size: 1.6rem;
+  }
+  .page-sheet .rp-losses {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Army ----------------------------------------------------------------------------------------- */
+
+.page-sheet .ar-section {
+  margin: 0 0 18px;
+}
+
+.page-sheet .ar-top {
+  display: grid;
+  gap: 4px;
+}
+
+.page-sheet .ar-troops,
+.page-sheet .mv-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-sheet .ar-unit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 4px 14px 4px 6px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  font: 700 1rem/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.page-sheet .ar-unit.is-zero {
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .ar-unit.is-zero .ar-pic {
+  opacity: 0.6;
+}
+
+.page-sheet .ar-unit.is-locked {
+  opacity: 0.6;
+}
+
+.page-sheet .ar-unit.is-locked .ar-pic {
+  filter: grayscale(1);
+}
+
+.page-sheet .ar-pic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-sun-hi);
+  overflow: hidden;
+}
+
+.page-sheet .ar-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-sheet .ar-chip {
+  flex: none;
+  padding: 3px 10px 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--on-surface);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.page-sheet .ar-chip-train {
+  background: var(--c-teal-hi);
+  color: var(--c-ink);
+}
+
+.page-sheet .ar-count {
+  flex: none;
+  margin-left: auto;
+  padding-top: 3px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-sheet .ar-unit.is-zero .ar-count {
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .ar-count:has(.ar-locked) { padding-top: 0; }
+
+.page-sheet .ar-locked {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--on-surface-muted);
+}
+
+.page-sheet .ar-none {
+  margin: 0;
+  padding: 0 2px;
+}
+
+/* Movement and training rows */
+.page-sheet .mv {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 12px 6px 6px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  list-style: none;
+}
+
+.page-sheet .mv-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.page-sheet .mv-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-sun);
+}
+
+.page-sheet .mv-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-sheet .mv-title {
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.page-sheet .mv-prep,
+.page-sheet .mv-sub {
+  color: var(--on-surface-muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.page-sheet .mv-title .link {
+  font-weight: 700;
+}
+
+.page-sheet .mv-time {
+  flex: none;
+  padding: 4px 11px 5px;
+  border-radius: 999px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.page-sheet .mv.is-incoming {
+  background: var(--strip-danger);
+  color: var(--on-strip);
+}
+
+.page-sheet .mv.is-incoming .mv-ic {
+  background: var(--c-sun);
+}
+
+.page-sheet .mv.is-incoming .mv-sub,
+.page-sheet .mv.is-incoming .mv-title .link,
+.page-sheet .mv.is-incoming .muted {
+  color: var(--on-strip);
+}
+
+.page-sheet .mv.is-incoming .mv-time {
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.page-sheet .mv .progress {
+  height: 6px;
+  margin: 0 6px;
+}
+
+.page-sheet .mv.is-incoming .progress {
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: none;
+}
+
+.page-sheet .mv .movement-foot {
+  padding: 0 6px 2px;
+}
+
+.page-sheet .mv-arrive {
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .page-sheet .ar-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 599px) {
+  .page-sheet .ar-unit {
+    gap: 8px;
+    padding-right: 10px;
+  }
+  .page-sheet .ar-count {
+    font-size: 1.5rem;
+  }
+}
+
+/* The rest of the army page (command post, support, training): flat sections with a hairline above. */
+.page-sheet .ar-page > section,
+.page-sheet .ar-page > div > section.card {
+  padding-top: 14px;
+  border-top: 1px solid var(--edge-soft);
+}
+
+.page-sheet .ar-page .unit-card {
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+
+.page-sheet .ar-page .unit-grid {
+  gap: 12px;
+}
+
+.page-sheet .ar-page .movement.stationed {
+  padding: 8px 12px;
+}
+
+.page-sheet .ar-page .job {
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+/* Grid tracks must be allowed to shrink below their content, or a long row pushes the sheet wider than a phone. */
+.page-sheet .rp,
+.page-sheet .rp-list,
+.page-sheet .ar-troops,
+.page-sheet .mv-list,
+.page-sheet .mail-list,
+.page-sheet .ar-top {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1024px) {
+  .page-sheet .rp {
+    grid-template-columns: 380px minmax(0, 1fr);
+  }
+  .page-sheet .ar-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 599px) {
+  .page-sheet .mv-arrive {
+    display: none;
+  }
+}

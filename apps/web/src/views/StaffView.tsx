@@ -2,6 +2,7 @@
 // Shown only when player.staffRole is set; the server re-checks the role on every request, so hiding a button here
 // is a convenience, never the protection. Loaded lazily (default export).
 
+import { PageHeader } from '../components/PageHeader.tsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
@@ -918,19 +919,20 @@ export default function StaffView() {
 
   return (
     <div className="page staff-page">
-      <h1 className="page-title">Staff tools ({role})</h1>
-      <div className="staff-nav">
-        <button type="button" className="btn btn-small" onClick={() => navigate('village')}>
-          ← Game
-        </button>
-        <div className="segmented staff-sections" role="group" aria-label="Staff sections">
-          {visible.map((s) => (
-            <button key={s.id} type="button" className={`segment${section === s.id ? ' is-active' : ''}`} aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        icon="shield"
+        title={`Staff tools (${role})`}
+        actions={
+          <button type="button" className="btn btn-small" onClick={() => navigate('village')}>
+            ← Game
+          </button>
+        }
+        tabs={visible.map((s) => ({ key: s.id, label: s.label }))}
+        activeTab={section}
+        onTab={(k) => setSection(k as Section)}
+        tabsLabel="Staff sections"
+        tabsRole="group"
+      />
       {section === 'tickets' && <TicketQueue />}
       {section === 'reports' && rank >= 2 && (
         <ReportQueue

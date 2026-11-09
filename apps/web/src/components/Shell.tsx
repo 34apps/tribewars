@@ -122,7 +122,7 @@ function AlertNotes() {
 
 /**
  * Attacks and protection. `card` = the big floating attack card (village and map, desktop), `phone` = slim pills row,
- * `inline` = one-line attack pill + protection chip inside the solid header band (page tabs, desktop).
+ * `inline` = one-line attack pill + protection chip row under the HUD (page tabs, desktop).
  */
 function AlertCards({ layout }: { layout: 'card' | 'phone' | 'inline' }) {
   const { player, now, movements, viewMovement } = useGame();
@@ -447,7 +447,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  // Village and map float their HUD over full-bleed art; every other tab gets one solid header band and a docked bottom bar.
+  // Every tab floats the same HUD and dock over village art; page tabs (everything but village and map) put a cream sheet on top (Game.tsx).
   const pageMode = tab !== 'village' && tab !== 'map';
   const [hudH, setHudH] = useState(72);
   const hudRef = useRef<HTMLDivElement>(null);
@@ -496,7 +496,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
   );
   return (
     <div className={`app app-${tab}${pageMode ? ' app-page' : ''}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
-      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'} ${pageMode ? 'hud-page' : 'hud-float'}`} ref={hudRef}>
+      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'} hud-float`} ref={hudRef}>
         {desktop ? (
           <div className="hud-row">
             <div className="hud-left">
@@ -505,7 +505,6 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
             <div className="hud-pill hud-resources">
               <Resources />
             </div>
-            {pageMode && <AlertCards layout="inline" />}
             <div className="hud-right">
               {bell}
               <Who {...actions} />
@@ -521,12 +520,12 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
           </>
         )}
         <AlertNotes />
-        {!pageMode || !desktop ? <AlertCards layout={desktop ? 'card' : 'phone'} /> : null}
+        <AlertCards layout={desktop ? (pageMode ? 'inline' : 'card') : 'phone'} />
       </header>
       <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main" onClickCapture={guardOrders}>
         {children}
       </main>
-      <nav className={`dock${pageMode ? ' dock-page' : ''}`} aria-label="Main">
+      <nav className="dock" aria-label="Main">
         {(desktop ? TABS : PHONE_TABS).map((t) => (
           <DockButton key={t} tab={t} />
         ))}

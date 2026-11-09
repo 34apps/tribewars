@@ -104,7 +104,7 @@ function panelTitle(panel: Panel): string {
   return panel.kind === 'building' ? BUILDINGS[panel.id].name : panel.kind === 'renown' ? 'Renown' : panel.kind === 'steps' ? 'First steps' : panel.kind === 'road' ? 'On the road' : 'Construction queue';
 }
 
-function DesktopVillage({ active }: { active: boolean }) {
+function DesktopVillage({ active, backdrop }: { active: boolean; backdrop: boolean }) {
   const { village, player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
@@ -123,7 +123,7 @@ function DesktopVillage({ active }: { active: boolean }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [panel, active]);
   return (
-    <div className="vv vv-desktop" hidden={!active}>
+    <div className={`vv vv-desktop${backdrop ? ' vv-backdrop' : ''}`} hidden={!active && !backdrop} inert={backdrop} aria-hidden={backdrop || undefined}>
       <section className="vv-board" aria-label={`${village.name}, village`}>
         <h1 className="visually-hidden">{village.name}</h1>
         <VillageScene mode="fit" selected={selected} onSelect={(id) => setPanel({ kind: 'building', id })} levelOverride={preview ? dp : null} />
@@ -149,7 +149,7 @@ function DesktopVillage({ active }: { active: boolean }) {
   );
 }
 
-function PhoneVillage({ active }: { active: boolean }) {
+function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean }) {
   const { player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
@@ -192,7 +192,7 @@ function PhoneVillage({ active }: { active: boolean }) {
   const sheetTitle = panelTitle(sheet);
 
   return (
-    <div className="vv vv-phone" hidden={!active}>
+    <div className={`vv vv-phone${backdrop ? ' vv-backdrop' : ''}`} hidden={!active && !backdrop} inert={backdrop} aria-hidden={backdrop || undefined}>
       <div className="vv-phone-main">
         <h1 className="visually-hidden">Village</h1>
         <VillageScene
@@ -277,9 +277,10 @@ function HearthNotice({ compact }: { compact: boolean }) {
 
 /**
  * Stays mounted while other screens are open (Game.tsx hands it a frozen game context then, and memo skips its renders), so
- * coming back is a `hidden` flip: sprites, boxes and pan position are all still there.
+ * coming back is a `hidden` flip: sprites, boxes and pan position are all still there. `backdrop` = a page tab is open: the scene
+ * shows bright, inert and frozen behind the page sheet.
  */
-export const VillageView = memo(function VillageView({ active = true }: { active?: boolean }) {
+export const VillageView = memo(function VillageView({ active = true, backdrop = false }: { active?: boolean; backdrop?: boolean }) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  return desktop ? <DesktopVillage active={active} /> : <PhoneVillage active={active} />;
+  return desktop ? <DesktopVillage active={active} backdrop={backdrop} /> : <PhoneVillage active={active} backdrop={backdrop} />;
 });
