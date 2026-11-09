@@ -34,7 +34,9 @@
   flex-direction: column;
 }
 
-.main-village {
+/* Village and map are full-bleed: the art fills the viewport behind the floating HUD and dock. */
+.main-village,
+.main-map {
   padding: 0;
 }
 
@@ -69,6 +71,7 @@
   .app-map .main-map {
     overflow: visible;
     min-height: 0;
+    padding: 0;
   }
 
   .app-map .main-map {
@@ -78,13 +81,13 @@
   .app-map .wm {
     flex: none;
     overflow: visible;
-    min-height: calc(100dvh - var(--hud-h, 72px) - 8px - var(--dock-space));
+    min-height: 100dvh;
   }
 
   .app-map .wm-stage {
     position: sticky;
-    top: calc(var(--hud-h, 72px) + 8px);
-    height: calc(100dvh - var(--hud-h, 72px) - 8px - var(--dock-space));
+    top: 0;
+    height: 100dvh;
   }
 }
 
@@ -1311,4 +1314,276 @@ button.hud-village {
   border: 3px solid var(--c-ink);
   border-radius: 26px;
   box-shadow: 0 5px 0 var(--c-ink);
+}
+
+/* ---- Page mode: every tab except Village and Map ----------------------------------------------------------------------
+   One solid header band (content scrolls under it), a docked bottom bar on phones, one centred page container. */
+
+.hud-page {
+  gap: 6px;
+  padding-bottom: 10px;
+  background: var(--page);
+  box-shadow: 0 1px 0 var(--edge), 0 8px 14px -8px rgba(43, 33, 28, 0.28);
+  pointer-events: auto;
+}
+
+.hud-alerts-inline {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.hud-alerts-inline .hud-attack-pill {
+  flex: 0 1 auto;
+  min-height: 44px;
+  padding: 0 14px 2px 10px;
+  gap: 8px;
+  font-size: 14px;
+  box-shadow: 0 3px 0 var(--c-ink);
+}
+
+.hud-alerts-inline .hud-protect {
+  flex: none;
+  min-height: 44px;
+  box-shadow: 0 3px 0 var(--c-ink);
+}
+
+@media (min-width: 1024px) {
+  .hud-page.hud-desktop {
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+
+  .hud-page.hud-desktop .hud-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hud-page .hud-left {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 330px;
+  }
+
+  .hud-page .hud-pill {
+    min-height: 48px;
+    padding: 0 16px 2px 10px;
+    box-shadow: 0 4px 0 var(--c-ink);
+  }
+
+  .hud-page .hud-village-name {
+    font-size: 20px;
+  }
+
+  .hud-page .hud-resources {
+    flex: none;
+    padding: 4px 18px;
+  }
+
+  .hud-page .hud-resources .hud-res {
+    gap: 14px;
+  }
+
+  .hud-page .bell,
+  .hud-page .hud-avatar {
+    width: 48px;
+    height: 48px;
+    box-shadow: 0 4px 0 var(--c-ink);
+  }
+
+  .hud-page .hud-right {
+    flex: none;
+    margin-left: auto;
+    gap: 10px;
+  }
+
+  .hud-page .who-menu,
+  .hud-page .hud-village-wrap .vsw-pop {
+    top: calc(100% + 14px);
+  }
+}
+
+/* Medium desktops: drop who is attacking from the pill. Below ~1140 px the alerts take their own slim row. */
+@media (min-width: 1024px) and (max-width: 1359px) {
+  .hud-page .hud-attack-who {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1139px) {
+  .hud-page.hud-desktop .hud-row {
+    flex-wrap: wrap;
+  }
+
+  .hud-page .hud-alerts-inline {
+    order: 9;
+    flex: 1 0 100%;
+    justify-content: flex-start;
+  }
+
+  .hud-page .hud-attack-who {
+    display: inline;
+  }
+}
+
+/* Phone: a tighter stack on the solid band. */
+.hud-phone.hud-page {
+  gap: 6px;
+  padding-bottom: 10px;
+}
+
+.hud-phone.hud-page .hud-alert-row {
+  gap: 8px;
+}
+
+.app-page .main {
+  padding-top: calc(var(--hud-h, 72px) + 16px);
+}
+
+/* Dock: on phones it is a solid band on the bottom edge with rounded top corners, so nothing peeks out below it. */
+@media (max-width: 1023px) {
+  .app-page {
+    --dock-space: calc(env(safe-area-inset-bottom) + 92px);
+  }
+
+  .dock.dock-page {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    border-width: 3px 0 0;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -4px 0 var(--edge-shadow), 0 -8px 18px rgba(43, 33, 28, 0.12);
+  }
+}
+
+/* The page container: centred, one gutter, title row under the header. */
+.page {
+  max-width: 1180px;
+  padding: 0 16px 24px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 0 16px 32px;
+  }
+}
+
+.page > .page-title,
+.rk-head .page-title {
+  margin: 0 0 14px;
+}
+
+.app-page .main > .page > .page-title:first-child,
+.app-page .main > .page > .army-head,
+.app-page .main > .page > .rk-head {
+  margin-top: 0;
+}
+
+/* Stray badge: the inline count badge inside tab labels must not pick up the bell's absolute position. */
+.badge.badge-inline {
+  position: static;
+  top: auto;
+  left: auto;
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Tribe: the sub-tabs are one horizontally scrollable chip row (no wrapping into rows). */
+.tribe-page .subtabs {
+  display: flex;
+  gap: 6px;
+  margin-inline: -16px;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tribe-page .subtabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tribe-page .subtab {
+  flex: 1 0 auto;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tribe-page .subtab.is-active {
+  border-color: var(--c-ink);
+  background: var(--c-sun);
+}
+
+@media (min-width: 1024px) {
+  .tribe-page .subtabs {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+/* Reports: list + detail card fill the container; the empty detail is a card, not loose text. */
+@media (min-width: 900px) {
+  .reports {
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .report-empty {
+    display: grid;
+    place-items: center;
+    min-height: 280px;
+    margin: 0;
+  }
+
+  .report-empty .report-hint {
+    margin: 0;
+    padding: 0;
+    font-size: 1.05rem;
+  }
+}
+
+/* Rankings and world results: no tan backdrop; they sit in the page container like every other tab. */
+.rk-stage {
+  padding: 0 16px 24px;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+}
+
+.rk-backdrop {
+  display: none;
+}
+
+.rk-stage .rk-card,
+.rk-stage .dom,
+.end-winner {
+  max-width: none;
+}
+
+.rk-stage .rk-card {
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
+}
+
+.rk-stage .rk-table th {
+  background: var(--c-wood-board);
+}
+
+.rk-stage .dom {
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
 }

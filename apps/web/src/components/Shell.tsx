@@ -94,24 +94,10 @@ function Resources({ compact }: { compact?: boolean }) {
   );
 }
 
-/** The one place attacks, protection, world end and connection problems show: floating cards (desktop) / pills (phone) under the HUD. */
-function AlertCards({ desktop }: { desktop: boolean }) {
-  const { player, now, movements, navigate, viewMovement, connectionError, worldEnd, tab } = useGame();
-  const protectedLeft = player.protectedUntil - now;
-  const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
-  const first = incoming[0];
-  const who = first ? first.origin.ownerName || first.origin.name : '';
-  const where = first ? formatCoords(first.origin.x, first.origin.y) : '';
-  const left = first ? formatDuration(first.arriveAt - now) : '';
-  const protect =
-    protectedLeft > 0 ? (
-      <div className="hud-protect">
-        <Icon name="shield" size={desktop ? 22 : 18} />
-        <span>
-          Protected <strong>{formatLeft(protectedLeft)}</strong>
-        </span>
-      </div>
-    ) : null;
+/** World end and connection notes: slim cards under the HUD row. */
+function AlertNotes() {
+  const { navigate, connectionError, worldEnd, tab } = useGame();
+  if (!worldEnd && !connectionError) return null;
   return (
     <div className="hud-alerts">
       {worldEnd && (
@@ -130,6 +116,53 @@ function AlertCards({ desktop }: { desktop: boolean }) {
           <span>Connection problem. Retrying…</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Attacks and protection. `card` = the big floating attack card (village and map, desktop), `phone` = slim pills row,
+ * `inline` = one-line attack pill + protection chip inside the solid header band (page tabs, desktop).
+ */
+function AlertCards({ layout }: { layout: 'card' | 'phone' | 'inline' }) {
+  const { player, now, movements, viewMovement } = useGame();
+  const desktop = layout !== 'phone';
+  const protectedLeft = player.protectedUntil - now;
+  const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
+  const first = incoming[0];
+  const who = first ? first.origin.ownerName || first.origin.name : '';
+  const where = first ? formatCoords(first.origin.x, first.origin.y) : '';
+  const left = first ? formatDuration(first.arriveAt - now) : '';
+  const protect =
+    protectedLeft > 0 ? (
+      <div className="hud-protect">
+        <Icon name="shield" size={desktop ? 22 : 18} />
+        <span>
+          Protected <strong>{formatLeft(protectedLeft)}</strong>
+        </span>
+      </div>
+    ) : null;
+  const pill = first ? (
+    <button type="button" className="hud-attack-pill" onClick={() => viewMovement(first.id)} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Show`}>
+      <Icon name="warning" size={20} />
+      <span className="hud-attack-pill-text">
+        {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} {left}
+        <span className="hud-attack-who"> · {who}</span>
+      </span>
+      {layout === 'inline' && <span aria-hidden="true">›</span>}
+    </button>
+  ) : null;
+  if (layout === 'inline') {
+    if (!pill && !protect) return null;
+    return (
+      <div className="hud-alerts-inline">
+        {pill}
+        {protect}
+      </div>
+    );
+  }
+  return (
+    <div className="hud-alerts">
       {first && desktop && (
         <div className="hud-attack">
           <Icon name="warning" size={32} />
@@ -148,14 +181,7 @@ function AlertCards({ desktop }: { desktop: boolean }) {
         protect
       ) : (
         <div className="hud-alert-row">
-          {first && (
-            <button type="button" className="hud-attack-pill" onClick={() => viewMovement(first.id)} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Show`}>
-              <Icon name="warning" size={20} />
-              <span className="hud-attack-pill-text">
-                {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} {left} · {who}
-              </span>
-            </button>
-          )}
+          {pill}
           {protect}
         </div>
       )}
@@ -421,6 +447,8 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Village and map float their HUD over full-bleed art; every other tab gets one solid header band and a docked bottom bar.
+  const pageMode = tab !== 'village' && tab !== 'map';
   const [hudH, setHudH] = useState(72);
   const hudRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications();
@@ -467,8 +495,8 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
     />
   );
   return (
-    <div className={`app app-${tab}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
-      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'}`} ref={hudRef}>
+    <div className={`app app-${tab}${pageMode ? ' app-page' : ''}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
+      <header className={`hud ${desktop ? 'hud-desktop' : 'hud-phone'} ${pageMode ? 'hud-page' : 'hud-float'}`} ref={hudRef}>
         {desktop ? (
           <div className="hud-row">
             <div className="hud-left">
@@ -477,6 +505,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
             <div className="hud-pill hud-resources">
               <Resources />
             </div>
+            {pageMode && <AlertCards layout="inline" />}
             <div className="hud-right">
               {bell}
               <Who {...actions} />
@@ -491,12 +520,13 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
             <VillageBar />
           </>
         )}
-        <AlertCards desktop={desktop} />
+        <AlertNotes />
+        {!pageMode || !desktop ? <AlertCards layout={desktop ? 'card' : 'phone'} /> : null}
       </header>
       <main className={`main${tab === 'map' ? ' main-map' : ''}${tab === 'village' ? ' main-village' : ''}`} id="main" onClickCapture={guardOrders}>
         {children}
       </main>
-      <nav className="dock" aria-label="Main">
+      <nav className={`dock${pageMode ? ' dock-page' : ''}`} aria-label="Main">
         {(desktop ? TABS : PHONE_TABS).map((t) => (
           <DockButton key={t} tab={t} />
         ))}

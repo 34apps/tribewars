@@ -1,6 +1,6 @@
 // Tribe tab: find/found a tribe when tribeless, or the member area (overview, members, diplomacy, recruit, chat, log).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MyTribeResponse, TribeDto, TribeRole } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { DominationCard } from '../components/DominationBar.tsx';
@@ -76,6 +76,15 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
   );
   // A demoted officer may be looking at Recruit, which no longer exists for them.
   const section: Section = sections.includes(chosen) ? chosen : 'overview';
+  // On phones the sub-tabs are one scrollable chip row: keep the active chip in view.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = tabsRef.current;
+    const chip = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !chip) return;
+    const left = chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2;
+    row.scrollTo?.({ left: Math.max(0, left) });
+  }, [section]);
 
   const badges: Partial<Record<Section, number>> = {
     alerts: tribeAlerts,
@@ -96,7 +105,7 @@ function MemberArea({ tribe, role, data }: { tribe: TribeDto; role: TribeRole; d
         </dl>
       </header>
 
-      <div className="subtabs" role="tablist" aria-label="Tribe sections">
+      <div className="subtabs" role="tablist" aria-label="Tribe sections" ref={tabsRef}>
         {sections.map((s) => {
           const n = badges[s] ?? 0;
           return (

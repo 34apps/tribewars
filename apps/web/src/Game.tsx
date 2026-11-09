@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { makeRenownInfo, settleVillage, worldPrefixOf } from '@clanfire/engine';
 import type { Mission, VillageListItemDto } from '@clanfire/engine';
@@ -45,6 +46,13 @@ function useTab(): [Tab, (t: Tab) => void] {
     setTab(t);
   }, []);
   return [tab, navigate];
+}
+
+/** Keeps a screen mounted while hidden, on the last game state it saw: no re-renders, timers or animations while away. */
+function KeepAlive({ active, value, children }: { active: boolean; value: GameApi; children: ReactNode }) {
+  const frozen = useRef(value);
+  if (active) frozen.current = value;
+  return <GameContext.Provider value={frozen.current}>{children}</GameContext.Provider>;
 }
 
 const EMPTY_STATIONED: GameApi['stationed'] = { here: [], abroad: [] };
@@ -273,7 +281,9 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   return (
     <GameContext.Provider value={ctx}>
       <Shell onSignOut={signOut} onSignOutEverywhere={signOutEverywhere}>
-        {tab === 'village' && <VillageView />}
+        <KeepAlive active={tab === 'village'} value={ctx}>
+          <VillageView active={tab === 'village'} />
+        </KeepAlive>
         {tab === 'army' && <ArmyView />}
         {tab === 'reports' && <ReportsView />}
         {tab === 'mail' && <MailView />}

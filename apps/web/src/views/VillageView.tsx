@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BUILDINGS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
@@ -104,7 +104,7 @@ function panelTitle(panel: Panel): string {
   return panel.kind === 'building' ? BUILDINGS[panel.id].name : panel.kind === 'renown' ? 'Renown' : panel.kind === 'steps' ? 'First steps' : panel.kind === 'road' ? 'On the road' : 'Construction queue';
 }
 
-function DesktopVillage() {
+function DesktopVillage({ active }: { active: boolean }) {
   const { village, player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
@@ -112,15 +112,18 @@ function DesktopVillage() {
   const { busy, build } = useBuild();
   const selected = panel?.kind === 'building' ? panel.id : null;
   useEffect(() => {
-    if (!panel) return;
+    if (!active) setPanel(null);
+  }, [active]);
+  useEffect(() => {
+    if (!panel || !active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [panel]);
+  }, [panel, active]);
   return (
-    <div className="vv vv-desktop">
+    <div className="vv vv-desktop" hidden={!active}>
       <section className="vv-board" aria-label={`${village.name}, village`}>
         <h1 className="visually-hidden">{village.name}</h1>
         <VillageScene mode="fit" selected={selected} onSelect={(id) => setPanel({ kind: 'building', id })} levelOverride={preview ? dp : null} />
@@ -146,7 +149,7 @@ function DesktopVillage() {
   );
 }
 
-function PhoneVillage() {
+function PhoneVillage({ active }: { active: boolean }) {
   const { player } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
@@ -172,20 +175,24 @@ function PhoneVillage() {
   }, [sheet]);
 
   useEffect(() => {
-    if (!sheet) return;
+    if (!active) setSheet(null);
+  }, [active]);
+
+  useEffect(() => {
+    if (!sheet || !active) return;
     headRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSheet(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [sheet]);
+  }, [sheet, active]);
 
   const selected = sheet?.kind === 'building' ? sheet.id : null;
   const sheetTitle = panelTitle(sheet);
 
   return (
-    <div className="vv vv-phone">
+    <div className="vv vv-phone" hidden={!active}>
       <div className="vv-phone-main">
         <h1 className="visually-hidden">Village</h1>
         <VillageScene
@@ -268,7 +275,11 @@ function HearthNotice({ compact }: { compact: boolean }) {
   );
 }
 
-export function VillageView() {
+/**
+ * Stays mounted while other screens are open (Game.tsx hands it a frozen game context then, and memo skips its renders), so
+ * coming back is a `hidden` flip: sprites, boxes and pan position are all still there.
+ */
+export const VillageView = memo(function VillageView({ active = true }: { active?: boolean }) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  return desktop ? <DesktopVillage /> : <PhoneVillage />;
-}
+  return desktop ? <DesktopVillage active={active} /> : <PhoneVillage active={active} />;
+});

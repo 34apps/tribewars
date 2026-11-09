@@ -33,7 +33,7 @@ export function WorldEndView({ end }: { end: WorldEndDto }) {
     .join(' · ');
 
   return (
-    <div className="rk-stage end-stage">
+    <div className="page rk-stage end-stage">
       <h1 className="page-title">World results</h1>
 
       <section className="card rk-card end-winner" aria-labelledby="end-winner-title">

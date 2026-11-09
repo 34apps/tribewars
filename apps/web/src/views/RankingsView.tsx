@@ -660,7 +660,7 @@ export function RankingsView() {
   const sections: Section[] = ['players', 'tribes', 'renown'];
 
   return (
-    <div className="rk-stage">
+    <div className="page rk-stage">
       <Backdrop />
       <div className="rk-head">
         <h1 className="page-title">Rankings</h1>

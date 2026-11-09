@@ -642,7 +642,11 @@ export function ReportsView() {
               {loadingDetail ? <p className="muted">Loading…</p> : <p className="form-error" role="alert">{detailError}</p>}
             </div>
           )}
-          {!showDetail && <p className="muted report-hint">Pick a report.</p>}
+          {!showDetail && (
+            <div className="card report-empty">
+              <p className="muted report-hint">Pick a report.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

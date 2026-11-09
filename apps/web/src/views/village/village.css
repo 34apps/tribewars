@@ -2146,3 +2146,14 @@ th[scope='row'] {
 }
 
 /* Phone bar: honey strip under the Attack / Protected strips, above the village. */
+
+/* Kept mounted while other screens are open (Game.tsx KeepAlive). Not display:none: its layout and painted layers stay warm,
+   so coming back is a visibility flip. Out of flow, so it takes no room from the other screens. */
+.vv[hidden] {
+  display: flex;
+  content-visibility: hidden;
+  visibility: hidden;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
