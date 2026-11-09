@@ -55,7 +55,7 @@ h1{font:400 38px/1.3 'Bagel Fat One';margin:0}.sub{font:500 18px/1.4 Rubik;color
 .fr{border:3px solid #2b211c;border-radius:6px;overflow:hidden;line-height:0;background:#fff;box-shadow:0 6px 0 rgba(43,33,28,.35)}.fr img{display:block}
 .fr.ph{display:grid;place-items:center;line-height:1.3;font:700 24px Rubik;color:#5d4838;background:#f6ecd4}
 .g2{display:grid;grid-template-columns:repeat(2,946px);gap:34px 44px}.g3{display:grid;grid-template-columns:repeat(3,946px);gap:34px 44px}
-.g4{display:grid;grid-template-columns:64px repeat(4,526px);gap:26px 26px;align-items:start}
+.g4t{display:grid;grid-template-columns:repeat(4,524px);gap:30px 26px}.g4{display:grid;grid-template-columns:64px repeat(4,526px);gap:26px 26px;align-items:start}
 .rl{font:400 28px/1 'Bagel Fat One';writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;align-self:center;justify-self:center}
 .mini{font:600 14px/1.35 Rubik;color:#3e3028;margin:0 0 10px;min-height:38px}
 </style>`;
@@ -118,6 +118,16 @@ boards.push(['board-mix-mail2', `<h1>Mail: letters vs conversations</h1><div cla
   ['mix-mail-1440.png', 'Mix 1 · one letter at a time', 'Inbox / Sent list; the open letter beside it with Reply, Report and Delete.'],
   ['mix-mail2-1440.png', 'Mix 2 · conversations', 'One row per player with unread count; the thread scrolls (scrollbar shows the middle of a long exchange); a reply box stays at the bottom.'],
 ].map(([f, lab, line], i) => `<div><span class="lab${i ? ' mix' : ' now'}">${lab}</span><div class="line">${line}</div><div class="fr" style="width:944px"><img src="${f}" style="width:940px"></div></div>`).join('')}</div>`]);
+boards.push(['board-tribe-tabs', `<h1>Tribe sub-tabs in the mix · desktop 1440 × 900</h1><div class="sub">Same header and sub-tabs on every page; calm blocks, big type, at most three columns. Only the chat and the forum thread scroll inside their pane.</div><div class="g4t">${[
+  ['mix-tribe-alerts-1440.png', 'Alerts', 'Attacks on members, soonest first, with Watchtower details; villages with the hearth out.'],
+  ['mix-tribe-diplomacy-1440.png', 'Diplomacy', 'Relations with Cancel / End war; proposals; the New relation form.'],
+  ['mix-tribe-projects-1440.png', 'Projects', 'Tribe Store, Roads / Watchtower / Wards with cost and build, who gave.'],
+  ['mix-tribe-recruit-1440.png', 'Recruit', 'Applications with Accept / Decline; invite by name; open invitations.'],
+  ['mix-tribe-chat-1440.png', 'Chat', 'One big chat; the message list scrolls, the box stays at the bottom.'],
+  ['mix-tribe-forum-1440.png', 'Forum', 'Boards, threads, and the open thread with posts and a reply box.'],
+  ['mix-tribe-log-1440.png', 'Log', 'Everything that happened in the tribe, 11 per page.'],
+  ['mix-tribe2-1440.png', 'Overview (approved)', 'For comparison: the calm Overview.'],
+].map(([f, lab, line], i) => `<div><span class="lab s${i === 7 ? ' now' : ' mix'}">${lab}</span><div class="mini" style="margin-top:8px">${line}</div><div class="fr" style="width:524px"><img src="${f}" style="width:520px"></div></div>`).join('')}</div>`]);
 const only = process.argv[2] || '';
 const PROFILE = '/private/tmp/claude-501/ingame-pages-board'; rmSync(PROFILE, { recursive: true, force: true });
 const PORT = 9492;

@@ -9,7 +9,7 @@ import { CharCount, PlainText, RECRUITMENT_HINT, RECRUITMENT_NAME, RECRUITMENT_O
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
 
-function SettingsForm({ tribe }: MemberProps) {
+export function SettingsForm({ tribe }: MemberProps) {
   const { run, busy } = useTribe();
   const [description, setDescription] = useState(tribe.description);
   const [recruitment, setRecruitment] = useState<Recruitment>(tribe.recruitment);

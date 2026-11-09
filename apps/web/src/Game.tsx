@@ -27,6 +27,7 @@ import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
 import { FrameReports } from './views/reports/FrameReports.tsx';
 import { FrameMail } from './views/mail/FrameMail.tsx';
+import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
 import { SupportView } from './views/SupportView.tsx';
@@ -310,7 +311,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       {tab === 'army' && (desktop ? <FrameArmy /> : <ArmyView />)}
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
       {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
-      {tab === 'tribe' && <TribeView />}
+      {tab === 'tribe' && (desktop ? <FrameTribe /> : <TribeView />)}
       {tab === 'ranks' && <RankingsView />}
       {tab === 'support' && <SupportView />}
       {tab === 'rules' && <WorldRulesView />}

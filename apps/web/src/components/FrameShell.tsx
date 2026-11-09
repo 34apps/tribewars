@@ -18,6 +18,7 @@ import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell.tsx';
 import type { AccountActions } from './Shell.tsx';
 import { VillageBar } from './VillageSwitcher.tsx';
+import { useTribeFixed } from '../views/tribe/tribe-fixed.ts';
 import '../frame.css';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
@@ -162,8 +163,9 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const counts = bellCounts(notifications.items, now);
   const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
   const guardOrders = useGuardOrders();
-  // Village, map, army, reports and mail keep the frame exactly 900 px tall (no page scroll); every other page may grow it for now.
-  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail';
+  // Village, map, army, reports, mail and the Tribe Overview / Members keep the frame exactly 900 px tall (no page scroll); every other page may grow it for now.
+  const tribeFixed = useTribeFixed();
+  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
       <div className="frame-band" aria-hidden="true" />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { canKick, canTribe } from '@clanfire/engine';
+import { canTribe } from '@clanfire/engine';
 import type { TribeAction, TribeMemberDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { MemberBadges } from '../components/Badges.tsx';
@@ -7,12 +7,13 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { formatAgo, formatCoords, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { RoleBadge } from './bits.tsx';
+import { memberFlags } from './memberFlags.ts';
 import { useTribe } from './context.ts';
 import type { MemberProps } from './context.ts';
 import type { RunAction } from './useMyTribe.ts';
 
 /** One grantable right as a checkbox (leader only). */
-function GrantBox({ label, right, grants, m, busy, run, on, off }: { label: string; right: TribeAction; grants: TribeAction[]; m: TribeMemberDto; busy: boolean; run: RunAction; on: string; off: string }) {
+export function GrantBox({ label, right, grants, m, busy, run, on, off }: { label: string; right: TribeAction; grants: TribeAction[]; m: TribeMemberDto; busy: boolean; run: RunAction; on: string; off: string }) {
   const has = grants.includes(right);
   return (
     <label className="check">
@@ -35,18 +36,12 @@ function GrantBox({ label, right, grants, m, busy, run, on, off }: { label: stri
   );
 }
 
-function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }) {
-  const { player, showOnMap, now } = useGame();
+/** What `role` may do to member `m`, and the confirmed actions. Shared by the phone row and the desktop Manage panel. */
+export function useMemberOps(m: TribeMemberDto, role: MemberProps['role']) {
+  const { player } = useGame();
   const { busy, run, confirm } = useTribe();
-  const [open, setOpen] = useState(false);
   const isMe = m.playerId === player.id;
-
-  const canSetRole = canTribe(role, 'set_roles') && !isMe && m.role !== 'leader';
-  const canRemove = !isMe && canKick(role, m.role);
-  const canTransfer = canTribe(role, 'transfer_leadership') && !isMe && m.role !== 'leader';
-  // Only the leader sets individual rights (the server checks it too); officers already have view_activity by role.
-  const canGrant = role === 'leader' && !isMe && m.role === 'member';
-  const hasActions = canSetRole || canRemove || canTransfer || canGrant;
+  const { canSetRole, canRemove, canTransfer, canGrant, hasActions } = memberFlags(role, m, isMe);
   const grants: TribeAction[] = m.grants ?? [];
 
   async function remove() {
@@ -68,6 +63,52 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
     });
     if (ok) await run(() => api.transferLeadership(m.playerId), { ok: `${m.username} is the new leader.` });
   }
+
+  return { isMe, canSetRole, canRemove, canTransfer, canGrant, hasActions, grants, remove, transfer, busy, run };
+}
+
+/** Leave / disband with their confirmations (phone Members card and desktop Leaving card). */
+export function useLeaveActions(tribe: MemberProps['tribe'], role: MemberProps['role']) {
+  const { busy, run, confirm } = useTribe();
+  const leaderBlocked = role === 'leader' && tribe.members > 1;
+  const label = `[${tribe.tag}] ${tribe.name}`;
+
+  async function leave() {
+    const last = tribe.members <= 1;
+    const ok = await confirm({
+      title: `Leave ${label}?`,
+      body: (
+        <p>
+          You lose access to chat and log.{last && ' The tribe is disbanded.'}
+        </p>
+      ),
+      confirmLabel: 'Leave tribe',
+      danger: true,
+    });
+    if (ok) await run(() => api.leaveTribe(), { ok: 'You left the tribe.' });
+  }
+
+  async function disband() {
+    const ok = await confirm({
+      title: `Disband ${label}?`,
+      body: (
+        <p>
+          Members, invitations and relations are deleted. This cannot be undone.
+        </p>
+      ),
+      confirmLabel: 'Disband tribe',
+      danger: true,
+    });
+    if (ok) await run(() => api.disbandTribe(), { ok: 'The tribe was disbanded.' });
+  }
+
+  return { busy, leaderBlocked, leave, disband };
+}
+
+function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }) {
+  const { showOnMap, now } = useGame();
+  const [open, setOpen] = useState(false);
+  const { isMe, canSetRole, canRemove, canTransfer, canGrant, hasActions, grants, remove, transfer, busy, run } = useMemberOps(m, role);
 
   return (
     <li className="member-row">
@@ -132,43 +173,12 @@ function MemberRow({ m, role }: { m: TribeMemberDto; role: MemberProps['role'] }
 }
 
 export function Members({ tribe, role }: MemberProps) {
-  const { busy, run, confirm } = useTribe();
   const maxMembers = useRules().tribe.maxMembers;
+  const { busy, leaderBlocked, leave, disband } = useLeaveActions(tribe, role);
   const sorted = useMemo(
     () => [...tribe.memberList].sort((a, b) => b.points - a.points || a.username.localeCompare(b.username)),
     [tribe.memberList],
   );
-  const leaderBlocked = role === 'leader' && tribe.members > 1;
-  const label = `[${tribe.tag}] ${tribe.name}`;
-
-  async function leave() {
-    const last = tribe.members <= 1;
-    const ok = await confirm({
-      title: `Leave ${label}?`,
-      body: (
-        <p>
-          You lose access to chat and log.{last && ' The tribe is disbanded.'}
-        </p>
-      ),
-      confirmLabel: 'Leave tribe',
-      danger: true,
-    });
-    if (ok) await run(() => api.leaveTribe(), { ok: 'You left the tribe.' });
-  }
-
-  async function disband() {
-    const ok = await confirm({
-      title: `Disband ${label}?`,
-      body: (
-        <p>
-          Members, invitations and relations are deleted. This cannot be undone.
-        </p>
-      ),
-      confirmLabel: 'Disband tribe',
-      danger: true,
-    });
-    if (ok) await run(() => api.disbandTribe(), { ok: 'The tribe was disbanded.' });
-  }
 
   return (
     <>
