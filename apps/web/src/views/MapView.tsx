@@ -3,7 +3,6 @@ import type { FormEvent, KeyboardEvent, PointerEvent } from 'react';
 import type { Coords, Mission, MovementDto } from '@clanfire/engine';
 import { terrainAmountOf } from '@clanfire/engine';
 import { useGame, useRules } from '../game.ts';
-import { formatCoords } from '../format.ts';
 import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
 import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
@@ -15,7 +14,7 @@ import { useSites } from '../hooks/useSites.ts';
 import { hitsSiteBox, holderText, isUtilitySite, siteAt, siteName, stateText } from '../sites.ts';
 import { SitePanel } from '../map/SitePanel.tsx';
 import { loadMapArt } from '../map/sprites.ts';
-import { TERRAIN_NAME, TerrainCache } from '../map/terrain.ts';
+import { TerrainCache } from '../map/terrain.ts';
 import { Legend } from '../map/Legend.tsx';
 import { TilePanel } from '../map/TilePanel.tsx';
 import '../map/map.css';
@@ -50,7 +49,6 @@ export function MapView({ active }: { active: boolean }) {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const readoutRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View>({ cx: village.x, cy: village.y, tile: DEFAULT_TILE });
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
@@ -78,7 +76,6 @@ export function MapView({ active }: { active: boolean }) {
   const zoomedAt = useRef(0);
   const settleTimer = useRef(0);
   const marchTimer = useRef(0);
-  const lastReadout = useRef('');
   const lastEnsure = useRef({ cx: Infinity, cy: Infinity, tile: 0 });
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   /** Fling momentum after a drag: velocity in CSS px per ms, and the running animation. */
@@ -91,6 +88,24 @@ export function MapView({ active }: { active: boolean }) {
   const [goX, setGoX] = useState('');
   const [goY, setGoY] = useState('');
   const [goError, setGoError] = useState<string | null>(null);
+  const [goOpen, setGoOpen] = useState(false);
+  const goRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!goOpen) return;
+    const onDown = (e: Event) => {
+      if (goRef.current && !goRef.current.contains(e.target as Node)) setGoOpen(false);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setGoOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [goOpen]);
 
   useEffect(() => {
     activeRef.current = active;
@@ -170,19 +185,6 @@ export function MapView({ active }: { active: boolean }) {
     if (res.markerSpeed >= 0) {
       const ms = Math.max(120, Math.min(1000, 1000 / Math.max(0.001, res.markerSpeed)));
       marchTimer.current = window.setTimeout(() => scheduleRef.current(), ms);
-    }
-    const el = readoutRef.current;
-    if (el) {
-      const hov = hoverRef.current;
-      let text = `Centre ${formatCoords(Math.round(view.cx), Math.round(view.cy))}`;
-      if (hov && Math.abs(hov.x) <= radius && Math.abs(hov.y) <= radius) {
-        const v = chunks.villageAt(hov.x, hov.y);
-        text += ` · ${formatCoords(hov.x, hov.y)} ${v ? v.name : (TERRAIN_NAME[terrain.get(hov.x, hov.y)] ?? '')}`;
-      }
-      if (text !== lastReadout.current) {
-        lastReadout.current = text;
-        el.textContent = text;
-      }
     }
   }, [blocks, chunks, ensureChunks, radius, settings.seed, terrain, terrainAmount]);
 
@@ -584,6 +586,7 @@ export function MapView({ active }: { active: boolean }) {
       return;
     }
     setGoError(null);
+    setGoOpen(false);
     centerOn(x, y, 72);
     select({ x, y }, { reveal: true });
   }
@@ -619,31 +622,7 @@ export function MapView({ active }: { active: boolean }) {
           onPointerLeave={onPointerLeave}
           onKeyDown={onKeyDown}
         />
-        <div className="wm-top">
-          <form className="wm-toolbar" onSubmit={submitGo} aria-label="Map controls">
-            <button type="button" className="wm-btn wm-btn-sun" onClick={() => centerOn(own.x, own.y, 72)}>
-              <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
-              </svg>
-              <span>My village</span>
-            </button>
-            <div className="wm-goto">
-              <label className="visually-hidden" htmlFor="go-x">X coordinate</label>
-              <input id="go-x" className="wm-input" type="number" inputMode="numeric" placeholder="x" value={goX} onChange={(e) => setGoX(e.target.value)} />
-              <span aria-hidden="true" className="wm-goto-sep">|</span>
-              <label className="visually-hidden" htmlFor="go-y">Y coordinate</label>
-              <input id="go-y" className="wm-input" type="number" inputMode="numeric" placeholder="y" value={goY} onChange={(e) => setGoY(e.target.value)} />
-              <button type="submit" className="wm-btn">Go</button>
-            </div>
-            {goError && (
-              <span className="wm-go-error" role="alert">
-                {goError}
-              </span>
-            )}
-          </form>
-          <Legend sites={sitesOn} />
-        </div>
-        <div className="wm-readout" ref={readoutRef} aria-live="off" />
+        <Legend sites={sitesOn} />
         <div className="wm-tip" ref={tipRef} hidden aria-hidden="true" />
         <div className="wm-zoom">
           <button type="button" className="wm-btn wm-btn-icon" onClick={() => zoomBy(1.3)} aria-label="Zoom in">
@@ -658,6 +637,29 @@ export function MapView({ active }: { active: boolean }) {
               <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
             </svg>
           </button>
+          <div className="wm-go" ref={goRef}>
+            <button type="button" className="wm-btn wm-btn-icon" onClick={() => { setGoOpen((o) => !o); setGoError(null); }} aria-label="Go to coordinates" aria-expanded={goOpen} aria-controls="wm-go-pop">
+              <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6" />
+                <path d="m15 15 6 6" />
+              </svg>
+            </button>
+            {goOpen && (
+              <form className="wm-go-pop wm-toolbar" id="wm-go-pop" onSubmit={submitGo} aria-label="Go to coordinates">
+                <label className="visually-hidden" htmlFor="go-x">X coordinate</label>
+                <input id="go-x" className="wm-input" type="number" inputMode="numeric" placeholder="x" autoFocus value={goX} onChange={(e) => setGoX(e.target.value)} />
+                <span aria-hidden="true" className="wm-goto-sep">|</span>
+                <label className="visually-hidden" htmlFor="go-y">Y coordinate</label>
+                <input id="go-y" className="wm-input" type="number" inputMode="numeric" placeholder="y" value={goY} onChange={(e) => setGoY(e.target.value)} />
+                <button type="submit" className="wm-btn">Go</button>
+                {goError && (
+                  <span className="wm-go-error" role="alert">
+                    {goError}
+                  </span>
+                )}
+              </form>
+            )}
+          </div>
         </div>
       </div>
       {selected && selectedSite && (

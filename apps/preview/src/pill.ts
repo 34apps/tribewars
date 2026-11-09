@@ -12,11 +12,11 @@ export interface PillOptions {
 }
 
 const CSS = `
-.pv-pill{position:fixed;z-index:2147483000;left:0;right:0;top:env(safe-area-inset-top,0px);height:0;pointer-events:none;font:600 9px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fbf6e9}
-.pv-chip{position:absolute;left:118px;top:0;pointer-events:auto;appearance:none;border:0;cursor:pointer;background:rgba(59,42,26,.72);color:inherit;font:inherit;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px 4px;border-radius:0 0 8px 8px;opacity:.65}
-.pv-chip::after{content:'';position:absolute;inset:-4px -12px -14px}
+.pv-pill{position:fixed;z-index:2147483000;left:0;top:50%;width:0;height:0;pointer-events:none;font:600 9px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fbf6e9}
+.pv-chip{position:absolute;left:0;top:0;transform:translateY(-50%);writing-mode:vertical-rl;rotate:180deg;pointer-events:auto;appearance:none;border:0;cursor:pointer;background:rgba(59,42,26,.6);color:inherit;font:inherit;letter-spacing:.08em;text-transform:uppercase;padding:9px 3px;border-radius:6px 0 0 6px;opacity:.55}
+.pv-chip::after{content:'';position:absolute;inset:-8px -14px -8px -4px}
 .pv-chip:hover,.pv-chip:focus-visible,.pv-chip[aria-expanded=true]{opacity:1}
-.pv-menu{position:absolute;pointer-events:auto;left:12px;right:12px;top:24px;max-width:300px;box-sizing:border-box;background:#fbf6e9;color:#2c2318;border:1px solid #c9b88e;border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.3);font-weight:400;font-size:13px;line-height:1.4;letter-spacing:0;text-transform:none}
+.pv-menu{position:absolute;pointer-events:auto;left:22px;top:0;transform:translateY(-50%);width:min(300px,calc(100vw - 34px));box-sizing:border-box;background:#fbf6e9;color:#2c2318;border:1px solid #c9b88e;border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.3);font-weight:400;font-size:13px;line-height:1.4;letter-spacing:0;text-transform:none}
 .pv-menu[hidden]{display:none}
 .pv-menu p{margin:0 0 8px}
 .pv-menu .pv-note{color:#66573f;font-size:12px}
@@ -29,12 +29,6 @@ const CSS = `
 .pv-row .pv-btn{min-width:0;min-height:44px;padding:10px 4px}
 .pv-btn-yes{background:#8a2a12;color:#fff;margin-top:6px}
 .pv-btn-yes:hover{background:#6f2210}
-@media (min-width:768px){
-.pv-pill{top:auto;bottom:6px;font-size:11px}
-.pv-chip{left:50%;top:auto;bottom:0;transform:translateX(-50%);padding:5px 10px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.pv-chip::after{inset:-6px}
-.pv-menu{left:50%;right:auto;top:auto;bottom:32px;transform:translateX(-50%);width:250px}
-}
 `;
 
 export interface Pill {

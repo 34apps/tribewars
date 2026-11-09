@@ -155,46 +155,6 @@
 
 /* ---- Floating controls ---- */
 
-.wm-top {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  max-width: calc(100% - 88px);
-  max-height: calc(100% - 24px);
-  pointer-events: none;
-}
-
-.wm-top > * {
-  pointer-events: auto;
-}
-
-.wm-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.wm-goto {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px;
-  border-radius: 18px;
-  background: var(--bar);
-  box-shadow: inset 0 -3px 0 var(--bar-line), 0 4px 0 var(--bar-edge);
-}
-
-.wm-goto .wm-btn {
-  box-shadow: none;
-  background: var(--wm-sun);
-}
-
 .wm-goto-sep {
   color: var(--on-bar);
   font-weight: 800;
@@ -218,23 +178,6 @@
   z-index: 3;
   display: grid;
   gap: 12px;
-}
-
-.wm-readout {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
-  max-width: calc(100% - 24px);
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.92);
-  color: var(--wm-ink);
-  box-shadow: inset 0 0 0 1.5px var(--edge), 0 2px 0 var(--edge-shadow);
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
 
 .wm-tip {
@@ -277,49 +220,62 @@
   }
 }
 
-.wm-readout:empty {
-  display: none;
-}
-
-@media (hover: none) {
-  .wm-readout {
-    display: none;
-  }
-}
-
 /* ---- Map key ---- */
 
 .wm-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 3;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+}
+
+.wm-legend-open {
+  z-index: 8;
+}
+
+.wm-legend-card {
   min-height: 0;
-  max-width: 290px;
+  width: 290px;
+  max-width: calc(100vw - 24px);
   border-radius: 18px;
   background: var(--surface);
   color: var(--on-surface);
   box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
 }
 
-.wm-legend summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  font: 400 1.05rem/1 var(--wm-display);
-  list-style: none;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.wm-legend summary::-webkit-details-marker {
+.wm-legend-card[hidden] {
   display: none;
 }
 
-.wm-legend summary:focus-visible {
-  outline: 3px solid var(--wm-sun);
-  outline-offset: 2px;
+.wm-go {
+  position: relative;
+}
+
+.wm-go-pop {
+  position: absolute;
+  top: 0;
+  right: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 100px);
+  padding: 8px;
   border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--edge), 0 4px 0 var(--edge-shadow);
+}
+
+.wm-go-pop .wm-btn {
+  min-height: 44px;
+  box-shadow: none;
+  background: var(--wm-sun);
 }
 
 .wm-legend-body {
@@ -1120,26 +1076,8 @@
 }
 
 @media (max-width: 480px) {
-  .wm-toolbar > .wm-btn span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .wm-toolbar > .wm-btn {
-    width: 48px;
-    padding: 0;
-  }
-
   .wm-input {
     width: 58px;
-  }
-
-  .wm-legend {
-    max-width: calc(100vw - 100px);
   }
 
   .wm-facts {
@@ -1148,11 +1086,6 @@
 }
 
 @media (max-width: 767px) {
-  /* Phone: an opened key rides above the tile sheet so every row can be reached (it scrolls inside its own card). */
-  .wm-top:has(.wm-legend[open]) {
-    z-index: 8;
-  }
-
   .wm-legend-body {
     max-height: calc(100dvh - 300px);
   }
@@ -1160,8 +1093,8 @@
 
 @media (min-width: 768px) {
   /* Desktop: the key is an overlay, so it fits instead of scrolling: two columns of sections. */
-  .wm-legend[open] {
-    max-width: 560px;
+  .wm-legend-card {
+    width: 560px;
   }
 
   .wm-legend-body {
@@ -1214,8 +1147,7 @@
     display: none;
   }
 
-  .wm-top {
-    top: 16px;
+  .wm-legend {
     left: 16px;
   }
 
@@ -1334,18 +1266,13 @@
 /* ---- Full-bleed map: the canvas fills the viewport behind the floating HUD and dock ---------------------------------
    Controls sit under the HUD (its measured height, --hud-h) and the key stops above the dock (--dock-space). */
 
-.app-map .wm-top {
-  top: calc(var(--hud-h, 72px) + 8px);
-  left: var(--hud-gutter, 10px);
-  max-height: calc(100% - var(--hud-h, 72px) - 8px - var(--dock-space, 96px));
-}
-
 .app-map .wm-zoom {
   top: calc(var(--hud-h, 72px) + 8px);
   right: var(--hud-gutter, 10px);
 }
 
-.app-map .wm-readout {
+.app-map .wm-legend {
+  left: var(--hud-gutter, 10px);
   bottom: calc(var(--dock-space, 96px) - 6px);
 }
 

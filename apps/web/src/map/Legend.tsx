@@ -1,22 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { MAP_STAGE_NAMES } from '@clanfire/engine';
 import { ALLEGIANCE_STYLE, stageRange } from './allegiance.ts';
 import { ROUTE_DOT_COLOR } from './render.ts';
 import { ALLEGIANCES, STAGE_FILES, artUrl } from './sprites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
 
-/** "Map key": village growth stages by points, allegiance banners, ruins and protection. Open by default on wide screens. */
+/** "Map key": village growth stages by points, allegiance banners, ruins and protection. A round button; closed by default. */
 export function Legend({ sites = true }: { sites?: boolean }) {
-  const [startOpen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1100px) and (min-height: 760px)').matches);
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const wrap = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
   return (
-    <details className="wm-legend" open={startOpen}>
-      <summary>
+    <div className={`wm-legend${open ? ' wm-legend-open' : ''}`} ref={wrap}>
+      <button type="button" className="wm-btn wm-btn-icon" aria-label="Map key" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
         <svg className="wm-ico" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20z" />
           <path d="M9 4v13.5M15 6.5V20" />
         </svg>
-        Map key
-      </summary>
+      </button>
+      <div className="wm-legend-card" id={id} hidden={!open}>
       <div className="wm-legend-body">
         <h3>Size · points</h3>
         <ul className="wm-legend-stages">
@@ -106,6 +116,7 @@ export function Legend({ sites = true }: { sites?: boolean }) {
           </li>
         </ul>
       </div>
-    </details>
+      </div>
+    </div>
   );
 }
