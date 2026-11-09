@@ -45,6 +45,8 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
   let siege = false;
   let boulder = false;
   let storeLoot = false;
+  let richBattle = 0;
+  let bigArmy = false;
   let intelLayers = new Set<number>();
   for (const r of list) {
     const full = okJson<ReportDto>(await alice.c.get(`/api/reports/${r.id}`));
@@ -52,10 +54,16 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
     if (full.battle?.siege?.some((h) => h.unit === 'logram')) siege = true;
     if (full.battle?.siege?.some((h) => h.unit === 'boulder')) boulder = true;
     if (full.battle?.lootFromTribeStore) storeLoot = true;
+    if (full.battle && full.battle.outcome === 'battle') {
+      const kinds = Object.values(full.battle.attackerUnits).filter((n) => n > 0).length;
+      if (kinds >= 3) richBattle++;
+      if (Object.values(full.battle.attackerUnits).some((n) => n >= 100)) bigArmy = true;
+    }
     if (full.scout?.intel) intelLayers = new Set([...intelLayers, full.scout.intel.keen ?? -1]);
   }
   assert.deepEqual([...kinds].sort(), ['claim_failed', 'found_failed', 'founded', 'hearth_out', 'lost', 'relit', 'struck', 'taken']);
   assert.ok(siege && boulder && storeLoot);
+  assert.ok(richBattle >= 10 && bigArmy, 'battle reports have mixed, large armies');
   assert.deepEqual([...intelLayers].sort(), [0, 1, 2, 3, 4, 5]);
 
   // Tribe: member list, chat, diplomacy, applications, a project running.
@@ -79,9 +87,44 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
   assert.ok(state.movements.some((m) => m.kind === 'return'));
   assert.ok(state.stationed.here.length >= 1 && state.stationed.abroad.length >= 1);
 
-  // Second press: nothing changes.
+  // Second press: only the sample reports are replaced; a report that came later (a real one) and everything else stay.
+  const marker = Number(app.ctx.store.getMeta(`sample_data:${alice.id}`));
+  const realId = app.ctx.store.insertReport({ playerId: alice.id, side: 'shipment', type: 'shipment', won: true, title: 'Real report', createdAt: marker + 1000, shipment: { role: 'sent', from: { villageId: 1, name: 'a', x: 0, y: 0, ownerName: 'alice' }, to: { villageId: 1, name: 'a', x: 0, y: 0, ownerName: 'alice' }, resources: { wood: 1, food: 0, iron: 0, gold: 0 }, stored: { wood: 1, food: 0, iron: 0, gold: 0 }, lost: { wood: 0, food: 0, iron: 0, gold: 0 } } });
+  const sampleBefore = list.map((r) => r.id);
   const second = okJson<SampleDataResponse>(await alice.c.post('/api/sandbox/sample-data', {}));
   assert.equal(second.created, false);
+  assert.equal(second.refreshed, true);
+  assert.equal(second.counts.reports, first.counts.reports);
+  assert.equal(second.counts.players, 0);
+  assert.equal(second.counts.mails, 0);
+  assert.equal(second.counts.marches, 0);
   const again = (await alice.c.get('/api/reports?limit=200')).json<ReportListResponse>().reports;
-  assert.equal(again.length, list.length);
+  assert.equal(again.length, list.length, 'the list is capped; the real report is in it, so the same page size');
+  assert.ok(again.some((r) => r.id === realId), 'the real report is kept');
+  assert.ok(sampleBefore.every((id) => !again.some((r) => r.id === id)), 'the earlier sample reports were replaced');
+  const mailBefore = (await alice.c.get('/api/mail')).statusCode;
+  assert.equal(mailBefore, 200);
+  // A third press keeps replacing only the ids it recorded.
+  okJson<SampleDataResponse>(await alice.c.post('/api/sandbox/sample-data', {}));
+  const third = (await alice.c.get('/api/reports?limit=200')).json<ReportListResponse>().reports;
+  assert.equal(third.length, list.length);
+  assert.ok(third.some((r) => r.id === realId));
+});
+
+test('sample data: a legacy account (no recorded ids) keeps its real reports on refresh', async () => {
+  const { app, alice } = await world();
+  app.ctx.store.sandboxUsers = new Set(['alice']);
+  okJson<SampleDataResponse>(await alice.c.post('/api/sandbox/sample-data', {}));
+  // Make it look like an account filled before ids were recorded, with a real raid by a computer player from before the first press.
+  app.ctx.store.setMeta(`sample_reports:${alice.id}`, ''); // empty = no ids recorded
+  const marker = Number(app.ctx.store.getMeta(`sample_data:${alice.id}`));
+  const v = { villageId: 1, name: 'Raven Hold', x: 3, y: 4, ownerName: 'Mira_of_Vale' };
+  const realId = app.ctx.store.insertReport({
+    playerId: alice.id, side: 'attack', type: 'scout', won: true, title: 'Real scouting', createdAt: marker - 5 * 86_400_000 - 12_345,
+    scout: { scout: v, target: v, success: false, scoutsSent: 3, scoutsLost: 3, defenderScouts: null, defenderScoutsLost: 0, intel: null },
+  });
+  const second = okJson<SampleDataResponse>(await alice.c.post('/api/sandbox/sample-data', {}));
+  assert.equal(second.refreshed, true);
+  const after = (await alice.c.get('/api/reports?limit=200')).json<ReportListResponse>().reports;
+  assert.ok(after.some((r) => r.id === realId), 'the real report is kept');
 });

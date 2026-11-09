@@ -81,11 +81,11 @@ async function boot(): Promise<void> {
       // The route is the real sandbox one (this preview allows every account); it fills the signed-in player only.
       const res = await fetch('/api/sandbox/sample-data', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       if (!res.ok) throw new Error(res.status === 401 ? 'sign in first' : `server said ${res.status}`);
-      const out = (await res.json()) as { created: boolean };
+      const out = (await res.json()) as { created: boolean; refreshed?: boolean };
       dirty = true;
       if (timer !== undefined) window.clearTimeout(timer);
       void flush().finally(() => window.location.reload());
-      return out.created ? 'Done. Reloading\u2026' : 'Already filled. Nothing changed.';
+      return out.created ? 'Done. Reloading\u2026' : 'Sample reports refreshed';
     },
     onReset: () => {
       resetting = true;

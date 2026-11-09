@@ -18,16 +18,17 @@ import {
   emptyUnits,
   findSpawnLocation,
   mulberry32,
+  resolveBattle,
   projectCost,
   settleVillage,
   villagePoints,
   type BattleReportData,
+  type BuildingId,
   type ChieftainId,
   type DiplomacyKind,
   type Recruitment,
   type Resources,
   type ScoutReportData,
-  type SiegeHit,
   type TribeRole,
   type Units,
   type VillageRefDto,
@@ -38,8 +39,10 @@ import type { AppContext } from './context.ts';
 import type { NewReport, PlayerRow, VillageRecord } from './store.ts';
 
 export interface SampleDataResponse {
-  /** false = this account was filled before; nothing was changed. */
+  /** false = this account was filled before: only the sample reports were replaced (`refreshed`). */
   created: boolean;
+  /** true = second press: the earlier sample reports were replaced by a new set; nothing else changed. */
+  refreshed: boolean;
   counts: { reports: number; mails: number; players: number; tribeMessages: number; forumThreads: number; marches: number };
 }
 
@@ -47,6 +50,8 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const MARKER = (playerId: number): string => `sample_data:${playerId}`;
+/** JSON list of the report ids this feature made for a player: only these are replaced on a refresh. */
+const REPORT_IDS = (playerId: number): string => `sample_reports:${playerId}`;
 
 type Draft<T> = T extends unknown ? Omit<T, 'playerId' | 'createdAt'> : never;
 
@@ -113,10 +118,10 @@ function castVillage(hall: number, t: number): VillageState {
 export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): SampleDataResponse {
   const { store, settings } = ctx;
   if (!store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
-  if (store.getMeta(MARKER(player.id)) !== null) {
-    return { created: false, counts: { reports: 0, mails: 0, players: 0, tribeMessages: 0, forumThreads: 0, marches: 0 } };
-  }
+  const marker = store.getMeta(MARKER(player.id));
+  const refresh = marker !== null;
   const counts: SampleDataResponse['counts'] = { reports: 0, mails: 0, players: 0, tribeMessages: 0, forumThreads: 0, marches: 0 };
+  const madeIds: number[] = [];
 
   store.tx(() => {
     const home = store.villagesOfPlayer(player.id)[0];
@@ -164,6 +169,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     };
     const coords = (r: { x: number; y: number }): string => `(${r.x}|${r.y})`;
 
+    if (!refresh) {
     // ---- the player's tribe ---------------------------------------------------------------------
     const existing = store.tribes.membership(player.id);
     let tribeId: number;
@@ -347,6 +353,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
       });
     }
 
+    }
     // ---- reports ---------------------------------------------------------------------------------
     const mateRef = refPlayer('Sample_Ysolde');
     const hildRef = refPlayer('Sample_Hild');
@@ -372,46 +379,35 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
       loot: emptyResources(),
       ...b,
     });
-    const fullLoot = res(2400, 1800, 1200);
     const scout = (target: VillageRefDto, success: boolean, keen: number | null, extra: Partial<ScoutReportData> = {}): ScoutReportData => {
       const tgt = castVillage(6, t);
+      tgt.troops = units({ pikeman: 240, guard: 130, raider: 160, outrider: 55, knight: 9, pathfinder: 18, logram: 6, boulder: 8 });
       return {
         scout: me,
         target,
         success,
-        scoutsSent: 6,
-        scoutsLost: success ? 1 : 6,
-        defenderScouts: success ? 4 : null,
-        defenderScoutsLost: success ? 0 : 2,
+        scoutsSent: 30,
+        scoutsLost: success ? 4 : 30,
+        defenderScouts: success ? 12 : null,
+        defenderScoutsLost: success ? 0 : 9,
         intel: success && keen !== null ? buildScoutIntel({ keen, resources: res(1840, 1210, 960, 12), buildings: tgt.buildings, troops: tgt.troops, ranks: { pikeman: { might: 1, bulwark: 2, keen: 0 } } }) : null,
         ...extra,
       };
     };
     const village = (kind: VillageReportData['kind'], v: VillageRefDto, extra: Partial<VillageReportData> = {}): VillageReportData => ({ kind, village: v, ...extra });
-    const siegeWall: SiegeHit[] = [{ unit: 'logram', building: 'wall', from: 8, to: 5 }];
-    const siegeBoth: SiegeHit[] = [...siegeWall, { unit: 'boulder', building: 'barracks', from: 6, to: 5 }, { unit: 'boulder', building: 'storehouse', from: 9, to: 8, random: true }];
 
     // Today
-    add(25 * MIN, { side: 'attack', type: 'battle', won: true, title: `Raid on ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, battle: battle({ attacker: me, defender: abandonedRef(0), attackerWon: true, attackerUnits: units({ raider: 40 }), loot: fullLoot, defenderUnits: units({ pikeman: 8 }), defenderLosses: units({ pikeman: 8 }), wallLevel: 0 }) });
-    add(70 * MIN, { side: 'attack', type: 'battle', won: true, title: `Raid on ${abandonedRef(1).name} ${coords(abandonedRef(1))}`, battle: battle({ attacker: me, defender: abandonedRef(1), attackerWon: true, attackerUnits: units({ raider: 60, outrider: 10 }), attackerLosses: units({ raider: 14, outrider: 2 }), defenderUnits: units({ pikeman: 45, guard: 20 }), defenderLosses: units({ pikeman: 45, guard: 14 }), loot: res(3100, 2200, 1500), attackPower: 5100, defensePower: 4300 }) });
-    add(2 * HOUR, { side: 'defense', type: 'battle', won: true, title: `Attack from ${vexRef.name} ${coords(vexRef)}`, battle: battle({ attacker: vexRef, defender: me, attackerWon: false, attackerUnits: units({ raider: 50, outrider: 12 }), attackerLosses: units({ raider: 50, outrider: 12 }), defenderUnits: units({ pikeman: 120, guard: 60 }), defenderLosses: units({ pikeman: 18, guard: 6 }), supportUnits: units({ guard: 30 }), supportLosses: units({ guard: 4 }), attackPower: 3900, defensePower: 7800, renownGained: 12, wallLevel: 4 }) });
     add(3 * HOUR, { side: 'attack', type: 'scout', won: true, title: `Scouting ${corwenRef.name} ${coords(corwenRef)}`, scout: scout(corwenRef, true, 5) });
     add(4 * HOUR, { side: 'attack', type: 'scout', won: false, title: `Scouting ${vexRef.name} ${coords(vexRef)}`, scout: scout(vexRef, false, null) });
     add(5 * HOUR, { side: 'shipment', type: 'shipment', won: true, title: `Shipment received from ${mateRef.name} ${coords(mateRef)}`, shipment: { role: 'received', from: mateRef, to: me, resources: res(4000, 3000, 2000), stored: res(4000, 3000, 2000), lost: emptyResources() } });
-    add(6 * HOUR, { side: 'attack', type: 'battle', won: false, title: `Raid on ${vexRef.name} ${coords(vexRef)}`, battle: battle({ attacker: me, defender: vexRef, attackerWon: false, attackerUnits: units({ raider: 70, knight: 6 }), attackerLosses: units({ raider: 61, knight: 6 }), defenderUnits: units({ pikeman: 150, guard: 90 }), defenderLosses: units({ pikeman: 31, guard: 12 }), attackPower: 4100, defensePower: 9600, wallLevel: 7 }) });
-    add(7 * HOUR, { side: 'support', type: 'battle', won: true, title: `Your troops at ${hildRef.name} ${coords(hildRef)} were attacked`, battle: battle({ attacker: corwenRef, defender: hildRef, attackerWon: false, attackerUnits: units({ raider: 60 }), attackerLosses: units({ raider: 60 }), defenderUnits: units({ pikeman: 40 }), defenderLosses: units({ pikeman: 6 }), supportUnits: units({ guard: 30, pikeman: 20 }), supportLosses: units({ guard: 3, pikeman: 2 }), renownGained: 9 }) });
     add(8 * HOUR, { side: 'attack', type: 'village', won: true, title: `Hearth out at ${abandonedRef(2).name} ${coords(abandonedRef(2))}`, village: village('struck', abandonedRef(2), { holdEndsAt: t + 20 * HOUR }) });
     // Yesterday
-    add(26 * HOUR, { side: 'attack', type: 'battle', won: true, title: `Raid on ${vexRef.name} ${coords(vexRef)}`, battle: battle({ attacker: me, defender: vexRef, attackerWon: true, attackerUnits: units({ raider: 80, logram: 6, boulder: 4 }), attackerLosses: units({ raider: 22, logram: 2 }), defenderUnits: units({ pikeman: 60 }), defenderLosses: units({ pikeman: 60 }), attackPower: 8800, defensePower: 3300, loot: res(3600, 2600, 1800), wallLevel: 5, siege: siegeBoth }) });
-    add(28 * HOUR, { side: 'attack', type: 'battle', won: false, title: `Raid on ${corwenRef.name} ${coords(corwenRef)}`, battle: battle({ attacker: me, defender: corwenRef, attackerWon: false, attackerUnits: units({ raider: 30, logram: 4 }), attackerLosses: units({ raider: 30, logram: 4 }), defenderUnits: null, defenderLosses: null, wallLevel: null, attackPower: 2100, defensePower: 9100, siege: siegeWall }) });
     add(30 * HOUR, { side: 'attack', type: 'battle', won: false, title: `Attack on ${mateRef.name} ${coords(mateRef)} called off`, battle: { ...battle({ attacker: me, defender: mateRef, attackerWon: false, attackerUnits: units({ raider: 25 }) }), outcome: 'called_off', luck: 0, attackPower: 0, defensePower: 0, defenderUnits: null, defenderLosses: null, wallLevel: null } });
     add(32 * HOUR, { side: 'attack', type: 'scout', won: true, title: `Scouting ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, scout: scout(abandonedRef(0), true, 0, { defenderScouts: 0, scoutsLost: 0 }) });
     add(33 * HOUR, { side: 'attack', type: 'scout', won: true, title: `Scouting ${vexRef.name} ${coords(vexRef)}`, scout: scout(vexRef, true, 2) });
-    add(36 * HOUR, { side: 'defense', type: 'battle', won: false, title: `Attack from ${corwenRef.name} ${coords(corwenRef)}`, battle: battle({ attacker: corwenRef, defender: me, attackerWon: true, attackerUnits: units({ raider: 140, outrider: 30 }), attackerLosses: units({ raider: 31, outrider: 5 }), defenderUnits: units({ pikeman: 40, guard: 15 }), defenderLosses: units({ pikeman: 40, guard: 15 }), attackPower: 11500, defensePower: 3900, loot: res(2900, 2100, 1600), morale: 0.75, wallLevel: 3, siege: siegeWall }) });
     add(38 * HOUR, { side: 'support', type: 'support', won: false, title: `Support for ${hildRef.name} ${coords(hildRef)} turned back`, support: { reason: 'relation_changed', home: me, host: hildRef, units: units({ guard: 30, pikeman: 10 }) } });
     add(40 * HOUR, { side: 'shipment', type: 'shipment', won: true, title: `Shipment delivered to ${mateRef.name} ${coords(mateRef)}`, shipment: { role: 'sent', from: me, to: mateRef, resources: res(5000, 3000, 2000), stored: res(3900, 3000, 2000), lost: res(1100, 0, 0) } });
     add(42 * HOUR, { side: 'shipment', type: 'shipment', won: true, title: `Shipment delivered into the Tribe Store at ${storeRef.name} ${coords(storeRef)}`, shipment: { role: 'sent', from: me, to: storeRef, resources: res(6000, 4000, 2000), stored: res(6000, 4000, 2000), lost: emptyResources() } });
-    add(44 * HOUR, { side: 'attack', type: 'battle', won: true, title: `Raid on ${refPlayer('Sample_Corwen').name} ${coords(corwenRef)}`, battle: battle({ attacker: me, defender: corwenRef, attackerWon: true, attackerUnits: units({ raider: 120, outrider: 20 }), attackerLosses: units({ raider: 30, outrider: 4 }), defenderUnits: units({ pikeman: 70 }), defenderLosses: units({ pikeman: 70 }), attackPower: 9800, defensePower: 5200, loot: res(storeLoot.wood + 1800, storeLoot.food + 1200, storeLoot.iron + 900), lootFromTribeStore: storeLoot, renownGained: 15 }) });
     // Older
     add(3 * DAY, { side: 'defense', type: 'scout', won: true, title: `Enemy scouts from ${vexRef.name} ${coords(vexRef)}`, scout: { ...scout(me, false, null), scout: vexRef, target: me, defenderScouts: 6, defenderScoutsLost: 0, scoutsLost: 5, scoutsSent: 5 } });
     add(3 * DAY + 2 * HOUR, { side: 'defense', type: 'scout', won: false, title: `Enemy scouts from ${corwenRef.name} ${coords(corwenRef)}`, scout: { ...scout(me, true, null), scout: corwenRef, target: me, defenderScouts: 3, defenderScoutsLost: 1, intel: null } });
@@ -426,32 +422,96 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     add(7 * DAY + HOUR, { side: 'defense', type: 'village', won: true, title: `Hearth relit at ${me.name} ${coords(me)}`, village: village('relit', me) });
     add(8 * DAY, { side: 'defense', type: 'village', won: false, title: `Hearth out at ${me.name} ${coords(me)}`, village: village('hearth_out', me, { claimBy: 'Sample_Vex', holdEndsAt: ago(7 * DAY + 20 * HOUR) }) });
     add(8 * DAY + HOUR, { side: 'attack', type: 'village', won: true, title: `Hearth out at ${abandonedRef(3).name} ${coords(abandonedRef(3))}`, village: village('struck', abandonedRef(3), { holdEndsAt: null }) });
-    add(9 * DAY, { side: 'attack', type: 'battle', won: true, title: `Relief attack at ${hildRef.name} ${coords(hildRef)}`, battle: battle({ attacker: me, defender: hildRef, attackerWon: true, attackerUnits: units({ raider: 50 }), attackerLosses: units({ raider: 6 }), supportUnits: units({ pikeman: 20 }), supportLosses: units({ pikeman: 20 }) }) });
     add(10 * DAY, { side: 'shipment', type: 'shipment', won: true, title: `Shipment received from ${refPlayer('Sample_Brannoch').name} ${coords(refPlayer('Sample_Brannoch'))}`, shipment: { role: 'received', from: refPlayer('Sample_Brannoch'), to: me, resources: res(9000, 0, 0), stored: res(6500, 0, 0), lost: res(2500, 0, 0) } });
-    add(11 * DAY, { side: 'attack', type: 'battle', won: true, title: `Raid on ${abandonedRef(2).name} ${coords(abandonedRef(2))}`, battle: battle({ attacker: me, defender: abandonedRef(2), attackerWon: true, attackerUnits: units({ raider: 90, outrider: 15 }), attackerLosses: units({ raider: 11 }), morale: 0.75, loot: fullLoot, renownGained: 4 }) });
-    add(12 * DAY, { side: 'attack', type: 'battle', won: false, title: `Raid on ${vexRef.name} ${coords(vexRef)}`, battle: battle({ attacker: me, defender: vexRef, attackerWon: false, attackerUnits: units({ raider: 100, logram: 5 }), attackerLosses: units({ raider: 92, logram: 5 }), defenderUnits: units({ pikeman: 140 }), defenderLosses: units({ pikeman: 38 }), attackPower: 6900, defensePower: 7400, wallLevel: 6, siege: siegeWall }) });
-    add(12 * DAY + 2 * HOUR, { side: 'defense', type: 'battle', won: true, title: `Attack from ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, battle: battle({ attacker: abandonedRef(0), defender: me, attackerWon: false, attackerUnits: units({ raider: 15 }), attackerLosses: units({ raider: 15 }), defenderUnits: units({ pikeman: 100 }), defenderLosses: units({}) }) });
+    /**
+     * A battle report built from the engine's real battle function: the losses, powers, loot and siege hits are what resolveBattle gives
+     * for these armies, so the report always matches who won. As in the game, an attacker who lost sees none of the defence.
+     */
+    const fight = (back: number, side: 'attack' | 'defense' | 'support', other: VillageRefDto, title: string, o: {
+      attacker: VillageRefDto; defender: VillageRefDto; att: Partial<Units>; def: Partial<Units>; sup?: Partial<Units>; wall: number;
+      luck?: number; morale?: number; siegeTarget?: BuildingId; renown?: number; noLoot?: boolean; tribeStore?: Resources;
+    }): void => {
+      const dv = castVillage(6, t);
+      dv.troops = units(o.def);
+      dv.buildings.wall = o.wall;
+      dv.buildings.barracks = 6;
+      dv.buildings.storehouse = 9;
+      for (const r of ['wood', 'food', 'iron'] as const) dv.resources[r] = 14_000;
+      const r = resolveBattle(
+        { attackerUnits: units(o.att), defender: dv, support: o.sup ? [units(o.sup)] : undefined, seed: 7000 + reports.length, fixedLuck: o.luck ?? 0.03, moraleFactor: o.morale, noLoot: o.noLoot, siegeTarget: o.siegeTarget, extraLootable: o.tribeStore },
+        { config: settings.config },
+      );
+      const hidden = side === 'attack' && !r.attackerWon;
+      const sup = o.sup ? units(o.sup) : null;
+      const loot = r.loot;
+      const b: BattleReportData = {
+        outcome: 'battle',
+        attacker: o.attacker,
+        defender: o.defender,
+        attackerWon: r.attackerWon,
+        luck: r.luck,
+        attackPower: Math.round(r.attackPower),
+        defensePower: Math.round(r.defensePower),
+        attackerUnits: units(o.att),
+        attackerLosses: r.attackerLosses,
+        defenderUnits: hidden ? null : r.defenderUnits,
+        defenderLosses: hidden ? null : r.defenderLosses,
+        supportUnits: hidden ? null : sup,
+        supportLosses: hidden || !sup ? null : (r.supportLosses[0] ?? null),
+        wallLevel: hidden ? null : r.wallDuring,
+        loot,
+        ...(o.morale !== undefined ? { morale: o.morale } : {}),
+        ...(o.tribeStore ? { lootFromTribeStore: res(Math.min(o.tribeStore.wood, loot.wood), Math.min(o.tribeStore.food, loot.food), Math.min(o.tribeStore.iron, loot.iron)) } : {}),
+        ...(o.renown ? { renownGained: o.renown } : {}),
+        ...(r.siege && r.siege.length > 0 ? { siege: hidden ? r.siege.filter((h) => h.building === 'wall') : r.siege } : {}),
+      };
+      const won = side === 'attack' ? r.attackerWon : !r.attackerWon;
+      add(back, { side, type: 'battle', won, title, battle: b });
+    };
+    // Today
+    fight(25 * MIN, 'attack', abandonedRef(0), `Raid on ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, { attacker: me, defender: abandonedRef(0), att: { raider: 180, outrider: 40, pikeman: 30 }, def: { pikeman: 22, guard: 8 }, wall: 0 });
+    fight(70 * MIN, 'attack', abandonedRef(1), `Raid on ${abandonedRef(1).name} ${coords(abandonedRef(1))}`, { attacker: me, defender: abandonedRef(1), att: { raider: 260, outrider: 60, knight: 12, pikeman: 40 }, def: { pikeman: 90, guard: 60, raider: 15, pathfinder: 6 }, wall: 3 });
+    fight(2 * HOUR, 'defense', vexRef, `Attack from ${vexRef.name} ${coords(vexRef)}`, { attacker: vexRef, defender: me, att: { raider: 220, outrider: 70, knight: 10, logram: 24, boulder: 20 }, def: { pikeman: 260, guard: 180, raider: 40, outrider: 20, knight: 8, pathfinder: 12 }, sup: { guard: 90, pikeman: 60 }, wall: 6, renown: 12 });
+    fight(6 * HOUR, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 150, outrider: 30, knight: 6, pikeman: 40 }, def: { pikeman: 300, guard: 220, outrider: 25, pathfinder: 10 }, wall: 7 });
+    fight(7 * HOUR, 'support', hildRef, `Your troops at ${hildRef.name} ${coords(hildRef)} were attacked`, { attacker: corwenRef, defender: hildRef, att: { raider: 200, outrider: 50, boulder: 20 }, def: { pikeman: 90, guard: 40 }, sup: { guard: 120, pikeman: 80, knight: 6 }, wall: 4, renown: 9 });
+    // Yesterday
+    fight(26 * HOUR, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 320, outrider: 80, knight: 18, pikeman: 60, logram: 48, boulder: 40 }, def: { pikeman: 120, guard: 60, raider: 20, pathfinder: 8 }, wall: 8, siegeTarget: 'barracks' });
+    fight(28 * HOUR, 'attack', corwenRef, `Raid on ${corwenRef.name} ${coords(corwenRef)}`, { attacker: me, defender: corwenRef, att: { raider: 140, outrider: 20, logram: 30, boulder: 24 }, def: { pikeman: 350, guard: 250, knight: 12, outrider: 40 }, wall: 9 });
+    fight(36 * HOUR, 'defense', corwenRef, `Attack from ${corwenRef.name} ${coords(corwenRef)}`, { attacker: corwenRef, defender: me, att: { raider: 380, outrider: 90, knight: 25, logram: 40, boulder: 30 }, def: { pikeman: 90, guard: 50, raider: 20, pathfinder: 5 }, wall: 3, morale: 0.75 });
+    fight(44 * HOUR, 'attack', corwenRef, `Raid on ${corwenRef.name} ${coords(corwenRef)}`, { attacker: me, defender: corwenRef, att: { raider: 240, outrider: 50, knight: 10, pikeman: 40 }, def: { pikeman: 110, guard: 45, pathfinder: 6 }, wall: 4, tribeStore: storeLoot, renown: 15 });
+    // Older
+    fight(9 * DAY, 'attack', hildRef, `Relief attack at ${hildRef.name} ${coords(hildRef)}`, { attacker: me, defender: hildRef, att: { raider: 120, outrider: 20 }, def: { raider: 30, pikeman: 12 }, sup: { pikeman: 40, guard: 10 }, wall: 1, noLoot: true });
+    fight(11 * DAY, 'attack', abandonedRef(2), `Raid on ${abandonedRef(2).name} ${coords(abandonedRef(2))}`, { attacker: me, defender: abandonedRef(2), att: { raider: 210, outrider: 35, guard: 20 }, def: { pikeman: 40 }, wall: 1, morale: 0.75, renown: 4 });
+    fight(12 * DAY, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 200, outrider: 25, logram: 36, knight: 6 }, def: { pikeman: 280, guard: 160, outrider: 20 }, wall: 6 });
+    fight(12 * DAY + 2 * HOUR, 'defense', abandonedRef(0), `Attack from ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, { attacker: abandonedRef(0), defender: me, att: { raider: 60, pikeman: 25 }, def: { pikeman: 180, guard: 90, knight: 6 }, wall: 5 });
     // Filler over the older weeks, so paging and the day groups show
     for (let i = 0; i < 16; i++) {
       const target = abandonedRef(i);
-      const won = i % 4 !== 3;
-      const n = 30 + i * 4;
-      add((13 + i) * DAY + (i % 5) * HOUR, {
-        side: 'attack',
-        type: 'battle',
-        won,
-        title: `Raid on ${target.name} ${coords(target)}`,
-        battle: battle({ attacker: me, defender: target, attackerWon: won, attackerUnits: units({ raider: n }), attackerLosses: units({ raider: won ? Math.floor(n / 6) : n }), loot: won ? res(1000 + i * 90, 800 + i * 50, 500 + i * 40) : emptyResources() }),
+      const strong = i % 4 === 3;
+      fight((13 + i) * DAY + (i % 5) * HOUR, 'attack', target, `Raid on ${target.name} ${coords(target)}`, {
+        attacker: me,
+        defender: target,
+        att: { raider: 60 + i * 25, outrider: 10 + i * 3, pikeman: (i % 3) * 20 },
+        def: strong ? { pikeman: 420, guard: 300, pathfinder: 8 } : { pikeman: 20 + i * 5, guard: i * 3 },
+        wall: i % 5,
       });
     }
-
     reports.sort((a, b) => b.back - a.back); // oldest first: ids rise with time
+    if (refresh) {
+      // Second press: replace only what this feature made. Without a recorded id list (filled before ids were kept) take only the
+      // reports that are clearly sample-made (Sample_ players, the generator's whole-minute timestamps); real ones always stay.
+      const stored = store.getMeta(REPORT_IDS(player.id));
+      const old = stored ? (JSON.parse(stored) as number[]) : store.legacySampleReportIds(player.id, Number(marker));
+      store.deleteReports(player.id, old);
+    }
     for (const { back, r } of reports) {
       const id = store.insertReport({ ...r, playerId: player.id, createdAt: ago(back) } as NewReport);
+      madeIds.push(id);
       counts.reports++;
       if (back > 2 * DAY) store.markReportRead(player.id, id);
     }
 
+    if (!refresh) {
     // ---- troops and marches ----------------------------------------------------------------------
     const st: VillageState = settleVillage(home.state, t, settings);
     const base = units({ pikeman: 220, guard: 160, raider: 180, outrider: 70, knight: 24, pathfinder: 18, logram: 12 }); // chieftain and boulder stay locked at 0
@@ -530,10 +590,12 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     sendFrom(ysolde, 'support', units({ guard: 40 }), 20 * MIN, 30 * MIN);
 
     store.saveVillage(home.id, st, villagePoints(st));
-    store.setMeta(MARKER(player.id), String(t));
+    }
+    store.setMeta(REPORT_IDS(player.id), JSON.stringify(madeIds));
+    if (!refresh) store.setMeta(MARKER(player.id), String(t));
   });
 
-  return { created: true, counts };
+  return { created: !refresh, refreshed: refresh, counts };
 }
 
 /** Alternating lines (the other player first), as [fromMe, text] pairs, padded out to `n` messages. */

@@ -378,7 +378,7 @@
   align-items: flex-start;
   align-self: flex-start;
   gap: 6px;
-  width: 430px;
+  width: 440px;
   box-sizing: border-box;
   padding: 6px 12px 10px;
   border: 2px solid var(--edge-soft);
@@ -403,6 +403,26 @@
 .frp-bt th,
 .frp-bt td {
   white-space: nowrap;
+}
+
+/* The forces table: the five columns always fit the card (long village-owner names are cut with an ellipsis). */
+.frp-bt.is-fixed {
+  table-layout: fixed;
+}
+
+.frp-bt.is-fixed thead th.g {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frp-bt.is-fixed thead th.n,
+.frp-bt.is-fixed tbody td {
+  padding-right: 6px;
+}
+
+.frp-bt.is-fixed tbody th {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .frp-bt thead th {
@@ -438,13 +458,13 @@
 }
 
 .frp-bt tbody th .frp-pt {
-  margin-right: 7px;
+  margin-right: 5px;
   vertical-align: middle;
 }
 
 .frp-bt tbody td {
   height: 33px;
-  padding: 0 6px;
+  padding: 0 4px;
   border-top: 1px solid var(--edge-soft);
   text-align: right;
 }
@@ -620,14 +640,14 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  height: 42px;
+  min-height: 42px;
   padding: 0 10px 0 6px;
   border-radius: 12px;
   background: var(--surface);
 }
 
 .frp-sgr.is-compact {
-  height: 36px;
+  min-height: 36px;
 }
 
 .frp-sgt {
@@ -645,7 +665,6 @@
 .frp-sgt small {
   font: 500 13px/1.2 var(--font);
   color: var(--on-surface-muted);
-  white-space: nowrap;
 }
 
 .frp-sgt small.kd {

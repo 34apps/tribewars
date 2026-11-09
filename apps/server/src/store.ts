@@ -1581,6 +1581,23 @@ export class Store extends SqlBase {
     return id;
   }
 
+  /** Delete the given reports of one player (the sandbox "Fill with sample data" refresh). Other players' rows are never touched. */
+  deleteReports(playerId: number, ids: readonly number[]): void {
+    for (const id of ids) this.run('DELETE FROM reports WHERE id = ? AND player_id = ?', id, playerId);
+    this.emit({ kind: 'player', playerId, topics: ['reports', 'game'] });
+  }
+
+  /**
+   * Reports that are clearly sample-made, for accounts filled before the ids were recorded: they involve a `Sample_` player, or were
+   * stamped exactly a whole number of minutes before the first press `t` (the generator's fixed offsets; real reports carry
+   * arbitrary milliseconds). Anything else stays.
+   */
+  legacySampleReportIds(playerId: number, t: number): number[] {
+    return this.all('SELECT id, created_at, battle_json FROM reports WHERE player_id = ? AND created_at <= ?', playerId, t)
+      .filter((r) => (t - (r.created_at as number)) % 60_000 === 0 || String(r.battle_json).includes('Sample_'))
+      .map((r) => r.id as number);
+  }
+
   listReports(playerId: number, limit: number): ReportRow[] {
     return this.all(
       // Reports stored before tribes or scouting existed have no `outcome` / `type` in their JSON: they were all battles.

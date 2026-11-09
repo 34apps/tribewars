@@ -60,7 +60,7 @@ function Pt({ unit, size = 24 }: { unit: Parameters<typeof UnitFigure>[0]['unit'
 
 function Num({ value, loss }: { value: number | null; loss?: boolean }) {
   if (value === null) return <span className="frp-dash">?</span>;
-  if (value === 0) return <span className="frp-dash">–</span>;
+  if (value === 0) return <span className="frp-dash">0</span>;
   return <b className={loss ? 'ls' : undefined}>{loss ? '−' : ''}{formatInt(value)}</b>;
 }
 
@@ -155,21 +155,25 @@ function forceRows(b: BattleReportData): { main: ForceRow[]; support: ForceRow[]
   const defLost = b.defenderLosses ? normalizeUnits(b.defenderLosses) : null;
   const sup = b.supportUnits ? normalizeUnits(b.supportUnits) : null;
   const supLost = b.supportLosses ? normalizeUnits(b.supportLosses) : null;
-  const main = UNIT_IDS.filter((u) => att[u] > 0 || (def?.[u] ?? 0) > 0).map((u) => ({
+  // Every unit type is listed (0 when none); null (shown "?") only where the report really hides the other side.
+  const main = UNIT_IDS.map((u) => ({
     unit: u,
     sent: att[u],
     lost: attLost[u],
     had: def ? def[u] : null,
     hadLost: defLost ? defLost[u] : null,
   }));
-  const support = UNIT_IDS.filter((u) => (sup?.[u] ?? 0) > 0).map((u) => ({
-    unit: u,
-    sent: 0,
-    lost: 0,
-    had: sup ? sup[u] : null,
-    hadLost: supLost ? supLost[u] : null,
-    support: true,
-  }));
+  // Stationed support: only the unit types that stood there (every type is already in the main rows above).
+  const support = sup
+    ? UNIT_IDS.filter((u) => sup[u] > 0).map((u) => ({
+        unit: u,
+        sent: 0,
+        lost: 0,
+        had: sup[u],
+        hadLost: supLost ? supLost[u] : 0,
+        support: true,
+      }))
+    : [];
   return { main, support };
 }
 
@@ -193,12 +197,19 @@ function ForcesTable({ rows, supportRows, attName, defName, supportLabel, densit
     </tr>
   );
   return (
-    <table className={`frp-bt${density === 'compact' ? ' is-compact' : ''}`}>
+    <table className={`frp-bt is-fixed${density === 'compact' ? ' is-compact' : ''}`}>
+      <colgroup>
+        <col />
+        <col style={{ width: 56 }} />
+        <col style={{ width: 56 }} />
+        <col style={{ width: 56 }} />
+        <col style={{ width: 56 }} />
+      </colgroup>
       <thead>
         <tr>
           <th />
-          <th colSpan={2} className="g">{attName} · attacker</th>
-          <th colSpan={2} className="g">{defName} · defender</th>
+          <th colSpan={2} className="g" title={attName}>Attacker</th>
+          <th colSpan={2} className="g" title={defName}>Defender</th>
         </tr>
         <tr>
           <th scope="col">Unit</th>
@@ -278,7 +289,9 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
               +{total - dens.shown} more <Chev />
             </button>
           )}
-          {b.defenderUnits === null && <p className="frp-mut">Defender forces unknown.</p>}
+          {b.defenderUnits === null && (
+            <p className="frp-mut">{report.side === 'attack' ? 'Your army fell — their troops were not seen.' : 'The attacker fell — their troops were not seen.'}</p>
+          )}
         </div>
         <div className="frp-col">
           <Box title="Battle" aside={<Tag tone={b.attackerWon ? 'lost' : 'won'} big>{b.attackerWon ? 'Attacker won' : 'Defender held'}</Tag>}>
@@ -385,7 +398,7 @@ function CalledOffBody({ b }: { b: BattleReportData }) {
 function Stat({ label, value, loss }: { label: string; value: number | null; loss?: boolean }) {
   return (
     <span className="frp-sct">
-      {label} <b className={loss && value ? 'ls' : undefined}>{value === null ? '?' : value === 0 && loss ? '–' : `${loss ? '−' : ''}${formatInt(value)}`}</b>
+      {label} <b className={loss && value ? 'ls' : undefined}>{value === null ? '?' : `${loss && value > 0 ? '−' : ''}${formatInt(value)}`}</b>
     </span>
   );
 }
@@ -394,7 +407,7 @@ function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] })
   const sender = side === 'attack';
   const intel = s.intel;
   const troops = intel?.troops ? normalizeUnits(intel.troops) : null;
-  const troopRows = troops ? UNIT_IDS.filter((u) => troops[u] > 0) : [];
+  const troopRows = [...UNIT_IDS];
   const levels = intel?.buildings ?? null;
   const buildingRows = levels ? BUILDING_IDS.filter((b) => typeof levels[b] === 'number' && levels[b] > 0) : [];
   const result = sender
@@ -429,14 +442,12 @@ function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] })
           <Tiles res={intel.resources} />
         </div>
       )}
-      {(troops || levels) && (
+      {(troops || levels || (intel && sender)) && (
         <div className="frp-sc2">
-          {troops && (
+          {(troops || (intel && sender)) && (
             <div className="frp-ig frp-sct2w">
               <span className="fv-up">Troops at home{intel?.troopsApprox ? ' · rough' : ''}</span>
-              {troopRows.length === 0 ? (
-                <p className="frp-mut">No troops.</p>
-              ) : (
+              {
                 <table className="frp-bt frp-sct2">
                   <thead>
                     <tr>
@@ -453,12 +464,13 @@ function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] })
                             {UNITS[u].name}
                           </UnitInfoButton>
                         </th>
-                        <td><b>{approx}{formatInt(troops[u])}</b></td>
+                        <td>{troops && troops[u] > 0 ? <b>{approx}{formatInt(troops[u])}</b> : <Num value={troops ? 0 : null} />}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              )}
+              }
+              {!troops && <p className="frp-mut">Your scouts did not see the troops.</p>}
             </div>
           )}
           {levels && (
