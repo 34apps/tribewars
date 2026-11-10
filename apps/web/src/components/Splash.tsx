@@ -4,6 +4,15 @@ import { Flame } from './Flame.tsx';
 function Logo({ loading = false }: { loading?: boolean }) {
   return (
     <div className="splash-logo" aria-hidden="true">
+      {loading && (
+        <span className="splash-smoke">
+          <i />
+          <i />
+          <i />
+          <b />
+          <b />
+        </span>
+      )}
       <Flame size={44} loading={loading} />
     </div>
   );

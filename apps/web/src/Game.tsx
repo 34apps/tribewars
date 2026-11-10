@@ -6,6 +6,7 @@ import { api } from './api.ts';
 import { markManualSignOut } from './lobby.ts';
 import { FrameShell } from './components/FrameShell.tsx';
 import { Shell } from './components/Shell.tsx';
+import { ErrorSplash, LoadingSplash } from './components/Splash.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { toastTtl } from './components/toastKind.ts';
@@ -34,7 +35,6 @@ import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
 import { SupportView } from './views/SupportView.tsx';
-import { Icon } from './art/Icon.tsx';
 
 const StaffView = lazy(() => import('./views/StaffView.tsx'));
 
@@ -294,19 +294,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applyChest, store.applySend, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
 
   if (!ctx) {
-    return (
-      <div className="splash" role={store.error ? 'alert' : 'status'}>
-        <div className="splash-logo" aria-hidden="true">
-          <Icon name="flame" size={44} />
-        </div>
-        <p>{store.error ?? 'Gathering your village…'}</p>
-        {store.error && (
-          <button className="btn btn-primary" onClick={() => void store.refresh()}>
-            Try again
-          </button>
-        )}
-      </div>
-    );
+    if (store.error) return <ErrorSplash message={store.error} onRetry={() => void store.refresh()} />;
+    return <LoadingSplash text="Gathering your village…" />;
   }
 
   const pages = (
