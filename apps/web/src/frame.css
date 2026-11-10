@@ -150,6 +150,10 @@ html.layout-desktop .toasts {
   box-shadow: 0 4px 0 var(--c-ink), 0 14px 28px rgba(43, 33, 28, 0.25);
 }
 
+.fr-vwrap .fr-rename-pop {
+  width: 340px;
+}
+
 .fr-res {
   display: flex;
   align-items: center;

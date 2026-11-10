@@ -1,6 +1,6 @@
 // Village switcher (docs/GAME_DESIGN.md 18.2, step 2): the village pill in the HUD names the current village; tapping it opens
 // the list of all my villages (name, coordinates, points, hearth, incoming attack, protection, stock). Choosing one makes it the
-// current village everywhere. With only one village the pill is a plain label (Rename lives in the account menu).
+// current village everywhere. With only one village the phone pill is a plain label (Rename lives in the account menu); the desktop frame pill opens a rename popover.
 
 import { useEffect, useRef, useState } from 'react';
 import { RESOURCE_IDS, villagePoints } from '@clanfire/engine';
@@ -101,7 +101,35 @@ export function VillageBar({ frame = false }: { frame?: boolean }) {
     </span>
   );
   if (villages.length < 2) {
-    if (frame) return nameBlock;
+    if (frame) {
+      // Frame (desktop): the name is a button that opens a small popover with just the rename form.
+      return (
+        <div className="hud-village-wrap fr-vwrap" ref={ref}>
+          <button
+            type="button"
+            className={`fr-vbtn${village.hearth ? ' is-cold' : ''}`}
+            aria-expanded={open}
+            aria-haspopup="true"
+            aria-label={`${village.name}. Rename village`}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {nameBlock}
+            <span className="fr-sw" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.5 13.5l.8-3.2 7.9-7.9a1.4 1.4 0 012 2l-7.9 7.9z" />
+              </svg>
+            </span>
+          </button>
+          {open && (
+            <div className="vsw-pop fr-rename-pop" role="group" aria-label="Rename village">
+              <div className="vsw-foot">
+                <RenameVillage onDone={() => setOpen(false)} />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="hud-pill hud-village is-static">
         <Icon name="flame" size={28} />
