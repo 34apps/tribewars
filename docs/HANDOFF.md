@@ -17,8 +17,9 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Work in flight / very next step
 
-1. **War Chest built (`8be3bbc`, local, not pushed).** Owner picked C base 2,000. Owner to test in the preview (Banner Hall → War Chest
-   card → Pay in → train a Chieftain). Open follow-ups in NEXT_STEPS ("War Chest built").
+1. **War Chest built and PUSHED 2026-11-10** (owner tested in the preview; all 50 local commits up to `43426c8` pushed to main, incl. the
+   desktop pages and the unapproved phone chip band `045929b`). Banner Hall simplified to Feast + Chieftain checklist cards; building
+   switcher is one "Other buildings" list; toasts at the window edge. Not deployed to AWS. Follow-ups in NEXT_STEPS ("War Chest built").
 2. Owner test in the preview (http://localhost:5174; PREVIEW → Fill with sample data): rename pencil, gold numbers, gold hint,
    plus round-2 of the desktop pages. Push to main only after his OK.
 3. Phone (360) pass of the new pages: design agent (opus, one at a time) → owner picks → build.
