@@ -1,66 +1,67 @@
-// Banner Hall panel: the Feast turns resources into Renown (docs/GAME_DESIGN.md section 18.2); Chieftains are trained in the Army
-// tab (components/ChieftainPanel.tsx), this panel summarises the price. The engine numbers decide what the controls allow; the
-// server re-checks everything.
+// Banner Hall page body: two plain cards. Feast turns resources into Renown (docs/GAME_DESIGN.md 18.2); Chieftain is a checklist
+// (Renown, War Chest gold, resources) ending in a Train button that opens the Army tab. The server re-checks everything.
 
-import { BUILDINGS, FEAST_COST, FEAST_DAILY_PER_LEVEL, FEAST_RENOWN } from '@clanfire/engine';
+import { BUILDINGS, FEAST_COST, FEAST_RENOWN, RESOURCE_IDS, UNITS } from '@clanfire/engine';
 import { useState } from 'react';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Cost } from '../../components/ui.tsx';
-import { WarChestPayIn, WarChestProgress } from '../../components/WarChest.tsx';
-import '../../components/war-chest.css';
-import { formatDuration, formatInt } from '../../format.ts';
+import { WarChestPayIn } from '../../components/WarChest.tsx';
+import { formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
-import { clampFeastCount, currentFeastAllowance, feastMaxCount, feastTotal } from '../../renown.ts';
+import { currentFeastAllowance, feastMaxCount } from '../../renown.ts';
 import { requirementText, unmetRequirements } from '../../rules.ts';
-import { chieftainTrainReason } from '../../chest.ts';
-import { chieftainRenownNote, nextChieftainPrice } from '../../villages.ts';
+import { chestMissing } from '../../chest.ts';
+import { nextChieftainPrice } from '../../villages.ts';
+
+function Tick({ ok }: { ok: boolean }) {
+  return (
+    <span className={`bh-tick ${ok ? 'is-ok' : 'is-no'}`} aria-label={ok ? 'Done' : 'Missing'}>
+      {ok ? '✓' : '✗'}
+    </span>
+  );
+}
 
 export function BannerHallPanel() {
   const { live, now, village, renown, chest, settings, applyVillage, refresh, toast, navigate } = useGame();
-  const [want, setWant] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [gained, setGained] = useState<number | null>(null);
   const level = live.buildings.bannerhall;
 
   if (level < 1) {
     const unmet = unmetRequirements(live.buildings, BUILDINGS.bannerhall.requires);
     const building = live.buildQueue.some((j) => j.building === 'bannerhall');
     return (
-      <div className="bh">
-        <h3 className="eyebrow">Feast</h3>
-        <div className="bh-line">
-          <span>Feast</span>
-          <Cost cost={FEAST_COST} />
-          <span className="bh-gain">
-            <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
-          </span>
-        </div>
-        <p className="why bh-why">
-          {building ? 'Being built' : unmet.length > 0 ? `Needs ${requirementText(unmet)}` : 'Build it above'}
-        </p>
+      <div className="bh-cards">
+        <section className="fv-pn bh-card" aria-label="Feast">
+          <div className="fv-ph">
+            <h2>Feast</h2>
+          </div>
+          <div className="bh-body">
+            <div className="bh-cost">
+              <Cost cost={FEAST_COST} />
+              <span className="bh-gain">
+                <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
+              </span>
+            </div>
+            <p className="why bh-why">
+              {building ? 'Being built' : unmet.length > 0 ? `Needs ${requirementText(unmet)}` : 'Build it above'}
+            </p>
+          </div>
+        </section>
       </div>
     );
   }
 
   const allowance = currentFeastAllowance(village.feastAllowance ?? { max: 0, used: 0, left: 0, windowEnd: null }, level, now);
   const max = feastMaxCount(live.resources, allowance.left);
-  const count = clampFeastCount(want, max);
-  const total = feastTotal(Math.max(1, count));
-  const chiefPrice = nextChieftainPrice(renown, settings);
-  const trainReason = chieftainTrainReason(renown.balance, chiefPrice, chest);
-  let reason: string | null = null;
-  if (allowance.left < 1) reason = 'No Feasts left';
-  else if (max < 1) reason = 'Need more resources';
+  const reason = allowance.left < 1 ? 'No Feasts left today' : max < 1 ? 'Need more resources' : null;
 
-  async function feast() {
+  async function feast(count: number) {
     if (busy || reason || count < 1) return;
     setBusy(true);
     try {
       const res = await api.feast(village.id, count);
       applyVillage(res.village);
-      setGained(res.gained);
-      setWant(1);
       toast(`+${formatInt(res.gained)} Renown`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
@@ -70,85 +71,90 @@ export function BannerHallPanel() {
     }
   }
 
+  const price = nextChieftainPrice(renown, settings);
+  const renownOk = renown.balance >= price;
+  const chestMiss = chest ? chestMissing(chest) : 0;
+  const chestPct = chest ? Math.min(100, Math.round((chest.gold / Math.max(1, chest.chieftainPrice)) * 100)) : 0;
+  const cost = UNITS.chieftain.cost;
+  const lacking = RESOURCE_IDS.filter((r) => cost[r] > 0 && Math.floor(live.resources[r] + 1e-9) < cost[r]);
+  const trainOff = !renownOk || chestMiss > 0;
+
   return (
-    <div className="bh">
-      <h3 className="eyebrow">Feast</h3>
-      <div className="bh-line">
-        <span title={`${FEAST_DAILY_PER_LEVEL} Feasts a day per hall level`}>Feast</span>
-        <Cost cost={FEAST_COST} have={live.resources} />
-        <span className="bh-gain">
-          <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
-        </span>
-      </div>
-      <div className="bh-allow" role="status">
-        <span>
-          Left <strong>{allowance.left}</strong>/{allowance.max}
-        </span>
-        <span className="bh-reset">
-          {allowance.windowEnd !== null
-            ? `Resets ${formatDuration(allowance.windowEnd - now)}`
-            : '24 h window'}
-        </span>
-      </div>
-
-      <div className="bh-stepper">
-        <button
-          type="button"
-          className="btn bh-step"
-          onClick={() => setWant(clampFeastCount(count - 1, max))}
-          disabled={busy || count <= 1}
-          aria-label="One Feast fewer"
-        >
-          −
-        </button>
-        <output className="bh-count" aria-live="polite" aria-label={`${count} Feasts`}>
-          {count}
-        </output>
-        <button
-          type="button"
-          className="btn bh-step"
-          onClick={() => setWant(clampFeastCount(count + 1, max))}
-          disabled={busy || count >= max}
-          aria-label="One Feast more"
-        >
-          +
-        </button>
-        <button type="button" className="btn bh-max" onClick={() => setWant(max)} disabled={busy || max < 1 || count >= max} title={`You can hold ${max}`}>
-          Max{max > 0 ? ` ${max}` : ''}
-        </button>
-      </div>
-      {count >= 1 && (
-        <div className="bh-preview muted">
-          {count} × <Cost cost={total} have={live.resources} /> → <strong>+{formatInt(FEAST_RENOWN * count)} Renown</strong>
+    <div className="bh-cards">
+      <section className="fv-pn bh-card" aria-label="Feast">
+        <div className="fv-ph">
+          <h2>Feast</h2>
         </div>
-      )}
-      <button type="button" className="btn btn-primary btn-cta bh-go" disabled={!!reason || busy || count < 1} onClick={() => void feast()}>
-        {!reason && <Icon name="renown" size={22} />}
-        {count > 1 ? `Feast ×${count}` : 'Feast'}
-      </button>
-      {reason && <div className="why bh-why">{reason}</div>}
-      {gained !== null && !reason && (
-        <div className="bh-result" role="status">
-          +{formatInt(gained)} Renown
+        <div className="bh-body">
+          <div className="bh-cost">
+            <Cost cost={FEAST_COST} have={live.resources} />
+            <span className="bh-gain">
+              <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
+            </span>
+          </div>
+          <p className="bh-left" role="status">
+            Left today: <strong>{allowance.left}</strong>
+          </p>
+          <div className="bh-btns">
+            <button type="button" className="btn btn-primary bh-go" disabled={!!reason || busy} onClick={() => void feast(1)}>
+              <Icon name="renown" size={22} /> Feast
+            </button>
+            {max > 1 && (
+              <button type="button" className="btn bh-go" disabled={busy} onClick={() => void feast(max)}>
+                Feast all {max}
+              </button>
+            )}
+          </div>
+          {reason && <p className="why bh-why">{reason}</p>}
         </div>
-      )}
+      </section>
 
-      <h3 className="eyebrow bh-chief-title">Chieftain</h3>
-      <div className="bh-line">
-        <span title={chieftainRenownNote()}>Next</span>
-        <span className="bh-gain">
-          <Icon name="renown" size={18} className="inline-icon" /> {formatInt(nextChieftainPrice(renown, settings))}
-        </span>
-        <span className="muted">
-          {formatInt(renown.balance)} left{renown.reserved ? ` · ${formatInt(renown.reserved)} reserved` : ''}
-        </span>
-      </div>
-      <WarChestProgress />
-      <WarChestPayIn />
-      <button type="button" className="btn btn-primary bh-go" disabled={!!trainReason} onClick={() => navigate('army')}>
-        <Icon name="chieftain" size={22} /> Train
-      </button>
-      {trainReason && <div className="why bh-why">{trainReason}</div>}
+      <section className="fv-pn bh-card" aria-label="Chieftain">
+        <div className="fv-ph">
+          <h2>Chieftain</h2>
+        </div>
+        <div className="bh-body">
+          <ul className="bh-list">
+            <li className="bh-row">
+              <Tick ok={renownOk} />
+              <span className="bh-name">Renown</span>
+              <span className="bh-num">
+                {formatInt(renown.balance)} / {formatInt(price)}
+              </span>
+            </li>
+            {chest && (
+              <li className="bh-row">
+                <Tick ok={chestMiss === 0} />
+                <span className="bh-name">War Chest</span>
+                <span className="bh-num">
+                  {formatInt(chest.gold)} / {formatInt(chest.chieftainPrice)} gold
+                </span>
+                <span
+                  className="bh-bar"
+                  role="progressbar"
+                  aria-label="War Chest gold"
+                  aria-valuemin={0}
+                  aria-valuemax={chest.chieftainPrice}
+                  aria-valuenow={Math.min(chest.gold, chest.chieftainPrice)}
+                >
+                  <span className="bh-fill" style={{ width: `${chestPct}%` }} />
+                </span>
+              </li>
+            )}
+            {lacking.length > 0 && (
+              <li className="bh-row">
+                <Tick ok={false} />
+                <span className="bh-name">Resources</span>
+                <span className="bh-num">{lacking.map((r) => `${formatInt(cost[r])} ${r}`).join(' · ')}</span>
+              </li>
+            )}
+          </ul>
+          <WarChestPayIn />
+          <button type="button" className="btn btn-primary bh-go bh-train" disabled={trainOff} onClick={() => navigate('army')}>
+            <Icon name="chieftain" size={22} /> Train Chieftain
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

@@ -39,6 +39,7 @@ import { UNIT_HINT, UNIT_ROLE } from '../../unitRole.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
+import '../../components/war-chest.css';
 import { DrillyardPanel } from './Drillyard.tsx';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
 import { VillageScene } from './VillageScene.tsx';
@@ -83,7 +84,11 @@ const miniCache = new Map<number, { key: string; shot: MiniShot }>();
 
 export function MiniVillage({ warm, onWarm }: { warm?: boolean; onWarm?: () => void }) {
   const { village, live, openBuilding, now } = useGame();
-  const key = JSON.stringify([live.buildings, live.buildQueue.filter((j) => j.startAt <= now).map((j) => `${j.building}:${j.targetLevel}`), !!village.hearth]);
+  const key = JSON.stringify([
+    live.buildings,
+    live.buildQueue.filter((j) => j.startAt <= now).map((j) => `${j.building}:${j.targetLevel}`),
+    !!village.hearth,
+  ]);
   const cached = miniCache.get(village.id);
   const exact = cached?.key === key;
   // Drawing the live scene is heavy: show the kept picture (also a slightly old one) at once; draw the live scene only when there is none
@@ -99,30 +104,28 @@ export function MiniVillage({ warm, onWarm }: { warm?: boolean; onWarm?: () => v
     let t = 0;
     let poll = 0;
     let alive = true;
-    const raf = requestAnimationFrame(() => {
-      t = window.setTimeout(() => {
-        setReady(true);
-        let last = '';
-        let tries = 0;
-        poll = window.setInterval(() => {
-          const view = box.current?.querySelector('.vv-view');
-          const html = view ? view.outerHTML : '';
-          tries += 1;
-          if (view && box.current && html && html === last) {
-            window.clearInterval(poll);
-            void snapshotScene(box.current, view).then((shot) => {
-              if (shot && alive) miniCache.set(village.id, { key, shot });
-              if (alive) bump((n) => n + 1);
-              if (warm) onWarm?.();
-            });
-          } else if (tries > 30) window.clearInterval(poll);
-          last = html;
-        }, 150);
-      }, 0);
-    });
+    // Not requestAnimationFrame: it never fires in a hidden or unfocused tab/pane, which left a plain green box after a reload.
+    t = window.setTimeout(() => {
+      setReady(true);
+      let last = '';
+      let tries = 0;
+      poll = window.setInterval(() => {
+        const view = box.current?.querySelector('.vv-view');
+        const html = view ? view.outerHTML : '';
+        tries += 1;
+        if (view && box.current && html && html === last) {
+          window.clearInterval(poll);
+          void snapshotScene(box.current, view).then((shot) => {
+            if (shot && alive) miniCache.set(village.id, { key, shot });
+            if (alive) bump((n) => n + 1);
+            if (warm) onWarm?.();
+          });
+        } else if (tries > 30) window.clearInterval(poll);
+        last = html;
+      }, 150);
+    }, 40);
     return () => {
       alive = false;
-      cancelAnimationFrame(raf);
       window.clearTimeout(t);
       window.clearInterval(poll);
     };
@@ -131,7 +134,11 @@ export function MiniVillage({ warm, onWarm }: { warm?: boolean; onWarm?: () => v
   return (
     <div className="fv-cs fv-minicell">
       <div ref={box} className="fv-minipic" role="img" aria-label={`${village.name}, village`}>
-        {showShot ? <img className="fv-minishot" src={cached.shot.url} alt="" draggable={false} /> : ready && <VillageScene mode="fit" selected={null} onSelect={() => undefined} />}
+        {showShot ? (
+          <img className="fv-minishot" src={cached.shot.url} alt="" draggable={false} />
+        ) : (
+          ready && <VillageScene mode="fit" selected={null} onSelect={() => undefined} />
+        )}
       </div>
       {!warm && (
         <button type="button" className="fv-go" onClick={() => openBuilding(null)}>
@@ -147,18 +154,23 @@ export function MiniVillage({ warm, onWarm }: { warm?: boolean; onWarm?: () => v
 
 function JumpTo({ id }: { id: BuildingId }) {
   const { live, openBuilding } = useGame();
-  const at = BUILDING_IDS.indexOf(id);
   return (
     <label className="fv-cur">
-      <BuildingArt id={id} level={live.buildings[id]} size={24} className="fv-th" />
-      <span className="fv-curname">{BUILDINGS[id].name}</span>
-      <span className="fv-mut">
-        {at + 1} of {BUILDING_IDS.length}
-      </span>
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <span className="fv-curname">Other buildings</span>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <path d="M3 6l5 5 5-5" />
       </svg>
-      <select value={id} onChange={(e) => openBuilding(e.target.value as BuildingId)} aria-label="Jump to a building">
+      <select value={id} onChange={(e) => openBuilding(e.target.value as BuildingId)} aria-label="Other buildings">
         {BUILDING_IDS.map((b) => (
           <option key={b} value={b}>
             {BUILDINGS[b].name} · level {live.buildings[b]}
@@ -172,8 +184,6 @@ function JumpTo({ id }: { id: BuildingId }) {
 function BuildingTop({ id, info, busy, build }: { id: BuildingId; info: BuildingInfo; busy: boolean; build: (id: BuildingId) => void }) {
   const { settings, openBuilding } = useGame();
   const def = BUILDINGS[id];
-  const at = BUILDING_IDS.indexOf(id);
-  const step = (d: number) => openBuilding(BUILDING_IDS[(at + d + BUILDING_IDS.length) % BUILDING_IDS.length] ?? null);
   const { level, target, atMax, jobs } = info;
   const effects = atMax ? buildingEffects(id, level - 1, level, settings.speed) : buildingEffects(id, target - 1, target, settings.speed);
   const why = whyText(info);
@@ -196,13 +206,7 @@ function BuildingTop({ id, info, busy, build }: { id: BuildingId; info: Building
             <b>{def.name}</b>
           </nav>
           <span className="fv-sp" />
-          <button type="button" className="fv-pg" onClick={() => step(-1)} aria-label="Previous building">
-            <Chev flip size={16} />
-          </button>
           <JumpTo id={id} />
-          <button type="button" className="fv-pg" onClick={() => step(1)} aria-label="Next building">
-            <Chev size={16} />
-          </button>
         </div>
         <div className="fv-bt1">
           <h1>{def.name}</h1>
@@ -301,7 +305,16 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
   const units = UNIT_IDS.filter((u) => UNITS[u].building === building && (rules.features.siege || !UNITS[u].siege));
   const rows = units.map((u) => ({
     unit: u,
-    st: trainRowState({ live, unit: u, building, text: texts[u] ?? '', now, settings, trainQueueLimit: rules.queues.train, hearthOut: !!village.hearth }),
+    st: trainRowState({
+      live,
+      unit: u,
+      building,
+      text: texts[u] ?? '',
+      now,
+      settings,
+      trainQueueLimit: rules.queues.train,
+      hearthOut: !!village.hearth,
+    }),
   }));
   const freePop = Math.max(0, populationCap(live) - populationUsage(live).total);
   const typed = rows.filter((r) => r.st.count >= 1);
@@ -361,7 +374,14 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
             const away = live.away[unit] ?? 0;
             return (
               <li key={unit} className={`fv-wr${off ? ' is-off' : ''}`}>
-                <button type="button" className="uc-lab uc-pic" onClick={() => info.open(unit)} aria-haspopup="dialog" aria-label={`About the ${u.name}`} {...info.bind(unit)}>
+                <button
+                  type="button"
+                  className="uc-lab uc-pic"
+                  onClick={() => info.open(unit)}
+                  aria-haspopup="dialog"
+                  aria-label={`About the ${u.name}`}
+                  {...info.bind(unit)}
+                >
                   <UnitFigure unit={unit} size={84} className="fv-fg" />
                 </button>
                 <span className="fv-mt fv-wname">
@@ -407,7 +427,12 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
                       value={texts[unit] ?? ''}
                       onChange={(e) => setTexts((t) => ({ ...t, [unit]: e.target.value }))}
                     />
-                    <button type="button" className="fv-mx" disabled={st.max < 1} onClick={() => setTexts((t) => ({ ...t, [unit]: String(st.max) }))}>
+                    <button
+                      type="button"
+                      className="fv-mx"
+                      disabled={st.max < 1}
+                      onClick={() => setTexts((t) => ({ ...t, [unit]: String(st.max) }))}
+                    >
                       max {formatInt(st.max)}
                     </button>
                     <button
@@ -459,7 +484,11 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
                   <small>{started ? `done ${clockShort(endAt, now)}` : `waits, done ${clockShort(endAt, now)}`}</small>
                   {started && (
                     <span className="fv-bar" aria-hidden="true">
-                      <i style={{ width: `${Math.max(0, Math.min(1, (now - job.startAt) / total)) * 100}%` }} />
+                      <i
+                        style={{
+                          width: `${Math.max(0, Math.min(1, (now - job.startAt) / total)) * 100}%`,
+                        }}
+                      />
                     </span>
                   )}
                 </span>
@@ -578,7 +607,9 @@ function NextLevels({ id, info }: { id: BuildingId; info: BuildingInfo }) {
     <section className="fv-pn fv-nl" aria-label="Next levels">
       <div className="fv-ph">
         <h2>Next levels</h2>
-        <span className="fv-mut">level {info.level} of {def.maxLevel} built</span>
+        <span className="fv-mut">
+          level {info.level} of {def.maxLevel} built
+        </span>
       </div>
       {levels.length === 0 && <p className="fv-empty fv-pad">This building is at its top level.</p>}
       <ul className="fv-nlr">
@@ -689,22 +720,22 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                   <DrillyardPanel part="ranks" />
                 </PanelBox>
               ) : id === 'bannerhall' ? (
-                <PanelBox title="Banner Hall" fit>
-                  <BannerHallPanel />
-                </PanelBox>
+                <BannerHallPanel />
               ) : (
                 <NextLevels id={id} info={info} />
               )}
-              <div className="fv-rcol">
-                {id === 'drillyard' ? (
-                  <PanelBox title="Research">
-                    <DrillyardPanel part="research" />
-                  </PanelBox>
-                ) : (
-                  <WhatItDoes id={id} info={info} />
-                )}
-                <MagsTip id={id} />
-              </div>
+              {id !== 'bannerhall' && (
+                <div className="fv-rcol">
+                  {id === 'drillyard' ? (
+                    <PanelBox title="Research">
+                      <DrillyardPanel part="research" />
+                    </PanelBox>
+                  ) : (
+                    <WhatItDoes id={id} info={info} />
+                  )}
+                  <MagsTip id={id} />
+                </div>
+              )}
             </>
           )}
         </div>

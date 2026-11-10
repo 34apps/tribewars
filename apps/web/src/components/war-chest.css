@@ -55,3 +55,133 @@
   width: 100%;
   min-height: 48px;
 }
+
+/* Banner Hall page: two plain cards (Feast, Chieftain). Side by side on desktop, stacked on a phone. */
+.bh-cards {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.bh-card .bh-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 14px;
+}
+
+.bh-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.bh-gain {
+  font-weight: 800;
+  color: var(--heading);
+  white-space: nowrap;
+}
+
+.bh-left {
+  margin: 0;
+  color: var(--on-surface-muted);
+}
+
+.bh-left strong {
+  color: var(--heading);
+}
+
+.bh-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bh-btns .bh-go {
+  flex: 1 1 140px;
+}
+
+.bh-go {
+  min-height: 48px;
+}
+
+.bh-why {
+  margin: 0;
+  color: var(--on-surface-muted);
+}
+
+.bh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bh-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.bh-name {
+  font-weight: 700;
+}
+
+.bh-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  text-align: right;
+}
+
+.bh-bar {
+  grid-column: 2 / -1;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.bh-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.bh-tick {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bh-tick.is-ok {
+  background: var(--ok);
+  color: var(--surface);
+}
+
+.bh-tick.is-no {
+  background: var(--surface-3);
+  color: var(--on-surface-muted);
+}
+
+.bh-card .wc-pay {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .bh-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
