@@ -79,7 +79,7 @@ export const PRODUCTION_BASE: Record<'lumber' | 'farm' | 'mine' | 'goldmine', nu
   lumber: 30,
   farm: 40,
   mine: 30,
-  goldmine: 3, // 1/10 of a Lumber Camp (owner, 2026-11-10): gold counts 10x in loot, and an all-Knight village needs about 0.23 gold per wood
+  goldmine: 3, // 1/10 of a Lumber Camp (owner, 2026-11-10): gold counts 10x in loot; GAME_DESIGN §2 has the sizing
 };
 export const PRODUCTION_GROWTH = 1.17;
 /** Wood/food/iron trickle per hour when the producing building is level 0. Gold has none. */

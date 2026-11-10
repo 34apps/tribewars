@@ -7,6 +7,7 @@ import { useGame, useRules } from '../../game.ts';
 import { pickBuildState, refusalOf } from '../../buildState.ts';
 import type { BuildStatePick } from '../../buildState.ts';
 import { formatDuration, formatLeft } from '../../format.ts';
+import { goldNeverArrives, needsGoldText } from '../../shortfall.ts';
 import { reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
 import type { UnmetRequirement } from '../../rules.ts';
 import { hearthBuildReason } from '../../villages.ts';
@@ -31,6 +32,8 @@ export interface BuildingInfo {
   reason: string | null;
   /** ms until affordable (null = never at this income); only meaningful for the "afford" state. */
   affordInMs: number | null;
+  /** Set when the wait is endless because gold is short and nothing makes gold: the long text to show. */
+  goldHint: string | null;
   /** ms until the earliest build job finishes (a slot frees). */
   queueFreesInMs: number | null;
   /** Resources the cost is short of (or above storage). */
@@ -63,8 +66,11 @@ export function buildingInfo(
   const timeMs = atMax ? null : check.ok ? check.timeMs : buildTimeMs(id, target, live.buildings.hall, settings);
   const cap = storageCap(live);
   let affordInMs: number | null = null;
+  let goldHint: string | null = null;
   if (!check.ok && check.reason === 'not_enough_resources' && cost) {
-    affordInMs = timeToAfford(live.resources, productionPerHour(live, settings), cost, cap);
+    const net = productionPerHour(live, settings);
+    affordInMs = timeToAfford(live.resources, net, cost, cap);
+    if (affordInMs === null && goldNeverArrives(live.resources, net, cost, cap)) goldHint = needsGoldText(live.buildings);
   }
   const queueFreesInMs = live.buildQueue.length > 0 ? Math.max(0, Math.min(...live.buildQueue.map((j) => j.finishAt)) - now) : null;
   const input = {
@@ -94,6 +100,7 @@ export function buildingInfo(
     timeMs,
     reason,
     affordInMs,
+    goldHint,
     queueFreesInMs,
     short: (r) => !!cost && (Math.floor(live.resources[r] + 1e-9) < cost[r] || cost[r] > cap),
     pick,
@@ -112,7 +119,7 @@ export function whyText(info: BuildingInfo, kind = info.actionPick.kind): string
     case 'queuefull':
       return `Queue full${info.queueFreesInMs !== null ? ` · frees in ${formatDuration(info.queueFreesInMs)}` : ''}`;
     case 'afford':
-      return info.affordInMs === null ? 'Not enough resources · production too low' : `Not enough resources · ready in ${formatLeft(info.affordInMs)}`;
+      return info.affordInMs === null ? (info.goldHint ?? 'Not enough resources · production too low') : `Not enough resources · ready in ${formatLeft(info.affordInMs)}`;
     case 'locked':
       return `Locked · needs ${requirementText(info.unmet)}`;
     case 'max':

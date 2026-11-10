@@ -26,8 +26,9 @@ When a rule changes, change it here in the same commit.
   Multiply by `speed`.
 - **Gold is the elite and conquest resource, made at 1/10 of a Lumber Camp** (owner, 2026-11-10: `PRODUCTION_BASE.goldmine` 3
   vs lumber 30; it was 10, a third). No gold is needed at the start (stock 100 covers the first research); it pays for cavalry
-  and siege research, Knights (30 each), Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and
-  Chieftains (150). Sizing: the most gold-hungry use is the Knight (100/260/230 + 30 gold: 0.30 gold per wood, 0.13 per iron).
+  and siege research, Stables and Drillyard upgrades (20 / 15 at level 1, about 2,600 / 580 to the top), Knights (30 each),
+  Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and Chieftains (150). With no gold coming in the
+  build and train buttons say "Needs gold · build a Gold Mine" (`apps/web/src/shortfall.ts`). Sizing: the most gold-hungry use is the Knight (100/260/230 + 30 gold: 0.30 gold per wood, 0.13 per iron).
   With every building at level 10 a village makes gold for ~10 Knights a day, iron for ~13, food for ~15: a Knight village
   needs its Gold Mine about 2 levels above its Iron Mine, and anyone mixing Knights with a Banner Hall or Chieftains has to
   choose. 1/10 also matches gold's 10x weight in loot and

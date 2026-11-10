@@ -14,7 +14,9 @@ import {
   isResearched,
   pointsSpent,
   pointsTotal,
+  productionPerHour,
   rankOf,
+  storageCap,
 } from '@clanfire/engine';
 import type { RankTrack, UnitId } from '@clanfire/engine';
 import { useState } from 'react';
@@ -25,6 +27,7 @@ import { formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import { UNIT_ICON } from '../../icons.ts';
 import { reasonText } from '../../rules.ts';
+import { goldNeverArrives, needsGoldText } from '../../shortfall.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
 import { useCancelJob } from '../cancelJob.tsx';
 
@@ -98,7 +101,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
           const job = qi >= 0 ? queue[qi] : undefined;
           const active = !!job;
           const check = checkResearch(live, u, now, settings, limit);
-          const reason = done || active ? null : !check.ok ? reasonText(check) : null;
+          const reason = done || active ? null : !check.ok ? (check.reason === 'not_enough_resources' && goldNeverArrives(live.resources, productionPerHour(live, settings), rule.cost, storageCap(live)) ? needsGoldText(live.buildings) : reasonText(check)) : null;
           let status: string;
           if (done) status = 'Done';
           else if (active && job) {

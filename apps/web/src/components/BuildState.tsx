@@ -39,7 +39,7 @@ export function BuildState({
         <span className={cls}>
           <Icon name="time" size={size === 'lg' ? 18 : 16} />
           <span className="visually-hidden">Ready in </span>
-          {info.affordInMs === null ? 'Too low' : formatLeft(info.affordInMs)}
+          {info.affordInMs === null ? (info.goldHint ? 'Needs gold' : 'Too low') : formatLeft(info.affordInMs)}
         </span>
       );
     case 'queuefull':

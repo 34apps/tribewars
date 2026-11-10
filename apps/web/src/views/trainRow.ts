@@ -1,10 +1,11 @@
 // One unit's training row: the typed amount, what it costs, how many can be afforded and why Train is refused. Shared by the Army
 // page's unit cards and the Barracks / Stables page, so both validate the same way. The server re-checks everything.
 
-import { MAX_TRAIN_BATCH, RESOURCE_IDS, UNITS, checkTrain, isResearched, trainTimeMs } from '@clanfire/engine';
+import { MAX_TRAIN_BATCH, RESOURCE_IDS, productionPerHour, storageCap, UNITS, checkTrain, isResearched, trainTimeMs } from '@clanfire/engine';
 import type { Resources, TrainingBuildingId, UnitId, VillageState, WorldSettings } from '@clanfire/engine';
 import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../rules.ts';
 import type { UnmetRequirement } from '../rules.ts';
+import { goldNeverArrives, needsGoldText } from '../shortfall.ts';
 import { HEARTH_OUT_REASON } from '../villages.ts';
 
 export interface TrainRowState {
@@ -54,5 +55,9 @@ export function trainRowState(args: {
   else if (!check.ok) reason = reasonText(check, unmet);
 
   const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * Math.max(1, count)])) as Resources;
+  // Gold short and no Gold Mine: say so instead of the plain "cannot afford".
+  if (!locked && !unresearched && (reason === 'Cannot afford one' || (!check.ok && check.reason === 'not_enough_resources'))) {
+    if (goldNeverArrives(live.resources, productionPerHour(live, settings), batchCost, storageCap(live))) reason = needsGoldText(live.buildings);
+  }
   return { unmet, locked, unresearched, count, perUnitMs: trainTimeMs(unit, live, settings), max, reason, batchCost };
 }

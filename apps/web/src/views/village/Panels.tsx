@@ -27,6 +27,7 @@ import { ProgressBar } from '../../components/ui.tsx';
 import { formatClock, formatCompact, formatDuration, formatInt, formatRate } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
+import { goldNeverArrives, needsGoldText } from '../../shortfall.ts';
 import { buildingEffects, reasonText, requirementText, timeToAfford, unmetRequirements } from '../../rules.ts';
 import { hearthBuildReason } from '../../villages.ts';
 import { useCancelJob } from '../cancelJob.tsx';
@@ -87,9 +88,11 @@ export function BuildingPanel({
   // A cold village (hearth out) builds only the Wall; the server refuses the rest too.
   const reason = atMax ? 'Max level' : hearthBuildReason(!!village.hearth, id) ?? (!check.ok ? reasonText(check, unmet) : null);
   let affordHint: string | null = null;
+  let goldHint = false;
   if (!check.ok && check.reason === 'not_enough_resources' && cost) {
     const wait = timeToAfford(live.resources, net, cost, cap);
-    affordHint = wait === null ? 'Production too low' : `Ready in ${formatDuration(wait)}`;
+    goldHint = wait === null && goldNeverArrives(live.resources, net, cost, cap);
+    affordHint = wait === null ? (goldHint ? needsGoldText(live.buildings) : 'Production too low') : `Ready in ${formatDuration(wait)}`;
   }
   const verb = level === 0 && queued === 0 ? 'Build' : 'Upgrade';
   const cta = atMax ? 'Max level' : level === 0 && queued === 0 ? `Build ${def.name}` : `${verb} to level ${target}`;
@@ -196,8 +199,8 @@ export function BuildingPanel({
       </div>
       {(reason && !atMax) || affordHint ? (
         <div id={`why-${id}`} className="why">
-          {reason && !atMax ? reason : null}
-          {reason && !atMax && affordHint ? ' · ' : null}
+          {reason && !atMax && !goldHint ? reason : null}
+          {reason && !atMax && !goldHint && affordHint ? ' · ' : null}
           {affordHint}
         </div>
       ) : null}
