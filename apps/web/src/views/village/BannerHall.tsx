@@ -37,6 +37,7 @@ export function BannerHallPanel() {
             <h2>Feast</h2>
           </div>
           <div className="bh-body">
+            <p className="why bh-why">Throw a party: spend resources, earn Renown. Renown buys new villages.</p>
             <div className="bh-cost">
               <Cost cost={FEAST_COST} />
               <span className="bh-gain">
@@ -93,8 +94,13 @@ export function BannerHallPanel() {
             </span>
           </div>
           <p className="bh-left" role="status">
-            Left today: <strong>{allowance.left}</strong>
+            {allowance.left < 1 ? 'No Feasts left today' : (
+              <>
+                <strong>{allowance.left}</strong> {allowance.left === 1 ? 'Feast' : 'Feasts'} left today
+              </>
+            )}
           </p>
+          <p className="why bh-why">Your Banner Hall allows {allowance.max} Feasts a day; upgrade it for more.</p>
           <div className="bh-btns">
             <button type="button" className="btn btn-primary bh-go" disabled={!!reason || busy} onClick={() => void feast(1)}>
               <Icon name="renown" size={22} /> Feast
@@ -114,10 +120,11 @@ export function BannerHallPanel() {
           <h2>Chieftain</h2>
         </div>
         <div className="bh-body">
+          <p className="why bh-why">Your Chieftain takes or founds a new village. He needs:</p>
           <ul className="bh-list">
             <li className="bh-row">
               <Tick ok={renownOk} />
-              <span className="bh-name">Renown</span>
+              <span className="bh-name">Renown (from Feasts and battles)</span>
               <span className="bh-num">
                 {formatInt(renown.balance)} / {formatInt(price)}
               </span>
@@ -125,7 +132,7 @@ export function BannerHallPanel() {
             {chest && (
               <li className="bh-row">
                 <Tick ok={chestMiss === 0} />
-                <span className="bh-name">War Chest</span>
+                <span className="bh-name">War Chest gold (paid in from your villages)</span>
                 <span className="bh-num">
                   {formatInt(chest.gold)} / {formatInt(chest.chieftainPrice)} gold
                 </span>
