@@ -17,6 +17,9 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Work in flight / very next step
 
+0. **Play-from-zero preview** (`7dd2a6f`, LOCAL, not pushed): new preview worlds run at real pace; "Speed" chip (left edge) = 1x-1000x + skip 1 hour/day;
+   Ember Wardens' 5 computer players invite the new player and grow by the real rules. Owner tests: PREVIEW → Reset world → new account →
+   accept the invite. Push after his OK. Follow-ups in NEXT_STEPS ("play from zero").
 1. **War Chest built and PUSHED 2026-11-10** (owner tested in the preview; all 50 local commits up to `43426c8` pushed to main, incl. the
    desktop pages and the unapproved phone chip band `045929b`). Banner Hall simplified to Feast + Chieftain checklist cards; building
    switcher is one "Other buildings" list; toasts at the window edge. Not deployed to AWS. Follow-ups in NEXT_STEPS ("War Chest built").
@@ -38,6 +41,8 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Traps
 
+- Preview: `apps/preview/src/clock.ts` replaces `Date` page-wide (game time); use `realTime()` for anything that must follow the wall clock.
+  Old saved preview worlds keep speed 25 (chip then shows 25x/250x/2500x); "Reset world" gives a real-pace world.
 - Sim runs are fast (balance ~1 s, conquest 90 d x 5 seeds ~2.5 min). For old-vs-new runs copy `packages/engine/src` +
   `scripts/sim` to the scratchpad and run `node_modules/.bin/tsx` there — never flip `config.ts` while an agent runs checks.
 - Sim builder keeps its Gold Mine at 8; a Knight-heavy test uses `--knight-builders` (Gold Mine 12/15, 65% Knights).
