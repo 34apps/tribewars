@@ -54,6 +54,7 @@ import {
   DEFAULT_WORLD_CONFIG,
   NPC_RING_BASE,
   NPC_RING_EXTRA_CHANCE,
+  RENOWN_VILLAGE_GROWTH,
   emptyResources,
   emptyUnits,
   feastAllowance,
@@ -100,7 +101,7 @@ export const STYLES: StyleName[] = ['builder', 'raider', 'turtle', 'balanced'];
 // ---- Styles -------------------------------------------------------------------------------------
 
 type Step = [BuildingId, number];
-interface Style {
+export interface Style {
   /** Strict priority list: the first entry below its target level is built next (waits for resources). */
   order: Step[];
   /** After the list: always raise the lowest of these. */
@@ -222,6 +223,8 @@ export interface DayRow {
   renownTotal: number;
   /** total - spent (Renown reserved for Chieftains leaves the balance). */
   renownBalance: number;
+  /** War Chest gold (0 unless `--chief-gold chest`). */
+  chest: number;
 }
 
 export interface RenownSources {
@@ -308,6 +311,10 @@ export interface StyleResult {
   villagePointsEach: number[];
   /** Siege use (only when the run had siege units switched on). */
   siege?: SiegeStats;
+  /** Gold paid for Chieftains (village gold in flat / growth, chest gold net of refunds in chest). */
+  chiefGoldPaid: number;
+  /** Waiting hours by bucket and binding limit per Chieftain trained. */
+  chiefWait: ChiefWait;
 }
 
 export interface SimOptions {
@@ -326,6 +333,12 @@ export interface SimOptions {
    * what Log Rams / Boulder Slings need, research and train a few, and send them with the raiders against fortified targets.
    */
   siege?: boolean;
+  /** How a Chieftain's gold is charged (`--chief-gold flat|growth|chest`, default flat = today's rule). */
+  chiefGold?: ChiefGoldMode;
+  /** War Chest base price (`--chest-base N`, default 1000; only for chest). */
+  chestBase?: number;
+  /** The builder plays a Knight army (`--knight-builders`). */
+  knightBuilders?: boolean;
 }
 
 /** What siege did to one style's run (only present when `SimOptions.siege`). */
@@ -365,6 +378,168 @@ function withSiege(style: StyleName, def: Style): Style {
     army: [...def.army, { unit: 'logram', weight: 6 }, { unit: 'boulder', weight: 4 }],
     research: [...def.research, 'logram', 'boulder'],
   };
+}
+
+// ---- Chieftain gold levers and wait statistics (shared with conquest.ts) -------------------------
+
+/**
+ * How a Chieftain's gold is charged (sim-only levers, never config.ts; default `flat` = today's rule):
+ *  - flat:   150 gold per Chieftain from the training village (the engine's UNITS.chieftain.cost).
+ *  - growth: the gold grows like the Renown price: round(150 x RENOWN_VILLAGE_GROWTH^(owned + i - 1)) per Chieftain, paid by the village.
+ *  - chest:  "War Chest": an account-wide gold pool (villages deposit spare gold, one way). Training costs the village no gold;
+ *            the Chieftain reserves round(chestBase x GROWTH^(owned + i - 1)) of chest gold, half comes back if he dies.
+ */
+export type ChiefGoldMode = 'flat' | 'growth' | 'chest';
+export const CHIEF_GOLD_MODES: ChiefGoldMode[] = ['flat', 'growth', 'chest'];
+export const CHEST_BASE_DEFAULT = 1000;
+/** Largest batch trainSim players queue of one unit (tryTrain); the Knight allowance in the chest reserve is a share of it. */
+const KNIGHT_MAX_BATCH = 40;
+
+/** g(base, owned, k): sum over i in 0..k-1 of round(base x GROWTH^(owned + i - 1)); same shape as villageRenownPrice. */
+export function chiefGoldSum(base: number, owned: number, k: number): number {
+  let sum = 0;
+  for (let i = 0; i < k; i++) {
+    const n = Math.max(1, Math.floor(owned)) + i - 1;
+    let f = 1;
+    for (let j = 0; j < n; j++) f *= RENOWN_VILLAGE_GROWTH;
+    sum += Math.round(base * f);
+  }
+  return sum;
+}
+
+/** The gold lever flags shared by both sims. Only the flags that are present are returned (everything else stays default). */
+export function parseChiefGoldArgs(args: string[]): { chiefGold?: ChiefGoldMode; chestBase?: number; knightBuilders?: boolean } {
+  const out: { chiefGold?: ChiefGoldMode; chestBase?: number; knightBuilders?: boolean } = {};
+  const at = args.indexOf('--chief-gold');
+  if (at >= 0) {
+    const mode = args[at + 1] as ChiefGoldMode;
+    if (!CHIEF_GOLD_MODES.includes(mode)) throw new Error(`--chief-gold needs one of ${CHIEF_GOLD_MODES.join(' | ')}`);
+    out.chiefGold = mode;
+  }
+  if (args.includes('--chief-gold-growth')) out.chiefGold = 'growth';
+  if (args.includes('--war-chest')) out.chiefGold = 'chest';
+  const cb = args.indexOf('--chest-base');
+  if (cb >= 0) {
+    const n = Number(args[cb + 1]);
+    if (!Number.isFinite(n) || n <= 0) throw new Error('--chest-base needs a positive number');
+    out.chestBase = n;
+  }
+  if (args.includes('--knight-builders')) out.knightBuilders = true;
+  return out;
+}
+
+/** One line for the report: the non-default gold / Knight levers ('' when everything is default). */
+export function describeChiefGold(o: { chiefGold?: ChiefGoldMode | undefined; chestBase?: number | undefined; knightBuilders?: boolean | undefined }): string {
+  const parts: string[] = [];
+  if (o.chiefGold === 'growth') parts.push(`Chieftain gold grows (g(${UNITS.chieftain.cost.gold}, villages owned, k), paid by the training village)`);
+  if (o.chiefGold === 'chest') parts.push(`War Chest (Chieftain costs the village no gold; reserves chest gold g(${o.chestBase ?? CHEST_BASE_DEFAULT}, villages owned, k), half back if he dies)`);
+  if (o.knightBuilders) parts.push('builder plays a Knight army (pikeman 25 / guard 10 / knight 65, Gold Mine 12 and 15 after Mine 16)');
+  return parts.join('; ');
+}
+
+/**
+ * The builder plays a Knight army (`--knight-builders`): wheel pikeman 25 / guard 10 / knight 65 and two more Gold Mine levels
+ * (12, 15) right after Mine 16 to pay for them. Pure; other styles come back unchanged.
+ */
+export function withKnightBuilders(style: StyleName, def: Style): Style {
+  if (style !== 'builder') return def;
+  const order: Step[] = [...def.order];
+  const at = order.findIndex(([b, l]) => b === 'mine' && l === 16);
+  order.splice(at + 1, 0, ['goldmine', 12], ['goldmine', 15]);
+  return { ...def, order, army: [{ unit: 'pikeman', weight: 25 }, { unit: 'guard', weight: 10 }, { unit: 'knight', weight: 65 }] };
+}
+
+/**
+ * Gold a village keeps back when it pays into the War Chest: the gold of its next build, of the next research not yet done or
+ * queued in the style's list, and a Knight allowance (the share of Knights in the army wheel of the largest batch).
+ */
+export function chestReserveGold(def: Style, state: VillageState, nextBuild: Resources): number {
+  // Gold for the next build, or for the first build still to do in the list (then the tail) that costs gold: whichever is more.
+  const lvl = (b: BuildingId): number => state.buildings[b] + state.buildQueue.filter((j) => j.building === b).length;
+  const goldAt = (b: BuildingId): number => (lvl(b) + 1 <= BUILDINGS[b].maxLevel ? buildingCost(b, lvl(b) + 1).gold : 0);
+  let firstGold = 0;
+  for (const [b, target] of def.order) {
+    if (lvl(b) >= target) continue;
+    firstGold = goldAt(b);
+    if (firstGold > 0) break;
+  }
+  if (firstGold <= 0) for (const b of def.tail) if ((firstGold = goldAt(b)) > 0) break;
+  let keep = Math.max(nextBuild.gold, firstGold);
+  const nextResearch = def.research.find((u) => !(state.researched ?? []).includes(u) && !(state.researchQueue ?? []).some((j) => j.unit === u));
+  if (nextResearch) keep += UNITS[nextResearch].research?.cost.gold ?? 0;
+  const total = def.army.reduce((a, x) => a + x.weight, 0);
+  const knights = def.army.find((a) => a.unit === 'knight');
+  if (knights && total > 0) keep += Math.round((knights.weight / total) * KNIGHT_MAX_BATCH) * UNITS.knight.cost.gold;
+  return keep;
+}
+
+/** What a player waits for between two Chieftains (10-minute steps with a trainer and no Chieftain outstanding). */
+export const WAIT_BUCKETS = ['renown+gold', 'renown', 'gold', 'resources', 'target', 'other'] as const;
+export type WaitBucket = (typeof WAIT_BUCKETS)[number];
+export const LIMIT_NAMES = ['renown+gold', 'renown', 'gold', 'resources', 'none'] as const;
+export type LimitName = (typeof LIMIT_NAMES)[number];
+export interface ChiefWait {
+  /** Hours per bucket. */
+  hours: Record<WaitBucket, number>;
+  /** Chieftains trained per binding limit (a batch of k counts k times). */
+  limits: Record<LimitName, number>;
+}
+export const emptyChiefWait = (): ChiefWait => ({
+  hours: { 'renown+gold': 0, renown: 0, gold: 0, resources: 0, target: 0, other: 0 },
+  limits: { 'renown+gold': 0, renown: 0, gold: 0, resources: 0, none: 0 },
+});
+export function addChiefWait(into: ChiefWait, from: ChiefWait): void {
+  for (const b of WAIT_BUCKETS) into.hours[b] += from.hours[b];
+  for (const l of LIMIT_NAMES) into.limits[l] += from.limits[l];
+}
+export const formatChiefHours = (w: ChiefWait): string => WAIT_BUCKETS.map((b) => `${b} ${w.hours[b].toFixed(0)}`).join(', ');
+export const formatChiefLimits = (w: ChiefWait): string => LIMIT_NAMES.map((l) => `${l} ${w.limits[l]}`).join(', ');
+
+/**
+ * Classifies the waiting steps of one player. r = Renown short, g = gold short, o = wood / food / iron short for the batch.
+ * Bucket: r&g -> 'renown+gold', r, g, o -> 'resources', no saving plan -> 'target', else 'other'. The last step at which each of
+ * r, g, o was true since the wait began names the limit that was binding when the batch was trained (r and g tie -> 'renown+gold').
+ */
+export class WaitTracker {
+  readonly wait: ChiefWait = emptyChiefWait();
+  private active = false;
+  private lastR = -1;
+  private lastG = -1;
+  private lastO = -1;
+  private reset(): void {
+    this.lastR = -1;
+    this.lastG = -1;
+    this.lastO = -1;
+  }
+  /** A step with a trainer and no Chieftain outstanding. */
+  step(t: number, f: { r: boolean; g: boolean; o: boolean; plan: boolean }): void {
+    if (!this.active) {
+      this.reset();
+      this.active = true;
+    }
+    const bucket: WaitBucket = f.r && f.g ? 'renown+gold' : f.r ? 'renown' : f.g ? 'gold' : f.o ? 'resources' : !f.plan ? 'target' : 'other';
+    this.wait.hours[bucket] += STEP_MS / HOUR;
+    if (f.r) this.lastR = t;
+    if (f.g) this.lastG = t;
+    if (f.o) this.lastO = t;
+  }
+  /** A step with no wait (no trainer, or a Chieftain is outstanding): the next wait starts afresh. */
+  idle(): void {
+    this.active = false;
+  }
+  /** A batch of `k` Chieftains was just trained. */
+  trained(k: number): void {
+    const last = Math.max(this.lastR, this.lastG, this.lastO);
+    let limit: LimitName = 'none';
+    if (last >= 0) {
+      if (this.lastR === last && this.lastG === last) limit = 'renown+gold';
+      else if (this.lastR === last) limit = 'renown';
+      else if (this.lastG === last) limit = 'gold';
+      else limit = 'resources';
+    }
+    this.wait.limits[limit] += k;
+    this.active = false;
+  }
 }
 
 // ---- Simulation of one style --------------------------------------------------------------------
@@ -451,7 +626,10 @@ function queuedUnits(v: VillageState): Units {
 const CHIEF_COST = UNITS.chieftain.cost;
 
 function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
-  const def = opt.siege ? withSiege(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
+  const base = opt.siege ? withSiege(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
+  const def = opt.knightBuilders ? withKnightBuilders(style, base) : base;
+  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'flat';
+  const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const siegeStats: SiegeStats = { trained: { logram: 0, boulder: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
@@ -489,6 +667,11 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   let renownSpent = 0;
   /** Renown reserved for the Chieftain now outstanding (at most one at a time in the sim). */
   let chiefReserved = 0;
+  // War Chest (chest mode): spare gold of all villages, and the part reserved for the Chieftain now outstanding.
+  let chest = 0;
+  let chestReserved = 0;
+  let chiefGoldPaid = 0;
+  const waits = new WaitTracker();
   /** Since when a Chieftain has been waiting at home for a target (ms), or -1. */
   let chiefWaitSince = -1;
   const renownSources: RenownSources = { buildings: 0, raids: 0, defence: 0, trickle: 0, feast: 0 };
@@ -529,8 +712,20 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   };
   const trainer = (): Vil | undefined => vils.find((x) => x.state.buildings.bannerhall >= 1 && !x.state.hearth);
   const chiefHolder = (): Vil | undefined => vils.find((x) => x.state.troops.chieftain >= 1);
+  /** Gold price of the next Chieftain (batch of 1) for the training village (flat / growth) or for the chest (chest). */
+  const chiefGoldPrice = (): number => (goldMode === 'growth' ? chiefGoldSum(CHIEF_COST.gold, vils.length, 1) : CHIEF_COST.gold);
+  const chestPrice = (): number => chiefGoldSum(chestBase, vils.length, 1);
+  const chestOk = (): boolean => goldMode !== 'chest' || chest >= chestPrice();
+  /** What the training village must hold for the next Chieftain: the chest pays his gold in chest mode, the village in growth mode. */
+  const chiefNeed = (): Resources => ({ ...CHIEF_COST, gold: goldMode === 'growth' ? chiefGoldPrice() : goldMode === 'chest' ? 0 : CHIEF_COST.gold });
+  /** The state the engine checks / trains a Chieftain on: in chest mode +150 gold, so the engine's own gold check passes at no cost. */
+  const chiefState = (vil: Vil, t: number): VillageState => {
+    if (goldMode !== 'chest') return vil.state;
+    const st = settleVillage(vil.state, t, s);
+    return { ...st, resources: { ...st.resources, gold: st.resources.gold + CHIEF_COST.gold } };
+  };
   /** The village is the one that must now save up for the next Chieftain (Renown is there, nothing outstanding). */
-  const chiefWanted = (vil: Vil): boolean => trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownPrice(vils.length, 0);
+  const chiefWanted = (vil: Vil): boolean => trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownPrice(vils.length, 0) && chestOk();
   const armyPop = (vil: Vil): number => {
     const all = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
     let pop = 0;
@@ -547,6 +742,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     vil === trainer() &&
     outstanding() === 0 &&
     renownBalance() >= villageRenownPrice(vils.length, 0) &&
+    chestOk() &&
     armyPop(vil) < OCCUPIER_NEED;
   const chiefSaving = (vil: Vil): boolean => chiefWanted(vil) && !takePrep(vil);
 
@@ -566,6 +762,10 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const refundLostChieftain = (): void => {
     renownSpent -= chieftainRefund(chiefReserved);
     chiefReserved = 0;
+    const back = chieftainRefund(chestReserved);
+    chest += back;
+    chiefGoldPaid -= back;
+    chestReserved = 0;
     expansion.chieftainsLost += 1;
   };
 
@@ -684,6 +884,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         // The occupiers that moved in (and the used-up Chieftain) are no longer "away"; the rest walks home.
         o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.occupiers, oc.overflow));
         chiefReserved = 0; // the reserved Renown paid for this village
+        chestReserved = 0;
         addVillage(oc.state, tg.pos, 'taken', e.at, tg.tier);
         homeTrip(o, tg.pos, e.at, oc.overflow);
       } else {
@@ -705,6 +906,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const made = createFoundedVillage(e.at, s, e.units);
     o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.units, made.overflow));
     chiefReserved = 0;
+    chestReserved = 0;
     expansion.founds += 1;
     addVillage(made.state, e.pos, 'founded', e.at);
     homeTrip(o, e.pos, e.at, made.overflow);
@@ -720,8 +922,9 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   /** What blocks the next Chieftain besides money: a storehouse too small for his cost, or no population / food room. */
   const chiefBlock = (vil: Vil, t: number): BuildingId | undefined => {
     const cap = storageCap(vil.state);
-    if (RESOURCE_IDS.some((id) => CHIEF_COST[id] > cap)) return 'storehouse';
-    const c = checkTrain(vil.state, 'chieftain', 1, t, s);
+    const need = chiefNeed();
+    if (RESOURCE_IDS.some((id) => need[id] > cap)) return 'storehouse';
+    const c = checkTrain(chiefState(vil, t), 'chieftain', 1, t, s);
     if (!c.ok && c.reason === 'population_full') return 'farm';
     return undefined;
   };
@@ -744,7 +947,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (saving && !forced) {
           const cost = buildingCost(cur, levelWithQueue(vil, cur) + 1);
           const need = emptyResources();
-          for (const id of RESOURCE_IDS) need[id] = cost[id] + CHIEF_COST[id];
+          const chief = chiefNeed();
+          for (const id of RESOURCE_IDS) need[id] = cost[id] + chief[id];
           if (!canAfford(vil.state.resources, need)) return;
         }
         vil.state = applyBuild(vil.state, cur, t, s, QUEUE_LIMIT);
@@ -810,7 +1014,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (vil.state.trainQueues[building].length >= 2) return;
       const reserve = nextBuildCost(vil);
       const spare = emptyResources();
-      for (const id of RESOURCE_IDS) spare[id] = Math.max(0, vil.state.resources[id] - Math.max(reserve[id] * def.reserve, saving ? CHIEF_COST[id] : 0));
+      for (const id of RESOURCE_IDS) spare[id] = Math.max(0, vil.state.resources[id] - Math.max(reserve[id] * def.reserve, saving ? chiefNeed()[id] : 0));
       // A sensible player never lets troops eat the food stock down to nothing: keep a quarter of the storehouse.
       spare.food = Math.max(0, spare.food - storageCap(vil.state) * 0.25);
       let n = UNITS[unit].siege ? SIEGE_BATCH : 40;
@@ -927,10 +1131,10 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const nearCap = RESOURCE_IDS.some((id) => FEAST_COST[id] > 0 && vil.state.resources[id] >= cap * 0.5);
     if (!nearCap && hasAction(vil, t, true)) return;
     const reserve = nextBuildCost(vil);
-    const saving = chiefSaving(vil);
+    const chief = (chiefSaving(vil) ? chiefNeed() : emptyResources());
     let n = left;
     for (const id of RESOURCE_IDS) {
-      if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * def.reserve, saving ? CHIEF_COST[id] : 0)) / FEAST_COST[id]));
+      if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * def.reserve, chief[id])) / FEAST_COST[id]));
     }
     if (n < 1 || !checkFeast(vil.state, n, t, s).ok) return;
     const r = applyFeast(vil.state, n, t, s);
@@ -941,12 +1145,29 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   };
 
   /** Train the next Chieftain: Renown reserved (leaves the balance), resources paid, 6 h in the Banner Hall. One at a time. */
+  /** Can the next Chieftain be trained in this village now? Renown, gold (village or chest, by mode) and the engine's own checks. */
+  const canTrainChief = (vil: Vil, t: number): boolean => {
+    if (trainer() !== vil || outstanding() > 0) return false;
+    if (renownBalance() < villageRenownPrice(vils.length, 0) || !chestOk()) return false;
+    if (goldMode === 'growth' && vil.state.resources.gold < chiefGoldPrice()) return false;
+    return checkTrain(chiefState(vil, t), 'chieftain', 1, t, s).ok;
+  };
   const tryChieftain = (vil: Vil, t: number): void => {
-    if (trainer() !== vil || outstanding() > 0) return;
+    if (!canTrainChief(vil, t)) return;
     const price = villageRenownPrice(vils.length, 0);
-    if (renownBalance() < price) return;
-    if (!checkTrain(vil.state, 'chieftain', 1, t, s).ok) return;
-    vil.state = applyTrain(vil.state, 'chieftain', 1, t, s);
+    waits.trained(1);
+    const trained = applyTrain(chiefState(vil, t), 'chieftain', 1, t, s);
+    if (goldMode === 'growth') {
+      const gold = chiefGoldPrice();
+      trained.resources.gold -= gold - CHIEF_COST.gold; // the engine took the flat 150; the rest of the price comes on top
+      chiefGoldPaid += gold;
+    } else if (goldMode === 'chest') {
+      const gold = chestPrice();
+      chest -= gold;
+      chestReserved += gold;
+      chiefGoldPaid += gold;
+    } else chiefGoldPaid += CHIEF_COST.gold;
+    vil.state = trained;
     renownSpent += price;
     chiefReserved = price;
     expansion.chieftainsTrained += 1;
@@ -1036,7 +1257,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     for (const u of UNIT_IDS) {
       if (UNITS[u].attack <= 0 && UNITS[u].defenseInfantry <= 2) continue; // scouts alone are not a plan
       if (u === 'chieftain') {
-        if (trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownPrice(vils.length, 0) && checkTrain(v, u, 1, t, s).ok) return true;
+        if (canTrainChief(vil, t)) return true;
         continue;
       }
       if (checkTrain(v, u, 10, t, s).ok) return true;
@@ -1092,6 +1313,16 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         renownTotal += dr.renown;
         renownSources.trickle += dr.renown;
       }
+      if (goldMode === 'chest') {
+        // War Chest: every village pays its gold above what it needs next (build, research, Knights) into the chest, one way.
+        for (const vil of vils) {
+          if (vil.state.hearth) continue;
+          const spare = vil.state.resources.gold - chestReserveGold(def, vil.state, nextBuildCost(vil));
+          if (spare <= 0) continue;
+          chest += spare;
+          vil.state = { ...vil.state, resources: { ...vil.state.resources, gold: vil.state.resources.gold - spare } };
+        }
+      }
       const home = (vils[0] as Vil).state;
       if (bannerHallHour === undefined && vils.some((x) => x.state.buildings.bannerhall >= 1)) bannerHallHour = t / HOUR;
       if (renownAffordableHour === undefined && renownTotal >= villageRenownCost(1)) renownAffordableHour = t / HOUR;
@@ -1123,6 +1354,20 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         tryFeast(vil, t);
       }
       tryExpand(t);
+      {
+        // Waiting statistics (observation only): what holds back the next Chieftain this step?
+        const tr = trainer();
+        if (tr && outstanding() === 0) {
+          const res = tr.state.resources;
+          const goldShort = goldMode === 'chest' ? chest < chestPrice() : res.gold < chiefGoldPrice();
+          waits.step(t, {
+            r: renownBalance() < villageRenownPrice(vils.length, 0),
+            g: goldShort,
+            o: (['wood', 'food', 'iron'] as const).some((id) => res[id] < CHIEF_COST[id]),
+            plan: chiefSaving(tr),
+          });
+        } else waits.idle();
+      }
 
       // Dead time: nothing worthwhile to do in any village.
       if (anyAction(t)) {
@@ -1172,6 +1417,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         raidWins,
         renownTotal: Math.floor(renownTotal),
         renownBalance: Math.floor(renownTotal - renownSpent),
+        chest: Math.floor(chest),
       });
       nextDay += 1;
     }
@@ -1220,6 +1466,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     villages: vils.length,
     villagePointsEach: finals,
     ...(opt.siege ? { siege: siegeStats } : {}),
+    chiefGoldPaid: Math.floor(chiefGoldPaid),
+    chiefWait: waits.wait,
   };
 }
 
@@ -1330,6 +1578,8 @@ export function formatSiegeComparison(off: SimReport, on: SimReport): string {
 export function formatReport(rep: SimReport, full = false): string {
   const out: string[] = [];
   out.push(`# Balance simulation — ${rep.options.days} days, speed ${rep.options.speed}, seed ${rep.options.seed}`, '');
+  const levers = describeChiefGold(rep.options);
+  if (levers) out.push(`Levers: ${levers}.`, '');
   for (const r of rep.results) {
     out.push(`## ${r.style}`, '');
     out.push('| day | wood | food | iron | gold | villages | bldg lvls (all) | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |');
@@ -1351,6 +1601,9 @@ export function formatReport(rep: SimReport, full = false): string {
     const x = r.expansion;
     out.push(`Villages: ${r.villages} at the end (points each: ${r.villagePointsEach.join(', ')}). Gains: ${r.gains.map((g) => `${g.route === 'take' ? `taken (tier ${g.tier})` : 'founded'} on day ${(g.hour / 24).toFixed(1)} with ${g.points} points`).join('; ') || 'none'}. Chieftains ${x.chieftainsTrained} trained, strikes ${x.strikeWins}/${x.strikes} won, lost ${x.chieftainsLost}, hold failed ${x.holdFails}, founded ${x.founds}, waited and fell back to founding ${x.fallbacks}.`);
     if (r.siege) out.push(formatSiegeStats(r.siege));
+    const chestDays = [30, 60, 90].filter((d) => d <= rep.options.days);
+    const chestText = (rep.options.chiefGold ?? 'flat') === 'chest' ? ` Chest on day ${chestDays.join(' / ')}: ${chestDays.map((d) => r.rows[d - 1]?.chest ?? 0).join(' / ')}.` : '';
+    out.push(`Chieftain gold (${rep.options.chiefGold ?? 'flat'}): ${r.chiefGoldPaid} paid for ${x.chieftainsTrained} Chieftains.${chestText} Waiting for the next Chieftain, hours: ${formatChiefHours(r.chiefWait)}. Binding limit per Chieftain trained: ${formatChiefLimits(r.chiefWait)}.`);
     out.push('');
   }
   out.push('## Renown pace and several villages: when does the 2nd village come? (days since start)', '');
@@ -1362,6 +1615,7 @@ export function formatReport(rep: SimReport, full = false): string {
   out.push(`| **2nd village is the player's** | ${rep.results.map((r) => fmtDay(r.gains[0] ? r.gains[0].hour : undefined)).join(' | ')} |`);
   out.push(`| route of the 2nd village | ${rep.results.map((r) => (r.gains[0] ? (r.gains[0].route === 'take' ? `taken, tier ${r.gains[0].tier}` : 'founded') : '-')).join(' | ')} |`);
   out.push(`| 3rd village | ${rep.results.map((r) => fmtDay(r.gains[1] ? r.gains[1].hour : undefined)).join(' | ')} |`);
+  out.push(`| 4th village | ${rep.results.map((r) => fmtDay(r.gains[2] ? r.gains[2].hour : undefined)).join(' | ')} |`);
   out.push(`| villages at the end | ${rep.results.map((r) => r.villages).join(' | ')} |`);
   out.push(`| points at the end, all villages | ${rep.results.map((r) => r.finalPoints).join(' | ')} |`);
   out.push(`| longest idle stretch, whole run (target < 8 h) | ${rep.results.map((r) => `${r.longestIdleHours.toFixed(1)} h`).join(' | ')} |`);
@@ -1437,7 +1691,7 @@ function main(): void {
   const homeParts = homeAt >= 0 ? String(args[homeAt + 1]).split(',').map(Number) : [];
   const home = homeParts.length === 2 && homeParts.every((n) => Number.isInteger(n)) ? { x: homeParts[0] as number, y: homeParts[1] as number } : DEFAULT_HOME;
   const targetsAt = args.indexOf('--targets');
-  const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home, ...(targetsAt >= 0 ? { targets: get('--targets', 8) } : {}) };
+  const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home, ...(targetsAt >= 0 ? { targets: get('--targets', 8) } : {}), ...parseChiefGoldArgs(args) };
   const siege = args.includes('--siege');
   const rep = runSimulation(siege ? { ...base, siege: true } : base);
   let text: string;

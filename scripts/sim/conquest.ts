@@ -11,6 +11,10 @@
 //   --hold-hours H     hold clock after a Strike (default HOLD_HOURS)
 //   --chief-points P   points per extra Chieftain needed (default HEARTH_POINTS_PER_CHIEFTAIN)
 //   --lock-hours H     lock after a change of owner (default STRIKE_LOCK_HOURS)
+//   --chief-gold flat|growth|chest   how a Chieftain's gold is charged (default flat = today's 150 gold from the training village;
+//                      growth = round(150 x 1.6^(villages - 1)) per Chieftain from the village; chest = account-wide War Chest).
+//                      Aliases: --chief-gold-growth, --war-chest.  --chest-base N: chest price base (default 1000).
+//   --knight-builders  the builder style plays a Knight army (balance.ts withKnightBuilders)
 //
 // Each player plays its balance.ts style script (build list, army, research, raids on its OWN ring of 8 abandoned villages, Feast,
 // Renown from buildings / defender trickle / raids). New here: players are targets of each other (raids with loot, Strikes with
@@ -80,8 +84,24 @@ import {
   FEAST_COST,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
-import { STYLES, STYLE_DEFS } from './balance.ts';
-import type { StyleName } from './balance.ts';
+import {
+  CHEST_BASE_DEFAULT,
+  LIMIT_NAMES,
+  STYLES,
+  STYLE_DEFS,
+  WAIT_BUCKETS,
+  WaitTracker,
+  addChiefWait,
+  chestReserveGold,
+  chiefGoldSum,
+  describeChiefGold,
+  emptyChiefWait,
+  formatChiefHours,
+  formatChiefLimits,
+  parseChiefGoldArgs,
+  withKnightBuilders,
+} from './balance.ts';
+import type { ChiefGoldMode, ChiefWait, StyleName } from './balance.ts';
 
 type StyleDef = (typeof STYLE_DEFS)[StyleName];
 type Pos = { x: number; y: number };
@@ -117,6 +137,9 @@ export interface ConquestOptions {
   holdHours?: number;
   chiefPoints?: number;
   lockHours?: number;
+  chiefGold?: ChiefGoldMode;
+  chestBase?: number;
+  knightBuilders?: boolean;
 }
 
 // ---- Model types --------------------------------------------------------------------------------
@@ -141,6 +164,14 @@ interface Claim {
   ver: number;
   /** Counter-attack armies of the owner on their way. */
   pending: number;
+}
+/** One end-of-day snapshot of a player. */
+interface DayRowC {
+  villages: number;
+  points: number;
+  /** Gold in stock in all the player's villages. */
+  gold: number;
+  chest: number;
 }
 interface Plan {
   kind: 'strike' | 'found';
@@ -184,7 +215,13 @@ interface Player {
   strikeSeq: number;
   points: number;
   stats: Stats;
-  rows: Array<{ villages: number; points: number }>;
+  /** War Chest gold (chest mode) and the part reserved for Chieftains outstanding. */
+  chest: number;
+  chestReserved: number;
+  /** Gold paid for Chieftains: village gold (flat / growth) or chest gold net of refunds (chest). */
+  goldPaid: number;
+  wait: WaitTracker;
+  rows: DayRowC[];
 }
 
 type Event =
@@ -208,11 +245,13 @@ export interface PlayerResult {
   id: number;
   style: StyleName;
   pos: Pos;
-  rows: Array<{ villages: number; points: number }>;
+  rows: DayRowC[];
   villages: number;
   points: number;
   renownTotal: number;
   stats: Stats;
+  goldPaid: number;
+  wait: ChiefWait;
 }
 
 export interface ConquestReport {
@@ -268,6 +307,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: 1 };
   const end = opt.days * DAY;
   const eligibleFrom = protectionEndsAt(0, s);
+  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'flat';
+  const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const errors: string[] = [];
   const conquests: Conquest[] = [];
 
@@ -304,7 +345,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const p: Player = {
       id: i,
       style,
-      def: STYLE_DEFS[style],
+      def: opt.knightBuilders ? withKnightBuilders(style, STYLE_DEFS[style]) : STYLE_DEFS[style],
       seed: hashSeed(opt.seed, i),
       vils: [],
       npcs: makeNpcs(pos),
@@ -320,6 +361,10 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       strikeSeq: 0,
       points: 0,
       stats: emptyStats(),
+      chest: 0,
+      chestReserved: 0,
+      goldPaid: 0,
+      wait: new WaitTracker(),
       rows: [],
     };
     p.vils.push(newVil(i, st, pos));
@@ -348,6 +393,16 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     for (let i = 0; i < k; i++) sum += villageRenownPrice(p.vils.length, i);
     return sum;
   };
+  /** Gold price of `k` Chieftains for the training village (flat: 150 each; growth: g(150, owned, k); chest: the village pays none). */
+  const chiefGoldPrice = (p: Player, k: number): number => (goldMode === 'growth' ? chiefGoldSum(CHIEF_COST.gold, p.vils.length, k) : goldMode === 'chest' ? 0 : CHIEF_COST.gold * k);
+  const chestPrice = (p: Player, k: number): number => chiefGoldSum(chestBase, p.vils.length, k);
+  const chestOk = (p: Player, k: number): boolean => goldMode !== 'chest' || p.chest >= chestPrice(p, k);
+  /** The state the engine checks / trains Chieftains on: in chest mode +150 gold each, so its own gold check passes at no cost. */
+  const chiefState = (vil: Vil, k: number, t: number): VillageState => {
+    if (goldMode !== 'chest') return vil.state;
+    const st = settleVillage(vil.state, t, s);
+    return { ...st, resources: { ...st.resources, gold: st.resources.gold + CHIEF_COST.gold * k } };
+  };
   const armyPop = (vil: Vil): number => {
     const all = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
     let pop = 0;
@@ -366,12 +421,19 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const share = p.reserved / before;
     p.reserved = Math.max(0, p.reserved - share * count);
     p.renownSpent -= count * chieftainRefund(share);
+    // War Chest: his share of the reserved chest gold comes back at the same rate, into the chest.
+    const chestShare = p.chestReserved / before;
+    p.chestReserved = Math.max(0, p.chestReserved - chestShare * count);
+    const back = count * chieftainRefund(chestShare);
+    p.chest += back;
+    p.goldPaid -= back;
     p.stats.chieftainsLost += count;
   };
   /** One Chieftain was used up (village founded or taken): the spend stays, the reservation is released. */
   const useChief = (p: Player, before: number): void => {
     if (before <= 0) return;
     p.reserved = Math.max(0, p.reserved - p.reserved / before);
+    p.chestReserved = Math.max(0, p.chestReserved - p.chestReserved / before);
   };
 
   // ---- Renown from battles (pair windows, size factor) ----
@@ -432,6 +494,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const restart = (p: Player, at: number): void => {
     p.stats.restarts++;
     p.reserved = 0;
+    p.chestReserved = 0; // the chest itself is kept, like Renown
     p.plan = null;
     p.saving = null;
     p.waitSince = -1;
@@ -650,17 +713,19 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const k = p.saving?.k ?? 1;
     const need = emptyResources();
     for (const id of RESOURCE_IDS) need[id] = CHIEF_COST[id] * k;
+    need.gold = chiefGoldPrice(p, k);
     return need;
   };
   const chiefSaving = (p: Player, vil: Vil): boolean => p.saving !== null && trainer(p) === vil;
   const takePrep = (p: Player, vil: Vil): boolean =>
-    p.def.expand === 'take' && vil === trainer(p) && outstanding(p) === 0 && bal(p) >= villageRenownPrice(p.vils.length, 0) && p.saving === null && armyPop(vil) < OCCUPIER_NEED;
+    p.def.expand === 'take' && vil === trainer(p) && outstanding(p) === 0 && bal(p) >= villageRenownPrice(p.vils.length, 0) && chestOk(p, 1) && p.saving === null && armyPop(vil) < OCCUPIER_NEED;
 
   const chiefBlock = (p: Player, vil: Vil, t: number): BuildingId | undefined => {
     const cap = storageCap(vil.state);
     const need = chiefNeed(p);
     if (RESOURCE_IDS.some((id) => need[id] > cap)) return 'storehouse';
-    const c = checkTrain(vil.state, 'chieftain', p.saving?.k ?? 1, t, s);
+    const k = p.saving?.k ?? 1;
+    const c = checkTrain(chiefState(vil, k, t), 'chieftain', k, t, s);
     if (!c.ok && c.reason === 'population_full') return 'farm';
     return undefined;
   };
@@ -821,13 +886,13 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       p.readySince = -1;
       return null;
     }
-    if (bal(p) < villageRenownPrice(p.vils.length, 0)) {
+    if (bal(p) < villageRenownPrice(p.vils.length, 0) || !chestOk(p, 1)) {
       p.readySince = -1;
       return null;
     }
     if (p.readySince < 0) p.readySince = t;
     const strike = bestStrike(p, tr, t, 'any');
-    if (strike && bal(p) >= chiefPrice(p, strike.k)) return { kind: 'strike', k: strike.k };
+    if (strike && bal(p) >= chiefPrice(p, strike.k) && chestOk(p, strike.k)) return { kind: 'strike', k: strike.k };
     if (p.def.expand === 'found' || t - p.readySince >= PATIENCE_HOURS * HOUR) return { kind: 'found', k: 1 };
     return null;
   };
@@ -836,13 +901,55 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     if (!p.saving || trainer(p) !== vil || outstanding(p) > 0) return;
     const { k } = p.saving;
     const price = chiefPrice(p, k);
-    if (bal(p) < price || !checkTrain(vil.state, 'chieftain', k, t, s).ok) return;
-    vil.state = applyTrain(vil.state, 'chieftain', k, t, s);
+    if (bal(p) < price || !chestOk(p, k)) return;
+    const gold = chiefGoldPrice(p, k);
+    if (goldMode === 'growth' && vil.state.resources.gold < gold) return;
+    if (!checkTrain(chiefState(vil, k, t), 'chieftain', k, t, s).ok) return;
+    p.wait.trained(k);
+    const trained = applyTrain(chiefState(vil, k, t), 'chieftain', k, t, s);
+    if (goldMode === 'growth') {
+      trained.resources.gold -= gold - CHIEF_COST.gold * k; // the engine took the flat 150 each; the rest of the price comes on top
+      p.goldPaid += gold;
+    } else if (goldMode === 'chest') {
+      const cp = chestPrice(p, k);
+      p.chest -= cp;
+      p.chestReserved += cp;
+      p.goldPaid += cp;
+    } else p.goldPaid += gold;
+    vil.state = trained;
     p.renownSpent += price;
     p.reserved += price;
     p.stats.chieftainsTrained += k;
     p.plan = p.saving;
     p.saving = null;
+  };
+
+  /** Observation only: what holds back this player's next Chieftain this step (see WaitTracker). */
+  const observeWait = (p: Player, t: number): void => {
+    const tr = trainer(p);
+    if (!tr || outstanding(p) > 0) {
+      p.wait.idle();
+      return;
+    }
+    const k = p.saving?.k ?? 1;
+    const res = tr.state.resources;
+    p.wait.step(t, {
+      r: bal(p) < chiefPrice(p, k),
+      g: goldMode === 'chest' ? p.chest < chestPrice(p, k) : res.gold < chiefGoldPrice(p, k),
+      o: (['wood', 'food', 'iron'] as const).some((id) => res[id] < CHIEF_COST[id] * k),
+      plan: p.saving !== null,
+    });
+  };
+
+  /** War Chest: every non-cold village pays its gold above what it needs next (build, research, Knights) into the chest, one way. */
+  const depositChest = (p: Player): void => {
+    for (const vil of p.vils) {
+      if (vil.state.hearth) continue;
+      const spare = vil.state.resources.gold - chestReserveGold(p.def, vil.state, nextBuildCost(p, vil));
+      if (spare <= 0) continue;
+      p.chest += spare;
+      vil.state = { ...vil.state, resources: { ...vil.state.resources, gold: vil.state.resources.gold - spare } };
+    }
   };
 
   const tryRaid = (p: Player, vil: Vil, t: number): void => {
@@ -993,6 +1100,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
           p.renownTotal += dr.renown;
         }
       }
+      if (goldMode === 'chest') for (const p of players) depositChest(p);
       refreshPoints();
       for (const p of players) {
         if (outstanding(p) === 0) p.plan = null;
@@ -1008,12 +1116,21 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         }
         tryCounter(p, t);
         tryExpand(p, t);
+        observeWait(p, t);
       }
     } catch (err) {
       errors.push(`t=${(t / HOUR).toFixed(1)}h: ${err instanceof Error ? err.stack?.split('\n').slice(0, 3).join(' | ') ?? err.message : String(err)}`);
     }
     if (t === nextDay * DAY - STEP_MS) {
-      for (const p of players) p.rows.push({ villages: p.vils.length, points: p.vils.reduce((a, vil) => a + villagePoints(settleVillage(vil.state, t, s)), 0) });
+      for (const p of players) {
+        const settled = p.vils.map((vil) => settleVillage(vil.state, t, s));
+        p.rows.push({
+          villages: p.vils.length,
+          points: settled.reduce((a, st) => a + villagePoints(st), 0),
+          gold: settled.reduce((a, st) => a + st.resources.gold, 0),
+          chest: p.chest,
+        });
+      }
       nextDay++;
     }
   }
@@ -1027,6 +1144,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     points: p.vils.reduce((a, vil) => a + villagePoints(settleVillage(vil.state, end, s)), 0),
     renownTotal: Math.floor(p.renownTotal),
     stats: p.stats,
+    goldPaid: Math.floor(p.goldPaid),
+    wait: p.wait.wait,
   }));
   return { options: opt, players: results, conquests, errors };
 }
@@ -1035,8 +1154,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
 
 const SNAPSHOT_DAYS = [7, 14, 21, 30];
 
-function rowAt(p: PlayerResult, day: number): { villages: number; points: number } {
-  return p.rows[Math.min(day, p.rows.length) - 1] ?? { villages: 1, points: 0 };
+function rowAt(p: PlayerResult, day: number): DayRowC {
+  return p.rows[Math.min(day, p.rows.length) - 1] ?? { villages: 1, points: 0, gold: 0, chest: 0 };
 }
 
 /** Biggest vs second biggest by total points (and by villages) at `day`. */
@@ -1046,6 +1165,81 @@ export function snowball(players: PlayerResult[], day: number): { pointsTop: num
   const [pt = 0, ps = 1] = pts;
   const [vt = 0, vsec = 1] = vs;
   return { pointsTop: pt, pointsSecond: ps, villagesTop: vt, villagesSecond: vsec, ratio: pt / Math.max(1, ps), villageRatio: vt / Math.max(1, vsec) };
+}
+
+const GOLD_DAYS = [30, 60, 90, 120];
+const mean = (xs: number[]): number => (xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length);
+
+/** Main seed, per style (sum over its players): Chieftains, gold paid for them, waits and binding limits, chest on day 30 / 60 / 90 / 120. */
+function chiefGoldSection(rep: ConquestReport, groups: Array<[string, PlayerResult[]]>): string[] {
+  const o = rep.options;
+  const chestMode = (o.chiefGold ?? 'flat') === 'chest';
+  const days = GOLD_DAYS.filter((d) => d <= o.days);
+  const out = ['', `## Chieftain gold (${o.chiefGold ?? 'flat'}; main seed, sum over the 5 players of a style)`, ''];
+  out.push(`| style | Chieftains trained | gold paid for Chieftains${chestMode ? ' (chest gold, net of refunds)' : ''} | wait hours by bucket | binding limit per Chieftain trained |${chestMode ? ` chest per player on day ${days.join(' / ')} |` : ''}`);
+  out.push(`|---|---|---|---|---|${chestMode ? '---|' : ''}`);
+  for (const [name, ps] of groups) {
+    const w = emptyChiefWait();
+    for (const p of ps) addChiefWait(w, p.wait);
+    const chestCol = chestMode ? ` ${days.map((d) => num(mean(ps.map((p) => rowAt(p, d).chest)))).join(' / ')} |` : '';
+    out.push(`| ${name} | ${ps.reduce((a, p) => a + p.stats.chieftainsTrained, 0)} | ${ps.reduce((a, p) => a + p.goldPaid, 0)} | ${formatChiefHours(w)} | ${formatChiefLimits(w)} |${chestCol}`);
+  }
+  return out;
+}
+
+/** All seeds together: when the 2nd / 3rd / 4th village comes, villages and gold by day, per-seed takes and snowball, waits per style. */
+function summarySection(reps: ConquestReport[]): string[] {
+  const days = reps[0]?.options.days ?? 0;
+  const out = ['', `## Summary over all seeds (${reps.length} seed${reps.length === 1 ? '' : 's'}, ${days} days)`, ''];
+  const reached = (ps: PlayerResult[], n: number): string => {
+    const hit = ps.map((p) => p.rows.findIndex((r) => r.villages >= n)).filter((i) => i >= 0).map((i) => i + 1);
+    return hit.length === 0 ? `never (0/${ps.length})` : `day ${mean(hit).toFixed(1)} (${hit.length}/${ps.length})`;
+  };
+  const villageDays = GOLD_DAYS.filter((d) => d <= days);
+  const stockDays = [90, 120].filter((d) => d <= days);
+  const head = ['style', 'players', '2nd village', '3rd village', '4th village', ...villageDays.map((d) => `villages day ${d}`), ...stockDays.map((d) => `gold per village day ${d}`), ...stockDays.map((d) => `chest per player day ${d}`)];
+  out.push(`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`);
+  const waitByStyle = new Map<string, ChiefWait>();
+  for (const st of STYLES) {
+    const ps = reps.flatMap((r) => r.players.filter((p) => p.style === st));
+    const w = emptyChiefWait();
+    for (const p of ps) addChiefWait(w, p.wait);
+    waitByStyle.set(st, w);
+    const cells = [
+      st,
+      String(ps.length),
+      reached(ps, 2),
+      reached(ps, 3),
+      reached(ps, 4),
+      ...villageDays.map((d) => mean(ps.map((p) => rowAt(p, d).villages)).toFixed(2)),
+      ...stockDays.map((d) => String(num(ps.reduce((a, p) => a + rowAt(p, d).gold, 0) / Math.max(1, ps.reduce((a, p) => a + rowAt(p, d).villages, 0))))),
+      ...stockDays.map((d) => String(num(mean(ps.map((p) => rowAt(p, d).chest))))),
+    ];
+    out.push(`| ${cells.join(' | ')} |`);
+  }
+  out.push('', '| seed | takes | restarts | raids on players | biggest points / second | ratio |', '|---|---|---|---|---|---|');
+  let takes = 0;
+  let restarts = 0;
+  let raids = 0;
+  let worst = 0;
+  for (const r of reps) {
+    const b = snowball(r.players, r.options.days);
+    const t = r.players.reduce((a, p) => a + p.stats.taken, 0);
+    const rs = r.players.reduce((a, p) => a + p.stats.restarts, 0);
+    const rd = r.players.reduce((a, p) => a + p.stats.raidsOnPlayers, 0);
+    takes += t;
+    restarts += rs;
+    raids += rd;
+    worst = Math.max(worst, b.ratio);
+    out.push(`| ${r.options.seed} | ${t} | ${rs} | ${rd} | ${b.pointsTop} / ${b.pointsSecond} | ${b.ratio.toFixed(2)} |`);
+  }
+  out.push(`| **total** | ${takes} | ${restarts} | ${raids} | | worst ${worst.toFixed(2)} |`);
+  out.push('', '| style | wait hours by bucket (all seeds) | binding limit per Chieftain trained (all seeds) |', '|---|---|---|');
+  for (const st of STYLES) {
+    const w = waitByStyle.get(st) as ChiefWait;
+    out.push(`| ${st} | ${formatChiefHours(w)} | ${formatChiefLimits(w)} |`);
+  }
+  return out;
 }
 
 export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: number; rep: ConquestReport }> = []): string {
@@ -1058,6 +1252,8 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
     `1 Chieftain per ${o.chiefPoints ?? HEARTH_POINTS_PER_CHIEFTAIN} points (max ${HEARTH_MAX_CHIEFTAINS})`,
     `lock ${o.lockHours ?? STRIKE_LOCK_HOURS} h`,
   ];
+  const goldLevers = describeChiefGold(o);
+  if (goldLevers) levers.push(goldLevers);
   out.push(`# Conquest simulation: ${o.players} players, ${days} days, speed 1, seed ${o.seed}`, '', `Rules in force: ${levers.join('; ')}.`, '');
   const shown = SNAPSHOT_DAYS.filter((d) => d <= days);
   if (!shown.includes(days)) shown.push(days);
@@ -1108,6 +1304,9 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
     }
   }
 
+  out.push(...chiefGoldSection(rep, groups));
+  out.push(...summarySection([rep, ...extraSeeds.map((x) => x.rep)]));
+
   out.push('', '## Conquests (first 30)', '');
   if (rep.conquests.length === 0) out.push('None.');
   for (const c of rep.conquests.slice(0, 30)) {
@@ -1129,6 +1328,9 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
     '- Strike, hold, take: checkStrike, applyStrike (hearth out, village frozen), updateHold (hold clock, as a due event), applyOwnerChange (all buildings, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison / queues gone, occupiers move in, STRIKE_LOCK_HOURS lock). The old owner\'s Chieftains in that village are lost (half the Renown back); armies it had stationed elsewhere are disbanded and their holds end.',
     '- Defence: the owner fights the Strike with whatever is at home (the real battle). During the hold it attacks the occupiers (they defend with the village\'s Wall) with the best army from any of its villages that arrives before the clock ends and beats them by 1.1x (one army at a time). Occupiers dead = hearth relit; under HOLD_MIN_POPULATION for HOLD_FAIL_HOURS = claim fails. Not modelled: tribe-mates\' support, third players, scouting errors, Chieftain escorts arriving late (second wave), the owner recalling raids.',
     '- Restart: a player who loses the LAST village gets a fresh starting village on a ring far outside the grid, RESTART_PROTECTION_HOURS protection, a new ring of abandoned villages; Renown is kept, its Chieftains are gone.',
+    ...(goldLevers
+      ? [`- Chieftain gold levers (sim only, not config.ts): ${goldLevers}. Waits per player and step with a trainer and no Chieftain outstanding: Renown short (r), gold short (g: trainer village in flat / growth, chest in chest mode), wood / food / iron short (o); buckets renown+gold / renown / gold / resources / target (no saving plan) / other; the binding limit of a batch is whichever of r, g, o was true most recently.`]
+      : []),
     '- Beginner protection: every starting village is protected (cannot be attacked, does not attack players) for 72 h; founded villages 24 h (FOUND_PROTECTION_HOURS).',
   );
   return out.join('\n');
@@ -1153,6 +1355,7 @@ export function main(): void {
   set('holdHours', '--hold-hours');
   set('chiefPoints', '--chief-points');
   set('lockHours', '--lock-hours');
+  Object.assign(opt, parseChiefGoldArgs(args));
   const seeds = get('--seeds') ?? 1;
   const first = runConquest(opt);
   const extra: Array<{ seed: number; rep: ConquestReport }> = [];

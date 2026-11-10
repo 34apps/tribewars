@@ -675,3 +675,87 @@ village) while his Renown price grows per village, so Renown stays the limit. If
 Chieftain gold growing with the villages owned (owner decision). Speed for players: more fighting between players; expansion
 about the same.
 
+### 12.3 What should a Chieftain cost in gold? Flat, growing, or a War Chest (2026-11-10, sim only)
+
+Owner idea: "invest gold for Chieftains, save it there, bound to the account". Three variants as sim levers (nothing in
+`packages/engine`, `apps/` or `config.ts` changed), both sims, default = today:
+- **A** (`--chief-gold flat`, today): 150 gold per Chieftain, paid by the training village.
+- **B** (`--chief-gold-growth`): 150 x 1.6^(villages owned + Chieftains outstanding - 1) gold, paid by the training village (an 8th village: 2,516).
+- **C** (`--war-chest --chest-base N`): the Chieftain costs no village gold; he reserves War Chest gold N x 1.6^(owned + outstanding - 1)
+  from an account-wide pool, 50% back if he dies (exactly like his Renown). Every village pays its gold above a reserve (gold of its
+  next build or next gold-costing build, next research, a Knight batch) into the chest every 10 minutes, one way. The chest cannot be
+  raided or taken and survives the restart. Tried N = 500, 1,000, 2,000, 3,000, 5,000.
+- Knight variant (`--knight-builders`): builders train 65% Knights and raise the Gold Mine to 12 and 15 after Mine 16 (as §12.1/§12.2).
+
+Conquest sim, 20 players, **120 days, 5 seeds** (`npm run sim -- --conquest --days 120 --seeds 5 <lever>`). Village days are the mean
+over players who got there (counts in the raw files). Raw: `docs/sim/2026-11-10-chest-conquest-{A,B,C500,C1000,C2000,C3000,C5000}.txt`,
+`-chest-conquest-knights-{A,B,C500,C1000,C3000}.txt`, single player `-chest-balance-*.txt`, test `-chest-iso30-*.txt`.
+
+| 120 days, 5 seeds | A (today) | B growing | C 500 or 1,000 | C 2,000 | C 3,000 | C 5,000 |
+|---|---|---|---|---|---|---|
+| villages taken from players | 78 | 81 | 72 | 69 | 63 | 42 |
+| restarts (last village lost) | 27 | 27 | 34 | 31 | 36 | 25 |
+| raids on players | 63.1k | 58.8k | 55.6k | 56.4k | 62.0k | 65.2k |
+| biggest / second, worst seed (<= 2x) | 1.50 | 1.25 | 1.50 | 1.54 | 1.30 | **1.96** |
+| builder: 2nd / 3rd / 4th village day | 28.8 / 52.4 / 69.8 | 28.8 / 52.6 / 71.1 | 44.2 / 52.5 / 65.2 | 43.8 / 53.6 / 73.1 | 49.1 / 68.4 / 84.3 | 54.7 / 75.8 / 101.9 |
+| raider: 2nd / 3rd village day | 63.9 / 75.4 | 60.3 / 69.6 | 48.6 / 63.5 | 43.7 / 63.1 | 54.1 / 66.3 | 49.0 / 71.6 |
+| turtle: 2nd / 3rd / 4th village day | 39.8 / 64.8 / 86.4 | 39.3 / 64.9 / 87.5 | 39.7 / 65.2 / 85.4 | 42.9 / 68.4 / 84.4 | 44.8 / 72.6 / 88.1 | 67.4 / 97.4 / 120 |
+| balanced: 2nd / 3rd village day | 18.1 / 31.7 | 18.1 / 31.0 | 16.4 / 32.0 | 15.6 / 30.7 | 17.8 / 29.6 | 17.1 / 31.5 |
+| villages day 30 / 60 / 90 / 120, builder | 1.72 / 2.84 / 4.24 / 5.64 | 1.72 / 2.88 / 4.32 / 5.60 | 1.40 / 3.00 / 4.36 / 5.56 | 1.28 / 2.44 / 3.80 / 5.00 | 1.04 / 2.04 / 3.04 / 4.08 | 1.00 / 1.68 / 2.44 / 3.04 |
+| ... raider | 1.16 / 1.68 / 2.20 / 2.60 | 1.16 / 1.72 / 2.32 / 2.56 | 1.16 / 1.60 / 2.24 / 2.20 | 1.24 / 1.88 / 2.44 / 2.52 | 1.24 / 1.72 / 2.36 / 2.48 | 1.24 / 1.64 / 2.24 / 2.32 |
+| ... turtle | 1.00 / 2.40 / 3.24 / 4.16 | 1.00 / 2.44 / 3.28 / 4.08 | 1.00 / 2.40 / 3.40 / 3.92 | 1.00 / 2.24 / 3.04 / 3.64 | 1.00 / 2.20 / 3.08 / 3.60 | 1.00 / 1.64 / 1.92 / 2.32 |
+| ... balanced | 2.20 / 2.72 / 2.88 / 2.96 | 2.20 / 2.64 / 2.64 / 2.64 | 2.16 / 2.72 / 2.80 / 2.92 | 2.16 / 2.60 / 2.68 / 2.72 | 2.24 / 2.68 / 2.76 / 2.76 | 2.28 / 2.72 / 2.84 / 2.92 |
+| gold per village day 90 / 120 (A, B) or chest per player day 120 (C): builder / raider / turtle / balanced | 3.4k/4.9k, 13.8k/21.6k, 4.1k/5.8k, 30.6k/36.7k | 3.1k/4.9k, 14.0k/22.1k, 4.1k/5.8k, 33.6k/39.9k | chest 33.7k / 64.1k / 17.6k / 102k (C1,000) | chest 18.6k / 67.6k / 12.0k / 97.4k | chest 13.0k / 63.3k / 9.3k / 95.1k | chest 16.9k / 54.3k / 6.8k / 88.8k |
+| share of the wait for the next Chieftain when gold was short (alone or with Renown): builder / raider / turtle / balanced | 1 / 60* / 0 / 0% | 5 / 60* / 0 / 11% | 13 / 5 / 6 / 0% | 63 / 8 / 50 / 8% | 67 / 12 / 92 / 17% | 72 / 26 / 96 / 70% |
+| hours waiting on gold ONLY (Renown already there), builder / turtle | 0 / 0 | 27 / 0 | 0 / 0 | 12.3k / 2.0k | 25.4k / 13.4k | 31.8k / 42.0k |
+
+\* The A/B raider is "gold short" while it spends its village gold on troops before it starts saving; only 3 of its 49 Chieftains were
+held up by gold at the end. The "binding limit per Chieftain" counter in the raw files almost always says `resources`: the sim saves the
+Chieftain's wood/food/iron last, after Renown (and chest gold) are there, so use the wait hours above instead.
+
+Knight-army builders (`--knight-builders`, same run): A / B / C 1,000 / C 3,000: takes 71 / 67 / 65 / 70, restarts 40 / 41 / 49 / 49,
+worst ratio 1.10 / 1.11 / 1.12 / 1.14; Knight builder 2nd village day 36.9 / 37.0 / 40.2 / 56.8, villages day 120 4.80 / 4.88 / 4.48 / 5.48;
+gold short 14 / 16 / 26 / 97% of its wait. This is the only place where B bites at all: gold was the last thing missing for 15 Knight-builder
+Chieftains. Their chest at day 120: 79k (C 1,000), 33k (C 3,000).
+
+Single player, 90 days (`npm run sim -- --days 90 <lever>`, one player per style, seed 20261104), 2nd / 3rd / 4th village day:
+
+| | builder | raider | turtle | balanced | villages day 90 (b / r / t / bal) |
+|---|---|---|---|---|---|
+| A (today) | 23.1 / 32.8 / 44.8 | 21.0 / 39.1 / 58.7 | 34.3 / 57.8 / - | 16.2 / 29.3 / - | 7 / 4 / 3 / 3 |
+| B | same as A (builder paid 3,944 gold for 6 Chieftains instead of 900) | same | same | same | 7 / 4 / 3 / 3 |
+| C 500 or 1,000 | 18.3 / 28.0 / 39.4 | 22.2 / 40.7 / 66.3 | 34.3 / 57.8 / - | 14.6 / 26.8 / - | 7 / 4 / 3 / 3 |
+| C 2,000 | 23.2 / 34.5 / 47.6 | 22.2 / 40.7 / 66.3 | 34.3 / 60.1 / - | 14.6 / 26.8 / - | 6 / 4 / 3 / 3 |
+| C 3,000 | 27.8 / 44.8 / 61.4 | 22.2 / 40.7 / 66.3 | 37.3 / - / - | 14.9 / 26.9 / - | 5 / 4 / 2 / 3 |
+| C 5,000 | 37.1 / 62.8 / 87.4 | 22.2 / 40.7 / 69.3 | 58.0 / - / - | 19.2 / - / - | 4 / 4 / 2 / 2 |
+
+(The lone builder is a little faster with C 1,000: the sim player holds a Feast when nothing else is affordable, and with its gold in the
+chest that happens sooner: Feast Renown 18.3k -> 24.9k. A sim habit, not a chest rule.)
+
+**Why C changes the early game even when its price never counts.** C 500 and C 1,000 give identical results (the chest always had the
+gold by the time Renown was there), yet takes in the first 30 days go from 10 to 26 and builders lose their only village earlier
+(restarts 27 -> 34 over 120 days). Test (`-chest-iso30-*.txt`, 30 days, 5 seeds, scratch copy): Chieftain free of village gold but every
+village keeps its gold = same as A (takes 10, 18 of 25 builders have a 2nd village on day 30); gold moved into the chest = takes 26, 10 of 25,
+raids on players 17.6k -> 22.5k. The cause is the empty gold store: raid loot is spread over everything a village holds (`waterFillLoot`),
+so with no gold in stock every raid carries off more wood, food and iron, the resources buildings and Chieftains need. Raiding styles grow
+faster and take builders' first villages in week two. In the sim every village empties its gold every 10 minutes (the worst case); real
+players would deposit when they choose.
+
+**Reading it.**
+- **A (today):** Renown is the only real limit on late conquest; gold piles up (5k to 37k per village by day 120) with little to buy.
+- **B:** no visible effect. Even an 8th village costs only 2,516 gold against thousands in stock. Only Knight-heavy builders notice it. Not worth building.
+- **C 500 / 1,000:** the chest price never holds anyone back; gold just becomes safe from raids. Its only effects are the side effects above
+  (harder raids on wood/food/iron, earlier losses for builders) and big idle chests (18k to 100k per player). Not worth building at these numbers.
+- **C 2,000:** the smallest base where gold really shapes late conquest: gold becomes most of the builder's and turtle's wait (63% / 50%),
+  takes -12%, builders end day 120 with 5.0 villages instead of 5.6 and turtles with 3.6 instead of 4.2, worst ratio 1.54 (fine). A lone
+  newcomer keeps today's 2nd-village pace (day 23.2 vs 23.1); in the 20-player world builders get it later (43.8 vs 28.8), the same side
+  effect as C 1,000. Prices: 2nd village 2,000, 3rd 3,200, 4th 5,120, 5th 8,192, 6th 13,107.
+- **C 3,000:** stronger brake for builders/turtles (4.1 / 3.6 villages on day 120, takes -19%), lone builder's 2nd village day 27.8.
+- **C 5,000:** too much: takes almost halve, turtles stall at 2.3 villages, biggest/second 1.96 (on the 2x line).
+- Any C helps raiders and balanced players more than builders: they loot gold from abandoned villages and fill their chests to 60-100k,
+  while builders and turtles live on their own Gold Mines. Raider/balanced village counts barely move at any base.
+
+**Recommendation:** if gold should matter for late conquest, **C with base 2,000** (smallest number that bites, no runaway, newcomers'
+2nd village unchanged), with the deposit as the player's own action ("Pay into the War Chest", amount chosen) so villages keep gold
+unless the player moves it (not simulated: the sim always moves all gold, so the side effect should be smaller in play). Otherwise keep **A**. Drop B. Speed for players: C 2,000 makes expansion after the 3rd village about
+10-15% slower for builders and defenders, about the same for raiders. Owner to pick A or C (and the base); engine/server/UI only after that.
