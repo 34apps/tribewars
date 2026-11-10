@@ -25,6 +25,11 @@ export function chestPayInReason(text: string, villageGold: number, hearthOut: b
   return null;
 }
 
+/** What the one-tap pay-in sends: the missing gold, capped by the gold this village holds (0 = nothing to pay). */
+export function chestPayInAmount(missing: number, villageGold: number): number {
+  return Math.max(0, Math.min(Math.floor(missing), Math.floor(villageGold)));
+}
+
 /** Chest gold still missing for the next Chieftain (0 when the chest has enough). */
 export function chestMissing(chest: Pick<ChestInfo, 'gold' | 'chieftainPrice'>): number {
   return Math.max(0, chest.chieftainPrice - chest.gold);
@@ -47,4 +52,14 @@ export function chestErrorText(code: string, fallback: string): string {
 export function chieftainPriceText(renownPrice: number, chest: Pick<ChestInfo, 'chieftainPrice'> | undefined): string {
   const renown = `${renownPrice.toLocaleString('en-US')} Renown`;
   return chest ? `${renown} + ${chest.chieftainPrice.toLocaleString('en-US')} War Chest gold` : renown;
+}
+
+/** Why the Chieftain Train button is off (null = ready): Renown first, then the chest. */
+export function chieftainTrainReason(
+  renownBalance: number,
+  renownPrice: number,
+  chest: Pick<ChestInfo, 'gold' | 'chieftainPrice'> | undefined,
+): string | null {
+  if (renownBalance < renownPrice) return `Need ${renownPrice.toLocaleString('en-US')} Renown`;
+  return chestShort(chest) ? 'Needs War Chest gold' : null;
 }

@@ -11,7 +11,7 @@ import { formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { chestShort } from '../chest.ts';
 import { NEEDS_CHEST_TEXT } from '../shortfall.ts';
-import { WarChestSummary } from './WarChest.tsx';
+import { WarChestProgress } from './WarChest.tsx';
 import './war-chest.css';
 import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../rules.ts';
 import { useCancelJob } from '../views/cancelJob.tsx';
@@ -161,7 +161,7 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
         </div>
       </dl>
 
-      <WarChestSummary />
+      <WarChestProgress />
 
       <div className="building-cost">
         <Cost cost={def.cost} have={live.resources} />

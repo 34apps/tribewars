@@ -38,7 +38,6 @@ import { buildingEffects, requirementText, unmetRequirements } from '../../rules
 import { UNIT_HINT, UNIT_ROLE } from '../../unitRole.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
-import { WarChestCard } from '../../components/WarChest.tsx';
 import { BannerHallPanel } from './BannerHall.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
@@ -537,6 +536,7 @@ function WhatItDoes({ id, info }: { id: BuildingId; info: BuildingInfo }) {
       </div>
       <div className="fv-ord">
         <p className="fv-desc">{def.description}</p>
+        {id === 'bannerhall' && <p className="fv-desc">Chieftains also need War Chest gold, paid in here.</p>}
         {effects.length > 0 ? (
           <div className="fv-nownext">
             <div>
@@ -690,7 +690,7 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                 </PanelBox>
               ) : id === 'bannerhall' ? (
                 <PanelBox title="Banner Hall" fit>
-                  <BannerHallPanel chestInline={false} />
+                  <BannerHallPanel />
                 </PanelBox>
               ) : (
                 <NextLevels id={id} info={info} />
@@ -704,7 +704,6 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                   <WhatItDoes id={id} info={info} />
                 )}
                 <MagsTip id={id} />
-                {id === 'bannerhall' && live.buildings.bannerhall > 0 && <WarChestCard />}
               </div>
             </>
           )}
