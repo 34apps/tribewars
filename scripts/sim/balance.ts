@@ -148,8 +148,8 @@ export const STYLE_DEFS: Record<StyleName, Style> = {
     order: [
       ['lumber', 2], ['farm', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['lumber', 4],
       ['mine', 5], ['barracks', 4], ['farm', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9],
-      ['stables', 1], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 8],
-      ['market', 3], ['barracks', 8], ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
+      ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 8],
+      ['market', 3], ['barracks', 8], ['goldmine', 6], ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
     ],
     tail: ['farm', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
     army: [{ unit: 'raider', weight: 72 }, { unit: 'outrider', weight: 15 }, { unit: 'pikeman', weight: 10 }, { unit: 'pathfinder', weight: 3 }],

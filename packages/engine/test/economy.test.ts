@@ -32,7 +32,7 @@ describe('production, storage, vault', () => {
     assert.deepEqual(productionPerHour(v, S1), { wood: 30, food: 40, iron: 30, gold: 0 });
     assert.deepEqual(productionPerHour(v, S10), { wood: 300, food: 400, iron: 300, gold: 0 });
     const w = village({ buildings: { lumber: 0, farm: 3, goldmine: 2 } });
-    assert.deepEqual(productionPerHour(w, S1), { wood: 5, food: 55, iron: 30, gold: 12 });
+    assert.deepEqual(productionPerHour(w, S1), { wood: 5, food: 55, iron: 30, gold: 4 });
     const zero = village({ buildings: { goldmine: 0 } });
     assert.equal(productionPerHour(zero, S1).gold, 0);
   });

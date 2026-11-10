@@ -50,7 +50,7 @@ is fine; do not change it.**
   tooltip shows a banner icon for 48 h after a Banner Hall level finishes. Neighbours get a warning window.
 - **Unit: Standard-bearer** (trained only in the Banner Hall): cost 4,000 wood / 3,000 food / 5,000 iron / **150 gold**,
   train time 6 h each (÷ 0.94 per level), pop 8, upkeep 2 food/h, speed 4 (slowest unit; the army marches at his
-  pace). Gold is the limiter: a max Gold Mine (L15, 90/h) pays for ~1.7 bearers a day.
+  pace). Gold is the limiter: a max Gold Mine (L15, 90/h) pays for ~1.7 bearers a day. (Old proposal; since 2026-11-10 a level-15 Gold Mine makes 27/h, §12.)
 - **Rule:** a battle won by the attacker with ≥1 bearer alive lowers the target's **Loyalty** (starts 100; each
   bearer −20..−30 random; +1/h regen, scaled by speed; cannot be hit during beginner protection). At ≤0 the village
   changes owner at Loyalty 25, buildings kept (Banner Hall and Wall reset to 0), the old owner's troops there are
@@ -601,3 +601,31 @@ world) will raid less than the sim raider; abandoned villages still appear when 
 is slower (about -30% score for the raider); building is unchanged. Not done: the 1.5x raider target needs about 3 reachable targets (owner's call).
 
 Fair start and terrain amount (same day) do not touch these numbers; fair start is measured in `GAME_DESIGN` §9: 100% of 900 chosen spots pass, 65% of random buildable tiles.
+
+## 12. Gold sized to its uses: Gold Mine at 1/10 of a Lumber Camp (owner 2026-11-10)
+
+Owner: gold should be produced in proportion to what it is used for ("if we need it very little it should not have the same
+production as wood"). Gold uses (all existing): cavalry/siege research 10-80 once, Knight 30, Log Ram 4, Boulder Sling 12, Banner
+Hall 100 (x1.35 per level), Chieftain 150. Gold per wood spent: Knight 0.23, Sling 0.09, Chieftain 0.04, Ram 0.02. The Gold Mine
+made 1/3 of a Lumber Camp, more than even an all-Knight village can spend, so gold piled up for every style.
+
+**Change:** `PRODUCTION_BASE.goldmine` 10 -> **3** (per day at level 1 / 5 / 10 / 15: 72 / 135 / 296 / 649; wood 720 / 1,349 /
+2,958 / 6,485). Abandoned villages' Gold Mines (level tier-1) make less too, so raids carry less gold. **Sim change:** the raider
+style never built a Gold Mine (it lived on looted gold) and deadlocked waiting for the Banner Hall's 100 gold; it now builds Gold
+Mine 3 after Stables 1 and Gold Mine 6 after Barracks 8, as a real player would. Same seed, 30 days, speed 1, 4 targets. Raw:
+`docs/sim/2026-11-10-gold-before.txt` (old gold, new raider script), `docs/sim/2026-11-10-gold-after.txt`.
+
+| | before (gold 10) | after (gold 3) |
+|---|---|---|
+| gold in stock day 30, builder / raider / turtle / balanced | 15,381 / 35,184 / 8,594 / 34,523 | 2,553 / 8,851 / 2,444 / 10,099 |
+| 2nd village (day), builder / raider / balanced | 23.1 / 17.9 / 16.2 | 23.1 / **21.0** / 16.2 |
+| score builder / raider / turtle / balanced | 12,094 / 26,317 / 5,581 / 29,312 | 12,094 / 22,853 / 5,581 / 29,143 |
+| **raider / builder score** | 2.18x | **1.89x** (inside the 1.5-2x target) |
+| raid loot value (30 d), raider | 760k | 556k |
+
+Reading it: gold piles up about 4x less; builder, turtle and balanced keep their pace (balanced still takes its 2nd village on day
+16.2). The raider's 2nd village moves to day 21.0 because raid Renown counts gold 10x and abandoned villages now hold less gold
+(its gold stock is not the limit: 3,000+ by day 14). That puts the raider inside both §11 targets (day 21-28, 1.5-2x) for the first
+time. Gold still collects for the sim styles because they train few Knights; a Knight-heavy player spends it all. **Speed for
+players:** Knights and conquest compete for gold now; building pace unchanged.
+

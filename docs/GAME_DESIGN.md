@@ -24,6 +24,13 @@ When a rule changes, change it here in the same commit.
 - Production per hour (speed 1) of building level L for lumber→wood, farm→food, mine→iron,
   goldmine→gold: `L == 0 ? PRODUCTION_LEVEL0 (gold: 0) : round(PRODUCTION_BASE[b] * PRODUCTION_GROWTH^(L-1))`.
   Multiply by `speed`.
+- **Gold is the elite and conquest resource, made at 1/10 of a Lumber Camp** (owner, 2026-11-10: `PRODUCTION_BASE.goldmine` 3
+  vs lumber 30; it was 10, a third). No gold is needed at the start (stock 100 covers the first research); it pays for cavalry
+  and siege research, Knights (30 each), Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and
+  Chieftains (150). Sizing: the most gold-hungry use, the Knight, needs 0.23 gold per wood, so at 1/10 a village that trains
+  only Knights runs out of gold about when it runs out of iron (everything at level 10: ~10 Knights a day from gold, ~9 from
+  iron); anyone mixing Knights with a Banner Hall or Chieftains has to choose. 1/10 also matches gold's 10x weight in loot and
+  Renown. At a third, gold piled up for every play style (`BALANCE.md` §12). Players who only build can skip the Gold Mine.
 - **No troop food upkeep** (owner, 2026-11-05; before that troops ate 0.25 food per population point, and 1 per unit before
   2026-11-04). Troops, at home, away or queued, cost no food at all: `FOOD_UPKEEP_PER_POP`, `UnitDef.upkeep`, `upkeepPerHour`,
   `netProductionPerHour` and the `not_enough_food` refusal are gone, and food is simply the farm's production. The Farm still
