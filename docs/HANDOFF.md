@@ -1,52 +1,47 @@
 # Handoff — Clanfire
 
-Written 2026-11-09, updated after the desktop pass (in-game pages redesign). Read this first, then `docs/AI-WORKFLOW.md`, the top of
-`CHANGELOG.md`, and `grep` `NEXT_STEPS.md` ("In-game layout redo").
+Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.md`, the top of `CHANGELOG.md`, and `grep`
+`NEXT_STEPS.md` ("Gold after the cut", "In-game layout redo").
 
 ## State in one minute
 
-Owner rejected the floating Game HUD ("scrollview on each tab is really bad … separate pages … see at once").
-New direction, built page by page from picture boards in `design/proposals/ingame-pages/` (`mix-*` = owner's picks):
-- **Desktop fills the whole window** (min 1440x900; smaller → browser scrollbars, never squeeze). NOT a centred column — owner was angry about empty edges (`63522e5`).
-  Phone vs desktop chosen by DEVICE (`hooks/useLayout.ts`, root `layout-desktop|layout-phone`- Top bar + folder tabs (`components/FrameShell.tsx`, `frame.css`). **Desktop pass complete**, all LOCAL commits, NOT pushed:
-  Village (`e801164`), building pages + `BuildState` buttons (`2006728`), Army (`da78726`, `154244d`), Reports (`7864e30`),
-  Mail conversations (API `7778277`, screen `89fc824`, `9958155`), Tribe all 9 sub-tabs (`c404c1e`, `bd5ae29`),
-  Ranks B + Top three A (`bf7042e`, `77cb68f`), Map A (`e8401ef`), round-1 fixes + simulator, unit card, toasts,
-  Mail picker, no-tribe, Domination (`f802505`…`45063fd`). Older unpushed `045929b`
-  (phone chip band, not approved).
-- Phone layout is unchanged everywhere (old HUD/dock) — its redesign comes next.
+- **Desktop in-game pages: done**, all LOCAL commits, NOT pushed (`e801164` … `b0dea9c`; older `045929b` phone chip band, not approved).
+  Desktop fills the whole window (min 1440x900); phone vs desktop chosen by DEVICE (`hooks/useLayout.ts`). Phone layout unchanged (old HUD/dock).
+- **2026-11-10, also local, not pushed:**
+  - `9fcb00b` rename pencil in the desktop top bar for one-village players (server always allowed renaming any time).
+  - `b0008ef` **Gold Mine makes 1/10 of a Lumber Camp** (`PRODUCTION_BASE.goldmine` 10 -> 3); sim raider now builds a Gold Mine.
+  - `c8f2167` "Needs gold · build a Gold Mine" hint on build / train / research buttons (`apps/web/src/shortfall.ts`).
+  - Checks in `BALANCE.md` §12 (30 d), §12.1 (90 d, 5 seeds, Knight player), §12.2 (20-player conquest, 90 d). Raw in `docs/sim/2026-11-10-*`.
 
-## Very next steps
+## Work in flight / very next step
 
-1. Owner test round 2 in the preview (http://localhost:5174; PREVIEW → Fill with sample data). Round 1 fixes and his picks
-   (simulator A, unit card A+B, toasts A, Mail picker A, no-tribe A, Domination B) are built: `f802505`…`45063fd`.
-   Fix what he reports; push to main only after his OK.
-2. Phone (360) pass: draw each new page at 360 (design agent, opus, one at a time) → owner picks → build.
-3. Small leftovers: NEXT_STEPS "In-game layout redo" → "Small (desktop pages)".
-4. Later (NEXT_STEPS): scout rule "total troops outside" at top Keen; report sharing; Boulder Sling stored-target check;
-   backdrop choice (toy landscape vs plain paper — plain built); Contacts list in Mail only if the owner asks (option B, NEW).
+1. **Owner decision pending: late-game gold for conquest.** Owner idea (2026-11-10): "invest gold for Chieftains, save it there, bound
+   to the account". Lead's suggestion given to the owner: a **War Chest** — gold deposited one-way from any village into an
+   account-wide pool (raid-proof, kept if villages are lost); each Chieftain reserves chest gold like he reserves Renown today
+   (same 1.6x growth per village, half back if he dies), replacing his flat 150 gold. Must be our own design (no Tribal Wars
+   coin/academy names or numbers). NOT built. Next: sim lever in `scripts/sim/conquest.ts` + `balance.ts` comparing
+   (A) flat 150 now, (B) per-Chieftain gold growing 1.6x paid by the village, (C) War Chest, 90+ days, 5 seeds; then owner picks.
+   Engine/server/UI only after the pick (security gate `docs/SECURITY_ROADMAP.md` §4, server tests for the deposit endpoint).
+2. Owner test in the preview (http://localhost:5174; PREVIEW → Fill with sample data): rename pencil, gold numbers, gold hint,
+   plus round-2 of the desktop pages. Push to main only after his OK.
+3. Phone (360) pass of the new pages: design agent (opus, one at a time) → owner picks → build.
 
-## How pages are made (repeat this)
+## Decisions (don't re-ask)
 
-- Design agent (opus, one at a time) edits `design/proposals/ingame-pages/tooling/gen.mjs` (Ranks/Map in `ranks-map.mjs`)
-  → `mockups/*.html` → `shot.mjs` (fit checks: no page/inner scroll, text ≥13 px, controls ≥36 px) → PNG; boards via `board.mjs`.
-- Owner picks pieces ("mix"), then an implementer builds `views/<page>/Frame<Page>.tsx` + `frame-<page>.css`,
-  reusing today's data/actions; screenshots via `tooling/*-shot.mjs` into `after/`; lead reviews PNGs and commits.
-- Parallel implementers: split by files; only one may touch `Game.tsx`; none touch `FrameShell.tsx`/`frame.css` at once.
+- Gold = elite + conquest resource: research, Stables/Drillyard upgrades, Knights, siege, Banner Hall, Chieftains. 1/10 of wood.
+- Mix pieces page by page; left village column on Village/building/Army only; Reports, Mail, Tribe full width.
+- Scrolling only inside conversation panes. Buttons: one same-size family (Up / wait / queue full / Needs gold / Locked ...).
 
-eview PNGs and commit.
+## How pages are made
 
-## Owner decisions this session (don't re-ask)
-
-- Mix pieces page by page; A's tabs + C's parts. Left village column on Village/building/Army only; Reports,
-  Mail, Tribe are full width. Recruiting lives on Barracks/Stables; Army = troops + trips + support.
-- Scrolling allowed only inside conversation panes (Mail thread, Tribe chat, Forum thread).
-- Buttons: one same-size family for Up / wait / queue full / building / next / Max / Locked.
+- Design agent edits `design/proposals/ingame-pages/tooling/gen.mjs` → mockups → `shot.mjs` fit checks → boards; owner picks;
+  implementer builds `views/<page>/Frame<Page>.tsx`; lead reviews PNGs and commits. Only one implementer touches `Game.tsx`.
 
 ## Traps
 
-- Several worlds of seed data: shot scripts seed via `?demo`; wait for real numbers (1,907 = not seeded yet).
-- Vite misses new sprite files until restart. Headless Chrome for screenshots (pane screenshots fail when covered).
-- Owner pastes other projects' feedback by mistake (TCG card shop game) — forward to that session, don't act here.
-- A failed CSS import gets cached by Vite (500s on :5174) — restart Vite.
+- Sim runs are fast (balance ~1 s, conquest 90 d x 5 seeds ~2.5 min). For old-vs-new runs copy `packages/engine/src` +
+  `scripts/sim` to the scratchpad and run `node_modules/.bin/tsx` there — never flip `config.ts` while an agent runs checks.
+- Sim builder keeps its Gold Mine at 8; a Knight-heavy test must raise it (BALANCE §12.1).
+- Shot scripts seed via `?demo`; Vite misses new sprite files until restart; a failed CSS import gets cached (restart Vite).
+- Owner pastes other projects' feedback by mistake (TCG card shop) — don't act on it here.
 - Owner files left uncommitted on purpose: `.claude/launch.json`, `Pasted ... textClipping`.
