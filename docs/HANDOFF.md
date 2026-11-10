@@ -12,16 +12,15 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
   - `b0008ef` **Gold Mine makes 1/10 of a Lumber Camp** (`PRODUCTION_BASE.goldmine` 10 -> 3); sim raider now builds a Gold Mine.
   - `c8f2167` "Needs gold · build a Gold Mine" hint on build / train / research buttons (`apps/web/src/shortfall.ts`).
   - Checks in `BALANCE.md` §12 (30 d), §12.1 (90 d, 5 seeds, Knight player), §12.2 (20-player conquest, 90 d). Raw in `docs/sim/2026-11-10-*`.
+  - `dd0a92c` sim levers for Chieftain gold (A flat / B growing / C War Chest) + `BALANCE.md` §12.3 (120 d, 5 seeds). Sim only.
 
 ## Work in flight / very next step
 
-1. **Owner decision pending: late-game gold for conquest.** Owner idea (2026-11-10): "invest gold for Chieftains, save it there, bound
-   to the account". Lead's suggestion given to the owner: a **War Chest** — gold deposited one-way from any village into an
-   account-wide pool (raid-proof, kept if villages are lost); each Chieftain reserves chest gold like he reserves Renown today
-   (same 1.6x growth per village, half back if he dies), replacing his flat 150 gold. Must be our own design (no Tribal Wars
-   coin/academy names or numbers). NOT built. Next: sim lever in `scripts/sim/conquest.ts` + `balance.ts` comparing
-   (A) flat 150 now, (B) per-Chieftain gold growing 1.6x paid by the village, (C) War Chest, 90+ days, 5 seeds; then owner picks.
-   Engine/server/UI only after the pick (security gate `docs/SECURITY_ROADMAP.md` §4, server tests for the deposit endpoint).
+1. **Owner decision pending: Chieftain gold, A or C (BALANCE §12.3).** Sim levers built (`--chief-gold flat|growth|chest`,
+   `--war-chest --chest-base N`, `--knight-builders`; sim files only). 120 d x 5 seeds: B no effect; C 500/1,000 never binds (only the
+   side effect: empty gold stores make raids carry more wood/food/iron); C 2,000 smallest base that bites (takes -12%, builders 5.0 vs
+   5.6 villages day 120). Lead recommends C 2,000 with deposit as a player action. Next after the pick: engine rule + config numbers,
+   deposit endpoint (security gate `docs/SECURITY_ROADMAP.md` §4, server tests), UI, GAME_DESIGN §18. Raw `docs/sim/2026-11-10-chest-*`.
 2. Owner test in the preview (http://localhost:5174; PREVIEW → Fill with sample data): rename pencil, gold numbers, gold hint,
    plus round-2 of the desktop pages. Push to main only after his OK.
 3. Phone (360) pass of the new pages: design agent (opus, one at a time) → owner picks → build.
@@ -41,7 +40,8 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 - Sim runs are fast (balance ~1 s, conquest 90 d x 5 seeds ~2.5 min). For old-vs-new runs copy `packages/engine/src` +
   `scripts/sim` to the scratchpad and run `node_modules/.bin/tsx` there — never flip `config.ts` while an agent runs checks.
-- Sim builder keeps its Gold Mine at 8; a Knight-heavy test must raise it (BALANCE §12.1).
+- Sim builder keeps its Gold Mine at 8; a Knight-heavy test uses `--knight-builders` (Gold Mine 12/15, 65% Knights).
+- Sim "binding limit per Chieftain" counter almost always says `resources` (saving wood/food/iron comes last); read the wait hours instead.
 - Shot scripts seed via `?demo`; Vite misses new sprite files until restart; a failed CSS import gets cached (restart Vite).
 - Owner pastes other projects' feedback by mistake (TCG card shop) — don't act on it here.
 - Owner files left uncommitted on purpose: `.claude/launch.json`, `Pasted ... textClipping`.
