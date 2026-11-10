@@ -606,7 +606,7 @@ Fair start and terrain amount (same day) do not touch these numbers; fair start 
 
 Owner: gold should be produced in proportion to what it is used for ("if we need it very little it should not have the same
 production as wood"). Gold uses (all existing): cavalry/siege research 10-80 once, Knight 30, Log Ram 4, Boulder Sling 12, Banner
-Hall 100 (x1.35 per level), Chieftain 150. Gold per wood spent: Knight 0.23, Sling 0.09, Chieftain 0.04, Ram 0.02. The Gold Mine
+Hall 100 (x1.35 per level), Chieftain 150. Gold per wood spent: Knight 0.30, Sling 0.09, Chieftain 0.04, Ram 0.02. The Gold Mine
 made 1/3 of a Lumber Camp, more than even an all-Knight village can spend, so gold piled up for every style.
 
 **Change:** `PRODUCTION_BASE.goldmine` 10 -> **3** (per day at level 1 / 5 / 10 / 15: 72 / 135 / 296 / 649; wood 720 / 1,349 /
@@ -628,4 +628,27 @@ Reading it: gold piles up about 4x less; builder, turtle and balanced keep their
 (its gold stock is not the limit: 3,000+ by day 14). That puts the raider inside both §11 targets (day 21-28, 1.5-2x) for the first
 time. Gold still collects for the sim styles because they train few Knights; a Knight-heavy player spends it all. **Speed for
 players:** Knights and conquest compete for gold now; building pace unchanged.
+
+### 12.1 Whole-game check: 90 days, 5 seeds, plus a Knight player (2026-11-10)
+
+Owner asked whether new players and the end game were checked, not just 30 days. Same sim, `--days 90`, seeds 20261104 / 11 / 22 /
+33 / 44 (means; seeds change little), gold 10 vs 3. Extra: the builder script with 65% Knights in its army (temporary copy, not
+committed), once with its Gold Mine left at 8 (its normal list) and once raised to 12 and 15 next to its other mines.
+
+| style (gold 10 -> 3) | 2nd village day | 3rd village day | villages day 90 | points day 90 | gold in stock day 30 / 60 / 90 |
+|---|---|---|---|---|---|
+| builder | 23.2 -> 23.2 | 32.8 -> 32.8 | 7 -> 7 | 26,749 -> 26,749 | 15k/57k/107k -> 2.6k/14k/42k |
+| raider | 18.8 -> 21.3 | 37.1 -> 38.1 | 3.2 -> 3.4 | 17,696 -> 19,056 | 36k/71k/91k -> 9k/25k/40k |
+| turtle | 34.3 -> 34.3 | 57.8 -> 57.8 | 3 -> 3 | 4,036 -> 4,036 | 8.6k (full) -> 2.4k/5k/8k |
+| balanced | 16.2 -> 15.9 | 28.9 -> 28.8 | 3 -> 3 | 22,017 -> 24,323 | 34k/75k/109k -> 10k/24k/38k |
+| Knight player, Gold Mine 15 | 28.4 -> 28.4 | 40.5 -> 40.5 | 6 -> 6 | 27,724 -> 27,724 | 20k/60k/106k -> 1.8k/19k/61k; Knights 2,094 -> 2,094 |
+| Knight player, Gold Mine 8 | 26.2 -> 19.2 | 37.5 -> 29.3 | 6 -> 7 | 26,009 -> 27,776 | gold runs out ~day 15; Knights 2,406 -> **247** |
+
+Reading it: building and mixed play are unchanged to day 90. A Knight player who builds the Gold Mine up loses nothing; one who
+leaves it low runs out of gold around day 15 and trains about a tenth of the Knights (the sim then spends on new villages
+instead). That is the intended choice. **Late game gold still collects** for every style (38-61k by day 90, never full): the
+sim styles train few Knights, and the Chieftain's 150 gold stays flat while his Renown price grows. **New players:** the 100 start
+gold and 100 from First Steps cover the first week; the first real need is the Banner Hall (100) around day 7, then Knights from
+day 12. A pure raider who skips the Gold Mine now stalls at the Banner Hall (the sim raider did), because stolen gold no longer
+covers it. Not modelled: players attacking players, tribes, gold shipped between own villages, the domination end of a world.
 
