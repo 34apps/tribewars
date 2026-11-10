@@ -17,9 +17,9 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Work in flight / very next step
 
-0. **Play-from-zero preview** (`7dd2a6f`, LOCAL, not pushed): new preview worlds run at real pace; "Speed" chip (left edge) = 1x-1000x + skip 1 hour/day;
+0. **Play-from-zero preview** (`7dd2a6f`, PUSHED 2026-11-10): new preview worlds run at real pace; "Speed" chip (left edge) = 1x-1000x + skip 1 hour/day;
    Ember Wardens' 5 computer players invite the new player and grow by the real rules. Owner tests: PREVIEW → Reset world → new account →
-   accept the invite. Push after his OK. Follow-ups in NEXT_STEPS ("play from zero").
+   accept the invite. Follow-ups in NEXT_STEPS ("play from zero").
 1. **War Chest built and PUSHED 2026-11-10** (owner tested in the preview; all 50 local commits up to `43426c8` pushed to main, incl. the
    desktop pages and the unapproved phone chip band `045929b`). Banner Hall simplified to Feast + Chieftain checklist cards; building
    switcher is one "Other buildings" list; toasts at the window edge. Not deployed to AWS. Follow-ups in NEXT_STEPS ("War Chest built").
