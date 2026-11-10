@@ -73,6 +73,9 @@ export interface PlayerRow {
   renownSpent: number;
   /** The part of `renownSpent` reserved by Chieftains that are queued, at home, away or standing as occupiers (<= renownSpent). */
   renownReserved: number;
+  /** War Chest: spendable gold, and the part held by Chieftains (docs/GAME_DESIGN.md 18.2). */
+  chestGold: number;
+  chestReserved: number;
   /** The player reported that others play from the same household (self-declared, shown in the admin report). */
   householdShared: boolean;
   /** When the account was banned (ms), or null. Banned accounts cannot sign in; their sessions are dead. */
@@ -394,6 +397,8 @@ function toPlayer(r: Raw): PlayerRow {
     renownTotal: (r.renown_total as number | null) ?? 0,
     renownSpent: (r.renown_spent as number | null) ?? 0,
     renownReserved: (r.renown_reserved as number | null) ?? 0,
+    chestGold: (r.chest_gold as number | null) ?? 0,
+    chestReserved: (r.chest_reserved as number | null) ?? 0,
     householdShared: (r.household_shared as number) === 1,
     bannedAt: (r.banned_at as number | null) ?? null,
     banReason: (r.ban_reason as string | null) ?? null,
@@ -988,6 +993,27 @@ export class Store extends SqlBase {
       Math.max(0, Math.min(refund, release)),
       playerId,
     );
+  }
+
+  // ---- War Chest (docs/GAME_DESIGN.md 18.2) -------------------------------------------------------------
+
+  /** Gold paid into the chest (one way). Call inside the action's transaction. */
+  depositChest(playerId: number, gold: number): void {
+    if (!(gold > 0)) return;
+    this.run('UPDATE players SET chest_gold = chest_gold + ? WHERE id = ?', gold, playerId);
+  }
+
+  /** A Chieftain batch was bought: `amount` moves from the spendable chest gold into the reserve. */
+  reserveChest(playerId: number, amount: number): void {
+    if (!(amount > 0)) return;
+    this.run('UPDATE players SET chest_gold = MAX(0, chest_gold - ?), chest_reserved = chest_reserved + ? WHERE id = ?', amount, amount, playerId);
+  }
+
+  /** Chieftains left the ledger: `release` comes off the reserve and `refund` (<= release) goes back to the spendable chest gold. */
+  releaseChest(playerId: number, release: number, refund: number): void {
+    if (!(release > 0) && !(refund > 0)) return;
+    const rel = Math.max(0, release);
+    this.run('UPDATE players SET chest_reserved = MAX(0, chest_reserved - ?), chest_gold = chest_gold + ? WHERE id = ?', rel, Math.max(0, Math.min(refund, rel)), playerId);
   }
 
   /** Movements that left from this village (every kind), oldest first. */

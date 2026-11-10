@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FirstStepsDto, GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
+import type { ChestInfo, FirstStepsDto, GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { pollMs } from './live.ts';
 import { useLiveConnected, useLiveTopic } from './useLive.tsx';
@@ -17,6 +17,8 @@ export interface GameStateStore {
   refresh: () => Promise<void>;
   /** Replace one of my villages with an action response (build/train). */
   applyVillage: (village: OwnVillageDto) => void;
+  /** Apply a War Chest pay-in response: the village and the chest. */
+  applyChest: (village: OwnVillageDto, chest: ChestInfo) => void;
   /** Apply a send response: updated village plus the new movement. */
   applySend: (res: SendResponse) => void;
   /** Replace the First steps block (claim and hide responses). */
@@ -109,6 +111,11 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
     setData((d) => (d ? { ...d, villages: d.villages.map((v) => (v.id === village.id ? village : v)) } : d));
   }, []);
 
+  const applyChest = useCallback((village: OwnVillageDto, chest: ChestInfo) => {
+    applied.current = ++seq.current;
+    setData((d) => (d ? { ...d, chest, villages: d.villages.map((v) => (v.id === village.id ? village : v)) } : d));
+  }, []);
+
   const applySend = useCallback((res: SendResponse) => {
     applied.current = ++seq.current;
     setData((d) =>
@@ -127,5 +134,5 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
     setData((d) => (d ? { ...d, firstSteps } : d));
   }, []);
 
-  return { data, serverOffset, error, refresh, applyVillage, applySend, applyFirstSteps };
+  return { data, serverOffset, error, refresh, applyVillage, applyChest, applySend, applyFirstSteps };
 }

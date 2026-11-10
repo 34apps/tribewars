@@ -1,0 +1,115 @@
+/* War Chest block (Banner Hall panel, Chieftain panel). Semantic tokens only. */
+
+.wc-ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+/* Flush with the rows above it (Chieftain panel) and compact in the Banner Hall card. */
+.chief-ledger + .wc-ledger,
+.wc-ledger.is-compact {
+  padding: 0;
+  background: none;
+}
+
+.wc-ledger.is-compact {
+  gap: 4px 12px;
+}
+
+
+.wc-ledger div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wc-ledger dt {
+  color: var(--on-surface-muted);
+}
+
+.wc-ledger dd {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .wc-ledger {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wc-pay {
+  margin-top: 10px;
+}
+
+.wc-row {
+  display: flex;
+  gap: 8px;
+}
+
+.wc-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wc-all {
+  flex: none;
+  min-height: 48px;
+}
+
+.wc-pay .wc-warn {
+  margin: 8px 0 0;
+  color: var(--danger);
+}
+
+.wc-go {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+}
+
+.wc-card .wc-pay {
+  margin-top: 0;
+}
+
+.wc-card .wc-warn {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.wc-card .wc-go {
+  min-height: 44px;
+  margin-top: 8px;
+}
+.wc-card .wc-all {
+  min-height: 44px;
+}
+.wc-card .wc-field > span:first-child {
+  display: none;
+}
+
+.wc-card .fv-ord {
+  gap: 6px;
+  padding: 6px 14px 8px;
+}
+
+.wc-card .fv-desc {
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.wc-card .wc-ledger.is-compact {
+  gap: 2px 12px;
+}
+
+.wc-card .wc-warn {
+  margin-top: 4px;
+}

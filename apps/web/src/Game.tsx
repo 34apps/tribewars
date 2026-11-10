@@ -251,6 +251,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       settings,
       player: data.player,
       renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length, settings),
+      chest: data.chest,
       village,
       villages: data.villages,
       selectVillage,
@@ -284,12 +285,13 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       viewMovement,
       refresh: store.refresh,
       applyVillage: store.applyVillage,
+      applyChest: store.applyChest,
       applySend: store.applySend,
       firstSteps: data.firstSteps,
       applyFirstSteps: store.applyFirstSteps,
       toast,
     };
-  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applySend, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applyChest, store.applySend, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
 
   if (!ctx) {
     return (

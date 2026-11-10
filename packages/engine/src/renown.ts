@@ -107,6 +107,17 @@ export function villageRenownPrice(villagesOwned: number, outstandingChieftains:
   return villageRenownCost(owned + out, s);
 }
 
+/**
+ * War Chest gold to reserve for the next Chieftain (BALANCE 12.3): round(chestBase x renownGrowth^(owned + outstanding - 1)).
+ * Same inputs and guards as villageRenownPrice; `outstandingChieftains` counts the player's other Chieftains, not the one bought.
+ */
+export function chestChieftainPrice(villagesOwned: number, outstandingChieftains: number, s?: Pick<WorldSettings, 'config'>): number {
+  const out = Number.isFinite(outstandingChieftains) ? Math.max(0, Math.floor(outstandingChieftains)) : 0;
+  const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
+  const rules = worldRules(s).conquest;
+  return Math.round(rules.chestBase * ipow(rules.renownGrowth, owned + out - 1));
+}
+
 /** Renown that comes back when a Chieftain who reserved `cost` dies on the way (rounded down). */
 export function chieftainRefund(cost: number): number {
   return Math.floor(Math.max(0, cost) * CHIEFTAIN_RENOWN_REFUND_SHARE);

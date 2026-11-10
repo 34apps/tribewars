@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   CHIEFTAIN_MAX_BATCH,
   RENOWN_VILLAGE_BASE,
+  WAR_CHEST_BASE,
   TRAIN_TIME_FACTOR,
   TRAINING_BUILDING_IDS,
   UNITS,
@@ -11,6 +12,7 @@ import {
   armySpeed,
   checkMission,
   checkTrain,
+  chestChieftainPrice,
   chieftainRefund,
   flatTravelTimeMs,
   normalizeVillage,
@@ -30,7 +32,7 @@ describe('Chieftain unit', () => {
   it('has the design numbers', () => {
     const c = UNITS.chieftain;
     assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry], [0, 10, 10, 5, 0]);
-    assert.deepEqual(c.cost, { wood: 4000, food: 3000, iron: 5000, gold: 150 });
+    assert.deepEqual(c.cost, { wood: 4000, food: 3000, iron: 5000, gold: 0 });
     assert.equal(c.trainTimeSec, 6 * 3600);
     assert.equal(c.building, 'bannerhall');
     assert.equal(c.unitClass, 'infantry');
@@ -110,6 +112,15 @@ describe('Chieftain Renown price', () => {
   it('ignores nonsense input', () => {
     assert.equal(villageRenownPrice(0, -3), RENOWN_VILLAGE_BASE);
     assert.equal(villageRenownPrice(NaN, NaN), RENOWN_VILLAGE_BASE);
+  });
+
+  it('chestChieftainPrice = 2,000 x 1.6^(villages + outstanding - 1), rounded', () => {
+    assert.equal(WAR_CHEST_BASE, 2000);
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map((out) => chestChieftainPrice(1, out)), [2000, 3200, 5120, 8192, 13107, 20972]);
+    assert.equal(chestChieftainPrice(2, 0), 3200);
+    assert.equal(chestChieftainPrice(3, 1), chestChieftainPrice(4, 0));
+    assert.equal(chestChieftainPrice(0, -3), WAR_CHEST_BASE);
+    assert.equal(chestChieftainPrice(NaN, NaN), WAR_CHEST_BASE);
   });
 
   it('a dead Chieftain gives back half of what he reserved (rounded down)', () => {

@@ -11,9 +11,10 @@
 //   --hold-hours H     hold clock after a Strike (default HOLD_HOURS)
 //   --chief-points P   points per extra Chieftain needed (default HEARTH_POINTS_PER_CHIEFTAIN)
 //   --lock-hours H     lock after a change of owner (default STRIKE_LOCK_HOURS)
-//   --chief-gold flat|growth|chest   how a Chieftain's gold is charged (default flat = today's 150 gold from the training village;
-//                      growth = round(150 x 1.6^(villages - 1)) per Chieftain from the village; chest = account-wide War Chest).
-//                      Aliases: --chief-gold-growth, --war-chest.  --chest-base N: chest price base (default 1000).
+//   --chief-gold chest|flat|growth   how a Chieftain's gold is charged (default chest = the rule since 2026-11-10: account-wide War
+//                      Chest, round(2000 x 1.6^(villages - 1)) per Chieftain; flat / growth keep the HISTORICAL 150 gold from the
+//                      training village, growth x 1.6^(villages - 1), to reproduce BALANCE 12.3).
+//                      Aliases: --chief-gold-growth, --war-chest.  --chest-base N: chest price base (default WAR_CHEST_BASE).
 //   --knight-builders  the builder style plays a Knight army (balance.ts withKnightBuilders)
 //
 // Each player plays its balance.ts style script (build list, army, research, raids on its OWN ring of 8 abandoned villages, Feast,
@@ -86,6 +87,7 @@ import {
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 import {
   CHEST_BASE_DEFAULT,
+  HISTORICAL_CHIEF_GOLD,
   LIMIT_NAMES,
   STYLES,
   STYLE_DEFS,
@@ -128,7 +130,7 @@ const STRIKE_MIN_RATIO = 0.5;
 /** Raids on players skip villages under this share of the attacker's points (they pay little Renown and little loot). */
 const RAID_MIN_RATIO = 0.3;
 const TARGET_LAYOUT: Array<[number, number]> = [[1, 3], [1, 5], [2, 5], [2, 7], [3, 8], [3, 10], [4, 12], [5, 14]]; // [tier, tiles]
-const CHIEF_COST = UNITS.chieftain.cost;
+const CHIEF_COST = { ...UNITS.chieftain.cost, gold: HISTORICAL_CHIEF_GOLD }; // flat / growth pay this gold in the sim; the engine's Chieftain costs none
 
 export interface ConquestOptions {
   days: number;
@@ -307,7 +309,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: 1 };
   const end = opt.days * DAY;
   const eligibleFrom = protectionEndsAt(0, s);
-  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'flat';
+  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const errors: string[] = [];
   const conquests: Conquest[] = [];
@@ -397,12 +399,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const chiefGoldPrice = (p: Player, k: number): number => (goldMode === 'growth' ? chiefGoldSum(CHIEF_COST.gold, p.vils.length, k) : goldMode === 'chest' ? 0 : CHIEF_COST.gold * k);
   const chestPrice = (p: Player, k: number): number => chiefGoldSum(chestBase, p.vils.length, k);
   const chestOk = (p: Player, k: number): boolean => goldMode !== 'chest' || p.chest >= chestPrice(p, k);
-  /** The state the engine checks / trains Chieftains on: in chest mode +150 gold each, so its own gold check passes at no cost. */
-  const chiefState = (vil: Vil, k: number, t: number): VillageState => {
-    if (goldMode !== 'chest') return vil.state;
-    const st = settleVillage(vil.state, t, s);
-    return { ...st, resources: { ...st.resources, gold: st.resources.gold + CHIEF_COST.gold * k } };
-  };
+  /** The state the engine checks / trains Chieftains on (the engine's Chieftain costs no gold; flat / growth charge theirs in the sim). */
+  const chiefState = (vil: Vil, _k: number, _t: number): VillageState => vil.state;
   const armyPop = (vil: Vil): number => {
     const all = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
     let pop = 0;
@@ -903,19 +901,19 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const price = chiefPrice(p, k);
     if (bal(p) < price || !chestOk(p, k)) return;
     const gold = chiefGoldPrice(p, k);
-    if (goldMode === 'growth' && vil.state.resources.gold < gold) return;
+    if (goldMode !== 'chest' && settleVillage(vil.state, t, s).resources.gold < gold) return;
     if (!checkTrain(chiefState(vil, k, t), 'chieftain', k, t, s).ok) return;
     p.wait.trained(k);
     const trained = applyTrain(chiefState(vil, k, t), 'chieftain', k, t, s);
-    if (goldMode === 'growth') {
-      trained.resources.gold -= gold - CHIEF_COST.gold * k; // the engine took the flat 150 each; the rest of the price comes on top
+    if (goldMode !== 'chest') {
+      trained.resources.gold = Math.max(0, trained.resources.gold - gold); // the engine takes no gold: the village pays the historical price
       p.goldPaid += gold;
     } else if (goldMode === 'chest') {
       const cp = chestPrice(p, k);
       p.chest -= cp;
       p.chestReserved += cp;
       p.goldPaid += cp;
-    } else p.goldPaid += gold;
+    }
     vil.state = trained;
     p.renownSpent += price;
     p.reserved += price;
@@ -1173,9 +1171,9 @@ const mean = (xs: number[]): number => (xs.length === 0 ? 0 : xs.reduce((a, b) =
 /** Main seed, per style (sum over its players): Chieftains, gold paid for them, waits and binding limits, chest on day 30 / 60 / 90 / 120. */
 function chiefGoldSection(rep: ConquestReport, groups: Array<[string, PlayerResult[]]>): string[] {
   const o = rep.options;
-  const chestMode = (o.chiefGold ?? 'flat') === 'chest';
+  const chestMode = (o.chiefGold ?? 'chest') === 'chest';
   const days = GOLD_DAYS.filter((d) => d <= o.days);
-  const out = ['', `## Chieftain gold (${o.chiefGold ?? 'flat'}; main seed, sum over the 5 players of a style)`, ''];
+  const out = ['', `## Chieftain gold (${o.chiefGold ?? 'chest'}; main seed, sum over the 5 players of a style)`, ''];
   out.push(`| style | Chieftains trained | gold paid for Chieftains${chestMode ? ' (chest gold, net of refunds)' : ''} | wait hours by bucket | binding limit per Chieftain trained |${chestMode ? ` chest per player on day ${days.join(' / ')} |` : ''}`);
   out.push(`|---|---|---|---|---|${chestMode ? '---|' : ''}`);
   for (const [name, ps] of groups) {

@@ -18,6 +18,7 @@ import {
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
   RENOWN_VILLAGE_BASE,
+  WAR_CHEST_BASE,
   RENOWN_VILLAGE_GROWTH,
   RESTART_PROTECTION_HOURS,
   SHIPMENT_SPEED,
@@ -40,6 +41,7 @@ import {
   checkTrain,
   checkWorldConfigInput,
   checkWorldConfigValue,
+  chestChieftainPrice,
   createFoundedVillage,
   createNpcVillage,
   createPlayerVillage,
@@ -104,6 +106,7 @@ describe('DEFAULT_WORLD_CONFIG', () => {
     assert.deepEqual(c.conquest, {
       playersCanBeConquered: HEARTH_PLAYERS_ENABLED,
       renownBase: RENOWN_VILLAGE_BASE,
+      chestBase: WAR_CHEST_BASE,
       renownGrowth: RENOWN_VILLAGE_GROWTH,
       chainWindowHours: STRIKE_CHAIN_WINDOW_HOURS,
       holdHours: HOLD_HOURS,
@@ -279,6 +282,17 @@ describe('setWorldConfigValue / applyWorldConfig / worldConfigFromSettings / isS
 });
 
 describe('two configs behave differently', () => {
+  it('War Chest price follows conquest.chestBase; an old stored config gets the default', () => {
+    const a = cfg('conquest.chestBase', 500);
+    assert.equal(chestChieftainPrice(1, 0, a), 500);
+    assert.equal(chestChieftainPrice(2, 0, a), Math.round(500 * RENOWN_VILLAGE_GROWTH));
+    assert.equal(chestChieftainPrice(1, 0, S1), WAR_CHEST_BASE);
+    const old = structuredClone(DEFAULT_WORLD_CONFIG) as unknown as { conquest: Record<string, unknown> };
+    delete old.conquest.chestBase;
+    assert.equal(resolveWorldConfig(old).conquest.chestBase, WAR_CHEST_BASE);
+    assert.equal(checkWorldConfigValue('conquest.chestBase', 0).ok, false);
+  });
+
   it('Renown price of a village', () => {
     const a = cfg('conquest.renownBase', 500);
     const b = cfg('conquest.renownBase', 2000);

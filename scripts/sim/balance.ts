@@ -55,6 +55,7 @@ import {
   NPC_RING_BASE,
   NPC_RING_EXTRA_CHANCE,
   RENOWN_VILLAGE_GROWTH,
+  WAR_CHEST_BASE,
   emptyResources,
   emptyUnits,
   feastAllowance,
@@ -333,9 +334,9 @@ export interface SimOptions {
    * what Log Rams / Boulder Slings need, research and train a few, and send them with the raiders against fortified targets.
    */
   siege?: boolean;
-  /** How a Chieftain's gold is charged (`--chief-gold flat|growth|chest`, default flat = today's rule). */
+  /** How a Chieftain's gold is charged (`--chief-gold chest|flat|growth`, default chest = the rule since 2026-11-10; flat / growth use the historical 150 gold). */
   chiefGold?: ChiefGoldMode;
-  /** War Chest base price (`--chest-base N`, default 1000; only for chest). */
+  /** War Chest base price (`--chest-base N`, default WAR_CHEST_BASE; only for chest). */
   chestBase?: number;
   /** The builder plays a Knight army (`--knight-builders`). */
   knightBuilders?: boolean;
@@ -383,15 +384,18 @@ function withSiege(style: StyleName, def: Style): Style {
 // ---- Chieftain gold levers and wait statistics (shared with conquest.ts) -------------------------
 
 /**
- * How a Chieftain's gold is charged (sim-only levers, never config.ts; default `flat` = today's rule):
- *  - flat:   150 gold per Chieftain from the training village (the engine's UNITS.chieftain.cost).
+ * How a Chieftain's gold is charged (sim-only levers; default `chest` = the rule since 2026-11-10; flat and growth use the HISTORICAL 150, the engine's Chieftain costs no gold now):
+ *  - flat:   150 gold per Chieftain from the training village (HISTORICAL_CHIEF_GOLD).
  *  - growth: the gold grows like the Renown price: round(150 x RENOWN_VILLAGE_GROWTH^(owned + i - 1)) per Chieftain, paid by the village.
  *  - chest:  "War Chest": an account-wide gold pool (villages deposit spare gold, one way). Training costs the village no gold;
  *            the Chieftain reserves round(chestBase x GROWTH^(owned + i - 1)) of chest gold, half comes back if he dies.
  */
 export type ChiefGoldMode = 'flat' | 'growth' | 'chest';
 export const CHIEF_GOLD_MODES: ChiefGoldMode[] = ['flat', 'growth', 'chest'];
-export const CHEST_BASE_DEFAULT = 1000;
+/** The rule now (config.ts WAR_CHEST_BASE): the chest is the default lever. */
+export const CHEST_BASE_DEFAULT = WAR_CHEST_BASE;
+/** The Chieftain's village gold before the War Chest (engine UNITS.chieftain.cost.gold was 150 until 2026-11-10): flat / growth keep it to reproduce BALANCE 12.3. */
+export const HISTORICAL_CHIEF_GOLD = 150;
 /** Largest batch trainSim players queue of one unit (tryTrain); the Knight allowance in the chest reserve is a share of it. */
 const KNIGHT_MAX_BATCH = 40;
 
@@ -623,12 +627,12 @@ function queuedUnits(v: VillageState): Units {
   for (const q of [v.trainQueues.barracks, v.trainQueues.stables]) for (const j of q) out[j.unit] += j.count - j.done;
   return out;
 }
-const CHIEF_COST = UNITS.chieftain.cost;
+const CHIEF_COST = { ...UNITS.chieftain.cost, gold: HISTORICAL_CHIEF_GOLD }; // flat / growth pay this gold in the sim; the engine's Chieftain costs none
 
 function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const base = opt.siege ? withSiege(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
   const def = opt.knightBuilders ? withKnightBuilders(style, base) : base;
-  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'flat';
+  const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const siegeStats: SiegeStats = { trained: { logram: 0, boulder: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
@@ -718,12 +722,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const chestOk = (): boolean => goldMode !== 'chest' || chest >= chestPrice();
   /** What the training village must hold for the next Chieftain: the chest pays his gold in chest mode, the village in growth mode. */
   const chiefNeed = (): Resources => ({ ...CHIEF_COST, gold: goldMode === 'growth' ? chiefGoldPrice() : goldMode === 'chest' ? 0 : CHIEF_COST.gold });
-  /** The state the engine checks / trains a Chieftain on: in chest mode +150 gold, so the engine's own gold check passes at no cost. */
-  const chiefState = (vil: Vil, t: number): VillageState => {
-    if (goldMode !== 'chest') return vil.state;
-    const st = settleVillage(vil.state, t, s);
-    return { ...st, resources: { ...st.resources, gold: st.resources.gold + CHIEF_COST.gold } };
-  };
+  /** The state the engine checks / trains a Chieftain on (the engine's Chieftain costs no gold; flat / growth charge theirs in the sim). */
+  const chiefState = (vil: Vil, _t: number): VillageState => vil.state;
   /** The village is the one that must now save up for the next Chieftain (Renown is there, nothing outstanding). */
   const chiefWanted = (vil: Vil): boolean => trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownPrice(vils.length, 0) && chestOk();
   const armyPop = (vil: Vil): number => {
@@ -1149,7 +1149,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const canTrainChief = (vil: Vil, t: number): boolean => {
     if (trainer() !== vil || outstanding() > 0) return false;
     if (renownBalance() < villageRenownPrice(vils.length, 0) || !chestOk()) return false;
-    if (goldMode === 'growth' && vil.state.resources.gold < chiefGoldPrice()) return false;
+    if (goldMode !== 'chest' && settleVillage(vil.state, t, s).resources.gold < chiefGoldPrice()) return false;
     return checkTrain(chiefState(vil, t), 'chieftain', 1, t, s).ok;
   };
   const tryChieftain = (vil: Vil, t: number): void => {
@@ -1157,16 +1157,16 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const price = villageRenownPrice(vils.length, 0);
     waits.trained(1);
     const trained = applyTrain(chiefState(vil, t), 'chieftain', 1, t, s);
-    if (goldMode === 'growth') {
+    if (goldMode !== 'chest') {
       const gold = chiefGoldPrice();
-      trained.resources.gold -= gold - CHIEF_COST.gold; // the engine took the flat 150; the rest of the price comes on top
+      trained.resources.gold = Math.max(0, trained.resources.gold - gold); // the engine takes no gold: the village pays the historical price
       chiefGoldPaid += gold;
     } else if (goldMode === 'chest') {
       const gold = chestPrice();
       chest -= gold;
       chestReserved += gold;
       chiefGoldPaid += gold;
-    } else chiefGoldPaid += CHIEF_COST.gold;
+    }
     vil.state = trained;
     renownSpent += price;
     chiefReserved = price;
@@ -1602,8 +1602,8 @@ export function formatReport(rep: SimReport, full = false): string {
     out.push(`Villages: ${r.villages} at the end (points each: ${r.villagePointsEach.join(', ')}). Gains: ${r.gains.map((g) => `${g.route === 'take' ? `taken (tier ${g.tier})` : 'founded'} on day ${(g.hour / 24).toFixed(1)} with ${g.points} points`).join('; ') || 'none'}. Chieftains ${x.chieftainsTrained} trained, strikes ${x.strikeWins}/${x.strikes} won, lost ${x.chieftainsLost}, hold failed ${x.holdFails}, founded ${x.founds}, waited and fell back to founding ${x.fallbacks}.`);
     if (r.siege) out.push(formatSiegeStats(r.siege));
     const chestDays = [30, 60, 90].filter((d) => d <= rep.options.days);
-    const chestText = (rep.options.chiefGold ?? 'flat') === 'chest' ? ` Chest on day ${chestDays.join(' / ')}: ${chestDays.map((d) => r.rows[d - 1]?.chest ?? 0).join(' / ')}.` : '';
-    out.push(`Chieftain gold (${rep.options.chiefGold ?? 'flat'}): ${r.chiefGoldPaid} paid for ${x.chieftainsTrained} Chieftains.${chestText} Waiting for the next Chieftain, hours: ${formatChiefHours(r.chiefWait)}. Binding limit per Chieftain trained: ${formatChiefLimits(r.chiefWait)}.`);
+    const chestText = (rep.options.chiefGold ?? 'chest') === 'chest' ? ` Chest on day ${chestDays.join(' / ')}: ${chestDays.map((d) => r.rows[d - 1]?.chest ?? 0).join(' / ')}.` : '';
+    out.push(`Chieftain gold (${rep.options.chiefGold ?? 'chest'}): ${r.chiefGoldPaid} paid for ${x.chieftainsTrained} Chieftains.${chestText} Waiting for the next Chieftain, hours: ${formatChiefHours(r.chiefWait)}. Binding limit per Chieftain trained: ${formatChiefLimits(r.chiefWait)}.`);
     out.push('');
   }
   out.push('## Renown pace and several villages: when does the 2nd village come? (days since start)', '');

@@ -99,6 +99,18 @@ export function ledger(app: App, p: P): { total: number; spent: number; reserved
   return { total: row.renownTotal, spent: row.renownSpent, reserved: row.renownReserved };
 }
 
+/** War Chest straight from the database: spendable gold and the part reserved by Chieftains. */
+export function chestOf(app: App, p: P): { gold: number; reserved: number } {
+  const row = app.ctx.store.getPlayer(p.id);
+  assert.ok(row);
+  return { gold: row.chestGold, reserved: row.chestReserved };
+}
+
+/** Put gold straight into the player's War Chest (tests that train Chieftains need it). */
+export function fillChest(app: App, p: P, gold: number): void {
+  app.ctx.store.depositChest(p.id, gold);
+}
+
 /** The ledger invariants that must hold after any event: nothing negative, and the reservation is part of what was spent. */
 export function assertLedgerSane(app: App, p: P): void {
   const l = ledger(app, p);
@@ -111,6 +123,9 @@ export function assertLedgerSane(app: App, p: P): void {
 export function reserveFor(app: App, p: P, n: number, each: number): void {
   app.ctx.store.addRenown(p.id, n * each + 1000);
   app.ctx.store.reserveRenown(p.id, n * each);
+  // The chest gold they reserved too (same average share), so the chest ledger moves with the Renown one.
+  app.ctx.store.depositChest(p.id, n * each * 2);
+  app.ctx.store.reserveChest(p.id, n * each * 2);
 }
 
 export const villagesOf = (app: App, p: P): VillageRecord[] => app.ctx.store.villagesOfPlayer(p.id);

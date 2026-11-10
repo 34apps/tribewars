@@ -20,3 +20,6 @@ export function needsGoldText(buildings: BuildingLevels): string {
   const locked = buildings.goldmine === 0 && buildings.hall < need;
   return `Needs gold · build a Gold Mine${locked ? ` (needs Town Hall ${need})` : ''}`;
 }
+
+/** Chieftain button hint when the War Chest cannot pay (not the village's gold: a Gold Mine does not help here). */
+export const NEEDS_CHEST_TEXT = 'Needs War Chest gold';

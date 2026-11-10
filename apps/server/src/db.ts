@@ -99,7 +99,11 @@ CREATE TABLE IF NOT EXISTS players (
   renown_spent    REAL    NOT NULL DEFAULT 0,
   -- The part of renown_spent that is reserved by Chieftains (queued, at home, away): it comes back (partly) if they die, and is
   -- released when they are used up founding or taking a village. Always <= renown_spent.
-  renown_reserved REAL    NOT NULL DEFAULT 0
+  renown_reserved REAL    NOT NULL DEFAULT 0,
+  -- War Chest (docs/GAME_DESIGN.md 18.2): account-wide gold, paid in one way from villages; kept when villages are lost. REAL: refunds
+  -- of odd shares keep fractions. chest_reserved is the part held by Chieftains (always separate from chest_gold, which is spendable).
+  chest_gold      REAL    NOT NULL DEFAULT 0,
+  chest_reserved  REAL    NOT NULL DEFAULT 0
 );
 
 -- Entry passes already used (single use). A row is kept until the pass could no longer be accepted (exp + clock skew).
@@ -606,9 +610,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 15; // 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 16; // 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = 'f93fdff8dfcfaa26';
+export const SCHEMA_FINGERPRINT = '09a8999dbbc97382';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -697,6 +701,8 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   if (!cols.some((c) => c.name === 'renown_total')) db.exec('ALTER TABLE players ADD COLUMN renown_total REAL NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'renown_spent')) db.exec('ALTER TABLE players ADD COLUMN renown_spent REAL NOT NULL DEFAULT 0');
   if (!cols.some((c) => c.name === 'renown_reserved')) db.exec('ALTER TABLE players ADD COLUMN renown_reserved REAL NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'chest_gold')) db.exec('ALTER TABLE players ADD COLUMN chest_gold REAL NOT NULL DEFAULT 0');
+  if (!cols.some((c) => c.name === 'chest_reserved')) db.exec('ALTER TABLE players ADD COLUMN chest_reserved REAL NOT NULL DEFAULT 0');
   // Name and column are fixed: the lobby import command (links existing players to lobby accounts) uses exactly these. NULL may repeat.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_players_account ON players(account_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');

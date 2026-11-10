@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { CHIEFTAIN_RENOWN_REFUND_SHARE, UNITS, type CancelResponse, type OwnVillageDto } from '@clanfire/engine';
 import { errorOf, makeApp, ok, type Client } from './helpers.ts';
 import { sendOk } from './warfare-helpers.ts';
-import { assertLedgerSane, clearedTarget, homeOf, ledger, player, reserveFor, strongHome } from './village-helpers.ts';
+import { assertLedgerSane, clearedTarget, fillChest, homeOf, ledger, player, reserveFor, strongHome } from './village-helpers.ts';
 
 const train = (c: Client, vid: number, count: number) => c.post(`/api/villages/${vid}/train`, { unit: 'chieftain', count });
 
@@ -14,6 +14,7 @@ test('training a Chieftain reserves Renown together with the resources, and the 
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 2000);
+  fillChest(app, p, 100_000);
   const before = await p.c.state();
   assert.equal(before.renown.chieftainPrice, 1000, 'first Chieftain costs the base village price');
   assert.equal(before.renown.chieftains, 0);
@@ -39,6 +40,7 @@ test('a batch of two prices each Chieftain separately; a short balance refuses t
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 2599); // one short of 1000 + 1600
+  fillChest(app, p, 100_000);
   const state0 = await p.c.state();
   const res = await train(p.c, vid, 2);
   errorOf(res, 409, 'not_enough_resources');
@@ -64,6 +66,7 @@ test('training needs the Banner Hall, and only the owner can train or cancel in 
   const alice = await player(app, 'alice');
   const bob = await player(app, 'bob');
   app.ctx.store.addRenown(alice.id, 4000);
+  fillChest(app, alice, 100_000);
   const plainId = homeOf(app, alice).id;
   errorOf(await train(alice.c, plainId, 1),409, 'requirements_not_met');
   assert.equal(ledger(app, alice).reserved, 0);
@@ -82,6 +85,7 @@ test('cancelling a queued Chieftain batch gives the resources (80%) and the Reno
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 4000);
+  fillChest(app, p, 100_000);
   const base = ledger(app, p);
   ok(await train(p.c, vid, 2));
   assert.equal(ledger(app, p).reserved, 2600);

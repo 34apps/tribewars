@@ -30,6 +30,7 @@ import {
   NPC_START_GOLD_PER_TIER,
   NPC_START_RESOURCE_SHARE,
   RENOWN_VILLAGE_BASE,
+  WAR_CHEST_BASE,
   RENOWN_VILLAGE_GROWTH,
   RESTART_PROTECTION_HOURS,
   STRIKE_CHAIN_WINDOW_HOURS,
@@ -102,6 +103,8 @@ export interface WorldConfig {
     playersCanBeConquered: boolean;
     /** Renown the 2nd village costs; the next costs `renownGrowth` times more each. */
     renownBase: number;
+    /** War Chest gold the 2nd village's Chieftain reserves; grows by `renownGrowth` per village (BALANCE 12.3). */
+    chestBase: number;
     renownGrowth: number;
     /** Chieftains of separate attacks on the same village count together if they arrive this close (hours at speed 1). */
     chainWindowHours: number;
@@ -159,6 +162,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   conquest: {
     playersCanBeConquered: HEARTH_PLAYERS_ENABLED,
     renownBase: RENOWN_VILLAGE_BASE,
+    chestBase: WAR_CHEST_BASE,
     renownGrowth: RENOWN_VILLAGE_GROWTH,
     chainWindowHours: STRIKE_CHAIN_WINDOW_HOURS,
     holdHours: HOLD_HOURS,
@@ -172,7 +176,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   queues: { build: MAX_BUILD_QUEUE, research: MAX_RESEARCH_QUEUE, train: MAX_TRAIN_QUEUE },
 };
 
-export type ConfigUnit = 'x' | 'hours' | 'days' | 'tiles' | 'count' | 'share' | 'renown' | 'flag' | 'level';
+export type ConfigUnit = 'x' | 'hours' | 'days' | 'tiles' | 'count' | 'share' | 'renown' | 'gold' | 'flag' | 'level';
 
 /** One editable setting: its dotted path, range, and the words the "World rules" page and the admin tool use. */
 export interface WorldConfigField {
@@ -226,6 +230,7 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   num('start.tries', 'start', 'Fair start: tries', 'count', 1, 500, true, 'Spots tried before taking the best.'),
   flag('conquest.playersCanBeConquered', 'Player villages can be taken', 'Off: only abandoned villages.', 'conquest'),
   num('conquest.renownBase', 'conquest', 'Renown for the 2nd village', 'renown', 1, 1_000_000, true, 'Price of the 2nd village.'),
+  num('conquest.chestBase', 'conquest', 'War Chest gold for the 2nd village', 'gold', 1, 10_000_000, true, 'Chest gold the 2nd village\'s Chieftain reserves.'),
   num('conquest.renownGrowth', 'conquest', 'Renown price growth per village', 'x', 1, 5, false, 'Price multiplier per extra village.'),
   num('conquest.chainWindowHours', 'conquest', 'Chieftain chain window', 'hours', 0, 48, false, 'Chieftains arriving this close count together.'),
   num('conquest.holdHours', 'conquest', 'Hold time, player village', 'hours', 0.1, 168, false, 'Hold needed after a Strike.'),

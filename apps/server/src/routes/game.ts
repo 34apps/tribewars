@@ -15,6 +15,8 @@ import {
   type CancelResearchRequest,
   type CancelTrainRequest,
   worldConfigField,
+  type ChestDepositRequest,
+  type ChestDepositResponse,
   type FeastRequest,
   type FeastResponse,
   type GameStateResponse,
@@ -91,6 +93,15 @@ const renameBody = {
 
 // A Feast count is a small whole number; the engine's daily limit (FEAST_DAILY_PER_LEVEL x Banner Hall level) is far below this cap.
 const FEAST_MAX_COUNT = 100;
+// A deposit is a whole number of gold; no village can hold more than the cap below (the cap only bounds the schema).
+const CHEST_MAX_DEPOSIT = 1_000_000_000;
+const chestBody = {
+  type: 'object',
+  required: ['gold'],
+  additionalProperties: false,
+  properties: { gold: { type: 'integer', minimum: 1, maximum: CHEST_MAX_DEPOSIT } },
+} as const;
+
 const feastBody = {
   type: 'object',
   required: ['count'],
@@ -293,6 +304,12 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/feast',
     { ...auth, schema: { params: idParams, body: feastBody } },
     async (req): Promise<FeastResponse> => ctx.game.feast(playerOf(req), Number(req.params.id), req.body.count, req.nowMs),
+  );
+
+  app.post<{ Params: { id: string }; Body: ChestDepositRequest }>(
+    '/api/villages/:id/chest',
+    { ...auth, schema: { params: idParams, body: chestBody } },
+    async (req): Promise<ChestDepositResponse> => ctx.game.depositChest(playerOf(req), Number(req.params.id), req.body.gold, req.nowMs),
   );
 
   for (const action of ['rank', 'respec'] as const) {

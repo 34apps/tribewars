@@ -7,14 +7,17 @@ import { useState } from 'react';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Cost } from '../../components/ui.tsx';
+import { WarChestPayIn, WarChestSummary } from '../../components/WarChest.tsx';
+import '../../components/war-chest.css';
 import { formatDuration, formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { clampFeastCount, currentFeastAllowance, feastMaxCount, feastTotal } from '../../renown.ts';
 import { requirementText, unmetRequirements } from '../../rules.ts';
 import { chieftainRenownNote, nextChieftainPrice } from '../../villages.ts';
 
-export function BannerHallPanel() {
-  const { live, now, village, renown, settings, applyVillage, refresh, toast, navigate } = useGame();
+/** `chestInline` false: the desktop page shows the War Chest as its own card in the right column (WarChestCard). */
+export function BannerHallPanel({ chestInline = true }: { chestInline?: boolean } = {}) {
+  const { live, now, village, renown, chest, settings, applyVillage, refresh, toast, navigate } = useGame();
   const [want, setWant] = useState(1);
   const [busy, setBusy] = useState(false);
   const [gained, setGained] = useState<number | null>(null);
@@ -141,6 +144,15 @@ export function BannerHallPanel() {
       <button type="button" className="btn btn-primary bh-go" onClick={() => navigate('army')}>
         <Icon name="chieftain" size={22} /> Train
       </button>
+
+      {chest && chestInline && (
+        <>
+          <h3 className="eyebrow bh-chief-title">War Chest</h3>
+          <p className="bh-text">Gold for Chieftains only. Pay it in from any village; it never comes back out. Half returns if a Chieftain dies.</p>
+          <WarChestSummary />
+          <WarChestPayIn />
+        </>
+      )}
     </div>
   );
 }

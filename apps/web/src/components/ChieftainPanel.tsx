@@ -9,6 +9,10 @@ import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
+import { chestShort } from '../chest.ts';
+import { NEEDS_CHEST_TEXT } from '../shortfall.ts';
+import { WarChestSummary } from './WarChest.tsx';
+import './war-chest.css';
 import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../rules.ts';
 import { useCancelJob } from '../views/cancelJob.tsx';
 import { HEARTH_OUT_REASON, chieftainBatchPrice, chieftainRenownNote, chieftainsAffordable, nextChieftainPrice } from '../villages.ts';
@@ -41,7 +45,7 @@ function BatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: () => 
 
 /** The whole panel. `heading` false hides the title (the Banner Hall panel has its own). */
 export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
-  const { live, now, settings, village, renown, applyVillage, refresh, toast, navigate } = useGame();
+  const { live, now, settings, village, renown, chest, applyVillage, refresh, toast, navigate } = useGame();
   const cancel = useCancelJob();
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -80,6 +84,7 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
   else if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = 'Queue full';
   else if (!check.ok) reason = reasonText(check);
   else if (batchPrice > renown.balance) reason = `Need ${formatInt(batchPrice)} Renown`;
+  else if (chestShort(chest)) reason = NEEDS_CHEST_TEXT;
 
   async function train() {
     if (busy || reason) return;
@@ -155,6 +160,8 @@ export function ChieftainPanel({ heading = true }: { heading?: boolean }) {
           <dd>{formatInt(renown.chieftains ?? 0)}</dd>
         </div>
       </dl>
+
+      <WarChestSummary />
 
       <div className="building-cost">
         <Cost cost={def.cost} have={live.resources} />

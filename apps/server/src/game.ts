@@ -16,6 +16,7 @@ import {
   applyStrike,
   checkFoundTarget,
   checkStrike,
+  chestChieftainPrice,
   chieftainRefund,
   createFoundedVillage,
   foundedVillageName,
@@ -37,6 +38,8 @@ import {
   type FirstStepClaimResponse,
   type FirstStepId,
   type FirstStepsDto,
+  type ChestDepositResponse,
+  type ChestInfo,
   type VillageState,
   MAP_MAX_SPAN,
   botBuildChoice,
@@ -201,6 +204,12 @@ const floorResources = (r: Resources): Resources => {
 const coords = (v: { x: number; y: number }): string => `(${v.x}|${v.y})`;
 
 /** Chieftains a (settled) village holds for its owner's ledger: queued in the Banner Hall, at home and away. */
+/** One Chieftain's average reservation: Renown and War Chest gold (GameService.sharesBefore). */
+interface ChieftainShare {
+  renown: number;
+  chest: number;
+}
+
 function chieftainsIn(st: VillageState): number {
   const queued = st.trainQueues.bannerhall.reduce((n, j) => n + (j.unit === 'chieftain' ? j.count - j.done : 0), 0);
   return st.troops.chieftain + st.away.chieftain + queued;
@@ -1048,14 +1057,17 @@ export class GameService {
   // anything. Dying: the share leaves the reservation and CHIEFTAIN_RENOWN_REFUND_SHARE of it comes back (spent goes down). Used up
   // founding or taking, or cancelled before he was trained: the share leaves the reservation (cancel: all of it comes back).
 
-  /** Each player's average Chieftain share now (ids that are null or repeated are fine). */
-  private sharesBefore(playerIds: readonly (number | null)[], at: number): Map<number, number> {
-    const out = new Map<number, number>();
+  /**
+   * Each player's average Chieftain share now, of Renown and of War Chest gold (both reservations are averaged the same way;
+   * ids that are null or repeated are fine).
+   */
+  private sharesBefore(playerIds: readonly (number | null)[], at: number): Map<number, ChieftainShare> {
+    const out = new Map<number, ChieftainShare>();
     for (const id of playerIds) {
       if (id === null || out.has(id)) continue;
       const p = this.store.getPlayer(id);
       const count = this.outstandingChieftains(id, at);
-      out.set(id, p && count > 0 ? p.renownReserved / count : 0);
+      out.set(id, p && count > 0 ? { renown: p.renownReserved / count, chest: p.chestReserved / count } : { renown: 0, chest: 0 });
     }
     return out;
   }
@@ -1065,17 +1077,29 @@ export class GameService {
     return this.store.villagesOfPlayer(playerId).reduce((n, v) => n + chieftainsIn(settleVillage(v.state, at, this.settings)), 0);
   }
 
+  /** The player's War Chest as shown to them (gold floored like Renown; the price of the next Chieftain). */
+  private chestInfo(p: PlayerRow, villages: number, chieftains: number): ChestInfo {
+    return {
+      gold: Math.floor(p.chestGold + 1e-9),
+      reserved: Math.floor(p.chestReserved + 1e-9),
+      chieftainPrice: chestChieftainPrice(Math.max(1, villages), chieftains, this.settings),
+    };
+  }
+
   /** `n` Chieftains died or were lost: their shares leave the reservation and part of it comes back. */
-  private loseChieftains(playerId: number, n: number, shares: ReadonlyMap<number, number>): void {
+  private loseChieftains(playerId: number, n: number, shares: ReadonlyMap<number, ChieftainShare>): void {
     if (n <= 0) return;
-    const share = shares.get(playerId) ?? 0;
-    this.store.releaseRenown(playerId, n * share, n * chieftainRefund(share));
+    const share = shares.get(playerId) ?? { renown: 0, chest: 0 };
+    this.store.releaseRenown(playerId, n * share.renown, n * chieftainRefund(share.renown));
+    this.store.releaseChest(playerId, n * share.chest, n * chieftainRefund(share.chest));
   }
 
   /** `n` Chieftains were used up (founded or took a village): the Renown stays spent, the reservation ends. */
-  private consumeChieftains(playerId: number, n: number, shares: ReadonlyMap<number, number>): void {
+  private consumeChieftains(playerId: number, n: number, shares: ReadonlyMap<number, ChieftainShare>): void {
     if (n <= 0) return;
-    this.store.releaseRenown(playerId, n * (shares.get(playerId) ?? 0), 0);
+    const share = shares.get(playerId) ?? { renown: 0, chest: 0 };
+    this.store.releaseRenown(playerId, n * share.renown, 0);
+    this.store.releaseChest(playerId, n * share.chest, 0);
   }
 
   /**
@@ -1537,6 +1561,7 @@ export class GameService {
       settings: this.settings,
       player: dto,
       villages,
+      chest: this.chestInfo(fresh, villages.length, chieftains),
       renown: {
         // The pending trickle shows with the Fire Shrine bonus the save will add (Store.addRenown), so the number on screen matches.
         ...makeRenownInfo(fresh.renownTotal + pending * (1 + (pending > 0 ? this.sites.renownBonusOf(player.id, t) : 0)), fresh.renownSpent, villages.length, this.settings),
@@ -1833,10 +1858,39 @@ export class GameService {
         if (balance + 1e-9 < price) {
           throw new GameError('not_enough_resources', `Not enough Renown: ${price} needed, ${Math.max(0, Math.floor(balance))} available.`);
         }
+        // War Chest gold: the same sum shape, from the chest instead of the village (the Chieftain itself costs no gold).
+        let chestPrice = 0;
+        for (let i = 0; i < count; i++) chestPrice += chestChieftainPrice(owned, others + i, this.settings);
+        if (fresh.chestGold + 1e-9 < chestPrice) {
+          throw new GameError('not_enough_resources', `Not enough War Chest gold: ${chestPrice} needed, ${Math.max(0, Math.floor(fresh.chestGold))} in the chest.`);
+        }
         this.store.reserveRenown(player.id, price);
+        this.store.reserveChest(player.id, chestPrice);
       }
       this.store.addStats(player.id, { troopsTrained: count });
       return this.ownDto(v, next, t);
+    });
+  }
+
+  /**
+   * Pay `gold` from this village into the player's War Chest (one way; docs/GAME_DESIGN.md 18.2). The village is settled first, the
+   * gold leaves its stock and joins players.chest_gold in one transaction. A cold village (hearth out) cannot pay.
+   */
+  depositChest(player: PlayerRow, villageId: number, gold: number, t: number): ChestDepositResponse {
+    return this.store.tx(() => {
+      const v = this.ownedVillage(player, villageId);
+      const state = settleVillage(v.state, t, this.settings);
+      if (state.hearth) throw new GameError('requirements_not_met', 'The hearth is out: a cold village cannot pay into the War Chest.');
+      if (state.resources.gold + 1e-9 < gold) {
+        throw new GameError('not_enough_resources', `Not enough gold: ${gold} needed, ${Math.floor(state.resources.gold)} in the village.`);
+      }
+      const next: VillageState = { ...state, resources: { ...state.resources, gold: Math.max(0, state.resources.gold - gold) } };
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      this.store.depositChest(player.id, gold);
+      const fresh = this.store.getPlayer(player.id) ?? player;
+      const villages = this.store.villagesOfPlayer(player.id);
+      const chieftains = villages.reduce((n, x) => n + chieftainsIn(x.id === v.id ? next : settleVillage(x.state, t, this.settings)), 0);
+      return { village: this.ownDto(v, next, t), chest: this.chestInfo(fresh, villages.length, chieftains) };
     });
   }
 
@@ -1857,12 +1911,15 @@ export class GameService {
       // A cancelled Chieftain batch gives its Renown back in full: the untrained Chieftains' average reservation.
       const job = (building === 'bannerhall' ? settleVillage(v.state, t, this.settings).trainQueues.bannerhall : [])[index as number];
       const left = job && job.unit === 'chieftain' ? job.count - job.done : 0;
-      const share = left > 0 ? (this.sharesBefore([player.id], t).get(player.id) ?? 0) : 0;
+      const share = left > 0 ? (this.sharesBefore([player.id], t).get(player.id) ?? { renown: 0, chest: 0 }) : { renown: 0, chest: 0 };
       const { state, refund } = applyCancelTrain(v.state, building, index, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
       if (left > 0) {
-        const back = Math.min(left * share, (this.store.getPlayer(player.id) ?? player).renownReserved);
+        const now = this.store.getPlayer(player.id) ?? player;
+        const back = Math.min(left * share.renown, now.renownReserved);
         this.store.releaseRenown(player.id, back, back);
+        const chestBack = Math.min(left * share.chest, now.chestReserved);
+        this.store.releaseChest(player.id, chestBack, chestBack);
         return { village: this.ownDto(v, state, t), refund, renownRefund: Math.floor(back + 1e-9) };
       }
       return { village: this.ownDto(v, state, t), refund };
@@ -2291,6 +2348,10 @@ export class GameService {
         const p = this.store.getPlayer(player.id) ?? player;
         const short = need - (p.renownTotal - p.renownSpent);
         if (short > 0) this.store.addRenown(player.id, short, true); // a top-up, not an earning: no site bonus
+        // The same for War Chest gold (Chieftains reserve it): enough for the next 3 Chieftains, topped up only when short.
+        let chestNeed = 0;
+        for (let i = 0; i < 3; i++) chestNeed += chestChieftainPrice(owned, i, this.settings);
+        if (chestNeed > p.chestGold) this.store.depositChest(player.id, chestNeed - p.chestGold);
       }
       for (const v of this.store.villagesOfPlayer(player.id)) {
         if (action === 'max') {

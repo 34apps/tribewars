@@ -215,7 +215,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   goldmine: {
     id: 'goldmine',
     name: 'Gold Mine',
-    description: 'Slowly produces gold, needed for elite troops, siege and Chieftains.',
+    description: 'Slowly produces gold, used for elite troops (Knights), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
     maxLevel: 15,
     startLevel: 0,
     requires: { hall: 3 },
@@ -428,7 +428,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 10,
     speed: 5,
     carry: 0,
-    cost: res(4000, 3000, 5000, 150),
+    cost: res(4000, 3000, 5000), // no gold: his gold price is paid from the War Chest (WAR_CHEST_BASE)
     trainTimeSec: 6 * 3600,
     building: 'bannerhall',
     requires: { bannerhall: 1 },
@@ -522,6 +522,8 @@ export const RENOWN_SMALL_FLOOR = 0.05;
 /** Renown price of the 2nd village; each further village costs RENOWN_VILLAGE_GROWTH times more. */
 export const RENOWN_VILLAGE_BASE = 1000;
 export const RENOWN_VILLAGE_GROWTH = 1.6;
+/** War Chest gold the 2nd village's Chieftain reserves (BALANCE 12.3); each further one costs RENOWN_VILLAGE_GROWTH times more. */
+export const WAR_CHEST_BASE = 2000;
 /** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
 export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
 /** Chieftains per village in the Banner Hall queue: one batch of at most this many (each living or queued one is a future village). */

@@ -254,7 +254,7 @@ html.layout-desktop .wm-panel-head .wm-close {
 }
 
 html.layout-desktop .wm-panel-head .wm-ship-btn {
-  grid-column: 1 / -1;
+  grid-column: 1 / span 2; /* found mode has exactly Travel + Arrives above it */
   grid-row: 2;
   justify-self: start;
 }
@@ -711,6 +711,16 @@ html.layout-desktop .wm-sum > div {
 
 html.layout-desktop .wm-sum > div:last-child:not(:first-child) {
   text-align: left;
+}
+
+/* The Chieftain price (Renown + chest gold) is long: its own full-width row, free to wrap. */
+html.layout-desktop .wm-send-foot .wm-sum > .wm-sum-wide {
+  grid-column: 1 / span 2; /* found mode has exactly Travel + Arrives above it */
+  grid-row: 2;
+}
+
+html.layout-desktop .wm-sum > .wm-sum-wide dd {
+  white-space: normal;
 }
 
 html.layout-desktop .wm-sum dt {

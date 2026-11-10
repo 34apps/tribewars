@@ -61,6 +61,8 @@ import type {
   PlayerProfileDto,
   PlayerRankingResponse,
   RenownRankingResponse,
+  ChestDepositRequest,
+  ChestDepositResponse,
   FeastRequest,
   FirstStepClaimRequest,
   FirstStepClaimResponse,
@@ -348,6 +350,8 @@ export const api = {
   renownRanking: () => request<RenownRankingResponse>('GET', '/api/rankings/renown'),
   feast: (villageId: number, count: number) =>
     request<FeastResponse>('POST', `/api/villages/${villageId}/feast`, { count } satisfies FeastRequest),
+  chestDeposit: (villageId: number, gold: number) =>
+    request<ChestDepositResponse>('POST', `/api/villages/${villageId}/chest`, { gold } satisfies ChestDepositRequest),
   playerProfile: (id: number) => request<PlayerProfileDto>('GET', `/api/players/${id}`),
   tribe: (id: number) => request<TribeDto>('GET', `/api/tribes/${id}`),
   myTribe: () => request<MyTribeResponse>('GET', '/api/tribe'),

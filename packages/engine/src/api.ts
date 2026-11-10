@@ -209,6 +209,36 @@ export interface FeastResponse {
   gained: number;
 }
 
+// POST /api/villages/:id/chest  body ChestDepositRequest -> 200 ChestDepositResponse   (War Chest, GAME_DESIGN 18.2, BALANCE 12.3)
+//   Pays `gold` from this village into the player's War Chest. ONE WAY: nothing ever comes back out to a village. Owner only (someone
+//   else's village 403, unknown 404, same as build/train). Server: settle the village, then in one transaction take `gold` from its
+//   stock and add it to players.chest_gold. 400 invalid_input for a bad body (gold must be a whole number >= 1, no extra fields);
+//   409 not_enough_resources if the village holds less; 409 requirements_not_met while the village's hearth is out (cold, under a hold).
+// Chieftains pay no gold any more: training a batch of `count` also reserves War Chest gold, sum of
+//   chestChieftainPrice(villages owned, the player's other Chieftains + i), from chest_gold into chest_reserved in the same transaction
+//   as the Renown (409 not_enough_resources if the chest is short; nothing is paid). A Chieftain who dies gives half his share back
+//   to chest_gold (chieftainRefund); one used up founding/taking a village releases his share; cancelling a queued batch gives it back in full.
+
+export interface ChestDepositRequest {
+  /** Gold to pay in: whole number, 1 or more, at most what the village holds. */
+  gold: number;
+}
+
+/** The player's War Chest: account-wide gold, kept when villages are lost or the player restarts; raids and takes cannot touch it. */
+export interface ChestInfo {
+  /** Gold that can be spent now (on Chieftains only). */
+  gold: number;
+  /** Gold held by the player's Chieftains (queued, at home, away, occupying): half comes back if one dies. */
+  reserved: number;
+  /** Chest gold the next Chieftain reserves: chestChieftainPrice(villages, chieftains). Needs gold >= this to train one. */
+  chieftainPrice: number;
+}
+
+export interface ChestDepositResponse {
+  village: OwnVillageDto;
+  chest: ChestInfo;
+}
+
 export interface RenownRankDto {
   /** 1-based; players with equal Renown share the rank (1, 2, 2, 4). */
   rank: number;
@@ -289,6 +319,8 @@ export interface GameStateResponse {
   stationed: { here: StationedDto[]; abroad: StationedDto[] };
   /** The player's Renown (section 18.2). */
   renown: RenownInfo;
+  /** The player's War Chest (section 18.2). Absent in older responses. */
+  chest?: ChestInfo;
   /** First steps card: done/claimed state of the starter tasks. */
   firstSteps: FirstStepsDto;
 }

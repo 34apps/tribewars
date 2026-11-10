@@ -4,6 +4,7 @@ import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, c
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
+import { chieftainPriceText } from '../chest.ts';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { useUnitInfo } from '../components/UnitInfo.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
@@ -120,7 +121,7 @@ export function SendForm({
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
   layout?: 'panel' | 'wide';
 }) {
-  const { live, now, settings, renown, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
+  const { live, now, settings, renown, chest, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
   const desktop = useIsDesktop();
   const unitInfo = useUnitInfo();
@@ -491,9 +492,9 @@ export function SendForm({
               </div>
             )}
             {mode === 'found' && (
-              <div>
+              <div className="wm-sum-wide">
                 <dt>Price</dt>
-                <dd>{chosen.chieftain > 0 ? 'Paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}</dd>
+                <dd>{chosen.chieftain > 0 ? 'Paid' : chieftainPriceText(nextChieftainPrice(renown, settings), chest)}</dd>
               </div>
             )}
           </dl>
@@ -564,9 +565,9 @@ export function SendForm({
               </div>
             )}
             {mode === 'found' && (
-              <div>
+              <div className="wm-sum-wide">
                 <dt>Price</dt>
-                <dd>{chosen.chieftain > 0 ? 'Paid' : `${formatInt(nextChieftainPrice(renown, settings))} Renown`}</dd>
+                <dd>{chosen.chieftain > 0 ? 'Paid' : chieftainPriceText(nextChieftainPrice(renown, settings), chest)}</dd>
               </div>
             )}
           </dl>

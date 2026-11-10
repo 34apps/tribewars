@@ -161,6 +161,7 @@ test('conquest.renownBase: the price of the 2nd village, the Chieftain reservati
     const p = await player(w.app, 'alice');
     const vid = strongHome(w.app, w.clock, p, {});
     w.app.ctx.store.addRenown(p.id, 2000);
+    w.app.ctx.store.depositChest(p.id, 100_000);
     const before = (await p.c.state()).renown;
     ok(await train(p.c, vid, 1));
     const after = (await p.c.state()).renown;

@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type {
   BuildingId,
+  ChestInfo,
   FirstStepsDto,
   Mission,
   MovementDto,
@@ -68,6 +69,8 @@ export interface GameApi {
   player: PlayerDto;
   /** The player's Renown (docs/GAME_DESIGN.md section 18.2). */
   renown: RenownInfo;
+  /** The player's War Chest (undefined against an older server: hide the chest UI). */
+  chest: ChestInfo | undefined;
   /** The current village: every screen (build, train, send, map) acts on this one. */
   village: OwnVillageDto;
   /** All my villages (the state response), in server order. */
@@ -122,6 +125,8 @@ export interface GameApi {
   viewMovement: (id: number) => void;
   refresh: () => Promise<void>;
   applyVillage: (v: OwnVillageDto) => void;
+  /** Apply a War Chest pay-in response (updated village and chest). */
+  applyChest: (v: OwnVillageDto, chest: ChestInfo) => void;
   applySend: (r: SendResponse) => void;
   /** The First steps block of the state (undefined only against an old server). */
   firstSteps: FirstStepsDto | undefined;

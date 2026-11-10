@@ -27,7 +27,7 @@ When a rule changes, change it here in the same commit.
 - **Gold is the elite and conquest resource, made at 1/10 of a Lumber Camp** (owner, 2026-11-10: `PRODUCTION_BASE.goldmine` 3
   vs lumber 30; it was 10, a third). No gold is needed at the start (stock 100 covers the first research); it pays for cavalry
   and siege research, Stables and Drillyard upgrades (20 / 15 at level 1, about 2,600 / 580 to the top), Knights (30 each),
-  Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and Chieftains (150). With no gold coming in the
+  Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and the **War Chest**, which pays for Chieftains (paid in from any village, one way; §18.2). With no gold coming in the
   build and train buttons say "Needs gold · build a Gold Mine" (`apps/web/src/shortfall.ts`). Sizing: the most gold-hungry use is the Knight (100/260/230 + 30 gold: 0.30 gold per wood, 0.13 per iron).
   With every building at level 10 a village makes gold for ~10 Knights a day, iron for ~13, food for ~15: a Knight village
   needs its Gold Mine about 2 levels above its Iron Mine, and anyone mixing Knights with a Banner Hall or Chieftains has to
@@ -1012,6 +1012,16 @@ A builder or a defender who is never attacked still reaches the second village; 
   this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
   cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
   Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
+- **War Chest** (owner-approved 2026-11-10, `BALANCE.md` 12.3; `players.chest_gold` / `chest_reserved`). Chieftains cost **no gold** any more:
+  their gold comes from an account-wide pool.
+  - *What it is:* gold you pay in from any village with `POST /api/villages/:id/chest {gold}`. **One way**: nothing ever comes back out to a
+    village (a lit village only; a cold one cannot pay). Raids and takes never touch it; it is kept when you lose villages and when you restart.
+  - *Chieftain price:* each Chieftain **reserves** `chestChieftainPrice(villages owned, your other Chieftains)` = `WAR_CHEST_BASE (2,000) x 1.6^(owned +
+    outstanding - 1)` chest gold, summed over a batch: the 2nd village's Chieftain 2,000, then 3,200, 5,120, 8,192, 13,107. Per-world:
+    `conquest.chestBase`. A short chest refuses the order (409 `not_enough_resources`) and nothing is paid.
+  - *Where it goes:* half comes back to the chest if he dies (`chieftainRefund`); his share is released when he is used up founding or taking a
+    village (the gold stays spent); cancelling a queued batch gives it back in full. Same ledger shape as the Renown reservation.
+  - `GET /api/state` sends `chest {gold, reserved, chieftainPrice}`.
 - Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
 
 *Sources*
@@ -1079,7 +1089,7 @@ than the raider, because it builds the Banner Hall by day 7 (owner to judge, `BA
 It relies on the hold period, tribe alerts, restart protection and the pair cap instead.
 
 **Why it is fair**
-- It costs a lot (gold-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
+- It costs a lot (War-Chest-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
   event, not a click. The hold gives the defender **a fixed window to answer** that both sides can see.
 - Big villages need more Chieftains, so a player cannot snowball by taking everything at the top of the ranking.
 - ~~A player's last village cannot be struck~~ — **replaced 2026-11-04:** the last village can be taken; the player restarts at the outer edge of
@@ -1096,7 +1106,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | Name | Value | Meaning |
 |---|---|---|
 | `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
-| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron, no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
@@ -1569,6 +1579,16 @@ A builder or a defender who is never attacked still reaches the second village; 
   this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
   cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
   Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
+- **War Chest** (owner-approved 2026-11-10, `BALANCE.md` 12.3; `players.chest_gold` / `chest_reserved`). Chieftains cost **no gold** any more:
+  their gold comes from an account-wide pool.
+  - *What it is:* gold you pay in from any village with `POST /api/villages/:id/chest {gold}`. **One way**: nothing ever comes back out to a
+    village (a lit village only; a cold one cannot pay). Raids and takes never touch it; it is kept when you lose villages and when you restart.
+  - *Chieftain price:* each Chieftain **reserves** `chestChieftainPrice(villages owned, your other Chieftains)` = `WAR_CHEST_BASE (2,000) x 1.6^(owned +
+    outstanding - 1)` chest gold, summed over a batch: the 2nd village's Chieftain 2,000, then 3,200, 5,120, 8,192, 13,107. Per-world:
+    `conquest.chestBase`. A short chest refuses the order (409 `not_enough_resources`) and nothing is paid.
+  - *Where it goes:* half comes back to the chest if he dies (`chieftainRefund`); his share is released when he is used up founding or taking a
+    village (the gold stays spent); cancelling a queued batch gives it back in full. Same ledger shape as the Renown reservation.
+  - `GET /api/state` sends `chest {gold, reserved, chieftainPrice}`.
 - Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
 
 *Sources*
@@ -1636,7 +1656,7 @@ than the raider, because it builds the Banner Hall by day 7 (owner to judge, `BA
 It relies on the hold period, tribe alerts, restart protection and the pair cap instead.
 
 **Why it is fair**
-- It costs a lot (gold-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
+- It costs a lot (War-Chest-limited Chieftains, a strong escort, a hold force) and takes real time, so it is an
   event, not a click. The hold gives the defender **a fixed window to answer** that both sides can see.
 - Big villages need more Chieftains, so a player cannot snowball by taking everything at the top of the ranking.
 - ~~A player's last village cannot be struck~~ — **replaced 2026-11-04:** the last village can be taken; the player restarts at the outer edge of
@@ -1653,7 +1673,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | Name | Value | Meaning |
 |---|---|---|
 | `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
-| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron / 150 gold; train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron, no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |

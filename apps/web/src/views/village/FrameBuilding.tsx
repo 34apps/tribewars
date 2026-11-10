@@ -38,6 +38,7 @@ import { buildingEffects, requirementText, unmetRequirements } from '../../rules
 import { UNIT_HINT, UNIT_ROLE } from '../../unitRole.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
+import { WarChestCard } from '../../components/WarChest.tsx';
 import { BannerHallPanel } from './BannerHall.tsx';
 import { DrillyardPanel } from './Drillyard.tsx';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
@@ -689,7 +690,7 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                 </PanelBox>
               ) : id === 'bannerhall' ? (
                 <PanelBox title="Banner Hall" fit>
-                  <BannerHallPanel />
+                  <BannerHallPanel chestInline={false} />
                 </PanelBox>
               ) : (
                 <NextLevels id={id} info={info} />
@@ -703,6 +704,7 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                   <WhatItDoes id={id} info={info} />
                 )}
                 <MagsTip id={id} />
+                {id === 'bannerhall' && live.buildings.bannerhall > 0 && <WarChestCard />}
               </div>
             </>
           )}
