@@ -6,9 +6,28 @@ const STORE = 'kv';
 const KEY = 'save-v1';
 const LS_KEY = 'clanfire-preview-save-v1';
 
+export interface SavedClock {
+  /** Game time (ms) when saved. */
+  virtual: number;
+  /** Game seconds per real second. */
+  rate: number;
+  /** Real time (ms) when saved. */
+  realAt: number;
+}
+
 export interface Save {
   db: Uint8Array | null;
   token: string | null;
+  /** Absent in saves from before the game clock: those run on real time at 1x. */
+  clock?: SavedClock;
+}
+
+function cleanClock(c: unknown): SavedClock | undefined {
+  if (!c || typeof c !== 'object') return undefined;
+  const { virtual, rate, realAt } = c as Partial<SavedClock>;
+  if (typeof virtual !== 'number' || typeof rate !== 'number' || typeof realAt !== 'number') return undefined;
+  if (!Number.isFinite(virtual) || !Number.isFinite(rate) || !Number.isFinite(realAt) || rate < 1) return undefined;
+  return { virtual, rate, realAt };
 }
 
 function openIdb(): Promise<IDBDatabase> {
@@ -66,13 +85,14 @@ function fromBase64(text: string): Uint8Array {
 function lsGet(): Save | null {
   const raw = localStorage.getItem(LS_KEY);
   if (!raw) return null;
-  const parsed = JSON.parse(raw) as { db: string | null; token: string | null };
-  return { db: parsed.db ? fromBase64(parsed.db) : null, token: parsed.token };
+  const parsed = JSON.parse(raw) as { db: string | null; token: string | null; clock?: unknown };
+  const clock = cleanClock(parsed.clock);
+  return { db: parsed.db ? fromBase64(parsed.db) : null, token: parsed.token, ...(clock ? { clock } : {}) };
 }
 
 function lsPut(save: Save | null): void {
   if (save === null) localStorage.removeItem(LS_KEY);
-  else localStorage.setItem(LS_KEY, JSON.stringify({ db: save.db ? toBase64(save.db) : null, token: save.token }));
+  else localStorage.setItem(LS_KEY, JSON.stringify({ db: save.db ? toBase64(save.db) : null, token: save.token, clock: save.clock }));
 }
 
 function valid(s: Save | null): s is Save {
@@ -83,7 +103,7 @@ function valid(s: Save | null): s is Save {
 export async function loadSave(): Promise<Save | null> {
   try {
     const s = await idbGet();
-    if (valid(s)) return s;
+    if (valid(s)) return { ...s, clock: cleanClock(s.clock) };
   } catch {
     // fall through to localStorage
   }

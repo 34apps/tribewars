@@ -1,6 +1,7 @@
 // Entry of the single-file preview. Boots the in-browser backend (the real server code on sql.js), installs the fetch
 // shim for /api/*, then renders the unchanged web client.
 
+import { clock } from './clock.ts'; // first: it replaces Date with the game clock before anything reads the time
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '../../web/src/App.tsx';
@@ -13,6 +14,7 @@ import { botTick, seedBots } from './bots.ts';
 import { installFetchShim } from './fetch-shim.ts';
 import { loadSave, wipeSave, writeSave } from './persist.ts';
 import { mountPill } from './pill.ts';
+import { mountSpeed } from './speed.ts';
 import { applyShowcase } from './showcase-apply.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
 import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLook } from '../../web/src/views/village/designPreviewState.ts';
@@ -35,12 +37,15 @@ function showFatal(message: string): void {
 async function openBackend(): Promise<Backend> {
   const saved = await loadSave();
   if (saved) {
+    // Game time first (the world's start-up reads it). Old saves without a clock run on real time at 1x.
+    if (saved.clock) clock.restore(saved.clock);
     try {
       return await createBackend(saved.db, saved.token);
     } catch (err) {
       // A damaged or incompatible save must not lock the player out: start a fresh world.
       console.warn('The saved world could not be opened; starting a new one.', err);
       await wipeSave();
+      clock.reset();
     }
   }
   return createBackend(null, null);
@@ -102,7 +107,7 @@ async function boot(): Promise<void> {
       return;
     }
     dirty = false;
-    storageOk = await writeSave({ db: bytes, token: backend.getToken() });
+    storageOk = await writeSave({ db: bytes, token: backend.getToken(), clock: clock.snapshot() });
     pill.setStorageOk(storageOk);
   };
   const markDirty = (): void => {
@@ -125,8 +130,56 @@ async function boot(): Promise<void> {
   }, 1000);
   const flushNow = (): void => {
     if (timer !== undefined) window.clearTimeout(timer);
+    dirty = true; // the clock moves even when the world did not: always store where it stands
     void flush();
   };
+
+  // ---- game speed: chip on the left edge; skipping runs the world (and the computer players) forward in chunks ----
+  const CHUNK_MS = 10 * 60_000;
+  const YIELD_EVERY = 12;
+  let skipping = false;
+  const skipAhead = async (ms: number): Promise<void> => {
+    if (skipping || resetting) return;
+    skipping = true;
+    try {
+      let left = ms;
+      let n = 0;
+      while (left > 0) {
+        const step = Math.min(CHUNK_MS, left);
+        clock.skip(step);
+        left -= step;
+        backend.processDue();
+        try {
+          botTick(backend.ctx);
+        } catch (err) {
+          console.error('bot step failed', err);
+        }
+        if (++n % YIELD_EVERY === 0) await new Promise<void>((r) => window.setTimeout(r, 0));
+      }
+    } finally {
+      skipping = false;
+      markDirty();
+      flushNow();
+    }
+  };
+  const bootGameTime = clock.gameNow();
+  const worldStart = (): number => {
+    const t = Number(backend.ctx.store.getMeta('world_created_at'));
+    return Number.isFinite(t) && t > 0 ? t : bootGameTime;
+  };
+  const speed = mountSpeed({
+    getRate: clock.getRate,
+    setRate: (r) => clock.setRate(r),
+    getWorldSpeed: () => backend.ctx.settings.speed,
+    gameNow: clock.gameNow,
+    worldStart,
+    skip: skipAhead,
+  });
+  clock.onChange(() => {
+    speed.refresh();
+    if (!skipping) flushNow(); // a skip saves once when it ends
+  });
+
   window.addEventListener('pagehide', flushNow);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushNow();
@@ -143,9 +196,13 @@ async function boot(): Promise<void> {
   // account, so a phone or simulator can be checked without typing a name and password.
   if (new URLSearchParams(window.location.search).has('demo') && !backend.getToken()) {
     const name = `demo${Math.floor(Math.random() * 1e6)}`;
-    await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: name, password: 'preview-demo-pass' }) }).catch(
-      (err: unknown) => console.warn('demo sign-in failed', err),
+    const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: name, password: 'preview-demo-pass' }) }).catch(
+      (err: unknown) => {
+        console.warn('demo sign-in failed', err);
+        return null;
+      },
     );
+    if (res?.ok) backend.grantStarterPack(name); // the demo shortcut keeps the starter stores; real accounts start from zero
   }
 
   const root = document.getElementById('root');

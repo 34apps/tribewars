@@ -147,6 +147,7 @@ export function mountPill(opts: PillOptions): Pill {
   const setOpen = (open: boolean): void => {
     menu.hidden = !open;
     chip.setAttribute('aria-expanded', String(open));
+    if (open) document.dispatchEvent(new CustomEvent('pv-menu-open', { detail: root }));
     if (!open) {
       confirmBtn.hidden = true;
       confirmNote.hidden = true;
@@ -158,6 +159,9 @@ export function mountPill(opts: PillOptions): Pill {
     confirmNote.hidden = false;
   });
   confirmBtn.addEventListener('click', () => opts.onReset());
+  document.addEventListener('pv-menu-open', (e) => {
+    if ((e as CustomEvent).detail !== root && !menu.hidden) setOpen(false);
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') setOpen(false);
   });

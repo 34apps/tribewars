@@ -35,25 +35,21 @@ import { FakeApp } from './router.ts';
 import { configureSqlite, openDatabaseInstance } from './shims/node-sqlite.ts';
 
 /**
- * A world that is playable in minutes: small, and fast (all durations divide by `speed`).
- * protectionHours / speed = 1.5 h / 25 = 3.6 minutes of beginner protection; abandoned villages build from their own stock at the same fast pace.
+ * A new world is the real game at real pace (speed 1, real beginner protection), only small, with few abandoned
+ * villages. The owner speeds time up with the speed chip (clock.ts); saved worlds keep the settings they were created with.
  */
 export const PREVIEW_WORLD: Partial<WorldSettings> = {
-  speed: 25,
   radius: 30,
   npcDensity: 0.025,
-  protectionHours: 1.5,
 };
 
 /**
- * Preview starter pack: a new village starts with a level 4 Storehouse and full stores (1,900 wood, food and iron).
- * At 25x speed buildings finish in seconds but income stays slow compared with their cost, so without this the first
- * raid would be ~20 minutes away and a tribe about as far. Only this one village's state changes; every rule still
- * runs as in the real game.
+ * Demo starter pack (the `?demo` shortcut only; design shots rely on it): a level 4 Storehouse and full stores
+ * (wood, food, iron). Real players start from zero.
  */
 const STARTER_STOREHOUSE_LEVEL = 4;
 
-function grantStarterPack(ctx: AppContext, username: string): void {
+export function grantStarterPack(ctx: AppContext, username: string): void {
   const player = ctx.store.getPlayerByLowerName(username.toLowerCase());
   const village = player ? ctx.store.villagesOfPlayer(player.id)[0] : undefined;
   if (!village) return;
@@ -78,6 +74,8 @@ export interface Backend {
   processDue(): number;
   /** Serialised database for saving, or null when it cannot be exported right now. */
   exportDatabase(): Uint8Array | null;
+  /** Demo only: starter stores for a just-registered account. */
+  grantStarterPack(username: string): void;
   /** The current session token (the cookie the real server would set) and a way to set it back after a reload. */
   getToken(): string | null;
   setToken(token: string | null): void;
@@ -165,14 +163,6 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
         console.error('processDue failed', err);
       }
       const res = await app.handle({ method, url, bodyText, cookies: { [SESSION_COOKIE]: sessionToken ?? undefined }, nowMs: t });
-      if (res.status === 201 && method === 'POST' && url === '/api/auth/register') {
-        try {
-          const { username } = JSON.parse(bodyText ?? '{}') as { username?: string };
-          if (username) grantStarterPack(ctx, username);
-        } catch (err) {
-          console.error('starter pack failed', err);
-        }
-      }
       for (const change of res.cookieChanges) {
         if (change.name !== SESSION_COOKIE) continue;
         sessionToken = change.value;
@@ -191,6 +181,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     exportDatabase() {
       return openDatabaseInstance()?.exportBytes() ?? null;
     },
+    grantStarterPack: (username) => grantStarterPack(ctx, username),
     getToken: () => sessionToken,
     setToken(t) {
       sessionToken = t;
