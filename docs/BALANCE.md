@@ -652,3 +652,26 @@ gold and 100 from First Steps cover the first week; the first real need is the B
 day 12. A pure raider who skips the Gold Mine now stalls at the Banner Hall (the sim raider did), because stolen gold no longer
 covers it. Not modelled: players attacking players, tribes, gold shipped between own villages, the domination end of a world.
 
+### 12.2 Players attacking and conquering players, 90 days (2026-11-10)
+
+Owner: check conquest of villages and attacks on players, and late games with several conquered villages. Conquest sim (§7.6:
+20 computer players, 5 per style, one world, raids and Chieftain Strikes on each other, counter-attacks, restarts), `--days 90
+--seeds 5`, gold 10 vs 3 (old run from a scratch copy, same scripts). Second pair: builders play a Knight army (65% Knights, Gold
+Mine raised to 15; temporary script change, not committed). Raw: `docs/sim/2026-11-10-conquest-{gold,knights}-{before,after}.txt`.
+
+| sum over 5 seeds (gold 10 -> 3) | normal styles | builders with Knight armies |
+|---|---|---|
+| villages taken from players | 81 -> 67 | 78 -> 71 |
+| holds started | 97 -> 87 | 93 -> 93 |
+| players who lost their last village (restart) | 17 -> 26 | 32 -> 41 |
+| raids on players, seed 20261105 | 5,656 -> 7,629 | 6,155 -> 11,482 |
+| villages per player day 90, seed 20261105 | 3.00 -> 3.15 | 2.60 -> 3.00 |
+| biggest / second biggest (points, worst seed) | 1.03 -> 1.25 | 1.09 -> 1.40 (target <= 2x: met) |
+
+Reading it: conquest between players keeps going to day 90, a bit less often (-9 to -17% takes), and nobody runs away. Raids on
+players and lost last villages go **up**: abandoned villages carry less gold, so they are worth less as targets and attackers turn
+to players sooner. Late conquest of several villages is **not limited by gold**: a Chieftain costs a flat 150 (up to 3 for a big
+village) while his Renown price grows per village, so Renown stays the limit. If gold should shape late conquest, the lever is
+Chieftain gold growing with the villages owned (owner decision). Speed for players: more fighting between players; expansion
+about the same.
+
