@@ -173,3 +173,9 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
 - Levers (tuned with the sim): production and storage at max about x1.5; building costs x1.5 with them, so building pace
   stays the same; troop costs about x0.55 (current units now, the A3 roster in piece 5). Targets in BALANCE.md still hold
   (raider 1.5–2x builder, 2nd village day 21–28); if raiding gets too strong, tune loot/carry, not the room.
+
+## Owner changes 2026-11-11 (after seeing the art)
+- **B2 mostly dropped:** Wall, Gold Mine and Stables keep their names and pictures. The Hidden Vault keeps its picture and is
+  renamed **"Vault"** (drop the word "Hidden"). The Palisade, Root Cellar, Gold Sluice and Elk Pens art is not used.
+- Longhouse and Wrightyard art is being redrawn: each stage must look clearly grander, and stage 4 (max level only) must be magnificent.
+- Owner questioned the 15-level change (C2). It is on hold in the `originality-tiers` worktree until he chooses 20 or 15.
