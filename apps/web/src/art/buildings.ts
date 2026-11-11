@@ -113,12 +113,13 @@ export const SCAFFOLD_URL = fileUrl('scaffold');
 // the same 2:1 projection the sprites use. The ground plate is the square |u|, |v| <= WALL_RING.plate and the ring wall
 // runs along its very edge. The Town Hall stands in the middle on a small paved square; the core buildings form a ring
 // around it, joined by dirt roads radiating from the hall; the resource sites sit out in the four corners (forest, rocks,
-// fields). Owner 2026-11-06: the town looked crowded, so the plate grew from 234 to 273 (14 land tiles) and the plots were
+// fields). Owner 2026-11-06: the town looked crowded, so the plate grew from 234 to 273 (14 land tiles), and on 2026-11-11 to 351 (18 tiles) for the Longhouse and the Wrightyard and the plots were
 // spread in the same arrangement: no two drawings touch at any of their four looks (painted shapes measured from the art,
 // test/village-layout.test.tsx).
 
 /** Ring centre in scene units. */
-const C = { x: 552, y: 412 } as const;
+// Offsets from the old (plate 273) centre are multiples of 4, the layout test's grid, so the old buildings keep their cells.
+const C = { x: 2 * 351 + 6, y: 351 + 141 } as const;
 
 /** Screen point of the ground point (u, v), lifted by z. */
 export function iso(u: number, v: number, z = 0): [number, number] {
@@ -148,20 +149,20 @@ export const GATES: readonly Gate[] = [{ side: 'front-left', at: 8, half: 16, ma
  * The ground plate (half-side `plate` in grid units) and the ring wall on its edge (`r`: the wall's middle line).
  * One gate, `gateHalf` wide each way, where the main road leaves through the front-left wall at u = `gateU`.
  */
-export const WALL_RING = { cx: C.x, cy: C.y, r: 268, plate: 273, gateHalf: 16, gateU: 8 } as const;
+export const WALL_RING = { cx: C.x, cy: C.y, r: 346, plate: 351, gateHalf: 16, gateU: 8 } as const;
 
 /** Where the phone view first looks: the Town Hall. */
 export const SCENE_FOCUS = { x: C.x, y: C.y - 26 } as const;
 
 /**
  * Scene coordinate space: the ground plate plus its edge, with the same empty headroom above it at EVERY wall level.
- * The tallest thing is the grand (max wall level) back corner tower: plate corner 255 above the centre (273 - 18) +
- * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 392 units, plus pen width; 412 leaves ~20 units spare. Below the
- * centre: the plate's front corner (273), its earth side (24) and a few units. Sideways: the side corners (546) + 6.
+ * The tallest thing is the grand (max wall level) back corner tower: plate corner 333 above the centre (351 - 18) +
+ * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 470 units, plus pen width; 492 leaves ~22 units spare. Below the
+ * centre: the plate's front corner (351), its earth side (24) and a few units. Sideways: the side corners (702) + 6.
  * One fixed box (not one per wall look) means the village never changes size or position when the wall is upgraded,
  * and nothing is clipped at any level.
  */
-export const SCENE_VIEWBOX = { x: C.x - 552, y: C.y - 412, w: 1104, h: 412 + 302 } as const;
+export const SCENE_VIEWBOX = { x: 0, y: 0, w: 2 * C.x, h: C.y + 351 + 29 } as const;
 
 /** Height the phone zoom is based on (kept from the smaller village, so buildings stay as big on a phone as before). */
 export const SCENE_BASE_H = 250 + 262;
@@ -208,10 +209,11 @@ export const PLACEMENT: Record<BuildingId, Placement> = {
   mine: plot(206, -196, 1.365),
   lumber: plot(-209, 163, 1.365),
   farm: plot(184, 90, 1.365),
-  longhouse: plot(216, 208, 0.8),
-  wrightyard: plot(-88, 24, 0.8),
+  // The Longhouse in the right corner and the Wrightyard in the left corner, in the band the bigger plate (351) added.
+  longhouse: plot(284, -262, 1.35),
+  wrightyard: plot(-270, 260, 1.3),
   // The wall's own plot (building work only) sits on the front-right wall between the Storehouse and the Iron Mine.
-  wall: plot(268, -100, 0.6),
+  wall: plot(346, -100, 0.6),
 };
 
 /** Half width of the main street and the road out of the main gate (the land tile road is as wide). */

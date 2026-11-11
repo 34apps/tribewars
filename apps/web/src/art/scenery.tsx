@@ -110,7 +110,6 @@ export const PATHS: PathDef[] = [
   branch('drillyard', [GATE_U, LANE_V]),
   branch('lumber', [GATE_U, LANE_V]),
   branch('farm', [GATE_U, LANE_V]),
-  branch('longhouse', [GATE_U, LANE_V]),
   // Out of the sides of the square.
   branch('storehouse', [HALL.u + SQUARE - 6, SIDE_R]),
   branch('barracks', [HALL.u - SQUARE + 6, SIDE_L]),
@@ -120,7 +119,10 @@ export const PATHS: PathDef[] = [
   branch('mine', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120]),
   branch('vault', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
   branch('goldmine', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
-  branch('wrightyard', [HALL.u - SQUARE + 6, SIDE_L]),
+  // The Wrightyard in the left corner: its own lane along the front, in front of its door.
+  branch('wrightyard', [GATE_U, 306]),
+  // The Longhouse in the right corner: on from the Iron Mine's road, out to its door.
+  branch('longhouse', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120], [284, -120]),
 ];
 
 
