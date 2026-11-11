@@ -69,7 +69,11 @@ export function installFetchShim(backend: Backend, onWrite: () => void): void {
     if (typeof init?.body === 'string') bodyText = init.body;
     else if (init?.body === undefined && typeof input === 'object' && 'text' in input && method !== 'GET') bodyText = await input.text();
     if (method === 'POST' && /^\/api\/auth\/(register|login)(?:[/?]|$)/.test(path)) await afterPaint();
+    const t0 = performance.now();
     const res = await backend.request(method, path, bodyText);
+    const ms = performance.now() - t0;
+    const slow = (window as unknown as { __pvSlow?: { what: string; ms: number; at: number }[] }).__pvSlow;
+    if (ms > 30 && slow) slow.push({ what: `api ${method} ${path.split('?')[0]}`, ms: Math.round(ms), at: Math.round(t0) });
     if (method !== 'GET') onWrite();
     const nullBody = res.status === 204 || res.body === null;
     return new Response(nullBody ? null : res.body, { status: res.status, headers: res.headers });

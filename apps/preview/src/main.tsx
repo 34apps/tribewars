@@ -100,16 +100,34 @@ async function boot(): Promise<void> {
       void wipeSave().finally(() => window.location.reload());
     },
   });
+  // Slow-step log for diagnosing stalls (preview only): window.__pvSlow lists main-thread steps over 30 ms.
+  const slow: { what: string; ms: number; at: number }[] = [];
+  (window as unknown as { __pvSlow: typeof slow }).__pvSlow = slow;
+  const timed = <T,>(what: string, fn: () => T): T => {
+    const t = performance.now();
+    try {
+      return fn();
+    } finally {
+      const ms = performance.now() - t;
+      if (ms > 30) {
+        slow.push({ what, ms: Math.round(ms), at: Math.round(t) });
+        if (slow.length > 200) slow.shift();
+      }
+    }
+  };
   const flush = async (): Promise<void> => {
     timer = undefined;
     if (resetting || !dirty) return;
-    const bytes = backend.exportDatabase();
+    const bytes = timed('save: export', () => backend.exportDatabase());
     if (!bytes) {
       timer = window.setTimeout(() => void flush(), 500); // a transaction was open: try again in a moment
       return;
     }
     dirty = false;
+    const w0 = performance.now();
     storageOk = await writeSave({ db: bytes, token: backend.getToken(), clock: clock.snapshot() });
+    const wms = performance.now() - w0;
+    if (wms > 30) slow.push({ what: `save: write ${Math.round(bytes.length / 1024)} KB (async)`, ms: Math.round(wms), at: Math.round(w0) });
     pill.setStorageOk(storageOk);
   };
   const markDirty = (): void => {
@@ -122,7 +140,7 @@ async function boot(): Promise<void> {
   // ---- clock: real time; arrivals are processed on every request and once a second ----
   let tickNo = 0;
   window.setInterval(() => {
-    const handled = backend.processDue();
+    const handled = timed('tick: processDue', () => backend.processDue());
     let botsActed = false;
     // In a hidden tab the computer players only play every 10th second (nobody is watching; they catch up when it is shown).
     if (document.hidden && ++tickNo % 10 !== 0) {
@@ -130,7 +148,7 @@ async function boot(): Promise<void> {
       return;
     }
     try {
-      botsActed = botTick(backend.ctx, TICK_BOT_BUDGET_MS);
+      botsActed = timed('tick: bots', () => botTick(backend.ctx, TICK_BOT_BUDGET_MS));
     } catch (err) {
       console.error('bot step failed', err);
     }
