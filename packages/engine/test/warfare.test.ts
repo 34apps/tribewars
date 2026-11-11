@@ -78,7 +78,7 @@ describe('normalizeVillage / old saved states', () => {
     const out = normalizeVillage(old);
     assert.deepEqual(out.troops, units({ pikeman: 12, raider: 6 }));
     assert.deepEqual(out.away, units({ raider: 4 }));
-    assert.deepEqual(out.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+    assert.deepEqual(out.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
     assert.equal(out.buildings.vault, 0);
     assert.equal(out.buildings.barracks, 3);
     assert.notEqual(out.troops, old.troops);

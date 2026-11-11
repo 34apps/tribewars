@@ -24,9 +24,9 @@ test('top member is the one with most points (ties by name)', () => {
 });
 
 test('alert detail shows only what the Watchtower gives', () => {
-  const name = (u: string) => (u === 'logram' ? 'Log Rams' : 'Raiders');
+  const name = (u: string) => (u === 'firecart' ? 'Firecarts' : 'Raiders');
   assert.equal(alertDetail({}, name as never), '');
-  assert.equal(alertDetail({ sizeBand: 'medium', slowestUnit: 'logram' }, name as never), 'medium, Log Rams');
+  assert.equal(alertDetail({ sizeBand: 'medium', slowestUnit: 'firecart' }, name as never), 'medium, Firecarts');
   assert.equal(alertDetail({ sizeBand: 'small', sizeAbout: 1200, slowestUnit: 'raider' }, name as never), 'small ~1,200, Raiders');
   assert.equal(alertDetail({ sizeBand: 'large' }, name as never), 'large');
 });

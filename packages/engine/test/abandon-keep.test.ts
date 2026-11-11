@@ -61,7 +61,7 @@ describe('abandonVillageKeepBuildings', () => {
     assert.equal(a.resources.wood, storageCap(a));
     assert.ok(a.resources.iron >= 700, 'stock is kept (and it produced while the owner was away)');
     assert.deepEqual(a.buildQueue, []);
-    assert.deepEqual(a.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+    assert.deepEqual(a.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
     assert.deepEqual([a.ranks, a.researched, a.researchQueue, a.feast, a.defenceMark, a.hearth, a.lockUntil, a.protectedUntil], new Array(8).fill(undefined));
   });
 

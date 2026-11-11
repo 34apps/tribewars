@@ -133,7 +133,7 @@ export interface MovementRow {
   /** The free tile a `found` mission walks to (and a failed one walks back from); null for every other kind. */
   targetX?: number | null;
   targetY?: number | null;
-  /** Boulder Sling pick of an attack (sender's choice, never compared with the target's buildings); null = random / none. */
+  /** Firecart pick of an attack (sender's choice, never compared with the target's buildings); null = none (the Wall). */
   siegeTarget?: BuildingId | null;
   /** A shipment whose cargo goes into the sender's Tribe Store (GAME_DESIGN 18.5). */
   toTribeStore?: boolean;

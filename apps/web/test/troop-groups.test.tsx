@@ -12,8 +12,8 @@ const vis = (h: Units, mission: 'attack' | 'support' | 'scout' | 'found' | 'occu
 const target = { kind: 'player' as const, points: 100, protected: false };
 
 test('All troops: everything visible at home; support leaves Chieftains and siege out; an attack takes at most 3 Chieftains', () => {
-  const h = home({ pikeman: 30, raider: 10, chieftain: 5, logram: 2 });
-  assert.deepEqual(pickAll(vis(h, 'attack'), h, 'attack'), { pikeman: 30, raider: 10, chieftain: HEARTH_MAX_CHIEFTAINS, logram: 2 });
+  const h = home({ pikeman: 30, raider: 10, chieftain: 5, firecart: 2 });
+  assert.deepEqual(pickAll(vis(h, 'attack'), h, 'attack'), { pikeman: 30, raider: 10, chieftain: HEARTH_MAX_CHIEFTAINS, firecart: 2 });
   assert.deepEqual(pickAll(vis(h, 'support'), h, 'support'), { pikeman: 30, raider: 10 });
   assert.deepEqual(pickAll(vis(home({ pathfinder: 4 }), 'scout'), home({ pathfinder: 4 }), 'scout'), { pathfinder: 4 });
 });
@@ -23,10 +23,10 @@ test('Decoy: exactly one of the slowest fighting unit; siege first; never a Chie
   assert.deepEqual(pickDecoy(vis(h), h), { pikeman: 1 });
   h = home({ raider: 10, outrider: 5 });
   assert.deepEqual(pickDecoy(vis(h), h), { raider: 1 });
-  h = home({ pikeman: 30, logram: 1, boulder: 4 });
-  assert.deepEqual(pickDecoy(vis(h), h), { logram: 1 }, 'slowest siege unit first');
-  h = home({ pikeman: 3, boulder: 4 });
-  assert.deepEqual(pickDecoy(vis(h), h), { boulder: 1 }, 'siege unit before any foot soldier');
+  h = home({ pikeman: 30, firecart: 4 });
+  assert.deepEqual(pickDecoy(vis(h), h), { firecart: 1 }, 'the siege unit first');
+  h = home({ pikeman: 3, firecart: 4 });
+  assert.deepEqual(pickDecoy(vis(h), h), { firecart: 1 }, 'siege unit before any foot soldier');
   h = home({ chieftain: 2, pathfinder: 9 });
   assert.equal(pickDecoy(vis(h), h), null);
   assert.equal(pickDecoy([], home({}), 'attack'), null);

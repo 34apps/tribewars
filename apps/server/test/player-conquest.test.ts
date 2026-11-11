@@ -140,7 +140,7 @@ test('relief attacks have limits: weak ones only wear the occupiers down, Chieft
   unprotect(app, alice, amy);
   const claimHome = strongHome(app, clock, claimer, { raider: 500, chieftain: 1 });
   reserveFor(app, claimer, 1, 500);
-  const aliceHome = strongHome(app, clock, alice, { raider: 40, chieftain: 1, logram: 2 });
+  const aliceHome = strongHome(app, clock, alice, { raider: 40, chieftain: 1, firecart: 2 });
   const amyVillage = homeOf(app, amy);
 
   // Lit village: a tribe-mate and the owner still cannot attack it.
@@ -154,7 +154,7 @@ test('relief attacks have limits: weak ones only wear the occupiers down, Chieft
 
   // Chieftains and siege units are refused on a relief; a Chieftain cannot "re-strike" for the owner's side.
   errorOf(await alice.c.post(`/api/villages/${aliceHome}/send`, { x: amyVillage.x, y: amyVillage.y, units: { raider: 10, chieftain: 1 }, mission: 'attack' }), 400, 'invalid_target');
-  errorOf(await alice.c.post(`/api/villages/${aliceHome}/send`, { x: amyVillage.x, y: amyVillage.y, units: { raider: 10, logram: 1 }, mission: 'attack' }), 400, 'invalid_target');
+  errorOf(await alice.c.post(`/api/villages/${aliceHome}/send`, { x: amyVillage.x, y: amyVillage.y, units: { raider: 10, firecart: 1 }, mission: 'attack' }), 400, 'invalid_target');
   // The claimer cannot attack the village they hold (they send occupiers).
   errorOf(await claimer.c.post(`/api/villages/${claimHome}/send`, { x: amyVillage.x, y: amyVillage.y, units: { raider: 10 }, mission: 'attack' }), 400, 'invalid_target');
 

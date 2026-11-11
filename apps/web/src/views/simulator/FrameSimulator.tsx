@@ -109,7 +109,7 @@ export function FrameSimulator() {
   const supportUnits = useMemo(() => unitsFromText(support), [support]);
   const siegeOn = siegeEnabled(settings);
   const moraleOn = worldRules(settings).features.morale;
-  const hasSling = attacker.boulder > 0;
+  const hasSling = attacker.firecart > 0;
   const target = (BUILDINGS as Record<string, unknown>)[siegePick] ? (siegePick as BuildingId) : null;
   const wall = parseLevel(wallText, WALL_MAX);
   const units = UNIT_IDS.filter((u) => siegeOn || !UNITS[u].siege);
@@ -543,7 +543,7 @@ export function FrameSimulator() {
                   <div>
                     <span className="fv-up">Wall after</span>
                     <b>{wallShown ? `${outcome.wallBefore} → ${outcome.wallAfter}` : '–'}</b>
-                    <small>{outcome.wallAfter !== outcome.wallBefore ? 'knocked down by rams' : wallShown ? 'no change' : 'no Wall'}</small>
+                    <small>{outcome.wallAfter !== outcome.wallBefore ? 'burned by Firecarts' : wallShown ? 'no change' : 'no Wall'}</small>
                   </div>
                   <div>
                     <span className="fv-up">Survivors carry</span>

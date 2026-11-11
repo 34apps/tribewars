@@ -7,8 +7,8 @@ const fresh = (): VillageState => village();
 const snap = (villages: VillageState[], inTribe = false, events: FirstStepId[] = []) => firstStepsSatisfied(deepFreeze({ villages: structuredClone(villages), inTribe, events: new Set(events) }));
 
 describe('first steps config', () => {
-  it('has the eight approved steps in order', () => {
-    assert.deepEqual(FIRST_STEPS.map((s) => s.id), ['lumber2', 'farm2', 'hall2', 'barracks2', 'raiders5', 'raid', 'report', 'tribe']);
+  it('has the nine steps in order', () => {
+    assert.deepEqual(FIRST_STEPS.map((s) => s.id), ['lumber2', 'farm2', 'longhouse2', 'hall2', 'barracks2', 'raiders5', 'raid', 'report', 'tribe']);
     assert.deepEqual(firstStepReward('tribe'), { wood: 250, food: 250, iron: 250, gold: 50 });
     assert.equal(firstStepReward('nope'), null);
   });
@@ -29,6 +29,10 @@ describe('firstStepsSatisfied', () => {
     assert.deepEqual([...snap([b])], ['farm2']);
     assert.equal(snap([c]).size, 0);
     assert.deepEqual([...snap([a, b])].sort(), ['farm2', 'lumber2']); // any village
+    const l = fresh();
+    l.buildQueue = [{ building: 'longhouse', targetLevel: 2, startAt: 0, finishAt: 1000 }];
+    assert.deepEqual([...snap([l])], ['longhouse2']);
+    assert.deepEqual(firstStepReward('longhouse2'), firstStepReward('farm2'));
   });
   it('raiders at home, away and in training add up to five', () => {
     const v = fresh();

@@ -25,6 +25,7 @@ import {
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
+  allTrainJobs,
   applyAttackerLosses,
   applyBattleToDefender,
   applyBuild,
@@ -125,18 +126,18 @@ export interface Style {
   expand: 'take' | 'found';
 }
 
-const eco: Step[] = [['lumber', 4], ['farm', 4], ['mine', 4], ['storehouse', 3]];
+const eco: Step[] = [['lumber', 4], ['farm', 4], ['longhouse', 4], ['mine', 4], ['storehouse', 3]];
 
 export const STYLE_DEFS: Record<StyleName, Style> = {
   builder: {
     order: [
-      ...eco, ['hall', 3], ['lumber', 8], ['farm', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
-      ['goldmine', 3], ['lumber', 12], ['farm', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
+      ...eco, ['hall', 3], ['lumber', 8], ['farm', 8], ['longhouse', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
+      ['goldmine', 3], ['lumber', 12], ['farm', 12], ['longhouse', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
       ['barracks', 3], ['hall', 10], ['drillyard', 3], ['bannerhall', 1], ['stables', 1], ['goldmine', 8], ['lumber', 16],
-      ['farm', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
+      ['farm', 16], ['longhouse', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
       ['wall', 10], ['vault', 8], ['market', 8], ['barracks', 8], ['drillyard', 9], ['stables', 8], ['bannerhall', 4],
     ],
-    tail: ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
+    tail: ['lumber', 'farm', 'longhouse', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
     army: [{ unit: 'pikeman', weight: 85 }, { unit: 'guard', weight: 10 }, { unit: 'knight', weight: 5 }],
     reserve: 1,
     trainFromDay: 4,
@@ -148,12 +149,12 @@ export const STYLE_DEFS: Record<StyleName, Style> = {
   },
   raider: {
     order: [
-      ['lumber', 2], ['farm', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['lumber', 4],
-      ['mine', 5], ['barracks', 4], ['farm', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9],
-      ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 8],
-      ['market', 3], ['barracks', 8], ['goldmine', 6], ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
+      ['lumber', 2], ['farm', 3], ['longhouse', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['longhouse', 5], ['lumber', 4],
+      ['mine', 5], ['barracks', 4], ['farm', 7], ['longhouse', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9], ['longhouse', 9],
+      ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['longhouse', 11], ['hall', 8],
+      ['market', 3], ['barracks', 8], ['goldmine', 6], ['lumber', 10], ['mine', 11], ['farm', 13], ['longhouse', 13], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
     ],
-    tail: ['farm', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
+    tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
     army: [{ unit: 'raider', weight: 72 }, { unit: 'outrider', weight: 15 }, { unit: 'pikeman', weight: 10 }, { unit: 'pathfinder', weight: 3 }],
     reserve: 0.8,
     trainFromDay: 2,
@@ -165,13 +166,13 @@ export const STYLE_DEFS: Record<StyleName, Style> = {
   },
   turtle: {
     order: [
-      ['lumber', 3], ['farm', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
-      ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
-      ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8], ['vault', 5], ['farm', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8],
-      ['market', 3], ['drillyard', 3], ['lumber', 11], ['farm', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
+      ['lumber', 3], ['farm', 4], ['longhouse', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
+      ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['longhouse', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
+      ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8], ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8],
+      ['market', 3], ['drillyard', 3], ['lumber', 11], ['farm', 12], ['longhouse', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1],
       ['wall', 12], ['wall', 15], ['vault', 8],
     ],
-    tail: ['wall', 'farm', 'lumber', 'mine', 'storehouse', 'hall'],
+    tail: ['wall', 'farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'hall'],
     army: [{ unit: 'pikeman', weight: 55 }, { unit: 'guard', weight: 40 }, { unit: 'pathfinder', weight: 5 }],
     reserve: 0.9,
     trainFromDay: 2,
@@ -183,13 +184,13 @@ export const STYLE_DEFS: Record<StyleName, Style> = {
   },
   balanced: {
     order: [
-      ['lumber', 3], ['farm', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6],
-      ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['lumber', 7],
-      ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['lumber', 9],
-      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12],
+      ['lumber', 3], ['farm', 4], ['longhouse', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6], ['longhouse', 6],
+      ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['longhouse', 8], ['lumber', 7],
+      ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['longhouse', 10], ['lumber', 9],
+      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12], ['longhouse', 12],
       ['lumber', 11], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1], ['goldmine', 5],
     ],
-    tail: ['farm', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
+    tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
     army: [{ unit: 'raider', weight: 40 }, { unit: 'pikeman', weight: 40 }, { unit: 'outrider', weight: 10 }, { unit: 'guard', weight: 10 }],
     reserve: 0.8,
     trainFromDay: 1.5,
@@ -345,7 +346,7 @@ export interface SimOptions {
 /** What siege did to one style's run (only present when `SimOptions.siege`). */
 export interface SiegeStats {
   /** Siege units trained (queued). */
-  trained: { logram: number; boulder: number };
+  trained: { firecart: number };
   /** Raids that carried siege units. */
   raids: number;
   /** ... of which won. */
@@ -361,7 +362,7 @@ export interface SiegeStats {
 }
 
 /** Siege caps for a computer player: units owned at once (home + away + queued) and units per training batch. */
-const SIEGE_OWN_CAP: { logram: number; boulder: number } = { logram: 20, boulder: 12 };
+const SIEGE_OWN_CAP: { firecart: number } = { firecart: 28 };
 const SIEGE_BATCH = 6;
 /** A target with at least this Wall level can get a siege run (abandoned villages have Wall 0-4 by tier, so this is almost "any"). */
 const SIEGE_MIN_WALL = 1;
@@ -369,15 +370,15 @@ const SIEGE_MIN_WALL = 1;
 /** The styles that attack (raider, balanced) add the siege prerequisites, research and a few units; the others stay as they are. */
 function withSiege(style: StyleName, def: Style): Style {
   if (style !== 'raider' && style !== 'balanced') return def;
-  // Raider: right after its Barracks 8 (it already has Drillyard 2); balanced: at the end of its list (Barracks 8, Drillyard 5).
+  // Raider: right after its Barracks 8 (it already has Drillyard 2) it builds Drillyard 3 and a Wrightyard; balanced: at the end of its list.
   const order: Step[] = [...def.order];
-  if (style === 'raider') order.splice(order.findIndex(([b, l]) => b === 'barracks' && l === 8) + 1, 0, ['drillyard', 3], ['drillyard', 5]);
-  else order.push(['barracks', 8], ['drillyard', 5]);
+  if (style === 'raider') order.splice(order.findIndex(([b, l]) => b === 'barracks' && l === 8) + 1, 0, ['drillyard', 3], ['wrightyard', 1]);
+  else order.push(['drillyard', 3], ['wrightyard', 1]);
   return {
     ...def,
     order,
-    army: [...def.army, { unit: 'logram', weight: 6 }, { unit: 'boulder', weight: 4 }],
-    research: [...def.research, 'logram', 'boulder'],
+    army: [...def.army, { unit: 'firecart', weight: 10 }],
+    research: [...def.research, 'firecart'],
   };
 }
 
@@ -624,7 +625,7 @@ function subUnits(a: Units, b: Units): Units {
 }
 function queuedUnits(v: VillageState): Units {
   const out = emptyUnits();
-  for (const q of [v.trainQueues.barracks, v.trainQueues.stables]) for (const j of q) out[j.unit] += j.count - j.done;
+  for (const j of allTrainJobs(v)) out[j.unit] += j.count - j.done;
   return out;
 }
 const CHIEF_COST = { ...UNITS.chieftain.cost, gold: HISTORICAL_CHIEF_GOLD }; // flat / growth pay this gold in the sim; the engine's Chieftain costs none
@@ -634,7 +635,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const def = opt.knightBuilders ? withKnightBuilders(style, base) : base;
   const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
-  const siegeStats: SiegeStats = { trained: { logram: 0, boulder: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
+  const siegeStats: SiegeStats = { trained: { firecart: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   const vils: Vil[] = [{ id: 0, state: createPlayerVillage(0), pos: opt.home, trainCursor: 0, how: 'home' }];
@@ -806,7 +807,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         return;
       }
       const def0 = targetAt(e.target, e.at);
-      const withSiege = e.units.logram + e.units.boulder > 0;
+      const withSiege = e.units.firecart > 0;
       const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
       tg.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
@@ -818,7 +819,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (withSiege) {
         siegeStats.raids += 1;
         if (r.attackerWon) siegeStats.wins += 1;
-        for (const id of ['logram', 'boulder'] as const) siegeStats.lossValue += r.attackerLosses[id] * value(UNITS[id].cost);
+        siegeStats.lossValue += r.attackerLosses.firecart * value(UNITS.firecart.cost);
         for (const h of r.siege ?? []) for (let lvl = h.from; lvl > h.to; lvl--) {
           siegeStats.levelsLowered += 1;
           siegeStats.loweredValue += value(buildingCost(h.building, lvl));
@@ -925,7 +926,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const need = chiefNeed();
     if (RESOURCE_IDS.some((id) => need[id] > cap)) return 'storehouse';
     const c = checkTrain(chiefState(vil, t), 'chieftain', 1, t, s);
-    if (!c.ok && c.reason === 'population_full') return 'farm';
+    if (!c.ok && c.reason === 'population_full') return 'longhouse';
     return undefined;
   };
 
@@ -957,8 +958,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (c.reason === 'exceeds_storage' && cur !== 'storehouse') {
         cur = 'storehouse';
         forced = true;
-      } else if (c.reason === 'population_full' && cur !== 'farm') {
-        cur = 'farm';
+      } else if (c.reason === 'population_full' && cur !== 'longhouse') {
+        cur = 'longhouse';
         forced = true;
       } else if (c.reason === 'requirements_not_met') {
         const reqs: Partial<Record<BuildingId, number>> = BUILDINGS[cur].requires;
@@ -1006,7 +1007,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (UNITS[unit].siege) {
         // A player keeps only a few siege units: skip the wheel slot while enough are owned (home, away or queued).
         const owned = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state))[unit];
-        if (owned >= SIEGE_OWN_CAP[unit as 'logram' | 'boulder']) {
+        if (owned >= SIEGE_OWN_CAP[unit as 'firecart']) {
           vil.trainCursor++;
           continue;
         }
@@ -1024,8 +1025,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (c.ok) {
           vil.state = applyTrain(vil.state, unit, n, t, s);
           trained[unit] += n;
-          if (unit === 'logram' || unit === 'boulder') {
-            siegeStats.trained[unit] += n;
+          if (unit === 'firecart') {
+            siegeStats.trained.firecart += n;
             siegeStats.firstTrainedDay ??= t / (24 * HOUR);
           }
           vil.trainCursor++;
@@ -1055,8 +1056,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     if (totalUnits(send) < 5) return;
     // Siege units at home go along on fortified targets (wall >= SIEGE_MIN_WALL) as a second candidate army; the slow siege
     // units set the pace of the whole army (travelTimeMs takes the slowest unit).
-    const siegeHome = { logram: vil.state.troops.logram, boulder: vil.state.troops.boulder };
-    const haveSiege = opt.siege === true && siegeHome.logram + siegeHome.boulder > 0;
+    const siegeHome = { firecart: vil.state.troops.firecart };
+    const haveSiege = opt.siege === true && siegeHome.firecart > 0;
     let best = -1;
     let bestScore = 0;
     let bestSend = send;
@@ -1072,7 +1073,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         const travel = travelTimeMs(vil.pos, tg.pos, army, s);
         // Preview with a different seed: a player judges by scouting, not by knowing the luck.
         const arrival = settleVillage(st, t + travel, s);
-        const siegeArmy = army.logram + army.boulder > 0;
+        const siegeArmy = army.firecart > 0;
         const pre = resolveBattle({
           attackerUnits: army,
           defender: arrival,
@@ -1201,7 +1202,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     if (chiefWaitSince < 0) chiefWaitSince = t;
     if (def.expand === 'take') {
       // Siege units stay home on a strike: a taken village keeps all its buildings, so lowering them would only hurt the new owner.
-      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0, logram: 0, boulder: 0 };
+      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0, firecart: 0 };
       let best = -1;
       let bestPoints = -1;
       let bestTravel = 0;
@@ -1553,7 +1554,7 @@ function fmtDay(h: number | undefined): string {
 
 function formatSiegeStats(g: SiegeStats): string {
   if (g.firstTrainedDay === undefined) return 'Siege: switched on, but no siege unit was trained within the run.';
-  return `Siege: trained ${g.trained.logram} Log Rams + ${g.trained.boulder} Boulder Slings (first on day ${g.firstTrainedDay.toFixed(1)}); ${g.raids} raids carried siege (${g.wins} won), ${g.levelsLowered} levels lowered (rebuild value ${num(g.loweredValue)}), siege units lost worth ${num(g.lossValue)}.`;
+  return `Siege: trained ${g.trained.firecart} Firecarts (first on day ${g.firstTrainedDay.toFixed(1)}); ${g.raids} raids carried siege (${g.wins} won), ${g.levelsLowered} levels lowered (rebuild value ${num(g.loweredValue)}), siege units lost worth ${num(g.lossValue)}.`;
 }
 
 /** Side-by-side of a run without and with siege units (same seed, same options): what siege costs and brings the sim players. */
@@ -1568,7 +1569,7 @@ export function formatSiegeComparison(off: SimReport, on: SimReport): string {
     const net = (r: DayRow | undefined): number => (r ? r.raidLoot - r.raidLosses : 0);
     const g = b.siege;
     out.push(
-      `| ${a.style} | ${a.finalPoints} / ${b.finalPoints} | ${a.villages} / ${b.villages} | ${num(net(la))} / ${num(net(lb))} | ${a.longestIdleHours.toFixed(1)} / ${b.longestIdleHours.toFixed(1)} | ${g ? `${g.trained.logram} + ${g.trained.boulder}` : '-'} | ${g?.firstTrainedDay !== undefined ? `day ${g.firstTrainedDay.toFixed(1)}` : 'never'} | ${g ? `${g.raids} (${g.wins})` : '-'} | ${g ? g.levelsLowered : '-'} | ${g ? num(g.lossValue) : '-'} |`,
+      `| ${a.style} | ${a.finalPoints} / ${b.finalPoints} | ${a.villages} / ${b.villages} | ${num(net(la))} / ${num(net(lb))} | ${a.longestIdleHours.toFixed(1)} / ${b.longestIdleHours.toFixed(1)} | ${g ? `${g.trained.firecart}` : '-'} | ${g?.firstTrainedDay !== undefined ? `day ${g.firstTrainedDay.toFixed(1)}` : 'never'} | ${g ? `${g.raids} (${g.wins})` : '-'} | ${g ? g.levelsLowered : '-'} | ${g ? num(g.lossValue) : '-'} |`,
     );
   });
   out.push('');
@@ -1664,7 +1665,7 @@ export function formatReport(rep: SimReport, full = false): string {
   );
   if (rep.options.siege) {
     out.push(
-      `- SIEGE (switched on with --siege; GAME_DESIGN 18.9): raider adds Drillyard 3 and 5 to its build list right after Barracks 8, balanced appends Barracks 8 and Drillyard 5; both research Log Ram then Boulder Sling and train batches of ${SIEGE_BATCH} (wheel weights 6 and 4) while they own fewer than ${SIEGE_OWN_CAP.logram} Rams / ${SIEGE_OWN_CAP.boulder} Slings. When a target's Wall is >= ${SIEGE_MIN_WALL} the siege units at home form a second candidate army next to the raiders alone (the slowest unit sets the travel time). That siege run is only chosen when the preview (other seed, attack >= 1.25 x defence) really lowers a Wall level; it then goes before the loot raids, valued at the build cost of the levels (siegeTarget 'wall', applyBattleToDefender). Siege never goes on a Chieftain strike (a taken village keeps its buildings).`,
+      `- SIEGE (switched on with --siege; GAME_DESIGN 18.9): raider adds Drillyard 3 and a Wrightyard to its build list right after Barracks 8, balanced appends them; both research the Firecart and train batches of ${SIEGE_BATCH} (wheel weight 10) while they own fewer than ${SIEGE_OWN_CAP.firecart} Firecarts. When a target's Wall is >= ${SIEGE_MIN_WALL} the siege units at home form a second candidate army next to the raiders alone (the slowest unit sets the travel time). That siege run is only chosen when the preview (other seed, attack >= 1.25 x defence) really lowers a Wall level; it then goes before the loot raids, valued at the build cost of the levels (siegeTarget 'wall', applyBattleToDefender; the Firecart also burns the Wall during the battle). Siege never goes on a Chieftain strike (a taken village keeps its buildings).`,
     );
   }
   return out.join('\n');

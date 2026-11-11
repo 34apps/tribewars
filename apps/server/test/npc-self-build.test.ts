@@ -55,7 +55,7 @@ test('the stored village is settled on read and the new levels are real: points 
   assert.ok(villagePoints(later) > villagePoints(before.state), 'more points after a long wait');
   assert.deepEqual(later.troops, before.state.troops, 'the garrison is exactly as created');
   assert.equal(totalUnits(later.troops), totalUnits(fullGarrison(before.state.buildings.hall)));
-  assert.deepEqual(later.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+  assert.deepEqual(later.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
   await app.close();
 });
 

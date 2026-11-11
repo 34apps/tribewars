@@ -58,7 +58,7 @@ function emptyVillage(t: number): VillageState {
     troops: emptyUnits(),
     away: emptyUnits(),
     buildQueue: [],
-    trainQueues: { barracks: [], stables: [], bannerhall: [] },
+    trainQueues: { barracks: [], stables: [], wrightyard: [], bannerhall: [] },
   };
 }
 
@@ -231,6 +231,7 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
       v.buildQueue.shift();
       advance(job.finishAt);
       v.buildings[job.building] = Math.max(v.buildings[job.building], job.targetLevel);
+      if (v.npc && job.building === 'farm') v.buildings.longhouse = Math.max(v.buildings.longhouse, job.targetLevel); // an abandoned village's Longhouse follows its Farm
       continue;
     }
     if (!selfBuild || v.npc === undefined || starts++ >= NPC_MAX_BUILDS_PER_SETTLE) break;
@@ -311,7 +312,7 @@ function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: numb
   if (!v.npc) {
     const extra = buildingPop(b, targetLevel) - buildingPop(b, targetLevel - 1);
     if (populationUsage(v).total + extra > populationCap(v)) {
-      return fail('population_full', 'Not enough population room. Upgrade the Farm or spend troops first.');
+      return fail('population_full', 'Not enough population room. Upgrade the Longhouse or spend troops first.');
     }
   }
   return { ok: true, building: b, targetLevel, cost, timeMs: buildTimeMs(b, targetLevel, v.buildings.hall, s) };
@@ -397,7 +398,7 @@ function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings
   for (const r of RESOURCE_IDS) cost[r] = def.cost[r] * count;
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
   if (!v.npc && populationUsage(v).total + count * POP_PER_UNIT[u] > populationCap(v)) {
-    return fail('population_full', 'Not enough population room. Upgrade the Farm to train more troops.');
+    return fail('population_full', 'Not enough population room. Upgrade the Longhouse to train more troops.');
   }
   return { ok: true, unit: u, count, cost, perUnitMs: trainTimeMs(u, v, s) };
 }

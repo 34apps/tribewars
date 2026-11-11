@@ -11,6 +11,8 @@ import {
   normalizeUnits,
   POP_PER_UNIT,
   populationCap,
+  allTrainJobs,
+  TRAINING_BUILDING_IDS,
   populationUsage,
 } from '@clanfire/engine';
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
@@ -41,7 +43,7 @@ function TroopsList() {
   const { live } = useGame();
   const info = useUnitInfo();
   const training = emptyUnits();
-  for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
+  for (const j of allTrainJobs(live)) training[j.unit] += j.count - j.done;
   const used = populationUsage(live).total;
   const cap = populationCap(live);
   return (
@@ -237,10 +239,10 @@ function Movements() {
   );
 }
 
-/** One calm line per batch in the barracks, stables and banner hall: what is coming next and when. */
+/** One calm line per batch in the barracks, stables, wrightyard and banner hall: what is coming next and when. */
 function TrainingSummary() {
   const { live, now } = useGame();
-  const jobs = (['barracks', 'stables', 'bannerhall'] as const).flatMap((b) => live.trainQueues[b].map((j) => ({ ...j, b })));
+  const jobs = TRAINING_BUILDING_IDS.flatMap((b) => live.trainQueues[b].map((j) => ({ ...j, b })));
   if (jobs.length === 0) return null;
   return (
     <section className="ar-section" aria-labelledby="trainsum-title">
@@ -502,9 +504,9 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
       setText('');
     } catch (e) {
       const fix = errorToast(e instanceof ApiRequestError ? e.code : undefined, errorMessage(e), {
-        farm: () => {
+        longhouse: () => {
           navigate('village');
-          openBuilding('farm');
+          openBuilding('longhouse');
         },
       });
       toast(errorMessage(e), fix);
@@ -713,6 +715,7 @@ export function ArmyView() {
       <div id="army-training">
         <TrainingPanel building="barracks" />
         <TrainingPanel building="stables" />
+        <TrainingPanel building="wrightyard" />
       </div>
       <ChieftainPanel />
     </div>

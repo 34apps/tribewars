@@ -136,7 +136,7 @@ export function SendForm({
   // Test mode only: own seconds for the way out / home (blank = normal travel time).
   const [outSecs, setOutSecs] = useState('');
   const [backSecs, setBackSecs] = useState('');
-  // Boulder Slings only: the building they hit ('' = random).
+  // Firecarts only: the building they burn after a won battle ('' = the Wall).
   const [siegePick, setSiegePick] = useState('');
   // Troop groups: "Only 40 of 60 Raiders at home" after a tap that came up short.
   const [groupNote, setGroupNote] = useState<string | null>(null);
@@ -198,8 +198,8 @@ export function SendForm({
     setError(null);
     setGroupNote(null);
     setCounts((c) => ({ ...c, [u]: value }));
-    // The chosen building only means something while Boulder Slings are in the army: drop it when they are deselected.
-    if (u === 'boulder') {
+    // The chosen building only means something while Firecarts are in the army: drop it when they are deselected.
+    if (u === 'firecart') {
       const n = Number(value);
       if (!(Number.isInteger(n) && n > 0)) setSiegePick('');
     }
@@ -210,7 +210,7 @@ export function SendForm({
     const fill = fillFromGroup(units, visible, live.troops);
     setError(null);
     setCounts(fill.counts);
-    if (!fill.counts.boulder) setSiegePick('');
+    if (!fill.counts.firecart) setSiegePick('');
     setGroupNote(Object.keys(fill.counts).length === 0 ? 'None at home' : shortNote(fill.short));
   }
 

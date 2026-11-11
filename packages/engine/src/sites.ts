@@ -251,7 +251,7 @@ export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
     troops: { ...input.militia },
     away: emptyUnits(),
     buildQueue: [],
-    trainQueues: { barracks: [], stables: [], bannerhall: [] },
+    trainQueues: { barracks: [], stables: [], wrightyard: [], bannerhall: [] },
   };
   const result = resolveBattle({
     attackerUnits: input.attackerUnits,

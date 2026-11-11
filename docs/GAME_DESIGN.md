@@ -27,7 +27,7 @@ When a rule changes, change it here in the same commit.
 - **Gold is the elite and conquest resource, made at 1/10 of a Lumber Camp** (owner, 2026-11-10: `PRODUCTION_BASE.goldmine` 3
   vs lumber 30; it was 10, a third). No gold is needed at the start (stock 100 covers the first research); it pays for cavalry
   and siege research, Stables and Drillyard upgrades (20 / 15 at level 1, about 2,600 / 580 to the top), Knights (30 each),
-  Log Rams (4), Boulder Slings (12), the Banner Hall (100, x1.35 per level) and the **War Chest**, which pays for Chieftains (paid in from any village, one way; §18.2). With no gold coming in the
+  Firecarts (6), the Banner Hall (100, x1.35 per level) and the **War Chest**, which pays for Chieftains (paid in from any village, one way; §18.2). With no gold coming in the
   build and train buttons say "Needs gold · build a Gold Mine" (`apps/web/src/shortfall.ts`). Sizing: the most gold-hungry use is the Knight (100/260/230 + 30 gold: 0.30 gold per wood, 0.13 per iron).
   With every building at level 10 a village makes gold for ~10 Knights a day, iron for ~13, food for ~15: a Knight village
   needs its Gold Mine about 2 levels above its Iron Mine, and anyone mixing Knights with a Banner Hall or Chieftains has to
@@ -35,24 +35,23 @@ When a rule changes, change it here in the same commit.
   Renown. At a third, gold piled up for every play style (`BALANCE.md` §12). Players who only build can skip the Gold Mine.
 - **No troop food upkeep** (owner, 2026-11-05; before that troops ate 0.25 food per population point, and 1 per unit before
   2026-11-04). Troops, at home, away or queued, cost no food at all: `FOOD_UPKEEP_PER_POP`, `UnitDef.upkeep`, `upkeepPerHour`,
-  `netProductionPerHour` and the `not_enough_food` refusal are gone, and food is simply the farm's production. The Farm still
+  `netProductionPerHour` and the `not_enough_food` refusal are gone, and food is simply the farm's production. The **Longhouse**
   sets the **population cap** (below), which is now the only limit on army size besides cost and time. Food is spent on
   buildings, troop costs and Feasts.
 - **Food has a real use (owner request, balance pass 2026-11-05).** Food piled up in every sim style once troops stopped eating, so unit costs
   and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron (since 2026-11-11, x0.55 of the
   old numbers, food about x0.5, so a maxed village can fill its 12,000 room in about 13 days of its own income): Pikeman 15/25/15,
-  Shieldbearer 15/35/30, Raider 20/40/30, Outrider 35/85/70, Knight 55/130/125 (+16 gold), Pathfinder 10/25/15, Log Ram 95/120/100 (+2 gold),
-  Boulder Sling 75/130/120 (+7 gold). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
+  Shieldbearer 15/35/30, Raider 20/40/30, Outrider 35/85/70, Knight 55/130/125 (+16 gold), Pathfinder 10/25/15, Firecart 99/88/121 (+6 gold). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
   2,100/3,450/2,100 (+100 gold; the food figure fits the Storehouse level 6 it requires). Numbers in `config.ts`.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
-  (queued levels are reserved when queued; the Farm takes 0). Each troop takes `POP_PER_UNIT[u]`
-  whether at home, away or queued for training. Cap = `popCapForLevel(farm level)` (level 0:
+  (queued levels are reserved when queued; the Longhouse takes 0, the Farm takes 3 at level 1 like a Lumber Camp). Each troop takes `POP_PER_UNIT[u]`
+  whether at home, away or queued for training. Cap = `popCapForLevel(Longhouse level)` (level 0:
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
   that would push used above the cap is refused (`population_full`); losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
-  Tuning (2026-11-11, 25 levels): growth 1.08 (buildings) / 1.20 (cap, base 151, level 0 = 120) so the Farm at level 25 holds about
-  12,000 and a fully built village uses about 200 of it, leaving about 11,800 for troops. (Before: ~4,800 at Farm 20.)
+  Tuning (2026-11-11, 25 levels): growth 1.08 (buildings) / 1.20 (cap, base 151, level 0 = 120) so the Longhouse at level 25 holds about
+  12,000 and a fully built village uses about 200 of it, leaving about 11,800 for troops. (Before: ~4,800 at Farm 20.) Since 2026-11-11 (originality piece 2) the room belongs to the **Longhouse**, not the Farm: the Farm makes food only and uses population like the Lumber Camp.
   The top bar shows a "Population used / cap" chip next to the resources for the current village (own row
   under the resources on phones), with a mini meter and warning colour from 90% (`aria-label` "Population X of Y").
 - **Storage cap** (same for every resource) from the storehouse level:
@@ -69,9 +68,9 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 
 - **25-level ladder (owner/lead decision 2026-11-11, replaces the tiers idea; originality piece 1).** Max levels: Town Hall, Lumber Camp,
   Farm, Iron Mine, Storehouse **25**; Barracks **20**; Wall **22**; Stables **18**; Gold Mine **18**; Market **12**; Vault **12**; Drillyard **10**;
-  Banner Hall **4**. No tiers, no Town Hall gates; levels only go up, so saved worlds keep every level (no migration). One curve per effect,
+  Banner Hall **4**; the **Longhouse** **25** and the **Wrightyard** **12** came with originality pieces 2 and 3 (below). No tiers, no Town Hall gates; levels only go up, so saved worlds keep every level (no migration). One curve per effect,
   own numbers: production `base x 1.1245^(L-1)` (54 wood / 72 food / 54 iron at level 1, about 900 / 1,200 / 900 at level 25; level 0 trickle 9;
-  Gold Mine 3 x 1.138^(L-1), 27 at level 18 as the old level 15); storage `1,800 x 1.177^(L-1)` (about 90,000 at 25; level 0 = 1,350); Farm room
+  Gold Mine 3 x 1.138^(L-1), 27 at level 18 as the old level 15); storage `1,800 x 1.177^(L-1)` (about 90,000 at 25; level 0 = 1,350); Longhouse room
   `151 x 1.2^(L-1)` (about 12,000 at 25; level 0 = 120); Vault `120 x 1.28^(L-1)` (1,813 at 12, the old level 10); Town Hall `x0.96` build time per
   level (x0.38 at 25 = the old level 20); training `x0.94` per level (unchanged); Wall `+4.5%` defence per level and militia `20 + 14 L` (level 22
   = +99%, 328 militia). Building costs are x1.5 of before at level 1 (wood/food/iron; gold unchanged) with growth about `timeGrowth - 0.055`.
@@ -80,12 +79,13 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   | Building | Max (was) | Level 1 cost | Cost growth | Total cost to max | Time L1 | Time growth | Total time to max |
   |---|---|---|---|---|---|---|---|
   | Town Hall | 25 (20) | 135/120/105 | 1.23 | 275k (+196%) | 600 s | 1.285 | 12.8 d (+130%) |
-  | Lumber Camp / Farm | 25 (20) | 75/60/45 / 90/45/45 | 1.207 | 95k (+131%) | 360 s | 1.262 | 5.3 d (+103%) |
+  | Lumber Camp / Farm / Longhouse | 25 (20) | 75/60/45 / 90/45/45 (both) | 1.207 | 95k (+131%) | 360 s | 1.262 | 5.3 d (+103%) |
   | Iron Mine | 25 (20) | 100/70/30 | 1.207 | 106k (+137%) | 420 s | 1.262 | 6.2 d (+103%) |
   | Storehouse | 25 (20) | 105/75/60 | 1.207 | 127k (+161%) | 480 s | 1.262 | 7.1 d (+103%) |
   | Barracks | 20 (20) | 300/225/180 | 1.23 | 189k (+4%) | 900 s | 1.285 | 5.5 d (-35%) |
   | Wall | 22 (20) | 150/60/90 | 1.21 | 93k (+20%) | 720 s | 1.265 | 5.5 d (-18%) |
   | Stables | 18 (15) | 390/300/450 +20 g | 1.22 | 212k (+70%) | 1800 s | 1.275 | 5.9 d (+44%) |
+  | Wrightyard | 12 (new) | 390/300/450 | 1.22 | 51k | 1800 s | 1.275 | 1.3 d |
   | Gold Mine | 18 (15) | 225/180/270 | 1.22 | 107k (+42%) | 1500 s | 1.275 | 4.9 d (+44%) |
   | Market | 12 (10) | 150/105/90 | 1.205 | 14k (+67%) | 1200 s | 1.26 | 0.8 d (+35%) |
   | Vault | 12 (10) | 60/75/45 | 1.225 | 8k (+80%) | 540 s | 1.28 | 0.4 d (+39%) |
@@ -93,11 +93,11 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   | Banner Hall | 4 (4) | 2100/3450/2100 +100 g | 1.35 | 57k (+15%) | 72000 s | 1.32 | 5.3 d (0%) |
 
   Building every building to its max, one after the other with the Town Hall always at 25 (x0.38), takes about **25 days** at speed 1 (before: about
-  18); the last Town Hall level takes about 26 hours, the last Lumber Camp level 10 hours. Points per level keep the 1.2 growth (a maxed 25-level building
+  18; **27 days** with the Longhouse and Wrightyard, originality pieces 2-3); the last Town Hall level takes about 26 hours, the last Lumber Camp level 10 hours. Points per level keep the 1.2 growth (a maxed 25-level building
   counts more than before); Renown per level and siege cost per level keep their formulas too. Unit unlock levels, Hall requirements and the Banner Hall
-  requirements are unchanged. Abandoned villages produce only `NPC_PRODUCTION_FACTOR` (0.5) of their levels (the loot supply that holds raiders in line,
+  requirements are unchanged. Abandoned villages produce only `NPC_PRODUCTION_FACTOR` (0.45, was 0.5 until originality piece 2) of their levels (the loot supply that holds raiders in line,
   BALANCE 13); the 2nd village costs 1,300 Renown (was 1,000). Art: four looks per building, stage 4 only at the max level; stage ends are
-  `STAGE_TOPS` (25-level buildings 6 / 15, Barracks 5 / 12, Wall 5 / 13, Stables and Gold Mine 4 / 10, Market and Vault 3 / 7, Drillyard 3 / 6, Banner Hall 1 / 2).
+  `STAGE_TOPS` (25-level buildings, the Longhouse too, 6 / 15, Barracks 5 / 12, Wall 5 / 13, Stables and Gold Mine 4 / 10, Market, Vault and Wrightyard 3 / 7, Drillyard 3 / 6, Banner Hall 1 / 2).
 - Cost of level L: each resource `round(baseCost[r] * costGrowth^(L-1))`.
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
@@ -119,13 +119,23 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   research then starts right away; waiting ones move up; the unit can be researched again). Queues belong to the village: if a village ever
   changes owner (no conquest exists yet), its builds and training must carry on unchanged.
 - Effects: hall → faster building; lumber/farm/mine/goldmine → production; storehouse → cap;
-  barracks/stables → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
-  vault → loot protection.
+  barracks/stables/wrightyard → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
+  vault → loot protection; longhouse → population room.
+- **Longhouse** (`longhouse`, originality piece 2, 2026-11-11): takes over the population room from the Farm. Max 25, starts at 1, no requirement, uses
+  no population itself, cost and time like the Farm; the room curve is the old Farm curve (about 12,000 at 25). The **Farm** now makes food only and takes population
+  room like the Lumber Camp (`POP_BUILDING_FIRST.farm` 3). Siege floor 1 for both (`SIEGE_MIN_LEVEL`). Abandoned villages: Longhouse = Farm level (it follows the
+  Farm when the Farm grows). First step `longhouse2` "Raise the Longhouse to 2" (§20). Old worlds: a one-time migration (schema v17, `migrate.ts`) sets
+  Longhouse = the Farm level in every village; a queued Farm level still finishes as a Farm.
+- **Wrightyard** (`wrightyard`, originality piece 3): trains siege only (the Firecart), with its own training queue (it is in `TRAINING_BUILDING_IDS`, so `trainQueues.wrightyard`,
+  the cancel route takes `building: 'wrightyard'`). Needs Barracks 5, max 12, training `x0.94` per level like the other training buildings, cost like the Stables
+  (390/300/450, no gold). The Barracks no longer trains siege. Migration: a village with Barracks 5 or more gets Wrightyard 1 free.
+- **Vault** is the shown name of `vault` (it was "Vault"; id and art unchanged).
 
 ## 4. Units and training
 
-Five units (`UNITS`): infantry Pikeman (anti-cavalry defense), Shieldbearer (anti-infantry defense),
-Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, costs gold).
+Eight units (`UNITS`): infantry Pikeman (anti-cavalry defense), Shieldbearer (anti-infantry defense),
+Raider (attack), Pathfinder (scout), Chieftain; cavalry Outrider (fast raider, big carry) and Knight (elite, costs gold); and the siege unit
+Firecart, trained at the **Wrightyard** (§3, §18.9). The Log Ram and the Boulder Sling no longer exist (migrated to Firecarts).
 
 - Train batch of `count` (1..MAX_TRAIN_BATCH) in the unit's building. Cost = unit cost × count, paid
   up front. Needs `requires` met. At most `MAX_TRAIN_QUEUE` batches per building.
@@ -133,7 +143,7 @@ Raider (attack); cavalry Outrider (fast raider, big carry) and Knight (elite, co
   fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
   end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
 - **Research gate (Drillyard, see §15):** Shieldbearer, Outrider and Knight have `UnitDef.research`
-  (Drillyard level to start, cost, time). They can only be trained after the research finished in that
+  (Drillyard level to start, cost, time; the Firecart too, Drillyard 3). They can only be trained after the research finished in that
   village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
   (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting), the same for everyone. Cost is paid when
   queued; jobs run one after another; the same unit can't be queued twice (full queue is `queue_full`);
@@ -202,9 +212,9 @@ Tests and the simulator pass their own seeds.
    equally over resources that still have lootable stock; repeat until capacity or stock runs out.
    Loot values are integers. A Strike attempt (an attack with a Chieftain), a relief attack and a map-site battle take no loot at all
    (`BattleInput.noLoot`, what `lootFactor: 0` did before).
-7. Siege (18.9): before step 4 the Log Rams that were sent fire half their points at the Wall (`resolveSiegeDuring`); the defence uses that
-   lowered Wall (`BattleResult.wallDuring`). After the battle `resolveSiege` lets the surviving rams (full points, same level cap) and slings
-   hit; on a loss `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE)` of each siege kind count as survivors.
+7. Siege (18.9): before step 4 the Firecarts that were sent fire half their points at the Wall (`resolveSiegeDuring`); the defence uses that
+   lowered Wall (`BattleResult.wallDuring`). After the battle `resolveSiege` lets the surviving Firecarts (full points) burn the building the sender
+   picked (the Wall if none), each step at most 2 levels; on a loss `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE)` Firecarts count as survivors.
 
 `applyBattleToDefender(defender, result)` removes defender losses and the loot and applies the siege hits (win or loss).
 
@@ -226,7 +236,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   0.6 (8 + 14 become 5 + 8), and the scattered layout's `npc.density` is 0.01 (was 0.02). All are WorldConfig settings. **Worlds that already exist keep
   what they were created with** (only new placement changes): a stored config without these settings reads 3 / 0.4 / 1, and the flat density stays
   whatever the world stored. More abandoned villages still appear over time when inactive owners lose theirs (§18.2, existing rule).
-- Start levels for tier T: hall T; lumber, farm, mine, storehouse 2T; wall, vault and gold mine T−1;
+- Start levels for tier T: hall T; lumber, farm, longhouse (= farm), mine, storehouse 2T; wall, vault and gold mine T−1;
   others 0. Wood, food and iron start at `npc.startStockShare` (80%) of the cap; gold at `NPC_START_GOLD_PER_TIER × T` (the gold
   mine they start with keeps producing; they do not build more). Garrison starts full.
 - Starting garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit (owner 2026-11-05: **an abandoned village never trains or regains
@@ -1411,8 +1421,8 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
 | **Watchtower** | The tribe's incoming-attack alerts show more. Level 1: the army size as a rough band (small below 200 population, medium below 1,000, large below 4,000, else huge). Level 2: also the slowest unit type. Level 3: also the size rounded to 100. **Chieftains are never counted or named**; a Chieftain-only attack shows as small with nothing else. |
 | **Wards** | +4 / +8 / +12% defence for the defending side at map sites (shrines, Waymarks, Lookouts) the tribe holds. Not at villages. |
 
-**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Hidden Vault **and** up to a fifth
-of each store resource (rounded down); the carry limit is the same. The Hidden Vault shelters only the village's own stock, not the store.
+**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Vault **and** up to a fifth
+of each store resource (rounded down); the carry limit is the same. The Vault shelters only the village's own stock, not the store.
 The loot of each resource is split between village and store in proportion to what each offered. The report shows `lootFromTribeStore`; the
 tribe event log says "The Tribe Store was raided by X". Renown counts the whole loot as before. So the tribe has to defend that village
 with support; a fifth per won attack and the existing repeat-raid rules bound what one raider can take.
@@ -1978,8 +1988,8 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
 | **Watchtower** | The tribe's incoming-attack alerts show more. Level 1: the army size as a rough band (small below 200 population, medium below 1,000, large below 4,000, else huge). Level 2: also the slowest unit type. Level 3: also the size rounded to 100. **Chieftains are never counted or named**; a Chieftain-only attack shows as small with nothing else. |
 | **Wards** | +4 / +8 / +12% defence for the defending side at map sites (shrines, Waymarks, Lookouts) the tribe holds. Not at villages. |
 
-**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Hidden Vault **and** up to a fifth
-of each store resource (rounded down); the carry limit is the same. The Hidden Vault shelters only the village's own stock, not the store.
+**The raid twist.** The store village can be raided. A **won attack** on it loots the village stock above the Vault **and** up to a fifth
+of each store resource (rounded down); the carry limit is the same. The Vault shelters only the village's own stock, not the store.
 The loot of each resource is split between village and store in proportion to what each offered. The report shows `lootFromTribeStore`; the
 tribe event log says "The Tribe Store was raided by X". Renown counts the whole loot as before. So the tribe has to defend that village
 with support; a fifth per won attack and the existing repeat-raid rules bound what one raider can take.
@@ -2095,62 +2105,55 @@ Terrain slowing an average trip by about 12% was not answered; it stays as propo
 
 13. **Owner 2026-11-07: tribe projects simple version** — store in a member village that can be raided (at most a fifth per won attack), Roads/Watchtower/Wards 3 levels, permanent, no Banner. Built the same day (§18.5).
 
-### 18.9 Siege units: the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05)
+### 18.9 Siege: the Firecart, the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05; one unit since the originality pass, 2026-11-11)
 
-Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.logram`,
-`UNITS.boulder`, `SIEGE_*`); the rules live in `packages/engine/src/siege.ts`.
+Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.firecart`, `SIEGE_*`);
+the rules live in `packages/engine/src/siege.ts`. Until 2026-11-11 there were two siege units (Log Ram on the Wall, Boulder Sling on a chosen
+building, both trained at the Barracks); they are replaced by **one** unit, the Firecart, trained at the **Wrightyard**.
 
-**Rule (revised 2026-11-05, genre-standard behaviour with our own numbers).** A building level never drops by itself: not on capture, not
-with time. It drops only through siege units in an attack. **Log Rams hit the Wall already during the battle** (the lowered Wall counts
-in that battle); **Boulder Slings hit the building the sender picked after the battle**. A **lost attack can still do reduced damage**
-(below). A called-off attack and a scouting mission never lower anything. (Before 2026-11-05: only after a won battle, Wall counted in
-full.)
+**Rule.** A building level never drops by itself: not on capture, not with time. It drops only through Firecarts in an attack. The Firecart acts
+in **two steps**: **during the battle it burns the Wall** (the lowered Wall counts in that battle), and **after a won battle the surviving Firecarts burn the
+building the sender picked, or the Wall if none was picked**. A **lost attack can still do reduced damage** (below). A called-off attack and a scouting
+mission never lower anything.
 
-**Two units**, both trained in the **Barracks** (simplest fit: no new building, no new queue; they simply sit behind high Barracks
-levels) and both **researched at the Drillyard** first, like the other advanced units:
+| Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost (x0.55 on this branch) | Pop | Time |
+|---|---|---|---|---|---|---|---|---|
+| **Firecart** | Wall in the battle, picked building (Wall) after it | Wrightyard 1 | Drillyard 3 | 3 (slowest unit) | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold (180/160/220/10 x 0.55) | 3 | 1,400 s |
 
-| Unit | Does | Barracks | Drillyard research | Speed | Attack / defence | Cost | Pop |
-|---|---|---|---|---|---|---|---|
-| **Log Ram** | lowers the **Wall** | 5 | Drillyard 3 | 3 (slowest unit) | 4 / 6 vs foot, 4 vs riders | 220 wood, 120 food, 240 iron, 4 gold | 3 |
-| **Boulder Sling** | lowers **one building the sender picks** | 8 | Drillyard 5 | 4 | 6 / 4 vs foot, 3 vs riders | 180 wood, 140 food, 280 iron, 12 gold | 2 |
+It walks over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carries nothing and can only go on an **attack** (not scout, support,
+found or occupy; `checkMission` refuses it). It fights, but badly, and dies in the battle like everyone else (loss ratio is the same for every unit of
+the army).
 
-Both walk over rough ground like heavy carriers (`UNIT_TERRAIN_FAMILY` = carrier) and can only go on an **attack** (not scout, support,
-found or occupy; `checkMission` refuses them). They fight, but badly: they add a little attack and a little defence, and die in the
-battle like everyone else (loss ratio is the same for every unit of the army).
-
-**Damage (deterministic, `resolveSiege`).** Each unit kind has `count x power` **siege points** (Log Ram power 1, Boulder Sling 0.8).
-Lowering a building from level L to L-1 costs `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to
-knock down (level 10: 26 points, level 5: 16). A kind lowers **at most `maxLevels`** levels in one attack (Log Ram 3, Boulder Sling 2, both
-phases together) and **stops at the floor**: a building never goes below level 0, the **Town Hall, Farm and Storehouse never below 1** (`SIEGE_MIN_LEVEL`; Farm and Storehouse added 2026-11-05 so a village keeps room for people and a store).
-Points that are not used up are lost; there is no carry-over between attacks.
+**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 1). Lowering a building from level L to L-1 costs
+`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16). **Each step lowers
+at most `maxLevels` (2) levels** (so the Wall can lose up to 4 in one attack when it is both the during target and the picked building) and **stops at the floor**: a
+building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
 
 **Order of events.**
-1. **During the battle (Log Rams, Wall).** Before the defence is added up, the rams that were sent (all of them are standing when the
-   battle starts) fire with `SIEGE_DURING_SHARE` (0.5) of their points. The Wall level they leave is the Wall the defence **uses in this
-   battle** (a lower Wall means less defence).
-2. **After the battle (survivors).** The **surviving** Log Rams spend their points (full) on the Wall again, and the **surviving** Boulder
-   Slings spend theirs on the picked building. Damage is scaled by how many survive: a battle that kills most of the siege army leaves little.
-3. **A lost attack** still does reduced damage if siege units got a hit in. Every attacker unit still dies on a lost attack, but a close
-   fight is not a wipe-out: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` of each siege kind count as the
-   survivors for the **after** step (a hopeless attack, A much smaller than D, does nothing). Log Rams' during-the-battle hit counts as
-   always.
-The drop applies together with the losses and the loot. A queued upgrade of the lowered building aims the same number of levels lower
-(its cost is not refunded); levels that already paid Renown stay paid, so rebuilding them earns none. Population, storage and production
-simply follow the new levels. Units of a siege kind that was sent on its own (no escort) and wins nothing still shoot as above.
+1. **During the battle (all Firecarts that were sent, Wall).** Before the defence is added up, the Firecarts that were sent (all stand when the battle starts) fire with
+   `SIEGE_DURING_SHARE` (0.5) of their points at the Wall. The Wall level they leave is the Wall the defence **uses in this battle**.
+2. **After the battle (survivors).** The **surviving** Firecarts spend their full points on the picked building (the Wall if none). When that is the Wall the report shows ONE
+   Wall line from before the battle to after both steps. A Wall line of the during step is only listed when it lowered the Wall.
+3. **A lost attack** still does reduced damage: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` Firecarts count as the survivors for the
+   **after** step (a hopeless attack does nothing).
+The drop applies together with the losses and the loot. A queued upgrade of the lowered building aims the same number of levels lower (its cost is not refunded);
+levels that already paid Renown stay paid. Population, storage and production simply follow the new levels.
 
-**Picking the building (Boulder Sling).** The send form lists the building **names** (public knowledge) without levels. Levels are only known
-from a scouting report with Keen 4 (`SCOUT_INTEL_KEEN.buildings`). The server **never checks the pick against the target village**: it only
-accepts a known building id on an attack that carries Boulder Slings, so the send cannot be used to find out what a village has. A pick
-that turns out to be level 0 (or at its floor) is a miss, and the report says so. With **no pick** the engine draws one from the battle
-seed among the buildings that can still drop (the draw is part of the secret seed, so nobody can predict it).
+**Picking the building.** The send form lists the building **names** (public knowledge) without levels ("Firecarts hit:", "The Wall" is the no-pick choice). Levels are only known
+from a scouting report with Keen 4. The server **never checks the pick against the target village**: it only accepts a known building id on an attack that carries
+Firecarts, so the send cannot be used to find out what a village has. A pick that turns out to be level 0 (or at its floor) is a miss, and the report says so. There is no
+random pick any more (the engine's `random` flag on a hit is gone).
 
-**Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`); the Wall
-line runs from the level before the battle to the level after both steps, and `wallLevel` is the Wall **as it counted in the battle**
-(after the during-the-battle hit). An attacker whose army was wiped out still sees the Wall hit of a close loss, nothing else of the defence.
+**Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`); `wallLevel` is the Wall **as it counted in
+the battle** (after the during-the-battle hit). An attacker whose army was wiped out still sees the Wall hit of a close loss, nothing else of the defence.
 
-**Balance (`BALANCE.md` section 8).** Rams now also help win the battle (the Wall is lower), and a close loss is not a total waste, but
-rams are slow, so the defender sees them coming and can rebuild. The siege army is far more expensive than rebuilding what it lowers (Wall levels cost little), is the slowest thing
-on the map (a defender sees it coming a long way off and can recall, reinforce or counter), and is capped per attack. So siege makes the
+**Old worlds (migration, schema v17).** Log Rams and Boulder Slings at home, away, stationed, at a site or marching become Firecarts **by population**:
+`floor((3 x rams + 2 x slings) / 3)` (the server converts each marching or standing group the same way and sets the village's `away` to the sum, so the two always agree);
+queued siege batches at the Barracks and siege research are refunded in full (capped at the storehouse) and leave the queues; researched siege counts as the Firecart researched;
+villages with Barracks 5 or more get Wrightyard 1 for free. The refund uses the old prices (`LEGACY_SIEGE` in `migrate.ts`).
+
+**Balance (`BALANCE.md` sections 8 and 13).** Firecarts help win the battle (the Wall is lower) and a close loss is not a total waste, but they are slow, so the defender sees
+them coming and can rebuild. The siege army is far more expensive than rebuilding what it lowers, is the slowest thing on the map, and is capped per step. So siege makes the
 next attack easier; it does not make defending pointless.
 
 ### 18.10 Incoming warnings and notifications (owner, 2026-11-05)
@@ -2158,7 +2161,7 @@ next attack easier; it does not make defending pointless.
 **Visible as soon as it is sent.** The defender sees every incoming attack the moment it is sent: **attacker village** (name, coordinates,
 owner), **send time** (`departAt`) and **arrival time** (`arriveAt`); **never the unit list** (`units: null`). Scouting missions stay
 hidden. Incoming support and incoming resources (shipments) are visible too. Every unit type keeps its own `speed` in `config.ts` and an
-army moves at its **slowest unit**, so a slow Chieftain or a Log Ram shows up in the travel time (and defenders can guess what is coming from it).
+army moves at its **slowest unit**, so a slow Chieftain or a Firecart shows up in the travel time (and defenders can guess what is coming from it).
 
 **Notifications at send time** (server table `notifications`, schema v10): one row for the target's owner when an **incoming attack**,
 **incoming support** or **incoming resources** movement is created (nobody for the sender's own villages, scouts or returns). A cancel
@@ -2196,7 +2199,7 @@ like every other duration.
 | `features` | `siege` true, `sites` true, `morale` true, `scavenging` false, `paidSpeedups` false |
 | `queues` | `build` 2, `research` 2, `train` 5 |
 
-- **Flags.** `siege` off: Log Rams and Boulder Slings cannot be trained or researched and battles never lower buildings (the web hides them).
+- **Flags.** `siege` off: Firecarts cannot be trained or researched and battles never lower buildings (the web hides them).
   `sites` off: no Fire Shrines or Great Fire are created, the sites list is empty. `morale` on (default for new worlds): the rule in §7; a stored `false` stays off, and a world with no stored morale setting (created before 2026-11-08) runs without it; it is fixed once the world opens, like the other battle rules. `scavenging` and `paidSpeedups` are **reserved**: the flags are stored and published (default off), the features are not built (see `GENRE_COMPARISON.md` §4, §18.11). Scavenging was cut by the owner (2026-11-06): its flag does nothing.
 - **Ranges.** Every value has a range (`WORLD_CONFIG_FIELDS`); out-of-range or wrong-type values are refused when set and replaced by the default
   when a stored config is read (so a config written by an older version gets today's value for settings added later).
@@ -2217,21 +2220,22 @@ like every other duration.
 
 ## 20. First steps (starter tasks; owner-approved 2026-11-08)
 
-Eight small tasks with a small reward each, shown as a card in the web client. Numbers: `FIRST_STEPS` in `packages/engine/src/config.ts`; rules: `packages/engine/src/firstSteps.ts`.
+Nine small tasks with a small reward each, shown as a card in the web client. Numbers: `FIRST_STEPS` in `packages/engine/src/config.ts`; rules: `packages/engine/src/firstSteps.ts`.
 
 | # | Id | Task | Reward (wood / food / iron / gold) |
 |---|---|---|---|
 | 1 | `lumber2` | Lumber Camp to level 2 | 150 / 80 / 80 / 0 |
 | 2 | `farm2` | Farm to level 2 | 80 / 150 / 80 / 0 |
-| 3 | `hall2` | Town Hall to level 2 | 120 / 120 / 120 / 0 |
-| 4 | `barracks2` | Barracks to level 2 | 250 / 200 / 200 / 0 |
-| 5 | `raiders5` | Train 5 Raiders | 200 / 200 / 200 / 20 |
-| 6 | `raid` | Raid an abandoned village | 150 / 150 / 150 / 0 |
-| 7 | `report` | Open a battle report | 100 / 100 / 100 / 30 |
-| 8 | `tribe` | Join or found a tribe | 250 / 250 / 250 / 50 |
+| 3 | `longhouse2` | Longhouse to level 2 (raise the Longhouse to 2) | 80 / 150 / 80 / 0 |
+| 4 | `hall2` | Town Hall to level 2 | 120 / 120 / 120 / 0 |
+| 5 | `barracks2` | Barracks to level 2 | 250 / 200 / 200 / 0 |
+| 6 | `raiders5` | Train 5 Raiders | 200 / 200 / 200 / 20 |
+| 7 | `raid` | Raid an abandoned village | 150 / 150 / 150 / 0 |
+| 8 | `report` | Open a battle report | 100 / 100 / 100 / 30 |
+| 9 | `tribe` | Join or found a tribe | 250 / 250 / 250 / 50 |
 
 - **Done:** in any order, as soon as the game sees it, and then done for good (stored). Building steps: that building is at level 2 or more in any of the player's villages, a queued or started upgrade to level 2 counts (no waiting for it to finish). `raiders5`: own Raiders at home plus in training plus away are 5 or more. `raid`: the player sent an attack (any troops) at an abandoned village (written when the army is sent; a scout-only march, an attack on a player or a support march does not count). `report`: the player opened a battle report (written when it is read). `tribe`: member of a tribe, founding counts. Everything else is derived from existing state when the player's game state is read.
 - **Claim:** a done, unclaimed step can be claimed once, any time (claims never expire). The player names one of their own villages; the reward goes into it, each resource capped at that village's storage like any delivery (the overflow is lost; the client warns). Done in one transaction, so two requests at once pay once.
-- **Hide:** the player can fold the card away and bring it back (stored flag). When all eight are claimed (`allClaimed`) the client stops showing it.
+- **Hide:** the player can fold the card away and bring it back (stored flag). When all nine are claimed (`allClaimed`) the client stops showing it.
 - Applies to every player, existing ones see what they already did as done, test accounts included. On an ended world claim and hide answer 403 "This world has ended."
 - API: `firstSteps` on `GET /api/state`; `POST /api/first-steps/:id/claim` `{villageId}`; `POST /api/first-steps/hidden` `{hidden}` (`packages/engine/src/api.ts`).

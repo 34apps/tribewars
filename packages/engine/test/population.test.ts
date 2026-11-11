@@ -13,13 +13,14 @@ import {
 import { S1, village } from './helpers.ts';
 
 const RICH = { wood: 50000, food: 50000, iron: 50000, gold: 1000 };
-const LEVELS = { barracks: 1, storehouse: 10, farm: 19 };
+const LEVELS = { barracks: 1, storehouse: 10, longhouse: 19 };
 
 describe('population', () => {
-  it('building population grows with level, the Farm takes none, the cap grows with the Farm', () => {
+  it('building population grows with level, the Longhouse takes none and the Farm takes some, the cap grows with the Longhouse', () => {
     assert.equal(buildingPop('hall', 0), 0);
     assert.ok(buildingPop('hall', 5) > buildingPop('hall', 1));
-    assert.equal(buildingPop('farm', 10), 0);
+    assert.equal(buildingPop('longhouse', 10), 0);
+    assert.ok(buildingPop('farm', 10) > 0);
     assert.ok(popCapForLevel(5) > popCapForLevel(1));
     assert.ok(popCapForLevel(1) > popCapForLevel(0));
   });
@@ -34,7 +35,7 @@ describe('population', () => {
     assert.equal(populationUsage(withTroops).troops, 10 + 2 * POP_PER_UNIT.outrider);
   });
 
-  it('refuses training and building that would go over the cap, but never the Farm', () => {
+  it('refuses training and building that would go over the cap, but never the Longhouse', () => {
     const probe = village({ buildings: LEVELS, resources: RICH });
     const room = populationCap(probe) - populationUsage(probe).total;
     const full = village({ buildings: LEVELS, troops: { pikeman: room }, resources: RICH });
@@ -43,7 +44,9 @@ describe('population', () => {
     assert.ok(!t.ok && t.reason === 'population_full');
     const b = checkBuild(full, 'lumber', 0, S1);
     assert.ok(!b.ok && b.reason === 'population_full');
-    assert.ok(checkBuild(full, 'farm', 0, S1).ok);
+    assert.ok(checkBuild(full, 'longhouse', 0, S1).ok);
+    const f = checkBuild(full, 'farm', 0, S1);
+    assert.ok(!f.ok && f.reason === 'population_full', 'the Farm uses room like the Lumber Camp');
 
     const almost = village({ buildings: LEVELS, troops: { pikeman: room - 1 }, resources: RICH });
     const fits = checkTrain(almost, 'pikeman', 1, 0, S1);

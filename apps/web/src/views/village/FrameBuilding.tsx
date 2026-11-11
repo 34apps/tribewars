@@ -48,7 +48,7 @@ import { useBuildingInfo, whyText } from './buildingInfo.ts';
 import type { BuildingInfo } from './buildingInfo.ts';
 import { tipFor } from './tips.ts';
 
-const TRAINING_BUILDINGS: readonly BuildingId[] = ['barracks', 'stables'];
+const TRAINING_BUILDINGS: readonly BuildingId[] = ['barracks', 'stables', 'wrightyard'];
 
 /** Resource costs with icons; `have` turns the short ones red. */
 function CostLine({ cost, have, className = '' }: { cost: Resources; have?: Resources; className?: string }) {
@@ -292,7 +292,7 @@ function MagsTip({ id }: { id: BuildingId }) {
   );
 }
 
-// ---- Recruit (Barracks, Stables) ---------------------------------------------------------------------------------
+// ---- Recruit (Barracks, Stables, Wrightyard) ---------------------------------------------------------------------------------
 
 function RecruitPanel({ building }: { building: TrainingBuildingId }) {
   const { live, now, settings, village, applyVillage, refresh, toast, openBuilding } = useGame();

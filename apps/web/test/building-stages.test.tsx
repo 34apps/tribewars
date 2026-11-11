@@ -33,8 +33,8 @@ after(async () => {
   await server.close();
 });
 
-test('all 13 buildings: stages 1..4 are non-empty, in order, and stage 4 is the max level only', () => {
-  assert.equal(BUILDING_IDS.length, 13);
+test('all 15 buildings: stages 1..4 are non-empty, in order, and stage 4 is the max level only', () => {
+  assert.equal(BUILDING_IDS.length, 15);
   for (const id of BUILDING_IDS) {
     const max = BUILDINGS[id].maxLevel;
     const [a, b] = mod.STAGE_TOPS[id];

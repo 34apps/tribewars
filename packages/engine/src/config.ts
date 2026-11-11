@@ -102,20 +102,22 @@ export const VAULT_GROWTH = 1.28; // 12 levels: level 12 hides about 1,800, what
 
 /**
  * Population: a second limit next to food. Every building level and every troop (home, away or in training)
- * takes population; the Farm sets the cap. Queued building levels are reserved when queued. Abandoned villages
- * are exempt. Building at level L takes ceil(first * POP_BUILDING_GROWTH^(L-1)); the Farm itself takes none, so a
- * full village can always still upgrade its Farm.
+ * takes population; the Longhouse sets the cap (the Farm's job until the 2026-11-11 originality pass). Queued building levels are reserved when queued. Abandoned villages
+ * are exempt. Building at level L takes ceil(first * POP_BUILDING_GROWTH^(L-1)); the Longhouse itself takes none, so a
+ * full village can always still upgrade its Longhouse.
  */
 export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   hall: 4,
   lumber: 3,
-  farm: 0,
+  farm: 3,
+  longhouse: 0,
   mine: 3,
   goldmine: 3,
   market: 4,
   storehouse: 3,
   barracks: 5,
   stables: 6,
+  wrightyard: 6,
   drillyard: 5,
   bannerhall: 6,
   wall: 2,
@@ -123,15 +125,15 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes about what a 20-level one did
 /** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, logram: 3, boulder: 2 };
-/** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, firecart: 3 };
+/** Cap: Longhouse level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 151;
 export const POP_CAP_GROWTH = 1.2; // level 25 = about 12,000 (owner 2026-11-11): room for a big mixed army
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
 export const HALL_TIME_FACTOR = 0.96; // 25 levels: the max level speeds construction as much as the old level 20 did (x0.38)
-/** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
+/** Barracks/Stables/Wrightyard speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
 export const TRAIN_TIME_FACTOR = 0.94;
 
 /** Wall: defense * (1 + WALL_BONUS_PER_LEVEL * level), plus militia WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * level. */
@@ -152,9 +154,9 @@ export const MORALE_ATTACK_FACTOR = 0.75;
 
 /**
  * Abandoned villages produce this share of what the same levels would (their stock is the loot raiders live on; the 25-level economy with
- * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13). Players are never affected.
+ * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13; 0.5 -> 0.45 with the Longhouse split, which slows builders and so raised the raider / builder score ratio to 2.05). Players are never affected.
  */
-export const NPC_PRODUCTION_FACTOR = 0.5;
+export const NPC_PRODUCTION_FACTOR = 0.45;
 
 /** Abandoned villages. */
 export const NPC_MAX_LEVEL = 7;
@@ -203,7 +205,19 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   farm: {
     id: 'farm',
     name: 'Farm',
-    description: 'Grows food and sets how many people the village can hold, so a bigger Farm means room for a bigger army.',
+    description: 'Grows the food that troops and buildings are paid with. It takes population room like any other building: the Longhouse sets how much room there is.',
+    maxLevel: 25,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(90, 45, 45),
+    costGrowth: 1.207,
+    baseTimeSec: 360,
+    timeGrowth: 1.262,
+  },
+  longhouse: {
+    id: 'longhouse',
+    name: 'Longhouse',
+    description: 'The great hall where the clan lives. Sets how many people the village can hold, so a bigger Longhouse means room for a bigger army. It takes no room itself.',
     maxLevel: 25,
     startLevel: 1,
     requires: {},
@@ -284,6 +298,18 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     baseTimeSec: 1800,
     timeGrowth: 1.275,
   },
+  wrightyard: {
+    id: 'wrightyard',
+    name: 'Wrightyard',
+    description: 'Wrights build and train the Firecart, the clan\'s siege cart. Higher levels train faster. It has its own training queue.',
+    maxLevel: 12,
+    startLevel: 0,
+    requires: { barracks: 5 },
+    baseCost: res(390, 300, 450),
+    costGrowth: 1.22,
+    baseTimeSec: 1800,
+    timeGrowth: 1.275,
+  },
   drillyard: {
     id: 'drillyard',
     name: 'Drillyard',
@@ -324,7 +350,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   },
   vault: {
     id: 'vault',
-    name: 'Hidden Vault',
+    name: 'Vault',
     description: 'Hides some of each resource so raiders cannot take it.',
     maxLevel: 12,
     startLevel: 0,
@@ -445,53 +471,35 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'bannerhall',
     requires: { bannerhall: 1 },
   },
-  // Siege units (docs/GAME_DESIGN.md 18.9). Slow, weak fighters; trained in the Barracks at a high level and researched at the
-  // Drillyard first. They only matter in a battle the attacker WINS: the survivors then lower a building (SIEGE_* below).
-  logram: {
-    id: 'logram',
-    name: 'Log Ram',
-    description: 'A heavy battering log on wheels. After a won attack the surviving rams knock down part of the Wall. Slow, and a poor fighter.',
+  // Siege unit (docs/GAME_DESIGN.md 18.9). Slow, weak fighter; trained at the Wrightyard and researched at the Drillyard first. It lowers
+  // the Wall during the battle and, after a won battle, the building the sender picked (SIEGE_* below).
+  firecart: {
+    id: 'firecart',
+    name: 'Firecart',
+    description: 'A cart of burning pitch. In the battle it burns down part of the Wall; after a won attack the surviving carts burn the building you pick when sending (the Wall if you pick none). Slow, and a poor fighter.',
     unitClass: 'infantry',
-    attack: 4,
-    defenseInfantry: 6,
-    defenseCavalry: 4,
+    attack: 5,
+    defenseInfantry: 7,
+    defenseCavalry: 5,
     speed: 3,
     carry: 0,
-    cost: res(95, 120, 100, 2),
-    trainTimeSec: 1200,
-    building: 'barracks',
-    requires: { barracks: 5 },
+    cost: res(99, 88, 121, 6), // 180 / 160 / 220 / 10 x 0.55, like the other troops on this branch
+    trainTimeSec: 1400,
+    building: 'wrightyard',
+    requires: { wrightyard: 1 },
     research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
-    siege: { target: 'wall', power: 1, maxLevels: 3 },
-  },
-  boulder: {
-    id: 'boulder',
-    name: 'Boulder Sling',
-    description: 'Hurls boulders over the Wall. After a won attack the surviving slings lower one building you pick when sending (a random one if you pick none). Slow, and a poor fighter.',
-    unitClass: 'infantry',
-    attack: 6,
-    defenseInfantry: 4,
-    defenseCavalry: 3,
-    speed: 4,
-    carry: 0,
-    cost: res(75, 130, 120, 7),
-    trainTimeSec: 1500,
-    building: 'barracks',
-    requires: { barracks: 8 },
-    research: { drillyard: 5, cost: res(700, 500, 900, 40), timeSec: 21600 },
-    siege: { target: 'chosen', power: 0.8, maxLevels: 2 },
+    siege: { power: 1, maxLevels: 2 },
   },
 };
 
 // ---- Siege (docs/GAME_DESIGN.md 18.9). Building levels only ever drop through siege. ----
 
 /**
- * Each siege kind (Log Ram, then Boulder Sling) lowers its target building. It has `count * power` siege points; lowering a
- * building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock
- * down. A kind lowers at most `maxLevels` levels per attack (its UnitDef.siege), both steps together.
- * Log Rams first fire DURING the battle with SIEGE_DURING_SHARE of the points they were sent with (the lowered Wall counts in
- * that battle); after it the survivors spend their full points. On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT *
- * SIEGE_LOST_SHARE) of each siege kind count as survivors for the after step.
+ * The Firecart lowers buildings in two steps. It has `count * power` siege points; lowering a building from level L to L-1 costs
+ * SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock down. Each step lowers at most `maxLevels`
+ * levels (UnitDef.siege). Step 1, DURING the battle: all Firecarts that were sent fire at the Wall with SIEGE_DURING_SHARE of their
+ * points (the lowered Wall counts in that battle). Step 2, after it: the survivors spend their full points on the building the sender picked
+ * (the Wall if none). On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT * SIEGE_LOST_SHARE) Firecarts count as survivors for step 2.
  */
 export const SIEGE_BASE_POINTS = 6;
 export const SIEGE_POINTS_PER_LEVEL = 2;
@@ -502,8 +510,8 @@ export const SIEGE_LOST_SHARE = 0.5;
 export const NOTIFICATIONS_KEEP = 100; // per player
 export const NOTIFICATION_MAX_AGE_DAYS = 7; // real days, not scaled by world speed
 export const NOTIFICATION_READ_MAX_IDS = 200; // ids per POST /api/notifications/read
-/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall, Farm and Storehouse never drop below 1 (owner 2026-11-05). */
-export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1, farm: 1, storehouse: 1 };
+/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall, Farm, Longhouse and Storehouse never drop below 1 (owner 2026-11-05). */
+export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1, farm: 1, longhouse: 1, storehouse: 1 };
 
 // ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
 
@@ -630,6 +638,7 @@ export const NPC_START_LEVELS: Partial<Record<BuildingId, { perTier: number; off
   hall: { perTier: 1, offset: 0 },
   lumber: { perTier: 2, offset: 0 },
   farm: { perTier: 2, offset: 0 },
+  longhouse: { perTier: 2, offset: 0 }, // = the Farm level
   mine: { perTier: 2, offset: 0 },
   storehouse: { perTier: 2, offset: 0 },
   wall: { perTier: 1, offset: -1 },
@@ -727,8 +736,7 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   knight: 'mounted',
   pathfinder: 'pathfinder',
   chieftain: 'foot',
-  logram: 'carrier',
-  boulder: 'carrier',
+  firecart: 'carrier',
 };
 /** Length of one sample along the route, in tiles. */
 export const TERRAIN_SAMPLE_STEP = 1;
@@ -938,11 +946,13 @@ export const BUILDING_POINTS_BASE: Record<BuildingId, number> = {
   hall: 10,
   lumber: 8,
   farm: 8,
+  longhouse: 8,
   mine: 8,
   goldmine: 12,
   storehouse: 6,
   barracks: 10,
   stables: 12,
+  wrightyard: 12,
   wall: 8,
   vault: 6,
   market: 10,
@@ -1017,11 +1027,13 @@ export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
   hall: 2,
   lumber: 5,
   farm: 4,
+  longhouse: 4,
   mine: 5,
   goldmine: 3,
   storehouse: 4,
   barracks: 0,
   stables: 0,
+  wrightyard: 0,
   wall: 3,
   vault: 3,
   market: 1,
@@ -1076,12 +1088,13 @@ export const LOOKOUT_SIZE_BANDS = { smallBelow: 100, mediumBelow: 1000 } as cons
 export const LOOKOUT_LIST_LIMIT = 100;
 
 /**
- * First steps (docs/GAME_DESIGN.md "First steps"): eight starter tasks with a small reward each. Done is detected by the
+ * First steps (docs/GAME_DESIGN.md "First steps"): nine starter tasks with a small reward each. Done is detected by the
  * server (any order, sticky); the reward is claimed once into a village the player names. Order here = order shown.
  */
 export const FIRST_STEPS: readonly { id: FirstStepId; reward: Resources }[] = [
   { id: 'lumber2', reward: { wood: 150, food: 80, iron: 80, gold: 0 } },
   { id: 'farm2', reward: { wood: 80, food: 150, iron: 80, gold: 0 } },
+  { id: 'longhouse2', reward: { wood: 80, food: 150, iron: 80, gold: 0 } },
   { id: 'hall2', reward: { wood: 120, food: 120, iron: 120, gold: 0 } },
   { id: 'barracks2', reward: { wood: 250, food: 200, iron: 200, gold: 0 } },
   { id: 'raiders5', reward: { wood: 200, food: 200, iron: 200, gold: 20 } },

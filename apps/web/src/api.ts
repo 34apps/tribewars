@@ -329,7 +329,7 @@ export const api = {
   worldEnd: () => request<WorldEndResponse>('GET', '/api/world-end'),
   /** Great Fire and Fire Shrines. May answer 404 on an older server: callers treat a failure as "no sites". */
   sites: () => request<SitesResponse>('GET', '/api/sites'),
-  /** My own newest scout report with building levels on a village (Boulder Sling picker); both fields null when none. */
+  /** My own newest scout report with building levels on a village (Firecart picker); both fields null when none. */
   scouted: (villageId: number) => request<ScoutedResponse>('GET', `/api/scouted/${villageId}`),
   /** Mail as conversations (one row per person), newest first, 20 per page. */
   mailConversations: (page = 0) => request<MailConversationsResponse>('GET', `/api/mail/conversations?page=${page}`),

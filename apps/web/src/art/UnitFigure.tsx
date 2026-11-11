@@ -1,5 +1,5 @@
 // A unit's toy figure as a plain <img> (art/units/<unit>-<pose>.svg, art/units/icon/<unit>.svg), loaded as asset URLs, not bundled.
-// Units without a drawing yet (chieftain, logram, boulder) fall back to the line icon. Swapping art: drop a file with the same name
+// Units without a drawing yet (chieftain) fall back to the line icon. Swapping art: drop a file with the same name
 // into ./units/ and it is used everywhere.
 
 import type { UnitId } from '@clanfire/engine';

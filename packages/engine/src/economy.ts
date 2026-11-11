@@ -65,13 +65,13 @@ export function buildingPop(b: BuildingId, level: number): number {
   return Math.ceil(POP_BUILDING_FIRST[b] * ipow(POP_BUILDING_GROWTH, level - 1) - 1e-9);
 }
 
-/** Population cap for a Farm level. */
-export function popCapForLevel(farmLevel: number): number {
-  return farmLevel <= 0 ? POP_CAP_LEVEL0 : Math.round(POP_CAP_BASE * ipow(POP_CAP_GROWTH, farmLevel - 1));
+/** Population cap for a Longhouse level. */
+export function popCapForLevel(longhouseLevel: number): number {
+  return longhouseLevel <= 0 ? POP_CAP_LEVEL0 : Math.round(POP_CAP_BASE * ipow(POP_CAP_GROWTH, longhouseLevel - 1));
 }
 
 export function populationCap(state: VillageState): number {
-  return popCapForLevel(state.buildings.farm);
+  return popCapForLevel(state.buildings.longhouse);
 }
 
 /** Population in buildings (queued levels count already) and in troops (home, away, queued for training). */

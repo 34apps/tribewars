@@ -217,7 +217,7 @@ test('relief: a cold own, tribe-mate or ally village offers an attack next to Su
   assert.equal(sendMode('support', { pikeman: 5 }, 'player', true), 'support');
   assert.equal(SEND_MODE_BUTTON.relieve, 'Relieve');
   assert.match(SEND_MODE_HINT.relieve ?? '', /Fights only the occupiers holding this village\. No loot\. If they all fall the hearth relights\./);
-  const home = units({ pikeman: 10, raider: 4, chieftain: 1, logram: 2, boulder: 2 });
+  const home = units({ pikeman: 10, raider: 4, chieftain: 1, firecart: 2 });
   assert.deepEqual(selectableUnits('relieve', home), ['pikeman', 'raider'], 'no Chieftains, no siege');
 });
 
@@ -290,7 +290,7 @@ test('selectableUnits: scouts are Pathfinders only, support and occupy never tak
   assert.deepEqual(selectableUnits('scout', home), ['pathfinder']);
   assert.deepEqual(selectableUnits('support', home), ['pikeman', 'pathfinder']);
   assert.deepEqual(selectableUnits('occupy', home), ['pikeman', 'pathfinder']);
-  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain', 'logram', 'boulder']); // siege rows show at 0
+  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain', 'firecart']); // siege rows show at 0
   assert.deepEqual(selectableUnits('found', units({ chieftain: 1 })), ['chieftain']);
 });
 

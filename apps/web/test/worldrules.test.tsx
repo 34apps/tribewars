@@ -68,7 +68,7 @@ test('flags read On and Off, and the non-default numbers show', () => {
   c = setWorldConfigValue(c, 'queues.build', 4);
   c = setWorldConfigValue(c, 'tribe.maxMembers', 12);
   const html = page(response(c));
-  assert.ok(html.includes('Siege (Log Rams, Boulder Slings) Off'), html);
+  assert.ok(html.includes('Siege (Firecarts) Off'), html);
   assert.ok(html.includes('Fire Shrines and the Great Fire On'), html);
   assert.ok(html.includes('Build queue 4'));
   assert.ok(html.includes('Tribe size limit 12'));
@@ -241,11 +241,11 @@ test('strike hint uses the world\'s hold time and chain window, in real time', (
 });
 
 test('siege off hides the siege units and the building picker', () => {
-  const home = { ...Object.fromEntries(['pikeman', 'logram', 'boulder'].map((u) => [u, 5])) } as never;
-  assert.ok(selectableUnits('attack', home).includes('logram'));
+  const home = { ...Object.fromEntries(['pikeman', 'firecart'].map((u) => [u, 5])) } as never;
+  assert.ok(selectableUnits('attack', home).includes('firecart'));
   const off = selectableUnits('attack', home, false);
   assert.ok(off.includes('pikeman'));
-  assert.ok(!off.includes('logram') && !off.includes('boulder'));
-  assert.equal(showsSiegePicker('attack', { boulder: 2 }), true);
-  assert.equal(showsSiegePicker('attack', { boulder: 2 }, false), false);
+  assert.ok(!off.includes('firecart'));
+  assert.equal(showsSiegePicker('attack', { firecart: 2 }), true);
+  assert.equal(showsSiegePicker('attack', { firecart: 2 }, false), false);
 });

@@ -16,7 +16,7 @@ export function maxOutVillage(state: VillageState, t: number): VillageState {
   const cap = storageCap(v);
   for (const r of RESOURCE_IDS) v.resources[r] = cap;
   v.buildQueue = [];
-  v.trainQueues = { barracks: [], stables: [], bannerhall: [] };
+  v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   // No Chieftains: they cost Renown and every living one is a future village. The army is fitted to the
   // population room that is left (buildings and existing troops count), keeping room for SANDBOX_CHIEFTAIN_ROOM
   // Chieftains so conquest can be tested without first clearing the army.

@@ -137,7 +137,7 @@ describe('resolveBattle', () => {
   });
 
   it('fixedLuck replaces the seeded luck only, and is clamped', () => {
-    const input = { attackerUnits: units({ raider: 50, outrider: 10, logram: 3 }), defender: defenderOf({ troops: { pikeman: 20 }, buildings: { wall: 2, barracks: 3 } }), seed: 7 };
+    const input = { attackerUnits: units({ raider: 50, outrider: 10, firecart: 3 }), defender: defenderOf({ troops: { pikeman: 20 }, buildings: { wall: 2, barracks: 3 } }), seed: 7 };
     const seeded = resolveBattle(input);
     assert.deepEqual(resolveBattle({ ...input, fixedLuck: seeded.luck }), seeded);
     assert.equal(resolveBattle({ ...input, fixedLuck: 5 }).luck, BATTLE_LUCK);

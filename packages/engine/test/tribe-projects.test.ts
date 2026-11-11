@@ -68,11 +68,11 @@ describe('roads and wards', () => {
 
 describe('watchtower info', () => {
   it('level 0 shows nothing; level 1 a band; level 2 the slowest unit; level 3 an about-number', () => {
-    const army = units({ raider: 150, logram: 10 }); // 150 + 30 = 180 population
+    const army = units({ raider: 150, firecart: 10 }); // 150 + 30 = 180 population
     assert.deepEqual(watchtowerInfo(army, 0), {});
     assert.deepEqual(watchtowerInfo(army, 1), { sizeBand: 'small' });
-    assert.deepEqual(watchtowerInfo(army, 2), { sizeBand: 'small', slowestUnit: 'logram' });
-    assert.deepEqual(watchtowerInfo(army, 3), { sizeBand: 'small', slowestUnit: 'logram', sizeAbout: 200 });
+    assert.deepEqual(watchtowerInfo(army, 2), { sizeBand: 'small', slowestUnit: 'firecart' });
+    assert.deepEqual(watchtowerInfo(army, 3), { sizeBand: 'small', slowestUnit: 'firecart', sizeAbout: 200 });
   });
 
   it('bands follow the population: medium, large, huge', () => {

@@ -456,12 +456,12 @@ async function alertsFor(w: W, level: number, army: Partial<Units>) {
 }
 
 test('watchtower: nothing at level 0, a band at 1, the slowest unit at 2, an about-number at 3', async () => {
-  const army = { raider: 150, logram: 10 }; // population 150 + 30 = 180 (small); the Log Ram is the slowest
+  const army = { raider: 150, firecart: 10 }; // population 150 + 30 = 180 (small); the Firecart is the slowest
   for (const [level, band, slowest, about] of [
     [0, undefined, undefined, undefined],
     [1, 'small', undefined, undefined],
-    [2, 'small', 'logram', undefined],
-    [3, 'small', 'logram', 200],
+    [2, 'small', 'firecart', undefined],
+    [3, 'small', 'firecart', 200],
   ] as const) {
     const w = await world();
     const a = await alertsFor(w, level, army);

@@ -799,3 +799,36 @@ in the raw file). Not tuned further.
 to their 2nd village (was 15; `apps/preview/test/bots.test.ts` horizon 22 -> 45 days, run limit 8 -> 15 s). Building Renown, siege cost per level and
 points per level keep their formulas, so a maxed 25-level building is worth more of each (points of a maxed village about 27,000, was about 10,000);
 the Banner Hall is 15% dearer in total. Not in the sim: Longhouse/Wrightyard/Firecart (later pieces), the new unit roster.
+
+### 13.1 Pieces 2-4: Longhouse, Wrightyard, Firecart (2026-11-11)
+
+Rules: the Longhouse takes the population room (the Farm makes food only and uses room like the Lumber Camp), the Wrightyard (Barracks 5, max 12, cost like the Stables)
+trains the Firecart (99/88/121 + 6 gold = 180/160/220/10 x 0.55; 1,400 s; Drillyard 3), which replaces the Log Ram and Boulder Sling (GAME_DESIGN §3, §18.9). Raw:
+`docs/sim/2026-11-11-originality-{30d,90d,conquest90-5seeds}.txt`.
+
+**Cost of the split.** Building every building to the top with the Town Hall at 25 takes **27.2 days** (was 24.8: Longhouse 2.0 d + Wrightyard 0.5 d); the total price of a maxed village is
+1.56 million (wood + food + iron + 10 x gold). The sim styles build a Longhouse level next to every Farm level (the old Farm steps stood for room AND food; food was not
+in surplus for builders: with fewer Farm levels the builder score fell 20%). So the extra Longhouse is paid in full by the computer players.
+
+**30 days, seed 20261104 (builder / raider / turtle / balanced), versus piece 1 (section 13 above)**
+
+| | piece 1 | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 25.9 / 22.1 / 19.1 | 26.6 / **22.2** / 17.7 |
+| score | 10,614 / 20,745 / 5,161 / 27,607 | 10,701 / 20,302 / 5,210 / 29,314 |
+| **raider / builder score** | 1.95x | **1.90x** (target 1.5-2x) |
+
+Without a lever the ratio was 2.05x (the builder pays for the extra Longhouse, the raider's income does not change). One lever: `NPC_PRODUCTION_FACTOR` 0.5 -> **0.45**
+(the loot supply, as in section 13: players are not affected). Day 21-28 for the 2nd village holds for builder and raider.
+
+**90 days, one player per style:** 2nd village day 26.6 / 22.2 / 53.0 / 17.7, 3rd 40.4 / 45.5 / 85.6 / 33.4, villages at the end 5 / 4 / 3 / 4, points 24,697 / 27,986 / 11,731 / 34,038.
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (piece 1: 42 takes, 21 restarts): villages taken from players **21**, restarts **14**, raids on players 47k, biggest / second biggest
+(worst seed) **1.11** (target <= 2x, met). Fewer takes than before: the builders (who were the main targets) now reach their 2nd village late in this crowded world (1.4 villages per builder at day 90, was
+2.6; they pay for the Longhouse and are raided), so there is less to take. Not tuned further; the lever would be loot or the Renown price, not the room.
+
+**Firecart sim (`npm run sim -- --siege`).** The experiment tables were rewritten for one unit (`scripts/sim/siege.ts`); the test run keeps all its invariants (per-step cap 2, Wall up to 2 + 2 when it is both
+targets, no pick = the Wall, floors for Farm and Longhouse, a lost battle never lowers more than the two steps allow, a garrisoned village needs at least 5x the empty-village army, the siege column is at least 1.8x slower).
+The tables were not re-read or re-published as a report this time (no `docs/sim` siege file); the older siege reports describe the two-unit rules. Raiders and balanced players in `--siege` runs build Drillyard 3 and a Wrightyard, research the Firecart and train batches of 6 (at most 28 owned).
+
+**Not checked / open.** The Longhouse and Wrightyard sprites are placed at scale 0.8 (the village scene is full, ART_DIRECTION); the `--siege` report was not regenerated (invariants only).

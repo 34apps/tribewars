@@ -724,7 +724,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     if (RESOURCE_IDS.some((id) => need[id] > cap)) return 'storehouse';
     const k = p.saving?.k ?? 1;
     const c = checkTrain(chiefState(vil, k, t), 'chieftain', k, t, s);
-    if (!c.ok && c.reason === 'population_full') return 'farm';
+    if (!c.ok && c.reason === 'population_full') return 'longhouse';
     return undefined;
   };
 
@@ -754,8 +754,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       if (c.reason === 'exceeds_storage' && cur !== 'storehouse') {
         cur = 'storehouse';
         forced = true;
-      } else if (c.reason === 'population_full' && cur !== 'farm') {
-        cur = 'farm';
+      } else if (c.reason === 'population_full' && cur !== 'longhouse') {
+        cur = 'longhouse';
         forced = true;
       } else if (c.reason === 'requirements_not_met') {
         const reqs: Partial<Record<BuildingId, number>> = BUILDINGS[cur].requires;
@@ -852,7 +852,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     for (const tv of world.values()) {
       if (!tv.alive || tv.owner === p.id || tv.state.hearth) continue;
       if (dist(vil.pos, tv.pos) > REACH) continue;
-      const base: Units = { ...vil.state.troops, pathfinder: 0, logram: 0, boulder: 0, chieftain: 0 };
+      const base: Units = { ...vil.state.troops, pathfinder: 0, firecart: 0, chieftain: 0 };
       // The first preview only needs a rough Chieftain count: points at "now"; the real need is re-checked with arrival points.
       const rough = needFor(villagePoints(tv.state));
       const k = chiefs === 'any' ? rough : Math.min(chiefs, rough);

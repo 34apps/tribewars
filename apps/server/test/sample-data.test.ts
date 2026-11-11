@@ -43,7 +43,6 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
   assert.ok(list.some((r) => r.read) && list.some((r) => !r.read), 'a mix of read and unread');
   const kinds = new Set<string>();
   let siege = false;
-  let boulder = false;
   let storeLoot = false;
   let richBattle = 0;
   let bigArmy = false;
@@ -51,8 +50,7 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
   for (const r of list) {
     const full = okJson<ReportDto>(await alice.c.get(`/api/reports/${r.id}`));
     if (full.village) kinds.add(full.village.kind);
-    if (full.battle?.siege?.some((h) => h.unit === 'logram')) siege = true;
-    if (full.battle?.siege?.some((h) => h.unit === 'boulder')) boulder = true;
+    if (full.battle?.siege?.some((h) => h.unit === 'firecart')) siege = true;
     if (full.battle?.lootFromTribeStore) storeLoot = true;
     if (full.battle && full.battle.outcome === 'battle') {
       const kinds = Object.values(full.battle.attackerUnits).filter((n) => n > 0).length;
@@ -62,7 +60,7 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
     if (full.scout?.intel) intelLayers = new Set([...intelLayers, full.scout.intel.keen ?? -1]);
   }
   assert.deepEqual([...kinds].sort(), ['claim_failed', 'found_failed', 'founded', 'hearth_out', 'lost', 'relit', 'struck', 'taken']);
-  assert.ok(siege && boulder && storeLoot);
+  assert.ok(siege && storeLoot);
   assert.ok(richBattle >= 10 && bigArmy, 'battle reports have mixed, large armies');
   assert.deepEqual([...intelLayers].sort(), [0, 1, 2, 3, 4, 5]);
 
@@ -78,9 +76,8 @@ test('sample data: a sandbox player gets every report kind, mail, a tribe and tr
   // Troops: every unit except the locked ones at home, some away, marches both ways, support in and out.
   const state: GameStateResponse = await stateOf(alice);
   const v = state.villages[0]!.state;
-  for (const u of ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'logram'] as const) assert.ok(v.troops[u] > 0, u);
+  for (const u of ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'firecart'] as const) assert.ok(v.troops[u] > 0, u);
   assert.equal(v.troops.chieftain, 0);
-  assert.equal(v.troops.boulder, 0);
   assert.ok(v.away.raider > 0);
   assert.ok(state.movements.some((m) => m.kind === 'attack' && m.target.ownerName === 'alice'), 'incoming attack');
   assert.ok(state.movements.some((m) => m.kind === 'attack' && m.origin.ownerName === 'alice'), 'outgoing attack');

@@ -4,6 +4,7 @@ import {
   BUILDINGS,
   DEFAULT_WORLD_CONFIG,
   NPC_GROWTH_ORDER,
+  NPC_PRODUCTION_FACTOR,
   NPC_MAX_LEVEL,
   NPC_START_RESOURCE_SHARE,
   UNITS,
@@ -176,8 +177,8 @@ describe('settleVillage', () => {
   it('abandoned villages produce like any village', () => {
     const v = createNpcVillage(1, 0);
     const out = settleVillage(v, HOUR / 4, NO_SELF_BUILD);
-    // level 2 farm = round(72*1.1245) = 81/h, and abandoned villages produce NPC_PRODUCTION_FACTOR (0.5) of that
-    assert.ok(near(out.resources.food, v.resources.food + (81 * 0.5) / 4, 1e-6));
+    // level 2 farm = round(72*1.1245) = 81/h, and abandoned villages produce NPC_PRODUCTION_FACTOR of that
+    assert.ok(near(out.resources.food, v.resources.food + (81 * NPC_PRODUCTION_FACTOR) / 4, 1e-6));
   });
 });
 
@@ -288,7 +289,7 @@ describe('abandoned village builds from its own stock (owner 2026-11-05)', () =>
     assert.ok(grown.buildings.hall >= 2);
     assert.equal(grown.troops.pikeman, 4);
     assert.equal(grown.troops.guard, 2);
-    assert.deepEqual(grown.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+    assert.deepEqual(grown.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
     v.troops.pikeman = 1;
     v.troops.guard = 0;
     const later = settleVillage(v, 300 * HOUR, S1);

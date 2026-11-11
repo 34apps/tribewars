@@ -31,7 +31,7 @@ test('an idle owner\'s village becomes abandoned with every building kept; queue
   assert.equal(after.ownerId, null);
   assert.deepEqual(after.state.buildings, buildings, 'every building kept');
   assert.deepEqual(after.state.troops, fullGarrison(after.state.buildings.hall), 'the garrison of an abandoned village of that size');
-  assert.deepEqual(after.state.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+  assert.deepEqual(after.state.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
   assert.deepEqual(after.state.buildQueue, []);
   assert.deepEqual(after.state.away, emptyUnits());
   assert.equal(after.state.npc?.tier, Math.min(NPC_TIER_WEIGHTS.length, Math.max(1, after.state.buildings.hall)));

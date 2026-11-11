@@ -136,18 +136,18 @@ interface StyleDef {
   research: UnitId[];
 }
 
-const ECO: Step[] = [['lumber', 4], ['farm', 4], ['mine', 4], ['storehouse', 3]];
+const ECO: Step[] = [['lumber', 4], ['farm', 4], ['longhouse', 4], ['mine', 4], ['storehouse', 3]];
 
 const STYLE_DEFS: Record<StyleName, StyleDef> = {
   builder: {
     order: [
-      ...ECO, ['hall', 3], ['lumber', 8], ['farm', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
-      ['goldmine', 3], ['lumber', 12], ['farm', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
+      ...ECO, ['hall', 3], ['lumber', 8], ['farm', 8], ['longhouse', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
+      ['goldmine', 3], ['lumber', 12], ['farm', 12], ['longhouse', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
       ['barracks', 3], ['hall', 10], ['drillyard', 3], ['bannerhall', 1], ['stables', 1], ['goldmine', 8], ['lumber', 16],
-      ['farm', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
+      ['farm', 16], ['longhouse', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
       ['wall', 10], ['vault', 8], ['market', 8], ['barracks', 8], ['drillyard', 9], ['stables', 8], ['bannerhall', 4],
     ],
-    tail: ['lumber', 'farm', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
+    tail: ['lumber', 'farm', 'longhouse', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
     army: [{ unit: 'pikeman', weight: 85 }, { unit: 'guard', weight: 10 }, { unit: 'knight', weight: 5 }],
     reserve: 1,
     trainFromDay: 4,
@@ -155,13 +155,13 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
   },
   raider: {
     order: [
-      ['lumber', 2], ['farm', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['lumber', 4],
-      ['mine', 5], ['barracks', 4], ['farm', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9],
+      ['lumber', 2], ['farm', 3], ['longhouse', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['longhouse', 5], ['lumber', 4],
+      ['mine', 5], ['barracks', 4], ['farm', 7], ['longhouse', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9], ['longhouse', 9],
       ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6],
-      ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['hall', 8], ['market', 3], ['barracks', 8], ['goldmine', 6],
-      ['lumber', 10], ['mine', 11], ['farm', 13], ['storehouse', 11], ['hall', 10],
+      ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['longhouse', 11], ['hall', 8], ['market', 3], ['barracks', 8], ['goldmine', 6],
+      ['lumber', 10], ['mine', 11], ['farm', 13], ['longhouse', 13], ['storehouse', 11], ['hall', 10],
     ],
-    tail: ['farm', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
+    tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
     army: [{ unit: 'raider', weight: 72 }, { unit: 'outrider', weight: 15 }, { unit: 'pikeman', weight: 10 }, { unit: 'pathfinder', weight: 3 }],
     reserve: 0.8,
     trainFromDay: 2,
@@ -169,13 +169,13 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
   },
   turtle: {
     order: [
-      ['lumber', 3], ['farm', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
-      ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
+      ['lumber', 3], ['farm', 4], ['longhouse', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
+      ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['longhouse', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
       ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8],
-      ['vault', 5], ['farm', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 3],
-      ['lumber', 11], ['farm', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['wall', 12], ['wall', 15], ['vault', 8],
+      ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 3],
+      ['lumber', 11], ['farm', 12], ['longhouse', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['wall', 12], ['wall', 15], ['vault', 8],
     ],
-    tail: ['wall', 'farm', 'lumber', 'mine', 'storehouse', 'hall'],
+    tail: ['wall', 'farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'hall'],
     army: [{ unit: 'pikeman', weight: 55 }, { unit: 'guard', weight: 40 }, { unit: 'pathfinder', weight: 5 }],
     reserve: 0.9,
     trainFromDay: 2,
@@ -183,13 +183,13 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
   },
   balanced: {
     order: [
-      ['lumber', 3], ['farm', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6],
-      ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['lumber', 7],
-      ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['lumber', 9],
-      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12],
+      ['lumber', 3], ['farm', 4], ['longhouse', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6], ['longhouse', 6],
+      ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['longhouse', 8], ['lumber', 7],
+      ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['longhouse', 10], ['lumber', 9],
+      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12], ['longhouse', 12],
       ['lumber', 11], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1], ['goldmine', 5],
     ],
-    tail: ['farm', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
+    tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
     army: [{ unit: 'raider', weight: 40 }, { unit: 'pikeman', weight: 40 }, { unit: 'outrider', weight: 10 }, { unit: 'guard', weight: 10 }],
     reserve: 0.8,
     trainFromDay: 1.5,
@@ -258,6 +258,7 @@ function botVillage(level: number, t: number): VillageState {
   set('hall', level);
   set('lumber', level + 1);
   set('farm', level + 2);
+  set('longhouse', level + 2);
   set('mine', level);
   set('storehouse', level);
   set('barracks', level >= 2 ? Math.max(1, level - 3) : 0);
@@ -496,7 +497,7 @@ function chiefBlock(ctx: AppContext, s: VillageState, t: number): BuildingId | u
   const cost = UNITS.chieftain.cost;
   if (RESOURCE_IDS.some((id) => cost[id] > cap)) return 'storehouse';
   const c = checkTrain(s, 'chieftain', 1, t, ctx.settings);
-  if (!c.ok && c.reason === 'population_full') return 'farm';
+  if (!c.ok && c.reason === 'population_full') return 'longhouse';
   return undefined;
 }
 
@@ -533,8 +534,8 @@ function buildSteps(ctx: AppContext, player: PlayerRow, vid: number, def: StyleD
       if (c.reason === 'exceeds_storage' && cur !== 'storehouse') {
         cur = 'storehouse';
         forced = true;
-      } else if (c.reason === 'population_full' && cur !== 'farm') {
-        cur = 'farm';
+      } else if (c.reason === 'population_full' && cur !== 'longhouse') {
+        cur = 'longhouse';
         forced = true;
       } else if (c.reason === 'requirements_not_met') {
         const reqs: Partial<Record<BuildingId, number>> = BUILDINGS[cur].requires;

@@ -218,7 +218,7 @@ describe('applyOwnerChange', () => {
     assert.deepEqual(v.resources, { wood: Math.floor(1000 * keep), food: Math.floor(801 * keep), iron: Math.floor(5 * keep), gold: Math.floor(99 * keep) });
     assert.equal(v.hearth, undefined);
     assert.equal(v.npc, undefined);
-    assert.deepEqual([v.buildQueue, v.trainQueues, v.researchQueue, v.ranks, v.researched], [[], { barracks: [], stables: [], bannerhall: [] }, undefined, undefined, undefined]);
+    assert.deepEqual([v.buildQueue, v.trainQueues, v.researchQueue, v.ranks, v.researched], [[], { barracks: [], stables: [], wrightyard: [], bannerhall: [] }, undefined, undefined, undefined]);
     assert.equal(v.lastUpdate, T + 6 * HOUR);
   });
 

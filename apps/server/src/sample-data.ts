@@ -105,6 +105,7 @@ function castVillage(hall: number, t: number): VillageState {
   set('hall', hall);
   set('lumber', hall + 1);
   set('farm', hall + 1);
+  set('longhouse', hall + 1);
   set('mine', hall);
   set('storehouse', hall);
   if (hall >= 3) set('barracks', hall - 2);
@@ -381,7 +382,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     });
     const scout = (target: VillageRefDto, success: boolean, keen: number | null, extra: Partial<ScoutReportData> = {}): ScoutReportData => {
       const tgt = castVillage(6, t);
-      tgt.troops = units({ pikeman: 240, guard: 130, raider: 160, outrider: 55, knight: 9, pathfinder: 18, logram: 6, boulder: 8 });
+      tgt.troops = units({ pikeman: 240, guard: 130, raider: 160, outrider: 55, knight: 9, pathfinder: 18, firecart: 11 });
       return {
         scout: me,
         target,
@@ -471,18 +472,18 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     // Today
     fight(25 * MIN, 'attack', abandonedRef(0), `Raid on ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, { attacker: me, defender: abandonedRef(0), att: { raider: 180, outrider: 40, pikeman: 30 }, def: { pikeman: 22, guard: 8 }, wall: 0 });
     fight(70 * MIN, 'attack', abandonedRef(1), `Raid on ${abandonedRef(1).name} ${coords(abandonedRef(1))}`, { attacker: me, defender: abandonedRef(1), att: { raider: 260, outrider: 60, knight: 12, pikeman: 40 }, def: { pikeman: 90, guard: 60, raider: 15, pathfinder: 6 }, wall: 3 });
-    fight(2 * HOUR, 'defense', vexRef, `Attack from ${vexRef.name} ${coords(vexRef)}`, { attacker: vexRef, defender: me, att: { raider: 220, outrider: 70, knight: 10, logram: 24, boulder: 20 }, def: { pikeman: 260, guard: 180, raider: 40, outrider: 20, knight: 8, pathfinder: 12 }, sup: { guard: 90, pikeman: 60 }, wall: 6, renown: 12 });
+    fight(2 * HOUR, 'defense', vexRef, `Attack from ${vexRef.name} ${coords(vexRef)}`, { attacker: vexRef, defender: me, att: { raider: 220, outrider: 70, knight: 10, firecart: 37 }, def: { pikeman: 260, guard: 180, raider: 40, outrider: 20, knight: 8, pathfinder: 12 }, sup: { guard: 90, pikeman: 60 }, wall: 6, renown: 12 });
     fight(6 * HOUR, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 150, outrider: 30, knight: 6, pikeman: 40 }, def: { pikeman: 300, guard: 220, outrider: 25, pathfinder: 10 }, wall: 7 });
-    fight(7 * HOUR, 'support', hildRef, `Your troops at ${hildRef.name} ${coords(hildRef)} were attacked`, { attacker: corwenRef, defender: hildRef, att: { raider: 200, outrider: 50, boulder: 20 }, def: { pikeman: 90, guard: 40 }, sup: { guard: 120, pikeman: 80, knight: 6 }, wall: 4, renown: 9 });
+    fight(7 * HOUR, 'support', hildRef, `Your troops at ${hildRef.name} ${coords(hildRef)} were attacked`, { attacker: corwenRef, defender: hildRef, att: { raider: 200, outrider: 50, firecart: 13 }, def: { pikeman: 90, guard: 40 }, sup: { guard: 120, pikeman: 80, knight: 6 }, wall: 4, renown: 9 });
     // Yesterday
-    fight(26 * HOUR, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 320, outrider: 80, knight: 18, pikeman: 60, logram: 48, boulder: 40 }, def: { pikeman: 120, guard: 60, raider: 20, pathfinder: 8 }, wall: 8, siegeTarget: 'barracks' });
-    fight(28 * HOUR, 'attack', corwenRef, `Raid on ${corwenRef.name} ${coords(corwenRef)}`, { attacker: me, defender: corwenRef, att: { raider: 140, outrider: 20, logram: 30, boulder: 24 }, def: { pikeman: 350, guard: 250, knight: 12, outrider: 40 }, wall: 9 });
-    fight(36 * HOUR, 'defense', corwenRef, `Attack from ${corwenRef.name} ${coords(corwenRef)}`, { attacker: corwenRef, defender: me, att: { raider: 380, outrider: 90, knight: 25, logram: 40, boulder: 30 }, def: { pikeman: 90, guard: 50, raider: 20, pathfinder: 5 }, wall: 3, morale: 0.75 });
+    fight(26 * HOUR, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 320, outrider: 80, knight: 18, pikeman: 60, firecart: 74 }, def: { pikeman: 120, guard: 60, raider: 20, pathfinder: 8 }, wall: 8, siegeTarget: 'barracks' });
+    fight(28 * HOUR, 'attack', corwenRef, `Raid on ${corwenRef.name} ${coords(corwenRef)}`, { attacker: me, defender: corwenRef, att: { raider: 140, outrider: 20, firecart: 46 }, def: { pikeman: 350, guard: 250, knight: 12, outrider: 40 }, wall: 9 });
+    fight(36 * HOUR, 'defense', corwenRef, `Attack from ${corwenRef.name} ${coords(corwenRef)}`, { attacker: corwenRef, defender: me, att: { raider: 380, outrider: 90, knight: 25, firecart: 60 }, def: { pikeman: 90, guard: 50, raider: 20, pathfinder: 5 }, wall: 3, morale: 0.75 });
     fight(44 * HOUR, 'attack', corwenRef, `Raid on ${corwenRef.name} ${coords(corwenRef)}`, { attacker: me, defender: corwenRef, att: { raider: 240, outrider: 50, knight: 10, pikeman: 40 }, def: { pikeman: 110, guard: 45, pathfinder: 6 }, wall: 4, tribeStore: storeLoot, renown: 15 });
     // Older
     fight(9 * DAY, 'attack', hildRef, `Relief attack at ${hildRef.name} ${coords(hildRef)}`, { attacker: me, defender: hildRef, att: { raider: 120, outrider: 20 }, def: { raider: 30, pikeman: 12 }, sup: { pikeman: 40, guard: 10 }, wall: 1, noLoot: true });
     fight(11 * DAY, 'attack', abandonedRef(2), `Raid on ${abandonedRef(2).name} ${coords(abandonedRef(2))}`, { attacker: me, defender: abandonedRef(2), att: { raider: 210, outrider: 35, guard: 20 }, def: { pikeman: 40 }, wall: 1, morale: 0.75, renown: 4 });
-    fight(12 * DAY, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 200, outrider: 25, logram: 36, knight: 6 }, def: { pikeman: 280, guard: 160, outrider: 20 }, wall: 6 });
+    fight(12 * DAY, 'attack', vexRef, `Raid on ${vexRef.name} ${coords(vexRef)}`, { attacker: me, defender: vexRef, att: { raider: 200, outrider: 25, knight: 6, firecart: 36 }, def: { pikeman: 280, guard: 160, outrider: 20 }, wall: 6 });
     fight(12 * DAY + 2 * HOUR, 'defense', abandonedRef(0), `Attack from ${abandonedRef(0).name} ${coords(abandonedRef(0))}`, { attacker: abandonedRef(0), defender: me, att: { raider: 60, pikeman: 25 }, def: { pikeman: 180, guard: 90, knight: 6 }, wall: 5 });
     // Filler over the older weeks, so paging and the day groups show
     for (let i = 0; i < 16; i++) {
@@ -514,7 +515,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     if (!refresh) {
     // ---- troops and marches ----------------------------------------------------------------------
     const st: VillageState = settleVillage(home.state, t, settings);
-    const base = units({ pikeman: 220, guard: 160, raider: 180, outrider: 70, knight: 24, pathfinder: 18, logram: 12 }); // chieftain and boulder stay locked at 0
+    const base = units({ pikeman: 220, guard: 160, raider: 180, outrider: 70, knight: 24, pathfinder: 18, firecart: 12 }); // the Chieftain stays locked at 0
     for (const u of UNIT_IDS) st.troops[u] = Math.max(st.troops[u], base[u]);
     for (const r of ['wood', 'food', 'iron'] as const) st.resources[r] = Math.max(st.resources[r], 6000);
     st.resources.gold = Math.max(st.resources.gold, 120);

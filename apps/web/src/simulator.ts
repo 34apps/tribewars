@@ -137,7 +137,7 @@ export interface SimSetup {
   /** Bulwark rank 0..RANK_MAX for the village's own troops / for the support. */
   defenderBulwark: number;
   supportBulwark: number;
-  /** The building the Boulder Slings were told to hit; null = random (needs levels the simulator does not know, so nothing is hit). */
+  /** The building the Firecarts were told to burn after the battle; null = the Wall. */
   siegeTarget: BuildingId | null;
   /** Level of the picked building (not the Wall). */
   targetLevel: number;
@@ -150,7 +150,7 @@ export interface SimOutcome {
   luck: number;
   result: BattleResult;
   wallBefore: number;
-  /** Wall after the rams (during and after the battle). */
+  /** Wall after the Firecarts (during and after the battle). */
   wallAfter: number;
   /** What the attacker's survivors can carry. */
   carry: number;
@@ -250,7 +250,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     if (b.supportUnits) draft.support = { ...normalizeUnits(b.supportUnits) };
     if (typeof b.morale === 'number' && b.morale < 1) draft.morale = true;
     if (b.defenderUnits && b.defender?.name) draft.source = `from the battle report on ${b.defender.name}`;
-    // The Wall before the Log Rams fired, when the report says so; otherwise the Wall as it counted.
+    // The Wall before the Firecarts fired, when the report says so; otherwise the Wall as it counted.
     const wallHit = (b.siege ?? []).find((h) => h.building === 'wall');
     if (wallHit) draft.wall = wallHit.from;
     else if (typeof b.wallLevel === 'number') draft.wall = b.wallLevel;

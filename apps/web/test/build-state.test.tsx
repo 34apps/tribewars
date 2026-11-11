@@ -78,9 +78,10 @@ test('training row: amount, max, and the reason Train is refused (same rules as 
 test('training row: a unit whose building level is missing is locked with its requirement', () => {
   const now = 1_000;
   const live = createPlayerVillage(now);
-  live.buildings.barracks = 1;
-  const row = trainRowState({ live, unit: 'logram', building: 'barracks', text: '1', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false });
+  live.buildings.barracks = 5;
+  live.buildings.wrightyard = 0;
+  const row = trainRowState({ live, unit: 'firecart', building: 'wrightyard', text: '1', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false });
   assert.equal(row.locked, true);
   assert.equal(row.max, 0);
-  assert.match(row.reason ?? '', /^Needs Barracks 5/);
+  assert.match(row.reason ?? '', /^Needs Wrightyard 1/);
 });

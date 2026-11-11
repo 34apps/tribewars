@@ -196,3 +196,10 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
   days. **Raider/builder score ratio must come back to ≤ 2x** (it was 2.55x): lever = loot supply (abandoned-village stock/production).
 - **Art stages:** stage 1 levels 1–6, stage 2 7–15, stage 3 16–24, stage 4 = max level only (scaled for shorter ladders).
 - 2026-11-11: owner approved all 3 new troop pictures (Elk Rider, trained at the Stables, which keep their old art; Ember Guard; Firecart).
+
+## Built 2026-11-11 (pieces 2, 3 and 4, branch `originality-tiers`)
+- **Longhouse** (population room, max 25, uses none; Farm = food only and uses room), **Wrightyard** (needs Barracks 5, max 12, own queue) and **Firecart**
+  (replaces Log Ram and Boulder Sling; Wall in the battle, picked building after a win, max 2 levels per step) are in the engine, the server (migration
+  schema v17), the web client (art, village scene, lists, reports, simulator), the preview bots and the sims. "Hidden Vault" is now "Vault".
+- Details: `docs/GAME_DESIGN.md` §3, §4, §18.9, §20; results: `docs/BALANCE.md` §13 (pieces 2-4); migration: `packages/engine/src/migrate.ts` and `apps/server/src/db.ts`.
+- Left as decided: Wall, Gold Mine and Stables keep names and art; the troop roster (piece 5) is not built.

@@ -110,6 +110,7 @@ export const PATHS: PathDef[] = [
   branch('drillyard', [GATE_U, LANE_V]),
   branch('lumber', [GATE_U, LANE_V]),
   branch('farm', [GATE_U, LANE_V]),
+  branch('longhouse', [GATE_U, LANE_V]),
   // Out of the sides of the square.
   branch('storehouse', [HALL.u + SQUARE - 6, SIDE_R]),
   branch('barracks', [HALL.u - SQUARE + 6, SIDE_L]),
@@ -119,6 +120,7 @@ export const PATHS: PathDef[] = [
   branch('mine', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120]),
   branch('vault', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
   branch('goldmine', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
+  branch('wrightyard', [HALL.u - SQUARE + 6, SIDE_L]),
 ];
 
 
@@ -160,7 +162,7 @@ const onRoad = (u: number, v: number, pad: number) =>
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
-  [240, 180, 18, 18, 'wheat'],
+  [244, 152, 16, 16, 'wheat'],
   [232, -88, 16, 18, 'greens'],
 ];
 const onField = (u: number, v: number, pad: number) =>

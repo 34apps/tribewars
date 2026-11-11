@@ -5,12 +5,12 @@ import { showcaseLevels, type StageTops } from '../src/showcase.ts';
 
 // Same shape as STAGE_TOPS in apps/web/src/art/buildings.ts (that file needs Vite, so the test carries its own copy).
 const TOPS: StageTops = {
-  hall: [5, 12], lumber: [5, 12], farm: [5, 12], mine: [5, 12], storehouse: [5, 12], barracks: [5, 12], wall: [5, 12],
-  goldmine: [5, 10], stables: [5, 10], vault: [3, 7], market: [3, 6], drillyard: [3, 6], bannerhall: [1, 2],
+  hall: [5, 12], lumber: [5, 12], farm: [5, 12], longhouse: [5, 12], mine: [5, 12], storehouse: [5, 12], barracks: [5, 12], wall: [5, 12],
+  goldmine: [5, 10], stables: [5, 10], wrightyard: [3, 7], vault: [3, 7], market: [3, 6], drillyard: [3, 6], bannerhall: [1, 2],
 };
 
 test('showcaseLevels covers all buildings and each stage', () => {
-  assert.equal(BUILDING_IDS.length, 13);
+  assert.equal(BUILDING_IDS.length, 15);
   const s1 = showcaseLevels(1, TOPS);
   const s2 = showcaseLevels(2, TOPS);
   const s3 = showcaseLevels(3, TOPS);

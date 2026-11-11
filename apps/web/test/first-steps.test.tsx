@@ -21,10 +21,11 @@ test('every step has a label and a Show me target', () => {
 });
 
 test('next step is the first one not done, in display order; claimable are done but not claimed', () => {
-  const fs = dto(['farm2', 'lumber2'], ['lumber2']);
+  const fs = dto(['farm2', 'lumber2', 'longhouse2'], ['lumber2']);
   assert.equal(nextOpenStep(fs)?.id, 'hall2');
-  assert.deepEqual(claimableSteps(fs).map((s) => s.id), ['farm2']);
-  assert.equal(doneCount(fs), 2);
+  assert.equal(nextOpenStep(dto(['farm2', 'lumber2']))?.id, 'longhouse2');
+  assert.deepEqual(claimableSteps(fs).map((s) => s.id), ['farm2', 'longhouse2']);
+  assert.equal(doneCount(fs), 3);
   assert.equal(nextOpenStep(dto(FIRST_STEPS.map((s) => s.id))), null);
 });
 

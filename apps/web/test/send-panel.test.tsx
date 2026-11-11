@@ -15,12 +15,12 @@ const units = (u: Partial<Units>): Units => ({ ...emptyUnits(), ...u });
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
 test('the map panel lists only units that are at home (a siege row at 0 is left out)', () => {
-  const home = units({ pikeman: 5, raider: 2, logram: 0, boulder: 0 });
+  const home = units({ pikeman: 5, raider: 2, firecart: 0 });
   const visible = selectableUnits('attack', home);
-  assert.ok(visible.includes('logram'), 'the wide Command post list still shows siege rows at 0');
+  assert.ok(visible.includes('firecart'), 'the wide Command post list still shows siege rows at 0');
   assert.deepEqual(homeUnits(visible, home), ['pikeman', 'raider']);
   assert.deepEqual(homeUnits(selectableUnits('attack', units({})), units({})), [], 'nothing at home: the empty-state text shows');
-  assert.deepEqual(homeUnits(selectableUnits('attack', units({ pikeman: 1, boulder: 3 })), units({ pikeman: 1, boulder: 3 })), ['pikeman', 'boulder']);
+  assert.deepEqual(homeUnits(selectableUnits('attack', units({ pikeman: 1, firecart: 3 })), units({ pikeman: 1, firecart: 3 })), ['pikeman', 'firecart']);
 });
 
 test('Clear gives an empty form: no counts, random siege target, no note', () => {

@@ -229,7 +229,7 @@ test('the list splits into On the way and Earlier: one button row each, name and
   assert.ok(!/Sent |Arrives |Arrived |>Show</.test(plain), 'no Sent/Arrived lines, no per-row Show button');
   assert.equal((html.match(/<button /g) ?? []).length, 3, 'one button per row');
   assert.ok(!/ to Home/.test(plain), 'no target village when the player has one village');
-  assert.ok(!/pikeman|logram|boulder|troops|units|army size/i.test(plain), 'never any unit list');
+  assert.ok(!/pikeman|firecart|troops|units|army size/i.test(plain), 'never any unit list');
   assert.match(html, /nrow is-attack is-unread/);
   assert.match(html, /nrow is-calm is-unread/);
   assert.match(html, /nrow is-past/);
