@@ -832,3 +832,32 @@ targets, no pick = the Wall, floors for Farm and Longhouse, a lost battle never 
 The tables were not re-read or re-published as a report this time (no `docs/sim` siege file); the older siege reports describe the two-unit rules. Raiders and balanced players in `--siege` runs build Drillyard 3 and a Wrightyard, research the Firecart and train batches of 6 (at most 28 owned).
 
 **Not checked / open.** The Longhouse and Wrightyard sprites are placed at scale 0.8 (the village scene is full, ART_DIRECTION); the `--siege` report was not regenerated (invariants only).
+
+### 13.2 Piece 5: the troop roster (2026-11-11)
+
+Rules (GAME_DESIGN §4): own lines for all units (Pikeman 8/14/40, Shieldbearer 12/42/22, Raider 36/8/6, Pathfinder 0/3/2, Elk Rider 65/18/16 speed 13 carry 75 pop 2,
+Ember Guard 70/60/60 on foot, speed 5, carry 20, pop 3, Barracks 8 + Town Hall 8), costs from the proposal x0.55 (food x0.5). Raw:
+`docs/sim/2026-11-11-roster-{30d,90d,conquest90-5seeds}.txt`. **No unit line was tuned: all three targets are met on the first run.**
+
+**30 days, seed 20261104**, versus 13.1:
+
+| | 13.1 | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 26.6 / 22.2 / 17.7 | 26.6 / **23.7** / 18.8 |
+| score builder / raider / turtle / balanced | 10,701 / 20,302 / 5,210 / 29,314 | 10,611 / 16,926 / 4,708 / 25,634 |
+| **raider / builder score** | 1.90x | **1.60x** (target 1.5-2x, met; the low end is close) |
+
+The raider fell about 17%: its Raider carries 28 (was 30) and costs more wood (25 vs 20), and the Elk Rider needs Stables + gold and carries 75 (was 70). The new flag "DOMINANT STYLE:
+balanced 1.51x the raider" appears (it was 1.44x): the balanced army (Raiders, Pikemen, Elk Riders, Shieldbearers) is cheaper per fight than before. Raiders at the top of the range
+would be next to tune (Raider carry or cost), not the Elk Rider.
+
+**90 days, one player per style:** 2nd village day 26.6 / 23.7 / not within run / 18.8, 3rd 40.3 / 47.8 / - / 35.3, villages at the end 5 / 3 / 1 / 4, points 24,740 / 14,408 / 2,775 / 31,311
+(13.1: 5 / 4 / 3 / 4). The raider's later expansion (3rd village day 47.8, was 45.5) and the turtle's slow start (no 2nd village within 90 days; it had day 53.0 before) are the price of
+cheaper-per-line but costlier-per-fight foot troops: the turtle's Pikemen and Shieldbearers now cost 19/23/14 and 17/30/28 against 15/25/15 and 15/35/30, a little more wood and iron,
+while its wall of 40-line pikes is worth less against foot (14, was 15). Day 21-28 holds for builder (26.6) and raider (23.7).
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (13.1: 21 takes, 14 restarts, worst ratio 1.11): villages taken from players **9**, restarts **4**, raids on players 36k, biggest / second
+biggest (worst seed) **1.76** (target <= 2x, met). Fewer takes than in 13.1: the Raider's attack fell from 40 to 36 and the old Knight (110 attack, speed 10, from the Stables) is
+now a slow Ember Guard (70, speed 5), so Strike armies are weaker and slower to arrive; the builders who were the main victims are raided less. Not tuned further.
+
+**Not in the sim:** a computer player training the Ember Guard at the Barracks (only the builder style's army has the unit, and only from Barracks 8 and Town Hall 8, late in its list).

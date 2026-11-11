@@ -47,3 +47,11 @@ test('inTraining sums what is still waiting; stockLine hides zeros', () => {
   assert.equal(stockLine(12, 4, 5), '12 at home · 4 away · 5 training');
   assert.equal(stockLine(0, 0, 0), '0 at home');
 });
+
+test('troop roster: the Barracks list has the Ember Guard, the Stables list only the Elk Rider (the lists are built like the Recruit table does)', () => {
+  const at = (b: string) => UNIT_IDS.filter((u) => UNITS[u].building === b);
+  assert.ok(at('barracks').includes('knight'));
+  assert.deepEqual(at('stables'), ['outrider']);
+  assert.equal(UNITS.outrider.name, 'Elk Rider');
+  assert.equal(UNITS.knight.name, 'Ember Guard');
+});

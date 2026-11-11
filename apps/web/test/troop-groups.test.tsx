@@ -37,13 +37,13 @@ test('Decoy: exactly one of the slowest fighting unit; siege first; never a Chie
 });
 
 test('Chieftain escort: the Chieftains needed, then the strongest fighters up to the hold minimum', () => {
-  const h = home({ chieftain: 2, pikeman: 500, raider: 60, knight: 20, outrider: 10 });
+  const h = home({ chieftain: 2, pikeman: 500, raider: 80, knight: 20, outrider: 10 });
   const e = pickEscort(vis(h), h, 1)!;
   assert.equal(e.chieftain, 1);
-  // Knights (attack 110, 4 pop) first: 8 for the Chieftain + 20 knights = 88, then Outriders (60, 2 pop): 10 = 108, then Raiders for the rest.
+  // Ember Guards (attack 70, 3 pop) first: 8 for the Chieftain + 20 Ember Guards = 68, then Elk Riders (65, 2 pop): 10 = 88, then Raiders for the rest.
   assert.equal(e.knight, 20);
   assert.equal(e.outrider, 10);
-  assert.equal(e.raider, 42);
+  assert.equal(e.raider, 62);
   assert.equal(e.pikeman, undefined);
   assert.equal(occupierPopulation(e), HOLD_MIN_POPULATION);
   // Two Chieftains needed: 16 pop of Chieftains already.
@@ -86,7 +86,7 @@ test('fillFromGroup: min(group, home) for visible units, others empty, short not
   // Knights and Chieftains are not at home, so the attack form does not show them and they are not reported.
   assert.deepEqual(fill.short, ['Only 40 of 60 Raiders at home']);
   const h2 = home({ raider: 40, knight: 2 });
-  assert.deepEqual(fillFromGroup({ knight: 5 }, vis(h2), h2).short, ['Only 2 of 5 Knights at home']);
+  assert.deepEqual(fillFromGroup({ knight: 5 }, vis(h2), h2).short, ['Only 2 of 5 Ember Guards at home']);
   assert.equal(shortNote(['Only 40 of 60 Raiders at home']), 'Only 40 of 60 Raiders at home.');
   assert.equal(shortNote([]), null);
   // A unit the mission does not take is ignored, not reported.

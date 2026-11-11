@@ -49,14 +49,14 @@ test('loot is always full (owner 2026-11-05): repeat raids on one abandoned vill
     const r = await raid(farmer, clock, vf, npc);
     assert.ok(r.battle.attackerWon, `${who} raid won`);
     assert.equal((r.battle as unknown as Record<string, unknown>).lootShare, undefined, 'reports no longer carry a loot share');
-    assert.equal(sum(r.battle.loot), (r.sent - r.battle.attackerLosses.raider) * 30, `${who} raid carries the full load`);
+    assert.equal(sum(r.battle.loot), (r.sent - r.battle.attackerLosses.raider) * 28, `${who} raid carries the full load`);
   }
   // Another player gets the same treatment, and so does the farmer after any wait.
   const mine = await raid(other, clock, vo, npc);
-  assert.equal(sum(mine.battle.loot), (mine.sent - mine.battle.attackerLosses.raider) * 30);
+  assert.equal(sum(mine.battle.loot), (mine.sent - mine.battle.attackerLosses.raider) * 28);
   clock.set(clock.t + 3 * HOUR);
   const later = await raid(farmer, clock, vf, npc);
-  assert.equal(sum(later.battle.loot), (later.sent - later.battle.attackerLosses.raider) * 30);
+  assert.equal(sum(later.battle.loot), (later.sent - later.battle.attackerLosses.raider) * 28);
 
   // The repeat-raid table is gone from the schema.
   const t = app.ctx.store.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'npc_raids'").all();

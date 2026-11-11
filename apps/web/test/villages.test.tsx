@@ -128,7 +128,7 @@ test('myOccupierPopulation adds up my troops standing in one village', () => {
     { host: { villageId: 5 }, units: units({ guard: 10 }) },
     { host: { villageId: 6 }, units: units({ pikeman: 999 }) },
   ];
-  assert.equal(myOccupierPopulation(abroad, 5), 100 + 5 * 4 + 10);
+  assert.equal(myOccupierPopulation(abroad, 5), 100 + 5 * 3 + 10);
   assert.equal(myOccupierPopulation(abroad, 9), 0);
 });
 

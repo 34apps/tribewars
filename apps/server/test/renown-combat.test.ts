@@ -283,8 +283,8 @@ const BIG: BattleResult = {
   luck: 0,
   attackPower: 100,
   defensePower: 50,
-  attackerLosses: units({ raider: 5 }),
-  attackerSurvivors: units({ raider: 25 }),
+  attackerLosses: units({ raider: 12 }), // cheaper troops (2026-11-11): enough that the defender's share still passes the minimum
+  attackerSurvivors: units({ raider: 18 }),
   defenderUnits: units({ pikeman: 20 }),
   defenderLosses: units({ pikeman: 20 }),
   supportLosses: [],

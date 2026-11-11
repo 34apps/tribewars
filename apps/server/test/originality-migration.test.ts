@@ -64,7 +64,7 @@ test('an old database: Longhouse = Farm, siege units become Firecarts, queued si
 
     app = await open();
     assert.equal(readdirSync(join(dir, 'backups')).filter((f) => f.startsWith(`pre-migrate-v16-v${SCHEMA_VERSION}-`)).length, 1, 'the old file is copied first');
-    assert.equal(SCHEMA_VERSION, 17);
+    assert.ok(SCHEMA_VERSION >= 17);
     const v = app.ctx.store.getVillage(homeId)!;
     const s = v.state as VillageState & Loose;
     assert.equal(s.buildings.longhouse, 9, 'Longhouse = the Farm level');

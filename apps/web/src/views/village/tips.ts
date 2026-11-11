@@ -52,8 +52,8 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
       return 'Iron goes into weapons and the heavier buildings. Raiders and the Wall eat plenty of it.';
     case 'goldmine':
       return level === 0
-        ? 'No gold is coming in yet. A Gold Mine pays for the Stables and, later, Knights.'
-        : 'Gold comes in slowly. Save it for cavalry and elite troops.';
+        ? 'No gold is coming in yet. A Gold Mine pays for the Stables and, later, Ember Guards.'
+        : 'Gold comes in slowly. Save it for Elk Riders and Ember Guards.';
     case 'storehouse': {
       const cap = storageCap(v);
       let fullest: ResourceId = 'wood';
@@ -67,9 +67,11 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
     case 'barracks':
       return level === 0
         ? 'The Barracks trains your first troops. Pikemen are cheap and hold the gate.'
-        : 'Pikemen are cheap and stop cavalry. Train a few before you go raiding.';
+        : level >= 8
+          ? 'Pikemen are cheap and stop riders. From Barracks 8 (and Town Hall 8) you can also train the Ember Guard, an elite on foot.'
+          : 'Pikemen are cheap and stop riders. Train a few before you go raiding.';
     case 'stables':
-      return 'Riders are fast and carry more loot home. Gold pays for them.';
+      return 'Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
     case 'wrightyard':
       return level === 0
         ? 'The Wrightyard builds Firecarts. They burn the Wall in the battle and, after a win, the building you pick. Research them at the Drillyard first.'

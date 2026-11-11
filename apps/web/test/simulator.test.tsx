@@ -200,7 +200,7 @@ test('luck slider: the range is the engine luck, any value in it runs the real b
 test('mightText names the unit with the most Might ranks in the army; comeHome counts survivors', () => {
   const ranks = { raider: { might: 2, bulwark: 0, keen: 0 }, knight: { might: 5, bulwark: 0, keen: 0 } };
   assert.equal(mightText(ranks, units({ raider: 5 })), 'Raider Might 2 · +10% attack');
-  assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Knight Might 5 · +25% attack');
+  assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Ember Guard Might 5 · +25% attack');
   assert.equal(mightText(ranks, units({ pikeman: 5 })), null);
   assert.equal(mightText(undefined, units({ raider: 5 })), null);
   assert.deepEqual(comeHome(units({ raider: 10, knight: 2 }), units({ raider: 3 })), { home: 3, sent: 12 });

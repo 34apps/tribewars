@@ -26,11 +26,11 @@ When a rule changes, change it here in the same commit.
   Multiply by `speed`.
 - **Gold is the elite and conquest resource, made at 1/10 of a Lumber Camp** (owner, 2026-11-10: `PRODUCTION_BASE.goldmine` 3
   vs lumber 30; it was 10, a third). No gold is needed at the start (stock 100 covers the first research); it pays for cavalry
-  and siege research, Stables and Drillyard upgrades (20 / 15 at level 1, about 2,600 / 580 to the top), Knights (30 each),
+  and siege research, Stables and Drillyard upgrades (20 / 15 at level 1, about 2,600 / 580 to the top), Ember Guards (14 each),
   Firecarts (6), the Banner Hall (100, x1.35 per level) and the **War Chest**, which pays for Chieftains (paid in from any village, one way; §18.2). With no gold coming in the
-  build and train buttons say "Needs gold · build a Gold Mine" (`apps/web/src/shortfall.ts`). Sizing: the most gold-hungry use is the Knight (100/260/230 + 30 gold: 0.30 gold per wood, 0.13 per iron).
-  With every building at level 10 a village makes gold for ~10 Knights a day, iron for ~13, food for ~15: a Knight village
-  needs its Gold Mine about 2 levels above its Iron Mine, and anyone mixing Knights with a Banner Hall or Chieftains has to
+  build and train buttons say "Needs gold · build a Gold Mine" (`apps/web/src/shortfall.ts`). Sizing: the most gold-hungry use is the Ember Guard (50/90/110 + 14 gold since the roster pass of 2026-11-11; the old Knight was 100/260/230 + 30 before the cost cut).
+  With every building at level 10 a village makes gold for ~10 elite units a day, iron for ~13, food for ~15: an Ember Guard village
+  needs its Gold Mine about 2 levels above its Iron Mine, and anyone mixing Ember Guards with a Banner Hall or Chieftains has to
   choose. 1/10 also matches gold's 10x weight in loot and
   Renown. At a third, gold piled up for every play style (`BALANCE.md` §12). Players who only build can skip the Gold Mine.
 - **No troop food upkeep** (owner, 2026-11-05; before that troops ate 0.25 food per population point, and 1 per unit before
@@ -40,8 +40,8 @@ When a rule changes, change it here in the same commit.
   buildings, troop costs and Feasts.
 - **Food has a real use (owner request, balance pass 2026-11-05).** Food piled up in every sim style once troops stopped eating, so unit costs
   and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron (since 2026-11-11, x0.55 of the
-  old numbers, food about x0.5, so a maxed village can fill its 12,000 room in about 13 days of its own income): Pikeman 15/25/15,
-  Shieldbearer 15/35/30, Raider 20/40/30, Outrider 35/85/70, Knight 55/130/125 (+16 gold), Pathfinder 10/25/15, Firecart 99/88/121 (+6 gold). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
+  old numbers, food about x0.5, so a maxed village can fill its 12,000 room in about 13 days of its own income): Pikeman 19/23/14,
+  Shieldbearer 17/30/28, Raider 25/35/25, Elk Rider 39/80/66, Ember Guard 50/90/110 (+14 gold), Pathfinder 11/20/14, Firecart 99/88/121 (+6 gold) (the A3 roster, §4). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
   2,100/3,450/2,100 (+100 gold; the food figure fits the Storehouse level 6 it requires). Numbers in `config.ts`.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
@@ -133,16 +133,33 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 
 ## 4. Units and training
 
-Eight units (`UNITS`): infantry Pikeman (anti-cavalry defense), Shieldbearer (anti-infantry defense),
-Raider (attack), Pathfinder (scout), Chieftain; cavalry Outrider (fast raider, big carry) and Knight (elite, costs gold); and the siege unit
-Firecart, trained at the **Wrightyard** (§3, §18.9). The Log Ram and the Boulder Sling no longer exist (migrated to Firecarts).
+Eight units (`UNITS`, ids never change; the troop roster pass of 2026-11-11, originality piece 5, gave every unit its own line and two units new names).
+Stat lines are attack / defence vs foot / defence vs riders:
+
+| Unit (`id`) | Trained | Research | Line | Speed | Carry | Pop | Cost w/f/i (+gold), x0.55 (food x0.5) | Time | Role |
+|---|---|---|---|---|---|---|---|---|---|
+| Pikeman (`pikeman`) | Barracks 1 | none | 8 / 14 / 40 | 6 | 12 | 1 | 19 / 23 / 14 | 260 s | holds riders |
+| Shieldbearer (`guard`) | Barracks 3 | Drillyard 1 | 12 / 42 / 22 | 5 | 10 | 1 | 17 / 30 / 28 | 320 s | holds foot |
+| Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
+| Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
+| **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | **the only rider**, big carry |
+| **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 70 / 60 / 60 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
+| Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
+| Firecart (`firecart`) | Wrightyard 1 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege (§18.9) |
+
+The **Elk Rider** is the only `cavalry` unit, so "riders" in the defence mix now means Elk Riders only; the **Ember Guard** is `infantry`, walks
+the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
+originality proposal's numbers with the branch's troop cost cut (x0.55, food about x0.5, rounded). The Log Ram and the Boulder Sling no longer
+exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, away, marching, stationed) is an Ember Guard 1:1, Knight research
+counts as Ember Guard research, and Knight batches already queued at the Stables finish there as Ember Guards (no refund, no change of time);
+new Ember Guards are trained at the Barracks only.
 
 - Train batch of `count` (1..MAX_TRAIN_BATCH) in the unit's building. Cost = unit cost × count, paid
   up front. Needs `requires` met. At most `MAX_TRAIN_QUEUE` batches per building.
 - Time per unit (ms): `round(trainTimeSec * TRAIN_TIME_FACTOR^(buildingLevel-1) / speed * 1000)`,
   fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
   end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
-- **Research gate (Drillyard, see §15):** Shieldbearer, Outrider and Knight have `UnitDef.research`
+- **Research gate (Drillyard, see §15):** Shieldbearer, Elk Rider and Ember Guard have `UnitDef.research`
   (Drillyard level to start, cost, time; the Firecart too, Drillyard 3). They can only be trained after the research finished in that
   village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
   (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting), the same for everyone. Cost is paid when
@@ -199,6 +216,7 @@ Tests and the simulator pass their own seeds.
 1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`. The battle simulator in the web client uses the same battle rule (`resolveBattle`); there luck can be set from −10% to +10% (`BattleInput.fixedLuck`, clamped to ±BATTLE_LUCK; the server never sets it).
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
+   Since the troop roster pass (2026-11-11) only the Elk Rider is cavalry; the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
    at home. `D = (D_units + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall) × (1 + WALL_BONUS_PER_LEVEL × wall)`.
 5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
@@ -699,7 +717,7 @@ improve. We keep the idea of a scarce budget but design our own system.
   resources and research time (all in config).
 - Effect per rank: +4% on that stat (max +20%); Sight: +10% scout duel strength per rank.
 - The budget makes maxing everything impossible: 5 fighting units × 2 tracks × 15 = 150 points vs 30 at best.
-  Typical choices: one village maxes Edge on raiders + outriders (30), another maxes Guard on pikemen + guards.
+  Typical choices: one village maxes Edge on raiders + Elk Riders (30), another maxes Guard on pikemen + guards.
 - **Respec:** reset one unit track to rank 0, **free (no gold)** (owner, 2026-11-03): the points return in full, the
   resources paid for the ranks are lost, so a village can change role (offence ↔ defence) but it still costs real resources.
 - Ranks belong to the **home village** of the troops. Away/support troops fight with their home village's ranks,
@@ -735,7 +753,7 @@ with the stamp of its newest arrival. The scout duel uses Keen on both sides, an
 (0 resources, 1 rough troops, 2 exact troops, 3 wall, 4 buildings, 5 ranks + Drillyard level); numbers in `config.ts` (`SCOUT_INTEL_KEEN`,
 `SCOUT_APPROX_STEP`). Drillyard has its own sprites. Older notes follow.
 Status (2026-11-03, later): **server endpoints built** (`POST /api/villages/:id/research|rank|respec`, owner-only, server clock,
-schema-validated, saved in the village's `state_json`; research completes in `settleVillage`, which unblocks Shieldbearer/Outrider/Knight
+schema-validated, saved in the village's `state_json`; research completes in `settleVillage`, which unblocks Shieldbearer/Elk Rider/Ember Guard
 training) and the web Drillyard panel is built. Still not built: ranks stamped on movements/battles in the server (the engine takes them,
 the server does not pass them yet), scout intel tiers. Earlier status: **engine built.** The building is called **Drillyard** (it stands in for the
 "Armory" name above, per the owner's rename). Engine: `drillyard.ts` (`checkResearch/applyResearch`, `pointsTotal/pointsSpent`,
@@ -1241,7 +1259,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (outrider, knight) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |
@@ -1808,7 +1826,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (outrider, knight) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |

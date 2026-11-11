@@ -603,6 +603,7 @@ export function applySchema(db: DatabaseSync): void {
   db.exec(SCHEMA);
   addMissingColumns(db);
   migrateOriginality(db);
+  migrateRoster(db);
   seedTemplates(db);
 }
 
@@ -611,14 +612,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 17; // 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 18; // 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '2418ef12b1c9696e';
+export const SCHEMA_FINGERPRINT = '7404276453a8a2ba';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -686,6 +687,24 @@ function migrateOriginality(db: DatabaseSync): void {
     }
     throw err;
   }
+}
+
+/**
+ * Troop roster pass (originality piece 5, 2026-11-11), once per database (a meta flag). The Knight id is kept: every Knight, wherever it is
+ * (home, away, marching, stationed, at a site), is now an Ember Guard 1:1 with no row rewritten, and Knight research counts as Ember Guard
+ * research. Batches already queued at the Stables are left alone and finish there as Ember Guards (the simplest safe option: no refund,
+ * no re-timing; the queue code works by queue, not by the unit's usual building). New Ember Guards train at the Barracks only.
+ * This only writes the flag and logs how many queued batches stay at the Stables.
+ */
+function migrateRoster(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'roster_applied'").get()) return;
+  let batches = 0;
+  for (const row of db.prepare('SELECT state_json FROM villages').all() as Array<{ state_json: string }>) {
+    const queue = (JSON.parse(row.state_json) as { trainQueues?: { stables?: Array<{ unit?: string }> } }).trainQueues?.stables ?? [];
+    batches += queue.filter((j) => j.unit === 'knight').length;
+  }
+  if (batches > 0) console.info(`[db] roster: ${batches} queued Knight batch(es) finish at the Stables as Ember Guards`);
+  db.prepare("INSERT INTO meta (key, value) VALUES ('roster_applied', '1')").run();
 }
 
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */

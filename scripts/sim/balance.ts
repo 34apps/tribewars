@@ -1640,7 +1640,7 @@ export function formatReport(rep: SimReport, full = false): string {
   for (const u of UNIT_IDS) {
     const d = UNITS[u];
     const c = d.cost.wood + d.cost.food + d.cost.iron + d.cost.gold * 10;
-    out.push(`| ${u} | ${(d.attack / c).toFixed(3)} | ${(((d.defenseInfantry + d.defenseCavalry) / 2) / c).toFixed(3)} | ${(d.carry / c).toFixed(3)} | ${POP_PER_UNIT[u]} | ${d.requires.stables ? 'stables' : 'barracks'} |`);
+    out.push(`| ${u} | ${(d.attack / c).toFixed(3)} | ${(((d.defenseInfantry + d.defenseCavalry) / 2) / c).toFixed(3)} | ${(d.carry / c).toFixed(3)} | ${POP_PER_UNIT[u]} | ${d.building} |`);
   }
   out.push('', '## Flags', '');
   if (rep.flags.length === 0) out.push('None.');

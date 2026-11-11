@@ -415,10 +415,10 @@ test('raid: carry limit splits in proportion; a lost attack or a non-store villa
   const w = await funded();
   setStore(w.app, w.tribeId, res(1000)); // pool 200 per resource
   setAmy(w, res(200), 0);
-  const rep = await raidAmy(w, 20); // carry 600: 150 per resource, half and half
+  const rep = await raidAmy(w, 20); // carry 560: 140 per resource, half and half
   assert.equal(rep.attackerWon, true);
-  assert.equal(rep.loot.gold, 150);
-  assert.equal(rep.lootFromTribeStore?.gold, 75, 'gold: 200 offered by each side, so half and half');
+  assert.equal(rep.loot.gold, 140);
+  assert.equal(rep.lootFromTribeStore?.gold, 70, 'gold: 200 offered by each side, so half and half');
   for (const r of ['wood', 'food', 'iron', 'gold'] as const) {
     const fromStore: number = rep.lootFromTribeStore?.[r] ?? 0;
     assert.ok(fromStore >= 0 && fromStore <= 200 && fromStore <= rep.loot[r], r);

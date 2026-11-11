@@ -107,7 +107,7 @@ describe('applyStrike', () => {
 
   it('149 population is not enough, 150 is; units count by their population', () => {
     assert.equal(occupierPopulation(units({ raider: 149 })), 149);
-    assert.equal(occupierPopulation(units({ knight: 2, outrider: 1, chieftain: 1 })), 8 + 2 + 8);
+    assert.equal(occupierPopulation(units({ knight: 2, outrider: 1, chieftain: 1 })), 6 + 2 + 8);
     assert.equal(struck(units({ raider: 149 })).hearth?.runningSince, null);
     assert.equal(struck(units({ raider: 150 })).hearth?.runningSince, T);
   });

@@ -26,10 +26,10 @@ const HOUR = 3_600_000;
 const DIRS: Array<[number, number]> = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
 const DISTANCES = [10, 20, 30, 40, 50, 60, 80, 100];
 const COLUMNS: Array<{ name: string; units: UnitId[] }> = [
-  { name: 'Outriders (cavalry)', units: ['outrider'] },
+  { name: 'Elk Riders (cavalry)', units: ['outrider'] },
   { name: 'Pikemen', units: ['pikeman'] },
   { name: 'Guards (slowest fighter)', units: ['guard'] },
-  { name: 'Mixed: Pikemen + Guards + Knights', units: ['pikeman', 'guard', 'knight'] },
+  { name: 'Mixed: Pikemen + Guards + Ember Guards', units: ['pikeman', 'guard', 'knight'] },
   { name: 'Chieftain with escort', units: ['guard', 'chieftain'] },
 ];
 

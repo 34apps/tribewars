@@ -10,8 +10,12 @@ export type UnitPose = 'idle' | 'march' | 'victory' | 'defeated' | 'icon';
 
 const FILES = import.meta.glob(['./units/*.svg', './units/icon/*.svg'], { query: '?no-inline', import: 'default', eager: true }) as Record<string, string>;
 
+/** Units whose art file name differs from their id (ids never change; the Outrider is the Elk Rider, the Knight the Ember Guard). */
+const ART_NAME: Partial<Record<UnitId, string>> = { outrider: 'elk-rider', knight: 'ember-guard' };
+
 function figureUrl(unit: UnitId, pose: UnitPose): string | undefined {
-  return FILES[pose === 'icon' ? `./units/icon/${unit}.svg` : `./units/${unit}-${pose}.svg`];
+  const name = ART_NAME[unit] ?? unit;
+  return FILES[pose === 'icon' ? `./units/icon/${name}.svg` : `./units/${name}-${pose}.svg`];
 }
 
 /** True when the unit has its own drawing for this pose (default: the idle pose). */

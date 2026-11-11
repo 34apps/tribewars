@@ -138,14 +138,14 @@ describe('settleVillage', () => {
 
   it('trains units one by one and drops finished batches', () => {
     const v0 = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
-    const v = applyTrain(v0, 'pikeman', 3, 0, S1); // 270 s each
-    assert.equal(settleVillage(v, 269_999, S1).troops.pikeman, 0);
-    assert.equal(settleVillage(v, 270_000, S1).troops.pikeman, 1);
-    assert.equal(settleVillage(v, 539_999, S1).troops.pikeman, 1);
-    const two = settleVillage(v, 540_000, S1);
+    const v = applyTrain(v0, 'pikeman', 3, 0, S1); // 260 s each
+    assert.equal(settleVillage(v, 259_999, S1).troops.pikeman, 0);
+    assert.equal(settleVillage(v, 260_000, S1).troops.pikeman, 1);
+    assert.equal(settleVillage(v, 519_999, S1).troops.pikeman, 1);
+    const two = settleVillage(v, 520_000, S1);
     assert.equal(two.troops.pikeman, 2);
     assert.equal(two.trainQueues.barracks[0]?.done, 2);
-    const all = settleVillage(two, 810_000, S1);
+    const all = settleVillage(two, 780_000, S1);
     assert.equal(all.troops.pikeman, 3);
     assert.equal(all.trainQueues.barracks.length, 0);
     assert.equal(settleVillage(v, 10 * HOUR, S1).troops.pikeman, 3);
@@ -155,9 +155,9 @@ describe('settleVillage', () => {
     let v = village({ buildings: { barracks: 1 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
     v = applyTrain(v, 'pikeman', 2, 0, S1);
     v = applyTrain(v, 'pikeman', 1, 10_000, S1);
-    assert.equal(v.trainQueues.barracks[1]?.startAt, 540_000);
-    assert.equal(settleVillage(v, 809_999, S1).troops.pikeman, 2);
-    assert.equal(settleVillage(v, 810_000, S1).troops.pikeman, 3);
+    assert.equal(v.trainQueues.barracks[1]?.startAt, 520_000);
+    assert.equal(settleVillage(v, 779_999, S1).troops.pikeman, 2);
+    assert.equal(settleVillage(v, 780_000, S1).troops.pikeman, 3);
   });
 
   it('troops eat no food: food grows at the farm rate while units train and with a big army', () => {
@@ -425,9 +425,9 @@ describe('checkTrain / applyTrain', () => {
     village({ buildings: { barracks: 1, storehouse: 10 }, resources: { wood: 5000, food: 5000, iron: 5000, gold: 1000 } });
 
   it('trainTimeMs follows the training building level and world speed', () => {
-    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 1 } }), S1), 270_000);
-    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 4 } }), S1), 224_258);
-    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 1 } }), S10), 27_000);
+    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 1 } }), S1), 260_000);
+    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 4 } }), S1), 215_952);
+    assert.equal(trainTimeMs('pikeman', village({ buildings: { barracks: 1 } }), S10), 26_000);
   });
 
   it('returns cost and per-unit time; applyTrain pays up front', () => {
@@ -436,11 +436,11 @@ describe('checkTrain / applyTrain', () => {
     assert.ok(c.ok);
     if (c.ok) {
       assert.deepEqual(c.cost, { wood: UNITS.pikeman.cost.wood * 4, food: UNITS.pikeman.cost.food * 4, iron: UNITS.pikeman.cost.iron * 4, gold: 0 });
-      assert.equal(c.perUnitMs, 270_000);
+      assert.equal(c.perUnitMs, 260_000);
     }
     const out = applyTrain(v, 'pikeman', 4, 0, S1);
     assert.equal(out.resources.wood, 5000 - UNITS.pikeman.cost.wood * 4);
-    assert.deepEqual(out.trainQueues.barracks, [{ unit: 'pikeman', count: 4, done: 0, perUnitMs: 270_000, startAt: 0 }]);
+    assert.deepEqual(out.trainQueues.barracks, [{ unit: 'pikeman', count: 4, done: 0, perUnitMs: 260_000, startAt: 0 }]);
   });
 
   it('refuses when requirements are missing', () => {
@@ -468,19 +468,19 @@ describe('checkTrain / applyTrain', () => {
     assert.ok(c.ok);
     if (c.ok) {
       assert.deepEqual(c.cost, { wood: UNITS.pathfinder.cost.wood * 4, food: UNITS.pathfinder.cost.food * 4, iron: UNITS.pathfinder.cost.iron * 4, gold: 0 });
-      assert.equal(c.perUnitMs, 169_200); // 180 s * 0.94 at barracks level 2
+      assert.equal(c.perUnitMs, 159_800); // 170 s * 0.94 at barracks level 2
       assert.equal(c.perUnitMs, trainTimeMs('pathfinder', v, S1));
     }
-    assert.equal(trainTimeMs('pathfinder', v, S10), 16_920);
+    assert.equal(trainTimeMs('pathfinder', v, S10), 15_980);
 
     const queued = applyTrain(v, 'pathfinder', 4, 0, S1);
-    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 169_200, startAt: 0 }]);
+    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 159_800, startAt: 0 }]);
     assert.deepEqual(queued.trainQueues.stables, []);
     assert.equal(queued.resources.wood, 5000 - UNITS.pathfinder.cost.wood * 4);
     assert.equal(settleVillage(queued, 70_499, S1).troops.pathfinder, 0);
-    assert.equal(settleVillage(queued, 169_200, S1).troops.pathfinder, 1);
-    assert.equal(settleVillage(queued, 4 * 169_200, S1).troops.pathfinder, 4);
-    assert.deepEqual(settleVillage(queued, 4 * 169_200, S1).trainQueues.barracks, []);
+    assert.equal(settleVillage(queued, 159_800, S1).troops.pathfinder, 1);
+    assert.equal(settleVillage(queued, 4 * 159_800, S1).troops.pathfinder, 4);
+    assert.deepEqual(settleVillage(queued, 4 * 159_800, S1).trainQueues.barracks, []);
     expectGameError(() => applyTrain(level1, 'pathfinder', 1, 0, S1), 'requirements_not_met');
   });
 

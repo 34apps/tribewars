@@ -89,7 +89,7 @@ const TRIBES: TribePlan[] = [
     description: 'Raiders with a plan. We farm the abandoned villages in rotation and keep our borders quiet. Tell us why you want to join.',
     chat: [
       [0, 'Rotation reminder: do not hit the same abandoned village twice in an hour, it only grows back slowly.'],
-      [1, 'Outriders carry 70 each. Worth the stables for the big villages.'],
+      [1, 'Elk Riders carry 75 each. Worth the stables for the big villages.'],
       [2, 'Our alliance slots are still open if another tribe wants to talk.'],
     ],
   },
@@ -451,7 +451,7 @@ const nextBuildCost = (def: StyleDef, s: VillageState): Resources => {
   return w && w.level <= BUILDINGS[w.building].maxLevel ? buildingCost(w.building, w.level) : emptyResources();
 };
 
-/** Gold the village keeps for itself: the next build that costs gold, research, and a Knight batch for styles that train them. */
+/** Gold the village keeps for itself: the next build that costs gold, research, and an Ember Guard batch for styles that train them. */
 function goldToKeep(def: StyleDef, s: VillageState): number {
   const goldAt = (b: BuildingId): number => (levelWithQueue(s, b) + 1 <= BUILDINGS[b].maxLevel ? buildingCost(b, levelWithQueue(s, b) + 1).gold : 0);
   let first = 0;
@@ -889,7 +889,7 @@ interface Attack {
 }
 
 /**
- * Idle bots outside `exclude` as possible attackers of `target`, best first. A bot with stables sends Outriders (fast) and the
+ * Idle bots outside `exclude` as possible attackers of `target`, best first. A bot with stables sends Elk Riders (fast) and the
  * candidates are ranked by how close their travel time is to the ideal (~5 min at speed 25, scaled with the world speed; never
  * under ~90 s there, so the target's tribe has time to see the alert).
  */

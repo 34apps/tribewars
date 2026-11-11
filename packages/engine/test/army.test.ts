@@ -28,8 +28,8 @@ describe('travel', () => {
   it('army speed is the slowest unit present', () => {
     assert.equal(armySpeed(units({})), 0);
     assert.equal(armySpeed(units({ raider: 5, outrider: 5 })), 6);
-    assert.equal(armySpeed(units({ knight: 1, outrider: 9 })), 10);
-    assert.equal(armySpeed(units({ pikeman: 0, outrider: 5 })), 14);
+    assert.equal(armySpeed(units({ knight: 1, outrider: 9 })), 5); // the Ember Guard walks
+    assert.equal(armySpeed(units({ pikeman: 0, outrider: 5 })), 13);
     assert.equal(armySpeed(units({ guard: 1, raider: 100, knight: 3 })), 5);
   });
 
@@ -37,10 +37,10 @@ describe('travel', () => {
     const target = { x: 3, y: 4 }; // distance 5
     assert.equal(distance(ORIGIN, target), 5);
     assert.equal(travelTimeMs(ORIGIN, target, units({ raider: 10 }), S1), 3_000_000); // 5 / 6 h
-    assert.equal(travelTimeMs(ORIGIN, target, units({ outrider: 10 }), S1), 1_285_715); // 5 / 14 h, rounded up
+    assert.equal(travelTimeMs(ORIGIN, target, units({ outrider: 10 }), S1), 1_384_616); // 5 / 13 h, rounded up
     assert.equal(travelTimeMs(ORIGIN, target, units({ raider: 1, outrider: 10 }), S1), 3_000_000); // mixed: raiders set the pace
     assert.equal(travelTimeMs(ORIGIN, target, units({ raider: 1, outrider: 10 }), S10), 300_000);
-    assert.equal(travelTimeMs(ORIGIN, target, units({ knight: 1, outrider: 10 }), S1), 1_800_000);
+    assert.equal(travelTimeMs(ORIGIN, target, units({ knight: 1, outrider: 10 }), S1), 3_600_000); // 5 / 5 h: the Ember Guard sets the pace
     assert.equal(travelTimeMs(ORIGIN, ORIGIN, units({ raider: 1 }), S1), 0);
     assert.equal(travelTimeMs(ORIGIN, target, units({}), S1), Infinity);
   });
@@ -149,16 +149,16 @@ describe('resolveBattle', () => {
   it('weighs defenders against the infantry/cavalry mix of the attack, plus wall', () => {
     const defender = defenderOf({ troops: { pikeman: 20, guard: 10 }, buildings: { wall: 2 } });
     const mixed = resolveBattle({ attackerUnits: units({ raider: 50, outrider: 10 }), defender, seed: 3 });
-    const si = 2000 / 2600;
+    const si = 1800 / 2450;
     const sc = 1 - si;
-    const dUnits = 20 * (15 * si + 45 * sc) + 10 * (45 * si + 25 * sc);
+    const dUnits = 20 * (14 * si + 40 * sc) + 10 * (42 * si + 22 * sc);
     assert.ok(near(mixed.defensePower, (dUnits + 20 + 14 * 2) * (1 + 0.045 * 2), 1e-9));
-    assert.ok(near(mixed.attackPower, 2600 * (1 + mixed.luck), 1e-9));
+    assert.ok(near(mixed.attackPower, 2450 * (1 + mixed.luck), 1e-9));
 
     const infantryOnly = resolveBattle({ attackerUnits: units({ raider: 10 }), defender, seed: 3 });
-    assert.ok(near(infantryOnly.defensePower, (20 * 15 + 10 * 45 + 20 + 28) * 1.09, 1e-9));
+    assert.ok(near(infantryOnly.defensePower, (20 * 14 + 10 * 42 + 20 + 28) * 1.09, 1e-9));
     const cavalryOnly = resolveBattle({ attackerUnits: units({ outrider: 10 }), defender, seed: 3 });
-    assert.ok(near(cavalryOnly.defensePower, (20 * 45 + 10 * 25 + 20 + 28) * 1.09, 1e-9));
+    assert.ok(near(cavalryOnly.defensePower, (20 * 40 + 10 * 22 + 20 + 28) * 1.09, 1e-9));
   });
 
   it('attacker wins: loses (D/A)^1.5 of each unit, every defender dies', () => {
@@ -166,7 +166,7 @@ describe('resolveBattle', () => {
     const defender = defenderOf({ troops: { pikeman: 100 }, resources: { wood: 500, food: 500, iron: 500, gold: 0 } });
     const r = resolveBattle({ attackerUnits, defender, seed: 11 });
     assert.ok(r.attackerWon);
-    assert.ok(near(r.defensePower, 100 * 15 + 20, 1e-9));
+    assert.ok(near(r.defensePower, 100 * 14 + 20, 1e-9));
     const expectedLoss = Math.round(100 * Math.pow(r.defensePower / r.attackPower, 1.5));
     assert.ok(expectedLoss > 10 && expectedLoss < 40);
     assert.equal(r.attackerLosses.raider, expectedLoss);
@@ -174,8 +174,8 @@ describe('resolveBattle', () => {
     assert.deepEqual(r.defenderLosses, defender.troops);
     assert.deepEqual(r.defenderUnits, defender.troops);
     assert.ok(r.loot.wood > 0);
-    // Survivors carry 30 each; capacity 30 * survivors split over wood/food/iron (500 stock each).
-    const capacity = 30 * r.attackerSurvivors.raider;
+    // Survivors carry 28 each; capacity 28 * survivors split over wood/food/iron (500 stock each).
+    const capacity = 28 * r.attackerSurvivors.raider;
     assert.equal(r.loot.wood + r.loot.food + r.loot.iron + r.loot.gold, Math.min(capacity, 1500));
   });
 
@@ -207,12 +207,12 @@ describe('resolveBattle', () => {
   });
 
   it('loot is split evenly (water-filling) among resources with stock', () => {
-    // 20 raiders: attack 720-880 vs defense 20 -> no losses, capacity 600.
+    // 20 raiders: attack about 720 vs defense 20 -> no losses, capacity 560.
     const defender = defenderOf({ resources: { wood: 1000, food: 500, iron: 100, gold: 0 } });
     const r = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4 });
     assert.ok(r.attackerWon);
     assert.equal(r.attackerSurvivors.raider, 20);
-    assert.deepEqual(r.loot, { wood: 250, food: 250, iron: 100, gold: 0 });
+    assert.deepEqual(r.loot, { wood: 230, food: 230, iron: 100, gold: 0 });
   });
 
   it('the vault protects its amount of each resource and loot is whole numbers', () => {
@@ -233,22 +233,22 @@ describe('resolveBattle', () => {
   it('loot never exceeds carrying capacity', () => {
     const defender = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
     const r = resolveBattle({ attackerUnits: units({ raider: 20 }), defender, seed: 4 });
-    assert.deepEqual(r.loot, { wood: 150, food: 150, iron: 150, gold: 150 });
+    assert.deepEqual(r.loot, { wood: 140, food: 140, iron: 140, gold: 140 });
   });
 
   it('loot is always full: min(survivors carry, lootable stock), the same for every raid (owner 2026-11-05)', () => {
     const rich = defenderOf({ resources: { wood: 1000, food: 1000, iron: 1000, gold: 1000 } });
     const total = (r: BattleResult): number => r.loot.wood + r.loot.food + r.loot.iron + r.loot.gold;
-    assert.equal(total(resolveBattle({ attackerUnits: units({ raider: 20 }), defender: rich, seed: 4 })), 600);
+    assert.equal(total(resolveBattle({ attackerUnits: units({ raider: 20 }), defender: rich, seed: 4 })), 560);
     // Mixed army: each unit type carries its own amount.
     const mixed = resolveBattle({ attackerUnits: units({ raider: 10, outrider: 10 }), defender: rich, seed: 4 });
-    assert.equal(total(mixed), Math.floor(mixed.attackerSurvivors.raider * 30 + mixed.attackerSurvivors.outrider * 70));
+    assert.equal(total(mixed), Math.floor(mixed.attackerSurvivors.raider * 28 + mixed.attackerSurvivors.outrider * 75));
     // A poor village gives only what it has.
     const poor = defenderOf({ resources: { wood: 10, food: 0, iron: 5, gold: 0 } });
     assert.deepEqual(resolveBattle({ attackerUnits: units({ raider: 20 }), defender: poor, seed: 4 }).loot, { wood: 10, food: 0, iron: 5, gold: 0 });
     // Raiding the same village again changes nothing about the rule: same army, same stock, same load.
     const again = resolveBattle({ attackerUnits: units({ raider: 20 }), defender: rich, seed: 4 });
-    assert.deepEqual(again.loot, { wood: 150, food: 150, iron: 150, gold: 150 });
+    assert.deepEqual(again.loot, { wood: 140, food: 140, iron: 140, gold: 140 });
   });
 
   it('noLoot (Strike attempts, relief, sites) takes nothing and changes nothing about the fight', () => {

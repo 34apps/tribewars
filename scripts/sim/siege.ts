@@ -339,7 +339,7 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   lines.push('|---|---|---|---|');
   const trips: Array<[string, Units, UnitId]> = [
     ['Raiders only', army({ raider: 100 }), 'raider'],
-    ['Elk-class riders (Outriders only)', army({ outrider: 100 }), 'outrider'],
+    ['Elk-class riders (Elk Riders only)', army({ outrider: 100 }), 'outrider'],
     ['Pathfinder (scout)', army({ pathfinder: 5 }), 'pathfinder'],
     ['Raiders + 20 Firecarts', army({ raider: 100, firecart: 20 }), 'firecart'],
     ['Firecarts only', army({ firecart: 20 }), 'firecart'],

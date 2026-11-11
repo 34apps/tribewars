@@ -265,7 +265,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
       ['Sample_Wren', 'Sending 20 now.', 19 * HOUR],
       [player.username, 'Reminder: Roads level 3 is running, please give to the Tribe Store today.', 12 * HOUR],
       ['Sample_Odalys', 'Given 4,000 wood.', 11 * HOUR],
-      ['Sample_Ysolde', 'Anyone seen their outriders? Mine are not back yet.', 6 * HOUR],
+      ['Sample_Ysolde', 'Anyone seen their elk riders? Mine are not back yet.', 6 * HOUR],
       ['Sample_Brannoch', 'Enemy march on Hild, arriving in about two hours. Support if you can.', 3 * HOUR],
       [player.username, 'On it. Guards leave in ten minutes.', 170 * MIN],
       ['Sample_Hild', 'Thank you all!', 100 * MIN],
@@ -322,7 +322,7 @@ export function fillSampleData(ctx: AppContext, player: PlayerRow, t: number): S
     const long: Array<[string, string]> = [];
     const talkers = ['Sample_Ysolde', 'Sample_Hild', 'Sample_Wren', 'Sample_Odalys', player.username];
     for (let i = 0; i < 24; i++) long.push([talkers[i % talkers.length] as string, `Reply ${i + 1}: my numbers are ${100 + i * 7} raiders at home; who needs what before the weekend?`]);
-    thread('General', 'Sample_Odalys', 'Army sizes: who has what?', 'Let us compare armies so the leadership can plan. Post your raiders, guards and outriders.', 6 * DAY, long);
+    thread('General', 'Sample_Odalys', 'Army sizes: who has what?', 'Let us compare armies so the leadership can plan. Post your raiders, guards and elk riders.', 6 * DAY, long);
     thread('General', 'Sample_Hild', 'Best use of the Drillyard?', 'Is Might or Bulwark better for a defensive village?', 2 * DAY, [['Sample_Brannoch', 'Bulwark for defence, Might for raiders.'], [player.username, 'Agreed, and Keen for scouts.']]);
     thread('General', 'Sample_Wren', 'Abandoned villages near the lake', 'Three are free to farm. Please keep the rotation.', 30 * HOUR, [['Sample_Ysolde', 'Taking the north one.']]);
     thread('General', 'Sample_Ysolde', 'Looking for more members', 'We are recruiting. Spread the word.', 12 * HOUR);
