@@ -55,4 +55,6 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
   if `apps/` or dependencies changed; add a dated line to `CHANGELOG.md` (newest first, commit hash);
   update `NEXT_STEPS.md` (remove done items, add new follow-ups). Rewrite `docs/HANDOFF.md` when
   handing off a session.
+- **Never open a visible browser window** (owner, 2026-11-11): no `open http://...`, no Google Chrome/Safari, no Claude-in-Chrome.
+  Check screens only in the in-app browser pane (preview tools) or with fully headless renders.
 - Never commit secrets or the game database (`data/`, `*.sqlite` are git-ignored).
