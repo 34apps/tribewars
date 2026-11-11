@@ -165,3 +165,11 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
 | Chieftain | Banner Hall | unchanged | |
 - Old worlds: Knights stay as Ember Guards 1:1 (now foot, pop 3); Knight batches queued at the Stables finish there.
 - Sim: rerun all modes; tune only these lines if targets miss.
+
+## Owner decision 2026-11-11 (later): more room for troops, genre-feel balance
+- A maxed Longhouse (until piece 2: the Farm's room) holds **12,000** people (own curve: level 1 = 200, growth ~1.34; level 0 = 150).
+- "Balance it like Tribal Wars" = the same *feel*, never their numbers: a maxed village can fill its 12,000 room with a mixed
+  army in about **12–15 days of its own income**. Today it is ~19 days for only 4,792 room.
+- Levers (tuned with the sim): production and storage at max about x1.5; building costs x1.5 with them, so building pace
+  stays the same; troop costs about x0.55 (current units now, the A3 roster in piece 5). Targets in BALANCE.md still hold
+  (raider 1.5–2x builder, 2nd village day 21–28); if raiding gets too strong, tune loot/carry, not the room.
