@@ -238,9 +238,9 @@ test('strikeWarning asks for an escort and enough Chieftains', () => {
   assert.equal(strikeWarning({ chieftain: 1, raider: 100 }), null);
   assert.match(strikeWarning({ chieftain: 1 }) ?? '', /No escort/);
   assert.match(strikeWarning({ raider: 100 }) ?? '', /needs 1 Chieftain/);
-  assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
+  assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 27000) ?? '', /needs 3 Chieftains/);
   // A player's village always carries the strong-escort advice once the count and escort are fine.
-  assert.match(strikeWarning({ chieftain: 3, raider: 100 }, false, 9000) ?? '', /player defends/);
+  assert.match(strikeWarning({ chieftain: 3, raider: 100 }, false, 27000) ?? '', /player defends/);
 });
 
 test('Strike on a player village: Chieftains needed, hint and escort warning', () => {
@@ -250,7 +250,7 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
   assert.equal(canStrike(null), false);
   assert.equal(strikeNeed('abandoned', 99_999), 1);
   assert.equal(strikeNeed('player', 0), 1);
-  assert.equal(strikeNeed('player', 9000), 3);
+  assert.equal(strikeNeed('player', 27000), 3);
   assert.ok(strikeHint('player').includes(`${HOLD_HOURS}-hour hold`));
   assert.match(strikeHint('player'), /Allies are safe/);
   assert.equal(strikeHint('abandoned').includes('Allies'), false);
@@ -259,7 +259,7 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
     assert.ok(strikeHint(kind).includes(`Chieftains must land within ${STRIKE_CHAIN_WINDOW_HOURS} hours`), kind);
   }
   assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 100) ?? '', /strong|defends/);
-  assert.match(strikeWarning({ raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
+  assert.match(strikeWarning({ raider: 100 }, false, 27000) ?? '', /needs 3 Chieftains/);
 });
 
 test('hearth alerts: held villages sort by the soonest hand-over, badge counts both lists', () => {

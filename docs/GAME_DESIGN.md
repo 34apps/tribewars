@@ -954,8 +954,8 @@ Every village has a **Hearth**, drawn as the campfire in the middle of the town 
 A village changes owner in two steps:
 
 1. **Strike.** An attack that contains **Chieftains** and wins the battle (every defender dead) puts the hearth
-   out, if at least `need` Chieftains survive. `need` is 1 for a village under 4,000 points, 2 from 4,000, 3
-   from 8,000 (a fully built village is about 10,000). The surviving Chieftains do not go home: they stay
+   out, if at least `need` Chieftains survive. `need` is 1 for a village under 12,000 points, 2 from 12,000, 3
+   from 24,000 (a fully built village is about 20,000). The surviving Chieftains do not go home: they stay
    at the cold hearth as the first occupiers. Losses from the battle follow the normal rules (§7). The Chieftain
    is a weak fighter (attack 0, defence 10), so he needs an escort. **The Chieftains may come in separate attacks
    ("Chieftain chain", owner 2026-11-05):** see the box "Conquest changes 2026-11-05" below.
@@ -1020,7 +1020,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   the caller's own Chieftains and villages.
 
 **Step 4 — taking PLAYER villages (owner decisions 2026-11-05, built the same day; these override older text where they differ)**
-- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 4,000) Chieftains (max 3); hold
+- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 12,000) Chieftains (max 3); hold
   `HOLD_HOURS` (12 h until 2026-11-05, now 8 h; ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
   outer edge with restart protection (rule from step 2). **Captured villages keep all buildings** (levels only drop through siege, §18.9).
 - **Cold village, what 18.2 decides (kept):** it produces nothing and eats nothing; **nothing new can be built or trained** (the build block is new in step 4,
@@ -1168,7 +1168,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 |---|---|---|
 | `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,100 wood / 3,450 food / 2,100 iron + 100 gold (x1.5-era numbers 2026-11-11; fits the Storehouse level 6 it requires), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
 | `UNITS.chieftain` | cost 6,000 wood / 4,500 food / 7,500 iron (x1.5, 2026-11-11), no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
-| `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
+| `HEARTH_POINTS_PER_CHIEFTAIN` | 12,000 | Chieftains needed = 1 + floor(points / 12,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
 | `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |
@@ -1521,8 +1521,8 @@ Every village has a **Hearth**, drawn as the campfire in the middle of the town 
 A village changes owner in two steps:
 
 1. **Strike.** An attack that contains **Chieftains** and wins the battle (every defender dead) puts the hearth
-   out, if at least `need` Chieftains survive. `need` is 1 for a village under 4,000 points, 2 from 4,000, 3
-   from 8,000 (a fully built village is about 10,000). The surviving Chieftains do not go home: they stay
+   out, if at least `need` Chieftains survive. `need` is 1 for a village under 12,000 points, 2 from 12,000, 3
+   from 24,000 (a fully built village is about 20,000). The surviving Chieftains do not go home: they stay
    at the cold hearth as the first occupiers. Losses from the battle follow the normal rules (§7). The Chieftain
    is a weak fighter (attack 0, defence 10), so he needs an escort. **The Chieftains may come in separate attacks
    ("Chieftain chain", owner 2026-11-05):** see the box "Conquest changes 2026-11-05" below.
@@ -1587,7 +1587,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   the caller's own Chieftains and villages.
 
 **Step 4 — taking PLAYER villages (owner decisions 2026-11-05, built the same day; these override older text where they differ)**
-- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 4,000) Chieftains (max 3); hold
+- **On for everybody** (`HEARTH_PLAYERS_ENABLED = true`). Same Strike rule as for abandoned villages with `need` = 1 + floor(points / 12,000) Chieftains (max 3); hold
   `HOLD_HOURS` (12 h until 2026-11-05, now 8 h; ÷ speed) with ≥ 150 occupier population. **No rest hours** (dropped). A player's **last village can be taken**; the loser restarts at the
   outer edge with restart protection (rule from step 2). **Captured villages keep all buildings** (levels only drop through siege, §18.9).
 - **Cold village, what 18.2 decides (kept):** it produces nothing and eats nothing; **nothing new can be built or trained** (the build block is new in step 4,
@@ -1735,7 +1735,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 |---|---|---|
 | `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,100 wood / 3,450 food / 2,100 iron + 100 gold (x1.5-era numbers 2026-11-11; fits the Storehouse level 6 it requires), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
 | `UNITS.chieftain` | cost 6,000 wood / 4,500 food / 7,500 iron (x1.5, 2026-11-11), no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
-| `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
+| `HEARTH_POINTS_PER_CHIEFTAIN` | 12,000 | Chieftains needed = 1 + floor(points / 12,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
 | `HOLD_FAIL_HOURS` | 2 | How long occupiers may stay under the minimum before the claim fails |

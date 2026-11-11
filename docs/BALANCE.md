@@ -861,3 +861,39 @@ biggest (worst seed) **1.76** (target <= 2x, met). Fewer takes than in 13.1: the
 now a slow Ember Guard (70, speed 5), so Strike armies are weaker and slower to arrive; the builders who were the main victims are raided less. Not tuned further.
 
 **Not in the sim:** a computer player training the Ember Guard at the Barracks (only the builder style's army has the unit, and only from Barracks 8 and Town Hall 8, late in its list).
+
+### 13.3 Taking villages again: Chieftains per 12,000 points (2026-11-11, conquest sim)
+
+Problem: after the originality pass the 20-player conquest sim (90 days, 5 seeds) showed **9** villages taken from players (67 before the pass, 21 after the 25-level ladder) and 4 restarts.
+Cause found with a counter inside `bestStrike`: renown, hold size and the Chieftain price were not what stopped takes. With the 25-level ladder villages are about 3x bigger (a mid-game village is
+10,000-20,000 points), so `1 + floor(points / 4000)` asked for the maximum **3 Chieftains** on nearly every target. Three Chieftains cost three Renown prices and three batches of
+6,000/4,500/7,500, so take-style players found a village on free land instead (raider and balanced: 15 Chieftains trained, 15 villages founded, 0 strikes).
+
+Levers tried, each alone on top of the current branch (5 seeds, 90 days; takes / restarts / worst biggest-to-second ratio). Raw: `docs/sim/2026-11-11-*conquest90-5seeds.txt`.
+
+| change | takes | restarts | worst ratio |
+|---|---|---|---|
+| start (Chieftain x1.5, Renown base 1,300, hold pop 150, 4,000 points per Chieftain) | 9 | 4 | 1.76 |
+| 1. Chieftain price back to x1.0 (4,000 / 3,000 / 5,000) | 5 | 4 | 1.89 |
+| 3. Renown base 500 (also extra villages founded: 36) | 14 | 8 | 1.51 |
+| 3. Renown base 100 (ceiling of the Renown lever) | 17 | 7 | 1.35 |
+| 2. `HOLD_MIN_POPULATION` 90 (Renown base 800) | 12 | 6 | 1.48 |
+| 2. `HOLD_MIN_POPULATION` 40 (Renown base 800) | 15 | 5 | 1.59 |
+| **`HEARTH_POINTS_PER_CHIEFTAIN` 12,000** (everything else as the start) | **37** | **21** | **1.47** |
+| same with Chieftain x1.0 | 43 | 20 | 1.46 |
+
+Lever 4 (Ember Guard speed) was not tried: the sim's take-style armies do not contain Ember Guards and the Chieftain (speed 5) is the slowest unit anyway.
+
+**Change:** `HEARTH_POINTS_PER_CHIEFTAIN` 4,000 -> 12,000 (need = 1 + floor(points / 12,000), still at most 3). Nothing else: Chieftain price, Renown prices and hold numbers stay.
+GAME_DESIGN §18 updated. Raw: `docs/sim/2026-11-11-chieftain-points-{30d,90d,conquest90-5seeds}.txt`.
+
+| target | result |
+|---|---|
+| player-village takes, 5 seeds x 90 days, 20 players | **37** (30-50, met) |
+| restarts (not above 26) | **21** (met) |
+| conquest worst biggest / second | **1.47** (<= 2x, met) |
+| raider / builder score, 30 days | **1.60x** (1.5-2x, met; unchanged) |
+| 2nd village day, builder / raider / balanced | 26.6 / 23.7 / 18.8 (21-28, met; unchanged) |
+
+The single-player 30-day and 90-day sims are **byte-identical** to the roster run (13.2): the change only touches Strikes on villages of 12,000+ points, which they never make.
+Takes by style: raider 2, balanced 4, builder 0 on the main seed; Strikes that fail to hold: 3 holds broken over all styles.
