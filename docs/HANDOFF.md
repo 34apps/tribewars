@@ -43,6 +43,7 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Traps
 
+- Owner's preview tab gets laggy after a day of live edits (2026-11-11: fixed by a full reload, Cmd+R). Hot reload likely leaves old preview timers/bot loops running; after changing `apps/preview` ask him to reload before judging speed.
 - Preview: `apps/preview/src/clock.ts` replaces `Date` page-wide (game time); use `realTime()` for anything that must follow the wall clock.
   Old saved preview worlds keep speed 25 (chip then shows 25x/250x/2500x); "Reset world" gives a real-pace world.
 - Sim runs are fast (balance ~1 s, conquest 90 d x 5 seeds ~2.5 min). For old-vs-new runs copy `packages/engine/src` +
