@@ -74,13 +74,18 @@ const PLOTS: Plot[] = (Object.keys(PLACEMENT) as BuildingId[])
 
 const HALL = PLOTS.find((p) => p.id === 'hall')!;
 
-// ---- Paths ---------------------------------------------------------------------------------------------------
-// One street network on the ground, all in grid directions (no wiggles): the main street runs from the gate straight along
-// u = GATE_U to the hall square, as wide as the road outside the walls (which leaves the gate along the same line), and a
-// branch runs from the square to the door of EVERY building, ending at the middle of its front-left face (where the doors
-// are). The four front buildings hang off one lane just inside the gate; Storehouse and Barracks off the sides of the
-// square; the back buildings off the back of the square. A branch shows only once its building exists (built or queued),
-// so no road leads nowhere.
+// ---- Paths ----------------------------------------------------------------------------------------------------
+// One street network on the ground. The layout (and the layout test) works on a skeleton in grid directions: the main street
+// runs from the gate straight along u = GATE_U to the hall square, as wide as the road outside the walls (which leaves the gate
+// along the same line), and a branch runs from it or from the square to the door of EVERY building, ending at the middle of
+// its front-left face (where the doors are). The four front buildings hang off one lane just inside the gate, the Drill Yard,
+// the Barracks and the Farm off the high street across the front of the square, the Storehouse off the square's right side,
+// the back buildings off the back of the square. A branch shows only once its building exists (built or queued), so no road
+// leads nowhere.
+// How it is DRAWN (owner 2026-11-11: "too direct line ... tiles design better ... bigger"): the main street is a cobbled
+// street of chunky iso flagstones with kerb stones that widens into the paved plaza; the lanes and branches are softer dirt
+// paths with rounded bends, a gentle sway on the long runs, gravel and grass tufts along the edges; a short last step to a door
+// is stepping stones or planks. The sway never moves a path more than SWAY units off its skeleton.
 
 export type PathDef = RoadDef;
 export { STREET_W };
@@ -88,43 +93,46 @@ export { STREET_W };
 /** The ink edge round a path (grid units). Matches the road tile's. */
 const EDGE = 3.2;
 const { gateU: GATE_U } = WALL_RING;
-/** Where the lane just inside the gate runs (v), and the lane across the front of the square. */
-const LANE_V = 238;
-/** The side branches out of the square to the Storehouse (right) and the Barracks (left), and the Iron Mine road's bend. */
-const SIDE_R = 36;
-const SIDE_L = 70;
-const MINE_U = 120;
+/** The lane just inside the gate (v). */
+const LANE_V = 276;
+/** Out of the square: to the left past the Drill Yard (v), to the right to the Farm (v), and the bend of the right-hand back road (u). */
+const SIDE_L = 84;
+const SIDE_R = 60;
+const EAST_U = 130;
+/** The back road behind the Barracks to the Gold Mine and the Vault (v). */
+const BACK_V = -93;
 
 /** A branch along the corner points `via`, then along u to the building and along v to its door. */
 const branch = (to: BuildingId, ...via: [number, number][]): PathDef => {
   const d = doorUV(to);
   return { key: to, to, w: BRANCH_W, pts: [...via, [d.u, via[via.length - 1]![1]], [d.u, d.v]] };
 };
+/** A branch along the lane just inside the gate (a little wider). */
+const lane = (to: BuildingId): PathDef => ({ ...branch(to, [GATE_U, LANE_V]), w: SIDE_STREET_W });
 const BACK = HALL.v - SQUARE + 6;
+const SQ_R = HALL.u + SQUARE - 6;
+const SQ_L = HALL.u - SQUARE + 6;
 
 export const PATHS: PathDef[] = [
   // The gate to the middle of the square, straight (the outside road continues it).
   { key: 'main', to: null, w: STREET_W, pts: [[GATE_U, RP + 6], [GATE_U, HALL.v + SQUARE - 30]] },
   // Along the lane just inside the gate.
-  branch('market', [GATE_U, LANE_V]),
-  branch('drillyard', [GATE_U, LANE_V]),
-  branch('lumber', [GATE_U, LANE_V]),
-  branch('farm', [GATE_U, LANE_V]),
+  lane('market'),
+  lane('wrightyard'),
+  lane('lumber'),
+  lane('longhouse'),
   // Out of the sides of the square.
-  branch('storehouse', [HALL.u + SQUARE - 6, SIDE_R]),
-  branch('barracks', [HALL.u - SQUARE + 6, SIDE_L]),
+  branch('drillyard', [SQ_L, SIDE_L]),
+  branch('barracks', [SQ_L, SIDE_L]),
+  branch('farm', [SQ_R, SIDE_R]),
   // Out of the back of the square: the Banner Hall and the Stables straight up, the others round them.
   branch('bannerhall', [GATE_U, BACK]),
   branch('stables', [doorUV('stables').u, BACK]),
-  branch('mine', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120]),
-  branch('vault', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
-  branch('goldmine', [HALL.u - SQUARE + 6, -20], [HALL.u - SQUARE + 6, -40]),
-  // The Wrightyard in the left corner: its own lane along the front, in front of its door.
-  branch('wrightyard', [GATE_U, 306]),
-  // The Longhouse in the right corner: on from the Iron Mine's road, out to its door.
-  branch('longhouse', [HALL.u + SQUARE - 6, -20], [MINE_U, -20], [MINE_U, -120], [284, -120]),
+  branch('storehouse', [SQ_R, -20], [EAST_U, -20], [EAST_U, -54]),
+  branch('mine', [SQ_R, -20], [EAST_U, -20], [EAST_U, -165]),
+  branch('vault', [SQ_L, -20], [SQ_L, BACK_V]),
+  branch('goldmine', [SQ_L, -20], [SQ_L, BACK_V]),
 ];
-
 
 interface Sample {
   u: number;
@@ -164,8 +172,8 @@ const onRoad = (u: number, v: number, pad: number) =>
 
 /** Crop fields: wheat beside the Farm, a vegetable plot by the Storehouse. [centre u, centre v, half u, half v, crop]. */
 const FIELDS: [number, number, number, number, 'wheat' | 'greens'][] = [
-  [244, 152, 16, 16, 'wheat'],
-  [232, -88, 16, 18, 'greens'],
+  [264, 66, 14, 22, 'wheat'],
+  [190, -50, 18, 12, 'greens'],
 ];
 const onField = (u: number, v: number, pad: number) =>
   FIELDS.some(([cu, cv, hu, hv]) => Math.abs(u - cu) < hu + pad && Math.abs(v - cv) < hv + pad);
@@ -426,11 +434,316 @@ const OuterGround = memo(function OuterGround({ built }: { built: string }) {
   );
 });
 
-/** Bold tan paths to the buildings that stand, the hall square and the pads of the buildings inside the wall. */
+// ---- Street drawing ------------------------------------------------------------------------------------------
+// Everything flat on the ground is drawn in grid units (u, v) under the iso matrix, so a stone is a true iso tile; the grass
+// tufts and gravel are dotted on in screen units. About twenty path elements in all, in the static backdrop layer.
+
+/** How far a dirt path may sway off its skeleton (grid units); the layout test keeps every road edge clear by more. */
+const SWAY = 2.6;
+/** Corner and end points of every path: the sway fades to nothing at them, so paths sharing a stretch draw it identically. */
+const NODES: readonly (readonly [number, number])[] = PATHS.flatMap((p) => p.pts);
+/** The last step to a door, when at most this long, is stepping stones or planks instead of a dirt path. */
+const STEP_MAX = 50;
+const PLANKS: ReadonlySet<BuildingId> = new Set<BuildingId>(['farm', 'longhouse', 'drillyard']);
+/** Half width of a dirt path's last leg to a door: narrower than the lane it leaves. */
+const SPUR_W = 6.5;
+
+const g1 = (n: number) => Math.round(n * 10) / 10;
+const GROUND_T = `matrix(1 0.5 -1 0.5 ${CX} ${CY})`;
+
+/** Sideways sway of a path at (u, v) on a leg that runs along u (`alongU`) or along v. Smooth, zero at every node. */
+function swayAt(u: number, v: number, alongU: boolean): number {
+  let d = 60;
+  for (const [nu, nv] of NODES) {
+    if (alongU ? Math.abs(nv - v) < 0.5 : Math.abs(nu - u) < 0.5) d = Math.min(d, Math.abs(alongU ? nu - u : nv - v));
+  }
+  const e = Math.min(1, d / 30);
+  const env = e * e * (3 - 2 * e);
+  const t = alongU ? u : v;
+  const ph = (alongU ? v : u) * 0.173;
+  return SWAY * env * (0.7 * Math.sin(t / 21 + ph) + 0.3 * Math.sin(t / 9.5 + ph * 2.1));
+}
+
+interface Drawn {
+  /** Centreline in grid units with rounded bends (SVG path data). */
+  d: string;
+  /** Points along it (grid units) with the leg's normal, for gravel and tufts. */
+  pts: { u: number; v: number; nu: number; nv: number }[];
+}
+
+/** The drawn centreline through corner points `pts`: rounded bends (radius up to 18) and the sway on the straight runs. */
+function drawnLine(pts: readonly (readonly [number, number])[]): Drawn {
+  const out: Drawn['pts'] = [];
+  let d = '';
+  const legLen = (i: number) => Math.hypot(pts[i + 1]![0] - pts[i]![0], pts[i + 1]![1] - pts[i]![1]);
+  const rad = (k: number) => (k <= 0 || k >= pts.length - 1 ? 0 : Math.min(18, legLen(k - 1) / 2, legLen(k) / 2));
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [u0, v0] = pts[i]!;
+    const [u1, v1] = pts[i + 1]!;
+    const len = legLen(i);
+    if (len < 0.01) continue;
+    const du = (u1 - u0) / len;
+    const dv = (v1 - v0) / len;
+    const alongU = Math.abs(du) > 0.5;
+    const a = rad(i);
+    const b = rad(i + 1);
+    const n = Math.max(1, Math.ceil((len - a - b) / 3));
+    for (let k = 0; k <= n; k++) {
+      const t = a + ((len - a - b) * k) / n;
+      const u = u0 + du * t;
+      const v = v0 + dv * t;
+      const w = swayAt(u, v, alongU);
+      const pu = alongU ? u : u + w;
+      const pv = alongU ? v + w : v;
+      d += `${d ? 'L' : 'M'}${g1(pu)} ${g1(pv)}`;
+      out.push({ u: pu, v: pv, nu: -dv, nv: du });
+    }
+    if (b > 0) {
+      // Round the bend into the next leg.
+      const [u2, v2] = pts[i + 2]!;
+      const l2 = Math.hypot(u2 - u1, v2 - v1);
+      d += `Q${g1(u1)} ${g1(v1)} ${g1(u1 + ((u2 - u1) / l2) * b)} ${g1(v1 + ((v2 - v1) / l2) * b)}`;
+    }
+  }
+  return { d, pts: out };
+}
+
+/** A tile with chamfered corners, u0..u1 by v0..v1 in grid units. */
+function tile(u0: number, v0: number, u1: number, v1: number, c: number): string {
+  return `M${g1(u0 + c)} ${g1(v0)}H${g1(u1 - c)}L${g1(u1)} ${g1(v0 + c)}V${g1(v1 - c)}L${g1(u1 - c)} ${g1(v1)}H${g1(u0 + c)}L${g1(u0)} ${g1(v1 - c)}V${g1(v0 + c)}Z`;
+}
+/** The lit back edges (-u, -v) and the shaded front edges (+u, +v) of a tile: chunky toy paving lit from the top left. */
+const tileLit = (u0: number, v0: number, u1: number, v1: number, c: number) =>
+  `M${g1(u0)} ${g1(v1 - c)}V${g1(v0 + c)}L${g1(u0 + c)} ${g1(v0)}H${g1(u1 - c)}`;
+const tileShade = (u0: number, v0: number, u1: number, v1: number, c: number) =>
+  `M${g1(u1)} ${g1(v0 + c)}V${g1(v1 - c)}L${g1(u1 - c)} ${g1(v1)}H${g1(u0 + c)}`;
+
+/** One dirt path (a building's branch): its shared run and its last leg to the door, which may be stones instead. */
+interface Lane {
+  key: string;
+  w: number;
+  run: Drawn;
+  /** Dirt last leg (null when it is stepping stones / planks or the run already ends at the door). */
+  spur: Drawn | null;
+  steps: { kind: 'stones' | 'planks'; d: string; lit: string; shade: string } | null;
+}
+
+const LANES = new Map<string, Lane>();
+function laneOf(p: PathDef): Lane {
+  const hit = LANES.get(p.key);
+  if (hit) return hit;
+  const pts = p.pts;
+  const n = pts.length;
+  const [su, sv] = pts[n - 2]!;
+  const [eu, ev] = pts[n - 1]!;
+  const lastLen = Math.hypot(eu - su, ev - sv);
+  const short = p.to !== null && lastLen <= STEP_MAX;
+  const run = drawnLine(pts.slice(0, n - 1));
+  let spur: Drawn | null = null;
+  let steps: Lane['steps'] = null;
+  if (!short) spur = drawnLine([pts[n - 2]!, pts[n - 1]!]);
+  else {
+    // Stepping stones (or planks) from the edge of the lane to the door, along v.
+    const kind = PLANKS.has(p.to!) ? 'planks' : 'stones';
+    const dir = Math.sign(ev - sv) || -1;
+    const from = sv + dir * (p.w + EDGE + 1.5);
+    const span = Math.abs(ev - from);
+    const pitch = kind === 'planks' ? 4.8 : 8.5;
+    const count = Math.max(2, Math.round(span / pitch));
+    const r = rng(Math.round(eu * 7 + ev * 13));
+    let d = '';
+    let lit = '';
+    let shade = '';
+    for (let i = 0; i < count; i++) {
+      const vc = from + dir * (span * (i + 0.5)) / count;
+      const half = kind === 'planks' ? 7 + r() * 1.2 : 5 + r() * 1.4;
+      const off = kind === 'planks' ? (r() - 0.5) * 1.6 : (r() - 0.5) * 2.6;
+      const th = kind === 'planks' ? 1.6 : 2.6 + r() * 0.6;
+      const box = [eu + off - half, vc - th, eu + off + half, vc + th] as const;
+      const c = kind === 'planks' ? 0.6 : 2;
+      d += tile(...box, c);
+      lit += tileLit(...box, c);
+      shade += tileShade(...box, c);
+    }
+    steps = { kind, d, lit, shade };
+  }
+  const lane: Lane = { key: p.key, w: p.w, run, spur, steps };
+  LANES.set(p.key, lane);
+  return lane;
+}
+
+/** Gravel dots and grass tufts along the dirt paths (screen units), seeded per path so they never jump. */
+function laneDetail(lanes: readonly Lane[]): { light: string; dark: string; tufts: string } {
+  let light = '';
+  let dark = '';
+  let tufts = '';
+  for (const l of lanes) {
+    const r = rng(l.key.length * 977 + l.key.charCodeAt(0) * 31);
+    const parts: [Drawn, number][] = [[l.run, l.w]];
+    if (l.spur) parts.push([l.spur, SPUR_W]);
+    for (const [line, w] of parts) {
+      line.pts.forEach((q, i) => {
+        if (r() < 0.42) {
+          const o = (r() * 2 - 1) * w * 0.62;
+          const [x, y] = iso(q.u + q.nu * o, q.v + q.nv * o);
+          if (r() < 0.55) light += `M${f(x)} ${f(y)}h0`;
+          else dark += `M${f(x)} ${f(y)}h0`;
+        }
+        if (i % 4 === 0 && r() < 0.6) {
+          const side = r() < 0.5 ? 1 : -1;
+          const o = side * (w + EDGE + 1.2 + r() * 2);
+          const u = q.u + q.nu * o;
+          const v = q.v + q.nv * o;
+          if (onRoad(u, v, -1) || inSquare(u, v, 2) || PLOTS.some((p) => Math.abs(u - p.u) < p.half - 3 && Math.abs(v - p.v) < p.half - 3)) return;
+          const [x, y] = iso(u, v);
+          tufts += `M${f(x - 2.4)} ${f(y)}l-1.2 -3.6M${f(x)} ${f(y)}l0 -4.6M${f(x + 2.4)} ${f(y)}l1.2 -3.6`;
+        }
+      });
+    }
+  }
+  return { light, dark, tufts };
+}
+
+/** The dirt lanes and branches: ink edge, earth, a worn lighter middle, gravel, grass tufts; stepping stones to near doors. */
+function DirtPaths({ list }: { list: readonly PathDef[] }) {
+  const lanes = list.map(laneOf);
+  const det = laneDetail(lanes);
+  const runs = (fn: (l: Lane, d: string, w: number, k: string) => ReactNode) =>
+    lanes.flatMap((l) => [fn(l, l.run.d, l.w, `r${l.key}`), l.spur ? fn(l, l.spur.d, SPUR_W, `s${l.key}`) : null]);
+  return (
+    <>
+      <g transform={GROUND_T}>
+        {runs((_l, d, w, k) => <path key={`e${k}`} d={d} stroke={INK} strokeWidth={w * 2 + 5} />)}
+        {runs((_l, d, w, k) => <path key={`f${k}`} d={d} stroke="#D9B98A" strokeWidth={w * 2} />)}
+        {runs((_l, d, w, k) => <path key={`m${k}`} d={d} stroke="#E8D1A4" strokeWidth={w * 0.95} opacity={0.85} />)}
+        {lanes.map(
+          (l) =>
+            l.steps && (
+              <g key={`st${l.key}`} strokeLinejoin="round">
+                <path d={l.steps.d} fill={l.steps.kind === 'planks' ? '#C99A5B' : '#D6CFC1'} stroke={INK} strokeWidth={1.3} />
+                <path d={l.steps.lit} fill="none" stroke={l.steps.kind === 'planks' ? '#E4B67C' : '#F4F0E7'} strokeWidth={0.9} />
+                <path d={l.steps.shade} fill="none" stroke={l.steps.kind === 'planks' ? '#8E6539' : '#A39E94'} strokeWidth={0.9} />
+              </g>
+            ),
+        )}
+      </g>
+      <path d={det.dark} stroke="#B48E5A" strokeWidth={2.2} />
+      <path d={det.light} stroke="#F1E1C2" strokeWidth={1.8} />
+      <path d={det.tufts} stroke="#5E8C3A" strokeWidth={1.5} />
+    </>
+  );
+}
+
+// The cobbled main street: the gate's width at the gate, widening into the plaza in front of the hall.
+const MAIN = PATHS.find((p) => p.key === 'main')!;
+/** Front kerb of the plaza (v) and where the street starts to widen. */
+const PLAZA_V = HALL.v + SQUARE + 3;
+const FLARE_V = PLAZA_V + 54;
+const FLARE_W = 24;
+const streetHalf = (v: number) => (v >= FLARE_V ? STREET_W : STREET_W + (FLARE_W - STREET_W) * ((FLARE_V - v) / (FLARE_V - PLAZA_V)) ** 2);
+
+const GATE_STREET = (() => {
+  const top = MAIN.pts[0]![1];
+  const left: string[] = [];
+  const right: string[] = [];
+  for (let v = top; v >= PLAZA_V - 2; v -= 3) {
+    left.push(`${g1(GATE_U - streetHalf(Math.max(v, PLAZA_V)))} ${g1(v)}`);
+    right.push(`${g1(GATE_U + streetHalf(Math.max(v, PLAZA_V)))} ${g1(v)}`);
+  }
+  const outline = `M${left.join('L')}L${right.reverse().join('L')}Z`;
+  // Flagstones in rows across the street (running bond), a little in from the kerbs.
+  const r = rng(23);
+  const ROW = 9;
+  const stones: [string, string] = ['', ''];
+  let lit = '';
+  let shade = '';
+  let kerb = '';
+  for (let vr = PLAZA_V + ROW / 2, row = 0; vr < top + ROW; vr += ROW, row++) {
+    const hw = streetHalf(vr) - 1.8;
+    let u = GATE_U - hw - (row % 2 ? 6 : 0);
+    while (u < GATE_U + hw) {
+      const len = 9 + r() * 5;
+      const u0 = Math.max(u, GATE_U - hw);
+      const u1 = Math.min(u + len, GATE_U + hw);
+      if (u1 - u0 > 3) {
+        const box = [u0 + 0.7, vr - ROW / 2 + 0.8, u1 - 0.7, vr + ROW / 2 - 0.8] as const;
+        const c = 1.4;
+        stones[r() < 0.62 ? 0 : 1] += tile(...box, c);
+        lit += tileLit(...box, c);
+        shade += tileShade(...box, c);
+      }
+      u += len;
+    }
+  }
+  // Kerb stones along both sides.
+  for (let v = PLAZA_V + 2; v < top; v += 8) {
+    const vm = Math.min(v + 6.2, top);
+    for (const side of [-1, 1]) {
+      const e = GATE_U + side * streetHalf(v + 3);
+      kerb += tile(side < 0 ? e - 1.6 : e - 1.4, v, side < 0 ? e + 1.4 : e + 1.6, vm, 0.6);
+    }
+  }
+  return { outline, stones, lit, shade, kerb };
+})();
+
+function GateStreet() {
+  const s = GATE_STREET;
+  return (
+    <g transform={GROUND_T} strokeLinejoin="round">
+      <path d={s.outline} fill="#A39E94" stroke={INK} strokeWidth={EDGE * 2} />
+      <path d={s.outline} fill="#A39E94" />
+      <path d={s.stones[0]} fill="#E3DED3" />
+      <path d={s.stones[1]} fill="#D2CABA" />
+      <path d={s.lit} fill="none" stroke="#FFFFFF" strokeWidth={1} opacity={0.75} />
+      <path d={s.shade} fill="none" stroke="#857E73" strokeWidth={1} />
+      <path d={s.kerb} fill="#CFC6B2" stroke={INK} strokeWidth={0.9} />
+    </g>
+  );
+}
+
+/** The plaza under the Town Hall: a kerb ring and big square flagstones (a few darker), lit like the street. */
+const PLAZA = (() => {
+  const T = 15.5;
+  const n = Math.floor(((SQUARE - 1) * 2) / T);
+  const o = (SQUARE * 2 - n * T) / 2;
+  const a: [string, string] = ['', ''];
+  let lit = '';
+  let shade = '';
+  const r = rng(41);
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) {
+      const u0 = HALL.u - SQUARE + o + i * T;
+      const v0 = HALL.v - SQUARE + o + j * T;
+      const box = [u0 + 0.8, v0 + 0.8, u0 + T - 0.8, v0 + T - 0.8] as const;
+      a[(i + j) % 2 === 0 && r() < 0.7 ? 1 : 0] += tile(...box, 1.8);
+      lit += tileLit(...box, 1.8);
+      shade += tileShade(...box, 1.8);
+    }
+  return { a, lit, shade };
+})();
+
+function Plaza() {
+  const sq = (h: number) => {
+    const [a, b] = [HALL.u - h, HALL.u + h];
+    const [c, d] = [HALL.v - h, HALL.v + h];
+    return `M${a} ${c}H${b}V${d}H${a}Z`;
+  };
+  return (
+    <g transform={GROUND_T} strokeLinejoin="round">
+      <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={2.2} />
+      <path d={sq(SQUARE)} fill="#AFA798" stroke="#8E877C" strokeWidth={0.8} />
+      <path d={PLAZA.a[0]} fill="#E8E3D8" />
+      <path d={PLAZA.a[1]} fill="#D9D1C2" />
+      <path d={PLAZA.lit} fill="none" stroke="#FFFFFF" strokeWidth={1} opacity={0.75} />
+      <path d={PLAZA.shade} fill="none" stroke="#857E73" strokeWidth={1} />
+    </g>
+  );
+}
+
+/** The streets to the buildings that stand, the hall's plaza and the pads of the buildings inside the wall. */
 const Paths = memo(function Paths({ built }: { built: string }) {
   const have = new Set(built.split(','));
-  const shown = PATHS.filter((p) => !p.to || have.has(p.to));
-  const sq = (h: number) => groundSquare(HALL.u, HALL.v, h);
+  const lanes = PATHS.filter((p) => p.to && have.has(p.to));
   return (
     <g className="vv-paths" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <defs>
@@ -440,10 +753,11 @@ const Paths = memo(function Paths({ built }: { built: string }) {
       </defs>
       {PLOTS.filter((p) => !p.out && p.id !== 'hall' && have.has(p.id)).map((p) => pad(p, 0))}
       {/* a clip cuts the streets flat inside the plate's edge (they end under the gates) */}
-      <g clipPath="url(#vv-ground-clip)">{roadBands(shown, 0, 'i')}</g>
-      {/* the square under the Town Hall: kerb, light paving, inner ring */}
-      <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={1.8} />
-      <path d={sq(SQUARE - 7)} fill="#E3DED3" stroke={INK} strokeWidth={1} />
+      <g clipPath="url(#vv-ground-clip)">
+        <DirtPaths list={lanes} />
+        <GateStreet />
+      </g>
+      <Plaza />
     </g>
   );
 });
@@ -471,19 +785,19 @@ const RADIUS: Record<Kind, number> = { pineA: 8, pineB: 9, oak: 9, bush: 6, rock
 
 /** [kinds, centre u, centre v, spread u, spread v, count, min scale, max scale] — scattered, then filtered by clear(). */
 const ZONES: [Kind[], number, number, number, number, number, number, number][] = [
-  // Forest around the Lumber Camp in the left corner (owner 2026-11-04: no scattered stumps or log piles; the
-  // camp's own sprite carries the neat plank and log stacks).
-  [['pineA', 'pineB', 'pineA', 'oak'], -229, 112, 26, 44, 8, 1.35, 1.7],
-  [['pineA', 'pineB', 'oak'], -138, 233, 18, 22, 4, 1.35, 1.7],
-  [['pineA', 'pineB'], -240, 245, 12, 12, 2, 1.3, 1.5],
+  // Forest around the Lumber Camp on the left (owner 2026-11-04: no scattered stumps or log piles; the camp's own sprite
+  // carries the neat plank and log stacks).
+  [['pineA', 'pineB', 'pineA', 'oak'], -272, 92, 22, 46, 8, 1.35, 1.7],
+  [['pineA', 'pineB', 'oak'], -186, 238, 22, 16, 4, 1.35, 1.7],
+  [['pineA', 'pineB'], -280, 250, 12, 14, 2, 1.3, 1.5],
   // Rocks around the Gold Mine (back corner) and the Iron Mine (right corner), with a few pines.
-  [['rockA', 'rockC', 'rockB', 'pineB'], -152, -240, 26, 14, 5, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB', 'pineB'], -240, -140, 14, 30, 4, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB', 'pineA'], 152, -240, 26, 14, 5, 1.2, 1.7],
-  [['rockA', 'rockC', 'rockB'], 240, -146, 14, 28, 3, 1.2, 1.7],
-  // Hedges and bushes around the fields in front.
-  [['bush', 'bush', 'oak'], 243, 175, 10, 30, 3, 1.2, 1.5],
-  [['bush', 'oak'], 140, 240, 20, 16, 3, 1.2, 1.5],
+  [['rockA', 'rockC', 'rockB', 'pineB'], -176, -276, 30, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineB'], -276, -150, 14, 34, 4, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB', 'pineA'], 168, -276, 30, 14, 5, 1.2, 1.7],
+  [['rockA', 'rockC', 'rockB'], 280, -176, 10, 20, 3, 1.2, 1.7],
+  // Hedges and bushes round the fields and in the front corner.
+  [['bush', 'bush', 'oak'], 280, 20, 8, 24, 3, 1.2, 1.5],
+  [['bush', 'oak', 'bush'], 200, 236, 40, 22, 5, 1.2, 1.5],
   // A few lone trees and bushes in the gaps (owner 2026-11-06: fewer than before, so the buildings stand clear).
   [['oak', 'bush', 'pineB', 'bush', 'oak'], 0, 0, INNER, INNER, 16, 1.2, 1.55],
 ];

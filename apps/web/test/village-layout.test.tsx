@@ -41,6 +41,7 @@ let OUTSIDE: ReadonlySet<BuildingId>;
 let GATES: readonly Gate[];
 let WALL_RING: { cx: number; cy: number; plate: number; gateU: number };
 let SCENE_VIEWBOX: { x: number; y: number; w: number; h: number };
+let SCENE_FIT_BOX: { x: number; y: number; w: number; h: number };
 let SCENE_FOCUS: { x: number; y: number };
 let labelAnchor: (id: BuildingId, stage: 1 | 2 | 3 | 4) => { x: number; y: number };
 let plotUV: (id: BuildingId) => { u: number; v: number };
@@ -59,7 +60,7 @@ before(async () => {
   });
   const b = await server.ssrLoadModule('/src/art/buildings.ts');
   const s = await server.ssrLoadModule('/src/art/scenery.tsx');
-  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl } = b);
+  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl } = b);
   ({ PATHS, STREET_W, Ground } = s);
 });
 
@@ -213,6 +214,39 @@ test('every drawing at every look fits inside the scene box', () => {
       const b = drawnBox(id, s);
       assert.ok(b.x0 >= vb.x && b.x1 <= vb.x + vb.w && b.y0 >= vb.y && b.y1 <= vb.y + vb.h, `${id} look ${s} leaves the scene box`);
     }
+});
+
+test('the desktop picture (SCENE_FIT_BOX) shows every drawing whole, with the old size on a 1440x900 desktop', () => {
+  const vb = SCENE_FIT_BOX;
+  for (const id of BUILT)
+    for (const s of [1, 2, 3, 4] as const) {
+      const b = drawnBox(id, s);
+      assert.ok(b.x0 >= vb.x && b.x1 <= vb.x + vb.w && b.y0 >= vb.y && b.y1 <= vb.y + vb.h, `${id} look ${s} leaves the desktop picture`);
+    }
+  // The frame's picture is 648 x 410 px at 1440x900; at plate 273 the village showed at 648 / 1104 px per unit. Within 5%.
+  assert.ok(Math.abs(vb.w / vb.h - 648 / 410) < 0.01, 'the fit box has the frame picture\'s shape');
+  assert.ok(Math.min(648 / vb.w, 410 / vb.h) >= (648 / 1104) * 0.95, 'buildings at least 95% of their old desktop size');
+  // Inside the scene box, so phones can pan to all of it.
+  assert.ok(vb.x >= SCENE_VIEWBOX.x && vb.y >= SCENE_VIEWBOX.y && vb.x + vb.w <= SCENE_VIEWBOX.x + SCENE_VIEWBOX.w && vb.y + vb.h <= SCENE_VIEWBOX.y + SCENE_VIEWBOX.h);
+});
+
+test('no building stands behind the front corner tower or the gate towers (they are drawn in front of it)', () => {
+  // Screen boxes the towers cover, relative to the ring centre (measured from the wall art at its grand look).
+  const cx = WALL_RING.cx;
+  const cy = WALL_RING.cy;
+  const towers = [
+    { x0: cx - 34, y0: cy + WALL_RING.plate - 162, x1: cx + 34, y1: cy + WALL_RING.plate + 30 },
+    { x0: cx + WALL_RING.gateU - WALL_RING.plate - 46, y0: cy + 40, x1: cx + WALL_RING.gateU - WALL_RING.plate + 70, y1: cy + 210 },
+  ];
+  for (const id of BUILT) {
+    const cells = paintedCells(id);
+    for (const t of towers)
+      for (const c of cells) {
+        const [gx, gy] = c.split(',').map(Number) as [number, number];
+        const inside = gx * GRID < t.x1 && gx * GRID + GRID > t.x0 && gy * GRID < t.y1 && gy * GRID + GRID > t.y0;
+        assert.ok(!inside, `${id} is drawn behind a wall tower`);
+      }
+  }
 });
 
 test('the level badges never cover each other, at any look', () => {

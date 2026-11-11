@@ -1,10 +1,12 @@
 // Renders the real village scene (SceneArt from apps/web) to static HTML pages for headless-Chrome screenshots.
 // Usage (from the repo root): node design/proposals/village-layout/render.mjs <out-prefix> [looks...]
 // Writes <out-prefix>-look<N>.html for each look (default 2 and 4): every building and the wall at that look.
+// FRAME=1: the picture exactly as the 1440x900 desktop village page shows it (its 648 x 410 px box and its fit rule: contain on
+// SCENE_FIT_BOX, or cover on SCENE_VIEWBOX for older code without one). WEB_ROOT=<dir>/ renders another checkout's apps/web.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-const root = fileURLToPath(new URL('../../../apps/web/', import.meta.url));
+const root = process.env.WEB_ROOT ?? fileURLToPath(new URL('../../../apps/web/', import.meta.url));
 const require = createRequire(root + 'package.json');
 const { createServer } = await import(require.resolve('vite'));
 const server = await createServer({
@@ -35,7 +37,8 @@ const lvl = (id, look) => {
 };
 for (const look of looks) {
   const arts = Object.fromEntries(ids.map((id) => [id, { stage: look, queued: !!process.env.WORK, active: !!process.env.WORK, locked: false }]));
-  const vb = b.SCENE_VIEWBOX;
+  const frame = !!process.env.FRAME;
+  const vb = frame && b.SCENE_FIT_BOX ? b.SCENE_FIT_BOX : b.SCENE_VIEWBOX;
   const svg = renderToStaticMarkup(
     React.createElement(vs.SceneArt, { arts, vb, tier: 3, wide: true, landscape: 'tiles', selected: process.env.SEL ?? null, hearthOut: false, onBox: () => {}, onPick: () => {} }),
   );
@@ -47,14 +50,20 @@ for (const look of looks) {
       return `<span class="lb" style="left:${l}%;top:${t}%">${eng.BUILDINGS[id].name}<i>${lvl(id, look)}</i></span>`;
     })
     .join('');
-  const css = `html,body{margin:0;background:#3A5E27;font:700 11px Rubik,system-ui,sans-serif}
-  .board{position:relative;width:1370px;height:900px;overflow:hidden;background:#3A5E27}
-  .stage{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1350px,${(880 * vb.w) / vb.h}px);aspect-ratio:${vb.w / vb.h}}
+  // Older code (no SCENE_FIT_BOX) covered the frame and shifted the stage so the ring centre sat in the middle.
+  const old = frame && !b.SCENE_FIT_BOX;
+  const dy = old ? (0.5 - (b.SCENE_FOCUS.y + 26 - vb.y) / vb.h) * 100 : 0;
+  const stage = !frame
+    ? `left:50%;top:50%;transform:translate(-50%,-50%);width:min(1350px,${(880 * vb.w) / vb.h}px)`
+    : `left:50%;top:50%;transform:translate(-50%,calc(-50% + ${dy}%));width:${old ? `max(648px,${(410 * vb.w) / vb.h}px)` : `min(648px,${(410 * vb.w) / vb.h}px)`}`;
+  const css = `html,body{margin:0;background:#3A5E27;font:700 ${frame ? 9 : 11}px Rubik,system-ui,sans-serif}
+  .board{position:relative;width:${frame ? 648 : 1370}px;height:${frame ? 410 : 900}px;overflow:hidden;background:#3A5E27}
+  .stage{position:absolute;${stage};aspect-ratio:${vb.w / vb.h}}
   .stage svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
   .lb{position:absolute;transform:translate(-50%,-100%);background:#FFF4DC;border:2px solid #2B211C;border-radius:10px;padding:1px 6px;white-space:nowrap;display:flex;gap:4px;align-items:center;color:#2B211C}
   .lb i{font-style:normal;background:#F2B33D;border:1.5px solid #2B211C;border-radius:9px;padding:0 4px}
   .tag{position:absolute;left:16px;top:12px;background:#2B211C;color:#FFE08F;font-size:22px;padding:6px 14px;border-radius:10px}`;
-  const html = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="../../../apps/web/src/views/village/village.css"><style>${css}</style><div class="board"><div class="stage">${svg}<div>${labels}</div></div><div class="tag">${prefix.split('/').pop()} · look ${look}</div></div>`;
+  const html = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="file://${root}src/views/village/village.css"><style>${css}</style><div class="board"><div class="stage">${svg}<div>${labels}</div></div>${frame ? '' : `<div class="tag">${prefix.split('/').pop()} · look ${look}</div>`}</div>`;
   writeFileSync(`${prefix}-look${look}.html`, html);
   console.log('wrote', `${prefix}-look${look}.html`);
 }

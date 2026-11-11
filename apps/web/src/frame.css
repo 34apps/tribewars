@@ -986,7 +986,8 @@ html.layout-desktop .toasts {
   contain: layout paint style;
 }
 
-/* The scene covers the frame; the landscape the village paints past its box fills any gap. */
+/* The picture fits the box round the buildings (SCENE_FIT_BOX, the frame's own shape at 1440x900), so every building shows
+   whatever the window's shape; the wall tips and the landscape the village paints past its box fill the rest. */
 .fv-pic .vv-fit {
   position: absolute;
   inset: 0;
@@ -995,9 +996,7 @@ html.layout-desktop .toasts {
 }
 
 .fv-pic .vv-fit .vv-stage {
-  width: max(100cqw, 100cqh * var(--vb-ratio));
-  /* VillageScene sets --vb-dx / --vb-dy: the shift that puts the middle of the built-up area in the middle of the frame. */
-  transform: translate(var(--vb-dx, 0), var(--vb-dy, 0));
+  width: min(100cqw, 100cqh * var(--vb-ratio));
 }
 
 .fv-pcap {
