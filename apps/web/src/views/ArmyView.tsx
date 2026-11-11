@@ -32,6 +32,7 @@ import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
 import { requirementText, unitListText, unmetRequirements } from '../rules.ts';
 import { trainRowState } from './trainRow.ts';
+import { setResearchFocus } from './village/drillFocus.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
@@ -475,7 +476,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
   const info = useUnitInfo();
   const [text, setText] = useState('');
   const rules = useRules();
-  const { unmet, locked, count, perUnitMs: perUnit, max, reason, batchCost } = trainRowState({
+  const { unmet, locked, unresearched, researchGate: gate, count, perUnitMs: perUnit, max, reason, batchCost } = trainRowState({
     live,
     unit,
     building,
@@ -576,7 +577,23 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
               {formatInt(count)} × <Cost cost={batchCost} have={live.resources} /> · {formatDuration(perUnit * count)}
             </div>
           )}
-          {reason && <div className="why">{reason}</div>}
+          {reason && !unresearched && <div className="why">{reason}</div>}
+          {unresearched && (
+            <div className="why">
+              {gate.length > 0 ? gate.join(' · ') : 'Research in Drillyard'}{' '}
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={() => {
+                  setResearchFocus(unit);
+                  navigate('village');
+                  openBuilding('drillyard');
+                }}
+              >
+                Go to Drillyard
+              </button>
+            </div>
+          )}
         </>
       )}
       {info.dialog}

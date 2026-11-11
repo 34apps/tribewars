@@ -1879,7 +1879,14 @@ button.bs {
   align-items: center;
   gap: 8px;
   flex: none;
-  max-width: 250px;
+  max-width: 270px;
+}
+
+.fv-lockgo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   font: 600 13.5px/1.25 var(--font);
   color: var(--warn);
 }
@@ -2077,119 +2084,19 @@ button.bs {
   padding: 10px 12px;
 }
 
-/* -- Drillyard inside the building page: the research list in the side column, Training Points and ranks in the main area -- */
+/* -- Drillyard page: ranks and research stack in the page flow; the page scrolls, no panel scrolls inside -- */
 .fv-boxin {
   display: flex;
   flex-direction: column;
   overflow: auto;
 }
 
-.drill-compact .eyebrow {
-  margin: 0 0 8px;
+.fv-rcol.is-wide {
+  width: 470px;
 }
 
-.drill-compact .drill-list {
-  gap: 6px;
-}
-
-.drill-compact .drill-row {
-  padding: 7px 9px;
-}
-
-.drill-compact .drill-btn {
-  min-height: 36px;
-}
-
-.drill-compact .drill-cost {
-  margin-top: 2px;
-  font-size: 0.82rem;
-  gap: 2px 8px;
-}
-
-.drill-compact .drill-points {
-  flex-direction: row;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 10px;
-}
-
-.drill-compact .drill-points .progress {
-  flex: 1;
-}
-
-.drill-compact .drill-ptitle {
-  display: none;
-}
-
-.drill-compact .drill-units {
-  gap: 3px;
-}
-
-.drill-compact .drill-unit {
-  display: grid;
-  grid-template-columns: 126px 1fr 1fr;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 3px 10px;
-}
-
-.drill-compact .drill-unit-head {
-  grid-row: 1;
-}
-
-.drill-compact .drill-track {
-  flex-wrap: nowrap;
-  gap: 8px;
-  padding: 0;
-  border-top: 0;
-}
-
-.drill-compact .drill-track-info {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 1px 8px;
-  flex: 1 1 auto;
-}
-
-.drill-compact .drill-track-info > .drill-cost,
-.drill-compact .drill-track-info > .drill-status,
-.drill-compact .drill-track-info > .drill-why {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.8rem;
-}
-
-.drill-compact .drill-pips {
-  margin: 0;
-  gap: 3px;
-}
-
-.drill-compact .drill-pip {
-  width: 12px;
-  height: 12px;
-  border-width: 1.5px;
-}
-
-.drill-compact .drill-bonus {
-  margin-left: 3px;
-  font-size: 0.85rem;
-}
-
-.drill-compact .drill-track-btns {
-  flex-direction: column;
-  gap: 3px;
-}
-
-.drill-compact .drill-track-btns {
+.fv-rcol.is-wide .fv-boxed {
   flex: none;
-}
-
-.drill-compact .drill-track-btns .btn {
-  min-height: 30px;
-  padding: 0 10px 2px;
-  font-size: 0.85rem;
-  white-space: nowrap;
 }
 
 .fv-qr .fv-cd {
@@ -2230,15 +2137,9 @@ button.bs {
   text-wrap: balance;
 }
 
-/* -- Drillyard ranks: nothing scrolls inside a panel; a reason ("not enough iron") stays on one line -- */
+/* -- Drillyard ranks: nothing scrolls inside a panel (Banner Hall) -- */
 .fv-boxin.is-fit {
   overflow: hidden;
-}
-
-.drill-compact .drill-why {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The buildings-list row the village guide points at: a soft gold ring and a filled "Next" tag (no side stripe). */

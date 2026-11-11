@@ -19,7 +19,8 @@ import {
   storageCap,
 } from '@clanfire/engine';
 import type { RankTrack, UnitId } from '@clanfire/engine';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { takeResearchFocus } from './drillFocus.ts';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Cost, ProgressBar } from '../../components/ui.tsx';
@@ -83,160 +84,177 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = UNIT_IDS.filter((u) => isResearched(live, u));
 
+  const focusRef = useRef<HTMLLIElement>(null);
+  const [focusUnit] = useState(takeResearchFocus);
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusUnit]);
+
   if (level < 1) return null;
+
+  const free = Math.max(0, total - spent);
 
   return (
     <div className={`drill${part ? ' drill-compact' : ''}`}>
       {part !== 'ranks' && (
         <>
-      <h3 className="eyebrow">
-        Research · queue {queue.length}/{limit}
-      </h3>
-      <ul className="drill-list">
-        {researchable.map((u) => {
-          const def = UNITS[u];
-          const rule = def.research!;
-          const done = isResearched(live, u);
-          const qi = queue.findIndex((j) => j.unit === u);
-          const job = qi >= 0 ? queue[qi] : undefined;
-          const active = !!job;
-          const check = checkResearch(live, u, now, settings, limit);
-          const reason = done || active ? null : !check.ok ? (check.reason === 'not_enough_resources' && goldNeverArrives(live.resources, productionPerHour(live, settings), rule.cost, storageCap(live)) ? needsGoldText(live.buildings) : reasonText(check)) : null;
-          let status: string;
-          if (done) status = 'Done';
-          else if (active && job) {
-            status = qi === 0 ? formatDuration(job.finishAt - now) : `#${qi + 1} · in ${formatDuration(job.startAt - now)}`;
-          } else if (level < rule.drillyard) status = `Needs Drillyard ${rule.drillyard}`;
-          else status = '';
-          return (
-            <li key={u} className={`drill-row${done ? ' is-done' : ''}`}>
-              <span className="drill-icon" aria-hidden="true">
-                <Icon name={UNIT_ICON[u]} size={26} />
-              </span>
-              <div className="drill-main">
-                <div className="drill-name">{def.name}</div>
-                {status && <div className="drill-status">{status}</div>}
-                {active && job && qi === 0 && <ProgressBar value={(now - job.startAt) / Math.max(1, job.finishAt - job.startAt)} label={`${def.name} research progress`} />}
-                {!done && !active && (
-                  <div className="drill-cost">
-                    <Cost cost={rule.cost} have={live.resources} />
-                    <span className="time">
-                      <Icon name="time" size={16} className="inline-icon" /> {formatDuration(check.ok ? check.timeMs : (rule.timeSec / settings.speed) * 1000)}
-                    </span>
+          <h3 className="eyebrow">
+            Research · queue {queue.length}/{limit}
+          </h3>
+          <ul className="drill-rlist">
+            {researchable.map((u) => {
+              const def = UNITS[u];
+              const rule = def.research!;
+              const done = isResearched(live, u);
+              const qi = queue.findIndex((j) => j.unit === u);
+              const job = qi >= 0 ? queue[qi] : undefined;
+              const active = !!job;
+              const check = checkResearch(live, u, now, settings, limit);
+              const levelOk = level >= rule.drillyard;
+              const full = done || active ? null : !check.ok ? (check.reason === 'not_enough_resources' && goldNeverArrives(live.resources, productionPerHour(live, settings), rule.cost, storageCap(live)) ? needsGoldText(live.buildings) : reasonText(check)) : null;
+              let state: string;
+              if (done) state = 'Researched';
+              else if (active && job) state = qi === 0 ? `Ready in ${formatDuration(job.finishAt - now)}` : `Queued #${qi + 1}, starts in ${formatDuration(job.startAt - now)}`;
+              else if (!levelOk) state = `Needs Drillyard ${rule.drillyard} · you have ${level}`;
+              else if (!full) state = 'Ready to research';
+              else if (check.ok === false && check.reason === 'not_enough_resources') state = 'Not enough resources';
+              else if (check.ok === false && check.reason === 'queue_full') state = 'Research queue full';
+              else state = full;
+              const focus = focusUnit === u;
+              return (
+                <li key={u} ref={focus ? focusRef : undefined} className={`drill-rc${done ? ' is-done' : ''}${focus ? ' is-focus' : ''}${!levelOk && !done ? ' is-off' : ''}`}>
+                  <span className="drill-icon" aria-hidden="true">
+                    <Icon name={UNIT_ICON[u]} size={40} />
+                  </span>
+                  <div className="drill-rc-main">
+                    <div className="drill-rc-head">
+                      <span className="drill-name">{def.name}</span>
+                      <span className="drill-time">
+                        <Icon name="time" size={16} className="inline-icon" /> {formatDuration(check.ok ? check.timeMs : (rule.timeSec / settings.speed) * 1000)}
+                      </span>
+                    </div>
+                    {!done && !active && (
+                      <div className="drill-cost">
+                        <Cost cost={rule.cost} have={live.resources} />
+                      </div>
+                    )}
+                    {active && job && qi === 0 && <ProgressBar value={(now - job.startAt) / Math.max(1, job.finishAt - job.startAt)} label={`${def.name} research progress`} />}
+                    <span className={`drill-state${done ? ' is-ok' : active ? ' is-run' : !levelOk || full ? ' is-warn' : ''}`}>{state}</span>
                   </div>
-                )}
-                {reason && level >= rule.drillyard && <div className="why drill-why">{reason}</div>}
-              </div>
-              {active && (
-                <button
-                  type="button"
-                  className="btn btn-small drill-btn"
-                  disabled={busy || cancel.busy}
-                  title={`${CANCEL_REFUND_PERCENT}% back`}
-                  onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost, qi)}
-                >
-                  Cancel
-                </button>
-              )}
-              {!done && !active && (
-                <button
-                  type="button"
-                  className="btn btn-teal drill-btn"
-                  disabled={!!reason || busy}
-                  onClick={() => void run(() => api.research(village.id, u), `Researching ${def.name}`)}
-                >
-                  Research
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                  {active && (
+                    <button
+                      type="button"
+                      className="btn btn-small drill-btn"
+                      disabled={busy || cancel.busy}
+                      title={`${CANCEL_REFUND_PERCENT}% back`}
+                      onClick={() => void cancel.cancelResearch(`${def.name} research`, rule.cost, qi)}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  {!done && !active && (
+                    <button
+                      type="button"
+                      className="btn btn-teal drill-btn"
+                      disabled={!!full || busy}
+                      title={full ?? undefined}
+                      onClick={() => void run(() => api.research(village.id, u), `Researching ${def.name}`)}
+                    >
+                      Research
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </>
       )}
 
       {part !== 'research' && (
         <>
-      <h3 className="eyebrow drill-ptitle">Training Points</h3>
-      <div className="drill-points">
-        <span>
-          <strong>{formatInt(Math.max(0, total - spent))}</strong> free · {formatInt(spent)}/{formatInt(total)}
-        </span>
-        <ProgressBar value={total > 0 ? spent / total : 0} label="Training Points spent" />
-      </div>
-      <ul className="drill-list drill-units">
-        {trained.map((u) => {
-          const def = UNITS[u];
-          return (
-            <li key={u} className="drill-unit">
-              <div className="drill-unit-head">
-                <span className="drill-icon" aria-hidden="true">
-                  <Icon name={UNIT_ICON[u]} size={22} />
-                </span>
-                <span className="drill-name">{def.name}</span>
-              </div>
-              {TRACKS.filter((t) => trackApplies(u, t.id)).map((t) => {
-                const rank = rankOf(live.ranks, u, t.id);
-                const per = t.id === 'keen' ? KEEN_BONUS : RANK_BONUS;
-                const check = checkRank(live, u, t.id, now, settings);
-                const respec = rank > 0 ? checkRespec(live, u, t.id, now, settings) : null;
-                const atMax = rank >= RANK_MAX;
-                const reason = atMax ? null : !check.ok ? reasonText(check) : null;
-                return (
-                  <div key={t.id} className="drill-track">
-                    <div className="drill-track-info">
-                      <div className="drill-track-name" title={t.hint}>
-                        {t.name}
-                      </div>
-                      <div className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
-                        {Array.from({ length: RANK_MAX }, (_, i) => (
-                          <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
-                        ))}
-                        <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
-                      </div>
-                      {atMax ? (
-                        <div className="drill-status">Max</div>
-                      ) : check.ok ? (
-                        <div className="drill-cost">
-                          <span>
-                            {check.points} pt
-                          </span>
-                          <Cost cost={check.cost} have={live.resources} />
-                        </div>
-                      ) : null}
-                      {reason && <div className="why drill-why">{reason}</div>}
-                    </div>
-                    <div className="drill-track-btns">
-                      {!atMax && (
-                        <button
-                          type="button"
-                          className="btn btn-primary drill-btn"
-                          disabled={!!reason || busy}
-                          onClick={() => void run(() => api.rank(village.id, u, t.id), `${def.name} ${t.name} rank ${rank + 1}`)}
-                        >
-                          Buy rank {rank + 1}
-                        </button>
-                      )}
-                      {rank > 0 && (
-                        <button
-                          type="button"
-                          className="btn btn-small drill-reset"
-                          disabled={!respec?.ok || busy}
-                          title={respec && !respec.ok ? reasonText(respec) : `Free, +${respec?.ok ? respec.refund : 0} points`}
-                          onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
-                        >
-                          Reset
-                          {respec?.ok ? ` +${respec.refund} pts` : ''}
-                        </button>
-                      )}
-                    </div>
+          <div className="drill-points">
+            <h3 className="drill-ptitle">Training Points</h3>
+            <span className="drill-pfree">
+              <strong>{formatInt(free)}</strong> free
+            </span>
+            <ProgressBar value={total > 0 ? spent / total : 0} label="Training Points spent" />
+            <span className="drill-pmut">
+              {formatInt(spent)}/{formatInt(total)} used
+            </span>
+          </div>
+          <ul className="drill-units">
+            {trained.map((u) => {
+              const def = UNITS[u];
+              return (
+                <li key={u} className="drill-uc">
+                  <div className="drill-unit-head">
+                    <span className="drill-icon" aria-hidden="true">
+                      <Icon name={UNIT_ICON[u]} size={28} />
+                    </span>
+                    <span className="drill-name">{def.name}</span>
                   </div>
-                );
-              })}
-            </li>
-          );
-        })}
-      </ul>
+                  {TRACKS.filter((t) => trackApplies(u, t.id)).map((t) => {
+                    const rank = rankOf(live.ranks, u, t.id);
+                    const per = t.id === 'keen' ? KEEN_BONUS : RANK_BONUS;
+                    const check = checkRank(live, u, t.id, now, settings);
+                    const respec = rank > 0 ? checkRespec(live, u, t.id, now, settings) : null;
+                    const atMax = rank >= RANK_MAX;
+                    const full = atMax ? null : !check.ok ? reasonText(check) : null;
+                    const short = !full ? null : rank + 1 > free ? `${rank + 1} pts · ${free} left` : check.ok === false && check.reason === 'not_enough_resources' ? 'Low on resources' : full;
+                    return (
+                      <div key={t.id} className="drill-tr">
+                        <span className="drill-tname" title={t.hint}>
+                          {t.name}
+                        </span>
+                        <span className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
+                          {Array.from({ length: RANK_MAX }, (_, i) => (
+                            <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
+                          ))}
+                        </span>
+                        <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
+                        <span className="drill-tbtns">
+                          {rank > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-small drill-reset"
+                              disabled={!respec?.ok || busy}
+                              title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
+                              aria-label={`Reset ${def.name} ${t.name}`}
+                              onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
+                            >
+                              Reset
+                            </button>
+                          )}
+                          {!atMax && (
+                            <button
+                              type="button"
+                              className="btn btn-primary drill-buy"
+                              disabled={!!full || busy}
+                              title={full ?? undefined}
+                              aria-label={`Buy ${def.name} ${t.name} rank ${rank + 1}`}
+                              onClick={() => void run(() => api.rank(village.id, u, t.id), `${def.name} ${t.name} rank ${rank + 1}`)}
+                            >
+                              Rank {rank + 1}
+                            </button>
+                          )}
+                          {atMax && <span className="drill-max">Max</span>}
+                        </span>
+                        {!atMax && (
+                          <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
+                            {short ?? (check.ok ? (
+                              <>
+                                {check.points} pt <Cost cost={check.cost} have={live.resources} />
+                              </>
+                            ) : null)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </li>
+              );
+            })}
+          </ul>
         </>
       )}
       {dialog}

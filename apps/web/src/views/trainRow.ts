@@ -3,7 +3,7 @@
 
 import { MAX_TRAIN_BATCH, RESOURCE_IDS, productionPerHour, storageCap, UNITS, checkTrain, isResearched, trainTimeMs } from '@clanfire/engine';
 import type { Resources, TrainingBuildingId, UnitId, VillageState, WorldSettings } from '@clanfire/engine';
-import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../rules.ts';
+import { maxTrainable, reasonText, requirementText, researchGate, unmetRequirements } from '../rules.ts';
 import type { UnmetRequirement } from '../rules.ts';
 import { goldNeverArrives, needsGoldText } from '../shortfall.ts';
 import { HEARTH_OUT_REASON } from '../villages.ts';
@@ -14,6 +14,8 @@ export interface TrainRowState {
   locked: boolean;
   /** Not researched yet (Drillyard). */
   unresearched: boolean;
+  /** When unresearched: what the Drillyard still needs (short lines, empty = research is open there). */
+  researchGate: string[];
   /** Typed amount, clamped to 0..MAX_TRAIN_BATCH (0 when empty or not a whole number). */
   count: number;
   perUnitMs: number;
@@ -59,5 +61,5 @@ export function trainRowState(args: {
   if (!locked && !unresearched && (reason === 'Cannot afford one' || (!check.ok && check.reason === 'not_enough_resources'))) {
     if (goldNeverArrives(live.resources, productionPerHour(live, settings), batchCost, storageCap(live))) reason = needsGoldText(live.buildings);
   }
-  return { unmet, locked, unresearched, count, perUnitMs: trainTimeMs(unit, live, settings), max, reason, batchCost };
+  return { unmet, locked, unresearched, researchGate: unresearched ? researchGate(live.buildings, unit) : [], count, perUnitMs: trainTimeMs(unit, live, settings), max, reason, batchCost };
 }

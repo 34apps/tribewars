@@ -1060,54 +1060,13 @@ th[scope='row'] {
   margin-top: 10px;
 }
 
-/* ---- Drillyard: research and ranks (dark card, explicit light text) ---- */
+/* ---- Drillyard: research and ranks ---- */
 .drill {
   color: var(--on-surface);
 }
 
 .drill .eyebrow {
-  margin-top: 18px;
-}
-
-.drill .muted {
-  color: var(--on-surface-muted);
-}
-
-.drill-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.drill-row,
-.drill-unit {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  color: var(--on-surface);
-}
-
-.drill-row {
-  align-items: center;
-}
-
-.drill-row.is-done {
-  opacity: 0.85;
-}
-
-.drill-unit {
-  flex-direction: column;
-}
-
-.drill-unit-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin: 14px 0 8px;
 }
 
 .drill-icon {
@@ -1118,79 +1077,80 @@ th[scope='row'] {
   color: var(--on-surface);
 }
 
-.drill-main {
-  flex: 1;
-  min-width: 0;
-}
-
 .drill-name {
   font-weight: 700;
-  color: var(--on-surface);
 }
 
-.drill-status,
-.drill-why {
+/* Training Points header: a clear bar across the top */
+.drill-points {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.drill-ptitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.drill-pfree strong {
+  font-size: 1.25rem;
+}
+
+.drill-pmut {
   font-size: 0.86rem;
   color: var(--on-surface-muted);
 }
 
-.drill-cost {
+/* Rank cards: one per unit, tracks stacked as aligned lines */
+.drill-units {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill-uc {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.drill-unit-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
-  margin-top: 4px;
-  font-size: 0.9rem;
-  color: var(--on-surface);
-}
-
-.drill .time {
-  color: var(--on-surface-muted);
-}
-
-.drill-btn {
-  flex: none;
-  min-height: 44px;
-}
-
-.drill-points {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
-  color: var(--on-surface);
-}
-
-.drill-track {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding-top: 8px;
+  padding-bottom: 6px;
+}
+
+.drill-tr {
+  display: grid;
+  grid-template-columns: 62px auto 40px 1fr;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 6px 0;
   border-top: 1px solid var(--edge);
 }
 
-.drill-track-info {
-  flex: 1 1 160px;
-  min-width: 0;
-}
-
-.drill-track-name {
-  font-weight: 700;
-  color: var(--on-surface);
+.drill-tname {
+  font-weight: 600;
 }
 
 .drill-pips {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: 4px 0;
+  gap: 3px;
 }
 
 .drill-pip {
-  width: 18px;
-  height: 18px;
+  width: 12px;
+  height: 12px;
   border: 2px solid var(--c-dust);
   border-radius: 50%;
 }
@@ -1201,31 +1161,139 @@ th[scope='row'] {
 }
 
 .drill-bonus {
-  margin-left: 6px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--on-surface);
 }
 
-.drill-track-btns {
+.drill-tbtns {
   display: flex;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
 }
 
-.drill-reset {
+.drill-tbtns .btn {
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+.drill-max {
+  font-weight: 700;
+  color: var(--on-surface-muted);
+}
+
+.drill-tinfo {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: 0.86rem;
+  color: var(--on-surface-muted);
+}
+
+.drill-tinfo.is-warn {
+  color: var(--warn);
+}
+
+/* Research cards: wide enough that nothing is cut off */
+.drill-rlist {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill-rc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.drill-rc.is-done {
+  opacity: 0.85;
+}
+
+.drill-rc.is-focus {
+  box-shadow: 0 0 0 3px var(--c-sun);
+}
+
+.drill-rc-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.drill-rc-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.drill-time {
+  color: var(--on-surface-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.drill-cost {
+  font-size: 0.95rem;
+}
+
+.drill-state {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--on-surface-muted);
+}
+
+.drill-state.is-warn {
+  color: var(--warn);
+}
+
+.drill-state.is-ok {
+  color: var(--ok, var(--on-surface));
+}
+
+.drill-btn {
+  flex: none;
   min-height: 44px;
 }
 
 @media (max-width: 400px) {
-  .drill-row {
+  .drill-rc {
     flex-wrap: wrap;
   }
 
-  .drill-track-btns,
-  .drill-track-btns .btn {
+  .drill-rc-main {
+    flex-basis: calc(100% - 60px);
+  }
+
+  .drill-rc .drill-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .drill-units,
+  .drill-rlist {
+    grid-template-columns: 1fr;
+  }
+
+  .drill-points {
+    grid-template-columns: auto 1fr;
+  }
+
+  .drill-points .progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 

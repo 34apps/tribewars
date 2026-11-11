@@ -41,6 +41,7 @@ import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import '../../components/war-chest.css';
 import { DrillyardPanel } from './Drillyard.tsx';
+import { setResearchFocus } from './drillFocus.ts';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
 import { VillageScene } from './VillageScene.tsx';
 import { useBuildingInfo, whyText } from './buildingInfo.ts';
@@ -294,7 +295,7 @@ function MagsTip({ id }: { id: BuildingId }) {
 // ---- Recruit (Barracks, Stables) ---------------------------------------------------------------------------------
 
 function RecruitPanel({ building }: { building: TrainingBuildingId }) {
-  const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
+  const { live, now, settings, village, applyVillage, refresh, toast, openBuilding } = useGame();
   const rules = useRules();
   const info = useUnitInfo();
   const cancel = useCancelJob();
@@ -405,11 +406,21 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
                 {off ? (
                   <span className="fv-lock">
                     <Icon name="lock" size={18} />
-                    <span>
-                      {st.locked
-                        ? `Needs ${st.unmet.map((r) => `${BUILDINGS[r.building].name} ${r.need} · you have ${r.have}`).join(', ')}`
-                        : 'Research it at the Drillyard'}
-                    </span>
+                    {st.locked ? (
+                      <span>{`Needs ${st.unmet.map((r) => `${BUILDINGS[r.building].name} ${r.need} · you have ${r.have}`).join(', ')}`}</span>
+                    ) : (
+                      <span className="fv-lockgo">
+                        {st.researchGate.map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                        <button type="button" className="fv-btn fv-btn-g sm" onClick={() => {
+                            setResearchFocus(unit);
+                            openBuilding('drillyard');
+                          }}>
+                          {st.researchGate.length > 0 ? 'Go to Drillyard' : 'Research at Drillyard'}
+                        </button>
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span className="fv-tr">
@@ -725,15 +736,15 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                 <NextLevels id={id} info={info} />
               )}
               {id !== 'bannerhall' && (
-                <div className="fv-rcol">
+                <div className={`fv-rcol${id === 'drillyard' ? ' is-wide' : ''}`}>
                   {id === 'drillyard' ? (
-                    <PanelBox title="Research">
+                    <PanelBox title="Research" fit>
                       <DrillyardPanel part="research" />
                     </PanelBox>
                   ) : (
                     <WhatItDoes id={id} info={info} />
                   )}
-                  <MagsTip id={id} />
+                  {id !== 'drillyard' && <MagsTip id={id} />}
                 </div>
               )}
             </>

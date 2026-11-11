@@ -62,6 +62,24 @@ export function requirementText(list: UnmetRequirement[]): string {
   return list.map((r) => `${BUILDINGS[r.building].name} ${r.need}`).join(', ');
 }
 
+/**
+ * What stands between a player and researching `unit`, in the short "Needs X N · you have M" style: the Drillyard's own
+ * building requirements while it is not built, then the Drillyard level this unit's research needs. Empty = research is open.
+ */
+export function researchGate(levels: BuildingLevels, unit: UnitId): string[] {
+  const rule = UNITS[unit].research;
+  if (!rule) return [];
+  const out: string[] = [];
+  const drill = levels.drillyard;
+  if (drill < 1) {
+    const unmet = unmetRequirements(levels, BUILDINGS.drillyard.requires);
+    if (unmet.length > 0) out.push(`Drillyard needs ${unmet.map((r) => `${BUILDINGS[r.building].name} ${r.need} · you have ${r.have}`).join(', ')}`);
+    else out.push('Build the Drillyard');
+  }
+  if (drill < rule.drillyard) out.push(`Research at Drillyard ${rule.drillyard} · you have ${drill}`);
+  return out;
+}
+
 /** Short, player-facing reason for a failed check. Falls back to the engine's own message. */
 export function reasonText(res: Extract<CheckResult<unknown>, { ok: false }>, unmet: UnmetRequirement[] = []): string {
   const code: GameErrorCode = res.reason;
