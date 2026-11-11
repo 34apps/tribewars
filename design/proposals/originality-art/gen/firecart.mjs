@@ -56,10 +56,11 @@ out.victory = svg(`${LABEL}, cheering a victory`, jumpMarks() +
 reset('fic3');
 {
   setK(1);
-  const body = g('rotate(10 112 208)', M({ lit: false, front: false }));
+  const body = g('rotate(10 112 208)', M({ lit: false }));
+  // the second crewman sits dazed in front of the cart, legs out
+  const sitter = g('translate(0 34)', crew(206, { ...look, legL: -84, legR: -74, backArm: [78, 112, 64, 150], frontArm: [122, 112, 140, 150], face: 'dizzy', mouth: MOUTH.wavy }));
   out.defeated = svg(`${LABEL}, broken down`, shadow(128, 12, 104, 222, 0.22) + BASE() + body +
-    puff(160, 70, 8) + puff(176, 52, 6) + puff(150, 52, 5) +
-    g('rotate(-14 236 212)', wheel(236, 191, 20, 10)) +
+    puff(160, 70, 8) + puff(176, 52, 6) + puff(150, 52, 5) + sitter + dizzy(206, 66) +
     g('translate(10 6) rotate(-84 100 212)', crew(100, { ...look, backArm: [78, 112, 56, 142], frontArm: [122, 112, 150, 124], face: 'dizzy', mouth: MOUTH.wavy })) +
     dizzy(-14, 132));
 }

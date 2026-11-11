@@ -81,7 +81,7 @@ out.idle = svg(`${LABEL}, on guard`, shadow(88, 17) + BASE() + elk({ cloth: P.te
 reset('elk1');
 out.march = svg(`${LABEL}, marching`, shadow(88, 17) + BASE() + g('translate(0 -6)',
   elk({ cloth: P.teal, legs: [-26, 30, 24, -34], head: 'rotate(8 150 120)' }) +
-  rider(104, 114, { backArm: [78, 112, 60, 146], frontArm: [124, 112, 152, 126], face: 'effort', mouth: MOUTH.grit, held: held(152, 126, -12, 110, 120) }, 'rotate(10 100 166)')) +
+  rider(104, 114, { backArm: [78, 112, 60, 146], frontArm: [124, 114, 152, 150], face: 'effort', mouth: MOUTH.grit, held: held(152, 150, -6, 100, 130) }, 'rotate(10 100 166)')) +
   dust(34, 204, 1) + dust(70, 210, 0.7) + line('M-40 120H-14M-52 140H-24M-40 160H-16', INK, 2.6, ' opacity="0.45"'));
 
 reset('elk2');
