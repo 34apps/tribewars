@@ -98,15 +98,16 @@ function artifactFragment(): Plugin {
   };
 }
 
-/** Where the dev server mirrors the preview world (git-ignored: data/, *.sqlite). */
-const WORLD_MIRROR = fileURLToPath(new URL('./data/preview-world.sqlite', import.meta.url));
+/** Where the dev server mirrors the preview world, one file per player: data/preview-world-<player>.sqlite (git-ignored). */
+const MIRROR_DIR = fileURLToPath(new URL('./data/', import.meta.url));
+const MIRROR_PLAYER = /^[A-Za-z0-9_-]{1,32}$/;
 const MIRROR_MAX_BYTES = 50 * 1024 * 1024;
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 const LOCAL_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 /**
  * Dev only (`npm run dev:preview`): every save of the in-browser world is also POSTed here (host.ts) and written to
- * apps/preview/data/preview-world.sqlite, atomically (temp file, then rename), so sessions can read the owner's world
+ * apps/preview/data/preview-world-<player>.sqlite (the signed-in player, header x-clanfire-player), atomically (temp file, then rename), so sessions can read the owner's world
  * with sqlite3. Only from this machine; the custom header forces a CORS preflight for any other site.
  */
 function worldMirror(): Plugin {
@@ -129,6 +130,9 @@ function worldMirror(): Plugin {
         if (req.method !== 'POST') return done(405);
         if (!LOCAL_ADDRS.has(req.socket.remoteAddress ?? '') || !originOk || req.headers['x-clanfire-mirror'] !== '1') return done(403);
         if (Number(req.headers['content-length'] ?? 0) > MIRROR_MAX_BYTES) return done(413);
+        const player = String(req.headers['x-clanfire-player'] ?? '');
+        if (!MIRROR_PLAYER.test(player)) return done(400);
+        const target = resolve(MIRROR_DIR, `preview-world-${player}.sqlite`);
         const chunks: Buffer[] = [];
         let size = 0;
         let failed = false;
@@ -147,10 +151,10 @@ function worldMirror(): Plugin {
           if (failed) return;
           const bytes = Buffer.concat(chunks);
           if (bytes.subarray(0, 16).toString('latin1') !== 'SQLite format 3\0') return done(400);
-          const tmp = `${WORLD_MIRROR}.${process.pid}-${++seq}.tmp`;
-          mkdir(resolve(WORLD_MIRROR, '..'), { recursive: true })
+          const tmp = `${target}.${process.pid}-${++seq}.tmp`;
+          mkdir(MIRROR_DIR, { recursive: true })
             .then(() => writeFile(tmp, bytes))
-            .then(() => rename(tmp, WORLD_MIRROR))
+            .then(() => rename(tmp, target))
             .then(
               () => done(204),
               (err: unknown) => {

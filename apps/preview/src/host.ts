@@ -2,6 +2,7 @@
 // computer players), skipping ahead, saving, the showcase and the demo starter pack. It runs in the game worker
 // (worker.ts) by default, or in the page itself with ?inpage. No DOM here: the caller passes what it needs in `env`.
 
+import { sha256Hex } from '../../server/src/auth.ts';
 import { clock } from './clock.ts';
 import { createBackend, type ApiResult, type Backend } from './backend.ts';
 import { botTick, seedBots } from './bots.ts';
@@ -110,10 +111,19 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
       return;
     }
     dirty = false;
-    // Dev only (npm run dev:preview): mirror the world to apps/preview/data/preview-world.sqlite (vite.config.ts) so
-    // sessions can read it. Not in the built file; a failure (dev server down) stays silent. fetch copies the bytes.
+    // Dev only (npm run dev:preview): mirror the world to apps/preview/data/preview-world-<player>.sqlite (vite.config.ts) so
+    // sessions can read it. One file per signed-in player, so a test tab never overwrites the owner's copy; ?demo accounts
+    // (demo123456) and signed-out tabs are skipped. Not in the built file; a failure (dev server down) stays silent.
     if (import.meta.env.DEV) {
-      void fetch('/__clanfire/preview-world', { method: 'POST', headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1' }, body: bytes as Uint8Array<ArrayBuffer> }).catch(() => {});
+      const token = b.getToken();
+      const player = token ? b.ctx.store.getSessionPlayer(sha256Hex(token), Date.now()) : null;
+      if (player && !/^demo\d+$/.test(player.username)) {
+        void fetch('/__clanfire/preview-world', {
+          method: 'POST',
+          headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1', 'x-clanfire-player': player.username },
+          body: bytes as Uint8Array<ArrayBuffer>,
+        }).catch(() => {});
+      }
     }
     const w0 = performance.now();
     await env.writeSave({ db: bytes, token: b.getToken(), clock: clock.snapshot() });
