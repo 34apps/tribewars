@@ -9,6 +9,7 @@ import {
   NPC_GARRISON_PER_HALL,
   NPC_GROWTH_ORDER,
   NPC_MAX_BUILDS_PER_SETTLE,
+  NPC_PRODUCTION_FACTOR,
   NPC_START_LEVELS,
   NPC_TIER_WEIGHTS,
   POP_PER_UNIT,
@@ -162,7 +163,7 @@ function npcNextBuild(
 ): { building: BuildingId; targetLevel: number; cost: Resources; waitMs: number; skipped: number } | null {
   const order = growthOrder(v.npc?.growthSeed);
   const top = worldRules(s).npc.maxLevel;
-  const rate = productionFromLevels(v.buildings, s.speed);
+  const rate = productionFromLevels(v.buildings, s.speed * NPC_PRODUCTION_FACTOR); // only abandoned villages plan builds
   const cap = storageCapForLevel(v.buildings.storehouse);
   const keep = Math.max(0, Math.min(0.9, worldRules(s).npc.keepShare)) * cap;
   const start = v.npc?.growthSteps ?? 0;
@@ -214,7 +215,7 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
       return;
     }
     const hours = (to - cur) / MS_PER_HOUR;
-    const gross = productionFromLevels(v.buildings, s.speed);
+    const gross = productionFromLevels(v.buildings, s.speed * (v.npc ? NPC_PRODUCTION_FACTOR : 1));
     const cap = storageCapForLevel(v.buildings.storehouse);
     for (const r of RESOURCE_IDS) v.resources[r] = accrueResource(v.resources[r], gross[r], hours, cap);
     cur = to;

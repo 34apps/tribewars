@@ -42,17 +42,17 @@ const FILE: Record<BuildingId, string> = {
  * max level only (owner, 2026-11-06: four looks per building, the fourth only at the very last level).
  */
 export const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
-  hall: [5, 12],
-  lumber: [5, 12],
-  farm: [5, 12],
-  mine: [5, 12],
-  storehouse: [5, 12],
+  hall: [6, 15],
+  lumber: [6, 15],
+  farm: [6, 15],
+  mine: [6, 15],
+  storehouse: [6, 15],
   barracks: [5, 12],
-  wall: [5, 12],
-  goldmine: [5, 10],
-  stables: [5, 10],
+  wall: [5, 13],
+  goldmine: [4, 10],
+  stables: [4, 10],
   vault: [3, 7],
-  market: [3, 6],
+  market: [3, 7],
   drillyard: [3, 6],
   bannerhall: [1, 2],
 };
@@ -80,7 +80,7 @@ export function lookStartLevel(id: BuildingId, stage: Exclude<Stage, 0>): number
   return stage === 1 ? 1 : stage === 2 ? a + 1 : stage === 3 ? b + 1 : BUILDINGS[id].maxLevel;
 }
 
-/** "6–12" style level range of a stage, for captions ("20" for a single level). */
+/** "7–15" style level range of a stage, for captions ("25" for a single level). */
 export function stageRange(id: BuildingId, stage: Exclude<Stage, 0>): string {
   const [a, b] = STAGE_TOPS[id];
   const max = BUILDINGS[id].maxLevel;

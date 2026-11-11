@@ -39,10 +39,11 @@ When a rule changes, change it here in the same commit.
   sets the **population cap** (below), which is now the only limit on army size besides cost and time. Food is spent on
   buildings, troop costs and Feasts.
 - **Food has a real use (owner request, balance pass 2026-11-05).** Food piled up in every sim style once troops stopped eating, so unit costs
-  and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron: Pikeman 30/50/30,
-  Shieldbearer 25/70/55, Raider 40/80/50, Outrider 60/170/130, Knight 100/260/230 (+30 gold), Pathfinder 15/45/30, Log Ram 170/220/180 (+4 gold),
-  Boulder Sling 140/240/220 (+12 gold), Banner Hall level 1 1,800/2,900/1,800 (+100 gold; the food figure still fits the Storehouse level 6 it
-  requires), one Feast 400/1,000/400. Numbers in `config.ts`.
+  and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron (since 2026-11-11, x0.55 of the
+  old numbers, food about x0.5, so a maxed village can fill its 12,000 room in about 13 days of its own income): Pikeman 15/25/15,
+  Shieldbearer 15/35/30, Raider 20/40/30, Outrider 35/85/70, Knight 55/130/125 (+16 gold), Pathfinder 10/25/15, Log Ram 95/120/100 (+2 gold),
+  Boulder Sling 75/130/120 (+7 gold). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
+  2,100/3,450/2,100 (+100 gold; the food figure fits the Storehouse level 6 it requires). Numbers in `config.ts`.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
   (queued levels are reserved when queued; the Farm takes 0). Each troop takes `POP_PER_UNIT[u]`
@@ -50,14 +51,14 @@ When a rule changes, change it here in the same commit.
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
   that would push used above the cap is refused (`population_full`); losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
-  Tuning (2026-11-04, Tribal-Wars-like feel): growth 1.10 (buildings) / 1.20 (cap) so a fully built village
-  uses roughly 1,650 of the ~4,800 cap at Farm 20, leaving about 3,100 for troops (about 65%); early game unchanged.
+  Tuning (2026-11-11, 25 levels): growth 1.08 (buildings) / 1.20 (cap, base 151, level 0 = 120) so the Farm at level 25 holds about
+  12,000 and a fully built village uses about 200 of it, leaving about 11,800 for troops. (Before: ~4,800 at Farm 20.)
   The top bar shows a "Population used / cap" chip next to the resources for the current village (own row
   under the resources on phones), with a mini meter and warning colour from 90% (`aria-label` "Population X of Y").
 - **Storage cap** (same for every resource) from the storehouse level:
   `L == 0 ? STORAGE_LEVEL0 : round(STORAGE_BASE * STORAGE_GROWTH^(L-1))`. Production stops at the
   cap. Anything added (refunds, loot coming home) is also clamped to the cap.
-- **Market** (start level 0, needs Town Hall 3, max level 10): gates resource shipments and sets their size
+- **Market** (start level 0, needs Town Hall 3, max level 12): gates resource shipments and sets their size
   (section 13). Art: placeholder (Storehouse sprites) until a Market sprite exists.
 - **Vault** protects `L == 0 ? 0 : round(VAULT_BASE * VAULT_GROWTH^(L-1))` of each resource from loot.
 
@@ -66,11 +67,42 @@ When a rule changes, change it here in the same commit.
 Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages start at
 `startLevel` for each building.
 
+- **25-level ladder (owner/lead decision 2026-11-11, replaces the tiers idea; originality piece 1).** Max levels: Town Hall, Lumber Camp,
+  Farm, Iron Mine, Storehouse **25**; Barracks **20**; Wall **22**; Stables **18**; Gold Mine **18**; Market **12**; Vault **12**; Drillyard **10**;
+  Banner Hall **4**. No tiers, no Town Hall gates; levels only go up, so saved worlds keep every level (no migration). One curve per effect,
+  own numbers: production `base x 1.1245^(L-1)` (54 wood / 72 food / 54 iron at level 1, about 900 / 1,200 / 900 at level 25; level 0 trickle 9;
+  Gold Mine 3 x 1.138^(L-1), 27 at level 18 as the old level 15); storage `1,800 x 1.177^(L-1)` (about 90,000 at 25; level 0 = 1,350); Farm room
+  `151 x 1.2^(L-1)` (about 12,000 at 25; level 0 = 120); Vault `120 x 1.28^(L-1)` (1,813 at 12, the old level 10); Town Hall `x0.96` build time per
+  level (x0.38 at 25 = the old level 20); training `x0.94` per level (unchanged); Wall `+4.5%` defence per level and militia `20 + 14 L` (level 22
+  = +99%, 328 militia). Building costs are x1.5 of before at level 1 (wood/food/iron; gold unchanged) with growth about `timeGrowth - 0.055`.
+  Totals (cost = wood + food + iron + 10 x gold; time at Town Hall 1, growth as in config; % against the old ladder):
+
+  | Building | Max (was) | Level 1 cost | Cost growth | Total cost to max | Time L1 | Time growth | Total time to max |
+  |---|---|---|---|---|---|---|---|
+  | Town Hall | 25 (20) | 135/120/105 | 1.23 | 275k (+196%) | 600 s | 1.285 | 12.8 d (+130%) |
+  | Lumber Camp / Farm | 25 (20) | 75/60/45 / 90/45/45 | 1.207 | 95k (+131%) | 360 s | 1.262 | 5.3 d (+103%) |
+  | Iron Mine | 25 (20) | 100/70/30 | 1.207 | 106k (+137%) | 420 s | 1.262 | 6.2 d (+103%) |
+  | Storehouse | 25 (20) | 105/75/60 | 1.207 | 127k (+161%) | 480 s | 1.262 | 7.1 d (+103%) |
+  | Barracks | 20 (20) | 300/225/180 | 1.23 | 189k (+4%) | 900 s | 1.285 | 5.5 d (-35%) |
+  | Wall | 22 (20) | 150/60/90 | 1.21 | 93k (+20%) | 720 s | 1.265 | 5.5 d (-18%) |
+  | Stables | 18 (15) | 390/300/450 +20 g | 1.22 | 212k (+70%) | 1800 s | 1.275 | 5.9 d (+44%) |
+  | Gold Mine | 18 (15) | 225/180/270 | 1.22 | 107k (+42%) | 1500 s | 1.275 | 4.9 d (+44%) |
+  | Market | 12 (10) | 150/105/90 | 1.205 | 14k (+67%) | 1200 s | 1.26 | 0.8 d (+35%) |
+  | Vault | 12 (10) | 60/75/45 | 1.225 | 8k (+80%) | 540 s | 1.28 | 0.4 d (+39%) |
+  | Drillyard | 10 (10) | 360/270/390 +15 g | 1.245 | 38k (+19%) | 1500 s | 1.3 | 0.7 d (-9%) |
+  | Banner Hall | 4 (4) | 2100/3450/2100 +100 g | 1.35 | 57k (+15%) | 72000 s | 1.32 | 5.3 d (0%) |
+
+  Building every building to its max, one after the other with the Town Hall always at 25 (x0.38), takes about **25 days** at speed 1 (before: about
+  18); the last Town Hall level takes about 26 hours, the last Lumber Camp level 10 hours. Points per level keep the 1.2 growth (a maxed 25-level building
+  counts more than before); Renown per level and siege cost per level keep their formulas too. Unit unlock levels, Hall requirements and the Banner Hall
+  requirements are unchanged. Abandoned villages produce only `NPC_PRODUCTION_FACTOR` (0.5) of their levels (the loot supply that holds raiders in line,
+  BALANCE 13); the 2nd village costs 1,300 Renown (was 1,000). Art: four looks per building, stage 4 only at the max level; stage ends are
+  `STAGE_TOPS` (25-level buildings 6 / 15, Barracks 5 / 12, Wall 5 / 13, Stables and Gold Mine 4 / 10, Market and Vault 3 / 7, Drillyard 3 / 6, Banner Hall 1 / 2).
 - Cost of level L: each resource `round(baseCost[r] * costGrowth^(L-1))`.
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
   using the Town Hall level when the job is queued.
-- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.95): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
+- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.96): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
 - **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village, the same for everyone (the premium queue was removed
   on 2026-11-04, owner decision; the `premium` database column is unused). Cost paid when queued. A job starts at
@@ -256,7 +288,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   (raiding abandoned villages keeps it).
 - Points = sum over buildings of the points of each built level (shown on the map). Level L of a building adds
   `round(BUILDING_POINTS_BASE[b] × 1.2^(L-1))` points, so high levels are worth far more (a new village starts at 40;
-  a maxed village is ~10,000). Map stages start at 0 / 100 / 300 / 800 / 1800 / 3500 points. The building panel and
+  a maxed 20-level village was ~10,000; with the 25-level ladder about 27,000). Map stages start at 0 / 100 / 300 / 800 / 1800 / 3500 points. The building panel and
   the construction queue show the points the next level adds.
 - Building looks (owner, 2026-11-06): every building has 4 pictures in the village view; the 4th shows only at its max level. The ring wall's grand look also starts at its max level (it was level 18). Looks only, no rule changes.
 
@@ -983,7 +1015,7 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
 
 **Conquest changes 2026-11-05 (owner; these override everything above where they differ)**
-1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). Sim target: the 2nd village around
+1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). **Since 2026-11-11 the base is 1,300** (2nd 1,300, 3rd 2,080, 4th 3,328, 5th 5,325) because production x1.5 and cheaper troops made Renown come faster (BALANCE 13). Sim target: the 2nd village around
    **day 21-28 for active players**, about a week later for builders and defenders (`BALANCE.md` 7.8). With the base alone the pure defender needed day 47.8, so
    `DEFENDER_RENOWN_DAILY_CAP` went 22 -> 36 (the defender trickle is what a player with a home army lives on; builders gain too). Sim: balanced 19.8, builder 27.5, defender 35.9, pure raider
    13.9 (too early, caused by the always-full loot rule of 2026-11-05, not by this change; open for the owner).
@@ -1106,8 +1138,8 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 
 | Name | Value | Meaning |
 |---|---|---|
-| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
-| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron, no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,100 wood / 3,450 food / 2,100 iron + 100 gold (x1.5-era numbers 2026-11-11; fits the Storehouse level 6 it requires), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
+| `UNITS.chieftain` | cost 6,000 wood / 4,500 food / 7,500 iron (x1.5, 2026-11-11), no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |
@@ -1550,7 +1582,7 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
 
 **Conquest changes 2026-11-05 (owner; these override everything above where they differ)**
-1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). Sim target: the 2nd village around
+1. **Harder to expand.** `RENOWN_VILLAGE_BASE` 1,000 (was 500), still x1.6 per village owned (2nd costs 1,000, 3rd 1,600, 4th 2,560, 5th 4,096). **Since 2026-11-11 the base is 1,300** (2nd 1,300, 3rd 2,080, 4th 3,328, 5th 5,325) because production x1.5 and cheaper troops made Renown come faster (BALANCE 13). Sim target: the 2nd village around
    **day 21-28 for active players**, about a week later for builders and defenders (`BALANCE.md` 7.8). With the base alone the pure defender needed day 47.8, so
    `DEFENDER_RENOWN_DAILY_CAP` went 22 -> 36 (the defender trickle is what a player with a home army lives on; builders gain too). Sim: balanced 19.8, builder 27.5, defender 35.9, pure raider
    13.9 (too early, caused by the always-full loot rule of 2026-11-05, not by this change; open for the owner).
@@ -1673,8 +1705,8 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 
 | Name | Value | Meaning |
 |---|---|---|
-| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 1,800 wood / 2,900 food / 1,800 iron + 100 gold (food-heavy since 2026-11-05, was 2,500 each), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
-| `UNITS.chieftain` | cost 4,000 wood / 3,000 food / 5,000 iron, no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
+| `BUILDINGS.bannerhall` (built 2026-11-04) | max level 4; requires Town Hall 7, Drillyard 2, Market 2, Storehouse 6 (tuned with the sim, lower than the first design of Hall 10 / Drillyard 3 / Market 3 / Storehouse 8); cost level 1: 2,100 wood / 3,450 food / 2,100 iron + 100 gold (x1.5-era numbers 2026-11-11; fits the Storehouse level 6 it requires), ×1.35 per level; build time 20 h at level 1 | Holds the Feast now; trains Chieftains in step 2 (villages are limited by Renown, not by its level) |
+| `UNITS.chieftain` | cost 6,000 wood / 4,500 food / 7,500 iron (x1.5, 2026-11-11), no gold (War Chest gold is reserved instead, §18.2); train time 6 h (÷0.94 per Banner Hall level); population 8; attack 0, defence 10/10; speed 5 (slowest in the army, so the army moves at his pace); carry 0 | The conquest unit |
 | `HEARTH_POINTS_PER_CHIEFTAIN` | 4,000 | Chieftains needed = 1 + floor(points / 4,000), max 3 |
 | `HOLD_HOURS` / `HOLD_HOURS_ABANDONED` | 12 / 6 | Hold clock (÷ world speed) |
 | `HOLD_MIN_POPULATION` | 150 | Occupier size that keeps the clock running |

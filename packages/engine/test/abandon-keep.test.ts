@@ -19,7 +19,7 @@ const NOW = 100 * HOUR;
 const built = (hall: number): VillageState =>
   village({
     buildings: { hall, wall: 6, farm: 8, storehouse: 4, barracks: 3, bannerhall: 2, market: 5 },
-    resources: { wood: 99_999, food: 50, iron: 700, gold: 12 },
+    resources: { wood: 99_999, food: 500, iron: 700, gold: 12 },
     troops: { raider: 40, pikeman: 3 },
     away: { outrider: 5 },
   });

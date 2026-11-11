@@ -152,13 +152,13 @@ describe('resolveBattle', () => {
     const si = 2000 / 2600;
     const sc = 1 - si;
     const dUnits = 20 * (15 * si + 45 * sc) + 10 * (45 * si + 25 * sc);
-    assert.ok(near(mixed.defensePower, (dUnits + 20 + 15 * 2) * (1 + 0.05 * 2), 1e-9));
+    assert.ok(near(mixed.defensePower, (dUnits + 20 + 14 * 2) * (1 + 0.045 * 2), 1e-9));
     assert.ok(near(mixed.attackPower, 2600 * (1 + mixed.luck), 1e-9));
 
     const infantryOnly = resolveBattle({ attackerUnits: units({ raider: 10 }), defender, seed: 3 });
-    assert.ok(near(infantryOnly.defensePower, (20 * 15 + 10 * 45 + 20 + 30) * 1.1, 1e-9));
+    assert.ok(near(infantryOnly.defensePower, (20 * 15 + 10 * 45 + 20 + 28) * 1.09, 1e-9));
     const cavalryOnly = resolveBattle({ attackerUnits: units({ outrider: 10 }), defender, seed: 3 });
-    assert.ok(near(cavalryOnly.defensePower, (20 * 45 + 10 * 25 + 20 + 30) * 1.1, 1e-9));
+    assert.ok(near(cavalryOnly.defensePower, (20 * 45 + 10 * 25 + 20 + 28) * 1.09, 1e-9));
   });
 
   it('attacker wins: loses (D/A)^1.5 of each unit, every defender dies', () => {
@@ -309,15 +309,15 @@ describe('applying battle results', () => {
   });
 
   it('applyReturn settles, brings survivors home and adds loot clamped to the cap', () => {
-    const o = village({ troops: { raider: 3 }, away: { raider: 7 }, resources: { wood: 900, food: 100, iron: 100, gold: 1500 } });
-    const out = applyReturn(o, units({ raider: 7 }), { wood: 500, food: 200, iron: 0, gold: 40 }, HOUR, S1);
+    const o = village({ troops: { raider: 3 }, away: { raider: 7 }, resources: { wood: 900, food: 100, iron: 100, gold: 2500 } });
+    const out = applyReturn(o, units({ raider: 7 }), { wood: 1500, food: 200, iron: 0, gold: 40 }, HOUR, S1);
     assert.equal(out.lastUpdate, HOUR);
     assert.equal(out.away.raider, 0);
     assert.equal(out.troops.raider, 10);
-    assert.equal(storageCap(out), 1000);
-    assert.equal(out.resources.wood, 1000); // 930 produced + 500 loot, clamped
-    assert.ok(out.resources.food > 100 + 200 - 1e-6 && out.resources.food < 1000); // production, plus loot
-    assert.equal(out.resources.gold, 1500); // above the cap already: left alone
+    assert.equal(storageCap(out), 1800);
+    assert.equal(out.resources.wood, 1800); // 954 + 1500 loot, clamped
+    assert.ok(out.resources.food > 100 + 200 - 1e-6 && out.resources.food < 1800); // production, plus loot
+    assert.equal(out.resources.gold, 2500); // above the cap already: left alone
   });
 
   it('a full raid round trip keeps units and loot consistent', () => {

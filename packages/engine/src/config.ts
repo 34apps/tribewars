@@ -76,23 +76,29 @@ export const MAX_TRAIN_BATCH = 1000;
 
 /** Production per hour at level 1 (speed 1). Level L gives base * PRODUCTION_GROWTH^(L-1). */
 export const PRODUCTION_BASE: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
-  lumber: 30,
-  farm: 40,
-  mine: 30,
+  lumber: 54,
+  farm: 72,
+  mine: 54,
   goldmine: 3, // 1/10 of a Lumber Camp (owner, 2026-11-10): gold counts 10x in loot; GAME_DESIGN §2 has the sizing
 };
-export const PRODUCTION_GROWTH = 1.17;
+/** 25 levels (owner 2026-11-11): level 25 makes about 900 wood / 1,200 food / 900 iron an hour; Gold Mine 18 makes 27 gold, as the old level 15 did. */
+export const PRODUCTION_GROWTH: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
+  lumber: 1.1245,
+  farm: 1.1245,
+  mine: 1.1245,
+  goldmine: 1.138,
+};
 /** Wood/food/iron trickle per hour when the producing building is level 0. Gold has none. */
-export const PRODUCTION_LEVEL0 = 5;
+export const PRODUCTION_LEVEL0 = 9;
 
 /** Storehouse cap per resource: level 0 -> STORAGE_LEVEL0, level L -> base * growth^(L-1). */
-export const STORAGE_LEVEL0 = 800;
-export const STORAGE_BASE = 1000;
-export const STORAGE_GROWTH = 1.24;
+export const STORAGE_LEVEL0 = 1350;
+export const STORAGE_BASE = 1800;
+export const STORAGE_GROWTH = 1.177; // level 25 holds about 90,000
 
 /** Vault: resources per type raiders can't take. Level 0 -> 0, level L -> base * growth^(L-1). */
 export const VAULT_BASE = 120;
-export const VAULT_GROWTH = 1.35;
+export const VAULT_GROWTH = 1.28; // 12 levels: level 12 hides about 1,800, what the old level 10 hid
 
 /**
  * Population: a second limit next to food. Every building level and every troop (home, away or in training)
@@ -115,23 +121,23 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   wall: 2,
   vault: 2,
 };
-export const POP_BUILDING_GROWTH = 1.1;
+export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes about what a 20-level one did
 /** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
 export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, logram: 3, boulder: 2 };
 /** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
-export const POP_CAP_BASE = 150;
-export const POP_CAP_GROWTH = 1.2;
+export const POP_CAP_BASE = 151;
+export const POP_CAP_GROWTH = 1.2; // level 25 = about 12,000 (owner 2026-11-11): room for a big mixed army
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
-export const HALL_TIME_FACTOR = 0.95;
+export const HALL_TIME_FACTOR = 0.96; // 25 levels: the max level speeds construction as much as the old level 20 did (x0.38)
 /** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
 export const TRAIN_TIME_FACTOR = 0.94;
 
 /** Wall: defense * (1 + WALL_BONUS_PER_LEVEL * level), plus militia WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * level. */
-export const WALL_BONUS_PER_LEVEL = 0.05;
+export const WALL_BONUS_PER_LEVEL = 0.045; // 22 levels: level 22 = +99%, as the old level 20 (+100%)
 export const WALL_BASE_DEFENSE = 20;
-export const WALL_DEFENSE_PER_LEVEL = 15;
+export const WALL_DEFENSE_PER_LEVEL = 14;
 
 /** Battle: loser-side loss ratio = (weaker / stronger) ^ BATTLE_LOSS_EXPONENT. Luck is +-BATTLE_LUCK. */
 export const BATTLE_LOSS_EXPONENT = 1.5;
@@ -143,6 +149,12 @@ export const BATTLE_LUCK = 0.1;
  */
 export const MORALE_SMALL_SHARE = 1 / 3;
 export const MORALE_ATTACK_FACTOR = 0.75;
+
+/**
+ * Abandoned villages produce this share of what the same levels would (their stock is the loot raiders live on; the 25-level economy with
+ * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13). Players are never affected.
+ */
+export const NPC_PRODUCTION_FACTOR = 0.5;
 
 /** Abandoned villages. */
 export const NPC_MAX_LEVEL = 7;
@@ -168,85 +180,85 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     id: 'hall',
     name: 'Town Hall',
     description: 'Heart of the village. Each level makes construction faster and unlocks new buildings.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(90, 80, 70),
-    costGrowth: 1.26,
+    baseCost: res(135, 120, 105),
+    costGrowth: 1.23,
     baseTimeSec: 600,
-    timeGrowth: 1.32,
+    timeGrowth: 1.285,
   },
   lumber: {
     id: 'lumber',
     name: 'Lumber Camp',
     description: 'Woodcutters bring in wood every hour.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(50, 40, 30),
-    costGrowth: 1.25,
+    baseCost: res(75, 60, 45),
+    costGrowth: 1.207,
     baseTimeSec: 360,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   farm: {
     id: 'farm',
     name: 'Farm',
     description: 'Grows food and sets how many people the village can hold, so a bigger Farm means room for a bigger army.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(60, 30, 30),
-    costGrowth: 1.25,
+    baseCost: res(90, 45, 45),
+    costGrowth: 1.207,
     baseTimeSec: 360,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   mine: {
     id: 'mine',
     name: 'Iron Mine',
     description: 'Miners dig iron for weapons and stronger buildings.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(65, 45, 20),
-    costGrowth: 1.25,
+    baseCost: res(100, 70, 30),
+    costGrowth: 1.207,
     baseTimeSec: 420,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   goldmine: {
     id: 'goldmine',
     name: 'Gold Mine',
     description: 'Slowly produces gold, used for elite troops (Knights), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
-    maxLevel: 15,
+    maxLevel: 18,
     startLevel: 0,
     requires: { hall: 3 },
-    baseCost: res(150, 120, 180),
-    costGrowth: 1.3,
+    baseCost: res(225, 180, 270),
+    costGrowth: 1.22,
     baseTimeSec: 1500,
-    timeGrowth: 1.32,
+    timeGrowth: 1.275,
   },
   market: {
     id: 'market',
     name: 'Market',
     description: 'Traders carry resources to your other villages and to friends. Higher levels carry more per shipment.',
-    maxLevel: 10,
+    maxLevel: 12,
     startLevel: 0,
     requires: { hall: 3 },
-    baseCost: res(100, 70, 60),
-    costGrowth: 1.27,
+    baseCost: res(150, 105, 90),
+    costGrowth: 1.205,
     baseTimeSec: 1200,
-    timeGrowth: 1.3,
+    timeGrowth: 1.26,
   },
   storehouse: {
     id: 'storehouse',
     name: 'Storehouse',
     description: 'Raises how much of each resource the village can hold.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(70, 50, 40),
-    costGrowth: 1.24,
+    baseCost: res(105, 75, 60),
+    costGrowth: 1.207,
     baseTimeSec: 480,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   barracks: {
     id: 'barracks',
@@ -255,22 +267,22 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     maxLevel: 20,
     startLevel: 0,
     requires: { hall: 2 },
-    baseCost: res(200, 150, 120),
-    costGrowth: 1.26,
+    baseCost: res(300, 225, 180),
+    costGrowth: 1.23,
     baseTimeSec: 900,
-    timeGrowth: 1.32,
+    timeGrowth: 1.285,
   },
   stables: {
     id: 'stables',
     name: 'Stables',
     description: 'Trains fast cavalry that can carry more loot.',
-    maxLevel: 15,
+    maxLevel: 18,
     startLevel: 0,
     requires: { hall: 5, barracks: 3 },
-    baseCost: res(260, 200, 300, 20),
-    costGrowth: 1.27,
+    baseCost: res(390, 300, 450, 20),
+    costGrowth: 1.22,
     baseTimeSec: 1800,
-    timeGrowth: 1.32,
+    timeGrowth: 1.275,
   },
   drillyard: {
     id: 'drillyard',
@@ -279,10 +291,10 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     maxLevel: 10,
     startLevel: 0,
     requires: { barracks: 3, hall: 5 },
-    baseCost: res(240, 180, 260, 15),
-    costGrowth: 1.28,
+    baseCost: res(360, 270, 390, 15),
+    costGrowth: 1.245,
     baseTimeSec: 1500,
-    timeGrowth: 1.32,
+    timeGrowth: 1.3,
   },
   bannerhall: {
     id: 'bannerhall',
@@ -293,7 +305,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 7, drillyard: 2, market: 2, storehouse: 6 },
     // Tuned with the sim (2026-11-04): the first design numbers (Hall 10, Drillyard 3, Market 3, Storehouse 8, 8000 each) put
     // the raider's Banner Hall after day 28. 2500 per resource fits the Storehouse level 6 that is required (cap 2930).
-    baseCost: res(1800, 2900, 1800, 100),
+    baseCost: res(2100, 3450, 2100, 100),
     costGrowth: 1.35,
     baseTimeSec: 72000,
     timeGrowth: 1.32,
@@ -302,25 +314,25 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     id: 'wall',
     name: 'Wall',
     description: 'Makes defenders stronger and adds village militia.',
-    maxLevel: 20,
+    maxLevel: 22,
     startLevel: 0,
     requires: { barracks: 1 },
-    baseCost: res(100, 40, 60),
-    costGrowth: 1.26,
+    baseCost: res(150, 60, 90),
+    costGrowth: 1.21,
     baseTimeSec: 720,
-    timeGrowth: 1.32,
+    timeGrowth: 1.265,
   },
   vault: {
     id: 'vault',
     name: 'Hidden Vault',
     description: 'Hides some of each resource so raiders cannot take it.',
-    maxLevel: 10,
+    maxLevel: 12,
     startLevel: 0,
     requires: { hall: 2 },
-    baseCost: res(40, 50, 30),
-    costGrowth: 1.28,
+    baseCost: res(60, 75, 45),
+    costGrowth: 1.225,
     baseTimeSec: 540,
-    timeGrowth: 1.32,
+    timeGrowth: 1.28,
   },
 };
 
@@ -335,7 +347,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 45,
     speed: 6,
     carry: 15,
-    cost: res(30, 50, 30),
+    cost: res(15, 25, 15),
     trainTimeSec: 270,
     building: 'barracks',
     requires: { barracks: 1 },
@@ -350,7 +362,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 25,
     speed: 5,
     carry: 10,
-    cost: res(25, 70, 55),
+    cost: res(15, 35, 30),
     trainTimeSec: 330,
     building: 'barracks',
     requires: { barracks: 3 },
@@ -366,7 +378,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 5,
     speed: 6,
     carry: 30,
-    cost: res(40, 80, 50),
+    cost: res(20, 40, 30),
     trainTimeSec: 300,
     building: 'barracks',
     requires: { barracks: 2 },
@@ -381,7 +393,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 15,
     speed: 14,
     carry: 70,
-    cost: res(60, 170, 130),
+    cost: res(35, 85, 70),
     trainTimeSec: 600,
     building: 'stables',
     requires: { stables: 1 },
@@ -397,7 +409,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 50,
     speed: 10,
     carry: 40,
-    cost: res(100, 260, 230, 30),
+    cost: res(55, 130, 125, 16),
     trainTimeSec: 1320,
     building: 'stables',
     requires: { stables: 5, hall: 10 },
@@ -413,7 +425,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 1,
     speed: 18,
     carry: 0,
-    cost: res(15, 45, 30),
+    cost: res(10, 25, 15),
     trainTimeSec: 180,
     building: 'barracks',
     requires: { barracks: 2 },
@@ -428,7 +440,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 10,
     speed: 5,
     carry: 0,
-    cost: res(4000, 3000, 5000), // no gold: his gold price is paid from the War Chest (WAR_CHEST_BASE)
+    cost: res(6000, 4500, 7500), // x1.5 with the economy (2026-11-11); no gold: his gold price is paid from the War Chest (WAR_CHEST_BASE)
     trainTimeSec: 6 * 3600,
     building: 'bannerhall',
     requires: { bannerhall: 1 },
@@ -445,7 +457,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 4,
     speed: 3,
     carry: 0,
-    cost: res(170, 220, 180, 4),
+    cost: res(95, 120, 100, 2),
     trainTimeSec: 1200,
     building: 'barracks',
     requires: { barracks: 5 },
@@ -462,7 +474,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 3,
     speed: 4,
     carry: 0,
-    cost: res(140, 240, 220, 12),
+    cost: res(75, 130, 120, 7),
     trainTimeSec: 1500,
     building: 'barracks',
     requires: { barracks: 8 },
@@ -520,7 +532,7 @@ export const RENOWN_PAIR_WINDOW_HOURS = 24;
 export const RENOWN_SMALL_RATIO = 0.5;
 export const RENOWN_SMALL_FLOOR = 0.05;
 /** Renown price of the 2nd village; each further village costs RENOWN_VILLAGE_GROWTH times more. */
-export const RENOWN_VILLAGE_BASE = 1000;
+export const RENOWN_VILLAGE_BASE = 1300; // was 1,000 before the 2026-11-11 economy (x1.5 production, cheaper troops)
 export const RENOWN_VILLAGE_GROWTH = 1.6;
 /** War Chest gold the 2nd village's Chieftain reserves (BALANCE 12.3); each further one costs RENOWN_VILLAGE_GROWTH times more. */
 export const WAR_CHEST_BASE = 2000;
@@ -563,7 +575,7 @@ export const RESTART_PROTECTION_HOURS = 48;
 /** The restart spot lies within this many tiles inside the edge of the populated disc. */
 export const RESTART_EDGE_BAND = 2;
 /** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
-export const FEAST_COST: Resources = res(400, 1000, 400, 0);
+export const FEAST_COST: Resources = res(600, 1500, 600, 0); // x1.5 with the economy (2026-11-11)
 export const FEAST_RENOWN = 10;
 /** Feasts per village per window, per Banner Hall level. */
 export const FEAST_DAILY_PER_LEVEL = 3;

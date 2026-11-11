@@ -81,22 +81,22 @@ describe('settleVillage', () => {
   it('accrues production per hour and respects world speed', () => {
     const v = village();
     const out = settleVillage(v, HOUR / 2, S1);
-    assert.ok(near(out.resources.wood, 615));
-    assert.ok(near(out.resources.food, 620));
+    assert.ok(near(out.resources.wood, 627));
+    assert.ok(near(out.resources.food, 636));
     assert.ok(near(out.resources.gold, 100));
     assert.equal(out.lastUpdate, HOUR / 2);
     const fast = settleVillage(v, HOUR / 2, S10);
-    assert.ok(near(fast.resources.wood, 750));
+    assert.ok(near(fast.resources.wood, 870));
   });
 
   it('applies new production rates from the moment a build completes', () => {
-    const v = applyBuild(village(), 'lumber', 0, S1); // level 2 takes 468 s, costs 63/50/38
-    assert.equal(v.buildQueue[0]?.finishAt, 468_000);
+    const v = applyBuild(village(), 'lumber', 0, S1); // level 2 takes 454.32 s, costs 91 wood / 72 food / 54 iron
+    assert.equal(v.buildQueue[0]?.finishAt, 454_320);
     const out = settleVillage(v, HOUR, S1);
     assert.equal(out.buildings.lumber, 2);
     assert.equal(out.buildQueue.length, 0);
-    // 537 left after paying; 30/h for 468 s, then 35/h (level 2 = round(30*1.17)) for the remaining 3132 s
-    assert.ok(near(out.resources.wood, 537 + (30 * 468) / 3600 + (35 * 3132) / 3600, 1e-6));
+    // 509 left after paying; 54/h for 454.32 s, then 61/h (level 2 = round(54*1.1245)) for the remaining 3145.68 s
+    assert.ok(near(out.resources.wood, 509 + (54 * 454.32) / 3600 + (61 * 3145.68) / 3600, 1e-6));
     // Settling in two steps gives the same result as one.
     const half = settleVillage(v, 1_800_000, S1);
     assert.deepEqual(settleVillage(half, HOUR, S1).resources, out.resources);
@@ -117,22 +117,22 @@ describe('settleVillage', () => {
   });
 
   it('clamps to the storage cap and never reduces an amount already above it', () => {
-    const v = village({ resources: { wood: 990, gold: 1500 } });
+    const v = village({ resources: { wood: 990, gold: 2500 } });
     const out = settleVillage(v, 100 * HOUR, S1);
-    assert.equal(out.resources.wood, 1000);
-    assert.equal(out.resources.food, 1000);
-    assert.equal(out.resources.iron, 1000);
-    assert.equal(out.resources.gold, 1500); // above cap: untouched
+    assert.equal(out.resources.wood, 1800);
+    assert.equal(out.resources.food, 1800);
+    assert.equal(out.resources.iron, 1800);
+    assert.equal(out.resources.gold, 2500); // above cap: untouched
   });
 
   it('uses the old cap until a storehouse upgrade finishes', () => {
-    const v = village({ resources: { wood: 990 } });
+    const v = village({ resources: { wood: 1790 } });
     v.buildQueue.push({ building: 'storehouse', targetLevel: 2, startAt: 0, finishAt: HOUR });
     const atFinish = settleVillage(v, HOUR, S1);
-    assert.equal(atFinish.resources.wood, 1000); // clamped by the old cap (would be 1020)
+    assert.equal(atFinish.resources.wood, 1800); // clamped by the old cap (would be 1844)
     assert.equal(atFinish.buildings.storehouse, 2);
     const later = settleVillage(v, 2 * HOUR, S1);
-    assert.ok(near(later.resources.wood, 1030)); // new cap 1240 applies after completion
+    assert.ok(near(later.resources.wood, 1854)); // new cap 2119 applies after completion
   });
 
   it('trains units one by one and drops finished batches', () => {
@@ -165,19 +165,19 @@ describe('settleVillage', () => {
     const v = applyTrain(v0, 'pikeman', 10, 0, S1); // pays the food; 270 s per unit
     const mid = settleVillage(v, 1_350_000, S1);
     assert.equal(mid.troops.pikeman, 5);
-    assert.ok(near(mid.resources.food, foodLeft + (40 * 1350) / 3600));
+    assert.ok(near(mid.resources.food, foodLeft + (72 * 1350) / 3600));
     const end = settleVillage(v, 2 * HOUR, S1);
     assert.equal(end.troops.pikeman, 10);
-    assert.ok(near(end.resources.food, foodLeft + 40 * 2));
+    assert.ok(near(end.resources.food, foodLeft + 72 * 2));
     const big = village({ troops: { pikeman: 200 }, away: { raider: 50 }, resources: { food: 10 } });
-    assert.ok(near(settleVillage(big, 5 * HOUR, S1).resources.food, 10 + 40 * 5));
+    assert.ok(near(settleVillage(big, 5 * HOUR, S1).resources.food, 10 + 72 * 5));
   });
 
   it('abandoned villages produce like any village', () => {
     const v = createNpcVillage(1, 0);
     const out = settleVillage(v, HOUR / 4, NO_SELF_BUILD);
-    // level 2 farm = round(40*1.17) = 47/h
-    assert.ok(near(out.resources.food, v.resources.food + 47 / 4, 1e-6));
+    // level 2 farm = round(72*1.1245) = 81/h, and abandoned villages produce NPC_PRODUCTION_FACTOR (0.5) of that
+    assert.ok(near(out.resources.food, v.resources.food + (81 * 0.5) / 4, 1e-6));
   });
 });
 
@@ -268,7 +268,7 @@ describe('abandoned village builds from its own stock (owner 2026-11-05)', () =>
     assert.deepEqual(a.buildings, player.buildings);
     assert.deepEqual(a.resources, player.resources);
     assert.equal(a.npc?.growthSeed, 1);
-    const firstBuild = (seed: number): string => settleVillage(createNpcVillage(1, 0, seed), 1, S1).buildQueue[0]!.building;
+    const firstBuild = (seed: number): string => JSON.stringify(settleVillage(createNpcVillage(1, 0, seed), 20 * HOUR, S1).buildings); // what it built first, by the seeded order
     assert.equal(firstBuild(7), firstBuild(7));
     assert.ok(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(firstBuild)).size > 1);
   });
@@ -330,12 +330,12 @@ describe('checkBuild / applyBuild', () => {
     assert.ok(c.ok);
     if (c.ok) {
       assert.equal(c.targetLevel, 2);
-      assert.deepEqual(c.cost, { wood: 63, food: 50, iron: 38, gold: 0 });
-      assert.equal(c.timeMs, 468_000);
+      assert.deepEqual(c.cost, { wood: 91, food: 72, iron: 54, gold: 0 });
+      assert.equal(c.timeMs, 454_320);
     }
     const out = applyBuild(v, 'lumber', 5_000, S1);
-    assert.deepEqual(out.buildQueue, [{ building: 'lumber', targetLevel: 2, startAt: 5_000, finishAt: 473_000 }]);
-    assert.ok(near(out.resources.wood, 600 + 30 * (5 / 3600) - 63));
+    assert.deepEqual(out.buildQueue, [{ building: 'lumber', targetLevel: 2, startAt: 5_000, finishAt: 459_320 }]);
+    assert.ok(near(out.resources.wood, 600 + 54 * (5 / 3600) - 91));
   });
 
   it('the same building twice targets the next level and starts after the first job', () => {
@@ -344,8 +344,8 @@ describe('checkBuild / applyBuild', () => {
     assert.deepEqual(
       v.buildQueue.map((j) => [j.targetLevel, j.startAt, j.finishAt]),
       [
-        [2, 0, 468_000],
-        [3, 468_000, 468_000 + 608_400],
+        [2, 0, 454_320],
+        [3, 454_320, 454_320 + 573_352],
       ],
     );
   });
@@ -374,7 +374,7 @@ describe('checkBuild / applyBuild', () => {
     assert.equal(reason(village({ buildings: { hall: 1 } }), 'barracks'), 'requirements_not_met');
     assert.equal(reason(village({ buildings: { hall: 2 } }), 'barracks'), undefined);
     assert.equal(reason(village(), 'goldmine'), 'requirements_not_met');
-    assert.equal(reason(village({ buildings: { lumber: 20 } }), 'lumber'), 'max_level');
+    assert.equal(reason(village({ buildings: { lumber: 25 } }), 'lumber'), 'max_level');
     assert.equal(reason(village({ resources: { wood: 10 } }), 'lumber'), 'not_enough_resources');
     // Level 20 hall costs 7266 wood, more than a level 1 storehouse (1000) can ever hold.
     const rich = village({ buildings: { hall: 19 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
@@ -386,9 +386,9 @@ describe('checkBuild / applyBuild', () => {
   });
 
   it('max level counts jobs already queued', () => {
-    const v0 = village({ buildings: { vault: 9, hall: 3 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
+    const v0 = village({ buildings: { vault: 11, hall: 3 }, resources: { wood: 1000, food: 1000, iron: 1000 } });
     const first = checkBuild(v0, 'vault', 0, S1);
-    assert.ok(first.ok && first.targetLevel === 10);
+    assert.ok(first.ok && first.targetLevel === 12);
     const v1 = applyBuild(v0, 'vault', 0, S1);
     const second = checkBuild(v1, 'vault', 0, S1);
     assert.ok(!second.ok && second.reason === 'max_level');
@@ -505,7 +505,7 @@ describe('checkTrain / applyTrain', () => {
   });
 
   it('refuses when resources are short', () => {
-    const v = village({ buildings: { barracks: 1 }, resources: { wood: 100 } });
+    const v = village({ buildings: { barracks: 1 }, resources: { wood: 50 } });
     const c = checkTrain(v, 'pikeman', 5, 0, S1);
     assert.ok(!c.ok && c.reason === 'not_enough_resources');
     expectGameError(() => applyTrain(v, 'pikeman', 5, 0, S1), 'not_enough_resources');

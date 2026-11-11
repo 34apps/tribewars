@@ -3,6 +3,7 @@
 import {
   BUILDINGS,
   HALL_TIME_FACTOR,
+  NPC_PRODUCTION_FACTOR,
   POP_BUILDING_FIRST,
   POP_BUILDING_GROWTH,
   POP_CAP_BASE,
@@ -47,7 +48,7 @@ export function productionFromLevels(levels: BuildingLevels, speed: number): Res
     const level = levels[producer];
     let perHour: number;
     if (level <= 0) perHour = r === 'gold' ? 0 : PRODUCTION_LEVEL0;
-    else perHour = Math.round(PRODUCTION_BASE[producer] * ipow(PRODUCTION_GROWTH, level - 1));
+    else perHour = Math.round(PRODUCTION_BASE[producer] * ipow(PRODUCTION_GROWTH[producer], level - 1));
     out[r] = perHour * speed;
   }
   return out;
@@ -55,7 +56,7 @@ export function productionFromLevels(levels: BuildingLevels, speed: number): Res
 
 /** Production per hour, speed applied. Troops eat nothing (owner, 2026-11-05), so this is also the net rate. */
 export function productionPerHour(state: VillageState, s: WorldSettings): Resources {
-  return productionFromLevels(state.buildings, s.speed);
+  return productionFromLevels(state.buildings, s.speed * (state.npc ? NPC_PRODUCTION_FACTOR : 1));
 }
 
 /** Population taken by `b` at `level`. */

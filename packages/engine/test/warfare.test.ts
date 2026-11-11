@@ -200,7 +200,7 @@ describe('resolveBattle with support', () => {
     const perUnit = (inf: number, cav: number): number => inf * si + cav * sc;
     const dUnits =
       (10 + 5) * perUnit(15, 45) + 8 * perUnit(45, 25) + 3 * perUnit(2, 1) + 1 * perUnit(70, 50);
-    assert.ok(near(r.defensePower, (dUnits + 20 + 15 * 2) * 1.1, 1e-9));
+    assert.ok(near(r.defensePower, (dUnits + 20 + 14 * 2) * 1.09, 1e-9));
   });
 
   it('one contingent, defender wins: every group loses round(count * (A/D)^1.5)', () => {

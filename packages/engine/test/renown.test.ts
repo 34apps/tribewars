@@ -53,9 +53,9 @@ const expectGameError = (fn: () => unknown, code: string): void => {
 };
 const res = (wood = 0, food = 0, iron = 0, gold = 0): Resources => ({ wood, food, iron, gold });
 
-/** A village able to hold the Feast cost (Storehouse 11 holds 8594 of each). */
-const feastVillage = (bannerhall: number, stock = 6000): VillageState =>
-  village({ buildings: { bannerhall, storehouse: 11 }, resources: res(stock, stock, stock, 0) });
+/** A village able to hold the Feast cost (Storehouse 20 holds about 39,000 of each). */
+const feastVillage = (bannerhall: number, stock = 20000): VillageState =>
+  village({ buildings: { bannerhall, storehouse: 20 }, resources: res(stock, stock, stock, 0) });
 
 describe('Banner Hall building', () => {
   it('is defined with the designed requirements', () => {
@@ -68,7 +68,7 @@ describe('Banner Hall building', () => {
 
   it('can be started once the requirements and a big enough Storehouse are there', () => {
     const base = { hall: 7, drillyard: 2, market: 2, farm: 15, storehouse: 6 };
-    const rich = res(2930, 2930, 2930, 200);
+    const rich = res(3600, 3600, 3600, 200); // Storehouse 6 holds 4,050
     assert.ok(checkBuild(village({ buildings: base, resources: rich }), 'bannerhall', 0, S1).ok);
     // A Storehouse that cannot hold the cost gives a clear message, not a silent dead end.
     const small = checkBuild(village({ buildings: { ...base, storehouse: 4 }, resources: res(9000, 9000, 9000, 400) }), 'bannerhall', 0, S1);
@@ -90,10 +90,10 @@ describe('cost of a new village', () => {
     assert.equal(villageRenownCost(2), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH));
     assert.equal(villageRenownCost(3), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH ** 2));
     assert.equal(villageRenownCost(5), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH ** 4));
-    assert.equal(villageRenownCost(1), 1000);
-    assert.equal(villageRenownCost(2), 1600);
-    assert.equal(villageRenownCost(3), 2560);
-    assert.equal(villageRenownCost(5), 6554);
+    assert.equal(villageRenownCost(1), 1300);
+    assert.equal(villageRenownCost(2), 2080);
+    assert.equal(villageRenownCost(3), 3328);
+    assert.equal(villageRenownCost(5), 8520);
   });
 
   it('treats nonsense counts as one village', () => {
@@ -108,7 +108,7 @@ describe('cost of a new village', () => {
   });
 
   it('shows floored numbers in RenownInfo', () => {
-    assert.deepEqual(makeRenownInfo(100.9, 40.2, 2), { total: 100, spent: 40, balance: 60, nextVillageCost: 1600, villages: 2 });
+    assert.deepEqual(makeRenownInfo(100.9, 40.2, 2), { total: 100, spent: 40, balance: 60, nextVillageCost: 2080, villages: 2 });
     assert.equal(makeRenownInfo(10, 10, 1).balance, 0);
   });
 });
@@ -215,11 +215,11 @@ describe('Feast', () => {
     }
     const out = applyFeast(v, 2, 0, S1);
     assert.equal(out.renown, FEAST_RENOWN * 2);
-    assert.equal(out.state.resources.wood, 6000 - FEAST_COST.wood * 2);
-    assert.equal(out.state.resources.iron, 6000 - FEAST_COST.iron * 2);
+    assert.equal(out.state.resources.wood, 20000 - FEAST_COST.wood * 2);
+    assert.equal(out.state.resources.iron, 20000 - FEAST_COST.iron * 2);
     assert.equal(out.state.resources.gold, 0);
     assert.deepEqual(out.state.feast, { windowStart: 0, count: 2 });
-    assert.equal(v.resources.wood, 6000); // input untouched
+    assert.equal(v.resources.wood, 20000); // input untouched
   });
 
   it('refuses when resources are short', () => {
@@ -416,7 +416,7 @@ describe('battle value shares', () => {
 describe('battleRenown', () => {
   const party = { eligible: true, points: 1000 };
   const base = {
-    result: result({ loot: res(300, 300, 300, 0), defenderLosses: units({ pikeman: 10 }), attackerLosses: units({ raider: 2 }) }),
+    result: result({ loot: res(300, 300, 300, 0), defenderLosses: units({ pikeman: 10 }), attackerLosses: units({ raider: 4 }) }),
     attacker: party,
     defender: party,
     pairValue: () => 0,
@@ -430,7 +430,7 @@ describe('battleRenown', () => {
     assert.ok(near(att.renown, pairRenown(0, raw)));
     assert.equal(att.skipped, undefined);
     const def = awards[1]!;
-    assert.ok(near(def.counted, troopValue(units({ raider: 2 })) * RENOWN_PER_KILL_VALUE));
+    assert.ok(near(def.counted, troopValue(units({ raider: 4 })) * RENOWN_PER_KILL_VALUE));
   });
 
   it('uses the pair history of each earner', () => {
@@ -474,7 +474,7 @@ describe('battleRenown', () => {
   });
 
   it('splits defence credit to support owners with their own eligibility', () => {
-    const r = result({ attackerLosses: units({ raider: 10 }), attackerSurvivors: units({}), defenderUnits: units({ pikeman: 10 }) });
+    const r = result({ attackerLosses: units({ raider: 20 }), attackerSurvivors: units({}), defenderUnits: units({ pikeman: 10 }) });
     const awards = battleRenown({
       result: r,
       context: { support: [units({ guard: 10 })] },

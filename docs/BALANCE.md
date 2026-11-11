@@ -759,3 +759,43 @@ players would deposit when they choose.
 2nd village unchanged), with the deposit as the player's own action ("Pay into the War Chest", amount chosen) so villages keep gold
 unless the player moves it (not simulated: the sim always moves all gold, so the side effect should be smaller in play). Otherwise keep **A**. Drop B. Speed for players: C 2,000 makes expansion after the 3rd village about
 10-15% slower for builders and defenders, about the same for raiders. Owner to pick A or C (and the base); engine/server/UI only after that.
+
+## 13. 25-level ladder, 12,000 room, cheaper troops (owner/lead 2026-11-11; originality piece 1)
+
+Changes in `config.ts` (details and the table in GAME_DESIGN §3): max levels Town Hall / Lumber / Farm / Mine / Storehouse 25, Barracks 20,
+Wall 22, Stables and Gold Mine 18, Market and Vault 12, Drillyard 10, Banner Hall 4; production, storage and Farm room curves hit about
+900 / 1,200 / 900 an hour, 90,000 and 12,000 at level 25; building costs x1.5 (wood/food/iron); troop costs x0.55 (food x0.5); Chieftain and Feast x1.5;
+2nd village 1,000 -> 1,300 Renown; abandoned villages produce 0.5x (`NPC_PRODUCTION_FACTOR`). Raw: `docs/sim/2026-11-11-levels25-*.txt`.
+
+**Numbers asked for**
+- **Days to fill the 12,000 room** (one maxed village, own production only, ignoring the Barracks queue): mixed army 13.6 days, raider-heavy 15.2,
+  defender 12.2 (target 12-15). The training queues are nearly as tight: one Barracks needs 10-13 days for 11,700 population of foot troops
+  at x0.31 training time, so a player with two Barracks fills it faster than income allows.
+- **Days to max a village** (every building, one after the other, Town Hall at 25 = x0.38 time): 24.8 days at speed 1 (before: 18); the last Town Hall level takes
+  26 h, the last Lumber Camp level 10 h. With the Town Hall climbing as it goes it takes about 31 days (the same order on the old ladder: 23).
+
+**30 days, seed 20261104 (builder / raider / turtle / balanced), versus the 2026-11-10 numbers in §12**
+
+| | before (§12) | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 23.1 / 21.0 / 16.2 | 25.9 / **22.1** / 19.1 |
+| score | 12,094 / 22,853 / 5,581 / 29,143 | 10,614 / 20,745 / 5,161 / 27,607 |
+| **raider / builder score** | 1.89x | **1.95x** (target 1.5-2x; was 2.55x before the loot supply lever) |
+
+How the ratio was brought back (builder score is the same in all runs, only the raider moves): x1.5 production with troops x0.55 gave 3.2x. Carry
+x0.55 and abandoned-village top level 4 changed little (the levers that do work are the supply of loot): `NPC_PRODUCTION_FACTOR` 0.5 gives
+2.0x, and Renown 1,800 -> 1,300 puts the raider's 2nd village back at day 22 (1,800 made it day 29). An abandoned village's production is the loot
+raiders live on; players are not affected.
+
+**90 days, one player per style:** 2nd village day 25.9 / 22.1 / 52.8 / 19.1, 3rd 40.4 / 45.4 / 85.9 / 35.1, villages at the end 5 / 3 / 3 / 4
+(before, §12.1: 7 / 3.4 / 3 / 3), points 21,396 / 13,566 / 7,264 / 29,117.
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (before, §12.2, gold 3: 67 takes, 26 restarts): villages taken from players **42**, restarts **21**, raids on
+players 49k, biggest / second biggest (worst seed) **1.81** (target <= 2x). Builders now get their 2nd village on day 58.6 in this crowded world (balanced 16.1,
+raider 51.7, turtle 59.8): the raiders' share of the loot dried up, so builders are raided less but also have less to take; Renown is the limit (wait hours
+in the raw file). Not tuned further.
+
+**Risks and open points.** Raiders and builders expand slower from the 3rd village on than in §12; the preview's computer players need ~31 days
+to their 2nd village (was 15; `apps/preview/test/bots.test.ts` horizon 22 -> 45 days, run limit 8 -> 15 s). Building Renown, siege cost per level and
+points per level keep their formulas, so a maxed 25-level building is worth more of each (points of a maxed village about 27,000, was about 10,000);
+the Banner Hall is 15% dearer in total. Not in the sim: Longhouse/Wrightyard/Firecart (later pieces), the new unit roster.
