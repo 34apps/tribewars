@@ -100,3 +100,68 @@ Pieces 2–5 all touch `config.ts` and the village scene, so they run one after 
 ## Recommendation in one line
 A3 + B2 + C2 (+ C3): a roster and village that no longer read like TW, with fewer and clearer pieces.
 Pace for players stays about the same.
+
+---
+
+# DECIDED 2026-11-11 (owner): A3 + B2 + C2 (C3 not picked) — build spec
+
+Lead's spec for the implementers. Internal ids stay where a role survives (only the shown name, text and art change), so
+saved worlds, routes and tests keep working: `wall` = Palisade, `vault` = Root Cellar, `goldmine` = Gold Sluice,
+`stables` = Elk Pens, `outrider` = Elk Rider, `knight` = Ember Guard. New ids: `longhouse`, `wrightyard`, `firecart`.
+Removed ids: `logram`, `boulder` (migrated to `firecart`). Never use these Tribal Wars numbers (from memory): costs
+90/80/70, 50/60/40, 200/170/90, 270/240/260, 50/100/20, 50/60/50; growth 1.26 / 1.25 / 1.163 / 1.2294 / 1.172; production 30
+at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5, 0/2/1, 130/30/40, 150/200/80.
+
+## Piece 1 — C2: 15 levels in 3 tiers, own curves
+- Tiers: levels 1–5 = tier 1, 6–10 = tier 2, 11–15 = tier 3. Max levels: Town Hall, Lumber Camp, Farm, Iron Mine, Storehouse,
+  Barracks, Palisade, Longhouse, Gold Sluice, Elk Pens, Root Cellar = 15; Market, Drillyard, Wrightyard = 10; Banner Hall stays 4.
+- Tier costs: tier 1 costs wood + food only; tier 2 adds iron; tier 3 adds gold. Buildings whose cost already has gold
+  (Elk Pens, Drillyard, Banner Hall, Wrightyard) pay gold from level 1. Every building gets a `baseCost.gold` used from tier 3.
+- Tier gates: a tier-2 level (6+) needs Town Hall 5, a tier-3 level (11+) needs Town Hall 10 (the Hall itself is exempt).
+  Shown as "Tier 2 needs Town Hall 5" on the building page and in the Town Hall list.
+- Curves (rule: level 15 does what level 20 does today; own clean numbers):
+  production level 1 = 36 wood / 48 food / 36 iron, growth ~1.222 (L15 ≈ 600 / 800 / 600); Gold Sluice so L15 ≈ today's L15 gold;
+  level-0 trickle 6. Storage level 1 = 1,200, growth ~1.32 (L15 ≈ 60,000), level 0 = 900. Population room (Longhouse, piece 2)
+  level 1 = 160, growth ~1.275 (L15 ≈ 4,800), level 0 = 120. Town Hall build speed x0.93 per level; training speed x0.92 per level.
+  Palisade +7% defence per level, militia 20 + 20 per level. Root Cellar 15 levels, L15 hides what Vault L10 hides today.
+  Building population growth 1.14; village points, building Renown and siege points per level rescaled so a maxed
+  building counts as today.
+- Costs and times: per building, own base numbers and growth so the total cost and total time to max each building are within
+  ±5% of today (compute with a script, round to clean numbers, none equal to the list above). Unit unlock levels
+  rescaled ~x0.75 (e.g. Barracks 8 -> 6). Abandoned-village levels x0.75. First-steps "level 2" steps unchanged.
+- Old worlds: levels of buildings that had 20 levels map to round(L x 0.75) (min 1 if it was ≥1), queued building jobs for them
+  are cancelled with a full refund. Others unchanged.
+- Sim: `npm run sim` (+ conquest 90 d x 5 seeds); targets in BALANCE.md (raider 1.5–2x builder, 2nd village day 21–28).
+
+## Piece 2 — Longhouse (Farm split)
+- Longhouse (`longhouse`): sets population room (the curve above); starts at 1, max 15, no requirement, uses no population;
+  cost/time like the Farm. Farm makes food only and uses population like the Lumber Camp. Siege floor 1 for Farm and Longhouse.
+- Old worlds: Longhouse = current Farm level. A queued Farm level finishes as a Farm.
+- First steps: add "Raise the Longhouse to 2". Tips, Farm text, abandoned villages (Longhouse = Farm level), bots, sim.
+
+## Piece 3 — Wrightyard + Firecart
+- Wrightyard (`wrightyard`): trains siege only, own queue; needs Barracks 5; max 10; training x0.92 per level; costs like the Elk Pens.
+- Firecart (`firecart`, replaces Log Ram + Boulder Sling): Wrightyard 1, Drillyard research at 3. During the battle it burns the
+  Palisade (today's ram step); after a won battle the survivors burn the building the sender picked (Palisade if none picked).
+  Own numbers: attack 5, 7 vs foot, 5 vs riders, speed 3, carry 0, population 3, cost 180 wood 160 food 220 iron 10 gold,
+  1,400 s. Same SIEGE_* step rules; max 2 levels per phase.
+- Old worlds: Log Rams + Boulder Slings at home/away -> Firecarts by population (3 per ram, 2 per sling, rounded down /3);
+  queued siege batches and research refunded; villages with Barracks ≥4 (post-remap) get Wrightyard 1 free.
+
+## Piece 4 — B2 names and art hookup
+- Palisade, Root Cellar ("dug under the Storehouse"), Gold Sluice (panning on a stream), Elk Pens: names, descriptions, tips,
+  sprites wired in (art made by the design agent), Town Hall list order.
+
+## Piece 5 — A3 troop roster (own numbers; attack / vs foot / vs riders, speed, carry, pop, cost w/f/i/g, train s)
+| Unit | Where | Line | Notes |
+|---|---|---|---|
+| Pikeman | Barracks 1 | 8 / 14 / 40, speed 6, carry 12, pop 1, 35/45/25, 260 s | holds riders |
+| Shieldbearer | Barracks 3 | 12 / 42 / 22, speed 5, carry 10, pop 1, 30/60/50, 320 s | holds foot; research Drillyard 1 |
+| Raider | Barracks 2 | 36 / 8 / 6, speed 6, carry 28, pop 1, 45/70/45, 290 s | attacker |
+| Pathfinder | Barracks 2 | 0 / 3 / 2, speed 18, carry 0, pop 1, 20/40/25, 170 s | scout |
+| Elk Rider (`outrider`) | Elk Pens 1 | 65 / 18 / 16, speed 13, carry 75, pop 2, 70/160/120, 620 s | the only rider; research Drillyard 3 |
+| Ember Guard (`knight`) | Barracks 8, Town Hall 8 | 70 / 60 / 60, speed 5, carry 20, pop 3, 90/180/200 + 25 gold, 1,100 s | gold elite ON FOOT (infantry); research Drillyard 6 |
+| Firecart | Wrightyard 1 | piece 3 | siege |
+| Chieftain | Banner Hall | unchanged | |
+- Old worlds: Knights stay as Ember Guards 1:1 (now foot, pop 3); Knight batches queued at the Stables finish there.
+- Sim: rerun all modes; tune only these lines if targets miss.
