@@ -5,17 +5,21 @@ import { TERRAINS } from '@clanfire/engine';
 
 const SLOW_NAME: Record<Terrain, string> = { grass: 'grass', forest: 'forest', hills: 'hills', mountain: 'mountains', lake: 'water' };
 
-/** "2.1 fields of hills, 1.4 of forest" for the slow ground on a route; empty when it is all grass (or under a tenth of a field). */
+/** "forest and hills": the slow ground on a route, most first; empty when it is all grass (or under a tenth of a field). */
 export function slowGroundText(route: Route): string {
-  const parts = TERRAINS.filter((t) => t !== 'grass' && route.tiles[t] >= 0.05).map((t) => ({ t, n: route.tiles[t] }));
-  return parts.map((p, i) => `${p.n.toFixed(1)} ${i === 0 ? 'fields of ' : 'of '}${SLOW_NAME[p.t]}`).join(', ');
+  const names = TERRAINS.filter((t) => t !== 'grass' && route.tiles[t] >= 0.05)
+    .sort((a, b) => route.tiles[b] - route.tiles[a])
+    .map((t) => SLOW_NAME[t]);
+  if (names.length < 2) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/** "+12%": how much longer the trip takes than on flat ground; null when it does not. */
-export function slowdownText(flatMs: number, ms: number): string | null {
+/** "Forest and hills on the way: 8% slower" in plain words; null when the ground does not slow the trip. */
+export function slowTripText(route: Route, flatMs: number, ms: number): string | null {
   if (!(flatMs > 0) || !Number.isFinite(ms) || ms <= flatMs) return null;
   const pct = Math.max(1, Math.round((ms / flatMs - 1) * 100));
-  return `+${pct}%`;
+  const ground = slowGroundText(route) || 'rough ground';
+  return `${ground[0]!.toUpperCase()}${ground.slice(1)} on the way: ${pct}% slower`;
 }
 
 /** Shown in a send summary when a Waymark of my tribe shortens the trip. */

@@ -146,6 +146,15 @@
   font: 600 1rem var(--wm-text);
   text-align: center;
   font-variant-numeric: tabular-nums;
+  /* No spinner arrows: they cover the digits in narrow fields ("All N" and the keyboard set the count). */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.wm-input::-webkit-outer-spin-button,
+.wm-input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .wm-input:focus-visible {
@@ -822,6 +831,14 @@
   text-align: right;
 }
 
+/* Arrives: the day ("tomorrow") on its own line under the time, so the tile never cuts it. */
+.wm-sum-day {
+  display: block;
+  color: var(--wm-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
 .wm-sum-slow {
   font-size: 0.76rem;
 }
@@ -1042,21 +1059,10 @@
   outline-offset: 1px;
 }
 
-/* "Without terrain" row of the send preview: the flat time, the slowdown and which ground causes it (can wrap on a phone). */
+/* "Ground" row of the send preview: which ground slows the trip and by how much, in words (can wrap on a phone). */
 .wm-terrain-time dd {
   min-width: 0;
   font-weight: 500;
-}
-
-.wm-terrain-time small {
-  display: block;
-  font-weight: 400;
-  font-size: 0.78rem;
-}
-
-.wm-slow {
-  color: #9a4a1c;
-  font-weight: 700;
 }
 
 /* Map key: dot colours of the route preview (slow ground). */

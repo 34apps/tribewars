@@ -53,15 +53,20 @@ function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+/** Wall-clock time of `ts` and, when it is not today, its day ("tomorrow", "Thu 12 Nov"; '' for today). */
+export function formatClockParts(ts: number, now: number): { time: string; day: string } {
+  const d = new Date(ts);
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  if (sameDay(d, new Date(now))) return { time, day: '' };
+  if (sameDay(d, new Date(now + 86_400_000))) return { time, day: 'tomorrow' };
+  return { time, day: d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) };
+}
+
 /** Wall-clock time of `ts`; adds the day when it is not today. `now` is server-corrected time. */
 export function formatClock(ts: number, now: number): string {
-  const d = new Date(ts);
-  const today = new Date(now);
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-  if (sameDay(d, today)) return time;
-  const tomorrow = new Date(now + 86_400_000);
-  if (sameDay(d, tomorrow)) return `tomorrow ${time}`;
-  return `${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`;
+  const { time, day } = formatClockParts(ts, now);
+  if (day === '') return time;
+  return day === 'tomorrow' ? `tomorrow ${time}` : `${day} ${time}`;
 }
 
 /** "just now", "5m ago", "3h ago", or a date. */

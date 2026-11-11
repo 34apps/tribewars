@@ -12,7 +12,7 @@ import { TroopGroupBar } from '../components/TroopGroups.tsx';
 import { useTroopGroups } from '../hooks/useTroopGroups.ts';
 import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { Icon } from '../art/Icon.tsx';
-import { formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
+import { formatClock, formatClockParts, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { MISSION_NAME } from '../icons.ts';
@@ -54,7 +54,7 @@ import { ShipmentForm } from './ShipmentForm.tsx';
 import { draftFromSend } from '../simulator.ts';
 import { RUIN_NAMES, artUrl, badgeUrl } from './sprites.ts';
 import { TERRAIN_NAME } from './terrain.ts';
-import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
+import { WAYMARK_NOTE, slowTripText } from './travel.ts';
 import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -167,7 +167,7 @@ export function SendForm({
   const preview = total > 0 ? travelPreview(village, tile, chosen, settings, waymarks) : null;
   const waymarkHelps = !!preview && waymarks.length > 0 && preview.ms < travelPreview(village, tile, chosen, settings).ms;
   const travel = preview ? preview.ms : 0;
-  const slowdown = preview ? slowdownText(preview.flatMs, preview.ms) : null;
+  const slowTrip = preview ? slowTripText(preview.route, preview.flatMs, preview.ms) : null;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
   const targetProtected = fights && !relief && !!target && target.protected && target.kind === 'player';
   const breaksProtection = fights && !relief && target?.kind === 'player' && player.protectedUntil > now;
@@ -455,11 +455,7 @@ export function SendForm({
       {compact ? (
         <>
           {total > 0 && waymarkHelps && <p className="wm-muted wm-sum-slow">{WAYMARK_NOTE}</p>}
-          {total > 0 && preview && slowdown && (
-            <p className="wm-muted wm-sum-slow">
-              Flat {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span> {slowGroundText(preview.route)}
-            </p>
-          )}
+          {total > 0 && slowTrip && <p className="wm-muted wm-sum-slow">{slowTrip}</p>}
         </>
       ) : (
         total > 0 &&
@@ -472,13 +468,10 @@ export function SendForm({
                 {waymarkHelps && <small className="wm-muted"> {WAYMARK_NOTE}</small>}
               </dd>
             </div>
-            {preview && slowdown && (
+            {slowTrip && (
               <div className="wm-terrain-time">
-                <dt>Flat</dt>
-                <dd>
-                  {formatDuration(preview.flatMs)} <span className="wm-slow">{slowdown}</span>
-                  <small className="wm-muted"> {slowGroundText(preview.route)}</small>
-                </dd>
+                <dt>Ground</dt>
+                <dd>{slowTrip}</dd>
               </div>
             )}
             <div>
@@ -556,7 +549,7 @@ export function SendForm({
             </div>
             <div>
               <dt>Arrives</dt>
-              <dd>{total > 0 && Number.isFinite(travel) ? formatClock(now + travel, now) : '–'}</dd>
+              <dd>{total > 0 && Number.isFinite(travel) ? <ArriveTime ts={now + travel} now={now} /> : '–'}</dd>
             </div>
             {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
               <div>
@@ -581,6 +574,17 @@ export function SendForm({
         {reason && <div className="wm-why">{reason}</div>}
       </div>
     </form>
+  );
+}
+
+/** Arrival in a small stat tile: the clock time, and the day under it when it is not today (so the tile never cuts it). */
+function ArriveTime({ ts, now }: { ts: number; now: number }) {
+  const { time, day } = formatClockParts(ts, now);
+  return (
+    <>
+      {time}
+      {day && <small className="wm-sum-day">{day}</small>}
+    </>
   );
 }
 

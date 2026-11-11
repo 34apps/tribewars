@@ -608,8 +608,8 @@ html.layout-desktop .wm-ugrid {
 }
 
 html.layout-desktop .wm-ucard {
-  grid-template-columns: 32px minmax(0, 1fr) 52px;
-  gap: 0 6px;
+  grid-template-columns: 32px minmax(0, 1fr) 56px; /* room for a 4-digit count without spinner arrows */
+  gap: 0 5px;
   min-height: 42px;
   padding: 4px 6px 4px 4px;
   border: 0;
@@ -645,7 +645,7 @@ html.layout-desktop .wm-uhave::before {
 html.layout-desktop .wm-ucard .wm-input {
   grid-column: 3;
   grid-row: 1 / 3;
-  width: 52px;
+  width: 56px;
   height: 36px;
   margin: 0;
   padding: 0 4px;
@@ -679,13 +679,13 @@ html.layout-desktop .wm-sum-slow {
   font: 600 13px/1.3 var(--font);
 }
 
-/* Foot: Travel / Arrives / Carry tiles and the big Send button, pinned to the bottom of the panel. */
+/* Foot: Travel / Arrives / Carry tiles and the big Send button, right under the form (no gap above it). */
 html.layout-desktop .wm-send-foot {
   position: static;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: auto 0 0;
+  margin: 2px 0 0;
   padding: 0;
   border: 0;
   background: none;
@@ -733,7 +733,12 @@ html.layout-desktop .wm-sum dt {
 html.layout-desktop .wm-sum dd {
   color: var(--heading);
   font: 700 16px/1.2 var(--font);
-  white-space: nowrap;
+  overflow-wrap: anywhere; /* a long value wraps inside its tile instead of being cut */
+}
+
+html.layout-desktop .wm-sum-day {
+  color: var(--on-surface-muted);
+  font: 600 13px/1.2 var(--font);
 }
 
 html.layout-desktop .wm-send-foot .wm-why,
@@ -821,15 +826,6 @@ html.layout-desktop .wm-units .wm-input {
 
 html.layout-desktop .wm-facts-send {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-html.layout-desktop .wm-terrain-time dd small,
-html.layout-desktop .wm-terrain-time small {
-  font-size: 13px;
-}
-
-html.layout-desktop .wm-slow {
-  color: var(--accent);
 }
 
 /* ---- Tight: the panel's content was taller than the panel (see useFitPanel), so nothing scrolls: fold and trim. ---- */

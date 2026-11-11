@@ -6,7 +6,7 @@ import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
-import { WAYMARK_NOTE, slowdownText, slowGroundText } from './travel.ts';
+import { WAYMARK_NOTE, slowTripText } from './travel.ts';
 import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 import { useRoadsLevel, withRoads } from '../hooks/useRoadsLevel.ts';
 
@@ -39,8 +39,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
   const travel = withRoads(shipmentTravelMs(village, tile, settings, waymarks), roads);
   const waymarkHelps = waymarks.length > 0 && travel < withRoads(shipmentTravelMs(village, tile, settings), roads);
   const flat = flatShipmentTravelMs(village, tile, settings);
-  const slowdown = slowdownText(flat, travel);
-  const slowGround = slowdown ? slowGroundText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings), waymarks)) : '';
+  const slowTrip = travel > flat ? slowTripText(travelRoute(village, tile, settings.seed, terrainAmountOf(settings), waymarks), flat, travel) : null;
   const reason = total < 1 ? 'Pick resources' : !check.ok ? check.message : null;
 
   function set(r: ResourceId, value: string) {
@@ -139,13 +138,10 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
             {waymarkHelps && <small className="wm-muted"> {WAYMARK_NOTE}</small>}
           </dd>
         </div>
-        {slowdown && (
+        {slowTrip && (
           <div className="wm-terrain-time">
-            <dt>Flat</dt>
-            <dd>
-              {formatDuration(flat)} <span className="wm-slow">{slowdown}</span>
-              <small className="wm-muted"> {slowGround}</small>
-            </dd>
+            <dt>Ground</dt>
+            <dd>{slowTrip}</dd>
           </div>
         )}
         <div>
