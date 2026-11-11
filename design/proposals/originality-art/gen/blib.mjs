@@ -198,3 +198,28 @@ export function boards(u0, u1, v0, v1, n = 3, c = WOOD) {
 }
 /** Plain earth yard patch. */
 export const yard = (u0, u1, v0, v1, col = '#C8A064') => p(poly([[u0, v0, 0], [u1, v0, 0], [u1, v1, 0], [u0, v1, 0]]), col, 1.2);
+/** Rectangle on the left (+v) face plane v, u0..u1, z0..z1. */
+export const faceL = (u0, u1, v, z0, z1, col, sw = 1.2) => p(poly([[u0, v, z0], [u1, v, z0], [u1, v, z1], [u0, v, z1]]), col, sw);
+/** Rectangle on the right (+u) face plane u, v0..v1, z0..z1. */
+export const faceR = (u, v0, v1, z0, z1, col, sw = 1.2) => p(poly([[u, v1, z0], [u, v0, z0], [u, v0, z1], [u, v1, z1]]), col, sw);
+/** Carved dragon head on a roof end at screen point (x, y), looking dir (1 = right, -1 = left). */
+export function dragon(x, y, dir = 1, s = 1, col = WOOD[1]) {
+  const X = (n) => f(x + n * s * dir), Y = (n) => f(y + n * s);
+  const neck = `M${x} ${y}Q${X(-1)} ${Y(-6)} ${X(2)} ${Y(-10)}`;
+  return ln(neck, INK, 4.2 * s) + ln(neck, col, 2.4 * s) +
+    p(`M${X(0.5)} ${Y(-9)}L${X(2)} ${Y(-13)}L${X(4)} ${Y(-14.5)}L${X(9)} ${Y(-13)}L${X(9.5)} ${Y(-11.2)}L${X(5)} ${Y(-11)}L${X(7.5)} ${Y(-8.8)}L${X(3)} ${Y(-8.2)}Z`, col, 1.1) +
+    p(`M${X(2.5)} ${Y(-13.4)}L${X(1.5)} ${Y(-17)}L${X(4.5)} ${Y(-14.2)}Z`, col, 1) +
+    `<circle cx="${X(4.6)}" cy="${Y(-12.4)}" r="${f(0.8 * s)}" fill="${INK}" stroke="none"/>`;
+}
+/** Square-based pyramid roof (two visible faces) at (u, v), half-size r, from z0 to apex z1. */
+export function pyramid(u, v, r, z0, z1, c, sw = 1.4) {
+  return p(poly([[u - r, v + r, z0], [u + r, v + r, z0], [u, v, z1]]), c[1], sw) + p(poly([[u + r, v + r, z0], [u + r, v - r, z0], [u, v, z1]]), c[2], sw);
+}
+/** Tall banner on a pole at ground (u, v). */
+export function bannerPole(u, v, col, h = 34, z0 = 0) {
+  const [x, y] = iso(u, v, z0);
+  return ln(`M${x} ${y}L${x} ${f(y - h)}`, INK, 2.8) + ln(`M${x} ${y}L${x} ${f(y - h)}`, WOOD[1], 1.3) +
+    p(`M${f(x - 0.5)} ${f(y - h + 2)}L${f(x + 7.5)} ${f(y - h + 2)}L${f(x + 7.5)} ${f(y - h + 16)}L${f(x + 3.5)} ${f(y - h + 13)}L${f(x - 0.5)} ${f(y - h + 16)}Z`, col, 1.1) +
+    ln(`M${f(x + 1.5)} ${f(y - h + 5)}L${f(x + 5.5)} ${f(y - h + 5)}`, GOLD[1], 1.3) +
+    `<circle cx="${x}" cy="${f(y - h)}" r="1.6" fill="${GOLD[1]}" stroke-width="0.9"/>`;
+}
