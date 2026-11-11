@@ -195,3 +195,4 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
 - **Kept from the earlier economy decision:** troop costs ~x0.55, building costs scaled with production, fill 12,000 room in 12–15
   days. **Raider/builder score ratio must come back to ≤ 2x** (it was 2.55x): lever = loot supply (abandoned-village stock/production).
 - **Art stages:** stage 1 levels 1–6, stage 2 7–15, stage 3 16–24, stage 4 = max level only (scaled for shorter ladders).
+- 2026-11-11: owner approved all 3 new troop pictures (Elk Rider, trained at the Stables, which keep their old art; Ember Guard; Firecart).
