@@ -1,4 +1,4 @@
-// The preview's virtual game clock. Import this file FIRST (main.tsx does): it replaces the global `Date` so that
+// The preview's virtual game clock. Import this file FIRST (main.tsx and worker.ts do): it replaces the global `Date` so that
 // `new Date()` and `Date.now()` return game time. The in-page server, the web client's countdowns and the computer
 // players all read the same clock, so speeding it up speeds up everything at once.
 //
@@ -26,6 +26,11 @@ export interface GameClock {
   restore(snap: ClockSnapshot): void;
   /** Back to real time at 1x (a fresh world). */
   reset(): void;
+  /**
+   * Follow another context's clock (the game worker and the page each have one; both share the wall clock, so the
+   * same snapshot gives the same game time). Forward only: game time never goes backwards here.
+   */
+  sync(snap: ClockSnapshot): void;
   /** Called after a rate change or skip. Returns an unsubscribe function. */
   onChange(listener: () => void): () => void;
 }
@@ -74,6 +79,17 @@ export function createClock(realNow: () => number): GameClock {
       rate = 1;
       emit();
     },
+    sync(snap) {
+      if (!Number.isFinite(snap.virtual) || !Number.isFinite(snap.realAt) || !Number.isFinite(snap.rate) || snap.rate < 1) return;
+      const real = realNow();
+      const before = now();
+      const theirs = Math.floor(snap.virtual + (real - snap.realAt) * snap.rate);
+      if (theirs === before && snap.rate === rate) return;
+      baseReal = real;
+      baseVirtual = Math.max(before, theirs);
+      rate = snap.rate;
+      emit();
+    },
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -84,7 +100,7 @@ export function createClock(realNow: () => number): GameClock {
 const RealDate = Date;
 const realNow = RealDate.now.bind(RealDate);
 
-/** The page-wide clock. */
+/** The clock of this context (the page, or the game worker). */
 export const clock: GameClock = createClock(realNow);
 
 class GameDate extends RealDate {

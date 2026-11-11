@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -97,10 +98,76 @@ function artifactFragment(): Plugin {
   };
 }
 
+/** Where the dev server mirrors the preview world (git-ignored: data/, *.sqlite). */
+const WORLD_MIRROR = fileURLToPath(new URL('./data/preview-world.sqlite', import.meta.url));
+const MIRROR_MAX_BYTES = 50 * 1024 * 1024;
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+const LOCAL_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+/**
+ * Dev only (`npm run dev:preview`): every save of the in-browser world is also POSTed here (host.ts) and written to
+ * apps/preview/data/preview-world.sqlite, atomically (temp file, then rename), so sessions can read the owner's world
+ * with sqlite3. Only from this machine; the custom header forces a CORS preflight for any other site.
+ */
+function worldMirror(): Plugin {
+  let seq = 0;
+  return {
+    name: 'clanfire-preview-world-mirror',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__clanfire/preview-world', (req, res) => {
+        const done = (status: number): void => {
+          res.statusCode = status;
+          res.end();
+        };
+        let originOk = true;
+        try {
+          if (req.headers.origin) originOk = LOCAL_HOSTS.has(new URL(req.headers.origin).hostname);
+        } catch {
+          originOk = false;
+        }
+        if (req.method !== 'POST') return done(405);
+        if (!LOCAL_ADDRS.has(req.socket.remoteAddress ?? '') || !originOk || req.headers['x-clanfire-mirror'] !== '1') return done(403);
+        if (Number(req.headers['content-length'] ?? 0) > MIRROR_MAX_BYTES) return done(413);
+        const chunks: Buffer[] = [];
+        let size = 0;
+        let failed = false;
+        req.on('data', (chunk: Buffer) => {
+          if (failed) return;
+          size += chunk.length;
+          if (size > MIRROR_MAX_BYTES) {
+            failed = true;
+            done(413);
+            req.destroy();
+            return;
+          }
+          chunks.push(chunk);
+        });
+        req.on('end', () => {
+          if (failed) return;
+          const bytes = Buffer.concat(chunks);
+          if (bytes.subarray(0, 16).toString('latin1') !== 'SQLite format 3\0') return done(400);
+          const tmp = `${WORLD_MIRROR}.${process.pid}-${++seq}.tmp`;
+          mkdir(resolve(WORLD_MIRROR, '..'), { recursive: true })
+            .then(() => writeFile(tmp, bytes))
+            .then(() => rename(tmp, WORLD_MIRROR))
+            .then(
+              () => done(204),
+              (err: unknown) => {
+                server.config.logger.warn(`preview world mirror failed: ${String(err)}`);
+                done(500);
+              },
+            );
+        });
+      });
+    },
+  };
+}
+
 // The real server code (apps/server/src) and the real web client (apps/web/src) are bundled as they are. The only
 // swaps are the Node built-ins the server imports, which get small browser shims.
 export default defineConfig({
-  plugins: [react(), inlineAssets(), viteSingleFile(), artifactFragment()],
+  plugins: [react(), inlineAssets(), viteSingleFile(), artifactFragment(), worldMirror()],
   resolve: {
     alias: [
       { find: /^node:sqlite$/, replacement: shim('node-sqlite') },

@@ -1,6 +1,7 @@
-// Routes the web client's relative /api/* requests to the in-browser backend; anything else goes to the real fetch.
+// Routes the web client's relative /api/* requests to the in-browser game (the game worker, or the page itself with
+// ?inpage); anything else goes to the real fetch.
 
-import type { Backend } from './backend.ts';
+import type { ApiResult } from './backend.ts';
 
 /** "/w/<id>/api/x" is the same in-browser backend as "/api/x" (the preview ignores the world prefix). */
 function stripWorld(pathname: string): string {
@@ -55,7 +56,8 @@ function afterPaint(): Promise<void> {
   });
 }
 
-export function installFetchShim(backend: Backend, onWrite: () => void): void {
+/** `request` answers one API call; `slowLabel` names its timing in window.__pvSlow (worker mode: the round trip). */
+export function installFetchShim(request: (method: string, path: string, bodyText: string | undefined) => Promise<ApiResult>, slowLabel = 'api'): void {
   const realFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     if (typeof input === 'string' && input.startsWith('data:')) {
@@ -70,11 +72,10 @@ export function installFetchShim(backend: Backend, onWrite: () => void): void {
     else if (init?.body === undefined && typeof input === 'object' && 'text' in input && method !== 'GET') bodyText = await input.text();
     if (method === 'POST' && /^\/api\/auth\/(register|login)(?:[/?]|$)/.test(path)) await afterPaint();
     const t0 = performance.now();
-    const res = await backend.request(method, path, bodyText);
+    const res = await request(method, path, bodyText);
     const ms = performance.now() - t0;
     const slow = (window as unknown as { __pvSlow?: { what: string; ms: number; at: number }[] }).__pvSlow;
-    if (ms > 30 && slow) slow.push({ what: `api ${method} ${path.split('?')[0]}`, ms: Math.round(ms), at: Math.round(t0) });
-    if (method !== 'GET') onWrite();
+    if (ms > 30 && slow) slow.push({ what: `${slowLabel} ${method} ${path.split('?')[0]}`, ms: Math.round(ms), at: Math.round(t0) });
     const nullBody = res.status === 204 || res.body === null;
     return new Response(nullBody ? null : res.body, { status: res.status, headers: res.headers });
   };

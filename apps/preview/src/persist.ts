@@ -1,5 +1,6 @@
 // Saving the world: the sql.js database bytes (and the signed-in session token) go to IndexedDB, falling back to
-// localStorage. Everything is wrapped in try/catch: the game works without storage, it just forgets on reload.
+// localStorage (page only: the game worker writes IndexedDB itself and hands the bytes to the page when that fails).
+// Everything is wrapped in try/catch: the game works without storage, it just forgets on reload.
 
 const DB_NAME = 'clanfire-preview';
 const STORE = 'kv';
@@ -114,6 +115,16 @@ export async function loadSave(): Promise<Save | null> {
     // no storage at all
   }
   return null;
+}
+
+/** IndexedDB only (the game worker saves this way; workers have no localStorage). Resolves true when it took the save. */
+export async function writeSaveToIdb(save: Save): Promise<boolean> {
+  try {
+    await idbPut(save);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Store the save. Resolves true when some storage took it. */
