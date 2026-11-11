@@ -454,9 +454,12 @@ export const SceneArt = memo(function SceneArt({
         landscape={landscape}
         tier={tier}
         wide={wide}
+        // "id:look" of every building that stands or is queued: its road shows, surfaced by its look.
         built={BUILDING_IDS.filter(
           (id) => arts[id].stage > 0 || arts[id].queued,
-        ).join(",")}
+        )
+          .map((id) => `${id}:${Math.max(1, arts[id].stage)}`)
+          .join(",")}
       />
       <svg
         className="vv-svg"

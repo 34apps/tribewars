@@ -48,6 +48,8 @@ let plotUV: (id: BuildingId) => { u: number; v: number };
 let doorUV: (id: BuildingId) => { u: number; v: number };
 let spriteUrl: (id: BuildingId, stage: 1 | 2 | 3 | 4) => string;
 let Ground: (p: { built: string }) => unknown;
+let SQUARE: number;
+let network: (built: string) => { runs: { pts: (readonly [number, number])[]; s: number; capB: boolean }[] };
 
 before(async () => {
   server = await createServer({
@@ -61,7 +63,7 @@ before(async () => {
   const b = await server.ssrLoadModule('/src/art/buildings.ts');
   const s = await server.ssrLoadModule('/src/art/scenery.tsx');
   ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl } = b);
-  ({ PATHS, STREET_W, Ground } = s);
+  ({ PATHS, STREET_W, Ground, SQUARE, network } = s);
 });
 
 after(async () => {
@@ -70,6 +72,52 @@ after(async () => {
 
 const BUILT = BUILDING_IDS.filter((id) => id !== 'wall');
 const P = () => WALL_RING.plate;
+
+test('every road is joined to the network and runs on to its door: no zero-length legs, no doubling back', () => {
+  const main = PATHS.find((p) => p.key === 'main')!;
+  const hall = plotUV('hall');
+  const on = ([u, v]: readonly [number, number], a: readonly [number, number], b: readonly [number, number]) =>
+    a[0] === b[0]
+      ? Math.abs(u - a[0]) < 0.01 && v >= Math.min(a[1], b[1]) - 0.01 && v <= Math.max(a[1], b[1]) + 0.01
+      : Math.abs(v - a[1]) < 0.01 && u >= Math.min(a[0], b[0]) - 0.01 && u <= Math.max(a[0], b[0]) + 0.01;
+  for (const p of PATHS) {
+    for (let i = 1; i < p.pts.length; i++) {
+      const [a, b] = [p.pts[i - 1]!, p.pts[i]!];
+      assert.ok(Math.hypot(b[0] - a[0], b[1] - a[1]) > 1, `${p.key}: leg ${i} has no length`);
+      if (i >= 2) {
+        const z = p.pts[i - 2]!;
+        const back = (a[0] - z[0]) * (b[0] - a[0]) + (a[1] - z[1]) * (b[1] - a[1]) < 0;
+        assert.ok(!back, `${p.key}: leg ${i} doubles back (a loop)`);
+      }
+    }
+    if (p === main) continue;
+    const start = p.pts[0]!;
+    const inSq = Math.abs(start[0] - hall.u) <= SQUARE && Math.abs(start[1] - hall.v) <= SQUARE;
+    const onMain = on(start, main.pts[0]!, main.pts[1]!);
+    assert.ok(inSq || onMain, `${p.key} starts at ${start}, neither on the main street nor on the square`);
+  }
+  // The drawn network (every building built, at every look) has a road piece that ends at each door.
+  for (const look of [1, 2, 3, 4]) {
+    const net = network(BUILDING_IDS.map((id) => `${id}:${look}`).join(','));
+    for (const id of BUILT) {
+      if (id === 'hall') continue;
+      const d = doorUV(id);
+      assert.ok(
+        net.runs.some((r) => r.capB && Math.hypot(r.pts[r.pts.length - 1]![0] - d.u, r.pts[r.pts.length - 1]![1] - d.v) < 0.1),
+        `look ${look}: no drawn road reaches the ${id} door`,
+      );
+    }
+  }
+});
+
+test('a road shared by several buildings takes the best surface among them', () => {
+  // Market at look 1 and Longhouse at look 4 share the lane inside the gate: that stretch is look 4; the Market's last leg is look 1.
+  const net = network('hall:1,market:1,longhouse:4');
+  const d = doorUV('market');
+  const toMarket = net.runs.filter((r) => r.pts.some(([u, v]) => Math.abs(u - d.u) < 0.1 && Math.abs(v - d.v) < 0.1));
+  assert.ok(toMarket.length > 0 && toMarket.every((r) => r.s === 1));
+  assert.ok(net.runs.some((r) => r.s === 4 && r.pts[0]![0] === WALL_RING.gateU));
+});
 
 test('every path, inside and outside the wall, runs along u or v only', () => {
   for (const p of [...PATHS, ...OUTER_ROADS])
@@ -284,7 +332,7 @@ test('label anchors sit on the roof, centred on the plot and clear of the ground
 test('the ground draws only the paths of buildings that stand, with clean numbers', () => {
   const draw = (built: string) => renderToString(createElement('svg', null, createElement(Ground as never, { built })));
   const few = draw('hall');
-  const all = draw(BUILDING_IDS.join(','));
+  const all = draw(BUILDING_IDS.map((id) => `${id}:3`).join(','));
   assert.ok(!/NaN|undefined|Infinity/.test(all));
   assert.ok(few.includes('vv-paths') && few.length < all.length);
 });

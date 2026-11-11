@@ -1,7 +1,7 @@
 // Renders the real village scene (SceneArt from apps/web) to static HTML pages for headless-Chrome screenshots.
 // Usage (from the repo root): node design/proposals/village-layout/render.mjs <out-prefix> [looks...]
 // Writes <out-prefix>-look<N>.html for each look (default 2 and 4): every building and the wall at that look.
-// FRAME=1: the picture exactly as the 1440x900 desktop village page shows it (its 648 x 410 px box and its fit rule: contain on
+// LOOKS="id:look,..." sets single buildings to their own look (a mixed village). FRAME=1: the picture exactly as the 1440x900 desktop village page shows it (its 648 x 410 px box and its fit rule: contain on
 // SCENE_FIT_BOX, or cover on SCENE_VIEWBOX for older code without one). WEB_ROOT=<dir>/ renders another checkout's apps/web.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +36,10 @@ const lvl = (id, look) => {
   return look === 1 ? 1 : look === 2 ? a + 1 : look === 3 ? c + 1 : max;
 };
 for (const look of looks) {
-  const arts = Object.fromEntries(ids.map((id) => [id, { stage: look, queued: !!process.env.WORK, active: !!process.env.WORK, locked: false }]));
+  // LOOKS="hall:4,lumber:1,...": these buildings at their own look instead (mixed villages).
+  const own = Object.fromEntries((process.env.LOOKS ?? '').split(',').filter(Boolean).map((x) => [x.split(':')[0], Number(x.split(':')[1])]));
+  const lookOf = (id) => own[id] ?? look;
+  const arts = Object.fromEntries(ids.map((id) => [id, { stage: lookOf(id), queued: !!process.env.WORK, active: !!process.env.WORK, locked: false }]));
   const frame = !!process.env.FRAME;
   const vb = frame && b.SCENE_FIT_BOX ? b.SCENE_FIT_BOX : b.SCENE_VIEWBOX;
   const svg = renderToStaticMarkup(
@@ -45,9 +48,9 @@ for (const look of looks) {
   const labels = ids
     .filter((id) => id !== 'wall')
     .map((id) => {
-      const a = b.labelAnchor(id, look);
+      const a = b.labelAnchor(id, lookOf(id));
       const l = ((a.x - vb.x) / vb.w) * 100, t = ((a.y - vb.y) / vb.h) * 100;
-      return `<span class="lb" style="left:${l}%;top:${t}%">${eng.BUILDINGS[id].name}<i>${lvl(id, look)}</i></span>`;
+      return `<span class="lb" style="left:${l}%;top:${t}%">${eng.BUILDINGS[id].name}<i>${lvl(id, lookOf(id))}</i></span>`;
     })
     .join('');
   // Older code (no SCENE_FIT_BOX) covered the frame and shifted the stage so the ring centre sat in the middle.
