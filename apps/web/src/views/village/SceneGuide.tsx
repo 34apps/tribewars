@@ -13,6 +13,7 @@ import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { requirementText } from '../../rules.ts';
 import { costShort } from './FrameParts.tsx';
 import type { BuildingInfo } from './buildingInfo.ts';
+import { closeGuide } from './guide.ts';
 import type { Guide } from './guide.ts';
 
 /** Icons + amounts of the next level's cost; the ones the stock cannot pay are red. */
@@ -87,6 +88,9 @@ export function GuideCallout({
         </span>
       </button>
       {upgrade && <BuildState info={info} busy={busy} onBuild={onBuild} />}
+      <button type="button" className="vv-guide-x" onClick={closeGuide} aria-label="Close the tip and stop showing it" title="Close (don't show again)">
+        <Icon name="close" size={14} />
+      </button>
     </div>
   );
 }

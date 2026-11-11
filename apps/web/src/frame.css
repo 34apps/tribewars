@@ -1284,6 +1284,12 @@ button.bs {
   cursor: pointer;
 }
 
+/* Pressed: the button sinks at once, so a press always feels answered even before the server replies. */
+button.bs:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6), 0 1px 0 var(--c-ink);
+}
+
 .bs-lg {
   width: 138px;
   height: 44px;

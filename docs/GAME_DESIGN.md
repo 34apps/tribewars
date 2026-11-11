@@ -681,6 +681,7 @@ The defender's own Pathfinder Sight adds to its side of the duel. Failed scouts 
 **Owner answers (2026-11-03), these override the numbers/names above where they differ:**
 1. Names "kinda okay, maybe change" → proposed new names (easy to swap, they live in config/UI strings only):
    Armory → **Drillyard**, Edge → **Might**, Guard → **Bulwark**, Sight → **Keen**.
+   On screen the tracks are called Attack, Defence and Scouting (owner 2026-11-11: the flavour names were too hard to read); the ids stay might/bulwark/keen.
 2. **Every village has its own Training Points** for its Drillyard level (not per account). Ranks belong to the village.
 3. Bonus is a stepped per-rank percentage like the genre's unit upgrades, with our own numbers: **+5% per rank, max +25%**
    (replaces the 4% / +20% above; `RANK_BONUS` in config).

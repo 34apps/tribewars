@@ -1,9 +1,11 @@
 // "What should I do in the village?" Picks the one building the village page points at: the building the current First-steps
-// step asks for, else (builders idle) the cheapest resource building the player can afford. Pure pick + a hook; the client only
+// step asks for. Only while First steps run (owner 2026-11-11: a bubble that keeps suggesting buildings afterwards just covers
+// the village), and the player can close it for good (×, remembered in this browser). Pure pick + a hook; the client only
 // previews, the Up button goes through the normal build call (useBuild) and the server decides.
 
-import { BUILDINGS, RESOURCE_PRODUCER } from '@clanfire/engine';
-import type { BuildingId, FirstStepsDto, Resources } from '@clanfire/engine';
+import { useSyncExternalStore } from 'react';
+import { BUILDINGS } from '@clanfire/engine';
+import type { BuildingId, FirstStepsDto } from '@clanfire/engine';
 import { FIRST_STEP_TARGET, firstStepsVisible, nextOpenStep } from '../../firstSteps.ts';
 import { useGame, useRules } from '../../game.ts';
 import { buildingInfo } from './buildingInfo.ts';
@@ -16,11 +18,9 @@ export interface Guide {
   title: string;
 }
 
-type GuideInfo = Pick<BuildingInfo, 'pick' | 'cost' | 'level'>;
+type GuideInfo = Pick<BuildingInfo, 'pick' | 'level'>;
 
-const costTotal = (c: Resources | null) => (c ? c.wood + c.food + c.iron + c.gold : Infinity);
-
-export function pickGuide(firstSteps: FirstStepsDto | undefined, infoOf: (id: BuildingId) => GuideInfo, queueEmpty: boolean): Guide | null {
+export function pickGuide(firstSteps: FirstStepsDto | undefined, infoOf: (id: BuildingId) => GuideInfo): Guide | null {
   const step = firstStepsVisible(firstSteps) ? nextOpenStep(firstSteps) : null;
   const target = step ? FIRST_STEP_TARGET[step.id] : null;
   if (step && target?.kind === 'building') {
@@ -34,21 +34,40 @@ export function pickGuide(firstSteps: FirstStepsDto | undefined, infoOf: (id: Bu
       if (k !== 'locked') return { id: target.id, kind: 'upgrade', title: `Upgrade the ${BUILDINGS[target.id].name}` };
     }
   }
-  if (!queueEmpty) return null;
-  let best: { id: BuildingId; total: number } | null = null;
-  for (const id of Object.values(RESOURCE_PRODUCER)) {
-    const info = infoOf(id);
-    if (!info.pick.actionable) continue;
-    const total = costTotal(info.cost);
-    if (!best || total < best.total) best = { id, total };
-  }
-  return best ? { id: best.id, kind: 'upgrade', title: `Upgrade the ${BUILDINGS[best.id].name}` } : null;
+  return null;
 }
 
 /** The village page's pointer (null = nothing to suggest). `enabled` off skips the work (design preview, other pages). */
 export function useGuide(enabled = true): Guide | null {
   const { live, now, settings, village, firstSteps } = useGame();
   const limit = useRules().queues.build;
-  if (!enabled) return null;
-  return pickGuide(firstSteps, (id) => buildingInfo(live, now, settings, !!village.hearth, limit, id), live.buildQueue.length === 0);
+  const off = useSyncExternalStore(subscribe, guideOff, () => false);
+  if (!enabled || off) return null;
+  return pickGuide(firstSteps, (id) => buildingInfo(live, now, settings, !!village.hearth, limit, id));
+}
+
+// ---- "Don't show again" (this browser only; storage can be missing or blocked) ----
+const OFF_KEY = 'clanfire.guide.off';
+const listeners = new Set<() => void>();
+let offMemory = false;
+function guideOff(): boolean {
+  try {
+    return offMemory || window.localStorage.getItem(OFF_KEY) === '1';
+  } catch {
+    return offMemory;
+  }
+}
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+/** The × on the bubble: stop pointing at buildings in this browser. */
+export function closeGuide(): void {
+  offMemory = true;
+  try {
+    window.localStorage.setItem(OFF_KEY, '1');
+  } catch {
+    /* private mode: remembered until reload */
+  }
+  for (const fn of listeners) fn();
 }

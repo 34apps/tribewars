@@ -33,9 +33,10 @@ import { useConfirm } from '../../tribe/Confirm.tsx';
 import { useCancelJob } from '../cancelJob.tsx';
 
 const TRACKS: readonly { id: RankTrack; name: string; hint: string }[] = [
-  { id: 'might', name: 'Might', hint: 'attack' },
-  { id: 'bulwark', name: 'Bulwark', hint: 'both defences' },
-  { id: 'keen', name: 'Keen', hint: 'scouting' },
+  // Plain words on screen (owner 2026-11-11: "Might, Bulwark ... too hard to understand"); the engine ids stay might/bulwark/keen.
+  { id: 'might', name: 'Attack', hint: 'Stronger in attack' },
+  { id: 'bulwark', name: 'Defence', hint: 'Stronger in defence, against foot and riders' },
+  { id: 'keen', name: 'Scouting', hint: 'Scouts see more and survive better' },
 ];
 
 const trackApplies = (unit: UnitId, track: RankTrack) =>
@@ -152,12 +153,13 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                       Cancel
                     </button>
                   )}
-                  {!done && !active && (
+                  {/* Only research that can start now gets a button (gold, like Up and Rank); the rest just say why on the
+                      state line, so the one to press stands out (owner 2026-11-11). */}
+                  {!done && !active && !full && (
                     <button
                       type="button"
-                      className="btn btn-teal drill-btn"
-                      disabled={!!full || busy}
-                      title={full ?? undefined}
+                      className="btn btn-primary drill-btn"
+                      disabled={busy}
                       onClick={() => void run(() => api.research(village.id, u), `Researching ${def.name}`)}
                     >
                       Research
@@ -182,6 +184,10 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
               {formatInt(spent)}/{formatInt(total)} used
             </span>
           </div>
+          <p className="drill-howto">
+            Make a unit stronger: each rank adds +{Math.round(RANK_BONUS * 100)}% attack or defence (scouting +{Math.round(KEEN_BONUS * 100)}%). Rank 2 costs 2
+            points, rank 3 costs 3, and so on. Reset gives the points back.
+          </p>
           <ul className="drill-units">
             {trained.map((u) => {
               const def = UNITS[u];
@@ -213,18 +219,6 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                         </span>
                         <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
                         <span className="drill-tbtns">
-                          {rank > 0 && (
-                            <button
-                              type="button"
-                              className="btn btn-small drill-reset"
-                              disabled={!respec?.ok || busy}
-                              title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
-                              aria-label={`Reset ${def.name} ${t.name}`}
-                              onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
-                            >
-                              Reset
-                            </button>
-                          )}
                           {!atMax && (
                             <button
                               type="button"
@@ -239,14 +233,29 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                           )}
                           {atMax && <span className="drill-max">Max</span>}
                         </span>
-                        {!atMax && (
-                          <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
-                            {short ?? (check.ok ? (
-                              <>
-                                {check.points} pt <Cost cost={check.cost} have={live.resources} />
-                              </>
-                            ) : null)}
-                          </span>
+                        {/* Second line: what the next rank costs (or why not), and Reset on the right. Kept off the first line so
+                            the Rank button never gets pushed out of a narrow card. */}
+                        <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
+                          {atMax
+                            ? null
+                            : (short ??
+                              (check.ok ? (
+                                <>
+                                  {check.points} pt <Cost cost={check.cost} have={live.resources} />
+                                </>
+                              ) : null))}
+                        </span>
+                        {rank > 0 && (
+                          <button
+                            type="button"
+                            className="drill-reset"
+                            disabled={!respec?.ok || busy}
+                            title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
+                            aria-label={`Reset ${def.name} ${t.name}`}
+                            onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
+                          >
+                            Reset{respec?.ok ? ` +${respec.refund}` : ''}
+                          </button>
                         )}
                       </div>
                     );

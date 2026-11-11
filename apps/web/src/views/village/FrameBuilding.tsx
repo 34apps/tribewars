@@ -442,6 +442,9 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
                       type="button"
                       className="fv-mx"
                       disabled={st.max < 1}
+                      // Fill on press, not only on release: at high game speeds the row re-renders every second and a slow
+                      // press could miss the click (owner 2026-11-11). Click still covers the keyboard; setting twice is harmless.
+                      onPointerDown={() => setTexts((t) => ({ ...t, [unit]: String(st.max) }))}
                       onClick={() => setTexts((t) => ({ ...t, [unit]: String(st.max) }))}
                     >
                       max {formatInt(st.max)}
