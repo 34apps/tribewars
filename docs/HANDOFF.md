@@ -17,6 +17,7 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Work in flight / very next step
 
+00. **2026-11-11 play-test fixes `5cc8cdc` (LOCAL, not pushed):** village CPU fix (scene split in two SVG layers), next-upgrade guide, centred scene, storehouse box, reward toast icons, preview bot cap. Owner tests in the preview; push after his OK. Follow-ups in NEXT_STEPS (Play-test fixes 2026-11-11).
 0. **Play-from-zero preview** (`7dd2a6f`, PUSHED 2026-11-10): new preview worlds run at real pace; "Speed" chip (left edge) = 1x-1000x + skip 1 hour/day;
    Ember Wardens' 5 computer players invite the new player and grow by the real rules. Owner tests: PREVIEW → Reset world → new account →
    accept the invite. Follow-ups in NEXT_STEPS ("play from zero").
@@ -29,6 +30,7 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Decisions (don't re-ask)
 
+- Preview Reset world (2026-11-11): computer players start from zero together with the new player (owner's choice; no head start).
 - War Chest (2026-11-10): Chieftain gold comes from an account chest, base 2,000 x1.6/village; deposits one way, by the player.
 - Gold = elite + conquest resource: research, Stables/Drillyard upgrades, Knights, siege, Banner Hall, Chieftains. 1/10 of wood.
 - Mix pieces page by page; left village column on Village/building/Army only; Reports, Mail, Tribe full width.
