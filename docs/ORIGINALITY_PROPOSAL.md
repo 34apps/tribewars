@@ -179,3 +179,4 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
   renamed **"Vault"** (drop the word "Hidden"). The Palisade, Root Cellar, Gold Sluice and Elk Pens art is not used.
 - Longhouse and Wrightyard art is being redrawn: each stage must look clearly grander, and stage 4 (max level only) must be magnificent.
 - Owner questioned the 15-level change (C2). It is on hold in the `originality-tiers` worktree until he chooses 20 or 15.
+- 2026-11-11: owner approved the Longhouse and Wrightyard v2 art (`design/proposals/originality-art/longhouse-*.svg`, `wrightyard-*.svg`).
