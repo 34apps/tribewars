@@ -180,3 +180,18 @@ at level 1; storage 1,000 at level 1; any unit line 10/15/45, 25/50/15, 40/10/5,
 - Longhouse and Wrightyard art is being redrawn: each stage must look clearly grander, and stage 4 (max level only) must be magnificent.
 - Owner questioned the 15-level change (C2). It is on hold in the `originality-tiers` worktree until he chooses 20 or 15.
 - 2026-11-11: owner approved the Longhouse and Wrightyard v2 art (`design/proposals/originality-art/longhouse-*.svg`, `wrightyard-*.svg`).
+
+## Lead decision 2026-11-11 (owner: "you decide by balance, 25-30 might be good"): replaces C2
+- **No tiers and no 15-level cap.** Levels go UP; old worlds keep their levels (no remap needed).
+- **Max levels** (our own pattern, no building equals its Tribal Wars counterpart):
+  Town Hall, Lumber Camp, Farm, Iron Mine, Storehouse, Longhouse **25**; Barracks **20**; Stables **18**; Gold Mine **18**;
+  Wall **22**; Market **12**; Wrightyard **12**; Vault **12**; Drillyard **10**; Banner Hall **4**.
+- **Why 25, not 30:** at speed 1 a village maxes in ~18 builder-days today, which is short for a 6-month world. 25 levels give a
+  longer road of about **25 builder-days** (last level ~1 day) without 30's very long late game. One curve per effect with
+  our own base numbers.
+- **Effects at max:** production ≈ 900 wood / 1,200 food / 900 iron per hour at 25; storage ≈ 90,000 at 25; Longhouse room 12,000
+  at 25; Gold Mine 18 ≈ today's Gold Mine 15 gold; Hall/training speed per level so the max level gives today's total speed-up;
+  Wall 22 ≈ today's Wall 20 defence; Vault 12 ≈ today's Vault 10. Levels 1–20 may change a little (no live world yet).
+- **Kept from the earlier economy decision:** troop costs ~x0.55, building costs scaled with production, fill 12,000 room in 12–15
+  days. **Raider/builder score ratio must come back to ≤ 2x** (it was 2.55x): lever = loot supply (abandoned-village stock/production).
+- **Art stages:** stage 1 levels 1–6, stage 2 7–15, stage 3 16–24, stage 4 = max level only (scaled for shorter ladders).
