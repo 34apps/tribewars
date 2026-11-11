@@ -29,8 +29,8 @@ export function pickGuide(firstSteps: FirstStepsDto | undefined, infoOf: (id: Bu
       if (info.level > 0) return { id: target.id, kind: 'open', title: 'Train 5 Raiders' };
     } else {
       const k = info.pick.kind;
-      // Already being built, maxed, or refused for another reason (cold hearth, cost above storage): nothing to point at here.
-      if (k === 'upgrading' || k === 'queued' || k === 'max' || k === 'blocked') return null;
+      // Already being built, queue full, maxed, or refused for another reason (cold hearth, cost above storage): nothing to point at here.
+      if (k === 'upgrading' || k === 'queued' || k === 'queuefull' || k === 'max' || k === 'blocked') return null;
       if (k !== 'locked') return { id: target.id, kind: 'upgrade', title: `Upgrade the ${BUILDINGS[target.id].name}` };
     }
   }

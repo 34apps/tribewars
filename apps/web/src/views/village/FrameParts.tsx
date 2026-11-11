@@ -311,9 +311,18 @@ export function BuildingRow({ id, busy, build, onPick, next = false }: { id: Bui
   const info = buildingInfo(live, now, settings, !!village.hearth, limit, id);
   const def = BUILDINGS[id];
   const { kind } = info.pick;
+  // A building already in the queue can take one more level while a slot is free (the engine targets the level after the
+  // queued one): keep the Up (or "ready in") control and show the running job as a small tag by the name instead.
+  const more = (kind === 'upgrading' || kind === 'queued') && (info.actionPick.kind === 'build' || info.actionPick.kind === 'afford');
+  const lastTarget = info.jobs[info.jobs.length - 1]?.targetLevel ?? info.target - 1;
+  const jobTag = !more
+    ? null
+    : kind === 'upgrading'
+      ? `→ ${lastTarget} · ${formatDuration(info.upgradingLeftMs ?? 0)}`
+      : `→ ${lastTarget} queued`;
   let sub: ReactNode = null;
-  if (kind === 'upgrading') sub = `Upgrading to ${info.active?.targetLevel ?? info.target} · ${formatDuration(info.upgradingLeftMs ?? 0)}`;
-  else if (kind === 'queued') sub = `Queued: level ${info.jobs[info.jobs.length - 1]?.targetLevel ?? info.target}`;
+  if (kind === 'upgrading' && !more) sub = `Upgrading to ${info.active?.targetLevel ?? info.target} · ${formatDuration(info.upgradingLeftMs ?? 0)}`;
+  else if (kind === 'queued' && !more) sub = `Queued: level ${lastTarget}`;
   else if (kind === 'max') sub = 'Max level';
   else if (kind === 'locked') sub = `Needs ${requirementText(info.unmet)}`;
   else if (info.cost) {
@@ -340,12 +349,13 @@ export function BuildingRow({ id, busy, build, onPick, next = false }: { id: Bui
         <span className="fv-mt">
           <b>
             {def.name} <span className="fv-lv">{info.level}</span>
+            {jobTag && <span className="fv-jobtag">{jobTag}</span>}
             {next && <span className="fv-nexttag">Next</span>}
           </b>
           <small>{sub}</small>
         </span>
       </button>
-      <BuildState info={info} busy={busy} onBuild={() => build(id)} />
+      <BuildState info={info} busy={busy} onBuild={() => build(id)} action={more} />
     </li>
   );
 }

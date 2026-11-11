@@ -10,7 +10,7 @@ function dto(done: FirstStepId[]): FirstStepsDto {
   const steps: FirstStepDto[] = FIRST_STEPS.map((s) => ({ id: s.id, done: done.includes(s.id), claimed: false, reward: { ...s.reward } }));
   return { steps, hidden: false, allClaimed: false };
 }
-type Kind = 'build' | 'afford' | 'upgrading' | 'queued' | 'max' | 'locked';
+type Kind = 'build' | 'afford' | 'upgrading' | 'queued' | 'queuefull' | 'max' | 'locked';
 const info = (kinds: Partial<Record<BuildingId, Kind>>, costs: Partial<Record<BuildingId, number>> = {}) => (id: BuildingId) => {
   const k = kinds[id] ?? 'locked';
   return {
@@ -28,6 +28,10 @@ test('points at the building the current step asks for', () => {
 
 test('a step building that is already being upgraded gets no pointer', () => {
   assert.equal(pickGuide(dto([]), info({ lumber: 'upgrading', farm: 'build' }), false), null);
+});
+
+test('no pointer while the build queue is full (its button could not be pressed)', () => {
+  assert.equal(pickGuide(dto(['lumber2']), info({ farm: 'queuefull' }), false), null);
 });
 
 test('train step opens the barracks; tab steps fall back to the cheapest affordable resource building when idle', () => {
