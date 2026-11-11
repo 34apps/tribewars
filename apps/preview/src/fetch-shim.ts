@@ -41,6 +41,20 @@ function dataUrlResponse(url: string): Response | null {
   return new Response(body, { status: 200, headers: { 'content-type': mime } });
 }
 
+/** Sign-in and sign-up answer in a few milliseconds, so without this the client would go on to build the whole game screen before the browser ever painted the button's busy state. */
+function afterPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    const go = (): void => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    window.requestAnimationFrame(() => window.setTimeout(go, 0));
+    window.setTimeout(go, 100); // hidden tabs do not run animation frames
+  });
+}
+
 export function installFetchShim(backend: Backend, onWrite: () => void): void {
   const realFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -54,6 +68,7 @@ export function installFetchShim(backend: Backend, onWrite: () => void): void {
     let bodyText: string | undefined;
     if (typeof init?.body === 'string') bodyText = init.body;
     else if (init?.body === undefined && typeof input === 'object' && 'text' in input && method !== 'GET') bodyText = await input.text();
+    if (method === 'POST' && /^\/api\/auth\/(register|login)(?:[/?]|$)/.test(path)) await afterPaint();
     const res = await backend.request(method, path, bodyText);
     if (method !== 'GET') onWrite();
     const nullBody = res.status === 204 || res.body === null;

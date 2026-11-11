@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 export function useNow(serverOffset: number): number {
   const [local, setLocal] = useState(() => Date.now());
   useEffect(() => {
-    const tick = () => setLocal(Date.now());
+    const tick = () => {
+      if (!document.hidden) setLocal(Date.now()); // nothing to redraw in a hidden tab; the visibilitychange below catches up
+    };
     const id = window.setInterval(tick, 1000);
     document.addEventListener('visibilitychange', tick);
     return () => {

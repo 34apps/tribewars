@@ -786,23 +786,29 @@ function chatMilestone(ctx: AppContext, bot: Bot, res: ReturnType<typeof growBot
   }
 }
 
-/** Run the growth steps that are due. Cheap when nothing is due (a few map lookups, no database work). */
-function growthTick(ctx: AppContext, meta: BotMeta, t: number): boolean {
+/**
+ * Run the growth steps that are due. Cheap when nothing is due (a few map lookups, no database work).
+ * `budgetMs` caps the real time one call may spend (at least one bot always plays): at a high game speed every bot is due on
+ * every tick, so the rest wait for the next tick instead of freezing the page (they keep their place in the queue).
+ */
+function growthTick(ctx: AppContext, meta: BotMeta, t: number, budgetMs: number): boolean {
   const ids = Object.keys(meta.bots).map(Number);
+  const started = performance.now();
   let changed = false;
-  let ready: number[] | undefined;
+  const ready: Array<{ id: number; due: number }> = [];
   ids.forEach((id, i) => {
     const due = nextGrowAt.get(id);
     if (due === undefined) {
       nextGrowAt.set(id, t + Math.floor((i / ids.length) * GROW_EVERY_MS)); // staggered first steps
       return;
     }
-    if (t < due) return;
+    if (t >= due) ready.push({ id, due });
+  });
+  ready.sort((a, b) => a.due - b.due); // the longest-waiting bot first
+  for (const { id, due } of ready) {
+    if (changed && performance.now() - started > budgetMs) break;
     // Keep the bot's own rhythm: jump to the next slot after now, not to now + period.
     nextGrowAt.set(id, due + (Math.floor((t - due) / GROW_EVERY_MS) + 1) * GROW_EVERY_MS);
-    (ready ??= []).push(id);
-  });
-  for (const id of ready ?? []) {
     const player = ctx.store.getPlayer(id);
     const home = ctx.store.villagesOfPlayer(id)[0];
     if (!player || !home) continue;
@@ -1013,8 +1019,9 @@ function inviteHumans(ctx: AppContext, meta: BotMeta, humans: PlayerRow[], t: nu
 
 /**
  * One bot step. Cheap when nothing is due. Returns true when it changed the world (so the caller can save).
+ * `budgetMs` limits the growth work of this call (the live timer passes a small one; skipping ahead passes none).
  */
-export function botTick(ctx: AppContext): boolean {
+export function botTick(ctx: AppContext, budgetMs = Infinity): boolean {
   const meta = loadMeta(ctx);
   if (!meta) return false;
   const { store, tribes } = ctx;
@@ -1079,7 +1086,7 @@ export function botTick(ctx: AppContext): boolean {
   }
 
   // 4. The bots grow: each plays one step per ~20 game minutes (staggered).
-  if (growthTick(ctx, meta, t)) changed = true;
+  if (growthTick(ctx, meta, t, budgetMs)) changed = true;
 
   // 5. Keeping the map moving (timers scale with the world speed). Bots are loaded only when something is due.
   if (nextRaidAt === 0) {

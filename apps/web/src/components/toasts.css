@@ -85,6 +85,25 @@ html.layout-desktop .toasts.toasts {
   overflow-wrap: anywhere;
 }
 
+.toast-gains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.toast-gain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ok);
+}
+
 .toast-act {
   flex: none;
   min-width: 56px;

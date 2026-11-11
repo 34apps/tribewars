@@ -25,7 +25,9 @@ function sceneCss(from: Element): string {
 /** Turn the live scene (`.vv-view` element) into a bitmap that shows exactly what is visible inside `box`. Null when it cannot be done. */
 export async function snapshotScene(box: Element, view: Element): Promise<MiniShot | null> {
   try {
-    const svg = view.querySelector('svg.vv-svg') as SVGSVGElement | null;
+    // The scene is two stacked SVGs (still backdrop, then the live layer): merge them into one picture, back to front.
+    const layers = Array.from(view.querySelectorAll('svg.vv-svg')) as SVGSVGElement[];
+    const svg = layers[0];
     if (!svg) return null;
     const B = box.getBoundingClientRect();
     const S = svg.getBoundingClientRect();
@@ -36,6 +38,7 @@ export async function snapshotScene(box: Element, view: Element): Promise<MiniSh
     const x = vb.x + (B.left - S.left) * k;
     const y = vb.y + (B.top - S.top) * k;
     const clone = svg.cloneNode(true) as SVGSVGElement;
+    for (const layer of layers.slice(1)) for (const child of Array.from(layer.childNodes)) clone.appendChild(child.cloneNode(true));
     clone.removeAttribute('class');
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     clone.setAttribute('viewBox', `${x} ${y} ${B.width * k} ${B.height * k}`);

@@ -305,7 +305,7 @@ export function LeftColumn({ onPick, top, middle = 'movements' }: { onPick: (id:
 }
 
 /** One building of the Village page's list (and the Town Hall page's list): art, name + level, cost or reason, the state control. */
-export function BuildingRow({ id, busy, build, onPick }: { id: BuildingId; busy: boolean; build: (id: BuildingId) => void; onPick: (id: BuildingId) => void }) {
+export function BuildingRow({ id, busy, build, onPick, next = false }: { id: BuildingId; busy: boolean; build: (id: BuildingId) => void; onPick: (id: BuildingId) => void; next?: boolean }) {
   const { live, now, settings, village } = useGame();
   const limit = useRules().queues.build;
   const info = buildingInfo(live, now, settings, !!village.hearth, limit, id);
@@ -334,12 +334,13 @@ export function BuildingRow({ id, busy, build, onPick }: { id: BuildingId; busy:
     );
   }
   return (
-    <li className={`fv-br${kind === 'locked' ? ' is-locked' : ''}`}>
+    <li className={`fv-br${kind === 'locked' ? ' is-locked' : ''}${next ? ' is-next' : ''}`}>
       <button type="button" className="fv-bpick" onClick={() => onPick(id)} aria-label={`${def.name}, level ${info.level}. Open its page`}>
         <BuildingArt id={id} level={info.level} size={38} building={info.jobs.length > 0} className="fv-th" />
         <span className="fv-mt">
           <b>
             {def.name} <span className="fv-lv">{info.level}</span>
+            {next && <span className="fv-nexttag">Next</span>}
           </b>
           <small>{sub}</small>
         </span>

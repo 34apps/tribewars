@@ -1,3 +1,8 @@
+import { RESOURCE_IDS } from '@clanfire/engine';
+import type { Resources } from '@clanfire/engine';
+import { Icon } from '../art/Icon.tsx';
+import { formatInt } from '../format.ts';
+import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { normalizeKind, toastRole } from './toastKind.ts';
 import type { ToastKind, ToastKindInput } from './toastKind.ts';
 import './toasts.css';
@@ -7,6 +12,24 @@ export interface ToastItem {
   message: string;
   kind: ToastKindInput;
   action?: { label: string; onClick: () => void } | undefined;
+  resources?: Resources | undefined;
+}
+
+/** "+150 wood +80 food" as big icon chips. */
+function Gains({ resources }: { resources: Resources }) {
+  const ids = RESOURCE_IDS.filter((r) => resources[r] > 0);
+  if (ids.length === 0) return null;
+  return (
+    <span className="toast-gains">
+      {ids.map((r) => (
+        <span key={r} className="toast-gain" title={RESOURCE_NAME[r]}>
+          <Icon name={RESOURCE_ICON[r]} size={24} />
+          <b>+{formatInt(Math.round(resources[r]))}</b>
+          <span className="visually-hidden"> {RESOURCE_NAME[r]}</span>
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /** The round badge: a filled circle with a glyph per kind (colour is never the only cue). */
@@ -40,7 +63,10 @@ export function Toasts({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: 
         return (
           <div key={t.id} className={`toast toast-${kind}`} role={toastRole(kind)}>
             <Badge kind={kind} />
-            <span className="toast-msg">{t.message}</span>
+            <span className="toast-msg">
+              {t.message}
+              {t.resources && <Gains resources={t.resources} />}
+            </span>
             {t.action && (
               <button
                 type="button"

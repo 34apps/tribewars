@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
+  Resources,
   BuildingId,
   ChestInfo,
   FirstStepsDto,
@@ -61,6 +62,8 @@ export interface ToastOptions {
   /** success (default; 'ok' is the older name), info, warning, error. */
   kind?: 'ok' | 'success' | 'info' | 'warning' | 'error';
   action?: { label: string; onClick: () => void };
+  /** Resources gained, drawn as icon + amount chips under the message (zero amounts are left out). */
+  resources?: Resources;
 }
 
 /** Everything the screens need; `live` and `now` change every second. */

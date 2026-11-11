@@ -33,11 +33,24 @@ function TopResources() {
   const pop = usePopulation();
   return (
     <ul className="fr-res" aria-label="Resources">
+      <li className="fr-rs fr-rs-cap" title={`Storehouse: each resource holds up to ${formatInt(cap)}`}>
+        <Icon name="chest" size={28} />
+        <span className="fr-rv">
+          <span className="fr-ra">
+            <b>
+              <span className="visually-hidden">Storage capacity: </span>
+              {formatCompact(cap)}
+            </b>
+            <small className="is-zero" aria-hidden="true">max</small>
+          </span>
+          <span className="fr-cap-label" aria-hidden="true">Storehouse</span>
+        </span>
+      </li>
       {RESOURCE_IDS.map((r) => {
         const ratio = cap > 0 ? live.resources[r] / cap : 0;
         const amount = Math.floor(live.resources[r] + 1e-9);
         return (
-          <li key={r} className="fr-rs">
+          <li key={r} className="fr-rs" title={`${RESOURCE_NAME[r]}: ${formatInt(amount)} of ${formatInt(cap)}${ratio >= 0.999 ? ' (full)' : ''}`}>
             <Icon name={RESOURCE_ICON[r]} size={28} />
             <span className="fr-rv">
               <span className="fr-ra">

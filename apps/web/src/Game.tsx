@@ -174,7 +174,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
     const id = ++toastId.current;
     const kind = options?.kind ?? 'success';
     // Newest win: at most MAX_TOASTS on screen, older ones drop.
-    setToasts((list) => [...list.slice(1 - MAX_TOASTS), { id, message, kind, action: options?.action }]);
+    setToasts((list) => [...list.slice(1 - MAX_TOASTS), { id, message, kind, action: options?.action, resources: options?.resources }]);
     // Errors stay until closed; the rest fade (a toast with an action stays a little longer).
     const ttl = toastTtl(kind, !!options?.action);
     if (ttl !== null) window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), ttl);

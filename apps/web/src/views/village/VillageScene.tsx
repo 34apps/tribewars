@@ -2,10 +2,24 @@
 // with real <button>s laid over each building (label, level badge, build timer). Desktop fits the scene into its
 // panel; phones get a bigger scene that pans with a finger (pointer events, bounded).
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, Dispatch, PointerEvent as ReactPointerEvent, ReactElement, SetStateAction } from 'react';
-import { BUILDINGS, BUILDING_IDS } from '@clanfire/engine';
-import type { BuildingId } from '@clanfire/engine';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type {
+  CSSProperties,
+  Dispatch,
+  PointerEvent as ReactPointerEvent,
+  ReactElement,
+  SetStateAction,
+} from "react";
+import { BUILDINGS, BUILDING_IDS } from "@clanfire/engine";
+import type { BuildingId } from "@clanfire/engine";
 import {
   PLACEMENT,
   SCAFFOLD_URL,
@@ -25,21 +39,43 @@ import {
   scopeIds,
   spriteUrl,
   wallLook,
-} from '../../art/buildings.ts';
-import type { Box, Stage, WallLook } from '../../art/buildings.ts';
-import { villageTier } from '../../art/landscape.tsx';
-import { LandscapeLayer, type LandscapeChoice } from '../../art/landscapes.tsx';
-import { Ground, SceneryDefs, fireItem, sceneryItems, wallItems } from '../../art/scenery.tsx';
-import type { DepthItem } from '../../art/scenery.tsx';
-import { Icon } from '../../art/Icon.tsx';
-import { Workers } from '../../art/workers.tsx';
-import { formatDuration } from '../../format.ts';
-import { unmetRequirements } from '../../rules.ts';
-import { useGame } from '../../game.ts';
+} from "../../art/buildings.ts";
+import type { Box, Stage, WallLook } from "../../art/buildings.ts";
+import { villageTier } from "../../art/landscape.tsx";
+import { LandscapeLayer, type LandscapeChoice } from "../../art/landscapes.tsx";
+import {
+  Ground,
+  SceneryDefs,
+  fireItem,
+  sceneryItems,
+  wallItems,
+} from "../../art/scenery.tsx";
+import type { DepthItem } from "../../art/scenery.tsx";
+import { Icon } from "../../art/Icon.tsx";
+import { Workers } from "../../art/workers.tsx";
+import { formatDuration } from "../../format.ts";
+import { unmetRequirements } from "../../rules.ts";
+import { useGame, useRules } from "../../game.ts";
+import { buildingInfo } from "./buildingInfo.ts";
+import { GuideCallout, HoverTip } from "./SceneGuide.tsx";
+import type { Spot } from "./SceneGuide.tsx";
+import type { Guide } from "./guide.ts";
+import { useBuild } from "./useBuild.ts";
 
 type ViewBox = { x: number; y: number; w: number; h: number };
-const SHORT_NAME: Partial<Record<BuildingId, string>> = { lumber: 'Lumber', vault: 'Vault', bannerhall: 'Banners' };
-const MAX_LEVELS = Object.fromEntries(BUILDING_IDS.map((id) => [id, BUILDINGS[id].maxLevel])) as Record<BuildingId, number>;
+const SHORT_NAME: Partial<Record<BuildingId, string>> = {
+  lumber: "Lumber",
+  vault: "Vault",
+  bannerhall: "Banners",
+};
+/**
+ * Middle of the village (the centre of the ground plate and ring wall, which is also the square), in scene units: where a desktop
+ * frame centres the village. The Town Hall's sprite sits just below it and the towers rise above it, so the picture is balanced.
+ */
+const VILLAGE_MIDDLE = { x: SCENE_FOCUS.x, y: SCENE_FOCUS.y + 26 } as const;
+const MAX_LEVELS = Object.fromEntries(
+  BUILDING_IDS.map((id) => [id, BUILDINGS[id].maxLevel]),
+) as Record<BuildingId, number>;
 
 /** What the scene draws for one building. */
 interface ArtState {
@@ -90,11 +126,20 @@ function SceneSprite({
   const inner = useRef<SVGGElement>(null);
   const { x, y, scale } = PLACEMENT[id];
   // Sprite markup comes only from our own bundled .svg files (see art/buildings.ts), never from players.
-  const html = useMemo(() => (data ? scopeIds(data.ground, prefix) : ''), [data, prefix]);
+  const html = useMemo(
+    () => (data ? scopeIds(data.ground, prefix) : ""),
+    [data, prefix],
+  );
   useLayoutEffect(() => {
     if (!html || !onBox || !inner.current) return;
     const b = inner.current.getBBox();
-    if (b.width > 0) onBox(id, { x: x + b.x * scale, y: y + b.y * scale, w: b.width * scale, h: b.height * scale });
+    if (b.width > 0)
+      onBox(id, {
+        x: x + b.x * scale,
+        y: y + b.y * scale,
+        w: b.width * scale,
+        h: b.height * scale,
+      });
   }, [html, onBox, id, x, y, scale]);
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`}>
@@ -115,7 +160,17 @@ const END_MS = 900;
  * the keyframes in village.css move and fade them. Decoration only: no pointer events. `sparks` off: dust only
  * (start and finish of work, owner 2026-11-06).
  */
-function MomentFx({ gx, gy, roof, sparks: withSparks = true }: { gx: number; gy: number; roof: number; sparks?: boolean }) {
+function MomentFx({
+  gx,
+  gy,
+  roof,
+  sparks: withSparks = true,
+}: {
+  gx: number;
+  gy: number;
+  roof: number;
+  sparks?: boolean;
+}) {
   const puffs = [
     { dx: -30, dy: -2, r: 10, to: [-26, -16] },
     { dx: -10, dy: 3, r: 13, to: [-8, -24] },
@@ -137,8 +192,14 @@ function MomentFx({ gx, gy, roof, sparks: withSparks = true }: { gx: number; gy:
           cx={gx + p.dx}
           cy={gy + p.dy}
           r={p.r}
-          style={{ '--mx': `${p.to[0]}px`, '--my': `${p.to[1]}px`, animationDelay: `${i * 60}ms` } as CSSProperties}
-          fill={i % 2 ? '#F7F1E3' : '#E8D3A4'}
+          style={
+            {
+              "--mx": `${p.to[0]}px`,
+              "--my": `${p.to[1]}px`,
+              animationDelay: `${i * 60}ms`,
+            } as CSSProperties
+          }
+          fill={i % 2 ? "#F7F1E3" : "#E8D3A4"}
         />
       ))}
       {(withSparks ? sparks : []).map((p, i) => (
@@ -158,7 +219,10 @@ function MomentFx({ gx, gy, roof, sparks: withSparks = true }: { gx: number; gy:
 
 /** The SVG layer. Memoised: it only changes when a building's look, the queue or the selection changes. */
 /** Look and queued flag last shown per village (memoryKey) during this page visit; see the build moments in SceneArt. */
-const SEEN_LOOKS = new Map<string, Partial<Record<BuildingId, { s: number; q: boolean }>>>();
+const SEEN_LOOKS = new Map<
+  string,
+  Partial<Record<BuildingId, { s: number; q: boolean }>>
+>();
 
 export const SceneArt = memo(function SceneArt({
   arts,
@@ -167,6 +231,7 @@ export const SceneArt = memo(function SceneArt({
   wide,
   landscape,
   selected,
+  hint,
   hearthOut,
   onBox,
   onPick,
@@ -181,6 +246,8 @@ export const SceneArt = memo(function SceneArt({
   /** Which landscape to draw (design preview picks; everyone else gets 'tiles'). */
   landscape: LandscapeChoice;
   selected: BuildingId | null;
+  /** The building the guide points at: a soft glowing pad under it (no outline, so it never reads as selected). */
+  hint?: BuildingId | null;
   /** The village's hearth is out: the square's campfire is cold ash (no flames, no smoke). */
   hearthOut: boolean;
   onBox: (id: BuildingId, box: Box) => void;
@@ -197,16 +264,25 @@ export const SceneArt = memo(function SceneArt({
   // Start and finish of work (owner 2026-11-06: "users can't tell when an upgrade finishes"): when a building becomes queued the
   // scaffold rises from the ground with a dust puff (starts); when it stops being queued without a new look, the scaffold fades
   // with a dust puff (ends; a new look gets the look moment above instead). Same per-village memory, so a page load never animates.
-  const prevStage = useRef<Partial<Record<BuildingId, { s: number; q: boolean }>> | null>(null);
+  const prevStage = useRef<Partial<
+    Record<BuildingId, { s: number; q: boolean }>
+  > | null>(null);
   const prevKey = useRef<string | null>(null);
-  const [moments, setMoments] = useState<Partial<Record<BuildingId, number>>>({});
+  const [moments, setMoments] = useState<Partial<Record<BuildingId, number>>>(
+    {},
+  );
   const [starts, setStarts] = useState<Partial<Record<BuildingId, number>>>({});
   const [ends, setEnds] = useState<Partial<Record<BuildingId, number>>>({});
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useLayoutEffect(() => {
-    const prev = prevKey.current === memoryKey ? prevStage.current : (SEEN_LOOKS.get(memoryKey) ?? null);
+    const prev =
+      prevKey.current === memoryKey
+        ? prevStage.current
+        : (SEEN_LOOKS.get(memoryKey) ?? null);
     prevKey.current = memoryKey;
-    prevStage.current = Object.fromEntries(BUILDING_IDS.map((id) => [id, { s: arts[id].stage, q: arts[id].queued }]));
+    prevStage.current = Object.fromEntries(
+      BUILDING_IDS.map((id) => [id, { s: arts[id].stage, q: arts[id].queued }]),
+    );
     SEEN_LOOKS.set(memoryKey, prevStage.current);
     if (!prev) return;
     const looks: BuildingId[] = [];
@@ -215,7 +291,7 @@ export const SceneArt = memo(function SceneArt({
     for (const id of BUILDING_IDS) {
       const was = prev[id] ?? { s: 0, q: false };
       const now = arts[id];
-      const lookChanged = id !== 'wall' && now.stage > 0 && was.s !== now.stage;
+      const lookChanged = id !== "wall" && now.stage > 0 && was.s !== now.stage;
       if (lookChanged) looks.push(id);
       if (!was.q && now.queued) began.push(id);
       else if (was.q && !now.queued && !lookChanged) ended.push(id);
@@ -243,9 +319,9 @@ export const SceneArt = memo(function SceneArt({
         }, ms);
       }
     };
-    play(looks, 'm', setMoments, MOMENT_MS);
-    play(began, 's', setStarts, START_MS);
-    play(ended, 'e', setEnds, END_MS);
+    play(looks, "m", setMoments, MOMENT_MS);
+    play(began, "s", setStarts, START_MS);
+    play(ended, "e", setEnds, END_MS);
   }, [arts, memoryKey]);
   useEffect(() => {
     const t = timers.current;
@@ -260,7 +336,7 @@ export const SceneArt = memo(function SceneArt({
       items.push({
         ...it,
         node: (
-          <g className="vv-b" onClick={() => onPick('wall')}>
+          <g className="vv-b" onClick={() => onPick("wall")}>
             {it.node}
           </g>
         ),
@@ -271,13 +347,13 @@ export const SceneArt = memo(function SceneArt({
     const art = arts[id];
     // The wall itself is drawn above; its sprite slot only shows building work (and nothing while unbuilt).
     const ending = ends[id];
-    if (id === 'wall' && !art.queued && !ending) continue;
+    if (id === "wall" && !art.queued && !ending) continue;
     // Unbuilt buildings show nothing at all (no empty plot): they are started from the Town Hall list.
     if (art.stage === 0 && !art.queued && !ending) continue;
     let url = spriteUrl(id, art.stage as Stage);
-    if (id === 'wall' && art.stage > 0) url = SCAFFOLD_URL;
+    if (id === "wall" && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
-    const moment = id !== 'wall' && art.stage > 0 ? moments[id] : undefined;
+    const moment = id !== "wall" && art.stage > 0 ? moments[id] : undefined;
     const { x: px, y: py, scale: ps } = PLACEMENT[id];
     const gx = px;
     const gy = py + 26 * ps;
@@ -285,22 +361,41 @@ export const SceneArt = memo(function SceneArt({
     // The scaffold (or the under-construction sprite / the wall's slot) rises from the ground when work starts.
     const rise = (el: ReactElement) =>
       start ? (
-        <g key={`r${start}`} className="vv-start-rise" style={{ transformOrigin: `${gx}px ${gy}px` }}>
+        <g
+          key={`r${start}`}
+          className="vv-start-rise"
+          style={{ transformOrigin: `${gx}px ${gy}px` }}
+        >
           {el}
         </g>
       ) : (
         el
       );
     // Finished without a new look: the scaffold stays a moment longer and fades. An unbuilt one that stopped fades the site.
-    const fade = !art.queued && ending && !moment ? (art.stage === 0 ? UNDER_CONSTRUCTION_URL : SCAFFOLD_URL) : null;
+    const fade =
+      !art.queued && ending && !moment
+        ? art.stage === 0
+          ? UNDER_CONSTRUCTION_URL
+          : SCAFFOLD_URL
+        : null;
     const sprite =
-      fade && (id === 'wall' || art.stage === 0) ? null : id === 'wall' || art.stage === 0 ? rise(<SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={id === 'wall' ? undefined : onBox} />) : (
+      fade && (id === "wall" || art.stage === 0) ? null : id === "wall" ||
+        art.stage === 0 ? (
+        rise(
+          <SceneSprite
+            url={url}
+            id={id}
+            prefix={`s-${id}-`}
+            onBox={id === "wall" ? undefined : onBox}
+          />,
+        )
+      ) : (
         <SceneSprite url={url} id={id} prefix={`s-${id}-`} onBox={onBox} />
       );
     const node = (
       <g
-        className={`vv-b${art.locked ? ' is-locked' : ''}${selected === id && id !== 'wall' ? ' is-selected' : ''}`}
-        filter={selected === id && id !== 'wall' ? 'url(#vv-sel)' : undefined}
+        className={`vv-b${art.locked ? " is-locked" : ""}${selected === id && id !== "wall" ? " is-selected" : ""}`}
+        filter={selected === id && id !== "wall" ? "url(#vv-sel)" : undefined}
         onClick={() => onPick(id)}
       >
         {moment ? (
@@ -315,64 +410,184 @@ export const SceneArt = memo(function SceneArt({
           sprite
         )}
         {moment && (
-          <g key={`ms${moment}`} className="vv-moment-scaffold" pointerEvents="none">
+          <g
+            key={`ms${moment}`}
+            className="vv-moment-scaffold"
+            pointerEvents="none"
+          >
             <SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sm-${id}-`} />
           </g>
         )}
-        {moment && <MomentFx key={`mf${moment}`} gx={gx} gy={gy} roof={py - 100 * ps} />}
-        {art.queued && art.stage > 0 && id !== 'wall' && !moment && rise(<SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />)}
+        {moment && (
+          <MomentFx key={`mf${moment}`} gx={gx} gy={gy} roof={py - 100 * ps} />
+        )}
+        {art.queued &&
+          art.stage > 0 &&
+          id !== "wall" &&
+          !moment &&
+          rise(<SceneSprite url={SCAFFOLD_URL} id={id} prefix={`sc-${id}-`} />)}
         {fade && (
-          <g key={`e${ending}`} className="vv-end-scaffold" pointerEvents="none">
+          <g
+            key={`e${ending}`}
+            className="vv-end-scaffold"
+            pointerEvents="none"
+          >
             <SceneSprite url={fade} id={id} prefix={`se-${id}-`} />
           </g>
         )}
-        {(start || ending) && !moment && <MomentFx key={`f${start ?? ''}${ending ?? ''}`} gx={gx} gy={gy} roof={py - 100 * ps} sparks={false} />}
+        {(start || ending) && !moment && (
+          <MomentFx
+            key={`f${start ?? ""}${ending ?? ""}`}
+            gx={gx}
+            gy={gy}
+            roof={py - 100 * ps}
+            sparks={false}
+          />
+        )}
         {art.active && <Workers id={id} />}
       </g>
     );
     items.push({ key: `b-${id}`, depth: placementDepth(id), node });
   }
   items.sort((a, b) => a.depth - b.depth);
+  const viewBox = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
   return (
-    <svg className="vv-svg" viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} aria-hidden="true" focusable="false">
+    <>
+      <SceneBackdrop
+        viewBox={viewBox}
+        landscape={landscape}
+        tier={tier}
+        wide={wide}
+        built={BUILDING_IDS.filter(
+          (id) => arts[id].stage > 0 || arts[id].queued,
+        ).join(",")}
+      />
+      <svg
+        className="vv-svg"
+        viewBox={viewBox}
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          {/* Selected building outline: an ink line and a gold line round the drawing's own shape. An SVG filter (not a CSS
+            drop-shadow, which Safari ignores on SVG parts). */}
+          <filter
+            id="vv-sel"
+            x="-15%"
+            y="-15%"
+            width="130%"
+            height="130%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feMorphology
+              in="SourceAlpha"
+              operator="dilate"
+              radius="4"
+              result="outer"
+            />
+            <feFlood floodColor="#2B211C" />
+            <feComposite in2="outer" operator="in" result="ink" />
+            <feMorphology
+              in="SourceAlpha"
+              operator="dilate"
+              radius="2.4"
+              result="inner"
+            />
+            <feFlood floodColor="#FFDC7A" />
+            <feComposite in2="inner" operator="in" result="gold" />
+            <feMerge>
+              <feMergeNode in="ink" />
+              <feMergeNode in="gold" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {/* Selected building: a glowing ring round its whole pad on the ground (the building stands in it, so nothing is cut
+          in half), plus a gold outline on the drawing itself (CSS .vv-b.is-selected). */}
+        {selected && selected !== "wall" && (
+          <g className="vv-ring" pointerEvents="none" strokeLinejoin="round">
+            <path
+              className="vv-ring-fill"
+              d={footprint(selected)}
+              fill="#FFDC7A"
+              opacity={0.38}
+            />
+            <path
+              d={footprint(selected)}
+              fill="none"
+              stroke="#2B211C"
+              strokeWidth={7}
+            />
+            <path
+              className="vv-ring-edge"
+              d={footprint(selected)}
+              fill="none"
+              stroke="#FFDC7A"
+              strokeWidth={3.6}
+            />
+          </g>
+        )}
+        {hint && hint !== "wall" && hint !== selected && (
+          <g className="vv-hint" pointerEvents="none">
+            <path className="vv-hint-fill" d={footprint(hint)} fill="#FFDC7A" />
+          </g>
+        )}
+        {items.map((it) => (
+          <g key={it.key}>{it.node}</g>
+        ))}
+        {selected === "wall" && (
+          <g
+            className="vv-select"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path
+              d={footprintFront(selected)}
+              stroke="#2B211C"
+              strokeWidth={7}
+            />
+            <path
+              d={footprintFront(selected)}
+              stroke="#FFDC7A"
+              strokeWidth={3.6}
+            />
+          </g>
+        )}
+      </svg>
+    </>
+  );
+});
+
+/** The still part of the scene (landscape, ground, shared defs) in its own SVG under the live one. Browsers repaint a whole
+ *  SVG whenever any part inside it animates (SVG parts get no layer of their own), so with the smoke, fire and workers in the
+ *  same SVG the ~4,000 landscape shapes were redrawn every frame (113% CPU in Chrome, more in Safari). Kept apart, the backdrop
+ *  paints once. Defs ids are page-wide, so the live layer still finds them. */
+const SceneBackdrop = memo(function SceneBackdrop({
+  viewBox,
+  landscape,
+  tier,
+  wide,
+  built,
+}: {
+  viewBox: string;
+  landscape: LandscapeChoice;
+  tier: number;
+  wide: boolean;
+  built: string;
+}) {
+  return (
+    <svg
+      className="vv-svg vv-svg-back"
+      viewBox={viewBox}
+      aria-hidden="true"
+      focusable="false"
+    >
       <defs>
         <SceneryDefs />
-        {/* Selected building outline: an ink line and a gold line round the drawing's own shape. An SVG filter (not a CSS
-            drop-shadow, which Safari ignores on SVG parts). */}
-        <filter id="vv-sel" x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
-          <feMorphology in="SourceAlpha" operator="dilate" radius="4" result="outer" />
-          <feFlood floodColor="#2B211C" />
-          <feComposite in2="outer" operator="in" result="ink" />
-          <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="inner" />
-          <feFlood floodColor="#FFDC7A" />
-          <feComposite in2="inner" operator="in" result="gold" />
-          <feMerge>
-            <feMergeNode in="ink" />
-            <feMergeNode in="gold" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
       <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
-      <Ground built={BUILDING_IDS.filter((id) => arts[id].stage > 0 || arts[id].queued).join(',')} />
-      {/* Selected building: a glowing ring round its whole pad on the ground (the building stands in it, so nothing is cut
-          in half), plus a gold outline on the drawing itself (CSS .vv-b.is-selected). */}
-      {selected && selected !== 'wall' && (
-        <g className="vv-ring" pointerEvents="none" strokeLinejoin="round">
-          <path className="vv-ring-fill" d={footprint(selected)} fill="#FFDC7A" opacity={0.38} />
-          <path d={footprint(selected)} fill="none" stroke="#2B211C" strokeWidth={7} />
-          <path className="vv-ring-edge" d={footprint(selected)} fill="none" stroke="#FFDC7A" strokeWidth={3.6} />
-        </g>
-      )}
-      {items.map((it) => (
-        <g key={it.key}>{it.node}</g>
-      ))}
-      {selected === 'wall' && (
-        <g className="vv-select" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d={footprintFront(selected)} stroke="#2B211C" strokeWidth={7} />
-          <path d={footprintFront(selected)} stroke="#FFDC7A" strokeWidth={3.6} />
-        </g>
-      )}
+      <Ground built={built} />
     </svg>
   );
 });
@@ -382,9 +597,14 @@ export const SceneArt = memo(function SceneArt({
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
 function defaultBox(id: BuildingId): Box {
-  if (id === 'wall') return WALL_HIT;
+  if (id === "wall") return WALL_HIT;
   const { x, y, scale } = PLACEMENT[id];
-  return { x: x - 54 * scale, y: y - 60 * scale, w: 108 * scale, h: 116 * scale };
+  return {
+    x: x - 54 * scale,
+    y: y - 60 * scale,
+    w: 108 * scale,
+    h: 116 * scale,
+  };
 }
 
 function BuildingHit({
@@ -398,6 +618,7 @@ function BuildingHit({
   finishIn,
   queuedNotStarted,
   onSelect,
+  onHover,
   wasDrag,
 }: {
   id: BuildingId;
@@ -411,21 +632,29 @@ function BuildingHit({
   finishIn: number | null;
   queuedNotStarted: boolean;
   onSelect: (id: BuildingId) => void;
+  /** Mouse (or keyboard focus) over / away: the scene shows its tooltip. */
+  onHover: (id: BuildingId | null) => void;
   wasDrag: () => boolean;
 }) {
   const name = BUILDINGS[id].name;
   const upgrading = finishIn !== null;
-  const aria = `${name}, level ${level}${level === 0 ? (locked ? ', locked, requirements not met' : ', not built') : ''}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ', queued' : ''}`;
+  const aria = `${name}, level ${level}${level === 0 ? (locked ? ", locked, requirements not met" : ", not built") : ""}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ", queued" : ""}`;
   const cx = pct((anchor ? anchor.x : box.x + box.w / 2) - vb.x, vb.w);
   const top = pct((anchor ? anchor.y : box.y) - vb.y, vb.h);
   return (
     <>
       <button
         type="button"
-        className={`vv-hit${selected ? ' is-selected' : ''}${level === 0 ? ' is-empty' : ''}${locked ? ' is-locked' : ''}`}
+        className={`vv-hit${selected ? " is-selected" : ""}${level === 0 ? " is-empty" : ""}${locked ? " is-locked" : ""}`}
         style={{ left: cx, top }}
         aria-label={aria}
         aria-pressed={selected}
+        onPointerEnter={(e) => e.pointerType === "mouse" && onHover(id)}
+        onPointerLeave={() => onHover(null)}
+        onFocus={(e) =>
+          e.currentTarget.matches(":focus-visible") && onHover(id)
+        }
+        onBlur={() => onHover(null)}
         onClick={() => {
           if (!wasDrag()) onSelect(id);
         }}
@@ -435,14 +664,20 @@ function BuildingHit({
             <span className="vv-label-full">{name}</span>
             <span className="vv-label-short">{SHORT_NAME[id] ?? name}</span>
           </span>
-          <span className="vv-lv">{locked ? <Icon name="lock" size={13} /> : level}</span>
+          <span className="vv-lv">
+            {locked ? <Icon name="lock" size={13} /> : level}
+          </span>
         </span>
       </button>
       {(upgrading || queuedNotStarted) && (
         // On the ground at the front of the building (owner 2026-11-06: mid-building it hid the builders at work).
-        <span className="vv-timer" style={{ left: cx, top: pct(box.y + box.h - 2 - vb.y, vb.h) }} aria-hidden="true">
+        <span
+          className="vv-timer"
+          style={{ left: cx, top: pct(box.y + box.h - 2 - vb.y, vb.h) }}
+          aria-hidden="true"
+        >
           <Icon name="time" size={16} />
-          {upgrading ? formatDuration(finishIn) : 'Next'}
+          {upgrading ? formatDuration(finishIn) : "Next"}
         </span>
       )}
     </>
@@ -458,13 +693,16 @@ export function VillageScene({
   bottomInset = 0,
   onPanned,
   levelOverride,
+  guide = null,
 }: {
-  mode: 'fit' | 'pan';
+  mode: "fit" | "pan";
   selected: BuildingId | null;
   onSelect: (id: BuildingId) => void;
   /** Phone: pixels covered by the bottom sheet, so the selected building can be panned above it. */
   bottomInset?: number;
   onPanned?: () => void;
+  /** The building to point at with a speech bubble (guide.ts); null / omitted: no bubble. Hover tooltips are always on. */
+  guide?: Guide | null;
   /**
    * Design preview. building = null ("All buildings"): every building at min(level, its max), or at the first level of
    * `look` when one is picked (no queue work). building = an id: that building alone at min(level, its max); the others keep
@@ -479,14 +717,25 @@ export function VillageScene({
     work?: boolean;
   } | null;
 }) {
-  const { live, now, village } = useGame();
+  const { live, now, village, settings } = useGame();
+  const queueLimit = useRules().queues.build;
+  const { busy: building, build } = useBuild();
+  const [hover, setHover] = useState<BuildingId | null>(null);
   const ov = levelOverride ?? null;
   const levels = !ov
     ? live.buildings
     : ov.building
-      ? { ...live.buildings, [ov.building]: Math.min(ov.level, BUILDINGS[ov.building].maxLevel) }
+      ? {
+          ...live.buildings,
+          [ov.building]: Math.min(ov.level, BUILDINGS[ov.building].maxLevel),
+        }
       : (Object.fromEntries(
-          BUILDING_IDS.map((id) => [id, ov.look ? lookStartLevel(id, ov.look) : Math.min(ov.level, BUILDINGS[id].maxLevel)]),
+          BUILDING_IDS.map((id) => [
+            id,
+            ov.look
+              ? lookStartLevel(id, ov.look)
+              : Math.min(ov.level, BUILDINGS[id].maxLevel),
+          ]),
         ) as typeof live.buildings);
   const [boxes, setBoxes] = useState<Partial<Record<BuildingId, Box>>>({});
   const onBox = useCallback((id: BuildingId, box: Box) => {
@@ -505,23 +754,38 @@ export function VillageScene({
   }, []);
 
   // No scaffolding on the building being previewed; other buildings keep their real queue work in single-building mode.
-  const queue = !ov ? live.buildQueue : ov.building ? live.buildQueue.filter((j) => j.building !== ov.building) : [];
+  const queue = !ov
+    ? live.buildQueue
+    : ov.building
+      ? live.buildQueue.filter((j) => j.building !== ov.building)
+      : [];
   // 'q' = has a job, 'a' = a job is running now (builders at work); the preview's "Building work" switch fakes both.
-  const faked = (id: BuildingId) => !!ov?.work && (!ov.building || ov.building === id);
+  const faked = (id: BuildingId) =>
+    !!ov?.work && (!ov.building || ov.building === id);
   const artKey = BUILDING_IDS.map(
     (id) =>
-      `${id === 'wall' ? wallLook(levels[id]) : buildingStage(id, levels[id])}${faked(id) || queue.some((j) => j.building === id) ? 'q' : ''}${
-        faked(id) || queue.some((j) => j.building === id && now >= j.startAt) ? 'a' : ''
+      `${id === "wall" ? wallLook(levels[id]) : buildingStage(id, levels[id])}${faked(id) || queue.some((j) => j.building === id) ? "q" : ""}${
+        faked(id) || queue.some((j) => j.building === id && now >= j.startAt)
+          ? "a"
+          : ""
       }${
-        levels[id] === 0 && unmetRequirements(levels, BUILDINGS[id].requires).length > 0 ? 'l' : ''
+        levels[id] === 0 &&
+        unmetRequirements(levels, BUILDINGS[id].requires).length > 0
+          ? "l"
+          : ""
       }`,
-  ).join(',');
+  ).join(",");
   const arts = useMemo(() => {
     const out = {} as Arts;
-    const parts = artKey.split(',');
+    const parts = artKey.split(",");
     BUILDING_IDS.forEach((id, i) => {
-      const p = parts[i] ?? '0';
-      out[id] = { stage: Number(p[0]) as WallLook, queued: p.includes('q'), active: p.includes('a'), locked: p.includes('l') };
+      const p = parts[i] ?? "0";
+      out[id] = {
+        stage: Number(p[0]) as WallLook,
+        queued: p.includes("q"),
+        active: p.includes("a"),
+        locked: p.includes("l"),
+      };
     });
     return out;
   }, [artKey]);
@@ -535,13 +799,45 @@ export function VillageScene({
   const VB = vb;
 
   // Hit buttons in painter's order, so the building in front wins where boxes overlap.
-  const order = useMemo(() => [...BUILDING_IDS].sort((a, b) => placementDepth(a) - placementDepth(b)), []);
+  const order = useMemo(
+    () =>
+      [...BUILDING_IDS].sort((a, b) => placementDepth(a) - placementDepth(b)),
+    [],
+  );
+
+  // Guide bubble and hover tooltip: anchored on the building's label point (above it; below its drawing near the top edge).
+  const infoOf = (id: BuildingId) =>
+    buildingInfo(live, now, settings, !!village.hearth, queueLimit, id);
+  const spotOf = (id: BuildingId): Spot => {
+    const box = boxes[id] ?? defaultBox(id);
+    const a =
+      id !== "wall" && arts[id].stage > 0
+        ? labelAnchor(id, arts[id].stage as Exclude<Stage, 0>)
+        : null;
+    const x = a ? a.x : box.x + box.w / 2;
+    const y = a ? a.y : box.y;
+    const below = (y - VB.y) / VB.h < 0.3;
+    return {
+      left: pct(x - VB.x, VB.w),
+      top: pct((below ? box.y + box.h : y) - VB.y, VB.h),
+      below,
+    };
+  };
+  const gd = guide && !ov && !selected && levels[guide.id] > 0 ? guide : null;
 
   // ---- Panning (phone) ----
   const viewRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ w: 0, h: 0 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ id: number; sx: number; sy: number; px: number; py: number; moved: boolean; last?: { x: number; y: number } } | null>(null);
+  const drag = useRef<{
+    id: number;
+    sx: number;
+    sy: number;
+    px: number;
+    py: number;
+    moved: boolean;
+    last?: { x: number; y: number };
+  } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
 
@@ -560,7 +856,10 @@ export function VillageScene({
   // it had before the headroom existed; the stage is taller by the headroom and panning reaches it.
   // Owner 2026-11-06 (iPhone): 1.35-1.85 showed one building at a time and made every look round a long drag; now a few
   // buildings fit on screen (the labels are HTML, so they stay readable at any zoom).
-  const scale = mode === 'pan' && view.h > 0 ? Math.min(1.05, Math.max(0.8, (view.h * 0.72) / SCENE_BASE_H)) : 1;
+  const scale =
+    mode === "pan" && view.h > 0
+      ? Math.min(1.05, Math.max(0.8, (view.h * 0.72) / SCENE_BASE_H))
+      : 1;
   const stageW = VB.w * scale;
   const stageH = VB.h * scale;
 
@@ -570,24 +869,32 @@ export function VillageScene({
       // Leave room under the village name pill at the top.
       const maxY = Math.max(52, (view.h - bottomInset - stageH) / 2);
       const minY = Math.min(maxY, view.h - bottomInset - stageH);
-      return { x: Math.max(minX, Math.min(0, x)), y: Math.max(minY, Math.min(maxY, y)) };
+      return {
+        x: Math.max(minX, Math.min(0, x)),
+        y: Math.max(minY, Math.min(maxY, y)),
+      };
     },
     [view.w, view.h, stageW, stageH, bottomInset],
   );
 
   const centreOn = useCallback(
-    (sx: number, sy: number) => clamp(view.w / 2 - (sx - VB.x) * scale, (view.h - bottomInset) / 2 - (sy - VB.y) * scale),
+    (sx: number, sy: number) =>
+      clamp(
+        view.w / 2 - (sx - VB.x) * scale,
+        (view.h - bottomInset) / 2 - (sy - VB.y) * scale,
+      ),
     [clamp, view.w, view.h, bottomInset, scale],
   );
 
   // First layout: look at the market square.
   useEffect(() => {
-    if (mode === 'pan' && view.w > 0 && pan === null) setPan(centreOn(SCENE_FOCUS.x, SCENE_FOCUS.y));
+    if (mode === "pan" && view.w > 0 && pan === null)
+      setPan(centreOn(SCENE_FOCUS.x, SCENE_FOCUS.y));
   }, [mode, view.w, pan, centreOn]);
 
   // Keep the selected building in view above the bottom sheet.
   useEffect(() => {
-    if (mode !== 'pan' || !selected || view.w === 0) return;
+    if (mode !== "pan" || !selected || view.w === 0) return;
     const b = boxes[selected] ?? defaultBox(selected);
     // A little above the drawing's middle, so its label stays in view above the sheet on small phones.
     setPan(centreOn(b.x + b.w / 2, b.y + b.h * 0.3));
@@ -595,8 +902,16 @@ export function VillageScene({
   }, [mode, selected, bottomInset, view.w, view.h]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (mode !== 'pan' || !pan || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y, moved: false };
+    if (mode !== "pan" || !pan || (e.pointerType === "mouse" && e.button !== 0))
+      return;
+    drag.current = {
+      id: e.pointerId,
+      sx: e.clientX,
+      sy: e.clientY,
+      px: pan.x,
+      py: pan.y,
+      moved: false,
+    };
     dragged.current = false;
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -608,21 +923,22 @@ export function VillageScene({
     if (!d.moved) {
       d.moved = true;
       viewRef.current?.setPointerCapture(e.pointerId);
-      viewRef.current?.classList.add('is-dragging');
+      viewRef.current?.classList.add("is-dragging");
       onPanned?.();
     }
     // While the finger moves, move the stage directly (no React render per move: phones stayed smooth only this way);
     // the position is committed to state when the drag ends.
     const p = clamp(d.px + dx, d.py + dy);
     d.last = p;
-    if (stageRef.current) stageRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+    if (stageRef.current)
+      stageRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     dragged.current = d.moved;
     drag.current = null;
-    viewRef.current?.classList.remove('is-dragging');
+    viewRef.current?.classList.remove("is-dragging");
     if (d.last) setPan(d.last);
     // The click that follows this pointerup (if any) reads the flag first; then it is cleared.
     if (d.moved) window.setTimeout(() => (dragged.current = false), 0);
@@ -644,26 +960,45 @@ export function VillageScene({
   );
 
   const stageStyle: CSSProperties =
-    mode === 'pan'
+    mode === "pan"
       ? {
           width: stageW,
           height: stageH,
           transform: pan ? `translate3d(${pan.x}px, ${pan.y}px, 0)` : undefined,
-          visibility: pan ? undefined : 'hidden',
+          visibility: pan ? undefined : "hidden",
         }
-      : ({ '--vb-ratio': VB.w / VB.h } as CSSProperties);
+      : ({
+          "--vb-ratio": VB.w / VB.h,
+          // The frame shows the scene "cover" style, centred on the middle of the box. The village is not in the middle of the box
+          // (headroom for tall towers above it), so shift the stage by the difference, as a share of its own size: whatever the
+          // frame's shape, the middle of the built-up area lands in the middle of the frame.
+          "--vb-dx": `${(0.5 - (VILLAGE_MIDDLE.x - VB.x) / VB.w) * 100}%`,
+          "--vb-dy": `${(0.5 - (VILLAGE_MIDDLE.y - VB.y) / VB.h) * 100}%`,
+        } as CSSProperties);
 
   return (
     <div
       ref={viewRef}
-      className={`vv-view vv-${mode}${mode === 'fit' && view.w > 0 && Math.min(view.w, (view.h * VB.w) / VB.h) < 820 ? ' is-compact' : ''}`}
+      className={`vv-view vv-${mode}${mode === "fit" && view.w > 0 && Math.min(view.w, (view.h * VB.w) / VB.h) < 820 ? " is-compact" : ""}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
       <div ref={stageRef} className="vv-stage" style={stageStyle}>
-        <SceneArt arts={arts} vb={vb} tier={tier} wide={mode === 'fit'} landscape={ov?.landscape ?? 'tiles'} selected={selected} hearthOut={!!village.hearth} onBox={onBox} onPick={pick} memoryKey={`${village.id}${ov ? ':preview' : ''}`} />
+        <SceneArt
+          arts={arts}
+          vb={vb}
+          tier={tier}
+          wide={mode === "fit"}
+          landscape={ov?.landscape ?? "tiles"}
+          selected={selected}
+          hint={gd ? gd.id : null}
+          hearthOut={!!village.hearth}
+          onBox={onBox}
+          onPick={pick}
+          memoryKey={`${village.id}${ov ? ":preview" : ""}`}
+        />
         <div className="vv-hits">
           {order.map((id) => {
             const jobs = queue.filter((j) => j.building === id);
@@ -675,17 +1010,38 @@ export function VillageScene({
                 id={id}
                 vb={vb}
                 box={boxes[id] ?? defaultBox(id)}
-                anchor={id !== 'wall' && arts[id].stage > 0 ? labelAnchor(id, arts[id].stage as Exclude<Stage, 0>) : null}
+                anchor={
+                  id !== "wall" && arts[id].stage > 0
+                    ? labelAnchor(id, arts[id].stage as Exclude<Stage, 0>)
+                    : null
+                }
                 level={levels[id]}
                 locked={arts[id].locked}
                 selected={selected === id}
                 finishIn={active ? active.finishAt - now : null}
                 queuedNotStarted={!active && jobs.length > 0}
                 onSelect={onSelect}
+                onHover={setHover}
                 wasDrag={wasDrag}
               />
             );
           })}
+          {gd && (
+            <GuideCallout
+              guide={gd}
+              info={infoOf(gd.id)}
+              spot={spotOf(gd.id)}
+              busy={building}
+              onBuild={() => build(gd.id)}
+              onOpen={() => pick(gd.id)}
+            />
+          )}
+          {hover &&
+            hover !== selected &&
+            !(gd && hover === gd.id) &&
+            (levels[hover] > 0 || queue.some((j) => j.building === hover)) && (
+              <HoverTip info={infoOf(hover)} spot={spotOf(hover)} />
+            )}
         </div>
       </div>
     </div>

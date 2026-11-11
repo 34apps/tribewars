@@ -174,6 +174,18 @@ html.layout-desktop .toasts {
   white-space: nowrap;
 }
 
+.fr-rs-cap {
+  padding-right: 18px;
+  border-right: 2px solid var(--edge-soft);
+}
+
+.fr-cap-label {
+  font: 700 11px/1 var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
 .fr-rv {
   display: flex;
   flex-direction: column;
@@ -984,7 +996,8 @@ html.layout-desktop .toasts {
 
 .fv-pic .vv-fit .vv-stage {
   width: max(100cqw, 100cqh * var(--vb-ratio));
-  transform: translateY(-6px);
+  /* VillageScene sets --vb-dx / --vb-dy: the shift that puts the middle of the built-up area in the middle of the frame. */
+  transform: translate(var(--vb-dx, 0), var(--vb-dy, 0));
 }
 
 .fv-pcap {
@@ -2226,4 +2239,24 @@ button.bs {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The buildings-list row the village guide points at: a soft gold ring and a filled "Next" tag (no side stripe). */
+.fv-br.is-next {
+  background: rgba(255, 220, 122, 0.28);
+  border-radius: 12px;
+  box-shadow: 0 0 0 3px var(--c-sun-hi);
+  position: relative;
+  z-index: 1;
+}
+
+.fv-nexttag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px 2px;
+  border-radius: 8px;
+  background: var(--c-sun);
+  color: var(--on-fill);
+  font: 700 11.5px/1.3 var(--font);
+  vertical-align: 1px;
 }

@@ -19,6 +19,7 @@ import { BuildingRow, Chev, LeftColumn } from './FrameParts.tsx';
 import { useFirstSteps } from './FirstSteps.tsx';
 import { VillageScene } from './VillageScene.tsx';
 import { useBuild } from './useBuild.ts';
+import { useGuide } from './guide.ts';
 import type { BuildingId } from '@clanfire/engine';
 
 // ---- Centre ----------------------------------------------------------------------------------------------------------
@@ -207,7 +208,7 @@ function StandingPanel({ active }: { active: boolean }) {
 
 // ---- Right column: all buildings ---------------------------------------------------------------------------------
 
-function BuildingsList({ busy, build, onPick }: { busy: boolean; build: (id: BuildingId) => void; onPick: (id: BuildingId) => void }) {
+function BuildingsList({ busy, build, onPick, next }: { busy: boolean; build: (id: BuildingId) => void; onPick: (id: BuildingId) => void; next: BuildingId | null }) {
   return (
     <section className="fv-pn fv-blist" aria-label="Buildings">
       <div className="fv-ph">
@@ -218,7 +219,7 @@ function BuildingsList({ busy, build, onPick }: { busy: boolean; build: (id: Bui
       </div>
       <ul className="fv-bt">
         {BUILDING_IDS.map((b) => (
-          <BuildingRow key={b} id={b} busy={busy} build={build} onPick={onPick} />
+          <BuildingRow key={b} id={b} busy={busy} build={build} onPick={onPick} next={b === next} />
         ))}
       </ul>
     </section>
@@ -239,6 +240,7 @@ export function FrameVillage({
 }) {
   const { village, firstSteps, building, openBuilding } = useGame();
   const { busy, build } = useBuild();
+  const guide = useGuide(active && !levelOverride);
   // Escape on a building's page goes back to the Village page.
   useEffect(() => {
     if (!active || !building) return;
@@ -261,7 +263,7 @@ export function FrameVillage({
           <div className="fv-notes">{notices}</div>
           <section className="fv-pic" aria-label={`${village.name}, village`}>
             <h1 className="visually-hidden">{village.name}</h1>
-            <VillageScene mode="fit" selected={null} onSelect={openBuilding} levelOverride={levelOverride} />
+            <VillageScene mode="fit" selected={null} onSelect={openBuilding} levelOverride={levelOverride} guide={guide} />
             <span className="fv-pcap">
               <Icon name="village" size={16} />
               Click a building to open its page
@@ -279,7 +281,7 @@ export function FrameVillage({
             )}
           </div>
         </div>
-        <BuildingsList busy={busy} build={build} onPick={openBuilding} />
+        <BuildingsList busy={busy} build={build} onPick={openBuilding} next={guide?.id ?? null} />
       </div>
     </div>
   );

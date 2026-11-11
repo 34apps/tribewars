@@ -11,6 +11,7 @@ import { useIsDesktop } from '../hooks/useLayout.ts';
 import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
 import { FrameVillage } from './village/FrameVillage.tsx';
 import { useBuild } from './village/useBuild.ts';
+import { useGuide } from './village/guide.ts';
 import { FirstStepsCard, FirstStepsChip } from './village/FirstSteps.tsx';
 import { MovementsSummary, outgoingOnTheRoad } from './village/MovementsSummary.tsx';
 import { RenownCard, RenownChip } from './village/RenownCard.tsx';
@@ -107,6 +108,7 @@ function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean
   const headRef = useRef<HTMLDivElement>(null);
   const dock = useDockSpace();
   const { busy, build } = useBuild();
+  const guide = useGuide(active && !preview);
 
   useLayoutEffect(() => {
     const el = sheetRef.current;
@@ -149,6 +151,7 @@ function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean
           onSelect={(id) => setSheet({ kind: 'building', id })}
           bottomInset={dock + sheetH}
           onPanned={() => setPanned(true)}
+          guide={guide}
         />
         <Notices compact preview={preview} />
         {!panned && !sheet && (

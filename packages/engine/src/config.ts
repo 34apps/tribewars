@@ -191,7 +191,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   farm: {
     id: 'farm',
     name: 'Farm',
-    description: 'Grows food. Your troops eat food every hour, so more farms mean a bigger army.',
+    description: 'Grows food and sets how many people the village can hold, so a bigger Farm means room for a bigger army.',
     maxLevel: 20,
     startLevel: 1,
     requires: {},

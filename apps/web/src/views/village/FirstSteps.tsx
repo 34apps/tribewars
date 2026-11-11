@@ -3,14 +3,13 @@
 
 import { useState } from 'react';
 import type { BuildingId, FirstStepDto } from '@clanfire/engine';
-import { storageCap } from '@clanfire/engine';
+import { RESOURCE_IDS, storageCap } from '@clanfire/engine';
 import { api, errorMessage } from '../../api.ts';
 import { Mags } from '../../art/Mags.tsx';
 import { ProgressBar, Cost } from '../../components/ui.tsx';
 import {
   FIRST_STEP_LABEL,
   FIRST_STEP_TARGET,
-  addedText,
   claimableSteps,
   doneCount,
   firstStepsVisible,
@@ -34,7 +33,11 @@ export function useFirstSteps(onShowBuilding: (id: BuildingId) => void) {
       const r = await api.claimFirstStep(s.id, village.id);
       applyVillage(r.village);
       applyFirstSteps(r.firstSteps);
-      toast(`${FIRST_STEP_LABEL[s.id]}: added ${addedText(r.added)} to ${village.name}.`);
+      const gained = RESOURCE_IDS.some((id) => r.added[id] > 0);
+      toast(gained ? `${FIRST_STEP_LABEL[s.id]} done! Added to ${village.name}:` : `${FIRST_STEP_LABEL[s.id]}: nothing added, the storehouse is full.`, {
+        resources: r.added,
+        ...(gained ? {} : { kind: 'warning' as const }),
+      });
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
       void refresh();

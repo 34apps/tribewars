@@ -19,7 +19,9 @@ import { applyShowcase } from './showcase-apply.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
 import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLook } from '../../web/src/views/village/designPreviewState.ts';
 
-const SAVE_DEBOUNCE_MS = 2000;
+const SAVE_DEBOUNCE_MS = 5000; // the page also saves when it is hidden or closed
+/** Real time the computer players may use per second of the live timer; at high game speeds the rest waits for the next tick. */
+const TICK_BOT_BUDGET_MS = 12;
 
 function showFatal(message: string): void {
   const root = document.getElementById('root');
@@ -118,11 +120,17 @@ async function boot(): Promise<void> {
   markDirty(); // first save: the seeded world
 
   // ---- clock: real time; arrivals are processed on every request and once a second ----
+  let tickNo = 0;
   window.setInterval(() => {
     const handled = backend.processDue();
     let botsActed = false;
+    // In a hidden tab the computer players only play every 10th second (nobody is watching; they catch up when it is shown).
+    if (document.hidden && ++tickNo % 10 !== 0) {
+      if (handled > 0) markDirty();
+      return;
+    }
     try {
-      botsActed = botTick(backend.ctx);
+      botsActed = botTick(backend.ctx, TICK_BOT_BUDGET_MS);
     } catch (err) {
       console.error('bot step failed', err);
     }
