@@ -46,10 +46,13 @@ let SCENE_FOCUS: { x: number; y: number };
 let labelAnchor: (id: BuildingId, stage: 1 | 2 | 3 | 4) => { x: number; y: number };
 let plotUV: (id: BuildingId) => { u: number; v: number };
 let doorUV: (id: BuildingId) => { u: number; v: number };
+let roadEnd: (id: BuildingId, stage: number) => { u: number; v: number };
+let DOOR_DEPTH: Record<string, readonly number[]>;
+let DOOR_TUCK: number;
 let spriteUrl: (id: BuildingId, stage: 1 | 2 | 3 | 4) => string;
 let Ground: (p: { built: string }) => unknown;
 let SQUARE: number;
-let network: (built: string) => { runs: { pts: (readonly [number, number])[]; s: number; capB: boolean }[] };
+let network: (built: string) => { runs: { pts: (readonly [number, number])[]; s: number; capB: boolean; door: boolean }[] };
 
 before(async () => {
   server = await createServer({
@@ -62,7 +65,7 @@ before(async () => {
   });
   const b = await server.ssrLoadModule('/src/art/buildings.ts');
   const s = await server.ssrLoadModule('/src/art/scenery.tsx');
-  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl } = b);
+  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl, roadEnd, DOOR_DEPTH, DOOR_TUCK } = b);
   ({ PATHS, STREET_W, Ground, SQUARE, network } = s);
 });
 
@@ -101,7 +104,7 @@ test('every road is joined to the network and runs on to its door: no zero-lengt
     const net = network(BUILDING_IDS.map((id) => `${id}:${look}`).join(','));
     for (const id of BUILT) {
       if (id === 'hall') continue;
-      const d = doorUV(id);
+      const d = roadEnd(id, look);
       assert.ok(
         net.runs.some((r) => r.capB && Math.hypot(r.pts[r.pts.length - 1]![0] - d.u, r.pts[r.pts.length - 1]![1] - d.v) < 0.1),
         `look ${look}: no drawn road reaches the ${id} door`,
@@ -110,10 +113,44 @@ test('every road is joined to the network and runs on to its door: no zero-lengt
   }
 });
 
+test('every road ends flush at its building: in under the front of the drawing, no grass gap, at every look', () => {
+  // On the door line (u' = 0 in sprite units, the middle of the front-left face), walking in from the tile edge: the first
+  // painted stretch (3+ units deep) must begin in front of the road's end, at most a few units, and cover the end itself.
+  const painted = (e: { cell: number; mask: string[] }, x: number, y: number) => {
+    const col = Math.floor((x + 70) / e.cell);
+    const hex = e.mask[Math.floor((y + 122) / e.cell)];
+    return !!hex && BigInt(`0x${hex}`).toString(2).slice(1)[col] === '1';
+  };
+  for (const id of BUILT) {
+    if (id === 'hall') continue;
+    for (const s of [1, 2, 3, 4] as const) {
+      const file = spriteUrl(id, s).split('?')[0]!.split('/').pop()!;
+      const e = BOXES[file]!;
+      let first = 0;
+      const on = (v: number) => painted(e, -v, 26 + v / 2);
+      for (let v = 32; v >= -10; v -= 0.5)
+        if ([0, 1, 2, 3].every((k) => on(v - k))) {
+          first = v;
+          break;
+        }
+      assert.equal(DOOR_DEPTH[id]![s - 1], first, `${id} look ${s}: DOOR_DEPTH is stale (measured ${first}); update it in buildings.ts`);
+      const end = roadEnd(id, s);
+      const at = (end.v - plotUV(id).v) / PLACEMENT[id].scale; // the road end in sprite units along the door line
+      assert.ok(at <= first + 0.01, `${id} look ${s}: grass between the road end and the building`);
+      assert.ok(first - at <= DOOR_TUCK + 4.5, `${id} look ${s}: the road runs too far in under the drawing`);
+      assert.ok(first >= 30 || painted(e, -at, 26 + at / 2), `${id} look ${s}: the road end is not under the drawing`);
+      assert.ok(Math.abs(end.u - plotUV(id).u) < 0.01, `${id}: the road comes straight in on the door line`);
+    }
+  }
+  // Door ends are square (a doorstep), never a round blob.
+  const net = network(BUILDING_IDS.map((id) => `${id}:2`).join(','));
+  assert.ok(net.runs.filter((r) => r.door).length >= BUILT.length - 1);
+});
+
 test('a road shared by several buildings takes the best surface among them', () => {
   // Market at look 1 and Longhouse at look 4 share the lane inside the gate: that stretch is look 4; the Market's last leg is look 1.
   const net = network('hall:1,market:1,longhouse:4');
-  const d = doorUV('market');
+  const d = roadEnd('market', 1);
   const toMarket = net.runs.filter((r) => r.pts.some(([u, v]) => Math.abs(u - d.u) < 0.1 && Math.abs(v - d.v) < 0.1));
   assert.ok(toMarket.length > 0 && toMarket.every((r) => r.s === 1));
   assert.ok(net.runs.some((r) => r.s === 4 && r.pts[0]![0] === WALL_RING.gateU));

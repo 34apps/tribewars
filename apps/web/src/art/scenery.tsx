@@ -7,7 +7,7 @@ import { memo } from 'react';
 import type { ReactNode } from 'react';
 import { T } from './Icon.tsx';
 import type { BuildingId } from '@clanfire/engine';
-import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV } from './buildings.ts';
+import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV, roadEnd } from './buildings.ts';
 import type { RoadDef } from './buildings.ts';
 
 export interface DepthItem {
@@ -536,6 +536,8 @@ interface Run {
   s: Surface;
   capA: boolean;
   capB: boolean;
+  /** Ends at a door: square end with a doorstep, in under the drawing. */
+  door: boolean;
 }
 interface Net {
   segs: Seg[];
@@ -558,7 +560,11 @@ export function network(built: string): Net {
   const hit = NETS.get(built);
   if (hit) return hit;
   const st = roadStages(built);
-  const shown = PATHS.filter((p) => p.to && st.has(p.to));
+  // Each road runs on to where its building's drawing begins at the building's look (roadEnd), not just to the pad edge.
+  const shown = PATHS.filter((p) => p.to && st.has(p.to)).map((p) => {
+    const e = roadEnd(p.to!, st.get(p.to!)!);
+    return { ...p, pts: [...p.pts.slice(0, -1), [e.u, e.v] as const] };
+  });
   const nodes: P2[] = shown.flatMap((p) => p.pts);
   const pieces = shown.map((p) => {
     const parts: { a: P2; b: P2; key: string }[] = [];
@@ -617,8 +623,9 @@ export function network(built: string): Net {
         s: list[i]!.s,
         capA: !before || before.s > list[i]!.s || before.w > list[i]!.w,
         capB: !after || after.s > list[i]!.s || after.w > list[i]!.w,
+        door: !after,
       };
-      const key = `${run.pts.map(pk).join(';')}/${run.s}/${run.w}/${run.capA}/${run.capB}`;
+      const key = `${run.pts.map(pk).join(';')}/${run.s}/${run.w}/${run.capA}/${run.capB}/${run.door}`;
       if (!seen.has(key)) {
         seen.add(key);
         runs.push(run);
@@ -818,7 +825,14 @@ function Lanes({ built }: { built: string }) {
   const net = network(built);
   const tex = laneTextures(built, net);
   const lines = net.runs.map((r) => ({ r, d: drawnLine(r.pts, SWAY[r.s], BEND[r.s]) }));
-  const ends = (r: Run) => `${r.capA ? dot(...r.pts[0]!) : ''}${r.capB ? dot(...r.pts[r.pts.length - 1]!) : ''}`;
+  const ends = (r: Run) => `${r.capA ? dot(...r.pts[0]!) : ''}${r.capB && !r.door ? dot(...r.pts[r.pts.length - 1]!) : ''}`;
+  // A square doorstep a little wider than the road where it meets the building (the road comes in along v from the front).
+  const step = (r: Run) => {
+    const [u, v] = r.pts[r.pts.length - 1]!;
+    const h = r.w + 2.4;
+    return `M${g1(u - h)} ${g1(v)}H${g1(u + h)}V${g1(v + 8)}H${g1(u - h)}Z`;
+  };
+  const doorRuns = lines.filter((l) => l.r.door);
   const surfaces = ([1, 2, 3, 4] as const).map((s) => {
     const mine = lines.filter((l) => l.r.s === s);
     if (!mine.length) return null;
@@ -831,11 +845,21 @@ function Lanes({ built }: { built: string }) {
             <g key={w}>
               <path d={ls.map((l) => l.d).join('')} stroke={FILL[s]} strokeWidth={w * 2} strokeLinecap="butt" />
               <path d={ls.map((l) => ends(l.r)).join('')} stroke={FILL[s]} strokeWidth={w * 2} strokeLinecap="round" />
+              <path d={ls.filter((l) => l.r.door).map((l) => step(l.r)).join('')} fill={FILL[s]} stroke="none" />
               {s === 1 && <path d={ls.map((l) => l.d).join('')} stroke="#E2C48F" strokeWidth={w * 0.9} strokeLinecap="butt" opacity={0.8} />}
             </g>
           );
         })}
         <TexLayer s={s} x={tex[s - 1]!} />
+        {s >= 3 && (
+          // Paved roads end on one dressed doorstep slab.
+          <path
+            d={mine.filter((l) => l.r.door).map((l) => { const [u, v] = l.r.pts[l.r.pts.length - 1]!; return tile(u - l.r.w - 1.6, v + 0.8, u + l.r.w + 1.6, v + 7.2, 1.2); }).join('')}
+            fill="#E8E3D8"
+            stroke="#857E73"
+            strokeWidth={0.9}
+          />
+        )}
       </g>
     );
   });
@@ -846,7 +870,11 @@ function Lanes({ built }: { built: string }) {
         {edgeKeys.map((k) => {
           const [s, w] = k.split('/').map(Number) as [Surface, number];
           return (
-            <path key={`e${k}`} d={lines.filter((l) => l.r.s === s && l.r.w === w).map((l) => l.d).join('')} stroke={INK} strokeWidth={w * 2 + EDGE_W[s] * 2} strokeLinecap="round" />
+            <g key={`e${k}`}>
+              <path d={lines.filter((l) => l.r.s === s && l.r.w === w).map((l) => l.d).join('')} stroke={INK} strokeWidth={w * 2 + EDGE_W[s] * 2} strokeLinecap="butt" />
+              <path d={lines.filter((l) => l.r.s === s && l.r.w === w).map((l) => ends(l.r)).join('')} stroke={INK} strokeWidth={w * 2 + EDGE_W[s] * 2} strokeLinecap="round" />
+              <path d={doorRuns.filter((l) => l.r.s === s && l.r.w === w).map((l) => step(l.r)).join('')} fill="none" stroke={INK} strokeWidth={EDGE_W[s] * 2} strokeLinejoin="miter" />
+            </g>
           );
         })}
         {surfaces}

@@ -256,6 +256,39 @@ export function doorUV(id: BuildingId): { u: number; v: number } {
   return { u, v: v + 28 * PLACEMENT[id].scale - 3 };
 }
 
+/**
+ * How far in from its tile corner each drawing first covers its door line (sprite units along v' on the line u' = 0, from the
+ * tile's front-left face at v' = 26 towards the middle), per look 1..4: where the building or its yard begins (the first painted
+ * stretch at least 3 units deep, so a lone lamp or sack in front does not count).
+ * Measured from the painted masks (test/sprite-boxes.json); the layout test fails when a drawing changed and this did not.
+ */
+export const DOOR_DEPTH: Record<Exclude<BuildingId, 'wall' | 'hall'>, readonly [number, number, number, number]> = {
+  lumber: [30, 23.5, 26, 26],
+  farm: [14, 23.5, 23.5, 23.5],
+  longhouse: [15.5, 15.5, 18, 22],
+  mine: [26, 26, 26, 26],
+  goldmine: [26, 26, 26, 26],
+  storehouse: [15.5, 22, 15.5, 15.5],
+  barracks: [23.5, 23.5, 26, 26],
+  stables: [15.5, 7.5, 15.5, 22],
+  wrightyard: [22, 23.5, 26, 26],
+  vault: [32, 32, 23.5, 32],
+  market: [15.5, 22, 26, 22],
+  drillyard: [23.5, 23.5, 26, 30],
+  bannerhall: [26, 31.5, 31.5, 32],
+};
+/** The road runs this far (sprite units) in under the drawing's front, so it reads as walking straight in. */
+export const DOOR_TUCK = 4;
+
+/** Where a building's road ends at a look (1..4): on its door line, just in under the front of the drawing (never past the door point). */
+export function roadEnd(id: BuildingId, stage: number): { u: number; v: number } {
+  const d = doorUV(id);
+  if (id === 'wall' || id === 'hall') return d;
+  const { v } = plotUV(id);
+  const k = DOOR_DEPTH[id][Math.min(4, Math.max(1, stage)) - 1]!;
+  return { u: d.u, v: Math.min(d.v, v + (k - DOOR_TUCK) * PLACEMENT[id].scale) };
+}
+
 /** Roads on the land outside the wall to buildings standing there (none now; the main road belongs to the landscape). */
 export const OUTER_ROADS: readonly RoadDef[] = [];
 

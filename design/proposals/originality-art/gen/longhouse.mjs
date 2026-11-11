@@ -1,7 +1,7 @@
 // Longhouse v2: grows from a small turf hut (1) to a long clan house (2), a raised clan hall (3) and the great
-// gilded hall with stacked roofs (4), like Town Hall / Barracks grow. Roof ends carry crossed carved gable boards with a
-// small round finial (owner 2026-11-11: no dragon heads).
-import { INK, f, iso, poly, open, p, ln, box, courses, planksL, planksR, post, rod, barrel, sack, sprite, flag, tufts, smoke, brazier, glint,
+// gilded hall with stacked roofs (4), like Town Hall / Barracks grow. Roof ends carry plain crossed carved gable boards;
+// owner 2026-11-11: no dragon heads, no knobs on the boards.
+import { INK, f, iso, pt, poly, open, p, ln, box, courses, planksL, planksR, post, rod, barrel, sack, sprite, flag, tufts, smoke, brazier, glint,
   faceL, faceR, pyramid, bannerPole,
   WOOD, DWOOD, STONE, IRON, THATCH, TURF, GOLD, PLUM, TEAL, ROOF } from './blib.mjs';
 
@@ -19,13 +19,16 @@ function roofU(u0, u1, v0, v1, z1, zr, c, g, o = 2.5, rows = 2, ridge = null) {
   const end = (u) => iso(u, vm, zr);
   return { s, zs, vm, zr, end };
 }
-/** Crossed carved gable boards (an X over the ridge end at u) with a small round finial on top. */
-function gableX(R, u, sc = 1, col = WOOD[1], knob = GOLD[1]) {
+/** One flat carved board between two points, cut square at both ends. */
+function board(a, b, w, col) {
+  const d = `M${pt(...a)}L${pt(...b)}`;
+  return ln(d, INK, w + 1.6, ' stroke-linecap="butt"') + ln(d, col, w, ' stroke-linecap="butt"');
+}
+/** Crossed carved gable boards: an X over the ridge end at u, plain square-cut boards (owner 2026-11-11: no knobs). */
+function gableX(R, u, sc = 1, col = WOOD[1]) {
   const { vm, zr } = R;
-  let s = rod([u, vm + 4.2 * sc, zr - 4 * sc], [u, vm - 3 * sc, zr + 4.6 * sc], 1.8 * sc, col);
-  s += rod([u, vm - 4.2 * sc, zr - 4 * sc], [u, vm + 3 * sc, zr + 4.6 * sc], 1.8 * sc, col);
-  const [x, y] = iso(u, vm, zr + 6.4 * sc);
-  return s + `<circle cx="${x}" cy="${y}" r="${f(1.5 * sc)}" fill="${knob}" stroke-width="1"/>`;
+  return board([u, vm + 4.2 * sc, zr - 4 * sc], [u, vm - 3 * sc, zr + 4.6 * sc], 1.8 * sc, col) +
+    board([u, vm - 4.2 * sc, zr - 4 * sc], [u, vm + 3 * sc, zr + 4.6 * sc], 1.8 * sc, col);
 }
 /** A raised storey standing on a roof (its walls start on the roof surface). */
 function tier(R, u0, u1, v0, v1, zt, wall, win = DWOOD[2]) {
@@ -78,7 +81,7 @@ export default function longhouse(st) {
     s += shield(-11, 9, 9, ROOF[1]) + shield(-1, 9, 9, TEAL[1]);
     const R = roofU(-22, 14, -9, 9, 14, 34, TURF, WOOD, 3, 2, TURF[2]);
     s += R.s + tufts([[-14, 0, 34.5], [2, 0, 34.5], [-20, 6, 21]], '#3A5E27');
-    for (const [u, k] of [[-25, -1], [17, 1]]) { const [x, y] = iso(u, 0, 34); s += rod([u, 4, 30], [u, -3, 38], 1.8, WOOD[1]) + rod([u, -4, 30], [u, 3, 38], 1.8, WOOD[1]); }
+    for (const u of [-25, 17]) s += board([u, 4, 30], [u, -3, 38], 1.8, WOOD[1]) + board([u, -4, 30], [u, 3, 38], 1.8, WOOD[1]);
     s += box(14, 22, -5, 5, 0, 1.5, STONE, 1.2) + door(14, -3, 3, 0, 9);
     s += post(21, -4, 1.5, 12, 1.8, WOOD) + post(21, 4, 1.5, 12, 1.8, WOOD);
     s += roofU(13, 21, -5.5, 5.5, 12, 18, THATCH, WOOD, 1, 1).s;
@@ -94,12 +97,12 @@ export default function longhouse(st) {
     s += ln(open([[-24, 10, 18], [16, 10, 18], [16, -10, 18]]), IRON[1], 1.6);
     for (const [u, c] of [[-20, ROOF[1]], [-12, TEAL[1]], [-4, PLUM[1]], [4, ROOF[1]], [11, TEAL[1]]]) s += shield(u, 10, 12, c, 3);
     const R = roofU(-24, 16, -10, 10, 19, 40, SHINGLE, WOOD, 3, 2, IRON[1]);
-    s += gableX(R, -27, 1.1, WOOD[1], WOOD[0]) + R.s;
+    s += gableX(R, -27, 1.1) + R.s;
     s += tier(R, -12, 4, -6, 6, 52, WOOD);
     const T = roofU(-12, 4, -6, 6, 52, 66, SHINGLE, WOOD, 2, 1, GOLD[1]);
     s += gableX(T, -14, 0.9) + T.s + gableX(T, 6, 0.9);
     s += flag(-4, 0, 66, 14, PLUM[1]);
-    s += gableX(R, 19, 1.1, WOOD[1], WOOD[0]);
+    s += gableX(R, 19, 1.1);
     s += box(16, 24, -5.5, 5.5, 0, 2, STONE, 1.2) + door(16, -3.5, 3.5, 2, 11, DWOOD[2], IRON[1]);
     s += bannerPole(25, -12, PLUM[1], 32) + bannerPole(-26, 14, ROOF[1], 30) + barrel(24, 11, 0, 3, 6) + logs(-22, 13, 3);
     return sprite(s);
