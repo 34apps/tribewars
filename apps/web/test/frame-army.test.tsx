@@ -8,6 +8,7 @@ import {
   addRecent,
   filterMovements,
   moveCounts,
+  noCancelReason,
   parseRecent,
   queueDoneAt,
   queueUnitsLeft,
@@ -96,4 +97,16 @@ test('recent targets: stored text is cleaned, bad input gives an empty list', ()
   ]);
   const many = JSON.stringify(Array.from({ length: 9 }, (_, i) => ({ x: i, y: i, kind: 'own', who: '' })));
   assert.equal(parseRecent(many).length, RECENT_MAX);
+});
+
+test('noCancelReason: plain words in place of Cancel once the 2-minute call-back window is over', () => {
+  const now = 1_000_000;
+  const mv = (direction: MovementDto['direction'], kind: MovementDto['kind'], cancellableUntil: number | null) => ({ direction, kind, cancellableUntil });
+  assert.equal(noCancelReason(mv('outgoing', 'attack', now + 5000), now), '', 'button showing: nothing to explain');
+  assert.equal(noCancelReason(mv('outgoing', 'attack', null), now), "Can't call back after 2 min");
+  assert.equal(noCancelReason(mv('outgoing', 'attack', now), now), "Can't call back after 2 min", 'deadline reached on the client clock');
+  for (const kind of ['scout', 'support', 'shipment'] as const) assert.equal(noCancelReason(mv('outgoing', kind, null), now), "Can't call back after 2 min");
+  assert.equal(noCancelReason(mv('outgoing', 'found', null), now), "Can't be called back");
+  assert.equal(noCancelReason(mv('outgoing', 'return', null), now), '', 'already coming home');
+  assert.equal(noCancelReason(mv('incoming', 'attack', null), now), '', 'not mine to call back');
 });

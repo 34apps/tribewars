@@ -516,7 +516,7 @@
   display: flex;
   flex: none;
   justify-content: flex-end;
-  width: 84px;
+  width: 96px;
 }
 
 .fa-na {
@@ -536,6 +536,12 @@
   font: 600 13px/1.2 var(--font);
   color: var(--on-surface-muted);
   white-space: nowrap;
+}
+
+/* "Can't call back after 2 min" in place of the Cancel button: two short lines inside the action column. */
+.fa-cnc small.fa-nocnc {
+  text-align: center;
+  white-space: normal;
 }
 
 .fa-pad {

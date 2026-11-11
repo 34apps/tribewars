@@ -33,6 +33,7 @@ import { useCancelJob } from './cancelJob.tsx';
 import { requirementText, unitListText, unmetRequirements } from '../rules.ts';
 import { trainRowState } from './trainRow.ts';
 import { setResearchFocus } from './village/drillFocus.ts';
+import { CANCEL_WINDOW_MIN, noCancelReason } from './army/frame-army-logic.ts';
 
 // ---- Troops table -------------------------------------------------------------------------------------
 
@@ -94,6 +95,7 @@ function MovementRow({ m }: { m: MovementDto }) {
   const ref = useRef<HTMLLIElement>(null);
   const [cancelling, setCancelling] = useState(false);
   const cancelLeft = m.cancellableUntil === null ? 0 : m.cancellableUntil - now;
+  const noCancel = noCancelReason(m, now);
   async function cancel() {
     if (cancelling) return;
     setCancelling(true);
@@ -195,13 +197,17 @@ function MovementRow({ m }: { m: MovementDto }) {
         <strong className="mv-time">{left > 0 ? formatDuration(left) : 'arriving…'}</strong>
       </div>
       <ProgressBar value={(now - m.departAt) / total} tone={attackIn ? 'danger' : supportIn ? 'ok' : 'brand'} label="Movement progress" />
-      {cancelLeft > 0 && (
+      {cancelLeft > 0 ? (
         <div className="movement-foot">
           <button className="btn btn-small" disabled={cancelling} onClick={() => void cancel()} title="Troops come back in the time already travelled">
             Cancel ({formatDuration(cancelLeft)})
           </button>
         </div>
-      )}
+      ) : noCancel ? (
+        <div className="movement-foot muted" title={`Troops can be called back only in the first ${CANCEL_WINDOW_MIN} minutes after they leave`}>
+          {noCancel}
+        </div>
+      ) : null}
     </li>
   );
 }

@@ -2,8 +2,23 @@
 // rows a panel shows before "+N more", and the "recent targets" the player sent to (kept in the browser only, never on the server).
 
 import type { MovementDto, TrainJob } from '@clanfire/engine';
+import { CANCEL_WINDOW_MS, CANCELLABLE_KINDS } from '@clanfire/engine';
 
 export type MoveFilter = 'all' | 'in' | 'out';
+
+/** Minutes of the call-back window, for the row text ("2 min"). */
+export const CANCEL_WINDOW_MIN = Math.round(CANCEL_WINDOW_MS / 60_000);
+
+/**
+ * Why one of my own movements on the road has no Cancel button, in plain words (shown where the button would be), or ''
+ * when there is nothing to explain: the button is showing, it is someone else's movement, or my troops are already coming home.
+ */
+export function noCancelReason(m: Pick<MovementDto, 'direction' | 'kind' | 'cancellableUntil'>, now: number): string {
+  if (m.direction !== 'outgoing' || m.kind === 'return') return '';
+  if (m.cancellableUntil !== null && m.cancellableUntil > now) return '';
+  if ((CANCELLABLE_KINDS as readonly string[]).includes(m.kind)) return `Can't call back after ${CANCEL_WINDOW_MIN} min`;
+  return "Can't be called back";
+}
 
 /** Incoming attacks first (most urgent), then other incoming (support, shipments), then my own troops; each by arrival time. */
 export function movementRank(m: Pick<MovementDto, 'direction' | 'kind'>): number {

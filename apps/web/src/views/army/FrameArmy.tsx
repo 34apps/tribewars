@@ -54,7 +54,7 @@ import { RecallSome } from '../ArmyView.tsx';
 import { Chev, LeftColumn, clockShort, pluralUnit } from '../village/FrameParts.tsx';
 import { MiniVillage } from '../village/FrameBuilding.tsx';
 import { SEARCH_MAX, lookupWindow, parseCoords, resultRows, searchHint, searchText, villageAt } from './command-post-logic.ts';
-import { addRecent, filterMovements, loadRecent, moveCounts, saveRecent, sortMovements, splitSupportRows, takeRows } from './frame-army-logic.ts';
+import { CANCEL_WINDOW_MIN, addRecent, filterMovements, loadRecent, moveCounts, noCancelReason, saveRecent, sortMovements, splitSupportRows, takeRows } from './frame-army-logic.ts';
 import type { MoveFilter, RecentKind, RecentTarget } from './frame-army-logic.ts';
 import '../../map/map.css';
 import '../../frame-army.css';
@@ -671,6 +671,7 @@ function MovementRow({ m }: { m: MovementDto }) {
   const { now, village, villages, highlightMovementId, refresh, toast } = useGame();
   const [cancelling, setCancelling] = useState(false);
   const cancelLeft = m.cancellableUntil === null ? 0 : m.cancellableUntil - now;
+  const noCancel = noCancelReason(m, now);
   async function cancel() {
     if (cancelling) return;
     setCancelling(true);
@@ -708,6 +709,10 @@ function MovementRow({ m }: { m: MovementDto }) {
               Cancel
             </button>
             <small>{formatDuration(cancelLeft)} left</small>
+          </span>
+        ) : noCancel ? (
+          <span className="fa-cnc" title={`Troops can be called back only in the first ${CANCEL_WINDOW_MIN} minutes after they leave`}>
+            <small className="fa-nocnc">{noCancel}</small>
           </span>
         ) : (
           <span className="fa-na">{word}</span>
