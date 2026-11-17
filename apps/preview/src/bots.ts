@@ -359,6 +359,8 @@ export function seedBots(ctx: AppContext): void {
 let nextRaidAt = 0;
 let nextScoutAt = 0;
 let nextWarCheckAt = 0;
+/** Next time the computer players' old reports are trimmed (once per game hour). */
+let nextReportPruneAt = 0;
 /** Human's tribe id -> when the next rival attack on that tribe's bot villages is due. */
 const nextTribeAttackAt = new Map<number, number>();
 /** Human player id -> do not try a raid on them before this (after a failed try). */
@@ -380,6 +382,7 @@ export function resetBotState(): void {
   nextRaidAt = 0;
   nextScoutAt = 0;
   nextWarCheckAt = 0;
+  nextReportPruneAt = 0;
   nextTribeAttackAt.clear();
   nextHumanRaidTry.clear();
   nextGrowAt.clear();
@@ -1018,6 +1021,31 @@ function inviteHumans(ctx: AppContext, meta: BotMeta, humans: PlayerRow[], t: nu
   return changed;
 }
 
+/** Newest reports each computer player keeps; nobody reads the rest and they were 75% of a long-running preview database. */
+export const BOT_REPORTS_KEEP = 20;
+const REPORT_PRUNE_EVERY_MS = 60 * 60_000;
+
+/** Delete each computer player's reports beyond the newest BOT_REPORTS_KEEP. Never touches anyone else's. Returns rows deleted. */
+export function pruneBotReports(ctx: AppContext, botIds: number[]): number {
+  const stmt = ctx.store.db.prepare(
+    `DELETE FROM reports WHERE player_id = ? AND id NOT IN
+       (SELECT id FROM reports WHERE player_id = ? ORDER BY created_at DESC, id DESC LIMIT ?)`,
+  );
+  let n = 0;
+  for (const id of botIds) n += Number(stmt.run(id, id, BOT_REPORTS_KEEP).changes);
+  // Freed pages stay in the saved file until the database is compacted: do it when a lot is free (the first trim of an old world).
+  if (n > 0) {
+    try {
+      const free = Number((ctx.store.db.prepare('PRAGMA freelist_count').get() as { freelist_count: number }).freelist_count);
+      const total = Number((ctx.store.db.prepare('PRAGMA page_count').get() as { page_count: number }).page_count);
+      if (free > 100 && free > total / 4) ctx.store.db.exec('VACUUM');
+    } catch (err) {
+      console.warn('database compaction skipped', err);
+    }
+  }
+  return n;
+}
+
 /**
  * One bot step. Cheap when nothing is due. Returns true when it changed the world (so the caller can save).
  * `budgetMs` limits the growth work of this call (the live timer passes a small one; skipping ahead passes none).
@@ -1088,6 +1116,12 @@ export function botTick(ctx: AppContext, budgetMs = Infinity): boolean {
 
   // 4. The bots grow: each plays one step per ~20 game minutes (staggered).
   if (growthTick(ctx, meta, t, budgetMs)) changed = true;
+
+  // 4b. Old bot reports are trimmed once per game hour (the database stays small in long, fast runs).
+  if (t >= nextReportPruneAt) {
+    nextReportPruneAt = t + REPORT_PRUNE_EVERY_MS;
+    if (pruneBotReports(ctx, Object.keys(meta.bots).map(Number)) > 0) changed = true;
+  }
 
   // 5. Keeping the map moving (timers scale with the world speed). Bots are loaded only when something is due.
   if (nextRaidAt === 0) {

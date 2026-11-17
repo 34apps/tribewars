@@ -31,6 +31,7 @@ import { Store } from '../../server/src/store.ts';
 import { SupportService } from '../../server/src/support-service.ts';
 import { TribeService } from '../../server/src/tribe-service.ts';
 import { initWorld } from '../../server/src/world.ts';
+import { neverExpireSessions } from './sessions.ts';
 import { FakeApp } from './router.ts';
 import { configureSqlite, openDatabaseInstance } from './shims/node-sqlite.ts';
 
@@ -132,6 +133,8 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     staff: new StaffService(store, support),
     msgReports: new ReportService(store, forum),
   };
+
+  neverExpireSessions(ctx.auth, store);
 
   const app = new FakeApp();
   const fastifyLike = app as unknown as FastifyInstance;

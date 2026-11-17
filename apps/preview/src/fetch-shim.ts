@@ -75,7 +75,10 @@ export function installFetchShim(request: (method: string, path: string, bodyTex
     const res = await request(method, path, bodyText);
     const ms = performance.now() - t0;
     const slow = (window as unknown as { __pvSlow?: { what: string; ms: number; at: number }[] }).__pvSlow;
-    if (ms > 30 && slow) slow.push({ what: `${slowLabel} ${method} ${path.split('?')[0]}`, ms: Math.round(ms), at: Math.round(t0) });
+    if (ms > 30 && slow) {
+      slow.push({ what: `${slowLabel} ${method} ${path.split('?')[0]}`, ms: Math.round(ms), at: Math.round(t0) });
+      if (slow.length > 200) slow.splice(0, slow.length - 200);
+    }
     const nullBody = res.status === 204 || res.body === null;
     return new Response(nullBody ? null : res.body, { status: res.status, headers: res.headers });
   };

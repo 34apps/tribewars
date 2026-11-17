@@ -12,7 +12,11 @@ import GameWorker from './worker.ts?worker&inline';
 export interface LinkEvents {
   onStorage(ok: boolean): void;
   onSlow(step: SlowStep): void;
+  /** The game worker died after it had started: the page shows a plain message. */
+  onFatal(message: string): void;
 }
+
+export const WORKER_DEAD_MESSAGE = 'The game stopped. Reload the page — your world is saved.';
 
 export interface GameLink {
   mode: 'worker' | 'inpage';
@@ -88,12 +92,23 @@ export function connectWorker(saved: Save | null, ev: LinkEvents): Promise<GameL
     };
     const post = (msg: PageToWorker, transfer: Transferable[] = []): void => worker.postMessage(msg, transfer);
     const rpc = createRpcClient(post, (snap) => clock.sync(snap));
+    const workerDied = (): void => {
+      rpc.failAll(WORKER_DEAD_MESSAGE);
+      ev.onFatal(WORKER_DEAD_MESSAGE);
+    };
     const aliveTimer = setTimeout(() => fail('the game worker did not start'), ALIVE_TIMEOUT_MS);
 
     worker.addEventListener('error', (e) => {
       // Before it is ready a worker error means it cannot run here (the page falls back); later it is a logged bug.
       if (!started) fail(`game worker error: ${e.message || 'unknown'}`);
-      else console.error('game worker error', e.message, e);
+      else {
+        console.error('game worker error', e.message, e);
+        workerDied();
+      }
+    });
+    worker.addEventListener('messageerror', (e) => {
+      console.error('game worker message error', e);
+      if (started) workerDied();
     });
     worker.addEventListener('message', (e: MessageEvent<WorkerToPage>) => {
       const msg = e.data;

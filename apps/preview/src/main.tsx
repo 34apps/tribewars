@@ -65,6 +65,7 @@ async function boot(): Promise<void> {
       pill?.setStorageOk(ok);
     },
     onSlow: logSlow(mode === 'worker' ? 'worker: ' : ''),
+    onFatal: showFatal,
   }));
   if (link.discardedSave) await wipeSave();
 

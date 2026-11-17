@@ -10,7 +10,16 @@ import type { Save } from './persist.ts';
 import { applyShowcase } from './showcase-apply.ts';
 import type { ShowcaseStage, StageTops } from './showcase.ts';
 
-const SAVE_DEBOUNCE_MS = 5000; // the page also asks for a save when it is hidden or closed
+/** Saving rewrites the whole database (a few MB), so the wait grows with the game speed. A player's own action keeps the short wait. */
+const SAVE_DEBOUNCE_MS = 5000;
+/** The wait between saves while only the world moves: 5 s at 1x, 15 s at 10x, 30 s at 100x and above (steps in between). */
+export function saveDebounceMs(rate: number): number {
+  if (!(rate > 1)) return SAVE_DEBOUNCE_MS;
+  if (rate >= 100) return 30_000;
+  if (rate >= 10) return 15_000 + ((rate - 10) / 90) * 15_000;
+  return SAVE_DEBOUNCE_MS + ((rate - 1) / 9) * 10_000;
+}
+// The page also asks for a save when it is hidden or closed.
 /** Real time the computer players may use per second of the live timer; at high game speeds the rest waits for the next tick. */
 const TICK_BOT_BUDGET_MS = 12;
 /** Skipping ahead runs the world in chunks of this much game time, and lets requests in every few chunks. */
@@ -96,8 +105,29 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
   // ---- saving: one save at a time, in order ----
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let timerDue = 0;
   let dirty = true;
   let chain: Promise<void> = Promise.resolve();
+  // The dev mirror: one POST at a time, in order; while one is in flight only the newest bytes wait (older ones are stale).
+  let mirrorBusy = false;
+  let mirrorNext: { player: string; bytes: Uint8Array } | null = null;
+  const mirror = (player: string, bytes: Uint8Array): void => {
+    mirrorNext = { player, bytes };
+    if (mirrorBusy) return;
+    mirrorBusy = true;
+    void (async () => {
+      while (mirrorNext) {
+        const job: { player: string; bytes: Uint8Array } = mirrorNext;
+        mirrorNext = null;
+        await fetch('/__clanfire/preview-world', {
+          method: 'POST',
+          headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1', 'x-clanfire-player': job.player },
+          body: job.bytes as Uint8Array<ArrayBuffer>,
+        }).catch(() => {});
+      }
+      mirrorBusy = false;
+    })();
+  };
   /** `wait`: retry a moment later inside this call when a transaction is open (the caller waits for the save). */
   const save = async (wait: boolean): Promise<void> => {
     if (stopped || !dirty) return;
@@ -107,7 +137,10 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
       bytes = timed('save: export', () => b.exportDatabase());
     }
     if (!bytes) {
-      if (timer === undefined) timer = setTimeout(flushTimer, 500); // a transaction was open: try again in a moment
+      if (timer === undefined) {
+        timerDue = performance.now() + 500;
+        timer = setTimeout(flushTimer, 500);
+      } // a transaction was open: try again in a moment
       return;
     }
     dirty = false;
@@ -116,14 +149,8 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     // (demo123456) and signed-out tabs are skipped. Not in the built file; a failure (dev server down) stays silent.
     if (import.meta.env.DEV) {
       const token = b.getToken();
-      const player = token ? b.ctx.store.getSessionPlayer(sha256Hex(token), Date.now()) : null;
-      if (player && !/^demo\d+$/.test(player.username)) {
-        void fetch('/__clanfire/preview-world', {
-          method: 'POST',
-          headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1', 'x-clanfire-player': player.username },
-          body: bytes as Uint8Array<ArrayBuffer>,
-        }).catch(() => {});
-      }
+      const player = token ? b.ctx.store.getSessionPlayer(sha256Hex(token), 0) : null; // 0: preview sessions never expire
+      if (player && !/^demo\d+$/.test(player.username)) mirror(player.username, bytes);
     }
     const w0 = performance.now();
     await env.writeSave({ db: bytes, token: b.getToken(), clock: clock.snapshot() });
@@ -139,9 +166,16 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     timer = undefined;
     void queueSave(false);
   }
-  const markDirty = (): void => {
+  /** `quick`: a player's own action (short wait); otherwise the world only moved (wait depends on the pace). */
+  const markDirty = (quick = true): void => {
     dirty = true;
-    if (timer === undefined && !stopped) timer = setTimeout(flushTimer, SAVE_DEBOUNCE_MS);
+    if (stopped) return;
+    const wait = quick ? SAVE_DEBOUNCE_MS : saveDebounceMs(clock.getRate());
+    const due = performance.now() + wait;
+    if (timer !== undefined && timerDue <= due) return;
+    if (timer !== undefined) clearTimeout(timer);
+    timerDue = due;
+    timer = setTimeout(flushTimer, wait);
   };
   const flushNow = (wait: boolean): Promise<void> => {
     if (timer !== undefined) clearTimeout(timer);
@@ -149,7 +183,7 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     dirty = true; // the clock moves even when the world did not: always store where it stands
     return queueSave(wait);
   };
-  b.onTokenChange = markDirty;
+  b.onTokenChange = () => markDirty(true);
   markDirty(); // first save: the seeded world
 
   // ---- clock: arrivals are processed on every request and once a second ----
@@ -160,7 +194,7 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     let botsActed = false;
     // In a hidden tab the computer players only play every 10th second (nobody is watching; they catch up when it is shown).
     if (env.isHidden() && ++tickNo % 10 !== 0) {
-      if (handled > 0) markDirty();
+      if (handled > 0) markDirty(false);
       return;
     }
     try {
@@ -168,7 +202,7 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     } catch (err) {
       console.error('bot step failed', err);
     }
-    if (handled > 0 || botsActed) markDirty();
+    if (handled > 0 || botsActed) markDirty(false);
   }, 1000);
 
   // ---- skipping ahead runs the world (and the computer players) forward in chunks ----
@@ -193,7 +227,7 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
       }
     } finally {
       skipping = false;
-      markDirty();
+      markDirty(false);
       void flushNow(false); // the speed chip is free again right away; the save follows
     }
   };

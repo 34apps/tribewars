@@ -55,11 +55,16 @@ export interface RpcClient {
 
 export function createRpcClient(post: (msg: PageToWorker) => void, syncClock: (snap: ClockSnapshot) => void): RpcClient {
   let nextId = 1;
+  let failed: string | null = null;
   const open = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   return {
     call(op, args) {
       const id = nextId++;
       return new Promise((resolve, reject) => {
+        if (failed !== null) {
+          reject(new Error(failed));
+          return;
+        }
         open.set(id, { resolve: resolve as (v: unknown) => void, reject });
         try {
           post({ kind: 'call', id, op, args });
@@ -80,6 +85,7 @@ export function createRpcClient(post: (msg: PageToWorker) => void, syncClock: (s
       return true;
     },
     failAll(reason) {
+      failed = reason; // later calls fail at once too (nobody answers any more)
       for (const w of open.values()) w.reject(new Error(reason));
       open.clear();
     },
