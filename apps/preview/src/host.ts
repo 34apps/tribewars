@@ -146,8 +146,9 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
     dirty = false;
     // Dev only (npm run dev:preview): mirror the world to apps/preview/data/preview-world-<player>.sqlite (vite.config.ts) so
     // sessions can read it. One file per signed-in player, so a test tab never overwrites the owner's copy; ?demo accounts
-    // (demo123456) and signed-out tabs are skipped. Not in the built file; a failure (dev server down) stays silent.
-    if (import.meta.env.DEV) {
+    // (demo123456) and signed-out tabs are skipped. Not in the released file (`npm run build:preview`); only the local copy
+    // (`npm run build:preview:local`, VITE_LOCAL_MIRROR=1) keeps it. A failure (server down) stays silent.
+    if (import.meta.env.DEV || import.meta.env.VITE_LOCAL_MIRROR === '1') {
       const token = b.getToken();
       const player = token ? b.ctx.store.getSessionPlayer(sha256Hex(token), 0) : null; // 0: preview sessions never expire
       if (player && !/^demo\d+$/.test(player.username)) mirror(player.username, bytes);

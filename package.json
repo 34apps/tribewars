@@ -21,6 +21,8 @@
     "build": "npm run build -w @clanfire/web && npm run build -w @clanfire/server && npm run build -w @clanfire/lobby",
     "build:server": "npm run build -w @clanfire/server",
     "build:preview": "npm run build -w @clanfire/preview",
+    "build:preview:local": "npm run build:local -w @clanfire/preview",
+    "serve:preview": "npm run serve:local -w @clanfire/preview",
     "start": "npm start -w @clanfire/server",
     "test": "npm run test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",

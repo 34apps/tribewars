@@ -3,7 +3,7 @@ import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Connect, type Plugin } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
 const shim = (name: string): string => fileURLToPath(new URL(`./src/shims/${name}.ts`, import.meta.url));
@@ -106,17 +106,25 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 const LOCAL_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 /**
- * Dev only (`npm run dev:preview`): every save of the in-browser world is also POSTed here (host.ts) and written to
+ * Local only (`npm run dev:preview`, or the built local copy `npm run serve:preview`): every save of the in-browser world is also POSTed here (host.ts) and written to
  * apps/preview/data/preview-world-<player>.sqlite (the signed-in player, header x-clanfire-player), atomically (temp file, then rename), so sessions can read the owner's world
  * with sqlite3. Only from this machine; the custom header forces a CORS preflight for any other site.
  */
 function worldMirror(): Plugin {
   let seq = 0;
-  return {
+  const plugin: Plugin = {
     name: 'clanfire-preview-world-mirror',
     apply: 'serve',
+    // The dev server and `vite preview` (the built local copy, `npm run serve:preview`) both take the mirror.
     configureServer(server) {
-      server.middlewares.use('/__clanfire/preview-world', (req, res) => {
+      mount(server.middlewares, (msg) => server.config.logger.warn(msg));
+    },
+    configurePreviewServer(server) {
+      mount(server.middlewares, (msg) => server.config.logger.warn(msg));
+    },
+  };
+  function mount(middlewares: Connect.Server, warn: (msg: string) => void): void {
+      middlewares.use('/__clanfire/preview-world', (req, res) => {
         const done = (status: number): void => {
           res.statusCode = status;
           res.end();
@@ -158,14 +166,14 @@ function worldMirror(): Plugin {
             .then(
               () => done(204),
               (err: unknown) => {
-                server.config.logger.warn(`preview world mirror failed: ${String(err)}`);
+                warn(`preview world mirror failed: ${String(err)}`);
                 done(500);
               },
             );
         });
       });
-    },
-  };
+  }
+  return plugin;
 }
 
 // The real server code (apps/server/src) and the real web client (apps/web/src) are bundled as they are. The only

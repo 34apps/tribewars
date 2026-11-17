@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "type-check": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test \"test/**/*.test.ts\""
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "build:local": "tsc -p tsconfig.json && VITE_LOCAL_MIRROR=1 vite build --outDir dist-local",
+    "serve:local": "vite preview --outDir dist-local --port 5174 --strictPort --host localhost"
   },
   "dependencies": {
     "@clanfire/engine": "*",
