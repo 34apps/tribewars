@@ -552,7 +552,15 @@ export class Store extends SqlBase {
     this.troopGroups = new TroopGroupStore(db);
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
+    this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
     for (const s of [this.tribes, this.projects, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+  }
+
+  /** Set by every write the site upkeep reacts to; the SiteService clears it after a pass (see SiteService.reconcileIfDue). Starts true so the first request checks. */
+  siteUpkeepDirty = true;
+
+  markSiteUpkeepDirty(): void {
+    this.siteUpkeepDirty = true;
   }
 
   /** True once the world has ended (a tribe won, or the operator ended it): the world is frozen. */
@@ -885,11 +893,13 @@ export class Store extends SqlBase {
 
   /** Give a village up: no owner (the caller saves the new abandoned state), no hold clock. */
   releaseVillage(id: number, name: string): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', name, id);
   }
 
   /** The village changes owner (taken by a hold): new owner, new name, the hold clock is gone, the bot starts fresh. */
   setVillageOwner(id: number, ownerId: number, name: string): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = ?, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', ownerId, name, id);
   }
 
@@ -1119,6 +1129,7 @@ export class Store extends SqlBase {
 
   /** Ban an account and end all its sessions. */
   banPlayer(playerId: number, reason: string, now: number): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE players SET banned_at = ?, ban_reason = ? WHERE id = ?', now, reason, playerId);
     this.run('DELETE FROM sessions WHERE player_id = ?', playerId);
     this.emit({ kind: 'player-banned', playerId });
@@ -1420,6 +1431,20 @@ export class Store extends SqlBase {
   /** Movements that have arrived by `now`, in processing order. */
   dueMovements(now: number, limit: number): MovementRow[] {
     return this.all('SELECT * FROM movements WHERE arrive_at <= ? ORDER BY arrive_at, id LIMIT ?', now, limit).map(toMovement);
+  }
+
+  /**
+   * Marches of one player on the road: every kind (out, back, support, shipment) whose home/origin village is theirs. Counts at most
+   * `limit` rows, so it stays cheap for a flooded account. Plan: SEARCH villages USING INDEX idx_villages_owner, then
+   * SEARCH movements USING INDEX idx_movements_origin.
+   */
+  marchesInFlight(playerId: number, limit: number): number {
+    const r = this.get(
+      'SELECT COUNT(*) AS n FROM (SELECT 1 FROM movements WHERE origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?) LIMIT ?)',
+      playerId,
+      limit,
+    );
+    return Number(r?.n ?? 0);
   }
 
   /** Shipments sent from this village that have not arrived yet. */

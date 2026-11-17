@@ -72,6 +72,7 @@ import {
   checkShipment,
   shipmentTravelMs,
   SHIPMENT_MAX_IN_TRANSIT,
+  MAX_MARCHES_IN_FLIGHT,
   SCOUT_UNIT,
   buildScoutIntel,
   keenMultiplier,
@@ -413,7 +414,7 @@ export class GameService {
     // Sites: troops of players who left the tribe or were banned go home, a site nobody holds any more turns neutral. A frozen world keeps its sites.
     if (!this.store.isWorldEnded()) {
       try {
-        this.sites.reconcileAll(now);
+        this.sites.reconcileIfDue(now);
       } catch (err) {
         this.log.error({ err }, 'site upkeep failed');
       }
@@ -2073,6 +2074,7 @@ export class GameService {
     if (custom && !this.store.isSandboxUser(player.username)) throw new GameError('forbidden', 'Test mode is not available for this account.');
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
+      this.checkMarchRoom(player.id);
       const army = normalizeUnits(units);
       // A found mission walks to a free tile; every other mission needs a village on the target tile.
       let target: VillageRecord | null = null;
@@ -2162,6 +2164,13 @@ export class GameService {
     });
   }
 
+  /** Refuse a NEW march when the player already has MAX_MARCHES_IN_FLIGHT on the road. Never used for recalls, cancels or returns. */
+  private checkMarchRoom(playerId: number): void {
+    if (this.store.marchesInFlight(playerId, MAX_MARCHES_IN_FLIGHT) >= MAX_MARCHES_IN_FLIGHT) {
+      throw new GameError('march_limit', `You already have ${MAX_MARCHES_IN_FLIGHT} marches on the way. Wait for some to arrive.`);
+    }
+  }
+
   /**
    * Send resources to any player village (own, tribe-mate, ally, neutral or enemy). The cargo leaves the village at once
    * (after catch-up) and is credited on arrival. Section 13 of GAME_DESIGN.
@@ -2170,6 +2179,7 @@ export class GameService {
     const s = this.settings;
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
+      this.checkMarchRoom(player.id);
       const target = this.store.getVillageAt(x, y);
       if (!target) throw new GameError('invalid_target', 'There is no village at those coordinates.');
       if (target.id === v.id) throw new GameError('invalid_target', 'You cannot send resources to the same village.');

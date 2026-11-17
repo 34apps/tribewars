@@ -630,6 +630,12 @@ export const RESOURCE_PRODUCER: Record<ResourceId, 'lumber' | 'farm' | 'mine' | 
 /** Largest count of one unit type accepted in a send order (input sanity bound). */
 export const MAX_UNIT_COUNT = 1_000_000;
 
+/** Most marches (outbound and returning together) one player may have on the road at once. Refuses new sends only; recalls and returns are never refused. */
+export const MAX_MARCHES_IN_FLIGHT = 200;
+
+/** Site upkeep (troops of leavers go home, empty sites turn neutral) runs at least this often in game-clock ms even when nothing it watches changed. */
+export const SITE_UPKEEP_INTERVAL_MS = 5000;
+
 /** Saved troop groups (a convenience for the send form): at most this many per player, names up to this long. */
 export const TROOP_GROUP_MAX = 12;
 export const TROOP_GROUP_NAME_MAX = 24;

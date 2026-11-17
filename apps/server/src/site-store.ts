@@ -67,10 +67,12 @@ export class SiteStore extends SqlBase {
   }
 
   setHolder(id: number, tribeId: number | null): void {
+    this.siteUpkeepTouch();
     this.run('INSERT INTO sites (id, holder_tribe_id, calm_until) VALUES (?, ?, 0) ON CONFLICT(id) DO UPDATE SET holder_tribe_id = excluded.holder_tribe_id', id, tribeId);
   }
 
   setCalmUntil(id: number, calmUntil: number): void {
+    this.siteUpkeepTouch();
     this.run('INSERT INTO sites (id, holder_tribe_id, calm_until) VALUES (?, NULL, ?) ON CONFLICT(id) DO UPDATE SET calm_until = excluded.calm_until', id, calmUntil);
   }
 
@@ -101,6 +103,7 @@ export class SiteStore extends SqlBase {
 
   /** Station `units` for a (site, home village) pair: merges into the pair's existing contingent, keeping its arrival time. */
   addGarrison(siteId: number, ownerPlayerId: number, homeVillageId: number, units: Units, arrivedAt: number, ranks: VillageRanks | null): void {
+    this.siteUpkeepTouch();
     const old = this.getGarrison(siteId, homeVillageId);
     if (old) {
       this.run('UPDATE site_garrison SET units_json = ?, ranks_json = ? WHERE id = ?', JSON.stringify(addUnits(old.units, units)), ranks ? JSON.stringify(ranks) : null, old.id);
@@ -118,10 +121,12 @@ export class SiteStore extends SqlBase {
   }
 
   setGarrisonUnits(id: number, units: Units): void {
+    this.siteUpkeepTouch();
     this.run('UPDATE site_garrison SET units_json = ? WHERE id = ?', JSON.stringify(units), id);
   }
 
   deleteGarrison(id: number): void {
+    this.siteUpkeepTouch();
     this.run('DELETE FROM site_garrison WHERE id = ?', id);
   }
 }

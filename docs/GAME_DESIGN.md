@@ -495,6 +495,8 @@ Players are ranked by the sum of their villages' points (top 100 shown, ties sha
 Numbers in `config.ts` (`SCOUT_*`, unit `pathfinder`); contract in `api.ts` (`SendRequest.mission`,
 `StationedDto`, recall/send-back routes, `TribeAlertDto`, report `type`s).
 
+**March limit.** A player may have at most `MAX_MARCHES_IN_FLIGHT` (200) marches on the road at once, out and back together; a new send or shipment past that answers 409 `march_limit`. Recalls, cancels and automatic returns are never refused.
+
 **Missions.** The player only ever chooses **Attack** or **Support** (owner, 2026-11-06: "if the user attacks with
 scouts, it will automatically scout"). Every send carries `mission`:
 - `attack` — as before (sections 6–7). Needs total attack > 0, or Pathfinders, or a Chieftain (`invalid_input` otherwise).
