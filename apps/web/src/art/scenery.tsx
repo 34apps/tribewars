@@ -7,7 +7,7 @@ import { memo } from 'react';
 import type { ReactNode } from 'react';
 import { T } from './Icon.tsx';
 import type { BuildingId } from '@clanfire/engine';
-import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV, roadEnd } from './buildings.ts';
+import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV, roadEnd, yardHalf } from './buildings.ts';
 import type { RoadDef } from './buildings.ts';
 
 export interface DepthItem {
@@ -955,23 +955,23 @@ function plazaTex(s: Surface): Tex {
   return x;
 }
 
-function Plaza({ s }: { s: Surface }) {
-  const sq = (h: number) => `M${HALL.u - h} ${HALL.v - h}H${HALL.u + h}V${HALL.v + h}H${HALL.u - h}Z`;
-  // A ring of stones round the earth and gravel squares; a dressed kerb round the paved ones.
+/** A paved lot centred on (cu, cv) with half side h: an earth or gravel lot inside a ring of stones, a paved one inside a kerb. */
+function Lot({ cu, cv, h, s, x }: { cu: number; cv: number; h: number; s: Surface; x: Tex }) {
+  const sq = (k: number) => `M${g1(cu - k)} ${g1(cv - k)}H${g1(cu + k)}V${g1(cv + k)}H${g1(cu - k)}Z`;
   let ring = '';
   if (s <= 2) {
-    const h = SQUARE + 1.5;
-    for (let k = -h; k < h; k += 5.2) ring += dot(HALL.u + k, HALL.v - h) + dot(HALL.u + h, HALL.v + k) + dot(HALL.u - k, HALL.v + h) + dot(HALL.u - h, HALL.v - k);
+    const k = h + 1.5;
+    for (let t = -k; t < k; t += 5.2) ring += dot(cu + t, cv - k) + dot(cu + k, cv + t) + dot(cu - t, cv + k) + dot(cu - k, cv - t);
   }
   return (
     <g transform={GROUND_T} strokeLinejoin="round">
       {s >= 3 ? (
-        <path d={sq(SQUARE + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={2.2} />
+        <path d={sq(h + 3)} fill="#CFC6B2" stroke={INK} strokeWidth={2.2} />
       ) : (
-        <path d={sq(SQUARE + 1.5)} fill={FILL[s]} stroke={INK} strokeWidth={EDGE_W[s] * 2} />
+        <path d={sq(h + 1.5)} fill={FILL[s]} stroke={INK} strokeWidth={EDGE_W[s] * 2} />
       )}
-      <path d={sq(SQUARE)} fill={s === 4 ? '#AFA798' : FILL[s]} stroke={s >= 3 ? '#8E877C' : 'none'} strokeWidth={0.8} />
-      <TexLayer s={s} x={plazaTex(s)} />
+      <path d={sq(h)} fill={s === 4 ? '#AFA798' : FILL[s]} stroke={s >= 3 ? '#8E877C' : 'none'} strokeWidth={0.8} />
+      <TexLayer s={s} x={x} />
       {ring && (
         <>
           <path d={ring} stroke={INK} strokeWidth={4.4} strokeLinecap="round" />
@@ -979,6 +979,40 @@ function Plaza({ s }: { s: Surface }) {
         </>
       )}
     </g>
+  );
+}
+
+function Plaza({ s }: { s: Surface }) {
+  return <Lot cu={HALL.u} cv={HALL.v} h={SQUARE} s={s} x={plazaTex(s)} />;
+}
+
+const YARD_TEX = new Map<string, Tex>();
+/** A building's paved yard (see YARD in buildings.ts) in its road's surface; the road runs onto it. */
+function Yard({ id, s }: { id: BuildingId; s: Surface }) {
+  const h = yardHalf(id, s);
+  if (!h) return null;
+  const { u, v } = plotUV(id);
+  const key = `${id}${s}`;
+  let x = YARD_TEX.get(key);
+  if (!x) {
+    x = emptyTex();
+    texture(x, s, [u, v - h], [u, v + h], () => h - 0.5, 0, 0, h * 2, false);
+    // The ring round the lot is its edge: no edge stones or kerbs down the middle.
+    x.edgeInk = x.edgeStone = x.kerb = '';
+    YARD_TEX.set(key, x);
+  }
+  // The road comes in through a gap in the yard's ring (its edges run on to the yard), so it reads as one surface.
+  const w = PATHS.find((p) => p.to === id)?.w ?? BRANCH_W;
+  const e = EDGE_W[s];
+  const rect = (u0: number, v0: number, u1: number, v1: number) => `M${g1(u0)} ${g1(v0)}H${g1(u1)}V${g1(v1)}H${g1(u0)}Z`;
+  return (
+    <>
+      <Lot cu={u} cv={v} h={h} s={s} x={x} />
+      <g transform={GROUND_T}>
+        <path d={rect(u - w - e, v + h, u + w + e, v + h + 3.4)} fill={INK} />
+        <path d={rect(u - w, v + h - 0.6, u + w, v + h + 4)} fill={s === 4 ? '#DDD7CA' : FILL[s]} />
+      </g>
+    </>
   );
 }
 
@@ -997,6 +1031,9 @@ const Paths = memo(function Paths({ built }: { built: string }) {
       {/* a clip cuts the streets flat inside the plate's edge (they end under the gates) */}
       <g clipPath="url(#vv-ground-clip)">
         <Lanes built={built} />
+        {[...st].map(([id, look]) => (
+          <Yard key={`y${id}`} id={id as BuildingId} s={look} />
+        ))}
         <GateStreet s={hall} />
       </g>
       <Plaza s={hall} />

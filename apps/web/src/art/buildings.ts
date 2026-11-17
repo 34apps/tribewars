@@ -280,11 +280,31 @@ export const DOOR_DEPTH: Record<Exclude<BuildingId, 'wall' | 'hall'>, readonly [
 /** The road runs this far (sprite units) in under the drawing's front, so it reads as walking straight in. */
 export const DOOR_TUCK = 4;
 
-/** Where a building's road ends at a look (1..4): on its door line, just in under the front of the drawing (never past the door point). */
+/**
+ * Buildings whose drawing has open ground in front (horses, a paddock): from these looks on the whole lot is a paved yard in
+ * the road's own surface (half side in sprite units, 0 = none), and the road runs onto it (owner 2026-11-17: the Stables road
+ * stopped short with grass between it and the stable, the horses on the grass).
+ */
+export const YARD: Partial<Record<BuildingId, readonly [number, number, number, number]>> = {
+  stables: [0, 25, 25, 25],
+};
+
+/** Half side (grid units) of a building's paved yard at a look, or 0. */
+export function yardHalf(id: BuildingId, stage: number): number {
+  const h = YARD[id]?.[Math.min(4, Math.max(1, stage)) - 1] ?? 0;
+  return h * PLACEMENT[id].scale;
+}
+
+/**
+ * Where a building's road ends at a look (1..4): on its door line, just in under the front of the drawing (never past the door
+ * point), or just onto its yard when it has one.
+ */
 export function roadEnd(id: BuildingId, stage: number): { u: number; v: number } {
   const d = doorUV(id);
   if (id === 'wall' || id === 'hall') return d;
   const { v } = plotUV(id);
+  const yard = yardHalf(id, stage);
+  if (yard) return { u: d.u, v: v + yard - 1.5 * PLACEMENT[id].scale };
   const k = DOOR_DEPTH[id][Math.min(4, Math.max(1, stage)) - 1]!;
   return { u: d.u, v: Math.min(d.v, v + (k - DOOR_TUCK) * PLACEMENT[id].scale) };
 }

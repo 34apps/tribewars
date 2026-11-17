@@ -49,6 +49,7 @@ let doorUV: (id: BuildingId) => { u: number; v: number };
 let roadEnd: (id: BuildingId, stage: number) => { u: number; v: number };
 let DOOR_DEPTH: Record<string, readonly number[]>;
 let DOOR_TUCK: number;
+let yardHalf: (id: BuildingId, stage: number) => number;
 let spriteUrl: (id: BuildingId, stage: 1 | 2 | 3 | 4) => string;
 let Ground: (p: { built: string }) => unknown;
 let SQUARE: number;
@@ -65,7 +66,7 @@ before(async () => {
   });
   const b = await server.ssrLoadModule('/src/art/buildings.ts');
   const s = await server.ssrLoadModule('/src/art/scenery.tsx');
-  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl, roadEnd, DOOR_DEPTH, DOOR_TUCK } = b);
+  ({ PLACEMENT, OUTSIDE, GATES, OUTER_ROADS, WALL_RING, SCENE_VIEWBOX, SCENE_FIT_BOX, SCENE_FOCUS, labelAnchor, plotUV, doorUV, spriteUrl, roadEnd, DOOR_DEPTH, DOOR_TUCK, yardHalf } = b);
   ({ PATHS, STREET_W, Ground, SQUARE, network } = s);
 });
 
@@ -136,6 +137,14 @@ test('every road ends flush at its building: in under the front of the drawing, 
       assert.equal(DOOR_DEPTH[id]![s - 1], first, `${id} look ${s}: DOOR_DEPTH is stale (measured ${first}); update it in buildings.ts`);
       const end = roadEnd(id, s);
       const at = (end.v - plotUV(id).v) / PLACEMENT[id].scale; // the road end in sprite units along the door line
+      const yard = yardHalf(id, s) / PLACEMENT[id].scale;
+      if (yard) {
+        // A paved yard: the road runs just onto it, and the yard reaches in under the drawing (no grass between).
+        assert.ok(at < yard && at > yard - 4, `${id} look ${s}: the road does not run onto its yard`);
+        assert.ok(yard >= first, `${id} look ${s}: grass between the yard and the building`);
+        assert.ok(yard * PLACEMENT[id].scale <= 28 * PLACEMENT[id].scale, `${id} look ${s}: the yard leaves its pad`);
+        continue;
+      }
       assert.ok(at <= first + 0.01, `${id} look ${s}: grass between the road end and the building`);
       assert.ok(first - at <= DOOR_TUCK + 4.5, `${id} look ${s}: the road runs too far in under the drawing`);
       assert.ok(first >= 30 || painted(e, -at, 26 + at / 2), `${id} look ${s}: the road end is not under the drawing`);
