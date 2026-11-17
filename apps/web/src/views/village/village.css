@@ -141,6 +141,30 @@ th[scope='row'] {
   will-change: transform;
 }
 
+/* The campfire's own layer (VillageScene): placed by inline left/top/width/height; clicks pass through. */
+.vv-fire-box {
+  position: absolute;
+  pointer-events: none;
+}
+
+.vv-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+/* The shared defs (trees, props) the live scene layer points at, in a page-wide zero-size SVG. */
+.vv-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .vv-hits {
   position: absolute;
   inset: 0;
@@ -157,8 +181,14 @@ th[scope='row'] {
   cursor: pointer;
 }
 
-.vv-svg .vv-b:hover {
-  filter: brightness(1.07);
+/* Mouse over a building: a soft gold pad on the ground under it (the .vv-lit path in VillageScene). No CSS filter on the
+   drawing: a filter on big SVG groups is slow, worst in Safari. */
+.vv-lit path {
+  fill: #ffdc7a;
+  fill-opacity: 0.5;
+  stroke: #ffdc7a;
+  stroke-width: 4;
+  stroke-linejoin: round;
 }
 
 /* Selected building: an ink + gold outline round the drawing (SVG filter #vv-sel in VillageScene) and a softly breathing
@@ -1424,10 +1454,11 @@ th[scope='row'] {
   }
 }
 
-/* Town square campfire (flames flicker, smoke puffs rise). Transform and opacity only. */
+/* Town square campfire: each flame and puff is its own small SVG layer (see FireLayers in art/scenery.tsx), animated with
+   transform and opacity only, so it runs on the compositor and costs the main thread nothing. Transform origins and
+   translations are in % of the layer box, so they hold at any zoom. */
 .vv-flame {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
+  will-change: transform;
   animation: vv-flick 0.5s ease-in-out infinite alternate;
 }
 
@@ -1445,20 +1476,22 @@ th[scope='row'] {
 }
 
 .vv-fire-puff {
-  fill: var(--c-bone, #f3ebdd);
-  stroke: var(--c-ink, #2b211c);
-  stroke-width: 3;
   opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
+  will-change: transform, opacity;
   animation: vv-fire-rise 4.2s ease-out infinite;
 }
 
-.vv-fire-puff:nth-of-type(2) {
+.vv-fire-puff circle {
+  fill: var(--c-bone, #f3ebdd);
+  stroke: var(--c-ink, #2b211c);
+  stroke-width: 3;
+}
+
+.vv-fire-puff.is-2 {
   animation-delay: 1.4s;
 }
 
-.vv-fire-puff:nth-of-type(3) {
+.vv-fire-puff.is-3 {
   animation-delay: 2.8s;
 }
 
@@ -1475,7 +1508,7 @@ th[scope='row'] {
   }
   100% {
     opacity: 0;
-    transform: translate(18px, -110px) scale(1.8);
+    transform: translate(11.25%, -49.1%) scale(1.8);
   }
 }
 
@@ -1485,9 +1518,9 @@ th[scope='row'] {
     animation: none;
   }
 
-  .vv-fire-puff:first-of-type {
+  .vv-fire-puff.is-1 {
     opacity: 0.7;
-    transform: translate(4px, -34px) scale(1);
+    transform: translate(2.5%, -15%) scale(1);
   }
 
   .vv-puff,

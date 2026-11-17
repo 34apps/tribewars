@@ -4,7 +4,7 @@
 // Flat 3-tone block shading lit from the top left. Laid out on the isometric grid from ./buildings.ts (iso(u, v, z)).
 
 import { memo } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { T } from './Icon.tsx';
 import type { BuildingId } from '@clanfire/engine';
 import { BRANCH_W, LAND_Z, OUTER_ROADS, OUTSIDE, PLACEMENT, SIDE_STREET_W, STREET_W, WALL_RING, doorUV, iso, plotUV, roadEnd, yardHalf } from './buildings.ts';
@@ -1133,14 +1133,34 @@ export function sceneryItems(): DepthItem[] {
 const FIRE_AT = iso(HALL.u + 34, HALL.v + 34);
 const STONE_GREY = '#A39E94';
 
-/** The campfire as a depth item (drawn in front of the Town Hall). `cold`: the hearth is out. */
-export function fireItem(cold: boolean): DepthItem {
-  const [x, y] = FIRE_AT;
-  return {
-    key: 'fire',
-    depth: y,
-    node: (
-      <g className="vv-life vv-fire" transform={`translate(${f(x)} ${f(y)}) scale(0.5) translate(-35 -58)`} pointerEvents="none">
+/** Where the fire stands and the small scene-coordinate box its own layer covers (flames and the rising smoke). */
+export const FIRE_BOX = { x: FIRE_AT[0] - 34, y: FIRE_AT[1] - 100, w: 80, h: 112, depth: FIRE_AT[1] } as const;
+
+/** transform-origin (in % of the fire box) of a point in the fire's own 70 x 70 drawing space. */
+const fireOrigin = (lx: number, ly: number) => `${(((lx - 35) * 0.5 + 34) / FIRE_BOX.w) * 100}% ${(((ly - 58) * 0.5 + 100) / FIRE_BOX.h) * 100}%`;
+const FIRE_TF = `translate(${f(FIRE_AT[0])} ${f(FIRE_AT[1])}) scale(0.5) translate(-35 -58)`;
+const FIRE_VB = `${FIRE_BOX.x} ${FIRE_BOX.y} ${FIRE_BOX.w} ${FIRE_BOX.h}`;
+
+/** One layer of the fire: a small SVG the size of the fire box. */
+function FireLayer({ cls, style, children }: { cls: string; style?: CSSProperties; children: ReactNode }) {
+  return (
+    <svg className={`vv-fx ${cls}`} style={style} viewBox={FIRE_VB} aria-hidden="true" focusable="false">
+      <g transform={FIRE_TF}>{children}</g>
+    </svg>
+  );
+}
+
+/**
+ * The campfire as its own small element layer, placed by the scene between the items behind it and in front of it (see
+ * VillageScene). Each flame and each puff is a separate tiny SVG animated with CSS transform / opacity only, so the browser
+ * runs the animation on the compositor: no main-thread work per frame, and no repaint of the village (owner 2026-11-17: an
+ * animation inside the big scene SVG repainted it every frame and starved the page of main-thread time). `cold`: the hearth
+ * is out.
+ */
+export function FireLayers({ cold }: { cold: boolean }) {
+  return (
+    <>
+      <FireLayer cls="">
         <ellipse cx={35} cy={58} rx={30} ry={9} fill={INK} opacity={0.35} />
         <g stroke={INK} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
           <ellipse cx={14} cy={52} rx={7} ry={5} fill={STONE_GREY} />
@@ -1152,21 +1172,28 @@ export function fireItem(cold: boolean): DepthItem {
           <path d="M54 54 L18 44" strokeWidth={9} />
           <path d="M54 54 L18 44" strokeWidth={4} stroke={cold ? '#5A4128' : '#8A6030'} />
         </g>
-        {cold ? (
-          <path d="M22 47 C24 42 46 42 48 47 C46 51 24 51 22 47Z" fill="#6B645C" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-        ) : (
-          <>
-            <path className="vv-flame" d="M35 8 C44 20 52 28 50 40 C48 50 22 50 20 40 C18 30 28 24 35 8Z" fill="#C4623A" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-            <path className="vv-flame is-b" d="M35 20 C41 28 45 33 43 41 C41 47 29 47 27 41 C26 35 31 31 35 20Z" fill="#F2B33D" />
-            <path className="vv-flame" d="M35 32 C38 36 40 39 38 43 C36 46 33 46 32 43 C31 40 33 37 35 32Z" fill="#FFDC7A" />
-            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
-            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
-            <circle className="vv-fire-puff" cx={35} cy={14} r={9} />
-          </>
-        )}
-      </g>
-    ),
-  };
+        {cold && <path d="M22 47 C24 42 46 42 48 47 C46 51 24 51 22 47Z" fill="#6B645C" stroke={INK} strokeWidth={3} strokeLinejoin="round" />}
+      </FireLayer>
+      {!cold && (
+        <>
+          <FireLayer cls="vv-flame" style={{ transformOrigin: fireOrigin(35, 47.5) }}>
+            <path d="M35 8 C44 20 52 28 50 40 C48 50 22 50 20 40 C18 30 28 24 35 8Z" fill="#C4623A" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
+          </FireLayer>
+          <FireLayer cls="vv-flame is-b" style={{ transformOrigin: fireOrigin(35, 45.5) }}>
+            <path d="M35 20 C41 28 45 33 43 41 C41 47 29 47 27 41 C26 35 31 31 35 20Z" fill="#F2B33D" />
+          </FireLayer>
+          <FireLayer cls="vv-flame" style={{ transformOrigin: fireOrigin(35, 45.25) }}>
+            <path d="M35 32 C38 36 40 39 38 43 C36 46 33 46 32 43 C31 40 33 37 35 32Z" fill="#FFDC7A" />
+          </FireLayer>
+          {[1, 2, 3].map((n) => (
+            <FireLayer key={n} cls={`vv-fire-puff is-${n}`} style={{ transformOrigin: fireOrigin(35, 14) }}>
+              <circle cx={35} cy={14} r={9} />
+            </FireLayer>
+          ))}
+        </>
+      )}
+    </>
+  );
 }
 
 // The ring wall (with its gates) lives in ./wall.tsx.

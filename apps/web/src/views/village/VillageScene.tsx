@@ -42,12 +42,15 @@ import {
   wallLook,
 } from "../../art/buildings.ts";
 import type { Box, Stage, WallLook } from "../../art/buildings.ts";
-import { villageTier } from "../../art/landscape.tsx";
+import { landBox, villageTier } from "../../art/landscape.tsx";
+import type { LandBox } from "../../art/landscape.tsx";
+import { renderStaticSvg } from "../../art/staticSvg.ts";
 import { LandscapeLayer, type LandscapeChoice } from "../../art/landscapes.tsx";
 import {
   Ground,
   SceneryDefs,
-  fireItem,
+  FireLayers,
+  FIRE_BOX,
   sceneryItems,
   wallItems,
 } from "../../art/scenery.tsx";
@@ -228,6 +231,7 @@ export const SceneArt = memo(function SceneArt({
   landscape,
   selected,
   hint,
+  lit,
   hearthOut,
   onBox,
   onPick,
@@ -244,6 +248,8 @@ export const SceneArt = memo(function SceneArt({
   selected: BuildingId | null;
   /** The building the guide points at: a soft glowing pad under it (no outline, so it never reads as selected). */
   hint?: BuildingId | null;
+  /** The building the mouse is over (drawing or label): a soft gold pad under it, drawn without any filter. */
+  lit?: BuildingId | null;
   /** The village's hearth is out: the square's campfire is cold ash (no flames, no smoke). */
   hearthOut: boolean;
   onBox: (id: BuildingId, box: Box) => void;
@@ -325,7 +331,7 @@ export const SceneArt = memo(function SceneArt({
       for (const k of Object.keys(t)) clearTimeout(t[k]);
     };
   }, []);
-  const items: DepthItem[] = [...sceneryItems(), fireItem(hearthOut)];
+  const items: DepthItem[] = [...sceneryItems()];
   const wall = arts.wall;
   if (wall.stage > 0) {
     for (const it of wallItems(wall.stage as Exclude<WallLook, 0>)) {
@@ -390,6 +396,7 @@ export const SceneArt = memo(function SceneArt({
       );
     const node = (
       <g
+        data-b={id}
         className={`vv-b${art.locked ? " is-locked" : ""}${selected === id && id !== "wall" ? " is-selected" : ""}`}
         filter={selected === id && id !== "wall" ? "url(#vv-sel)" : undefined}
         onClick={() => onPick(id)}
@@ -531,7 +538,36 @@ export const SceneArt = memo(function SceneArt({
             <path className="vv-hint-fill" d={footprint(hint)} fill="#FFDC7A" />
           </g>
         )}
-        {items.map((it) => (
+        {lit && lit !== "wall" && lit !== selected && lit !== hint && (
+          <g className="vv-lit" pointerEvents="none">
+            <path d={footprint(lit)} />
+          </g>
+        )}
+        {items.filter((it) => it.depth <= FIRE_BOX.depth).map((it) => (
+          <g key={it.key}>{it.node}</g>
+        ))}
+      </svg>
+      {/* The campfire as its own small layer, between between what stands behind it and what stands in front: it animates on the
+        compositor, so the village is never repainted for it (owner 2026-11-17). */}
+      <div
+        className="vv-fire-box"
+        style={{
+          left: pct(FIRE_BOX.x - vb.x, vb.w),
+          top: pct(FIRE_BOX.y - vb.y, vb.h),
+          width: pct(FIRE_BOX.w, vb.w),
+          height: pct(FIRE_BOX.h, vb.h),
+        }}
+        aria-hidden="true"
+      >
+        <FireLayers cold={hearthOut} />
+      </div>
+      <svg
+        className="vv-svg"
+        viewBox={viewBox}
+        aria-hidden="true"
+        focusable="false"
+      >
+        {items.filter((it) => it.depth > FIRE_BOX.depth).map((it) => (
           <g key={it.key}>{it.node}</g>
         ))}
         {selected === "wall" && (
@@ -558,10 +594,12 @@ export const SceneArt = memo(function SceneArt({
   );
 });
 
-/** The still part of the scene (landscape, ground, shared defs) in its own SVG under the live one. Browsers repaint a whole
- *  SVG whenever any part inside it animates (SVG parts get no layer of their own), so with the smoke, fire and workers in the
- *  same SVG the ~4,000 landscape shapes were redrawn every frame (113% CPU in Chrome, more in Safari). Kept apart, the backdrop
- *  paints once. Defs ids are page-wide, so the live layer still finds them. */
+/** The still part of the scene (landscape, ground, shared defs). It never animates, so it is drawn once into a self-contained
+ *  SVG string and shown as one <img>: the browser keeps it as a picture instead of ~5,000 live DOM nodes that every style and
+ *  paint pass has to walk (owner 2026-11-17: the village tab starved the page of main-thread time, worst in Safari). It is
+ *  redrawn when its inputs change (village size, a new road, landscape choice, screen mode); the old picture stays until the
+ *  new one has decoded, so nothing flashes. Until the first picture is ready, and if one ever fails, the same layers are drawn
+ *  live as before. The defs (trees, props) the live layer's <use>s point at stay in the page, in a zero-size SVG. */
 const SceneBackdrop = memo(function SceneBackdrop({
   viewBox,
   landscape,
@@ -575,19 +613,87 @@ const SceneBackdrop = memo(function SceneBackdrop({
   wide: boolean;
   built: string;
 }) {
+  const [pic, setPic] = useState<{ url: string; box: LandBox } | null>(null);
+  const failed = useRef(false);
+  useEffect(() => {
+    if (failed.current) return;
+    let dead = false;
+    let url: string | null = null;
+    // A timer, not the effect itself: rendering the static tree uses flushSync, which React forbids inside an effect.
+    const timer = setTimeout(() => {
+      try {
+        const [vx, vy, vw, vh] = viewBox.split(" ").map(Number) as [number, number, number, number];
+        const lb = landBox(wide);
+        const box = { x0: Math.min(lb.x0, vx!), y0: Math.min(lb.y0, vy!), x1: Math.max(lb.x1, vx! + vw!), y1: Math.max(lb.y1, vy! + vh!) };
+        const w = box.x1 - box.x0;
+        const h = box.y1 - box.y0;
+        const text = renderStaticSvg(
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox={`${box.x0} ${box.y0} ${w} ${h}`} width={w} height={h}>
+            <defs>
+              <SceneryDefs />
+            </defs>
+            <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
+            <Ground built={built} />
+          </svg>,
+        );
+        url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
+        const img = new Image();
+        img.src = url;
+        const mine = url;
+        img
+          .decode()
+          .then(() => {
+            if (dead) return;
+            url = null; // now owned by the state
+            setPic((old) => {
+              if (old) URL.revokeObjectURL(old.url);
+              return { url: mine, box };
+            });
+          })
+          .catch(() => {
+            failed.current = true;
+            if (mine) URL.revokeObjectURL(mine);
+          });
+      } catch {
+        failed.current = true;
+      }
+    }, 0);
+    return () => {
+      dead = true;
+      clearTimeout(timer);
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [viewBox, landscape, tier, wide, built]);
+  // Revoke the shown picture when the scene goes away.
+  const last = useRef<string | null>(null);
+  last.current = pic?.url ?? null;
+  useEffect(
+    () => () => {
+      if (last.current) URL.revokeObjectURL(last.current);
+    },
+    [],
+  );
+  const [vx, vy, vw, vh] = viewBox.split(" ").map(Number) as [number, number, number, number];
   return (
-    <svg
-      className="vv-svg vv-svg-back"
-      viewBox={viewBox}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <defs>
-        <SceneryDefs />
-      </defs>
-      <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
-      <Ground built={built} />
-    </svg>
+    <>
+      <svg className="vv-defs" aria-hidden="true" focusable="false">
+        <defs>
+          <SceneryDefs />
+        </defs>
+      </svg>
+      {pic ? (
+        // An <image> inside an SVG with the scene's own viewBox (not an <img> box): it lands on exactly the same pixels as the
+        // live drawing did, where a plain <img> snaps to whole pixels and shifts the picture by up to half a pixel.
+        <svg className="vv-svg vv-svg-back vv-pic" viewBox={viewBox} aria-hidden="true" focusable="false">
+          <image href={pic.url} x={pic.box.x0} y={pic.box.y0} width={pic.box.x1 - pic.box.x0} height={pic.box.y1 - pic.box.y0} />
+        </svg>
+      ) : (
+        <svg className="vv-svg vv-svg-back" viewBox={viewBox} aria-hidden="true" focusable="false">
+          <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
+          <Ground built={built} />
+        </svg>
+      )}
+    </>
   );
 });
 
@@ -720,6 +826,9 @@ export function VillageScene({
   const queueLimit = useRules().queues.build;
   const { busy: building, build } = useBuild();
   const [hover, setHover] = useState<BuildingId | null>(null);
+  // Mouse over a building's drawing: it gets a soft pad highlight (replaces the old brightness filter on the whole drawing).
+  const [overArt, setOverArt] = useState<BuildingId | null>(null);
+  const lit = overArt ?? hover;
   const ov = levelOverride ?? null;
   const levels = !ov
     ? live.buildings
@@ -978,7 +1087,17 @@ export function VillageScene({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <div ref={stageRef} className="vv-stage" style={stageStyle}>
+      <div
+        ref={stageRef}
+        className="vv-stage"
+        style={stageStyle}
+        onPointerOver={(e) => {
+          if (e.pointerType !== "mouse") return;
+          const id = (e.target as Element).closest?.("[data-b]")?.getAttribute("data-b");
+          setOverArt((id as BuildingId | null | undefined) ?? null);
+        }}
+        onPointerLeave={() => setOverArt(null)}
+      >
         <SceneArt
           arts={arts}
           vb={vb}
@@ -987,6 +1106,7 @@ export function VillageScene({
           landscape={ov?.landscape ?? "tiles"}
           selected={selected}
           hint={gd ? gd.id : null}
+          lit={lit}
           hearthOut={!!village.hearth}
           onBox={onBox}
           onPick={pick}
