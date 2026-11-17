@@ -148,6 +148,34 @@ import { addUnits, isScoutArmy, isWithin, only, splitScoutLosses, subtractUnits,
 const VILLAGE_NAME_PATTERN = /^[\p{L}\p{N} ._'-]{1,30}$/u;
 
 const BATCH_SIZE = 100;
+
+/** How much one `processDue` call may do before it hands back (docs/SECURITY_ROADMAP.md section 2.5). */
+export interface DueBudget {
+  /** Stop after this many resolved movements and hold events. */
+  maxCount: number;
+  /** Stop once this much real time has gone by (checked after each resolved item, so a call always makes progress). */
+  maxMs: number;
+}
+
+/** The budget of the 1 s tick and of the request hook: a burst is drained in slices, the API answers in between. */
+export const DUE_BUDGET: DueBudget = { maxCount: 250, maxMs: 40 };
+
+/** Counts one budgeted slice. Only resolved items count, so rows that keep failing can never make a slice report "more to do". */
+class DueSlice {
+  private done = 0;
+  private readonly startedAt = performance.now();
+  constructor(private readonly budget: DueBudget) {}
+  resolved(): void {
+    this.done++;
+  }
+  spent(): boolean {
+    return this.done >= this.budget.maxCount || (this.done > 0 && performance.now() - this.startedAt >= this.budget.maxMs);
+  }
+}
+
+/** Let the event loop serve waiting requests and sockets between two slices (setImmediate on the server, a timer elsewhere). */
+const yieldToIo = (): Promise<void> =>
+  new Promise((done) => (typeof setImmediate === 'function' ? setImmediate(done) : setTimeout(done, 0)));
 const REPORT_LIST_LIMIT = 50;
 const ALERT_LIST_LIMIT = 200;
 /** Most villages one command-post search returns. */
@@ -282,7 +310,9 @@ export class GameService {
     const s = this.settings;
     // Every movement due by `now` must be resolved before any village is settled to `now`: settling past an
     // arrival would make the later battle see the village in the wrong (future) state.
-    this.processDue(now);
+    // Budgeted like the tick: with a backlog this pass is skipped (the tick drains it; the next pass looks again).
+    this.processDue(now, DUE_BUDGET);
+    if (this.dueBacklog) return 0;
     // The world has ended: it is frozen. Movements in flight still resolve (above), but nobody builds or loses a village any more.
     if (this.store.isWorldEnded()) return 0;
     this.abandonIdleVillages(now);
@@ -371,9 +401,15 @@ export class GameService {
   /**
    * Resolve every movement that has arrived by `now`, oldest first, each in its own transaction.
    * Returns how many were handled.
+   *
+   * With a `budget` the call stops after that much work and sets `dueBacklog`; the next call (the tick, a request, `catchUp`)
+   * carries on from the oldest row, so the order `arrive_at, id` and every outcome are the same as in one long call. Without a
+   * budget it drains everything (startup catch-up, tests, the preview, sandbox tools).
    */
-  processDue(now: number): number {
-    const handled = this.resolveDue(now);
+  processDue(now: number, budget?: DueBudget): number {
+    const handled = this.resolveDue(now, budget ? new DueSlice(budget) : null);
+    // Upkeep that reads the world "as of now" waits until the arrivals are fully up to date.
+    if (this.dueBacklog) return handled;
     // Sites: troops of players who left the tribe or were banned go home, a site nobody holds any more turns neutral. A frozen world keeps its sites.
     if (!this.store.isWorldEnded()) {
       try {
@@ -397,18 +433,51 @@ export class GameService {
   /** Called at the end of every processDue (set by the DominationService). */
   afterProcess: ((now: number) => void) | null = null;
 
-  private resolveDue(now: number): number {
+  /** True when the last `processDue` stopped on its budget: arrivals that are already due are still waiting. */
+  dueBacklog = false;
+
+  private catchingUp: Promise<void> | null = null;
+
+  /**
+   * Drain a backlog in budgeted slices, letting the event loop run between them. One shared loop however many callers wait
+   * (a hundred waiting requests must not each run their own slice back to back). Resolves when nothing due is left.
+   */
+  catchUp(budget: DueBudget = DUE_BUDGET): Promise<void> {
+    this.catchingUp ??= (async () => {
+      try {
+        while (this.dueBacklog) {
+          await yieldToIo();
+          this.processDue(this.clock(), budget);
+        }
+      } catch (err) {
+        this.log.error({ err }, 'catch-up failed');
+      } finally {
+        this.catchingUp = null;
+      }
+    })();
+    return this.catchingUp;
+  }
+
+  private resolveDue(now: number, slice: DueSlice | null): number {
     let handled = 0;
     const failed = new Set<number>();
     const failedHolds = new Set<number>();
+    this.dueBacklog = false;
+    // Out of budget: stop between two items. Everything still due stays in the database, in order, for the next call.
+    const stop = (): number => {
+      this.dueBacklog = true;
+      return handled;
+    };
     for (;;) {
       const raw = this.store.dueMovements(now, BATCH_SIZE);
       const batch = raw.filter((m) => !failed.has(m.id));
       let restart = false;
       for (const m of batch) {
+        if (slice?.spent()) return stop();
         // A hold clock that ends at or before this arrival comes first: movements and hold events run in one time order.
-        const hold = this.runDueHolds(m.arriveAt, failedHolds);
+        const hold = this.runDueHolds(m.arriveAt, failedHolds, slice);
         handled += hold.handled;
+        if (hold.stopped) return stop();
         if (hold.spawn !== null && hold.spawn <= now) {
           restart = true;
           break;
@@ -417,6 +486,7 @@ export class GameService {
         try {
           spawnedArrival = this.store.tx(() => this.resolveMovement(m.id));
           handled++;
+          slice?.resolved();
         } catch (err) {
           // Skip this movement for now so one bad row cannot block the whole queue.
           failed.add(m.id);
@@ -430,8 +500,10 @@ export class GameService {
       }
       if (restart) continue;
       if (batch.length > 0 && raw.length >= BATCH_SIZE) continue; // more movements may be due; hold events wait behind them
-      const hold = this.runDueHolds(now, failedHolds);
+      if (slice?.spent()) return stop(); // the next call finds out whether anything is left
+      const hold = this.runDueHolds(now, failedHolds, slice);
       handled += hold.handled;
+      if (hold.stopped) return stop();
       if (hold.spawn !== null && hold.spawn <= now) continue;
       break;
     }
@@ -440,19 +512,22 @@ export class GameService {
 
   /**
    * Hold clocks and fail timers that are due by `limitAt`, earliest first, each in its own transaction. Returns how many ran and
-   * the earliest arrival of anything they sent walking (the caller re-reads the movement queue when that is already due).
+   * the earliest arrival of anything they sent walking (the caller re-reads the movement queue when that is already due);
+   * `stopped` when the slice ran out of budget with hold events possibly left.
    */
-  private runDueHolds(limitAt: number, failed: Set<number>): { handled: number; spawn: number | null } {
+  private runDueHolds(limitAt: number, failed: Set<number>, slice: DueSlice | null): { handled: number; spawn: number | null; stopped: boolean } {
     let handled = 0;
     let spawn: number | null = null;
     for (;;) {
       const due = this.store.dueHolds(limitAt, BATCH_SIZE).filter((d) => !failed.has(d.id));
       if (due.length === 0) break;
       for (const d of due) {
+        if (slice?.spent()) return { handled, spawn, stopped: true };
         this.takeSpawn();
         try {
           this.store.tx(() => this.refreshHold(d.id, d.dueAt));
           handled++;
+          slice?.resolved();
         } catch (err) {
           failed.add(d.id);
           this.log.error({ err, villageId: d.id }, 'hold processing failed');
@@ -464,7 +539,7 @@ export class GameService {
         if (after && after.holdDueAt !== null && after.holdDueAt <= d.dueAt) failed.add(d.id); // no progress: never loop on it
       }
     }
-    return { handled, spawn };
+    return { handled, spawn, stopped: false };
   }
 
   /** Handle one movement. Returns the arrival time of a movement it created, if any. */
