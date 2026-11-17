@@ -1337,3 +1337,9 @@
   background: none;
   cursor: pointer;
 }
+
+/* Attack hint / support timing (components/AttackHint.tsx) inside the send form */
+.wm-send .ah {
+  border: 2px solid var(--wm-ink);
+  border-radius: 12px;
+}

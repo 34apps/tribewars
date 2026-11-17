@@ -591,6 +591,23 @@ export interface ScoutedResponse {
   scoutedAt: number | null;
 }
 
+// GET /api/intel/:id -> 200 VillageIntelDto (signed in). The caller's OWN newest usable report on village :id, for the
+// "how many troops do I need" hint in the attack form. Reads only reports the caller already owns (his scouts, his attacks),
+// never what another player scouted or fought. Unknown village 404; no usable report -> every field null.
+// A scout report counts when it succeeded; a battle report counts when the caller attacked (a win leaves 0 defenders,
+// a loss leaves defenderUnits - defenderLosses). The newest of the two wins. No new information: it repeats report contents.
+export interface VillageIntelDto {
+  /** When the information is from (report time, server clock, ms). null when there is no usable report. */
+  at: number | null;
+  source: 'scout' | 'battle' | null;
+  /** Defending troops seen (at home, own + support), after the battle for a battle report. null = the report did not show troops. */
+  troops: Units | null;
+  /** Rough (rounded to 10) because the scout's Keen rank was low. Always false for battle reports. */
+  troopsApprox: boolean;
+  /** The Wall level the report showed; null when it did not show it. */
+  wallLevel: number | null;
+}
+
 export interface BattleReportData {
   /**
    * called_off: on arrival the target belonged to the attacker's tribe, an ally or a NAP partner, so no

@@ -5,6 +5,7 @@ import {
   BUILDING_IDS,
   DEFAULT_CHIEFTAIN,
   DEFAULT_WORLD,
+  UNIT_IDS,
   applyWorldConfig,
   convertReportBody,
   convertSiegeRanks,
@@ -20,6 +21,7 @@ import {
   collectDefenderRenown,
   defenderEligibleFrom,
   emptyStats,
+  emptyUnits,
   markDefenceCollected,
   isBuildingId,
   markRenownPaid,
@@ -37,6 +39,7 @@ import {
   type ShipmentReportData,
   type StaffRole,
   type SupportReportData,
+  type VillageIntelDto,
   type Units,
   type VillageRanks,
   type VillageReportData,
@@ -1774,6 +1777,59 @@ export class Store extends SqlBase {
     const buildings = {} as BuildingLevels;
     for (const b of BUILDING_IDS) buildings[b] = Math.max(0, Math.floor(Number(raw[b]) || 0));
     return { createdAt: r.created_at as number, buildings };
+  }
+
+  /**
+   * The caller's OWN newest usable report on a village for the "how many troops do I need" hint (api.ts VillageIntelDto). Candidates: a
+   * successful scout (the newest one that showed troops, else the newest one) and a battle the caller attacked in (survivors =
+   * defenderUnits - defenderLosses, plus support the same way); the newer of the two wins. Reads only the caller's own reports
+   * (at most REPORTS_KEEP rows, three LIMIT 1 queries), so it never shows what another player scouted or fought.
+   */
+  latestIntel(playerId: number, villageId: number): VillageIntelDto {
+    const scoutSql = (needTroops: boolean): string =>
+      `SELECT id, created_at, json_extract(battle_json, '$.intel.troops') AS troops, json_extract(battle_json, '$.intel.troopsApprox') AS approx,
+              json_extract(battle_json, '$.intel.wallLevel') AS wall FROM reports
+       WHERE player_id = ? AND side = 'attack' AND json_extract(battle_json, '$.type') = 'scout'
+         AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel') IS NOT NULL
+         ${needTroops ? "AND json_extract(battle_json, '$.intel.troops') IS NOT NULL" : ''}
+       ORDER BY created_at DESC, id DESC LIMIT 1`;
+    const scout = this.get(scoutSql(true), playerId, villageId) ?? this.get(scoutSql(false), playerId, villageId);
+    const battle = this.get(
+      `SELECT id, created_at, json_extract(battle_json, '$.defenderUnits') AS du, json_extract(battle_json, '$.defenderLosses') AS dl,
+              json_extract(battle_json, '$.supportUnits') AS su, json_extract(battle_json, '$.supportLosses') AS sl,
+              json_extract(battle_json, '$.wallLevel') AS wall FROM reports
+       WHERE player_id = ? AND side = 'attack' AND COALESCE(json_extract(battle_json, '$.type'), 'battle') = 'battle'
+         AND COALESCE(json_extract(battle_json, '$.outcome'), 'battle') = 'battle'
+         AND json_extract(battle_json, '$.defender.villageId') = ?
+       ORDER BY created_at DESC, id DESC LIMIT 1`,
+      playerId,
+      villageId,
+    );
+    const newer = (a: Raw, b: Raw): boolean => (a.created_at as number) > (b.created_at as number) || (a.created_at === b.created_at && (a.id as number) > (b.id as number));
+    const wall = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+    const units = (v: unknown): Units | null => (typeof v === 'string' ? normalizeUnits(JSON.parse(v) as Partial<Units>) : null);
+    if (scout && (!battle || newer(scout, battle))) {
+      return {
+        at: scout.created_at as number,
+        source: 'scout',
+        troops: units(scout.troops),
+        troopsApprox: scout.approx === 1 && scout.troops !== null,
+        wallLevel: wall(scout.wall),
+      };
+    }
+    if (battle) {
+      const du = units(battle.du);
+      const dl = units(battle.dl);
+      let troops: Units | null = null;
+      if (du) {
+        troops = emptyUnits();
+        const su = units(battle.su);
+        const sl = units(battle.sl);
+        for (const id of UNIT_IDS) troops[id] = Math.max(0, du[id] - (dl?.[id] ?? 0)) + (su ? Math.max(0, su[id] - (sl?.[id] ?? 0)) : 0);
+      }
+      return { at: battle.created_at as number, source: 'battle', troops, troopsApprox: false, wallLevel: wall(battle.wall) };
+    }
+    return { at: null, source: null, troops: null, troopsApprox: false, wallLevel: null };
   }
 
   markReportRead(playerId: number, id: number): void {

@@ -31,6 +31,8 @@ import { FrameRanks } from './views/ranks/FrameRanks.tsx';
 import { FrameSimulator } from './views/simulator/FrameSimulator.tsx';
 import { FrameReports } from './views/reports/FrameReports.tsx';
 import { FrameMail } from './views/mail/FrameMail.tsx';
+import { FrameIncoming } from './views/incoming/FrameIncoming.tsx';
+import './frame-incoming.css';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
@@ -314,6 +316,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
       {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
       {tab === 'tribe' && (desktop ? <FrameTribe /> : <TribeView />)}
+      {tab === 'incoming' && <FrameIncoming />}
       {tab === 'ranks' && (desktop ? <FrameRanks /> : <RankingsView />)}
       {tab === 'support' && <SupportView />}
       {tab === 'rules' && <WorldRulesView />}
@@ -336,7 +339,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         <KeepAlive active={tab === 'village'} value={ctx}>
           <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
-        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' || tab === 'realm' || tab === 'notes' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
+        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' || tab === 'realm' || tab === 'notes' || tab === 'incoming' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
         {mapVisited.current && (
           <KeepAlive active={tab === 'map'} value={ctx}>
             <MapView active={tab === 'map'} />

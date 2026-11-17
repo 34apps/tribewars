@@ -5,6 +5,8 @@ import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/en
 import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { chieftainPriceText } from '../chest.ts';
+import { AttackHint } from '../components/AttackHint.tsx';
+import { SupportTimingView } from '../components/hintViews.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { TargetNote } from '../components/Notes.tsx';
 import { useNotes } from '../hooks/useNotes.tsx';
@@ -17,6 +19,7 @@ import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatClockParts, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { useLock } from '../hooks/useLock.ts';
+import { useSupportTiming } from '../hooks/useSupportTiming.ts';
 import { useSync } from '../hooks/useSync.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { MISSION_NAME } from '../icons.ts';
@@ -173,6 +176,9 @@ export function SendForm({
   const waymarkHelps = !!preview && waymarks.length > 0 && preview.ms < travelPreview(village, tile, chosen, settings).ms;
   const travel = preview ? preview.ms : 0;
   const slowTrip = preview ? slowTripText(preview.route, preview.flatMs, preview.ms) : null;
+  // "Will my help arrive in time?": the time the real send will take (test mode can set its own seconds out).
+  const outTest = player.sandbox && outSecs.trim() !== '' && Number.isInteger(Number(outSecs)) && Number(outSecs) >= 0 && Number(outSecs) <= 86400 ? Number(outSecs) * 1000 : null;
+  const timingLines = useSupportTiming(target, mission === 'support', total > 0 ? (outTest ?? travel) : 0);
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
   const targetProtected = fights && !relief && !!target && target.protected && target.kind === 'player';
   const breaksProtection = fights && !relief && target?.kind === 'player' && player.protectedUntil > now;
@@ -501,6 +507,8 @@ export function SendForm({
           </dl>
         )
       )}
+      <AttackHint target={target} active={fights && !relief} chosen={chosen} morale={morale} />
+      <SupportTimingView lines={timingLines} />
       {player.sandbox && (
         <details className="wm-test wm-muted">
           <summary>Test only (just you see this)</summary>

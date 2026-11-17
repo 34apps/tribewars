@@ -99,7 +99,8 @@ function TabBadge({ n, danger, label, dot }: { n: number; danger?: boolean; labe
 
 function FolderTab({ tab }: { tab: NavTab }) {
   const { tab: current, navigate, unreadReports, unreadMail, tribeInvites, tribeAlerts, movements, now } = useGame();
-  const active = current === tab;
+  // The Incoming attacks page belongs to the Army folder (the chip that opens it sits next to the tabs).
+  const active = current === tab || (tab === 'army' && current === 'incoming');
   const attacks = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).length : 0;
   const tribeLabel = [
     tribeAlerts > 0 ? `${tribeAlerts} attack ${tribeAlerts === 1 ? 'alert' : 'alerts'}` : '',
@@ -121,7 +122,7 @@ function FolderTab({ tab }: { tab: NavTab }) {
 
 /** Right end of the tab row: the red attack pill (next attack and its countdown), the protection chip, world-end and connection notes. */
 function TabRowAlerts() {
-  const { player, now, movements, viewMovement, worldEnd, connectionError, tab, navigate } = useGame();
+  const { player, now, movements, worldEnd, connectionError, tab, navigate } = useGame();
   const protectedLeft = player.protectedUntil - now;
   const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
@@ -155,11 +156,11 @@ function TabRowAlerts() {
         <button
           type="button"
           className="fr-ach"
-          onClick={() => viewMovement(first.id)}
-          aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Show`}
+          onClick={() => navigate('incoming')}
+          aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Open incoming attacks`}
         >
           <Icon name="warning" size={22} />
-          <span>{incoming.length > 1 ? `${incoming.length} attacks · ` : ''}Attack from {who}</span>
+          <span className="fr-ach-t">{incoming.length > 1 ? `${incoming.length} attacks · ` : ''}Attack from {who}</span>
           <span className="fr-cd">{left}</span>
         </button>
       )}
@@ -176,9 +177,9 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const counts = bellCounts(notifications.items, now);
   const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
   const guardOrders = useGuardOrders();
-  // Village, realm, notes, map, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
+  // Village, realm, notes, map, incoming attacks, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
   const tribeFixed = useTribeFixed();
-  const fixed = tab === 'village' || tab === 'realm' || tab === 'notes' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
+  const fixed = tab === 'village' || tab === 'realm' || tab === 'notes' || tab === 'incoming' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
       <div className={`frame fr-tab-${tab}${fixed ? ' is-fixed' : ''}${worldEnd ? ' is-ended' : ''}`}>

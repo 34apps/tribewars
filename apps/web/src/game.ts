@@ -22,15 +22,15 @@ import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
 export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
-/** Pages reached from the account menu (not in the navigation bar). */
-export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator' | 'notes';
+/** Pages reached from the account menu or a link (not in the navigation bar); `incoming` opens from the attack chip. */
+export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator' | 'notes' | 'incoming';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'realm', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
 /** The tabs shown in the navigation: the Realm tab appears only from the second village on (its route still works with one). */
 export function navTabs(villageCount: number): readonly NavTab[] {
   return villageCount >= 2 ? TABS : TABS.filter((t) => t !== 'realm');
 }
-export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator', 'notes'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator', 'notes', 'incoming'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {

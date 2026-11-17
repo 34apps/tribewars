@@ -124,7 +124,7 @@ export function AlertNotes() {
 
 /** Attacks and protection on phones: one slim pills row under the HUD. */
 function AlertCards() {
-  const { player, now, movements, viewMovement } = useGame();
+  const { player, now, movements, navigate } = useGame();
   const protectedLeft = player.protectedUntil - now;
   const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
@@ -140,7 +140,7 @@ function AlertCards() {
       </div>
     ) : null;
   const pill = first ? (
-    <button type="button" className="hud-attack-pill" onClick={() => viewMovement(first.id)} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Show`}>
+    <button type="button" className="hud-attack-pill" onClick={() => navigate('incoming')} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Open incoming attacks`}>
       <Icon name="warning" size={20} />
       <span className="hud-attack-pill-text">
         {incoming.length > 1 ? `${incoming.length} attacks` : 'Attack'} {left}
@@ -170,7 +170,8 @@ function DockBadge({ n, danger, label }: { n: number; danger?: boolean; label: s
 
 function DockButton({ tab }: { tab: Tab }) {
   const { tab: current, navigate, unreadReports, unreadMail, tribeInvites, tribeAlerts, movements, now } = useGame();
-  const active = current === tab;
+  // The Incoming attacks page belongs to the Army button.
+  const active = current === tab || (tab === 'army' && current === 'incoming');
   const attacks = tab === 'army' ? movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).length : 0;
   const tribeLabel = [
     tribeAlerts > 0 ? `${tribeAlerts} attack ${tribeAlerts === 1 ? 'alert' : 'alerts'}` : '',
@@ -195,7 +196,7 @@ function DockButton({ tab }: { tab: Tab }) {
 function MoreButton({ open, onClick }: { open: boolean; onClick: () => void }) {
   const { player, tab, unreadMail, tribeInvites, tribeAlerts } = useGame();
   const n = unreadMail + tribeInvites + tribeAlerts;
-  const inMore = tab !== 'village' && tab !== 'map' && tab !== 'army' && tab !== 'reports';
+  const inMore = tab !== 'village' && tab !== 'map' && tab !== 'army' && tab !== 'incoming' && tab !== 'reports';
   return (
     <button type="button" className={`dbtn dbtn-more${open || inMore ? ' is-active' : ''}`} aria-expanded={open} aria-haspopup="dialog" aria-current={inMore ? 'page' : undefined} title="More" onClick={onClick}>
       <span className="dbtn-ico dbtn-avatar" aria-hidden="true">
