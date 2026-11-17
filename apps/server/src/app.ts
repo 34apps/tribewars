@@ -24,7 +24,7 @@ import { parsePublicKeys } from './entry-pass.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
 import { DominationService } from './domination-service.ts';
-import { GameService } from './game.ts';
+import { DUE_BUDGET, GameService, type DueBudget } from './game.ts';
 import { ForumService } from './forum-service.ts';
 import { MailService } from './mail-service.ts';
 import { LiveHub, liveRoutes } from './live.ts';
@@ -91,6 +91,10 @@ export interface BuildAppOptions {
   worldId?: string;
   /** Display name for GET /api/world/info (default "World <worldId>"). */
   worldName?: string;
+  /** Work one request or tick may do on due movements before handing back (default DUE_BUDGET). Tests pass a tiny one. */
+  dueBudget?: DueBudget;
+  /** How long the ranking lists are reused, in ms (default RANKINGS_CACHE_MS = 15 s). Tests pass 0 (always fresh). */
+  rankingsCacheMs?: number;
   /** LOBBY_PUBLIC_KEY: comma list of base64 SPKI DER / PEM Ed25519 public keys. Set = entry passes from the lobby only (own register/login off). */
   lobbyPublicKey?: string;
 }
@@ -103,6 +107,9 @@ function isApiPath(url: string): boolean {
 }
 
 export const WORLD_ENDED_MESSAGE = 'This world has ended.';
+
+/** Longest a request waits for the shared catch-up of due movements before it drains the rest itself. */
+const DUE_MAX_WAIT_MS = 3000;
 
 /**
  * Write routes that still work after the world ended: signing in and out (also the lobby pass; creating a NEW player with a
@@ -132,6 +139,7 @@ function errorBody(error: GameErrorCode, message: string): ApiError {
 
 export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> {
   const now = opts.now ?? Date.now;
+  const dueBudget = opts.dueBudget ?? DUE_BUDGET;
   const worldId = checkWorldId(opts.worldId ?? DEFAULT_WORLD_ID, 'worldId');
   const worldName = checkWorldName(opts.worldName ?? `World ${worldId}`, 'worldName');
   const rewriteWorldPath = makeWorldRewrite(worldId);
@@ -182,6 +190,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     settings,
     refreshSettings,
     now,
+    rankingsCacheMs: opts.rankingsCacheMs,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     worldId,
     worldName,
@@ -231,7 +240,26 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     if (isApiPath(req.url)) {
       try {
         refreshSettings();
-        ctx.game.processDue(req.nowMs);
+        // A burst (thousands of arrivals at once, or the first request after an outage) is drained in slices so it cannot freeze
+        // the server: this request waits for the shared catch-up and then acts at the time it is actually served, so every
+        // handler still sees a world where all arrivals before its own moment are resolved, in order (SECURITY_ROADMAP 2.5).
+        const waitUntil = performance.now() + DUE_MAX_WAIT_MS;
+        for (;;) {
+          // While a backlog is being drained this request does not add a slice of its own (many requests arriving together
+          // would run theirs back to back): it only waits for the shared loop.
+          if (!ctx.game.dueBacklog) {
+            ctx.game.processDue(req.nowMs, dueBudget);
+            if (!ctx.game.dueBacklog) break;
+          }
+          if (performance.now() >= waitUntil) {
+            // Waited long enough (arrivals come in faster than they resolve): finish the rest in one go, as before the budget existed.
+            req.log.warn('due-movement backlog: draining in one call');
+            ctx.game.processDue(req.nowMs);
+            break;
+          }
+          await ctx.game.catchUp(dueBudget);
+          req.nowMs = now();
+        }
       } catch (err) {
         req.log.error({ err }, 'processDue failed');
       }

@@ -175,7 +175,11 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     },
     processDue() {
       try {
-        return ctx.game.processDue(now());
+        const t = now();
+        const handled = ctx.game.processDue(t);
+        // The preview has no caretaker pass: keep the stored state of abandoned villages (their points on the map) fresh here,
+        // right after the arrivals (never settle a village past an unresolved arrival). Bounded per call; nothing due = one cheap query.
+        return handled + ctx.game.refreshAbandonedVillages(t);
       } catch (err) {
         console.error('tick failed', err);
         return 0;

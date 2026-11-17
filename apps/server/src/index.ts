@@ -4,6 +4,7 @@ import { BOT_PASS_INTERVAL_MS } from '@clanfire/engine';
 import { createAnthropicClient } from './advisor.ts';
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
+import { DUE_BUDGET } from './game.ts';
 
 loadDotEnv();
 const env = loadEnv();
@@ -37,7 +38,9 @@ try {
 const tick = setInterval(() => {
   try {
     app.ctx.refreshSettings?.();
-    app.ctx.game.processDue(Date.now());
+    // One budgeted slice; a backlog (a burst, or more than a slice of arrivals) is drained in further slices between requests.
+    app.ctx.game.processDue(Date.now(), DUE_BUDGET);
+    if (app.ctx.game.dueBacklog) void app.ctx.game.catchUp();
   } catch (err) {
     app.log.error({ err }, 'tick failed');
   }

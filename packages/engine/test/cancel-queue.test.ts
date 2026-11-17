@@ -94,7 +94,7 @@ describe('cancelling research', () => {
     assert.equal(b.researchQueue![1]!.startAt, b.researchQueue![0]!.finishAt);
     const t = 1000;
     const { state } = applyCancelResearch(b, 0, t, S1);
-    assert.deepEqual(state.researchQueue, [{ unit: 'outrider', startAt: t, finishAt: t + outMs }]);
+    assert.deepEqual(state.researchQueue, [{ unit: 'outrider', startAt: t, finishAt: t + outMs, cost: UNITS.outrider.research!.cost }]);
   });
 });
 

@@ -103,6 +103,8 @@ export interface ResearchJob {
   unit: UnitId;
   startAt: number;
   finishAt: number;
+  /** What was paid when it was queued (see BuildJob.cost). */
+  cost?: Resources;
 }
 
 export interface WorldSettings {
@@ -156,6 +158,8 @@ export interface BuildJob {
   targetLevel: number;
   startAt: number;
   finishAt: number;
+  /** What was paid when it was queued; a cancel refunds from this, not from today's price. Missing on old jobs. */
+  cost?: Resources;
 }
 
 export interface TrainJob {
@@ -167,6 +171,8 @@ export interface TrainJob {
   perUnitMs: number;
   /** When the first unit of this batch starts training. */
   startAt: number;
+  /** Resources paid per unit when the batch was queued; a cancel refunds the untrained rest from this. Missing on old jobs. */
+  unitCost?: Resources;
 }
 
 export interface NpcInfo {
@@ -313,6 +319,8 @@ export type GameErrorCode =
   | 'not_in_tribe'
   /** Saved troop groups: the player already has the maximum (HTTP 409). */
   | 'group_limit'
+  /** Marches in flight: the player already has MAX_MARCHES_IN_FLIGHT on the road (HTTP 409). */
+  | 'march_limit'
   | 'step_not_done'
   | 'step_claimed'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */

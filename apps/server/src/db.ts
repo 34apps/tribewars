@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_CHIEFTAIN, STAT_KEYS, convertReportBody, convertSiegeRanks, convertSiegeUnits, hasLegacySiege, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, STAT_KEYS, UNITS, buildingCost, convertReportBody, convertSiegeRanks, convertSiegeUnits, hasLegacySiege, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
 import { DEFAULT_TEMPLATES } from './template-defaults.ts';
 
 /** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
@@ -145,9 +145,15 @@ CREATE TABLE IF NOT EXISTS villages (
   bot_next_at INTEGER NOT NULL DEFAULT 0,
   -- While the hearth is out: the time the hold clock (or the fail timer) next needs attention (engine holdDueAt); NULL = lit.
   hold_due_at INTEGER,
+  -- The village's own protection end, a copy of state.protectedUntil (0 = none), kept in step by Store.saveVillage / insertVillage so the map needs no JSON.
+  protected_until INTEGER NOT NULL DEFAULT 0,
+  -- Abandoned villages only: when the stored state was last settled by the caretaker's refresh (NULL = never, due now). Owned villages leave it alone.
+  npc_refresh_at INTEGER,
   UNIQUE (x, y)
 );
 CREATE INDEX IF NOT EXISTS idx_villages_owner ON villages(owner_id);
+-- Village-name search reads only this narrow index (the name match, the distance and the banned-owner check), not the fat rows.
+CREATE INDEX IF NOT EXISTS idx_villages_search ON villages(name, x, y, owner_id);
 
 ${movementsTable('movements')}
 CREATE INDEX IF NOT EXISTS idx_movements_arrive ON movements(arrive_at, id);
@@ -214,6 +220,7 @@ CREATE TABLE IF NOT EXISTS strike_chain (
   return_movement_id INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_strike_chain_pair ON strike_chain(village_id, player_id, at);
+CREATE INDEX IF NOT EXISTS idx_strike_chain_player ON strike_chain(player_id, at);
 
 -- ---- Combat Renown (section 18.2): what one earner has already counted against one opponent in the open 24 h window.
 -- opponent is 'p:<playerId>' or 'v:<abandonedVillageId>'. value is raw Renown (engine rawRenown), window_start in ms.
@@ -605,6 +612,8 @@ export function applySchema(db: DatabaseSync): void {
   migrateOriginality(db);
   migrateRoster(db);
   migrateSiegeLeftovers(db);
+  migratePaidCosts(db);
+  migrateProtectedUntil(db);
   seedTemplates(db);
 }
 
@@ -613,14 +622,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 19; // 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 22; // 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '311284cd1f2dd206';
+export const SCHEMA_FINGERPRINT = 'e8e84087668b8f01';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -757,6 +766,89 @@ function migrateSiegeLeftovers(db: DatabaseSync): void {
   }
 }
 
+/**
+ * Paid costs on queued jobs (schema v20, 2026-11-17), once per database (a meta flag), safe on jobs already stamped. A cancel refunds from the
+ * cost stored in the job; jobs queued before that have none, so each gets today's price as an ESTIMATE (buildings: `buildingCost`; training: the
+ * unit's cost per unit; research: the research cost). Costs are global numbers in the engine config (no per-world override), so the estimate is
+ * the same in every world. One transaction; logs how many jobs were stamped.
+ */
+function migratePaidCosts(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'paid_costs_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    let jobs = 0;
+    for (const r of db.prepare('SELECT id, state_json FROM villages').all() as Array<{ id: number; state_json: string }>) {
+      const state = JSON.parse(r.state_json) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+      let n = 0;
+      for (const j of state.buildQueue ?? []) {
+        if (j.cost || typeof j.targetLevel !== 'number') continue;
+        try {
+          j.cost = buildingCost(j.building, j.targetLevel);
+          n++;
+        } catch {
+          // unknown building id: leave the job alone, cancel falls back
+        }
+      }
+      for (const queue of Object.values(state.trainQueues ?? {}) as Array<Array<Record<string, any>>>) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        for (const j of queue) {
+          if (j.unitCost || !(UNITS as Record<string, any>)[j.unit]) continue; // eslint-disable-line @typescript-eslint/no-explicit-any
+          j.unitCost = { ...UNITS[j.unit as keyof typeof UNITS].cost };
+          n++;
+        }
+      }
+      for (const j of state.researchQueue ?? []) {
+        const rule = (UNITS as Record<string, any>)[j.unit]?.research; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (j.cost || !rule) continue;
+        j.cost = { ...rule.cost };
+        n++;
+      }
+      if (n === 0) continue;
+      jobs += n;
+      db.prepare('UPDATE villages SET state_json = ? WHERE id = ?').run(JSON.stringify(state), r.id);
+    }
+    if (jobs > 0) console.info(`[db] paid costs: ${jobs} queued job(s) stamped with today's price as an estimate`);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('paid_costs_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
+/**
+ * villages.protected_until (schema v21, 2026-11-17), once per database (a meta flag): copies `state.protectedUntil` (0 when absent) into the
+ * new column, after every earlier migration has finished rewriting state_json. From then on Store.saveVillage / insertVillage keep it equal.
+ * One transaction; logs how many villages carry a protection end.
+ */
+function migrateProtectedUntil(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'protected_until_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    let set = 0;
+    const update = db.prepare('UPDATE villages SET protected_until = ? WHERE id = ?');
+    for (const r of db.prepare("SELECT id, json_extract(state_json, '$.protectedUntil') AS pu FROM villages").all() as Array<{ id: number; pu: number | null }>) {
+      const pu = typeof r.pu === 'number' && Number.isFinite(r.pu) ? r.pu : 0;
+      if (pu === 0) continue; // the column default is already 0
+      update.run(pu, r.id);
+      set++;
+    }
+    if (set > 0) console.info(`[db] protected_until: ${set} village(s) copied from the saved state`);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('protected_until_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */
 function seedTemplates(db: DatabaseSync): void {
   const done = db.prepare("SELECT 1 AS x FROM meta WHERE key = 'templates_seeded'").get();
@@ -821,6 +913,9 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_bot ON villages(bot_next_at) WHERE owner_id IS NOT NULL');
   if (!villageCols.some((c) => c.name === 'hold_due_at')) db.exec('ALTER TABLE villages ADD COLUMN hold_due_at INTEGER');
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_hold ON villages(hold_due_at) WHERE hold_due_at IS NOT NULL');
+  if (!villageCols.some((c) => c.name === 'protected_until')) db.exec('ALTER TABLE villages ADD COLUMN protected_until INTEGER NOT NULL DEFAULT 0');
+  if (!villageCols.some((c) => c.name === 'npc_refresh_at')) db.exec('ALTER TABLE villages ADD COLUMN npc_refresh_at INTEGER');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_villages_npc_refresh ON villages(npc_refresh_at) WHERE owner_id IS NULL');
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
   if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).

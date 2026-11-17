@@ -8,6 +8,7 @@ import {
   GameError,
   LOOKOUT_LIST_LIMIT,
   LOOKOUT_RADIUS,
+  SITE_UPKEEP_INTERVAL_MS,
   POP_PER_UNIT,
   UNIT_IDS,
   applyAttackerLosses,
@@ -217,6 +218,25 @@ export class SiteService {
     this.store.tx(() => {
       for (const id of ids) this.reconcileSite(id, t);
     });
+  }
+
+  private lastUpkeepAt: number | null = null;
+  /** How many upkeep passes ran (tests). */
+  upkeepRuns = 0;
+
+  /**
+   * The throttled upkeep every request and tick calls: a pass runs when a write it reacts to happened in this process
+   * (store.siteUpkeepDirty: garrison, tribe membership, relations, ban, village owner) or SITE_UPKEEP_INTERVAL_MS of game-clock time
+   * passed since the last pass (also when the clock went backwards). The interval covers changes made outside this process
+   * (the operator CLI) and time-based ones (a relation that ran out). The flag is cleared after the pass, so a pass's own writes do not trigger another.
+   */
+  reconcileIfDue(t: number): void {
+    const last = this.lastUpkeepAt;
+    if (!this.store.siteUpkeepDirty && last !== null && t >= last && t - last < SITE_UPKEEP_INTERVAL_MS) return;
+    this.reconcileAll(t);
+    this.upkeepRuns++;
+    this.lastUpkeepAt = t;
+    this.store.siteUpkeepDirty = false;
   }
 
   reconcileSite(siteId: number, t: number): void {

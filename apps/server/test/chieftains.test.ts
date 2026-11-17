@@ -116,7 +116,7 @@ test('an old database without the column is upgraded in place', () => {
   db.close();
 });
 
-test('map: abandoned villages are settled to now, without writing', async () => {
+test('map: abandoned villages show their stored points, which the caretaker refreshes; GET /api/map does not write', async () => {
   // Abandoned villages build from their own stock here (self-building switched on).
   const { app, clock } = await makeApp({ worldConfig: { npc: { selfBuild: true } } });
   const c = new Client(app, nextIp());
@@ -128,6 +128,10 @@ test('map: abandoned villages are settled to now, without writing', async () => 
   const storedBefore = stored();
 
   clock.advance(12 * HOUR); // 120 growth steps
+  const stale = (await mapAll(c)).filter((v) => v.kind === 'abandoned');
+  assert.deepEqual(stale.map((v) => v.points), before.map((v) => v.points), 'the map shows the stored points until the caretaker refreshes them');
+  assert.equal(stored(), storedBefore, 'GET /api/map does not write');
+  app.ctx.game.runCaretaker(clock.t);
   const after = (await mapAll(c)).filter((v) => v.kind === 'abandoned');
   const sum = (vs: typeof after): number => vs.reduce((n, v) => n + v.points, 0);
   assert.equal(after.length, before.length);
@@ -136,5 +140,5 @@ test('map: abandoned villages are settled to now, without writing', async () => 
     const was = before.find((b) => b.id === v.id);
     assert.ok(was && v.points >= was.points, 'no village shrinks');
   }
-  assert.equal(stored(), storedBefore, 'GET /api/map does not write');
+  assert.ok(stored() > storedBefore, 'the caretaker saved the grown villages');
 });

@@ -186,9 +186,8 @@ export interface AlertRow {
 
 const MAP_SELECT = `SELECT v.id, v.owner_id, v.name, v.x, v.y, v.points, p.username AS owner_name, COALESCE(p.protected_until, 0) AS owner_protected_until,
               tm.tribe_id AS owner_tribe_id, tr.tag AS owner_tribe_tag, p.chieftain AS owner_chieftain,
-              CASE WHEN v.owner_id IS NULL THEN v.state_json END AS npc_state_json,
               CASE WHEN v.hold_due_at IS NOT NULL THEN v.state_json END AS cold_state_json,
-              COALESCE(json_extract(v.state_json, '$.protectedUntil'), 0) AS v_protected_until
+              v.protected_until AS v_protected_until
        FROM villages v
        LEFT JOIN players p ON p.id = v.owner_id
        LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id
@@ -207,7 +206,6 @@ function mapRowOf(r: Raw): MapRow {
     ownerTribeId: (r.owner_tribe_id as number | null) ?? null,
     ownerTribeTag: (r.owner_tribe_tag as string | null) ?? null,
     ownerChieftain: (r.owner_chieftain as string | null) ?? null,
-    npcState: r.npc_state_json ? normalizeVillage(JSON.parse(r.npc_state_json as string) as VillageState) : null,
     protectedUntil: r.v_protected_until as number,
     coldState: r.cold_state_json ? normalizeVillage(JSON.parse(r.cold_state_json as string) as VillageState) : null,
   };
@@ -226,8 +224,6 @@ export interface MapRow {
   ownerTribeId: number | null;
   ownerTribeTag: string | null;
   ownerChieftain: string | null;
-  /** The stored village state, only for abandoned villages (they grow lazily; the map settles them to now). */
-  npcState: VillageState | null;
   /** The village's own protection end (founded villages), 0 when none. The owner's beginner protection is `ownerProtectedUntil`. */
   protectedUntil: number;
   /** The stored village state, only while the hearth is out (the map shows the clock). */
@@ -552,7 +548,15 @@ export class Store extends SqlBase {
     this.troopGroups = new TroopGroupStore(db);
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
+    this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
     for (const s of [this.tribes, this.projects, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
+  }
+
+  /** Set by every write the site upkeep reacts to; the SiteService clears it after a pass (see SiteService.reconcileIfDue). Starts true so the first request checks. */
+  siteUpkeepDirty = true;
+
+  markSiteUpkeepDirty(): void {
+    this.siteUpkeepDirty = true;
   }
 
   /** True once the world has ended (a tribe won, or the operator ended it): the world is frozen. */
@@ -873,6 +877,8 @@ export class Store extends SqlBase {
   abandonDueVillages(idleBefore: number, now: number, limit: number): VillageRecord[] {
     const sandbox = [...this.sandboxUsers];
     const skipSandbox = sandbox.length > 0 ? `AND p.username_lower NOT IN (${sandbox.map(() => '?').join(', ')})` : '';
+    // With bound values SQLite already starts at the (narrow) players table and reaches the villages through idx_villages_owner;
+    // measured on 2,011 players / 17,097 villages it takes 0.05-0.5 ms, so no extra index (see CHANGELOG 2026-11-17).
     return this.all(
       `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND COALESCE(p.last_active, p.created_at) <= ? AND p.protected_until <= ? ${skipSandbox}
        ORDER BY v.id LIMIT ?`,
@@ -885,11 +891,13 @@ export class Store extends SqlBase {
 
   /** Give a village up: no owner (the caller saves the new abandoned state), no hold clock. */
   releaseVillage(id: number, name: string): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', name, id);
   }
 
   /** The village changes owner (taken by a hold): new owner, new name, the hold clock is gone, the bot starts fresh. */
   setVillageOwner(id: number, ownerId: number, name: string): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = ?, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', ownerId, name, id);
   }
 
@@ -1119,6 +1127,7 @@ export class Store extends SqlBase {
 
   /** Ban an account and end all its sessions. */
   banPlayer(playerId: number, reason: string, now: number): void {
+    this.markSiteUpkeepDirty();
     this.run('UPDATE players SET banned_at = ?, ban_reason = ? WHERE id = ?', now, reason, playerId);
     this.run('DELETE FROM sessions WHERE player_id = ?', playerId);
     this.emit({ kind: 'player-banned', playerId });
@@ -1190,7 +1199,10 @@ export class Store extends SqlBase {
   }
 
   insertVillage(ownerId: number | null, name: string, x: number, y: number, points: number, state: VillageState): number {
-    return this.run('INSERT INTO villages (owner_id, name, x, y, points, state_json) VALUES (?, ?, ?, ?, ?, ?)', ownerId, name, x, y, points, JSON.stringify(state)).id;
+    return this.run(
+      'INSERT INTO villages (owner_id, name, x, y, points, state_json, protected_until) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ownerId, name, x, y, points, JSON.stringify(state), state.protectedUntil ?? 0,
+    ).id;
   }
 
   /**
@@ -1203,7 +1215,7 @@ export class Store extends SqlBase {
   saveVillage(id: number, state: VillageState, points: number): void {
     // Villages without an owner never earn; with the world settings set, an owned village also settles its defender trickle.
     if (state.npc || (!hasUnpaidBuildRenown(state) && !this.world)) {
-      this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(state), points, id);
+      this.run('UPDATE villages SET state_json = ?, points = ?, protected_until = ? WHERE id = ?', JSON.stringify(state), points, state.protectedUntil ?? 0, id);
       return;
     }
     this.tx(() => {
@@ -1230,8 +1242,31 @@ export class Store extends SqlBase {
           if (earned > 0) this.addRenown(ownerId, earned);
         }
       }
-      this.run('UPDATE villages SET state_json = ?, points = ? WHERE id = ?', JSON.stringify(out), points, id);
+      this.run('UPDATE villages SET state_json = ?, points = ?, protected_until = ? WHERE id = ?', JSON.stringify(out), points, out.protectedUntil ?? 0, id);
     });
+  }
+
+  /**
+   * The abandoned villages whose stored state was last refreshed at or before `cutoff` (never = first), oldest first, at most
+   * `limit`, with the time of that refresh (null = never). Walks idx_villages_npc_refresh in order and reads a village row only
+   * for the ones that are due, so a call with nothing due stays cheap. Villages with the hearth out are left to the hold clock.
+   */
+  npcRefreshOrder(cutoff: number, limit: number): Array<{ id: number; refreshedAt: number | null }> {
+    return this.all(
+      `SELECT id, npc_refresh_at FROM villages INDEXED BY idx_villages_npc_refresh
+       WHERE owner_id IS NULL AND (npc_refresh_at IS NULL OR npc_refresh_at <= ?) AND hold_due_at IS NULL
+       ORDER BY npc_refresh_at LIMIT ?`,
+      cutoff,
+      limit,
+    ).map((r) => ({
+      id: r.id as number,
+      refreshedAt: (r.npc_refresh_at as number | null) ?? null,
+    }));
+  }
+
+  /** Remember that the abandoned village's stored state was settled to `at` (see npcRefreshOrder). */
+  setNpcRefreshAt(id: number, at: number): void {
+    this.run('UPDATE villages SET npc_refresh_at = ? WHERE id = ? AND owner_id IS NULL', at, id);
   }
 
   // ---- Renown (docs/GAME_DESIGN.md section 18.2) --------------------------------------------------
@@ -1373,13 +1408,23 @@ export class Store extends SqlBase {
     const params: Param[] = [`%${esc}%`];
     if (from) params.push(from.x, from.x, from.y, from.y);
     params.push(`${esc}%`, limit);
-    return this.all(
-      `${MAP_SELECT}
-       WHERE ${col} LIKE ? ESCAPE '\\' AND (v.owner_id IS NULL OR p.banned_at IS NULL)${by === 'player' ? ' AND v.owner_id IS NOT NULL' : ''}
-       ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
-       LIMIT ?`,
-      ...params,
-    ).map(mapRowOf);
+    // Step 1: find and order the ids from narrow data only: idx_villages_search (name, x, y, owner_id) covers a village-name search,
+    // for a player-name search the scan starts at players.username and reaches the villages through idx_villages_owner. The fat
+    // villages rows (state_json) are not touched. Step 2 loads the full map rows of the few winners.
+    const idSql =
+      by === 'village'
+        ? `SELECT v.id FROM villages v LEFT JOIN players p ON p.id = v.owner_id
+           WHERE v.name LIKE ? ESCAPE '\\' AND (v.owner_id IS NULL OR p.banned_at IS NULL)
+           ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
+           LIMIT ?`
+        : `SELECT v.id FROM players p CROSS JOIN villages v ON v.owner_id = p.id
+           WHERE p.username LIKE ? ESCAPE '\\' AND p.banned_at IS NULL
+           ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
+           LIMIT ?`;
+    const ids = this.all(idSql, ...params).map((r) => r.id as number);
+    if (ids.length === 0) return [];
+    const rows = new Map(this.all(`${MAP_SELECT} WHERE v.id IN (${ids.map(() => '?').join(',')})`, ...ids).map((r) => [r.id as number, mapRowOf(r)]));
+    return ids.flatMap((id) => rows.get(id) ?? []);
   }
 
   // ---- movements -------------------------------------------------------------------------------
@@ -1420,6 +1465,20 @@ export class Store extends SqlBase {
   /** Movements that have arrived by `now`, in processing order. */
   dueMovements(now: number, limit: number): MovementRow[] {
     return this.all('SELECT * FROM movements WHERE arrive_at <= ? ORDER BY arrive_at, id LIMIT ?', now, limit).map(toMovement);
+  }
+
+  /**
+   * Marches of one player on the road: every kind (out, back, support, shipment) whose home/origin village is theirs. Counts at most
+   * `limit` rows, so it stays cheap for a flooded account. Plan: SEARCH villages USING INDEX idx_villages_owner, then
+   * SEARCH movements USING INDEX idx_movements_origin.
+   */
+  marchesInFlight(playerId: number, limit: number): number {
+    const r = this.get(
+      'SELECT COUNT(*) AS n FROM (SELECT 1 FROM movements WHERE origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?) LIMIT ?)',
+      playerId,
+      limit,
+    );
+    return Number(r?.n ?? 0);
   }
 
   /** Shipments sent from this village that have not arrived yet. */

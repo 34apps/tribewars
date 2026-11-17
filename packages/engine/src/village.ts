@@ -347,7 +347,7 @@ export function applyBuild(
   const last = v.buildQueue[v.buildQueue.length - 1];
   const startAt = Math.max(v.lastUpdate, last ? last.finishAt : 0);
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
-  v.buildQueue.push({ building: plan.building, targetLevel: plan.targetLevel, startAt, finishAt: startAt + plan.timeMs });
+  v.buildQueue.push({ building: plan.building, targetLevel: plan.targetLevel, startAt, finishAt: startAt + plan.timeMs, cost: { ...plan.cost } });
   return v;
 }
 
@@ -432,7 +432,7 @@ export function applyTrain(
   const queue = v.trainQueues[UNITS[plan.unit].building];
   const last = queue[queue.length - 1];
   const startAt = Math.max(v.lastUpdate, last ? last.startAt + last.count * last.perUnitMs : 0);
-  const job: TrainJob = { unit: plan.unit, count: plan.count, done: 0, perUnitMs: plan.perUnitMs, startAt };
+  const job: TrainJob = { unit: plan.unit, count: plan.count, done: 0, perUnitMs: plan.perUnitMs, startAt, unitCost: { ...UNITS[plan.unit].cost } };
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
   queue.push(job);
   return v;
@@ -466,7 +466,7 @@ export function applyCancelBuild(state: VillageState, index: unknown, t: number,
   if (index !== v.buildQueue.length - 1) throw new GameError('invalid_input', 'Only the newest job in the construction queue can be cancelled.');
   const job = v.buildQueue[index] as BuildJob;
   v.buildQueue.pop();
-  const refund = refundOf(buildingCost(job.building, job.targetLevel));
+  const refund = refundOf(job.cost ?? buildingCost(job.building, job.targetLevel));
   addRefund(v, refund);
   return { state: v, refund };
 }
@@ -499,7 +499,8 @@ export function applyCancelTrain(
   }
   const left = job.count - job.done;
   const cost = emptyResources();
-  for (const r of RESOURCE_IDS) cost[r] = UNITS[job.unit].cost[r] * left;
+  const unitCost = job.unitCost ?? UNITS[job.unit].cost;
+  for (const r of RESOURCE_IDS) cost[r] = unitCost[r] * left;
   const refund = refundOf(cost);
   addRefund(v, refund);
   return { state: v, refund };

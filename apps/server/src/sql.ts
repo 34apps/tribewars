@@ -10,6 +10,8 @@ export abstract class SqlBase {
   private readonly cache = new Map<string, StatementSync>();
   /** Live-update hints (see live-events.ts). The Store wires this to its commit-aware queue; the default drops them. */
   emit: LiveEmit = () => {};
+  /** Called by writes the site upkeep reacts to (garrison, membership, relations). The Store wires it to its dirty flag. */
+  siteUpkeepTouch: () => void = () => {};
 
   constructor(readonly db: DatabaseSync) {}
 

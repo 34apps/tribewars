@@ -277,6 +277,7 @@ export class TribeStore extends SqlBase {
 
   /** Cascades to members, invites, applications, proposals, relations, events and chat. */
   deleteTribe(id: number): void {
+    this.siteUpkeepTouch();
     this.run('DELETE FROM tribes WHERE id = ?', id);
   }
 
@@ -333,6 +334,7 @@ export class TribeStore extends SqlBase {
 
   /** Leaving or being removed clears the grants (they live on the row) and the forum read markers. */
   deleteMember(playerId: number): void {
+    this.siteUpkeepTouch();
     this.run('DELETE FROM tribe_members WHERE player_id = ?', playerId);
     this.run('DELETE FROM forum_reads WHERE player_id = ?', playerId);
     this.memberChanged(playerId);
@@ -501,6 +503,7 @@ export class TribeStore extends SqlBase {
   // ---- relations -------------------------------------------------------------------------------
 
   insertRelation(x: number, y: number, kind: DiplomacyKind, declaredBy: number | null, createdAt: number, endsAt: number | null): number {
+    this.siteUpkeepTouch();
     const [a, b] = x < y ? [x, y] : [y, x];
     return this.run(
       'INSERT INTO tribe_relations (tribe_a, tribe_b, kind, declared_by, created_at, ends_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -576,15 +579,18 @@ export class TribeStore extends SqlBase {
   }
 
   setRelationEnds(id: number, endsAt: number): void {
+    this.siteUpkeepTouch();
     this.run('UPDATE tribe_relations SET ends_at = ? WHERE id = ?', endsAt, id);
   }
 
   deleteRelation(id: number): void {
+    this.siteUpkeepTouch();
     this.run('DELETE FROM tribe_relations WHERE id = ?', id);
   }
 
   /** Delete whatever relation row exists for the pair (in force or already expired). */
   deleteRelationBetween(x: number, y: number): void {
+    this.siteUpkeepTouch();
     const [a, b] = x < y ? [x, y] : [y, x];
     this.run('DELETE FROM tribe_relations WHERE tribe_a = ? AND tribe_b = ?', a, b);
   }

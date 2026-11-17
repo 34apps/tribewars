@@ -112,7 +112,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   be afforded), `not_enough_resources`, `queue_full`.
 - **Cancel** (owner, 2026-11-03): `POST /api/villages/:id/cancel-build {index}` cancels the newest job only
   (later levels depend on earlier ones); `cancel-train {building,index}` cancels any batch (units already
-  trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the paid cost (of the untrained
+  trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the cost paid when it was queued (of the untrained
   rest for training) comes back, rounded down, capped by the storehouse; the rest is lost. The client shows a
   confirm dialog with the amounts before and a toast after. `POST /api/villages/:id/cancel-research {index}`
   cancels a queued Drillyard research the same way (80% of its cost back; index 0 = running: the next queued
@@ -275,6 +275,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   - **Reserve.** `npc.keepShare` keeps a village that builds all the time from being empty when a raider arrives (it is lootable; only the Vault protects).
   - **Switch.** `npc.selfBuild` off: abandoned villages stay as created (tests, special worlds). A hearth that is out freezes production and starts no
     new build (a running one finishes).
+  - **Map points (2026-11-17).** The map shows the *stored* points of an abandoned village. The caretaker pass settles and saves each abandoned village at most once per hour of game time (`NPC_REFRESH_INTERVAL_MS` / world speed; `NPC_REFRESH_BATCH`, `NPC_REFRESH_BUDGET_MS` bound one pass), and a raid saves it as before, so the points on the map can lag the real growth by up to about an hour. Battles are unaffected: they settle at arrival. Skipped while the rule is off.
   - **Old databases.** The stored state keeps its shape (`npc: { tier, growthSteps, createdAt, growthSeed? }`; the build job is a normal `buildQueue`
     entry). `growthSteps` was the timer's step count and is now the build pointer, `createdAt` is informational. A village saved in the timer era
     with an empty queue just starts building from its stock and carries on from that pointer. No schema change, so no `SCHEMA_VERSION` bump.
@@ -488,12 +489,14 @@ searchable by name/tag.
   or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
 
 ### Rankings
-Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab. A third list ranks players by **Renown earned** (`GET /api/rankings/renown`, §18.2; total earned, never the balance, so spending does not lower the rank); Renown and its rank also show on the profile.
+Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab. A third list ranks players by **Renown earned** (`GET /api/rankings/renown`, §18.2; total earned, never the balance, so spending does not lower the rank); Renown and its rank also show on the profile. The player and Renown lists are rebuilt at most every 15 s (`RANKINGS_CACHE_MS`); each player's own row is picked per request.
 
 ## 12. Tribe warfare — scouts, support, alerts
 
 Numbers in `config.ts` (`SCOUT_*`, unit `pathfinder`); contract in `api.ts` (`SendRequest.mission`,
 `StationedDto`, recall/send-back routes, `TribeAlertDto`, report `type`s).
+
+**March limit.** A player may have at most `MAX_MARCHES_IN_FLIGHT` (200) marches on the road at once, out and back together; a new send or shipment past that answers 409 `march_limit`. Recalls, cancels and automatic returns are never refused.
 
 **Missions.** The player only ever chooses **Attack** or **Support** (owner, 2026-11-06: "if the user attacks with
 scouts, it will automatically scout"). Every send carries `mission`:

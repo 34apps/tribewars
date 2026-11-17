@@ -630,6 +630,12 @@ export const RESOURCE_PRODUCER: Record<ResourceId, 'lumber' | 'farm' | 'mine' | 
 /** Largest count of one unit type accepted in a send order (input sanity bound). */
 export const MAX_UNIT_COUNT = 1_000_000;
 
+/** Most marches (outbound and returning together) one player may have on the road at once. Refuses new sends only; recalls and returns are never refused. */
+export const MAX_MARCHES_IN_FLIGHT = 200;
+
+/** Site upkeep (troops of leavers go home, empty sites turn neutral) runs at least this often in game-clock ms even when nothing it watches changed. */
+export const SITE_UPKEEP_INTERVAL_MS = 5000;
+
 /** Saved troop groups (a convenience for the send form): at most this many per player, names up to this long. */
 export const TROOP_GROUP_MAX = 12;
 export const TROOP_GROUP_NAME_MAX = 24;
@@ -1017,8 +1023,16 @@ export const BOT_STEP_HOURS = 2;
 export const BOT_MAX_STEPS_PER_RUN = 2;
 /** Most villages the caretaker handles in one pass of the periodic job. */
 export const BOT_BATCH_VILLAGES = 25;
+/** An abandoned village's stored state (and so its map points) is settled and saved by the caretaker once per this many hours (divided by world speed). */
+export const NPC_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+/** Most abandoned villages one caretaker pass refreshes (15,000 of them are all done within the hour at one pass a minute). */
+export const NPC_REFRESH_BATCH = 400;
+/** ... and the real time one pass may spend on it, whichever limit comes first. */
+export const NPC_REFRESH_BUDGET_MS = 20;
 /** How often the server runs the caretaker pass (real ms, not scaled). */
 export const BOT_PASS_INTERVAL_MS = 60_000;
+/** The ranking lists (players, Renown) are rebuilt at most this often (server clock, ms); every request in between reuses the list. */
+export const RANKINGS_CACHE_MS = 15_000;
 /** A player's last_active is written at most this often (real ms), so reads never cause write storms. */
 export const ACTIVITY_WRITE_INTERVAL_MS = 5 * 60_000;
 /** A player counts as online when last_active is at most this old (real ms; two write intervals, so a steady player never flickers). */
