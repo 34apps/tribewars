@@ -24,8 +24,7 @@ import {
 import type { BuildingId, Resources, TrainingBuildingId, UnitId } from '@clanfire/engine';
 import { api, errorMessage } from '../../api.ts';
 import { BuildingArt } from '../../art/BuildingArt.tsx';
-import { snapshotScene } from './miniSnapshot.ts';
-import type { MiniShot } from './miniSnapshot.ts';
+import { getMini, subscribeMini } from './miniShots.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Mags } from '../../art/Mags.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
@@ -80,73 +79,23 @@ function sumCost(list: Resources[]): Resources {
 
 // ---- Left column: mini village ---------------------------------------------------------------------------------
 
-/** Kept still picture of the mini village per village (see miniSnapshot.ts): shown at once on every page and tab switch. */
-const miniCache = new Map<number, { key: string; shot: MiniShot }>();
-
-export function MiniVillage({ warm, onWarm }: { warm?: boolean; onWarm?: () => void }) {
-  const { village, live, openBuilding, now } = useGame();
-  const key = JSON.stringify([
-    live.buildings,
-    live.buildQueue.filter((j) => j.startAt <= now).map((j) => `${j.building}:${j.targetLevel}`),
-    !!village.hearth,
-  ]);
-  const cached = miniCache.get(village.id);
-  const exact = cached?.key === key;
-  // Drawing the live scene is heavy: show the kept picture (also a slightly old one) at once; draw the live scene only when there is none
-  // for the current buildings, after the page is up, take a new picture of it, then swap the live scene out for the picture.
-  const [ready, setReady] = useState(false);
+export function MiniVillage() {
+  const { village, openBuilding } = useGame();
+  // The kept still picture of the village (miniShots.ts; in memory and across reloads), made from the Village page's own scene by
+  // useMiniShooter: shown at once on every page and tab switch, also a slightly old one. Never draws a scene itself.
+  const vk = `${village.id}@${village.x},${village.y}`;
   const [, bump] = useState(0);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (exact) {
-      if (warm) onWarm?.();
-      return;
-    }
-    let t = 0;
-    let poll = 0;
-    let alive = true;
-    // Not requestAnimationFrame: it never fires in a hidden or unfocused tab/pane, which left a plain green box after a reload.
-    t = window.setTimeout(() => {
-      setReady(true);
-      let last = '';
-      let tries = 0;
-      poll = window.setInterval(() => {
-        const view = box.current?.querySelector('.vv-view');
-        const html = view ? view.outerHTML : '';
-        tries += 1;
-        if (view && box.current && html && html === last) {
-          window.clearInterval(poll);
-          void snapshotScene(box.current, view).then((shot) => {
-            if (shot && alive) miniCache.set(village.id, { key, shot });
-            if (alive) bump((n) => n + 1);
-            if (warm) onWarm?.();
-          });
-        } else if (tries > 30) window.clearInterval(poll);
-        last = html;
-      }, 150);
-    }, 40);
-    return () => {
-      alive = false;
-      window.clearTimeout(t);
-      window.clearInterval(poll);
-    };
-  }, [exact, key, village.id, warm, onWarm]);
-  const showShot = !!cached && (exact || !ready);
+  useEffect(() => subscribeMini(vk, () => bump((n) => n + 1)), [vk]);
+  const cached = getMini(vk);
   return (
     <div className="fv-cs fv-minicell">
-      <div ref={box} className="fv-minipic" role="img" aria-label={`${village.name}, village`}>
-        {showShot ? (
-          <img className="fv-minishot" src={cached.shot.url} alt="" draggable={false} />
-        ) : (
-          ready && <VillageScene mode="fit" selected={null} onSelect={() => undefined} />
-        )}
+      <div className="fv-minipic" role="img" aria-label={`${village.name}, village`}>
+        {cached && <img className="fv-minishot" src={cached.shot.url} alt="" draggable={false} />}
       </div>
-      {!warm && (
-        <button type="button" className="fv-go" onClick={() => openBuilding(null)}>
-          <Icon name="village" size={16} />
-          Open village
-        </button>
-      )}
+      <button type="button" className="fv-go" onClick={() => openBuilding(null)}>
+        <Icon name="village" size={16} />
+        Open village
+      </button>
     </div>
   );
 }

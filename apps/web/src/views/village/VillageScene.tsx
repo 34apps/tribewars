@@ -4,6 +4,7 @@
 
 import {
   memo,
+  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -236,6 +237,7 @@ export const SceneArt = memo(function SceneArt({
   onBox,
   onPick,
   memoryKey,
+  lazyBack = false,
 }: {
   arts: Arts;
   vb: ViewBox;
@@ -257,6 +259,8 @@ export const SceneArt = memo(function SceneArt({
   onPick: (id: BuildingId) => void;
   /** Which village (and mode) the looks belong to, for the build moment's memory across visits. */
   memoryKey: string;
+  /** The scene is not on screen: its still back picture is made without first drawing the landscape live. */
+  lazyBack?: boolean;
 }) {
   // Build moment (owner 2026-11-06: "the designs change all of a sudden"). When a building's look changes while this
   // scene is on screen, show scaffolding over it for a moment and let the new look grow in, instead of an instant swap.
@@ -461,6 +465,7 @@ export const SceneArt = memo(function SceneArt({
         landscape={landscape}
         tier={tier}
         wide={wide}
+        lazyBack={lazyBack}
         // "id:look" of every building that stands or is queued: its road shows, surfaced by its look.
         built={BUILDING_IDS.filter(
           (id) => arts[id].stage > 0 || arts[id].queued,
@@ -600,23 +605,46 @@ export const SceneArt = memo(function SceneArt({
  *  redrawn when its inputs change (village size, a new road, landscape choice, screen mode); the old picture stays until the
  *  new one has decoded, so nothing flashes. Until the first picture is ready, and if one ever fails, the same layers are drawn
  *  live as before. The defs (trees, props) the live layer's <use>s point at stay in the page, in a zero-size SVG. */
+type BackPic = { url: string; box: LandBox; key: string };
+/** The still pictures made so far, newest last: the next scene (a page switch, the small picture) reuses one instead of drawing, serialising and decoding it again. */
+const backPics = new Map<string, BackPic>();
+function rememberBackPic(key: string, pic: BackPic) {
+  backPics.delete(key);
+  backPics.set(key, pic);
+  while (backPics.size > 6) {
+    const [oldKey, old] = backPics.entries().next().value as [string, BackPic];
+    backPics.delete(oldKey);
+    // Late: a scene may still be painting it for a moment.
+    setTimeout(() => URL.revokeObjectURL(old.url), 10000);
+  }
+}
+
 const SceneBackdrop = memo(function SceneBackdrop({
   viewBox,
   landscape,
   tier,
   wide,
   built,
+  lazyBack,
 }: {
   viewBox: string;
   landscape: LandscapeChoice;
   tier: number;
   wide: boolean;
   built: string;
+  /** Hidden scene (behind a building page): no live copy of the landscape while the still picture is made. */
+  lazyBack: boolean;
 }) {
-  const [pic, setPic] = useState<{ url: string; box: LandBox } | null>(null);
+  const cacheKey = `${viewBox}|${JSON.stringify(landscape)}|${tier}|${wide}|${built}`;
+  const [pic, setPic] = useState<BackPic | null>(() => backPics.get(cacheKey) ?? null);
   const failed = useRef(false);
   useEffect(() => {
     if (failed.current) return;
+    const kept = backPics.get(cacheKey);
+    if (kept) {
+      setPic(kept);
+      return;
+    }
     let dead = false;
     let url: string | null = null;
     // A timer, not the effect itself: rendering the static tree uses flushSync, which React forbids inside an effect.
@@ -644,11 +672,10 @@ const SceneBackdrop = memo(function SceneBackdrop({
           .decode()
           .then(() => {
             if (dead) return;
-            url = null; // now owned by the state
-            setPic((old) => {
-              if (old) URL.revokeObjectURL(old.url);
-              return { url: mine, box };
-            });
+            url = null; // now owned by the cache
+            const made = { url: mine, box, key: cacheKey };
+            rememberBackPic(cacheKey, made);
+            setPic(made);
           })
           .catch(() => {
             failed.current = true;
@@ -663,16 +690,7 @@ const SceneBackdrop = memo(function SceneBackdrop({
       clearTimeout(timer);
       if (url) URL.revokeObjectURL(url);
     };
-  }, [viewBox, landscape, tier, wide, built]);
-  // Revoke the shown picture when the scene goes away.
-  const last = useRef<string | null>(null);
-  last.current = pic?.url ?? null;
-  useEffect(
-    () => () => {
-      if (last.current) URL.revokeObjectURL(last.current);
-    },
-    [],
-  );
+  }, [cacheKey, viewBox, landscape, tier, wide, built]);
   const [vx, vy, vw, vh] = viewBox.split(" ").map(Number) as [number, number, number, number];
   return (
     <>
@@ -684,9 +702,12 @@ const SceneBackdrop = memo(function SceneBackdrop({
       {pic ? (
         // An <image> inside an SVG with the scene's own viewBox (not an <img> box): it lands on exactly the same pixels as the
         // live drawing did, where a plain <img> snaps to whole pixels and shifts the picture by up to half a pixel.
-        <svg className="vv-svg vv-svg-back vv-pic" viewBox={viewBox} aria-hidden="true" focusable="false">
+        <svg className="vv-svg vv-svg-back vv-pic" viewBox={viewBox} data-still={pic.key === cacheKey ? "1" : "0"} aria-hidden="true" focusable="false">
           <image href={pic.url} x={pic.box.x0} y={pic.box.y0} width={pic.box.x1 - pic.box.x0} height={pic.box.y1 - pic.box.y0} />
         </svg>
+      ) : lazyBack ? (
+        // Not on screen: waits for the still picture, no live copy of the landscape (about 5,000 nodes) drawn just to be replaced.
+        <svg className="vv-svg vv-svg-back" viewBox={viewBox} aria-hidden="true" focusable="false" />
       ) : (
         <svg className="vv-svg vv-svg-back" viewBox={viewBox} aria-hidden="true" focusable="false">
           <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
@@ -799,6 +820,7 @@ export function VillageScene({
   onPanned,
   levelOverride,
   guide = null,
+  lazyBack = false,
 }: {
   mode: "fit" | "pan";
   selected: BuildingId | null;
@@ -806,6 +828,8 @@ export function VillageScene({
   /** Phone: pixels covered by the bottom sheet, so the selected building can be panned above it. */
   bottomInset?: number;
   onPanned?: () => void;
+  /** Not on screen (behind a building page): the still back picture is made without a live landscape first. */
+  lazyBack?: boolean;
   /** The building to point at with a speech bubble (guide.ts); null / omitted: no bubble. Hover tooltips are always on. */
   guide?: Guide | null;
   /**
@@ -953,7 +977,15 @@ export function VillageScene({
   useLayoutEffect(() => {
     const el = viewRef.current;
     if (!el) return;
-    const measure = () => setView({ w: el.clientWidth, h: el.clientHeight });
+    // No new state when nothing changed (the observer reports once at start). The fit picture only uses the size for a small
+    // class switch, so it updates it as a transition: the scene is not drawn twice in one blocking go.
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const set = () => setView((v) => (v.w === w && v.h === h ? v : { w, h }));
+      if (mode === "fit") startTransition(set);
+      else set();
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -1111,6 +1143,7 @@ export function VillageScene({
           onBox={onBox}
           onPick={pick}
           memoryKey={`${village.id}${ov ? ":preview" : ""}`}
+          lazyBack={lazyBack}
         />
         <div className="vv-hits">
           {order.map((id) => {

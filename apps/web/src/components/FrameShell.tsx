@@ -19,7 +19,6 @@ import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell
 import type { AccountActions } from './Shell.tsx';
 import { VillageBar } from './VillageSwitcher.tsx';
 import { useTribeFixed } from '../views/tribe/tribe-fixed.ts';
-import { MiniVillage } from '../views/village/FrameBuilding.tsx';
 import '../frame.css';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
@@ -173,13 +172,6 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
-  // Draw the small village once while idle, off-screen, so building pages and Army show it at once (see MiniVillage).
-  const [warming, setWarming] = useState(false);
-  const warmDone = useCallback(() => setWarming(false), []);
-  useEffect(() => {
-    const t = window.setTimeout(() => setWarming(true), 1500);
-    return () => window.clearTimeout(t);
-  }, []);
   const notifications = useNotifications();
   const counts = bellCounts(notifications.items, now);
   const actions: AccountActions = { onSignOut, onSignOutEverywhere, onChangeChieftain: () => setChoosing(true), onSettings: () => setSettings(true) };
@@ -208,11 +200,6 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
         <main className={`fr-sheet${tab === 'map' ? ' is-map' : ''}${tab === 'village' ? ' is-village' : ''}`} id="main" onClickCapture={guardOrders}>
           {children}
         </main>
-        {warming && (
-          <div className="fv-left" aria-hidden="true" style={{ position: 'fixed', left: -9999, top: 0, visibility: 'hidden', pointerEvents: 'none' }}>
-            <MiniVillage warm onWarm={warmDone} />
-          </div>
-        )}
         {bellOpen && <NotificationsSheet store={notifications} onClose={() => setBellOpen(false)} />}
       </div>
       {settings && (

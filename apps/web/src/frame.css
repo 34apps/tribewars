@@ -1403,6 +1403,9 @@ button.bs:active:not(:disabled) {
   width: 100%;
   height: 100%;
   display: block;
+  /* The picture is the whole scene box at a fixed size: centred and cropped, like the scene's own stage in this box. */
+  object-fit: cover;
+  object-position: center;
   pointer-events: none;
 }
 

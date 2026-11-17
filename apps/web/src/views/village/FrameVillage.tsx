@@ -3,7 +3,7 @@
 // all buildings with a quick "Up" on the right. Everything is real client data; actions call the same endpoints as the panels.
 // Clicking a building opens its own page (`#village/b/<id>`): the left column stays, the main area shows the building panel.
 
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BUILDING_IDS, UNITS, UNIT_IDS, villagePoints } from '@clanfire/engine';
 import { api } from '../../api.ts';
@@ -19,6 +19,8 @@ import { BuildingRow, Chev, LeftColumn } from './FrameParts.tsx';
 import { useFirstSteps } from './FirstSteps.tsx';
 import { VillageScene } from './VillageScene.tsx';
 import { useBuild } from './useBuild.ts';
+import { useMiniFresh, useMiniShooter } from './useMiniShooter.ts';
+import { whenIdle } from './miniShots.ts';
 import { useGuide } from './guide.ts';
 import type { BuildingId } from '@clanfire/engine';
 
@@ -251,6 +253,32 @@ export function FrameVillage({
     return () => document.removeEventListener('keydown', onKey);
   }, [active, building, openBuilding]);
   const steps = firstStepsVisible(firstSteps);
+  // The picture is only drawn at once when it is on screen. Behind a building page or another tab it is built after the first paint, in
+  // an idle moment and in small slices (a transition), so clicks and hovers stay answered while the page loads (owner 2026-11-17).
+  const visible = active && !building;
+  // When the small picture is already up to date nothing needs the scene yet, so it waits a few seconds more (the first seconds after a
+  // reload stay free for hovering and clicking); otherwise it is built right after the first paint, to make the picture.
+  const fresh = useMiniFresh();
+  const [sceneOn, setSceneOn] = useState(false);
+  useEffect(() => {
+    if (sceneOn) return;
+    if (visible) {
+      // On screen: right away, but as a transition (React builds it in small slices and the page stays responsive meanwhile).
+      startTransition(() => setSceneOn(true));
+      return;
+    }
+    let cancel = () => {};
+    const timer = window.setTimeout(() => {
+      cancel = whenIdle(() => startTransition(() => setSceneOn(true)), 3000);
+    }, fresh ? 5000 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      cancel();
+    };
+  }, [sceneOn, visible, fresh]);
+  // Keeps the small village picture (building pages, Army) up to date from this scene.
+  const picRef = useRef<HTMLElement>(null);
+  useMiniShooter(picRef, sceneOn);
   return (
     <div className="fv" hidden={!active}>
       {building ? (
@@ -261,9 +289,9 @@ export function FrameVillage({
       <div className="fv-main" hidden={!!building}>
         <div className="fv-centre">
           <div className="fv-notes">{notices}</div>
-          <section className="fv-pic" aria-label={`${village.name}, village`}>
+          <section ref={picRef} className="fv-pic" aria-label={`${village.name}, village`}>
             <h1 className="visually-hidden">{village.name}</h1>
-            <VillageScene mode="fit" selected={null} onSelect={openBuilding} levelOverride={levelOverride} guide={guide} />
+            {sceneOn && <VillageScene mode="fit" selected={null} onSelect={openBuilding} levelOverride={levelOverride} guide={guide} lazyBack={!visible} />}
             <span className="fv-pcap">
               <Icon name="village" size={16} />
               Click a building to open its page
