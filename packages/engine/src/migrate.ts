@@ -34,6 +34,45 @@ export function convertSiegeUnits<T extends Record<string, unknown>>(units: T | 
   return out;
 }
 
+/** True when a unit map still names a removed siege unit. */
+export const hasLegacySiege = (units: unknown): boolean => !!units && typeof units === 'object' && LEGACY_IDS.some((id) => id in (units as object));
+
+/** Rank entries (`VillageRanks`-shaped, loose) with `logram` / `boulder` folded into `firecart` (the higher value per track when both exist); old keys removed. Returns a copy. */
+export function convertSiegeRanks<T extends Record<string, unknown>>(ranks: T | undefined | null): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(ranks ?? {}) };
+  const entries = [out.firecart, out.logram, out.boulder].filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && !Array.isArray(e));
+  delete out.logram;
+  delete out.boulder;
+  if (entries.length > 0) {
+    const merged: Record<string, unknown> = {};
+    for (const e of entries) {
+      for (const [k, val] of Object.entries(e)) {
+        const prev = merged[k];
+        merged[k] = typeof val === 'number' && typeof prev === 'number' ? Math.max(prev, val) : prev ?? val;
+      }
+    }
+    out.firecart = merged;
+  }
+  return out;
+}
+
+/**
+ * A stored report body (loose JSON) in the new rules: every unit map (attacker / defender / support units and losses, a support report's
+ * units, scout intel troops) converted with `convertSiegeUnits`, and siege hits by a removed unit now credit the Firecart. Returns a copy;
+ * a body with nothing old comes back equal, so running it twice changes nothing.
+ */
+export function convertReportBody<T extends Record<string, any>>(body: T): T { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const out: Record<string, any> = { ...body }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  for (const key of ['attackerUnits', 'attackerLosses', 'defenderUnits', 'defenderLosses', 'supportUnits', 'supportLosses', 'units']) {
+    if (hasLegacySiege(out[key])) out[key] = convertSiegeUnits(out[key]);
+  }
+  if (out.intel && typeof out.intel === 'object' && hasLegacySiege(out.intel.troops)) out.intel = { ...out.intel, troops: convertSiegeUnits(out.intel.troops) };
+  if (Array.isArray(out.siege)) {
+    out.siege = out.siege.map((h: Record<string, unknown>) => (isLegacy(h?.unit) ? { ...h, unit: 'firecart' } : h));
+  }
+  return out as T;
+}
+
 const cloneJson = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
 /**
@@ -72,7 +111,8 @@ export function migrateVillageOriginality(saved: unknown, awayFirecarts?: number
       }
       if (freeFrom !== null) {
         const prev = kept[kept.length - 1];
-        job.startAt = Math.max(prev ? (prev.startAt as number) + count(prev.count) * (prev.perUnitMs as number) : 0, Math.min(job.startAt as number, freeFrom));
+        // Never in the past: the refunded batch may have been scheduled long before the village was last settled.
+        job.startAt = Math.max(prev ? (prev.startAt as number) + count(prev.count) * (prev.perUnitMs as number) : 0, Math.min(job.startAt as number, freeFrom), count(v.lastUpdate));
       }
       kept.push(job);
     }
@@ -104,12 +144,7 @@ export function migrateVillageOriginality(saved: unknown, awayFirecarts?: number
   if (Array.isArray(v.researched) && v.researched.some(isLegacy)) {
     v.researched = [...new Set([...v.researched.filter((u: unknown) => !isLegacy(u)), 'firecart'])];
   }
-  if (v.ranks) {
-    for (const id of LEGACY_IDS) {
-      if (v.ranks[id] && !v.ranks.firecart) v.ranks.firecart = v.ranks[id];
-      delete v.ranks[id];
-    }
-  }
+  if (v.ranks) v.ranks = convertSiegeRanks(v.ranks);
 
   v.buildings.wrightyard = count(v.buildings.wrightyard);
   if (v.buildings.wrightyard === 0 && count(v.buildings.barracks) >= MIGRATION_WRIGHTYARD_BARRACKS) {

@@ -25,7 +25,7 @@ import { moraleLabel, siegeHitText, villageReportText } from '../../villages.ts'
 import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
 import { reportIcon, reportTone } from '../ReportsView.tsx';
-import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
+import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, knownUnit, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
 import type { ReportFilter } from './frame-reports-logic.ts';
 import '../../frame-reports.css';
 
@@ -240,7 +240,8 @@ function ForcesTable({ rows, supportRows, attName, defName, supportLabel, densit
   );
 }
 
-function SiegeRow({ h, sent, compact }: { h: SiegeHit; sent: number; compact: boolean }) {
+function SiegeRow({ h: hit, sent, compact }: { h: SiegeHit; sent: number; compact: boolean }) {
+  const h = { ...hit, unit: knownUnit(hit.unit) };
   const unit = UNITS[h.unit];
   const building = BUILDINGS[h.building];
   const down = h.to === 0 && h.from > 0;
@@ -332,7 +333,7 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
             <Box title="Siege" aside={<span className="fv-mut">after the battle</span>}>
               <ul className="frp-sg">
                 {siegeShown.map((h, i) => (
-                  <SiegeRow key={`${h.unit}-${h.building}-${i}`} h={h} sent={normalizeUnits(b.attackerUnits)[h.unit]} compact={siegeCompact} />
+                  <SiegeRow key={`${h.unit}-${h.building}-${i}`} h={h} sent={normalizeUnits(b.attackerUnits)[knownUnit(h.unit)] ?? 0} compact={siegeCompact} />
                 ))}
               </ul>
               {siege.length > siegeShown.length && (

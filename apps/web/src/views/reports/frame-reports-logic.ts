@@ -121,3 +121,6 @@ export function rowOutcome(r: ReportSummaryDto): { label: string; tone: 'won' | 
   if (r.side === 'support') return { label: r.won ? 'Held' : 'Overrun', tone: r.won ? 'won' : 'lost' };
   return { label: r.won ? 'Won' : 'Lost', tone: r.won ? 'won' : 'lost' };
 }
+
+/** A report saved by an older build can name a unit that no longer exists (Log Ram, Boulder Sling): show it as the Firecart rather than crash the screen. */
+export const knownUnit = (id: string): (typeof UNIT_IDS)[number] => ((UNIT_IDS as readonly string[]).includes(id) ? (id as (typeof UNIT_IDS)[number]) : 'firecart');

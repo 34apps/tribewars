@@ -36,7 +36,7 @@ export function clockShort(ts: number, now: number): string {
 
 /** "Raiders", "Pikemen": the plural of a unit's name (by its own rule: ends in man -> men, else + s). */
 export function pluralUnit(u: UnitId): string {
-  const n = UNITS[u].name;
+  const n = UNITS[u]?.name ?? 'Siege engine'; // an unknown id (an old saved report) gets a neutral name, never a crash
   if (/man$/.test(n)) return `${n.slice(0, -3)}men`;
   if (/(s|x)$/.test(n)) return n;
   return `${n}s`;

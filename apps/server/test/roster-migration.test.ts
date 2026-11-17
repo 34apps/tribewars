@@ -55,7 +55,7 @@ test('an old database: Knights stay as Ember Guards, queued Stables batches fini
     raw.close();
 
     app = await open();
-    assert.equal(SCHEMA_VERSION, 18);
+    assert.ok(SCHEMA_VERSION >= 18);
     assert.equal(readdirSync(join(dir, 'backups')).filter((f) => f.startsWith(`pre-migrate-v17-v${SCHEMA_VERSION}-`)).length, 1, 'the old file is copied first');
     const s = app.ctx.store.getVillage(homeId)!.state as VillageState;
     assert.equal(s.troops.knight, 7, 'Knights are Ember Guards 1:1');

@@ -6,6 +6,8 @@ import {
   DEFAULT_CHIEFTAIN,
   DEFAULT_WORLD,
   applyWorldConfig,
+  convertReportBody,
+  convertSiegeRanks,
   flatSettings,
   resolveWorldConfig,
   withLegacyPlacement,
@@ -328,7 +330,7 @@ function parseRanks(raw: unknown): VillageRanks | null {
   if (typeof raw !== 'string') return null;
   try {
     const v: unknown = JSON.parse(raw);
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as VillageRanks) : null;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (convertSiegeRanks(v as Record<string, unknown>) as VillageRanks) : null; // old Log Ram / Boulder entries fold into the Firecart
   } catch {
     return null;
   }
@@ -442,7 +444,9 @@ const optionalUnits =(u: Partial<Units> | null | undefined): Units | null => (u 
 
 /** Parse stored report JSON; every unit map goes through normalizeUnits so reports saved before a unit existed still read. */
 function parseReportBody(json: string): ReportBody {
-  const { type: rawType, ...data } = JSON.parse(json) as Record<string, unknown>;
+  // A report saved before the Firecart change still names Log Rams / Boulder Slings: convert, never drop (the stored rows are rewritten by schema v19).
+  const parsed = JSON.parse(json) as Record<string, unknown>;
+  const { type: rawType, ...data } = json.includes('"logram"') || json.includes('"boulder"') ? convertReportBody(parsed) : parsed;
   const type = reportTypeOf(rawType);
   if (type === 'scout') {
     const d = data as unknown as ScoutReportData;

@@ -14,6 +14,8 @@ import {
   buildingPop,
   checkBuild,
   checkTrain,
+  convertReportBody,
+  convertSiegeRanks,
   createNpcVillage,
   firecartsFor,
   migrateVillageOriginality,
@@ -206,5 +208,53 @@ describe('migration of a saved world', () => {
     assert.deepEqual([...v.researched!].sort(), ['firecart', 'guard']);
     const again = migrateVillageOriginality(v);
     assert.deepEqual(again, v);
+  });
+
+  it('a batch behind a refunded one never gets a start time before the village was last settled', () => {
+    const old = oldVillage({
+      lastUpdate: 1_000_000,
+      trainQueues: {
+        barracks: [
+          { unit: 'logram', count: 10, done: 0, perUnitMs: 5000, startAt: 1000 },
+          { unit: 'raider', count: 2, done: 0, perUnitMs: 1000, startAt: 51_000 },
+        ],
+        stables: [],
+        bannerhall: [],
+      },
+    });
+    const v = migrateVillageOriginality(old);
+    assert.deepEqual(v.trainQueues.barracks.map((j) => j.unit), ['raider']);
+    assert.ok(v.trainQueues.barracks[0]!.startAt >= 1_000_000, 'clamped to lastUpdate, not in the past');
+  });
+
+  it('old report bodies: unit maps and siege hits are converted, a new body is untouched, twice is the same', () => {
+    const old = {
+      type: 'battle',
+      attackerUnits: { pikeman: 1, logram: 190, boulder: 2 },
+      attackerLosses: { logram: 3 },
+      defenderUnits: null,
+      supportLosses: { boulder: 3 },
+      siege: [{ unit: 'logram', building: 'wall', from: 20, to: 17 }, { unit: 'firecart', building: 'farm', from: 3, to: 2 }],
+    };
+    const once = convertReportBody(old) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    assert.equal(once.attackerUnits.firecart, Math.floor((3 * 190 + 2 * 2) / 3));
+    assert.equal(once.attackerUnits.logram, undefined);
+    assert.equal(once.attackerUnits.pikeman, 1);
+    assert.equal(once.attackerLosses.firecart, 3);
+    assert.equal(once.supportLosses.firecart, 2);
+    assert.equal(once.defenderUnits, null);
+    assert.deepEqual(once.siege.map((h: { unit: string }) => h.unit), ['firecart', 'firecart']);
+    assert.deepEqual(convertReportBody(once), once);
+    const scout: Record<string, any> = convertReportBody({ type: 'scout', intel: { troops: { logram: 3 } } });
+    assert.equal(scout.intel.troops.firecart, 3);
+  });
+
+  it('old rank entries fold into the Firecart (higher of the two), old keys removed', () => {
+    const r = convertSiegeRanks({ logram: { attack: 2, defense: 1 }, boulder: { attack: 1, defense: 3 }, pikeman: { attack: 4, defense: 4 } });
+    assert.deepEqual(r.firecart, { attack: 2, defense: 3 });
+    assert.equal(r.logram, undefined);
+    assert.equal(r.boulder, undefined);
+    assert.deepEqual(r.pikeman, { attack: 4, defense: 4 });
+    assert.deepEqual(convertSiegeRanks(r), r);
   });
 });

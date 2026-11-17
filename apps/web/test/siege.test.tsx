@@ -8,6 +8,7 @@ import { renderToString } from 'react-dom/server';
 import { BUILDINGS, BUILDING_IDS, UNIT_IDS, emptyUnits } from '@clanfire/engine';
 import type { SiegeHit, Units } from '@clanfire/engine';
 import { SiegePicker, SiegeResult } from '../src/components/Siege.tsx';
+import { knownUnit } from '../src/views/reports/frame-reports-logic.ts';
 import { UNIT_ICON } from '../src/icons.ts';
 import { selectableUnits, showsSiegePicker, siegeHitText, siegeTargetFor, siegeTargetOptions } from '../src/villages.ts';
 
@@ -79,4 +80,11 @@ test('report lines: levels before and after, nothing to hit', () => {
 test('the siege section is left out when there is nothing to show', () => {
   assert.equal(renderToString(createElement(SiegeResult, { hits: undefined })), '');
   assert.equal(renderToString(createElement(SiegeResult, { hits: [] })), '');
+});
+
+test('a report naming a removed unit (an older saved report) falls back to the Firecart and a neutral plural, never throws', () => {
+  assert.equal(knownUnit('logram'), 'firecart');
+  assert.equal(knownUnit('boulder'), 'firecart');
+  assert.equal(knownUnit('pikeman'), 'pikeman');
+  assert.equal(siegeHitText({ unit: 'logram', building: 'wall', from: 20, to: 17 } as unknown as SiegeHit), 'logram: Wall 20 → 17');
 });

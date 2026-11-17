@@ -332,7 +332,7 @@ export interface SimOptions {
   targets?: number;
   /**
    * Siege units in play (`--siege`, default OFF so every older result stays valid): the attacking styles (raider, balanced) build
-   * what Log Rams / Boulder Slings need, research and train a few, and send them with the raiders against fortified targets.
+   * what the Firecart needs (a Wrightyard, research), train a few, and send them with the raiders against fortified targets.
    */
   siege?: boolean;
   /** How a Chieftain's gold is charged (`--chief-gold chest|flat|growth`, default chest = the rule since 2026-11-10; flat / growth use the historical 150 gold). */

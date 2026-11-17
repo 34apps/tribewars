@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_CHIEFTAIN, STAT_KEYS, convertSiegeUnits, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, STAT_KEYS, convertReportBody, convertSiegeRanks, convertSiegeUnits, hasLegacySiege, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
 import { DEFAULT_TEMPLATES } from './template-defaults.ts';
 
 /** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
@@ -604,6 +604,7 @@ export function applySchema(db: DatabaseSync): void {
   addMissingColumns(db);
   migrateOriginality(db);
   migrateRoster(db);
+  migrateSiegeLeftovers(db);
   seedTemplates(db);
 }
 
@@ -612,14 +613,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 18; // 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 19; // 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '7404276453a8a2ba';
+export const SCHEMA_FINGERPRINT = '311284cd1f2dd206';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -705,6 +706,55 @@ function migrateRoster(db: DatabaseSync): void {
   }
   if (batches > 0) console.info(`[db] roster: ${batches} queued Knight batch(es) finish at the Stables as Ember Guards`);
   db.prepare("INSERT INTO meta (key, value) VALUES ('roster_applied', '1')").run();
+}
+
+/**
+ * Leftovers of the Firecart change (schema v19, 2026-11-11), once per database (a meta flag), safe on rows already in the new shape: stored
+ * reports (unit maps and siege hits), saved troop groups (a group that ends up empty is dropped) and stamped ranks (movements, stationed,
+ * site garrison, village state) still naming a Log Ram or Boulder Sling are converted with the same rules as the unit migration. Rows with
+ * nothing old are not written, so running it twice changes nothing.
+ */
+function migrateSiegeLeftovers(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'siege_leftovers_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const old = (text: string | null): boolean => text !== null && (text.includes('"logram"') || text.includes('"boulder"'));
+    for (const r of db.prepare('SELECT id, battle_json FROM reports').all() as Array<{ id: number; battle_json: string }>) {
+      if (!old(r.battle_json)) continue;
+      db.prepare('UPDATE reports SET battle_json = ? WHERE id = ?').run(JSON.stringify(convertReportBody(JSON.parse(r.battle_json) as Record<string, unknown>)), r.id);
+    }
+    for (const r of db.prepare('SELECT id, units FROM troop_groups').all() as Array<{ id: number; units: string }>) {
+      if (!old(r.units)) continue;
+      const units = convertSiegeUnits(JSON.parse(r.units) as Record<string, unknown>);
+      if (!Object.values(units).some((n) => typeof n === 'number' && n > 0)) db.prepare('DELETE FROM troop_groups WHERE id = ?').run(r.id);
+      else {
+        for (const k of Object.keys(units)) if (units[k] === 0) delete units[k]; // the empty Firecart entry convertSiegeUnits adds
+        db.prepare('UPDATE troop_groups SET units = ? WHERE id = ?').run(JSON.stringify(units), r.id);
+      }
+    }
+    for (const table of ['movements', 'stationed', 'site_garrison']) {
+      for (const r of db.prepare(`SELECT id, ranks_json FROM ${table} WHERE ranks_json IS NOT NULL`).all() as Array<{ id: number; ranks_json: string }>) {
+        if (!old(r.ranks_json)) continue;
+        db.prepare(`UPDATE ${table} SET ranks_json = ? WHERE id = ?`).run(JSON.stringify(convertSiegeRanks(JSON.parse(r.ranks_json) as Record<string, unknown>)), r.id);
+      }
+    }
+    for (const r of db.prepare('SELECT id, state_json FROM villages').all() as Array<{ id: number; state_json: string }>) {
+      if (!old(r.state_json)) continue;
+      const state = JSON.parse(r.state_json) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (state.ranks) state.ranks = convertSiegeRanks(state.ranks);
+      for (const k of ['troops', 'away']) if (hasLegacySiege(state[k])) state[k] = convertSiegeUnits(state[k]);
+      db.prepare('UPDATE villages SET state_json = ? WHERE id = ?').run(JSON.stringify(state), r.id);
+    }
+    db.prepare("INSERT INTO meta (key, value) VALUES ('siege_leftovers_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
 }
 
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */

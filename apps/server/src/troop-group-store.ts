@@ -1,7 +1,7 @@
 // SQL for the troop_groups table (saved send-form groups): prepared statements with bound parameters only.
 // Every statement is keyed on the owner's player id, so another player's row can never be read or changed.
 
-import { UNIT_IDS, type Units } from '@clanfire/engine';
+import { UNIT_IDS, convertSiegeUnits, type Units } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
 
 export interface TroopGroupRow {
@@ -16,7 +16,7 @@ export interface TroopGroupRow {
 function parseUnits(text: string): Partial<Units> {
   const out: Partial<Units> = {};
   try {
-    const raw = JSON.parse(text) as Record<string, unknown>;
+    const raw = convertSiegeUnits(JSON.parse(text) as Record<string, unknown>); // a group saved before the Firecart change
     for (const u of UNIT_IDS) {
       const n = raw[u];
       if (typeof n === 'number' && Number.isInteger(n) && n > 0) out[u] = n;
