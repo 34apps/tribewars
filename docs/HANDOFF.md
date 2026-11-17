@@ -3,6 +3,15 @@
 Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.md`, the top of `CHANGELOG.md`, and `grep`
 `NEXT_STEPS.md` ("Gold after the cut", "In-game layout redo").
 
+## Scaling branch (2026-11-17) — waiting for the owner
+
+- Branch `claude/quirky-gates-ee4317` (worktree `.claude/worktrees/quirky-gates-ee4317`), 5 commits on top of `e14cfbc`, LOCAL, not merged, not pushed:
+  arrivals in budgeted slices, 200 marches per player, site upkeep on change, map without per-row JSON (schema v21), rankings cache + indexes (v22),
+  refunds from the price paid (v20). Numbers and player-visible effects: CHANGELOG 2026-11-17; follow-ups: NEXT_STEPS "Scaling pass follow-ups".
+- Next step: owner tries it in the preview, then merge into `main` (rebuild the preview after the merge). Bench scripts used: the audit's
+  `audit-engine` scratch folder (big world `big.sqlite`), adapted copies were in this session's scratchpad (not kept in the repo).
+- Trap: `makeApp` in the server tests turns the rankings cache off (`rankingsCacheMs: 0`); a test that wants it passes its own value.
+
 ## State in one minute
 
 - **Desktop in-game pages: done**, all LOCAL commits, NOT pushed (`e801164` … `b0dea9c`; older `045929b` phone chip band, not approved).
