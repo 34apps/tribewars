@@ -11,7 +11,7 @@ import { pollMs } from '../hooks/live.ts';
 import { useLiveConnected, useLiveTopic } from '../hooks/useLive.tsx';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { Icon } from '../art/Icon.tsx';
-import { UNIT_ICON } from '../icons.ts';
+import { UnitFigure } from '../art/UnitFigure.tsx';
 import { UNITS } from '@clanfire/engine';
 import { RELIEF_LABEL, alertCount, sortHolds } from '../villages.ts';
 
@@ -30,7 +30,7 @@ function WatchtowerInfo({ a, level }: { a: TribeAlertDto; level: number }) {
       {a.sizeAbout !== undefined && a.sizeAbout > 0 && <span> ~{a.sizeAbout.toLocaleString('en-US')}</span>}
       {a.slowestUnit && (
         <span className="muted">
-          {' '}· <Icon name={UNIT_ICON[a.slowestUnit]} size={16} className="inline-icon" /> {UNITS[a.slowestUnit].name}
+          {' '}· <UnitFigure unit={a.slowestUnit} pose="icon" size={16} className="inline-icon" /> {UNITS[a.slowestUnit].name}
         </span>
       )}
     </p>

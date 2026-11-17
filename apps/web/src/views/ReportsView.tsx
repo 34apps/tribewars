@@ -3,6 +3,7 @@ import { draftFromReport } from '../simulator.ts';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
 import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
+import { useReportRead } from '../hooks/useReportRead.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -11,7 +12,7 @@ import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { SiegeResult } from '../components/Siege.tsx';
 import { Icon } from '../art/Icon.tsx';
 import type { IconName } from '../art/Icon.tsx';
-import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { unitListText } from '../rules.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { UnitFigure } from '../art/UnitFigure.tsx';
@@ -184,7 +185,7 @@ function BattleDetail({ b }: { b: BattleReportData }) {
                 rows.map((u) => (
                   <tr key={u}>
                     <th scope="row">
-                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
+                      <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name}
                     </th>
                     <td className="num"><Num value={att[u]} /></td>
                     <td className="num"><Num value={attLost[u]} loss /></td>
@@ -203,7 +204,7 @@ function BattleDetail({ b }: { b: BattleReportData }) {
                   {supportRows.map((u) => (
                     <tr key={`support-${u}`} className="support-row">
                       <th scope="row">
-                        <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
+                        <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name}
                       </th>
                       <td className="num"><span className="muted">–</span></td>
                       <td className="num"><span className="muted">–</span></td>
@@ -371,7 +372,7 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
                 <ul className="loot">
                   {troopRows.map((u) => (
                     <li key={u}>
-                      <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{intel.troopsApprox ? '≈ ' : ''}{formatInt(troops[u])}</strong>
+                      <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name} <strong>{intel.troopsApprox ? '≈ ' : ''}{formatInt(troops[u])}</strong>
                     </li>
                   ))}
                 </ul>
@@ -444,7 +445,7 @@ function SupportDetail({ s }: { s: SupportReportData }) {
           <ul className="loot">
             {rows.map((u) => (
               <li key={u}>
-                <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name} <strong>{formatInt(units[u])}</strong>
+                <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name} <strong>{formatInt(units[u])}</strong>
               </li>
             ))}
           </ul>
@@ -582,7 +583,7 @@ function Chevron() {
 }
 
 export function ReportsView() {
-  const { unreadReports, now, refresh } = useGame();
+  const { unreadReports, now } = useGame();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -601,9 +602,11 @@ export function ReportsView() {
   }, []);
 
   // Load on open and whenever the unread count changes (a new report arrived).
+  const { ownChange, opened } = useReportRead(list);
   useEffect(() => {
+    if (ownChange(unreadReports)) return;
     void loadList();
-  }, [loadList, unreadReports]);
+  }, [loadList, unreadReports, ownChange]);
   useLiveTopic('reports', () => void loadList());
 
   useEffect(() => {
@@ -620,7 +623,7 @@ export function ReportsView() {
         if (cancelled) return;
         setReport(r);
         setList((cur) => cur?.map((x) => (x.id === r.id ? { ...x, read: true } : x)) ?? cur);
-        void refresh();
+        opened(r.id);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -633,7 +636,7 @@ export function ReportsView() {
     return () => {
       cancelled = true;
     };
-  }, [selected, refresh]);
+  }, [selected, opened]);
 
   const showDetail = selected !== null;
   const groups = list ? groupByDay(list, now) : [];

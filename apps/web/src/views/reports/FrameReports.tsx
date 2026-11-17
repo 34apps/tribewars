@@ -16,8 +16,9 @@ import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { UnitInfoButton } from '../../components/UnitInfo.tsx';
 import { formatCoords, formatInt, formatSignedPercent } from '../../format.ts';
 import { useGame } from '../../game.ts';
+import { useReportRead } from '../../hooks/useReportRead.ts';
 import { useLiveTopic } from '../../hooks/useLive.tsx';
-import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../../icons.ts';
+import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { DAY_GROUP_LABEL, groupByDay, reportLine } from '../../reports.ts';
 import { unitListText } from '../../rules.ts';
 import { draftFromReport } from '../../simulator.ts';
@@ -798,7 +799,7 @@ function ListPanel({
 // ---- The page --------------------------------------------------------------------------------------------------------
 
 export function FrameReports() {
-  const { unreadReports, now, refresh } = useGame();
+  const { unreadReports, now } = useGame();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReportFilter>('all');
@@ -817,9 +818,11 @@ export function FrameReports() {
       setListError(errorMessage(e));
     }
   }, []);
+  const { ownChange, opened } = useReportRead(list);
   useEffect(() => {
+    if (ownChange(unreadReports)) return;
     void loadList();
-  }, [loadList, unreadReports]);
+  }, [loadList, unreadReports, ownChange]);
   useLiveTopic('reports', () => void loadList());
 
   const filtered = useMemo(() => filterReports(list ?? [], filter), [list, filter]);
@@ -847,7 +850,7 @@ export function FrameReports() {
         if (cancelled) return;
         setReport(r);
         setList((cur) => cur?.map((x) => (x.id === r.id ? { ...x, read: true } : x)) ?? cur);
-        void refresh();
+        opened(r.id);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -860,7 +863,7 @@ export function FrameReports() {
     return () => {
       cancelled = true;
     };
-  }, [selected, refresh]);
+  }, [selected, opened]);
 
   const idx = filtered.findIndex((r) => r.id === selected);
   const position = idx >= 0 ? `${idx + 1} of ${filtered.length}` : '';

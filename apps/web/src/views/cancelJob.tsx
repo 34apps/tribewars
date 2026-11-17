@@ -2,10 +2,11 @@
 
 import { CANCEL_REFUND_PERCENT, RESOURCE_IDS, refundOf } from '@clanfire/engine';
 import type { CancelResponse, Resources } from '@clanfire/engine';
-import { useState } from 'react';
 import { api, errorMessage } from '../api.ts';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
+import { useLock } from '../hooks/useLock.ts';
+import { useSync } from '../hooks/useSync.ts';
 import { RESOURCE_NAME } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 
@@ -15,9 +16,10 @@ function amounts(r: Resources): string {
 }
 
 export function useCancelJob() {
-  const { village, applyVillage, refresh, toast } = useGame();
+  const { village, applyVillage, toast } = useGame();
   const { confirm, dialog } = useConfirm();
-  const [busy, setBusy] = useState(false);
+  const { busy, begin, end } = useLock();
+  const sync = useSync();
 
   /** `paid` is what the job cost (or its untrained rest); the dialog shows what comes back and what is lost. */
   async function run(what: string, paid: Resources, call: () => Promise<CancelResponse>, reservesRenown = false) {
@@ -36,18 +38,21 @@ export function useCancelJob() {
       confirmLabel: 'Cancel it',
       danger: true,
     });
-    if (!ok) return;
-    setBusy(true);
+    if (!ok || !begin()) return;
+    let done = false;
+    let outside = false;
     try {
       const res = await call();
       applyVillage(res.village);
+      done = true;
+      outside = !!res.renownRefund;
       const renown = res.renownRefund ? ` +${formatInt(res.renownRefund)} Renown.` : '';
       toast(`Cancelled ${what}. Back: ${amounts(res.refund)}.${renown}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
-      setBusy(false);
-      void refresh();
+      end();
+      sync(done, outside);
     }
   }
 

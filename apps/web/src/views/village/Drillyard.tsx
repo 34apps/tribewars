@@ -23,10 +23,12 @@ import { useEffect, useRef, useState } from 'react';
 import { takeResearchFocus } from './drillFocus.ts';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
+import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { Cost, ProgressBar } from '../../components/ui.tsx';
 import { formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
-import { UNIT_ICON } from '../../icons.ts';
+import { useLock } from '../../hooks/useLock.ts';
+import { useSync } from '../../hooks/useSync.ts';
 import { reasonText } from '../../rules.ts';
 import { goldNeverArrives, needsGoldText } from '../../shortfall.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
@@ -44,23 +46,25 @@ const trackApplies = (unit: UnitId, track: RankTrack) =>
 
 /** `part` splits the panel for the desktop building page (research in the side column, ranks in the main area); omitted = everything. */
 export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
-  const { live, now, settings, village, applyVillage, refresh, toast } = useGame();
+  const { live, now, settings, village, applyVillage, toast } = useGame();
   const { confirm, dialog } = useConfirm();
-  const [busy, setBusy] = useState(false);
+  const { busy, begin, end } = useLock();
+  const sync = useSync();
   const cancel = useCancelJob();
   const level = live.buildings.drillyard;
 
   async function run(call: () => Promise<Parameters<typeof applyVillage>[0]>, okText?: string) {
-    if (busy) return;
-    setBusy(true);
+    if (!begin()) return;
+    let ok = false;
     try {
       applyVillage(await call());
+      ok = true;
       if (okText) toast(okText);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
-      setBusy(false);
-      void refresh();
+      end();
+      sync(ok);
     }
   }
 
@@ -125,7 +129,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
               return (
                 <li key={u} ref={focus ? focusRef : undefined} className={`drill-rc${done ? ' is-done' : ''}${focus ? ' is-focus' : ''}${!levelOk && !done ? ' is-off' : ''}`}>
                   <span className="drill-icon" aria-hidden="true">
-                    <Icon name={UNIT_ICON[u]} size={40} />
+                    <UnitFigure unit={u} pose="icon" size={40} />
                   </span>
                   <div className="drill-rc-main">
                     <div className="drill-rc-head">
@@ -195,7 +199,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                 <li key={u} className="drill-uc">
                   <div className="drill-unit-head">
                     <span className="drill-icon" aria-hidden="true">
-                      <Icon name={UNIT_ICON[u]} size={28} />
+                      <UnitFigure unit={u} pose="icon" size={28} />
                     </span>
                     <span className="drill-name">{def.name}</span>
                   </div>

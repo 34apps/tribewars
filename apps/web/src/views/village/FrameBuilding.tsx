@@ -34,6 +34,8 @@ import { formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, requirementText, unmetRequirements } from '../../rules.ts';
+import { useLock } from '../../hooks/useLock.ts';
+import { useSync } from '../../hooks/useSync.ts';
 import { UNIT_HINT, UNIT_ROLE } from '../../unitRole.ts';
 import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
@@ -244,12 +246,13 @@ function MagsTip({ id }: { id: BuildingId }) {
 // ---- Recruit (Barracks, Stables, Wrightyard) ---------------------------------------------------------------------------------
 
 function RecruitPanel({ building }: { building: TrainingBuildingId }) {
-  const { live, now, settings, village, applyVillage, refresh, toast, openBuilding } = useGame();
+  const { live, now, settings, village, applyVillage, toast, openBuilding } = useGame();
   const rules = useRules();
   const info = useUnitInfo();
   const cancel = useCancelJob();
+  const sync = useSync();
   const [texts, setTexts] = useState<Partial<Record<UnitId, string>>>({});
-  const [busy, setBusy] = useState(false);
+  const { busy, begin, end } = useLock();
   const def = BUILDINGS[building];
   const queue = live.trainQueues[building];
   const units = UNIT_IDS.filter((u) => UNITS[u].building === building && (rules.features.siege || !UNITS[u].siege));
@@ -281,19 +284,21 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
   else if (queue.length + typed.length > rules.queues.train) orderBlock = 'Not enough free queue slots';
 
   async function train(list: { unit: UnitId; count: number }[]) {
-    if (busy) return;
-    setBusy(true);
+    if (!begin()) return;
+    let ok = false;
     try {
       for (const { unit, count } of list) {
         applyVillage(await api.train(village.id, unit, count));
         toast(`Training ${formatInt(count)} ${UNITS[unit].name}`);
         setTexts((t) => ({ ...t, [unit]: '' }));
       }
+      ok = true;
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
-      setBusy(false);
-      void refresh();
+      end();
+      // A Chieftain batch reserves Renown, which lives in the state, not in the village.
+      sync(ok, list.some((l) => l.unit === 'chieftain'));
     }
   }
 

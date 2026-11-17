@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChestInfo, FirstStepsDto, GameStateResponse, OwnVillageDto, SendResponse } from '@clanfire/engine';
+import type { ChestInfo, FirstStepsDto, GameStateResponse, MovementDto, OwnVillageDto, SendResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { pollMs } from './live.ts';
 import { useLiveConnected, useLiveTopic } from './useLive.tsx';
@@ -21,6 +21,10 @@ export interface GameStateStore {
   applyChest: (village: OwnVillageDto, chest: ChestInfo) => void;
   /** Apply a send response: updated village plus the new movement. */
   applySend: (res: SendResponse) => void;
+  /** A cancelled movement: the server deletes it and creates the way back under a new id. */
+  applyMovementSwap: (oldId: number, movement: MovementDto) => void;
+  /** One unread report was opened: count the badge down at once (the server marked it read). */
+  applyReportRead: () => void;
   /** Replace the First steps block (claim and hide responses). */
   applyFirstSteps: (fs: FirstStepsDto) => void;
 }
@@ -129,10 +133,20 @@ export function useGameState(onUnauthorized: () => void): GameStateStore {
     );
   }, []);
 
+  const applyMovementSwap = useCallback((oldId: number, movement: MovementDto) => {
+    applied.current = ++seq.current;
+    setData((d) => (d ? { ...d, movements: [...d.movements.filter((m) => m.id !== oldId && m.id !== movement.id), movement] } : d));
+  }, []);
+
+  const applyReportRead = useCallback(() => {
+    applied.current = ++seq.current;
+    setData((d) => (d && d.unreadReports > 0 ? { ...d, unreadReports: d.unreadReports - 1 } : d));
+  }, []);
+
   const applyFirstSteps = useCallback((firstSteps: FirstStepsDto) => {
     applied.current = ++seq.current;
     setData((d) => (d ? { ...d, firstSteps } : d));
   }, []);
 
-  return { data, serverOffset, error, refresh, applyVillage, applyChest, applySend, applyFirstSteps };
+  return { data, serverOffset, error, refresh, applyVillage, applyChest, applySend, applyMovementSwap, applyReportRead, applyFirstSteps };
 }

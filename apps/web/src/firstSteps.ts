@@ -61,3 +61,8 @@ export function addedText(added: Resources): string {
   const parts = RESOURCE_IDS.filter((r) => added[r] > 0).map((r) => `${Math.round(added[r])} ${r}`);
   return parts.length ? parts.join(', ') : 'nothing (storage full)';
 }
+
+/** The card is up and some step is not done yet, so an action may complete one (only the server state says so). */
+export function firstStepsOpen(fs: FirstStepsDto | undefined): boolean {
+  return !!fs && !fs.hidden && !fs.allClaimed && fs.steps.some((s) => !s.done);
+}

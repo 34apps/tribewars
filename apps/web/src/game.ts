@@ -131,6 +131,10 @@ export interface GameApi {
   /** Apply a War Chest pay-in response (updated village and chest). */
   applyChest: (v: OwnVillageDto, chest: ChestInfo) => void;
   applySend: (r: SendResponse) => void;
+  /** A cancelled movement was replaced by its way back (new id). */
+  applyMovementSwap: (oldId: number, movement: MovementDto) => void;
+  /** One unread report was opened: count the unread badge down locally. */
+  applyReportRead: () => void;
   /** The First steps block of the state (undefined only against an old server). */
   firstSteps: FirstStepsDto | undefined;
   /** Apply a first-steps claim/hide response at once. */

@@ -288,10 +288,12 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       applyChest: store.applyChest,
       applySend: store.applySend,
       firstSteps: data.firstSteps,
+      applyMovementSwap: store.applyMovementSwap,
+      applyReportRead: store.applyReportRead,
       applyFirstSteps: store.applyFirstSteps,
       toast,
     };
-  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applyChest, store.applySend, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
+  }, [data, village, selectVillage, villageList, settings, live, now, store.error, store.refresh, store.applyVillage, store.applyChest, store.applySend, store.applyMovementSwap, store.applyReportRead, store.applyFirstSteps, tab, navigate, building, openBuilding, showOnMap, mapFocus, highlightMovementId, viewMovement, toast, tribeVersion, tribeFocus, clearTribeFocus, viewTribe, tribeChanged, composeMail, mailDraft, openSimulator, simDraft, worldEnd]);
 
   if (!ctx) {
     if (store.error) return <ErrorSplash message={store.error} onRetry={() => void store.refresh()} />;

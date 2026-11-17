@@ -30,6 +30,7 @@ import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { takePendingSend } from '../../simulator.ts';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
+import { useSync } from '../../hooks/useSync.ts';
 import { useTroopGroups } from '../../hooks/useTroopGroups.ts';
 import { useTribeWaymarks } from '../../hooks/useWaymarks.ts';
 import { MISSION_ICON, MISSION_NAME } from '../../icons.ts';
@@ -223,7 +224,9 @@ function recentOf(t: MapVillageDto | null, tile: Coords): RecentTarget {
 type Go = 'attack' | 'support';
 
 function SendPanel() {
-  const { village, villages, player, live, now, settings, applySend, refresh, toast, viewMovement, navigate, showOnMap, worldEnd, openSimulator } = useGame();
+  const { village, villages, player, live, now, settings, applySend, toast, viewMovement, navigate, showOnMap, worldEnd, openSimulator } = useGame();
+  const sync = useSync();
+  const lock = useRef(false);
   const rules = useRules();
   const waymarks = useTribeWaymarks();
   const recentKey = `clanfire.recentTargets${worldPrefixOf(window.location.pathname)}`;
@@ -384,13 +387,16 @@ function SendPanel() {
   const rows = suggest ? resultRows(suggest, village).slice(0, 5) : [];
 
   async function go(mission: Go) {
-    if (busy || !tile || (mission === 'attack' ? attackWhy : supportWhy)) return;
+    if (lock.current || !tile || (mission === 'attack' ? attackWhy : supportWhy)) return;
+    lock.current = true;
     setBusy(mission);
     setError(null);
+    let ok = false;
     try {
       const targetBuilding = rules.features.siege ? siegeTargetFor(mission, partial, siegePick) : undefined;
       const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...(targetBuilding ? { targetBuilding } : {}) });
       applySend(res);
+      ok = true;
       setCounts({});
       setSiegePick('');
       setGroupNote(null);
@@ -404,8 +410,9 @@ function SendPanel() {
     } catch (e) {
       setError(errorMessage(e));
     } finally {
+      lock.current = false;
       setBusy(null);
-      void refresh();
+      sync(ok);
     }
   }
 
@@ -668,21 +675,28 @@ function movementText(m: MovementDto, villages: readonly { id: number }[], curre
 }
 
 function MovementRow({ m }: { m: MovementDto }) {
-  const { now, village, villages, highlightMovementId, refresh, toast } = useGame();
+  const { now, village, villages, highlightMovementId, applyMovementSwap, toast } = useGame();
+  const sync = useSync();
+  const cancelLock = useRef(false);
   const [cancelling, setCancelling] = useState(false);
   const cancelLeft = m.cancellableUntil === null ? 0 : m.cancellableUntil - now;
   const noCancel = noCancelReason(m, now);
   async function cancel() {
-    if (cancelling) return;
+    if (cancelLock.current) return;
+    cancelLock.current = true;
     setCancelling(true);
+    let ok = false;
     try {
       const res = await api.cancelMovement(m.id);
+      applyMovementSwap(m.id, res.movement);
+      ok = true;
       toast(`Called back, home in ${formatDuration(res.movement.arriveAt - res.movement.departAt)}`);
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
+      cancelLock.current = false;
       setCancelling(false);
-      await refresh();
+      sync(ok);
     }
   }
   const atk = m.direction === 'incoming' && m.kind === 'attack';

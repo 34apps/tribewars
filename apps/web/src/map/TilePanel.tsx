@@ -14,6 +14,8 @@ import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatClockParts, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
+import { useLock } from '../hooks/useLock.ts';
+import { useSync } from '../hooks/useSync.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { MISSION_NAME } from '../icons.ts';
 import { ATTACK_BLOCKED_TEXT, MISSION_HINT } from '../relations.ts';
@@ -121,7 +123,7 @@ export function SendForm({
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
   layout?: 'panel' | 'wide';
 }) {
-  const { live, now, settings, renown, chest, village, villages, player, stationed, applySend, refresh, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
+  const { live, now, settings, renown, chest, village, villages, player, stationed, applySend, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
   const desktop = useIsDesktop();
   const unitInfo = useUnitInfo();
@@ -131,7 +133,8 @@ export function SendForm({
   const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>(() =>
     (preferred ?? fallback) === 'found' && live.troops.chieftain > 0 ? { chieftain: '1' } : {},
   );
-  const [busy, setBusy] = useState(false);
+  const { busy, begin, end } = useLock();
+  const sync = useSync();
   const [error, setError] = useState<string | null>(null);
   // Test mode only: own seconds for the way out / home (blank = normal travel time).
   const [outSecs, setOutSecs] = useState('');
@@ -229,15 +232,16 @@ export function SendForm({
   }
 
   async function send() {
-    if (busy || reason) return;
+    if (reason) return;
     // Same rules as the server (which re-checks everything); catches a bad army before the round trip.
     const mc = checkMission(mission, chosen);
     if (!mc.ok) {
       setError(mc.message);
       return;
     }
-    setBusy(true);
+    if (!begin()) return;
     setError(null);
+    let ok = false;
     try {
       const timing: { travelSeconds?: number; returnSeconds?: number } = {};
       if (player.sandbox) {
@@ -249,6 +253,7 @@ export function SendForm({
       const targetBuilding = rules.features.siege ? siegeTargetFor(mission, partial, siegePick) : undefined;
       const res = await api.send(village.id, { x: tile.x, y: tile.y, units: partial, mission, ...(targetBuilding ? { targetBuilding } : {}), ...timing });
       applySend(res);
+      ok = true;
       setCounts({});
       setSiegePick('');
       setGroupNote(null);
@@ -258,8 +263,9 @@ export function SendForm({
     } catch (e) {
       setError(errorMessage(e));
     } finally {
-      setBusy(false);
-      void refresh();
+      end();
+      // Founding spends Renown and adds a village outside this response.
+      sync(ok, mission === 'found');
     }
   }
 

@@ -253,7 +253,7 @@
   display: grid;
   flex: 1 1 auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: minmax(44px, 84px); /* a taller window gives the unit boxes more height */
+  grid-auto-rows: minmax(44px, 50px); /* kept short so both send buttons stay on screen at 1440x900 */
   align-content: stretch;
   gap: 6px 10px;
   margin: 0;

@@ -29,7 +29,7 @@ import { UnitFigure } from '../art/UnitFigure.tsx';
 import { timePerTileMs, useUnitInfo } from '../components/UnitInfo.tsx';
 import { UNIT_ROLE } from '../unitRole.ts';
 import '../army.css';
-import { MISSION_ICON, MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME, UNIT_ICON } from '../icons.ts';
+import { MISSION_ICON, MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { useCancelJob } from './cancelJob.tsx';
 import { requirementText, unitListText, unmetRequirements } from '../rules.ts';
@@ -297,7 +297,7 @@ export function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boole
         {present.map((u) => (
           <li key={u}>
             <label htmlFor={`recall-${s.id}-${u}`} className="send-label">
-              <Icon name={UNIT_ICON[u]} size={20} className="inline-icon" /> {UNITS[u].name}
+              <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name}
               <span className="muted"> / {formatInt(have[u])}</span>
             </label>
             <input

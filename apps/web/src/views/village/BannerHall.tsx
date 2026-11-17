@@ -2,13 +2,13 @@
 // (Renown, War Chest gold, resources) ending in a Train button that opens the Army tab. The server re-checks everything.
 
 import { BUILDINGS, FEAST_COST, FEAST_RENOWN, RESOURCE_IDS, UNITS } from '@clanfire/engine';
-import { useState } from 'react';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import { Cost } from '../../components/ui.tsx';
 import { WarChestPayIn } from '../../components/WarChest.tsx';
 import { formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
+import { useLock } from '../../hooks/useLock.ts';
 import { currentFeastAllowance, feastMaxCount } from '../../renown.ts';
 import { requirementText, unmetRequirements } from '../../rules.ts';
 import { chestMissing } from '../../chest.ts';
@@ -24,7 +24,7 @@ function Tick({ ok }: { ok: boolean }) {
 
 export function BannerHallPanel() {
   const { live, now, village, renown, chest, settings, applyVillage, refresh, toast, navigate } = useGame();
-  const [busy, setBusy] = useState(false);
+  const { busy, begin, end } = useLock();
   const level = live.buildings.bannerhall;
 
   if (level < 1) {
@@ -58,8 +58,7 @@ export function BannerHallPanel() {
   const reason = allowance.left < 1 ? 'No Feasts left today' : max < 1 ? 'Need more resources' : null;
 
   async function feast(count: number) {
-    if (busy || reason || count < 1) return;
-    setBusy(true);
+    if (reason || count < 1 || !begin()) return;
     try {
       const res = await api.feast(village.id, count);
       applyVillage(res.village);
@@ -67,7 +66,8 @@ export function BannerHallPanel() {
     } catch (e) {
       toast(errorMessage(e), { kind: 'error' });
     } finally {
-      setBusy(false);
+      end();
+      // Renown is part of the state, not of the village response: this one stays a full refresh.
       void refresh();
     }
   }

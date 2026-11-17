@@ -3,13 +3,13 @@
 // glyphs at the end are drawn here in the same style (ink outline, 3-tone block shading lit from the top left).
 // To restyle an icon, replace its `draw` body; names are stable.
 
-import { useId } from 'react';
+import { memo, useId } from 'react';
 import type { ReactNode } from 'react';
 
 const INK = '#2B211C';
 
 /** Toy 3-tone shape: light fill, dark rim offset by `s`, mid face shifted by (x, y), ink outline. */
-export function T({
+export const T = memo(function T({
   u,
   d,
   l,
@@ -54,7 +54,7 @@ export function T({
       <use href={`#${u}`} fill="none" stroke={o} strokeWidth={w} strokeLinejoin="round" />
     </>
   );
-}
+});
 
 interface IconDef {
   vb: string;
@@ -905,7 +905,7 @@ const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 /** One drawn icon. Decorative (aria-hidden) unless `label` is given. */
-export function Icon({ name, size = 24, className, label }: { name: IconName; size?: number; className?: string; label?: string }) {
+export const Icon = memo(function Icon({ name, size = 24, className, label }: { name: IconName; size?: number; className?: string; label?: string }) {
   const u = `i${useId().replace(/[^\w-]/g, '')}`;
   const def: IconDef = ICONS[name];
   return (
@@ -922,4 +922,4 @@ export function Icon({ name, size = 24, className, label }: { name: IconName; si
       {def.draw(u)}
     </svg>
   );
-}
+});

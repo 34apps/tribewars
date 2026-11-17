@@ -395,6 +395,7 @@ export function MapView({ active }: { active: boolean }) {
     const inBoard = Math.abs(tile.x) <= radius && Math.abs(tile.y) <= radius;
     const v = inBoard ? chunks.villageAt(tile.x, tile.y) : null;
     const site = inBoard && !v ? siteAt(sitesRef.current, tile.x, tile.y) : undefined;
+    canvasRef.current?.classList.toggle('is-over', !!(v || site));
     if (!v && !site) {
       el.hidden = true;
       return;
@@ -439,6 +440,7 @@ export function MapView({ active }: { active: boolean }) {
   }
 
   function hideTip() {
+    canvasRef.current?.classList.remove('is-over');
     if (tipRef.current) tipRef.current.hidden = true;
   }
 

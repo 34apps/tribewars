@@ -157,6 +157,12 @@ textarea {
   color: inherit;
 }
 
+/* Safety net: anything pressable shows the hand. :where() keeps this at zero specificity, so a class that sets its own
+   cursor (a disabled look, a drag handle) still wins. */
+:where(button:not(:disabled), [role='button'], [role='tab'], summary, select, a[href]) {
+  cursor: pointer;
+}
+
 :focus-visible {
   outline: 3px solid var(--c-teal-hi);
   outline-offset: 2px;
@@ -356,7 +362,8 @@ a.btn {
   box-shadow: inset 0 -3px 0 var(--c-bone-shade);
 }
 
-.inline-icon {
+.inline-icon,
+.ufig.inline-icon {
   display: inline-block;
   vertical-align: -0.2em;
 }
