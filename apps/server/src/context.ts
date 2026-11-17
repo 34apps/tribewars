@@ -43,6 +43,8 @@ export interface AppContext {
   /** WebSocket hub for live-update hints (live.ts). Absent in the in-browser preview, which has no network. */
   live?: LiveHub;
   now: () => number;
+  /** How long a ranked list is reused (ms, server clock). Absent = RANKINGS_CACHE_MS; 0 = always fresh (tests). */
+  rankingsCacheMs?: number;
   secureCookies: boolean;
 }
 

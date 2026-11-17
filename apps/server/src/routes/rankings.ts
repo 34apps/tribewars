@@ -3,6 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   GameError,
+  RANKINGS_CACHE_MS,
   achievementProgress,
   type PlayerProfileDto,
   type PlayerRankDto,
@@ -15,11 +16,40 @@ import { playerOf, requireAuth } from './auth.ts';
 
 const RANKING_LIMIT = 100;
 
+type RankingKind = 'players' | 'renown';
+interface CachedRanking {
+  at: number;
+  list: readonly unknown[];
+}
+/** The ranked lists (viewer-independent: everyone's row, no highlight) per context: at most one entry per kind, never per viewer. */
+const rankingCache = new WeakMap<AppContext, Map<RankingKind, CachedRanking>>();
+
+/**
+ * The full ranked list of one kind, rebuilt at most every `ctx.rankingsCacheMs` (default RANKINGS_CACHE_MS) of the server clock: the
+ * grouped scan over every player and village is the heavy part. The caller's own row (`me`) is picked from the list per request.
+ */
+function cachedRanking<T extends PlayerRankDto | RenownRankDto>(ctx: AppContext, kind: RankingKind, build: () => T[]): T[] {
+  const ttl = ctx.rankingsCacheMs ?? RANKINGS_CACHE_MS;
+  const t = ctx.now();
+  let byKind = rankingCache.get(ctx);
+  if (!byKind) rankingCache.set(ctx, (byKind = new Map()));
+  const hit = byKind.get(kind);
+  if (hit && ttl > 0 && t >= hit.at && t - hit.at < ttl) return hit.list as T[];
+  const list = build();
+  byKind.set(kind, { at: t, list });
+  return list;
+}
+
 /** Top players by points; ties share the rank (1, 2, 2, 4). The caller's own row is always included. */
 function playerRanking(ctx: AppContext, meId: number): PlayerRankingResponse {
+  const all = cachedRanking<PlayerRankDto>(ctx, 'players', () => buildPlayerRanking(ctx));
+  return { players: all.slice(0, RANKING_LIMIT), me: all.find((p) => p.playerId === meId) ?? null, total: all.length };
+}
+
+function buildPlayerRanking(ctx: AppContext): PlayerRankDto[] {
   let prevPoints = -1;
   let prevRank = 0;
-  const all: PlayerRankDto[] = ctx.store.playerRanking().map((r, i) => {
+  return ctx.store.playerRanking().map((r, i) => {
     const rank = r.points === prevPoints ? prevRank : i + 1;
     prevPoints = r.points;
     prevRank = rank;
@@ -34,7 +64,6 @@ function playerRanking(ctx: AppContext, meId: number): PlayerRankingResponse {
       villageY: r.mainY,
     };
   });
-  return { players: all.slice(0, RANKING_LIMIT), me: all.find((p) => p.playerId === meId) ?? null, total: all.length };
 }
 
 /**
@@ -42,9 +71,14 @@ function playerRanking(ctx: AppContext, meId: number): PlayerRankingResponse {
  * whole number shown. Same set of players as the points ranking (everyone with a village). The caller's row is always included.
  */
 function renownRanking(ctx: AppContext, meId: number): RenownRankingResponse {
+  const all = cachedRanking<RenownRankDto>(ctx, 'renown', () => buildRenownRanking(ctx));
+  return { players: all.slice(0, RANKING_LIMIT), me: all.find((p) => p.playerId === meId) ?? null, total: all.length };
+}
+
+function buildRenownRanking(ctx: AppContext): RenownRankDto[] {
   let prevRenown = -1;
   let prevRank = 0;
-  const all: RenownRankDto[] = ctx.store.renownRanking().map((r, i) => {
+  return ctx.store.renownRanking().map((r, i) => {
     const renown = Math.floor(r.renown + 1e-9);
     const rank = renown === prevRenown ? prevRank : i + 1;
     prevRenown = renown;
@@ -60,7 +94,6 @@ function renownRanking(ctx: AppContext, meId: number): RenownRankingResponse {
       villageY: r.mainY,
     };
   });
-  return { players: all.slice(0, RANKING_LIMIT), me: all.find((p) => p.playerId === meId) ?? null, total: all.length };
 }
 
 const PROFILE_VILLAGE_LIMIT = 50;

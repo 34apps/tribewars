@@ -93,6 +93,8 @@ export interface BuildAppOptions {
   worldName?: string;
   /** Work one request or tick may do on due movements before handing back (default DUE_BUDGET). Tests pass a tiny one. */
   dueBudget?: DueBudget;
+  /** How long the ranking lists are reused, in ms (default RANKINGS_CACHE_MS = 15 s). Tests pass 0 (always fresh). */
+  rankingsCacheMs?: number;
   /** LOBBY_PUBLIC_KEY: comma list of base64 SPKI DER / PEM Ed25519 public keys. Set = entry passes from the lobby only (own register/login off). */
   lobbyPublicKey?: string;
 }
@@ -188,6 +190,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     settings,
     refreshSettings,
     now,
+    rankingsCacheMs: opts.rankingsCacheMs,
     secureCookies: opts.secureCookies ?? process.env.NODE_ENV === 'production',
     worldId,
     worldName,
@@ -242,8 +245,12 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
         // handler still sees a world where all arrivals before its own moment are resolved, in order (SECURITY_ROADMAP 2.5).
         const waitUntil = performance.now() + DUE_MAX_WAIT_MS;
         for (;;) {
-          ctx.game.processDue(req.nowMs, dueBudget);
-          if (!ctx.game.dueBacklog) break;
+          // While a backlog is being drained this request does not add a slice of its own (many requests arriving together
+          // would run theirs back to back): it only waits for the shared loop.
+          if (!ctx.game.dueBacklog) {
+            ctx.game.processDue(req.nowMs, dueBudget);
+            if (!ctx.game.dueBacklog) break;
+          }
           if (performance.now() >= waitUntil) {
             // Waited long enough (arrivals come in faster than they resolve): finish the rest in one go, as before the budget existed.
             req.log.warn('due-movement backlog: draining in one call');

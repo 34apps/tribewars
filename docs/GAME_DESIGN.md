@@ -489,7 +489,7 @@ searchable by name/tag.
   or an ended pact is also logged in the other tribe. Invites/applications aren't logged.
 
 ### Rankings
-Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab. A third list ranks players by **Renown earned** (`GET /api/rankings/renown`, §18.2; total earned, never the balance, so spending does not lower the rank); Renown and its rank also show on the profile.
+Players are ranked by the sum of their villages' points (top 100 shown, ties share a rank, then by name; the caller's own place is always shown). Tribes are ranked by the sum of their members' points (see above). Both lists are in the Ranks tab. A third list ranks players by **Renown earned** (`GET /api/rankings/renown`, §18.2; total earned, never the balance, so spending does not lower the rank); Renown and its rank also show on the profile. The player and Renown lists are rebuilt at most every 15 s (`RANKINGS_CACHE_MS`); each player's own row is picked per request.
 
 ## 12. Tribe warfare — scouts, support, alerts
 

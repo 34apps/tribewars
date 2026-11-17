@@ -1031,6 +1031,8 @@ export const NPC_REFRESH_BATCH = 400;
 export const NPC_REFRESH_BUDGET_MS = 20;
 /** How often the server runs the caretaker pass (real ms, not scaled). */
 export const BOT_PASS_INTERVAL_MS = 60_000;
+/** The ranking lists (players, Renown) are rebuilt at most this often (server clock, ms); every request in between reuses the list. */
+export const RANKINGS_CACHE_MS = 15_000;
 /** A player's last_active is written at most this often (real ms), so reads never cause write storms. */
 export const ACTIVITY_WRITE_INTERVAL_MS = 5 * 60_000;
 /** A player counts as online when last_active is at most this old (real ms; two write intervals, so a steady player never flickers). */

@@ -39,6 +39,7 @@ export async function makeApp(over: Partial<BuildAppOptions> & { world?: Partial
     worldConfig: TEST_WORLD_CONFIG,
     webDistDir: '/nonexistent/web/dist',
     secureCookies: false,
+    rankingsCacheMs: 0,
     ...rest,
   });
   return { app, clock };

@@ -877,6 +877,8 @@ export class Store extends SqlBase {
   abandonDueVillages(idleBefore: number, now: number, limit: number): VillageRecord[] {
     const sandbox = [...this.sandboxUsers];
     const skipSandbox = sandbox.length > 0 ? `AND p.username_lower NOT IN (${sandbox.map(() => '?').join(', ')})` : '';
+    // With bound values SQLite already starts at the (narrow) players table and reaches the villages through idx_villages_owner;
+    // measured on 2,011 players / 17,097 villages it takes 0.05-0.5 ms, so no extra index (see CHANGELOG 2026-11-17).
     return this.all(
       `${VILLAGE_SQL} WHERE v.owner_id IS NOT NULL AND COALESCE(p.last_active, p.created_at) <= ? AND p.protected_until <= ? ${skipSandbox}
        ORDER BY v.id LIMIT ?`,
@@ -1406,13 +1408,23 @@ export class Store extends SqlBase {
     const params: Param[] = [`%${esc}%`];
     if (from) params.push(from.x, from.x, from.y, from.y);
     params.push(`${esc}%`, limit);
-    return this.all(
-      `${MAP_SELECT}
-       WHERE ${col} LIKE ? ESCAPE '\\' AND (v.owner_id IS NULL OR p.banned_at IS NULL)${by === 'player' ? ' AND v.owner_id IS NOT NULL' : ''}
-       ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
-       LIMIT ?`,
-      ...params,
-    ).map(mapRowOf);
+    // Step 1: find and order the ids from narrow data only: idx_villages_search (name, x, y, owner_id) covers a village-name search,
+    // for a player-name search the scan starts at players.username and reaches the villages through idx_villages_owner. The fat
+    // villages rows (state_json) are not touched. Step 2 loads the full map rows of the few winners.
+    const idSql =
+      by === 'village'
+        ? `SELECT v.id FROM villages v LEFT JOIN players p ON p.id = v.owner_id
+           WHERE v.name LIKE ? ESCAPE '\\' AND (v.owner_id IS NULL OR p.banned_at IS NULL)
+           ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
+           LIMIT ?`
+        : `SELECT v.id FROM players p CROSS JOIN villages v ON v.owner_id = p.id
+           WHERE p.username LIKE ? ESCAPE '\\' AND p.banned_at IS NULL
+           ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
+           LIMIT ?`;
+    const ids = this.all(idSql, ...params).map((r) => r.id as number);
+    if (ids.length === 0) return [];
+    const rows = new Map(this.all(`${MAP_SELECT} WHERE v.id IN (${ids.map(() => '?').join(',')})`, ...ids).map((r) => [r.id as number, mapRowOf(r)]));
+    return ids.flatMap((id) => rows.get(id) ?? []);
   }
 
   // ---- movements -------------------------------------------------------------------------------
