@@ -707,7 +707,7 @@
   color: var(--on-surface-muted);
 }
 
-/* Boulder Sling target: one compact row where the recent targets sit */
+/* Firecart target: one compact row where the recent targets sit */
 .fa-siege .wm-siege {
   display: flex;
   align-items: center;

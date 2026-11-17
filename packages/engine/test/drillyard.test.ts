@@ -23,7 +23,7 @@ import type { Units, VillageRanks } from '../src/index.ts';
 import { HOUR, S1, S10, defenderWith, units, village } from './helpers.ts';
 
 const rich = { wood: 1e6, food: 1e6, iron: 1e6, gold: 1e6 };
-const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+const base = { hall: 10, barracks: 8, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
 const expectGameError = (fn: () => unknown, code: string): void => {
   assert.throws(fn, (e: unknown) => e instanceof GameError && e.code === code);
 };
@@ -146,7 +146,7 @@ describe('rank bonuses in battle', () => {
     const plain = resolveBattle({ attackerUnits: attackers, defender: def, support, seed: 7 });
     const own = resolveBattle({ attackerUnits: attackers, defender: def, support, seed: 7, defenderRanks: bulwark5 });
     const sup = resolveBattle({ attackerUnits: attackers, defender: def, support, seed: 7, supportRanks: [bulwark5] });
-    const half = 50 * 15; // infantry attackers: pikeman defence 15 each, per source
+    const half = 50 * 14; // infantry attackers: pikeman defence 14 each, per source
     assert.ok(Math.abs(own.defensePower - plain.defensePower - half * 0.25) < 1e-6);
     assert.ok(Math.abs(sup.defensePower - own.defensePower) < 1e-6);
   });

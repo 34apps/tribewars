@@ -24,7 +24,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 /** At the real pace (speed 1) the builder leader has the Renown and War Chest gold for a Chieftain after about two weeks, then he founds. */
-const HORIZON_DAYS = 22;
+const HORIZON_DAYS = 45;
 
 /** The world the preview creates for new games: real pace (speed 1), real 72 h beginner protection, no starter pack. */
 const WORLD: Partial<WorldSettings> = { speed: 1, radius: 30, npcDensity: 0.025, protectionHours: 72, seed: 4242 };
@@ -121,7 +121,7 @@ test('bots grow alongside a human at speed 1: points, Feast, War Chest, Chieftai
   assert.ok(day.chieftain >= 0, 'a Chieftain was trained');
   assert.ok(day.found >= 0, 'a bot founded a second village');
   assert.ok(ctx.store.tribes.lastMessages(embr, 100).length > chatBefore, 'tribe-mates said something about their progress');
-  assert.ok(ms < 8_000, `the run stays fast (${ms.toFixed(0)} ms)`);
+  assert.ok(ms < 15_000, `the run stays fast (${ms.toFixed(0)} ms)`);
 
   // A tick with nothing due is cheap and changes nothing.
   const t = performance.now();

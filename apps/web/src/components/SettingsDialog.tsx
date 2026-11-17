@@ -94,7 +94,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           <h3 id="test-mode-title" className="card-title">Test mode</h3>
           <label className="check" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44 }}>
             <input type="checkbox" role="switch" checked={dp.on} onChange={(e) => setDesignPreview(e.target.checked)} />
-            <span title="Village shows every building at levels 0–20; nothing is saved.">Design preview</span>
+            <span title="Village shows every building at levels 0–25; nothing is saved.">Design preview</span>
           </label>
           <button type="button" className="btn btn-block" disabled={busy !== null} onClick={() => void run('max')}>
             {busy === 'max' ? 'Working…' : 'Max out village'}

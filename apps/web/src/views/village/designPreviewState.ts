@@ -7,7 +7,7 @@ import type { BuildingId } from '@clanfire/engine';
 import type { LandscapeChoice } from '../../art/landscapes.tsx';
 
 const KEY = 'clanfire.designPreview';
-export const PREVIEW_MAX_LEVEL = 20;
+export const PREVIEW_MAX_LEVEL = 25;
 
 function readOn(): boolean {
   try {

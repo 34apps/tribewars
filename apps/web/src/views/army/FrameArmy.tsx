@@ -18,7 +18,7 @@ import {
   travelPreview,
 } from '@clanfire/engine';
 import type { Coords, MapVillageDto, MovementDto, StationedDto, UnitId, Units } from '@clanfire/engine';
-import { worldPrefixOf } from '@clanfire/engine';
+import { allTrainJobs, worldPrefixOf } from '@clanfire/engine';
 import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
@@ -124,7 +124,7 @@ function MusterPanel() {
   const info = useUnitInfo();
   const [chief, setChief] = useState(false);
   const training = emptyUnits();
-  for (const q of [live.trainQueues.barracks, live.trainQueues.stables, live.trainQueues.bannerhall]) for (const j of q) training[j.unit] += j.count - j.done;
+  for (const j of allTrainJobs(live)) training[j.unit] += j.count - j.done;
   const inTraining = UNIT_IDS.reduce((n, u) => n + training[u], 0);
   const anyTraining = inTraining > 0;
   const pop = populationUsage(live).total;
@@ -363,7 +363,7 @@ function SendPanel() {
     setError(null);
     setGroupNote(null);
     setCounts((c) => ({ ...c, [u]: value }));
-    if (u === 'boulder' && !(Number.isInteger(Number(value)) && Number(value) > 0)) setSiegePick('');
+    if (u === 'firecart' && !(Number.isInteger(Number(value)) && Number(value) > 0)) setSiegePick('');
   }
 
   function pickSuggestion(v: MapVillageDto) {
@@ -376,7 +376,7 @@ function SendPanel() {
     const fill = fillFromGroup(units, groupVisible, live.troops);
     setError(null);
     setCounts(fill.counts);
-    if (!fill.counts.boulder) setSiegePick('');
+    if (!fill.counts.firecart) setSiegePick('');
     setGroupNote(Object.keys(fill.counts).length === 0 ? 'None at home' : shortNote(fill.short));
     setGroupsOpen(false);
   }

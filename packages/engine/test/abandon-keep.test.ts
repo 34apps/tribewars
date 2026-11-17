@@ -19,7 +19,7 @@ const NOW = 100 * HOUR;
 const built = (hall: number): VillageState =>
   village({
     buildings: { hall, wall: 6, farm: 8, storehouse: 4, barracks: 3, bannerhall: 2, market: 5 },
-    resources: { wood: 99_999, food: 50, iron: 700, gold: 12 },
+    resources: { wood: 99_999, food: 500, iron: 700, gold: 12 },
     troops: { raider: 40, pikeman: 3 },
     away: { outrider: 5 },
   });
@@ -61,7 +61,7 @@ describe('abandonVillageKeepBuildings', () => {
     assert.equal(a.resources.wood, storageCap(a));
     assert.ok(a.resources.iron >= 700, 'stock is kept (and it produced while the owner was away)');
     assert.deepEqual(a.buildQueue, []);
-    assert.deepEqual(a.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+    assert.deepEqual(a.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
     assert.deepEqual([a.ranks, a.researched, a.researchQueue, a.feast, a.defenceMark, a.hearth, a.lockUntil, a.protectedUntil], new Array(8).fill(undefined));
   });
 

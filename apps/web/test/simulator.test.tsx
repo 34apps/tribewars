@@ -73,11 +73,11 @@ test('empty armies: no troops is not ready, an empty defender still meets the ba
   assert.deepEqual(raid.result.defenderLosses, emptyUnits());
 });
 
-test('Wall: more levels raise the defence; Log Rams lower it (before -> after)', () => {
+test('Wall: more levels raise the defence; Firecarts lower it (before -> after)', () => {
   const low = simulate(setup({ wall: 0 }), 0).result.defensePower;
   const high = simulate(setup({ wall: 10 }), 0).result.defensePower;
   assert.ok(high > low);
-  const rams = simulate(setup({ attacker: units({ raider: 400, logram: 80 }), defender: units({ pikeman: 10 }), wall: 10 }), 0);
+  const rams = simulate(setup({ attacker: units({ raider: 400, firecart: 80 }), defender: units({ pikeman: 10 }), wall: 10 }), 0);
   assert.equal(rams.wallBefore, 10);
   assert.ok(rams.wallAfter < 10);
   assert.equal(rams.wallAfter, (rams.result.siege ?? []).filter((h) => h.building === 'wall').at(-1)!.to);
@@ -85,8 +85,8 @@ test('Wall: more levels raise the defence; Log Rams lower it (before -> after)',
   assert.equal(plain.wallAfter, 10);
 });
 
-test('Boulder Slings hit the picked building at the typed level', () => {
-  const o = simulate(setup({ attacker: units({ raider: 300, boulder: 40 }), defender: units({ pikeman: 5 }), wall: 0, siegeTarget: 'market', targetLevel: 5 }), 0);
+test('Firecarts burn the picked building at the typed level', () => {
+  const o = simulate(setup({ attacker: units({ raider: 300, firecart: 40 }), defender: units({ pikeman: 5 }), wall: 0, siegeTarget: 'market', targetLevel: 5 }), 0);
   const hit = (o.result.siege ?? []).find((h) => h.building === 'market');
   assert.ok(hit);
   assert.equal(hit.from, 5);
@@ -124,7 +124,7 @@ const battle = (over: Partial<BattleReportData> = {}): BattleReportData => ({
   luck: 0.02,
   attackPower: 500,
   defensePower: 300,
-  attackerUnits: units({ raider: 80, logram: 4 }),
+  attackerUnits: units({ raider: 80, firecart: 4 }),
   attackerLosses: units({ raider: 20 }),
   defenderUnits: units({ pikeman: 25 }),
   defenderLosses: units({ pikeman: 25 }),
@@ -140,7 +140,7 @@ const report = (side: ReportDto['side'], over: Partial<ReportDto>): ReportDto =>
 
 test('prefill from a battle report: defender, support, Wall; my army only when I attacked', () => {
   const mine = draftFromReport(report('attack', { battle: battle() }))!;
-  assert.deepEqual(mine.attacker, units({ raider: 80, logram: 4 }));
+  assert.deepEqual(mine.attacker, units({ raider: 80, firecart: 4 }));
   assert.deepEqual(mine.defender, units({ pikeman: 25 }));
   assert.deepEqual(mine.support, units({ guard: 7 }));
   assert.equal(mine.wall, 5);
@@ -149,9 +149,9 @@ test('prefill from a battle report: defender, support, Wall; my army only when I
   assert.deepEqual(theirs.defender, units({ pikeman: 25 }));
 });
 
-test('prefill: the Wall is the level before the rams when the report shows the hit; hidden parts stay unset', () => {
+test('prefill: the Wall is the level before the Firecarts when the report shows the hit; hidden parts stay unset', () => {
   const d = draftFromReport(
-    report('attack', { battle: battle({ siege: [{ unit: 'logram', building: 'wall', from: 9, to: 6 }], wallLevel: 8 }) }),
+    report('attack', { battle: battle({ siege: [{ unit: 'firecart', building: 'wall', from: 9, to: 6 }], wallLevel: 8 }) }),
   )!;
   assert.equal(d.wall, 9);
   const hidden = draftFromReport(report('attack', { battle: battle({ defenderUnits: null, supportUnits: null, wallLevel: null }) }))!;
@@ -200,7 +200,7 @@ test('luck slider: the range is the engine luck, any value in it runs the real b
 test('mightText names the unit with the most Might ranks in the army; comeHome counts survivors', () => {
   const ranks = { raider: { might: 2, bulwark: 0, keen: 0 }, knight: { might: 5, bulwark: 0, keen: 0 } };
   assert.equal(mightText(ranks, units({ raider: 5 })), 'Raider Might 2 · +10% attack');
-  assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Knight Might 5 · +25% attack');
+  assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Ember Guard Might 5 · +25% attack');
   assert.equal(mightText(ranks, units({ pikeman: 5 })), null);
   assert.equal(mightText(undefined, units({ raider: 5 })), null);
   assert.deepEqual(comeHome(units({ raider: 10, knight: 2 }), units({ raider: 3 })), { home: 3, sent: 12 });

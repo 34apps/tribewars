@@ -1,7 +1,8 @@
 // Longhouse v2: grows from a small turf hut (1) to a long clan house (2), a raised clan hall (3) and the great
-// gilded hall with stacked roofs and dragon-head gables (4), like Town Hall / Barracks grow.
-import { INK, f, iso, poly, open, p, ln, box, courses, planksL, planksR, post, rod, barrel, sack, sprite, flag, tufts, smoke, brazier, glint,
-  faceL, faceR, dragon, pyramid, bannerPole,
+// gilded hall with stacked roofs (4), like Town Hall / Barracks grow. Roof ends carry plain crossed carved gable boards;
+// owner 2026-11-11: no dragon heads, no knobs on the boards.
+import { INK, f, iso, pt, poly, open, p, ln, box, courses, planksL, planksR, post, rod, barrel, sack, sprite, flag, tufts, smoke, brazier, glint,
+  faceL, faceR, pyramid, bannerPole,
   WOOD, DWOOD, STONE, IRON, THATCH, TURF, GOLD, PLUM, TEAL, ROOF } from './blib.mjs';
 
 const SHINGLE = ['#C9A877', '#9C7448', '#6B4A2A'];
@@ -16,7 +17,18 @@ function roofU(u0, u1, v0, v1, z1, zr, c, g, o = 2.5, rows = 2, ridge = null) {
   if (ridge) s += rod([u0 - o, vm, zr], [u1 + o, vm, zr], 1.8, ridge);
   const zs = (v) => zr - (Math.abs(v - vm) / half) * (zr - ze);
   const end = (u) => iso(u, vm, zr);
-  return { s, zs, vm, end };
+  return { s, zs, vm, zr, end };
+}
+/** One flat carved board between two points, cut square at both ends. */
+function board(a, b, w, col) {
+  const d = `M${pt(...a)}L${pt(...b)}`;
+  return ln(d, INK, w + 1.6, ' stroke-linecap="butt"') + ln(d, col, w, ' stroke-linecap="butt"');
+}
+/** Crossed carved gable boards: an X over the ridge end at u, plain square-cut boards (owner 2026-11-11: no knobs). */
+function gableX(R, u, sc = 1, col = WOOD[1]) {
+  const { vm, zr } = R;
+  return board([u, vm + 4.2 * sc, zr - 4 * sc], [u, vm - 3 * sc, zr + 4.6 * sc], 1.8 * sc, col) +
+    board([u, vm - 4.2 * sc, zr - 4 * sc], [u, vm + 3 * sc, zr + 4.6 * sc], 1.8 * sc, col);
 }
 /** A raised storey standing on a roof (its walls start on the roof surface). */
 function tier(R, u0, u1, v0, v1, zt, wall, win = DWOOD[2]) {
@@ -69,7 +81,7 @@ export default function longhouse(st) {
     s += shield(-11, 9, 9, ROOF[1]) + shield(-1, 9, 9, TEAL[1]);
     const R = roofU(-22, 14, -9, 9, 14, 34, TURF, WOOD, 3, 2, TURF[2]);
     s += R.s + tufts([[-14, 0, 34.5], [2, 0, 34.5], [-20, 6, 21]], '#3A5E27');
-    for (const [u, k] of [[-25, -1], [17, 1]]) { const [x, y] = iso(u, 0, 34); s += rod([u, 4, 30], [u, -3, 38], 1.8, WOOD[1]) + rod([u, -4, 30], [u, 3, 38], 1.8, WOOD[1]); }
+    for (const u of [-25, 17]) s += board([u, 4, 30], [u, -3, 38], 1.8, WOOD[1]) + board([u, -4, 30], [u, 3, 38], 1.8, WOOD[1]);
     s += box(14, 22, -5, 5, 0, 1.5, STONE, 1.2) + door(14, -3, 3, 0, 9);
     s += post(21, -4, 1.5, 12, 1.8, WOOD) + post(21, 4, 1.5, 12, 1.8, WOOD);
     s += roofU(13, 21, -5.5, 5.5, 12, 18, THATCH, WOOD, 1, 1).s;
@@ -77,7 +89,7 @@ export default function longhouse(st) {
     return sprite(s);
   }
   if (st === 3) {
-    // the raised clan hall: stone plinth, framed walls, shingle roof with a raised middle storey, dragon heads
+    // the raised clan hall: stone plinth, framed walls, shingle roof with a raised middle storey, crossed gable boards
     s += pad(-28, 28, -14, 15, '#C8A064');
     s += box(-25, 17, -11, 11, 0, 2.5, STONE, 1.3);
     s += box(-24, 16, -10, 10, 2.5, 7, STONE, 1.3) + courses(-24, 16, -10, 10, 2.5, 7, 2);
@@ -85,12 +97,12 @@ export default function longhouse(st) {
     s += ln(open([[-24, 10, 18], [16, 10, 18], [16, -10, 18]]), IRON[1], 1.6);
     for (const [u, c] of [[-20, ROOF[1]], [-12, TEAL[1]], [-4, PLUM[1]], [4, ROOF[1]], [11, TEAL[1]]]) s += shield(u, 10, 12, c, 3);
     const R = roofU(-24, 16, -10, 10, 19, 40, SHINGLE, WOOD, 3, 2, IRON[1]);
-    s += dragon(...R.end(-27), -1, 1.1) + R.s;
+    s += gableX(R, -27, 1.1) + R.s;
     s += tier(R, -12, 4, -6, 6, 52, WOOD);
     const T = roofU(-12, 4, -6, 6, 52, 66, SHINGLE, WOOD, 2, 1, GOLD[1]);
-    s += dragon(...T.end(-14), -1, 0.9, GOLD[1]) + T.s + dragon(...T.end(6), 1, 0.9, GOLD[1]);
+    s += gableX(T, -14, 0.9) + T.s + gableX(T, 6, 0.9);
     s += flag(-4, 0, 66, 14, PLUM[1]);
-    s += dragon(...R.end(19), 1, 1.1);
+    s += gableX(R, 19, 1.1);
     s += box(16, 24, -5.5, 5.5, 0, 2, STONE, 1.2) + door(16, -3.5, 3.5, 2, 11, DWOOD[2], IRON[1]);
     s += bannerPole(25, -12, PLUM[1], 32) + bannerPole(-26, 14, ROOF[1], 30) + barrel(24, 11, 0, 3, 6) + logs(-22, 13, 3);
     return sprite(s);
@@ -103,14 +115,14 @@ export default function longhouse(st) {
   s += ln(open([[-25, 11, 24], [18, 11, 24], [18, -11, 24]]), GOLD[1], 2) + ln(open([[-25, 11, 13], [18, 11, 13], [18, -11, 13]]), GOLD[2], 1.4);
   for (const [u, c] of [[-21, ROOF[1]], [-14, TEAL[1]], [-7, PLUM[1]], [0, ROOF[1]], [7, TEAL[1]], [13, PLUM[1]]]) s += shield(u, 11, 18.5, c, 3.2);
   const R = roofU(-25, 18, -11, 11, 25, 48, ROOF, WOOD, 3, 2, GOLD[1]);
-  s += dragon(...R.end(-28), -1, 1.3, GOLD[1]) + R.s;
+  s += gableX(R, -28, 1.3, GOLD[1]) + R.s;
   s += tier(R, -14, 6, -7.5, 7.5, 64, WOOD);
   s += ln(open([[-14, 7.5, 63], [6, 7.5, 63]]), GOLD[1], 1.6);
   const T = roofU(-14, 6, -7.5, 7.5, 64, 82, ROOF, WOOD, 2.5, 1, GOLD[1]);
-  s += dragon(...T.end(-16.5), -1, 1.1, GOLD[1]) + T.s;
+  s += gableX(T, -16.5, 1.1, GOLD[1]) + T.s;
   s += tier(T, -7, -1, -3.5, 3.5, 92, WOOD);
   s += pyramid(-4, 0, 4.5, 92, 106, GOLD) + flag(-4, 0, 106, 15, PLUM[1]);
-  s += dragon(...T.end(8.5), 1, 1.1, GOLD[1]) + dragon(...R.end(21), 1, 1.3, GOLD[1]);
+  s += gableX(T, 8.5, 1.1, GOLD[1]) + gableX(R, 21, 1.3, GOLD[1]);
   // gilded porch and steps
   s += box(18, 28, -7, 7, 0, 1.5, STONE, 1.2) + box(18, 25, -6, 6, 1.5, 3, STONE, 1.2);
   s += door(18, -4, 4, 3, 13, DWOOD[2], GOLD[1]);

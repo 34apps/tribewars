@@ -805,35 +805,19 @@ const ICONS = {
       </>
     ),
   },
-  // Log Ram: a thick log on two small wheels with an iron cap at the front.
-  logram: {
+  // Firecart: a small cart with a pitch fire in the bed and two wheels.
+  firecart: {
     vb: '0 0 32 32',
     draw: (u) => (
       <>
-        <T u={u + 'a'} d="M3 12H25C27 12 28 14 28 16C28 18 27 20 25 20H3Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1.3} x={-2} y={-2.5} w={2} />
-        <path d="M7 14.5H21M7 17.5H19" stroke="#714B29" strokeWidth="1.2" strokeLinecap="round" />
-        <T u={u + 'b'} d="M24 11H29C30.5 12 30.5 20 29 21H24Z" l="#E0DCD3" k="#665F57" m="#A39E94" s={1.1} x={-1.3} y={-1.8} w={1.6} />
-        <path d="M9 20V24M21 20V24" stroke={INK} strokeWidth="1.6" />
-        <circle cx="9" cy="25.5" r="3.6" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
-        <circle cx="21" cy="25.5" r="3.6" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
-        <circle cx="9" cy="25.5" r="1" fill={INK} />
-        <circle cx="21" cy="25.5" r="1" fill={INK} />
-      </>
-    ),
-  },
-  // Boulder Sling: a wooden frame with a throwing arm and a boulder in the cup.
-  boulder: {
-    vb: '0 0 32 32',
-    draw: (u) => (
-      <>
-        <path d="M3 28H27" stroke={INK} strokeWidth="5" strokeLinecap="round" />
-        <path d="M3 28H27" stroke="#B07D46" strokeWidth="2.2" strokeLinecap="round" />
-        <path d="M10 28L14 14M20 28L16 14" stroke={INK} strokeWidth="4.4" strokeLinecap="round" />
-        <path d="M10 28L14 14M20 28L16 14" stroke="#B07D46" strokeWidth="2" strokeLinecap="round" />
-        <path d="M24 26L8 6" stroke={INK} strokeWidth="4.4" strokeLinecap="round" />
-        <path d="M24 26L8 6" stroke="#E4B67C" strokeWidth="2" strokeLinecap="round" />
-        <T u={u + 'a'} d="M2 5C2 2 6 1 8 3C10 5 9 8 6 9C3 9 2 7 2 5Z" l="#E0DCD3" k="#665F57" m="#A39E94" s={1.1} x={-1.4} y={-1.8} w={1.6} />
-        <circle cx="15" cy="14" r="2" fill="#F2B33D" stroke={INK} strokeWidth="1.4" />
+        <T u={u + 'a'} d="M4 14H26L24 22H6Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1.3} x={-2} y={-2.5} w={2} />
+        <path d="M9 13C8 9 11 7 12 3C14 6 16 8 15 11C17 9 18 8 18.5 6C21 9 21 12 19.5 13Z" fill="#F2B33D" stroke={INK} strokeWidth="1.4" strokeLinejoin="round" />
+        <path d="M13 13C12.5 11 14 10 14.5 8.5C16 10 16 11.5 15.5 13Z" fill="#FFDC7A" />
+        <path d="M10 22V24M22 22V24" stroke={INK} strokeWidth="1.6" />
+        <circle cx="10" cy="26" r="3.4" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
+        <circle cx="22" cy="26" r="3.4" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
+        <circle cx="10" cy="26" r="1" fill={INK} />
+        <circle cx="22" cy="26" r="1" fill={INK} />
       </>
     ),
   },

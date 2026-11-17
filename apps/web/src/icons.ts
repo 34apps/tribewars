@@ -25,8 +25,7 @@ export const UNIT_ICON: Record<UnitId, IconName> = {
   knight: 'knight',
   pathfinder: 'pathfinder',
   chieftain: 'chieftain',
-  logram: 'logram',
-  boulder: 'boulder',
+  firecart: 'firecart',
 };
 
 /** Movement kinds: the missions plus the trip home. */

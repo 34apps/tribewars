@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   RESOURCE_IDS,
   emptyResources,
+  storageCap,
   totalUnits,
   travelTimeMs,
   type ReportDto,
@@ -118,7 +119,9 @@ test('full raid: attack, report, return movement, troops and loot come home', as
   assert.equal(after.state.away.raider, 0);
   for (const r of RESOURCE_IDS) {
     const gained = after.state.resources[r] - justBefore.state.resources[r];
-    assert.ok(Math.abs(gained - b.loot[r]) < 1, `${r}: gained ${gained}, loot ${b.loot[r]}`);
+    // The loot is added up to the storehouse cap (a village at the cap gains less).
+    const room = Math.max(0, storageCap(after.state) - justBefore.state.resources[r]);
+    assert.ok(Math.abs(gained - Math.min(b.loot[r], room)) < 1, `${r}: gained ${gained}, loot ${b.loot[r]}, room ${room}`);
   }
   assert.equal((app.ctx.store.db.prepare('SELECT COUNT(*) AS n FROM movements').get() as { n: number }).n, 0);
   await app.close();

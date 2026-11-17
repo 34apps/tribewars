@@ -759,3 +759,141 @@ players would deposit when they choose.
 2nd village unchanged), with the deposit as the player's own action ("Pay into the War Chest", amount chosen) so villages keep gold
 unless the player moves it (not simulated: the sim always moves all gold, so the side effect should be smaller in play). Otherwise keep **A**. Drop B. Speed for players: C 2,000 makes expansion after the 3rd village about
 10-15% slower for builders and defenders, about the same for raiders. Owner to pick A or C (and the base); engine/server/UI only after that.
+
+## 13. 25-level ladder, 12,000 room, cheaper troops (owner/lead 2026-11-11; originality piece 1)
+
+Changes in `config.ts` (details and the table in GAME_DESIGN §3): max levels Town Hall / Lumber / Farm / Mine / Storehouse 25, Barracks 20,
+Wall 22, Stables and Gold Mine 18, Market and Vault 12, Drillyard 10, Banner Hall 4; production, storage and Farm room curves hit about
+900 / 1,200 / 900 an hour, 90,000 and 12,000 at level 25; building costs x1.5 (wood/food/iron); troop costs x0.55 (food x0.5); Chieftain and Feast x1.5;
+2nd village 1,000 -> 1,300 Renown; abandoned villages produce 0.5x (`NPC_PRODUCTION_FACTOR`). Raw: `docs/sim/2026-11-11-levels25-*.txt`.
+
+**Numbers asked for**
+- **Days to fill the 12,000 room** (one maxed village, own production only, ignoring the Barracks queue): mixed army 13.6 days, raider-heavy 15.2,
+  defender 12.2 (target 12-15). The training queues are nearly as tight: one Barracks needs 10-13 days for 11,700 population of foot troops
+  at x0.31 training time, so a player with two Barracks fills it faster than income allows.
+- **Days to max a village** (every building, one after the other, Town Hall at 25 = x0.38 time): 24.8 days at speed 1 (before: 18); the last Town Hall level takes
+  26 h, the last Lumber Camp level 10 h. With the Town Hall climbing as it goes it takes about 31 days (the same order on the old ladder: 23).
+
+**30 days, seed 20261104 (builder / raider / turtle / balanced), versus the 2026-11-10 numbers in §12**
+
+| | before (§12) | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 23.1 / 21.0 / 16.2 | 25.9 / **22.1** / 19.1 |
+| score | 12,094 / 22,853 / 5,581 / 29,143 | 10,614 / 20,745 / 5,161 / 27,607 |
+| **raider / builder score** | 1.89x | **1.95x** (target 1.5-2x; was 2.55x before the loot supply lever) |
+
+How the ratio was brought back (builder score is the same in all runs, only the raider moves): x1.5 production with troops x0.55 gave 3.2x. Carry
+x0.55 and abandoned-village top level 4 changed little (the levers that do work are the supply of loot): `NPC_PRODUCTION_FACTOR` 0.5 gives
+2.0x, and Renown 1,800 -> 1,300 puts the raider's 2nd village back at day 22 (1,800 made it day 29). An abandoned village's production is the loot
+raiders live on; players are not affected.
+
+**90 days, one player per style:** 2nd village day 25.9 / 22.1 / 52.8 / 19.1, 3rd 40.4 / 45.4 / 85.9 / 35.1, villages at the end 5 / 3 / 3 / 4
+(before, §12.1: 7 / 3.4 / 3 / 3), points 21,396 / 13,566 / 7,264 / 29,117.
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (before, §12.2, gold 3: 67 takes, 26 restarts): villages taken from players **42**, restarts **21**, raids on
+players 49k, biggest / second biggest (worst seed) **1.81** (target <= 2x). Builders now get their 2nd village on day 58.6 in this crowded world (balanced 16.1,
+raider 51.7, turtle 59.8): the raiders' share of the loot dried up, so builders are raided less but also have less to take; Renown is the limit (wait hours
+in the raw file). Not tuned further.
+
+**Risks and open points.** Raiders and builders expand slower from the 3rd village on than in §12; the preview's computer players need ~31 days
+to their 2nd village (was 15; `apps/preview/test/bots.test.ts` horizon 22 -> 45 days, run limit 8 -> 15 s). Building Renown, siege cost per level and
+points per level keep their formulas, so a maxed 25-level building is worth more of each (points of a maxed village about 27,000, was about 10,000);
+the Banner Hall is 15% dearer in total. Not in the sim: Longhouse/Wrightyard/Firecart (later pieces), the new unit roster.
+
+### 13.1 Pieces 2-4: Longhouse, Wrightyard, Firecart (2026-11-11)
+
+Rules: the Longhouse takes the population room (the Farm makes food only and uses room like the Lumber Camp), the Wrightyard (Barracks 5, max 12, cost like the Stables)
+trains the Firecart (99/88/121 + 6 gold = 180/160/220/10 x 0.55; 1,400 s; Drillyard 3), which replaces the Log Ram and Boulder Sling (GAME_DESIGN §3, §18.9). Raw:
+`docs/sim/2026-11-11-originality-{30d,90d,conquest90-5seeds}.txt`.
+
+**Cost of the split.** Building every building to the top with the Town Hall at 25 takes **27.2 days** (was 24.8: Longhouse 2.0 d + Wrightyard 0.5 d); the total price of a maxed village is
+1.56 million (wood + food + iron + 10 x gold). The sim styles build a Longhouse level next to every Farm level (the old Farm steps stood for room AND food; food was not
+in surplus for builders: with fewer Farm levels the builder score fell 20%). So the extra Longhouse is paid in full by the computer players.
+
+**30 days, seed 20261104 (builder / raider / turtle / balanced), versus piece 1 (section 13 above)**
+
+| | piece 1 | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 25.9 / 22.1 / 19.1 | 26.6 / **22.2** / 17.7 |
+| score | 10,614 / 20,745 / 5,161 / 27,607 | 10,701 / 20,302 / 5,210 / 29,314 |
+| **raider / builder score** | 1.95x | **1.90x** (target 1.5-2x) |
+
+Without a lever the ratio was 2.05x (the builder pays for the extra Longhouse, the raider's income does not change). One lever: `NPC_PRODUCTION_FACTOR` 0.5 -> **0.45**
+(the loot supply, as in section 13: players are not affected). Day 21-28 for the 2nd village holds for builder and raider.
+
+**90 days, one player per style:** 2nd village day 26.6 / 22.2 / 53.0 / 17.7, 3rd 40.4 / 45.5 / 85.6 / 33.4, villages at the end 5 / 4 / 3 / 4, points 24,697 / 27,986 / 11,731 / 34,038.
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (piece 1: 42 takes, 21 restarts): villages taken from players **21**, restarts **14**, raids on players 47k, biggest / second biggest
+(worst seed) **1.11** (target <= 2x, met). Fewer takes than before: the builders (who were the main targets) now reach their 2nd village late in this crowded world (1.4 villages per builder at day 90, was
+2.6; they pay for the Longhouse and are raided), so there is less to take. Not tuned further; the lever would be loot or the Renown price, not the room.
+
+**Firecart sim (`npm run sim -- --siege`).** The experiment tables were rewritten for one unit (`scripts/sim/siege.ts`); the test run keeps all its invariants (per-step cap 2, Wall up to 2 + 2 when it is both
+targets, no pick = the Wall, floors for Farm and Longhouse, a lost battle never lowers more than the two steps allow, a garrisoned village needs at least 5x the empty-village army, the siege column is at least 1.8x slower).
+The tables were not re-read or re-published as a report this time (no `docs/sim` siege file); the older siege reports describe the two-unit rules. Raiders and balanced players in `--siege` runs build Drillyard 3 and a Wrightyard, research the Firecart and train batches of 6 (at most 28 owned).
+
+**Not checked / open.** The Longhouse and Wrightyard sprites are placed at scale 0.8 (the village scene is full, ART_DIRECTION); the `--siege` report was not regenerated (invariants only).
+
+### 13.2 Piece 5: the troop roster (2026-11-11)
+
+Rules (GAME_DESIGN §4): own lines for all units (Pikeman 8/14/40, Shieldbearer 12/42/22, Raider 36/8/6, Pathfinder 0/3/2, Elk Rider 65/18/16 speed 13 carry 75 pop 2,
+Ember Guard 70/60/60 on foot, speed 5, carry 20, pop 3, Barracks 8 + Town Hall 8), costs from the proposal x0.55 (food x0.5). Raw:
+`docs/sim/2026-11-11-roster-{30d,90d,conquest90-5seeds}.txt`. **No unit line was tuned: all three targets are met on the first run.**
+
+**30 days, seed 20261104**, versus 13.1:
+
+| | 13.1 | now |
+|---|---|---|
+| 2nd village day, builder / raider / balanced | 26.6 / 22.2 / 17.7 | 26.6 / **23.7** / 18.8 |
+| score builder / raider / turtle / balanced | 10,701 / 20,302 / 5,210 / 29,314 | 10,611 / 16,926 / 4,708 / 25,634 |
+| **raider / builder score** | 1.90x | **1.60x** (target 1.5-2x, met; the low end is close) |
+
+The raider fell about 17%: its Raider carries 28 (was 30) and costs more wood (25 vs 20), and the Elk Rider needs Stables + gold and carries 75 (was 70). The new flag "DOMINANT STYLE:
+balanced 1.51x the raider" appears (it was 1.44x): the balanced army (Raiders, Pikemen, Elk Riders, Shieldbearers) is cheaper per fight than before. Raiders at the top of the range
+would be next to tune (Raider carry or cost), not the Elk Rider.
+
+**90 days, one player per style:** 2nd village day 26.6 / 23.7 / not within run / 18.8, 3rd 40.3 / 47.8 / - / 35.3, villages at the end 5 / 3 / 1 / 4, points 24,740 / 14,408 / 2,775 / 31,311
+(13.1: 5 / 4 / 3 / 4). The raider's later expansion (3rd village day 47.8, was 45.5) and the turtle's slow start (no 2nd village within 90 days; it had day 53.0 before) are the price of
+cheaper-per-line but costlier-per-fight foot troops: the turtle's Pikemen and Shieldbearers now cost 19/23/14 and 17/30/28 against 15/25/15 and 15/35/30, a little more wood and iron,
+while its wall of 40-line pikes is worth less against foot (14, was 15). Day 21-28 holds for builder (26.6) and raider (23.7).
+
+**Conquest sim, 20 players, 90 days, 5 seeds** (13.1: 21 takes, 14 restarts, worst ratio 1.11): villages taken from players **9**, restarts **4**, raids on players 36k, biggest / second
+biggest (worst seed) **1.76** (target <= 2x, met). Fewer takes than in 13.1: the Raider's attack fell from 40 to 36 and the old Knight (110 attack, speed 10, from the Stables) is
+now a slow Ember Guard (70, speed 5), so Strike armies are weaker and slower to arrive; the builders who were the main victims are raided less. Not tuned further.
+
+**Not in the sim:** a computer player training the Ember Guard at the Barracks (only the builder style's army has the unit, and only from Barracks 8 and Town Hall 8, late in its list).
+
+### 13.3 Taking villages again: Chieftains per 12,000 points (2026-11-11, conquest sim)
+
+Problem: after the originality pass the 20-player conquest sim (90 days, 5 seeds) showed **9** villages taken from players (67 before the pass, 21 after the 25-level ladder) and 4 restarts.
+Cause found with a counter inside `bestStrike`: renown, hold size and the Chieftain price were not what stopped takes. With the 25-level ladder villages are about 3x bigger (a mid-game village is
+10,000-20,000 points), so `1 + floor(points / 4000)` asked for the maximum **3 Chieftains** on nearly every target. Three Chieftains cost three Renown prices and three batches of
+6,000/4,500/7,500, so take-style players found a village on free land instead (raider and balanced: 15 Chieftains trained, 15 villages founded, 0 strikes).
+
+Levers tried, each alone on top of the current branch (5 seeds, 90 days; takes / restarts / worst biggest-to-second ratio). Raw: `docs/sim/2026-11-11-*conquest90-5seeds.txt`.
+
+| change | takes | restarts | worst ratio |
+|---|---|---|---|
+| start (Chieftain x1.5, Renown base 1,300, hold pop 150, 4,000 points per Chieftain) | 9 | 4 | 1.76 |
+| 1. Chieftain price back to x1.0 (4,000 / 3,000 / 5,000) | 5 | 4 | 1.89 |
+| 3. Renown base 500 (also extra villages founded: 36) | 14 | 8 | 1.51 |
+| 3. Renown base 100 (ceiling of the Renown lever) | 17 | 7 | 1.35 |
+| 2. `HOLD_MIN_POPULATION` 90 (Renown base 800) | 12 | 6 | 1.48 |
+| 2. `HOLD_MIN_POPULATION` 40 (Renown base 800) | 15 | 5 | 1.59 |
+| **`HEARTH_POINTS_PER_CHIEFTAIN` 12,000** (everything else as the start) | **37** | **21** | **1.47** |
+| same with Chieftain x1.0 | 43 | 20 | 1.46 |
+
+Lever 4 (Ember Guard speed) was not tried: the sim's take-style armies do not contain Ember Guards and the Chieftain (speed 5) is the slowest unit anyway.
+
+**Change:** `HEARTH_POINTS_PER_CHIEFTAIN` 4,000 -> 12,000 (need = 1 + floor(points / 12,000), still at most 3). Nothing else: Chieftain price, Renown prices and hold numbers stay.
+GAME_DESIGN §18 updated. Raw: `docs/sim/2026-11-11-chieftain-points-{30d,90d,conquest90-5seeds}.txt`.
+
+| target | result |
+|---|---|
+| player-village takes, 5 seeds x 90 days, 20 players | **37** (30-50, met) |
+| restarts (not above 26) | **21** (met) |
+| conquest worst biggest / second | **1.47** (<= 2x, met) |
+| raider / builder score, 30 days | **1.60x** (1.5-2x, met; unchanged) |
+| 2nd village day, builder / raider / balanced | 26.6 / 23.7 / 18.8 (21-28, met; unchanged) |
+
+The single-player 30-day and 90-day sims are **byte-identical** to the roster run (13.2): the change only touches Strikes on villages of 12,000+ points, which they never make.
+Takes by style: raider 2, balanced 4, builder 0 on the main seed; Strikes that fail to hold: 3 holds broken over all styles.

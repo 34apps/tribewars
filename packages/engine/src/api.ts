@@ -440,8 +440,8 @@ export interface SendRequest extends Coords {
    */
   mission: Mission;
   /**
-   * Boulder Slings only (docs/GAME_DESIGN.md 18.9): the building (a BuildingId; names are public, levels are not) they lower after a
-   * won attack. Optional: left out, the engine draws one at random on arrival. Only allowed on an `attack` that carries Boulder Slings
+   * Firecarts only (docs/GAME_DESIGN.md 18.9): the building (a BuildingId; names are public, levels are not) they burn after a
+   * won attack. Optional: left out, the Firecarts burn the Wall after the battle. Only allowed on an `attack` that carries Firecarts
    * (400 invalid_input otherwise, and for an unknown id). It is NOT checked against the target village (that would reveal what it
    * has): a building that is not there simply takes no damage, which the battle report shows.
    */
@@ -603,7 +603,7 @@ export interface BattleReportData {
   /** Totals of all stationed support that fought (null when none, or hidden like defenderUnits). */
   supportUnits: Units | null;
   supportLosses: Units | null;
-  /** The Wall as it counted in the battle (after the Log Rams' during-the-battle hit); null when hidden from a wiped-out attacker. */
+  /** The Wall as it counted in the battle (after the Firecarts' during-the-battle hit); null when hidden from a wiped-out attacker. */
   wallLevel: number | null;
   /** Morale: the attacker's attack strength factor (0.75) when it applied (GAME_DESIGN battle section). Null or absent when it did not. */
   morale?: number | null;
@@ -617,7 +617,7 @@ export interface BattleReportData {
    */
   renownGained?: number;
   /**
-   * Buildings the attacker's siege units lowered (docs/GAME_DESIGN.md 18.9), Log Ram first; on a win and on a (close) loss. Absent on
+   * Buildings the attacker's siege units lowered (docs/GAME_DESIGN.md 18.9), the Wall hit first; on a win and on a (close) loss. Absent on
    * reports saved before siege and when no siege unit was sent. The Wall line runs from the level BEFORE the battle to the level after
    * the during-the-battle and after-the-battle steps; `wallLevel` above is the Wall as it counted in the battle (after the during hit).
    * An attacker whose army was wiped out only sees the Wall hits (nothing else of the defence).
@@ -1025,7 +1025,7 @@ export interface TribeAlertsResponse {
 //        ('projects' right; CANCEL_REFUND_PERCENT of the cost back into the store, clamped to the cap)
 // Funding: POST /api/villages/:id/ship with `toTribeStore: true` (SendShipmentRequest).
 // Raids: a won attack on the store village also loots up to TRIBE_STORE_LOOT_SHARE of each store resource
-//        (BattleReportData.lootFromTribeStore). The Hidden Vault protects only the village's own stock.
+//        (BattleReportData.lootFromTribeStore). The Vault protects only the village's own stock.
 
 export interface StoreVillageRequest {
   villageId: number;
@@ -1845,7 +1845,7 @@ export interface NotificationsReadRequest {
 // POST /api/first-steps/hidden     body FirstStepHiddenRequest -> 200 FirstStepsDto
 // The reward is capped per resource at the named village's storage (overflow is lost); claims never expire.
 
-export type FirstStepId = 'lumber2' | 'farm2' | 'hall2' | 'barracks2' | 'raiders5' | 'raid' | 'report' | 'tribe';
+export type FirstStepId = 'lumber2' | 'farm2' | 'longhouse2' | 'hall2' | 'barracks2' | 'raiders5' | 'raid' | 'report' | 'tribe';
 
 export interface FirstStepDto {
   id: FirstStepId;

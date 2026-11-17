@@ -33,8 +33,8 @@ after(async () => {
   await server.close();
 });
 
-test('all 13 buildings: stages 1..4 are non-empty, in order, and stage 4 is the max level only', () => {
-  assert.equal(BUILDING_IDS.length, 13);
+test('all 15 buildings: stages 1..4 are non-empty, in order, and stage 4 is the max level only', () => {
+  assert.equal(BUILDING_IDS.length, 15);
   for (const id of BUILDING_IDS) {
     const max = BUILDINGS[id].maxLevel;
     const [a, b] = mod.STAGE_TOPS[id];
@@ -69,10 +69,10 @@ test('wallLook equals the wall stage; the grand look is the max level only', () 
 });
 
 test('stageRange examples', () => {
-  assert.equal(mod.stageRange('hall', 1), '1–5');
-  assert.equal(mod.stageRange('hall', 2), '6–12');
-  assert.equal(mod.stageRange('hall', 3), '13–19');
-  assert.equal(mod.stageRange('hall', 4), '20');
+  assert.equal(mod.stageRange('hall', 1), '1–6');
+  assert.equal(mod.stageRange('hall', 2), '7–15');
+  assert.equal(mod.stageRange('hall', 3), '16–24');
+  assert.equal(mod.stageRange('hall', 4), '25');
   assert.equal(mod.stageRange('bannerhall', 3), '3');
   assert.equal(mod.stageRange('bannerhall', 4), '4');
 });

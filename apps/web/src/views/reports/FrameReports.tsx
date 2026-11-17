@@ -30,8 +30,8 @@ import type { ReportFilter } from './frame-reports-logic.ts';
 import '../../frame-reports.css';
 
 const SIEGE_SHOWN = 3;
-/** Short plural for the siege rows ("40 Slings"). */
-const SIEGE_PLURAL: Partial<Record<(typeof UNIT_IDS)[number], string>> = { logram: 'Log Rams', boulder: 'Slings' };
+/** Short plural for the siege rows ("40 Firecarts"). */
+const SIEGE_PLURAL: Partial<Record<(typeof UNIT_IDS)[number], string>> = { firecart: 'Firecarts' };
 
 // ---- Small shared bits -----------------------------------------------------------------------------------------------
 
@@ -245,7 +245,7 @@ function SiegeRow({ h, sent, compact }: { h: SiegeHit; sent: number; compact: bo
   const building = BUILDINGS[h.building];
   const down = h.to === 0 && h.from > 0;
   const none = h.from === h.to;
-  const count = `${formatInt(sent)} ${sent === 1 ? unit.name : SIEGE_PLURAL[h.unit] ?? pluralUnit(h.unit)}${h.random ? ' · random' : ''}`;
+  const count = `${formatInt(sent)} ${sent === 1 ? unit.name : SIEGE_PLURAL[h.unit] ?? pluralUnit(h.unit)}`;
   return (
     <li className={`frp-sgr${compact ? ' is-compact' : ''}`}>
       <Pt unit={h.unit} size={compact ? 28 : 34} />

@@ -28,7 +28,7 @@ export function reportRoutes(app: FastifyInstance, ctx: AppContext): void {
     },
   );
 
-  // The caller's own latest scout intel (building levels) on a village, for the Boulder Sling picker.
+  // The caller's own latest scout intel (building levels) on a village, for the Firecart picker.
   app.get<{ Params: { id: string } }>(
     '/api/scouted/:id',
     {

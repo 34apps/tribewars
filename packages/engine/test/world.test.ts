@@ -222,12 +222,12 @@ describe('protection and points', () => {
 
   it('points grow faster at higher levels', () => {
     const v = createPlayerVillage(0);
-    assert.equal(villagePoints(v), 10 + 8 + 8 + 8 + 6); // hall, lumber, farm, mine, storehouse at level 1
+    assert.equal(villagePoints(v), 10 + 8 + 8 + 8 + 8 + 6); // hall, lumber, farm, longhouse, mine, storehouse at level 1
     assert.equal(levelPoints('hall', 1), 10);
     assert.equal(levelPoints('hall', 2), 12);
     assert.ok(levelPoints('hall', 20) > 10 * levelPoints('hall', 2));
     v.buildings.wall = 3;
-    assert.equal(villagePoints(v), 40 + buildingPoints('wall', 3));
+    assert.equal(villagePoints(v), 48 + buildingPoints('wall', 3));
     assert.equal(buildingPoints('wall', 3), 8 + 10 + 12);
   });
 });

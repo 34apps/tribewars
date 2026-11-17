@@ -11,11 +11,13 @@ export const BUILDING_IDS = [
   'hall',
   'lumber',
   'farm',
+  'longhouse',
   'mine',
   'goldmine',
   'storehouse',
   'barracks',
   'stables',
+  'wrightyard',
   'wall',
   'vault',
   'market',
@@ -26,7 +28,7 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain', 'logram', 'boulder'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain', 'firecart'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
 /**
@@ -41,7 +43,7 @@ export const MISSIONS = ['attack', 'scout', 'support', 'found', 'occupy'] as con
 export type Mission = (typeof MISSIONS)[number];
 
 /** Buildings that train units. */
-export const TRAINING_BUILDING_IDS = ['barracks', 'stables', 'bannerhall'] as const;
+export const TRAINING_BUILDING_IDS = ['barracks', 'stables', 'wrightyard', 'bannerhall'] as const;
 export type TrainingBuildingId = (typeof TRAINING_BUILDING_IDS)[number];
 
 export interface BuildingDef {
@@ -84,11 +86,10 @@ export interface UnitDef {
   /** If set, the unit must be researched once per village (Drillyard level needed to START the research). */
   research?: { drillyard: number; cost: Resources; timeSec: number };
   /**
-   * Siege units only (docs/GAME_DESIGN.md 18.9): after a won attack the survivors lower a building. `target` 'wall' = always the
-   * Wall; 'chosen' = the building the sender picked (random if none). `power` = siege points per surviving unit; `maxLevels` =
-   * most levels this kind lowers in one attack.
+   * Siege units only (docs/GAME_DESIGN.md 18.9): the Firecart lowers the Wall during the battle and, after a won attack, the building the
+   * sender picked (the Wall if none). `power` = siege points per unit; `maxLevels` = most levels it lowers in EACH of the two steps.
    */
-  siege?: { target: 'wall' | 'chosen'; power: number; maxLevels: number };
+  siege?: { power: number; maxLevels: number };
 }
 
 /** Training-point tracks (docs/GAME_DESIGN.md section 15). Keen is for the scout unit only. */
@@ -351,8 +352,8 @@ export interface BattleInput {
   /** True: nothing is looted even on a win (Strike attempts, relief attacks, map sites). Default false: loot is always full. */
   noLoot?: boolean;
   /**
-   * Building the Boulder Slings were told to hit (a BuildingId, picked by the sender). Absent = random among the buildings that
-   * can still drop, drawn from `seed`. Never checked against the village: the server must not reveal what a village has.
+   * Building the Firecarts were told to burn after a won battle (a BuildingId, picked by the sender). Absent = the Wall. Never checked
+   * against the village: the server must not reveal what a village has.
    */
   siegeTarget?: BuildingId | null;
   /** Defence factor applied to the defender's power (Wards at a held map site, GAME_DESIGN 18.5). Default 1. */
@@ -369,8 +370,6 @@ export interface SiegeHit {
   building: BuildingId;
   from: number;
   to: number;
-  /** The sender picked no building, so the engine drew one. */
-  random?: boolean;
 }
 
 export interface BattleResult {
@@ -389,11 +388,11 @@ export interface BattleResult {
   /** Resources taken from the defender (0s when the attacker lost). */
   loot: Resources;
   /**
-   * Buildings lowered by siege units, in order (Log Ram first); [] when nobody sieged. The Log Ram hit runs from the pre-battle Wall
+   * Buildings lowered by siege units, in order (the during-the-battle Wall hit first); [] when nobody sieged. A Wall hit runs from the pre-battle Wall
    * to the Wall after both steps (during + after); applies on a win and on a loss. Applied by applyBattleToDefender.
    */
   siege?: SiegeHit[];
-  /** The Wall level the defence used in this battle (after the Log Rams' during-the-battle hit). */
+  /** The Wall level the defence used in this battle (after the Firecarts' during-the-battle hit). */
   wallDuring: number;
 }
 

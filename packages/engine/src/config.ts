@@ -76,62 +76,70 @@ export const MAX_TRAIN_BATCH = 1000;
 
 /** Production per hour at level 1 (speed 1). Level L gives base * PRODUCTION_GROWTH^(L-1). */
 export const PRODUCTION_BASE: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
-  lumber: 30,
-  farm: 40,
-  mine: 30,
+  lumber: 54,
+  farm: 72,
+  mine: 54,
   goldmine: 3, // 1/10 of a Lumber Camp (owner, 2026-11-10): gold counts 10x in loot; GAME_DESIGN §2 has the sizing
 };
-export const PRODUCTION_GROWTH = 1.17;
+/** 25 levels (owner 2026-11-11): level 25 makes about 900 wood / 1,200 food / 900 iron an hour; Gold Mine 18 makes 27 gold, as the old level 15 did. */
+export const PRODUCTION_GROWTH: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
+  lumber: 1.1245,
+  farm: 1.1245,
+  mine: 1.1245,
+  goldmine: 1.138,
+};
 /** Wood/food/iron trickle per hour when the producing building is level 0. Gold has none. */
-export const PRODUCTION_LEVEL0 = 5;
+export const PRODUCTION_LEVEL0 = 9;
 
 /** Storehouse cap per resource: level 0 -> STORAGE_LEVEL0, level L -> base * growth^(L-1). */
-export const STORAGE_LEVEL0 = 800;
-export const STORAGE_BASE = 1000;
-export const STORAGE_GROWTH = 1.24;
+export const STORAGE_LEVEL0 = 1350;
+export const STORAGE_BASE = 1800;
+export const STORAGE_GROWTH = 1.177; // level 25 holds about 90,000
 
 /** Vault: resources per type raiders can't take. Level 0 -> 0, level L -> base * growth^(L-1). */
 export const VAULT_BASE = 120;
-export const VAULT_GROWTH = 1.35;
+export const VAULT_GROWTH = 1.28; // 12 levels: level 12 hides about 1,800, what the old level 10 hid
 
 /**
  * Population: a second limit next to food. Every building level and every troop (home, away or in training)
- * takes population; the Farm sets the cap. Queued building levels are reserved when queued. Abandoned villages
- * are exempt. Building at level L takes ceil(first * POP_BUILDING_GROWTH^(L-1)); the Farm itself takes none, so a
- * full village can always still upgrade its Farm.
+ * takes population; the Longhouse sets the cap (the Farm's job until the 2026-11-11 originality pass). Queued building levels are reserved when queued. Abandoned villages
+ * are exempt. Building at level L takes ceil(first * POP_BUILDING_GROWTH^(L-1)); the Longhouse itself takes none, so a
+ * full village can always still upgrade its Longhouse.
  */
 export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
   hall: 4,
   lumber: 3,
-  farm: 0,
+  farm: 3,
+  longhouse: 0,
   mine: 3,
   goldmine: 3,
   market: 4,
   storehouse: 3,
   barracks: 5,
   stables: 6,
+  wrightyard: 6,
   drillyard: 5,
   bannerhall: 6,
   wall: 2,
   vault: 2,
 };
-export const POP_BUILDING_GROWTH = 1.1;
+export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes about what a 20-level one did
 /** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 4, pathfinder: 1, chieftain: 8, logram: 3, boulder: 2 };
-/** Cap: Farm level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 3, pathfinder: 1, chieftain: 8, firecart: 3 };
+/** Cap: Longhouse level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
-export const POP_CAP_BASE = 150;
-export const POP_CAP_GROWTH = 1.2;
+export const POP_CAP_BASE = 151;
+export const POP_CAP_GROWTH = 1.2; // level 25 = about 12,000 (owner 2026-11-11): room for a big mixed army
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
-export const HALL_TIME_FACTOR = 0.95;
-/** Barracks/Stables speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
+export const HALL_TIME_FACTOR = 0.96; // 25 levels: the max level speeds construction as much as the old level 20 did (x0.38)
+/** Barracks/Stables/Wrightyard speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
 export const TRAIN_TIME_FACTOR = 0.94;
 
 /** Wall: defense * (1 + WALL_BONUS_PER_LEVEL * level), plus militia WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * level. */
-export const WALL_BONUS_PER_LEVEL = 0.05;
+export const WALL_BONUS_PER_LEVEL = 0.045; // 22 levels: level 22 = +99%, as the old level 20 (+100%)
 export const WALL_BASE_DEFENSE = 20;
-export const WALL_DEFENSE_PER_LEVEL = 15;
+export const WALL_DEFENSE_PER_LEVEL = 14;
 
 /** Battle: loser-side loss ratio = (weaker / stronger) ^ BATTLE_LOSS_EXPONENT. Luck is +-BATTLE_LUCK. */
 export const BATTLE_LOSS_EXPONENT = 1.5;
@@ -143,6 +151,12 @@ export const BATTLE_LUCK = 0.1;
  */
 export const MORALE_SMALL_SHARE = 1 / 3;
 export const MORALE_ATTACK_FACTOR = 0.75;
+
+/**
+ * Abandoned villages produce this share of what the same levels would (their stock is the loot raiders live on; the 25-level economy with
+ * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13; 0.5 -> 0.45 with the Longhouse split, which slows builders and so raised the raider / builder score ratio to 2.05). Players are never affected.
+ */
+export const NPC_PRODUCTION_FACTOR = 0.45;
 
 /** Abandoned villages. */
 export const NPC_MAX_LEVEL = 7;
@@ -168,109 +182,133 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     id: 'hall',
     name: 'Town Hall',
     description: 'Heart of the village. Each level makes construction faster and unlocks new buildings.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(90, 80, 70),
-    costGrowth: 1.26,
+    baseCost: res(135, 120, 105),
+    costGrowth: 1.23,
     baseTimeSec: 600,
-    timeGrowth: 1.32,
+    timeGrowth: 1.285,
   },
   lumber: {
     id: 'lumber',
     name: 'Lumber Camp',
     description: 'Woodcutters bring in wood every hour.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(50, 40, 30),
-    costGrowth: 1.25,
+    baseCost: res(75, 60, 45),
+    costGrowth: 1.207,
     baseTimeSec: 360,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   farm: {
     id: 'farm',
     name: 'Farm',
-    description: 'Grows food and sets how many people the village can hold, so a bigger Farm means room for a bigger army.',
-    maxLevel: 20,
+    description: 'Grows the food that troops and buildings are paid with. It takes population room like any other building: the Longhouse sets how much room there is.',
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(60, 30, 30),
-    costGrowth: 1.25,
+    baseCost: res(90, 45, 45),
+    costGrowth: 1.207,
     baseTimeSec: 360,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
+  },
+  longhouse: {
+    id: 'longhouse',
+    name: 'Longhouse',
+    description: 'The great hall where the clan lives. Sets how many people the village can hold, so a bigger Longhouse means room for a bigger army. It takes no room itself.',
+    maxLevel: 25,
+    startLevel: 1,
+    requires: {},
+    baseCost: res(90, 45, 45),
+    costGrowth: 1.207,
+    baseTimeSec: 360,
+    timeGrowth: 1.262,
   },
   mine: {
     id: 'mine',
     name: 'Iron Mine',
     description: 'Miners dig iron for weapons and stronger buildings.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(65, 45, 20),
-    costGrowth: 1.25,
+    baseCost: res(100, 70, 30),
+    costGrowth: 1.207,
     baseTimeSec: 420,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   goldmine: {
     id: 'goldmine',
     name: 'Gold Mine',
-    description: 'Slowly produces gold, used for elite troops (Knights), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
-    maxLevel: 15,
+    description: 'Slowly produces gold, used for elite troops (Ember Guards), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
+    maxLevel: 18,
     startLevel: 0,
     requires: { hall: 3 },
-    baseCost: res(150, 120, 180),
-    costGrowth: 1.3,
+    baseCost: res(225, 180, 270),
+    costGrowth: 1.22,
     baseTimeSec: 1500,
-    timeGrowth: 1.32,
+    timeGrowth: 1.275,
   },
   market: {
     id: 'market',
     name: 'Market',
     description: 'Traders carry resources to your other villages and to friends. Higher levels carry more per shipment.',
-    maxLevel: 10,
+    maxLevel: 12,
     startLevel: 0,
     requires: { hall: 3 },
-    baseCost: res(100, 70, 60),
-    costGrowth: 1.27,
+    baseCost: res(150, 105, 90),
+    costGrowth: 1.205,
     baseTimeSec: 1200,
-    timeGrowth: 1.3,
+    timeGrowth: 1.26,
   },
   storehouse: {
     id: 'storehouse',
     name: 'Storehouse',
     description: 'Raises how much of each resource the village can hold.',
-    maxLevel: 20,
+    maxLevel: 25,
     startLevel: 1,
     requires: {},
-    baseCost: res(70, 50, 40),
-    costGrowth: 1.24,
+    baseCost: res(105, 75, 60),
+    costGrowth: 1.207,
     baseTimeSec: 480,
-    timeGrowth: 1.3,
+    timeGrowth: 1.262,
   },
   barracks: {
     id: 'barracks',
     name: 'Barracks',
-    description: 'Trains infantry. Higher levels train faster and unlock new units.',
+    description: 'Trains troops on foot, up to the Ember Guard elite. Higher levels train faster and unlock new units.',
     maxLevel: 20,
     startLevel: 0,
     requires: { hall: 2 },
-    baseCost: res(200, 150, 120),
-    costGrowth: 1.26,
+    baseCost: res(300, 225, 180),
+    costGrowth: 1.23,
     baseTimeSec: 900,
-    timeGrowth: 1.32,
+    timeGrowth: 1.285,
   },
   stables: {
     id: 'stables',
     name: 'Stables',
-    description: 'Trains fast cavalry that can carry more loot.',
-    maxLevel: 15,
+    description: 'Keeps tame elks and trains the Elk Rider, a fast rider that carries a lot of loot.',
+    maxLevel: 18,
     startLevel: 0,
     requires: { hall: 5, barracks: 3 },
-    baseCost: res(260, 200, 300, 20),
-    costGrowth: 1.27,
+    baseCost: res(390, 300, 450, 20),
+    costGrowth: 1.22,
     baseTimeSec: 1800,
-    timeGrowth: 1.32,
+    timeGrowth: 1.275,
+  },
+  wrightyard: {
+    id: 'wrightyard',
+    name: 'Wrightyard',
+    description: 'Wrights build and train the Firecart, the clan\'s siege cart. Higher levels train faster. It has its own training queue.',
+    maxLevel: 12,
+    startLevel: 0,
+    requires: { barracks: 5 },
+    baseCost: res(390, 300, 450),
+    costGrowth: 1.22,
+    baseTimeSec: 1800,
+    timeGrowth: 1.275,
   },
   drillyard: {
     id: 'drillyard',
@@ -279,10 +317,10 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     maxLevel: 10,
     startLevel: 0,
     requires: { barracks: 3, hall: 5 },
-    baseCost: res(240, 180, 260, 15),
-    costGrowth: 1.28,
+    baseCost: res(360, 270, 390, 15),
+    costGrowth: 1.245,
     baseTimeSec: 1500,
-    timeGrowth: 1.32,
+    timeGrowth: 1.3,
   },
   bannerhall: {
     id: 'bannerhall',
@@ -293,7 +331,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     requires: { hall: 7, drillyard: 2, market: 2, storehouse: 6 },
     // Tuned with the sim (2026-11-04): the first design numbers (Hall 10, Drillyard 3, Market 3, Storehouse 8, 8000 each) put
     // the raider's Banner Hall after day 28. 2500 per resource fits the Storehouse level 6 that is required (cap 2930).
-    baseCost: res(1800, 2900, 1800, 100),
+    baseCost: res(2100, 3450, 2100, 100),
     costGrowth: 1.35,
     baseTimeSec: 72000,
     timeGrowth: 1.32,
@@ -302,25 +340,25 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     id: 'wall',
     name: 'Wall',
     description: 'Makes defenders stronger and adds village militia.',
-    maxLevel: 20,
+    maxLevel: 22,
     startLevel: 0,
     requires: { barracks: 1 },
-    baseCost: res(100, 40, 60),
-    costGrowth: 1.26,
+    baseCost: res(150, 60, 90),
+    costGrowth: 1.21,
     baseTimeSec: 720,
-    timeGrowth: 1.32,
+    timeGrowth: 1.265,
   },
   vault: {
     id: 'vault',
-    name: 'Hidden Vault',
+    name: 'Vault',
     description: 'Hides some of each resource so raiders cannot take it.',
-    maxLevel: 10,
+    maxLevel: 12,
     startLevel: 0,
     requires: { hall: 2 },
-    baseCost: res(40, 50, 30),
-    costGrowth: 1.28,
+    baseCost: res(60, 75, 45),
+    costGrowth: 1.225,
     baseTimeSec: 540,
-    timeGrowth: 1.32,
+    timeGrowth: 1.28,
   },
 };
 
@@ -328,15 +366,15 @@ export const UNITS: Record<UnitId, UnitDef> = {
   pikeman: {
     id: 'pikeman',
     name: 'Pikeman',
-    description: 'Cheap defender with long pikes. Very good against cavalry.',
+    description: 'Cheap defender with long pikes. Very good against riders.',
     unitClass: 'infantry',
-    attack: 10,
-    defenseInfantry: 15,
-    defenseCavalry: 45,
+    attack: 8,
+    defenseInfantry: 14,
+    defenseCavalry: 40,
     speed: 6,
-    carry: 15,
-    cost: res(30, 50, 30),
-    trainTimeSec: 270,
+    carry: 12,
+    cost: res(19, 23, 14), // 35 / 45 / 25 x 0.55 (food x 0.5), the branch troop cost cut
+    trainTimeSec: 260,
     building: 'barracks',
     requires: { barracks: 1 },
   },
@@ -345,13 +383,13 @@ export const UNITS: Record<UnitId, UnitDef> = {
     name: 'Shieldbearer',
     description: 'Heavy shield wall. Very good against infantry.',
     unitClass: 'infantry',
-    attack: 15,
-    defenseInfantry: 45,
-    defenseCavalry: 25,
+    attack: 12,
+    defenseInfantry: 42,
+    defenseCavalry: 22,
     speed: 5,
     carry: 10,
-    cost: res(25, 70, 55),
-    trainTimeSec: 330,
+    cost: res(17, 30, 28), // 30 / 60 / 50 x 0.55 (food x 0.5)
+    trainTimeSec: 320,
     building: 'barracks',
     requires: { barracks: 3 },
     research: { drillyard: 1, cost: res(150, 120, 200), timeSec: 3600 },
@@ -361,46 +399,46 @@ export const UNITS: Record<UnitId, UnitDef> = {
     name: 'Raider',
     description: 'Fierce attacker on foot. Weak in defense.',
     unitClass: 'infantry',
-    attack: 40,
-    defenseInfantry: 10,
-    defenseCavalry: 5,
+    attack: 36,
+    defenseInfantry: 8,
+    defenseCavalry: 6,
     speed: 6,
-    carry: 30,
-    cost: res(40, 80, 50),
-    trainTimeSec: 300,
+    carry: 28,
+    cost: res(25, 35, 25), // 45 / 70 / 45 x 0.55 (food x 0.5)
+    trainTimeSec: 290,
     building: 'barracks',
     requires: { barracks: 2 },
   },
   outrider: {
     id: 'outrider',
-    name: 'Outrider',
-    description: 'Fast light cavalry. Carries the most loot.',
+    name: 'Elk Rider',
+    description: 'Fast rider on a tame elk. The only mounted unit; carries the most loot.',
     unitClass: 'cavalry',
-    attack: 60,
-    defenseInfantry: 20,
-    defenseCavalry: 15,
-    speed: 14,
-    carry: 70,
-    cost: res(60, 170, 130),
-    trainTimeSec: 600,
+    attack: 65,
+    defenseInfantry: 18,
+    defenseCavalry: 16,
+    speed: 13,
+    carry: 75,
+    cost: res(39, 80, 66), // 70 / 160 / 120 x 0.55 (food x 0.5)
+    trainTimeSec: 620,
     building: 'stables',
     requires: { stables: 1 },
     research: { drillyard: 3, cost: res(300, 220, 350, 20), timeSec: 7200 },
   },
   knight: {
     id: 'knight',
-    name: 'Knight',
-    description: 'Armoured elite rider, strong in attack and defense. Costs gold.',
-    unitClass: 'cavalry',
-    attack: 110,
-    defenseInfantry: 70,
-    defenseCavalry: 50,
-    speed: 10,
-    carry: 40,
-    cost: res(100, 260, 230, 30),
-    trainTimeSec: 1320,
-    building: 'stables',
-    requires: { stables: 5, hall: 10 },
+    name: 'Ember Guard',
+    description: 'Elite warrior on foot who carries a live ember, strong in attack and defense. Costs gold.',
+    unitClass: 'infantry',
+    attack: 70,
+    defenseInfantry: 60,
+    defenseCavalry: 60,
+    speed: 5,
+    carry: 20,
+    cost: res(50, 90, 110, 14), // 90 / 180 / 200 / 25 x 0.55 (food x 0.5)
+    trainTimeSec: 1100,
+    building: 'barracks',
+    requires: { barracks: 8, hall: 8 },
     research: { drillyard: 6, cost: res(600, 450, 700, 80), timeSec: 14400 },
   },
   pathfinder: {
@@ -409,12 +447,12 @@ export const UNITS: Record<UnitId, UnitDef> = {
     description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home.',
     unitClass: 'infantry',
     attack: 0,
-    defenseInfantry: 2,
-    defenseCavalry: 1,
+    defenseInfantry: 3,
+    defenseCavalry: 2,
     speed: 18,
     carry: 0,
-    cost: res(15, 45, 30),
-    trainTimeSec: 180,
+    cost: res(11, 20, 14), // 20 / 40 / 25 x 0.55 (food x 0.5)
+    trainTimeSec: 170,
     building: 'barracks',
     requires: { barracks: 2 },
   },
@@ -428,58 +466,40 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 10,
     speed: 5,
     carry: 0,
-    cost: res(4000, 3000, 5000), // no gold: his gold price is paid from the War Chest (WAR_CHEST_BASE)
+    cost: res(6000, 4500, 7500), // x1.5 with the economy (2026-11-11); no gold: his gold price is paid from the War Chest (WAR_CHEST_BASE)
     trainTimeSec: 6 * 3600,
     building: 'bannerhall',
     requires: { bannerhall: 1 },
   },
-  // Siege units (docs/GAME_DESIGN.md 18.9). Slow, weak fighters; trained in the Barracks at a high level and researched at the
-  // Drillyard first. They only matter in a battle the attacker WINS: the survivors then lower a building (SIEGE_* below).
-  logram: {
-    id: 'logram',
-    name: 'Log Ram',
-    description: 'A heavy battering log on wheels. After a won attack the surviving rams knock down part of the Wall. Slow, and a poor fighter.',
+  // Siege unit (docs/GAME_DESIGN.md 18.9). Slow, weak fighter; trained at the Wrightyard and researched at the Drillyard first. It lowers
+  // the Wall during the battle and, after a won battle, the building the sender picked (SIEGE_* below).
+  firecart: {
+    id: 'firecart',
+    name: 'Firecart',
+    description: 'A cart of burning pitch. In the battle it burns down part of the Wall; after a won attack the surviving carts burn the building you pick when sending (the Wall if you pick none). Slow, and a poor fighter.',
     unitClass: 'infantry',
-    attack: 4,
-    defenseInfantry: 6,
-    defenseCavalry: 4,
+    attack: 5,
+    defenseInfantry: 7,
+    defenseCavalry: 5,
     speed: 3,
     carry: 0,
-    cost: res(170, 220, 180, 4),
-    trainTimeSec: 1200,
-    building: 'barracks',
-    requires: { barracks: 5 },
+    cost: res(99, 88, 121, 6), // 180 / 160 / 220 / 10 x 0.55, like the other troops on this branch
+    trainTimeSec: 1400,
+    building: 'wrightyard',
+    requires: { wrightyard: 1 },
     research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
-    siege: { target: 'wall', power: 1, maxLevels: 3 },
-  },
-  boulder: {
-    id: 'boulder',
-    name: 'Boulder Sling',
-    description: 'Hurls boulders over the Wall. After a won attack the surviving slings lower one building you pick when sending (a random one if you pick none). Slow, and a poor fighter.',
-    unitClass: 'infantry',
-    attack: 6,
-    defenseInfantry: 4,
-    defenseCavalry: 3,
-    speed: 4,
-    carry: 0,
-    cost: res(140, 240, 220, 12),
-    trainTimeSec: 1500,
-    building: 'barracks',
-    requires: { barracks: 8 },
-    research: { drillyard: 5, cost: res(700, 500, 900, 40), timeSec: 21600 },
-    siege: { target: 'chosen', power: 0.8, maxLevels: 2 },
+    siege: { power: 1, maxLevels: 2 },
   },
 };
 
 // ---- Siege (docs/GAME_DESIGN.md 18.9). Building levels only ever drop through siege. ----
 
 /**
- * Each siege kind (Log Ram, then Boulder Sling) lowers its target building. It has `count * power` siege points; lowering a
- * building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock
- * down. A kind lowers at most `maxLevels` levels per attack (its UnitDef.siege), both steps together.
- * Log Rams first fire DURING the battle with SIEGE_DURING_SHARE of the points they were sent with (the lowered Wall counts in
- * that battle); after it the survivors spend their full points. On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT *
- * SIEGE_LOST_SHARE) of each siege kind count as survivors for the after step.
+ * The Firecart lowers buildings in two steps. It has `count * power` siege points; lowering a building from level L to L-1 costs
+ * SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock down. Each step lowers at most `maxLevels`
+ * levels (UnitDef.siege). Step 1, DURING the battle: all Firecarts that were sent fire at the Wall with SIEGE_DURING_SHARE of their
+ * points (the lowered Wall counts in that battle). Step 2, after it: the survivors spend their full points on the building the sender picked
+ * (the Wall if none). On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT * SIEGE_LOST_SHARE) Firecarts count as survivors for step 2.
  */
 export const SIEGE_BASE_POINTS = 6;
 export const SIEGE_POINTS_PER_LEVEL = 2;
@@ -490,8 +510,8 @@ export const SIEGE_LOST_SHARE = 0.5;
 export const NOTIFICATIONS_KEEP = 100; // per player
 export const NOTIFICATION_MAX_AGE_DAYS = 7; // real days, not scaled by world speed
 export const NOTIFICATION_READ_MAX_IDS = 200; // ids per POST /api/notifications/read
-/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall, Farm and Storehouse never drop below 1 (owner 2026-11-05). */
-export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1, farm: 1, storehouse: 1 };
+/** Lowest level siege can bring a building to (default 0 = flattened). The Town Hall, Farm, Longhouse and Storehouse never drop below 1 (owner 2026-11-05). */
+export const SIEGE_MIN_LEVEL: Partial<Record<BuildingId, number>> = { hall: 1, farm: 1, longhouse: 1, storehouse: 1 };
 
 // ---- Renown (docs/GAME_DESIGN.md section 18.2, "Owning several villages"). Starting values; the sim step tunes the pace. ----
 
@@ -520,7 +540,7 @@ export const RENOWN_PAIR_WINDOW_HOURS = 24;
 export const RENOWN_SMALL_RATIO = 0.5;
 export const RENOWN_SMALL_FLOOR = 0.05;
 /** Renown price of the 2nd village; each further village costs RENOWN_VILLAGE_GROWTH times more. */
-export const RENOWN_VILLAGE_BASE = 1000;
+export const RENOWN_VILLAGE_BASE = 1300; // was 1,000 before the 2026-11-11 economy (x1.5 production, cheaper troops)
 export const RENOWN_VILLAGE_GROWTH = 1.6;
 /** War Chest gold the 2nd village's Chieftain reserves (BALANCE 12.3); each further one costs RENOWN_VILLAGE_GROWTH times more. */
 export const WAR_CHEST_BASE = 2000;
@@ -544,7 +564,8 @@ export const HOLD_FAIL_HOURS = 2;
 /** No new Strike on a village for this long after it changed owner (raids stay possible). */
 export const STRIKE_LOCK_HOURS = 24;
 /** Chieftains needed to Strike a player village: 1 + floor(points / this), at most HEARTH_MAX_CHIEFTAINS (abandoned: always 1). */
-export const HEARTH_POINTS_PER_CHIEFTAIN = 4000;
+// was 4000: with 25 levels villages are about 3x bigger (2026-11-11), so 4000 asked for the maximum 3 Chieftains almost everywhere (BALANCE 13.3)
+export const HEARTH_POINTS_PER_CHIEFTAIN = 12000;
 export const HEARTH_MAX_CHIEFTAINS = 3;
 /** Striking player villages (switched on in step 4, 2026-11-05). */
 export const HEARTH_PLAYERS_ENABLED = true;
@@ -563,7 +584,7 @@ export const RESTART_PROTECTION_HOURS = 48;
 /** The restart spot lies within this many tiles inside the edge of the populated disc. */
 export const RESTART_EDGE_BAND = 2;
 /** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
-export const FEAST_COST: Resources = res(400, 1000, 400, 0);
+export const FEAST_COST: Resources = res(600, 1500, 600, 0); // x1.5 with the economy (2026-11-11)
 export const FEAST_RENOWN = 10;
 /** Feasts per village per window, per Banner Hall level. */
 export const FEAST_DAILY_PER_LEVEL = 3;
@@ -618,6 +639,7 @@ export const NPC_START_LEVELS: Partial<Record<BuildingId, { perTier: number; off
   hall: { perTier: 1, offset: 0 },
   lumber: { perTier: 2, offset: 0 },
   farm: { perTier: 2, offset: 0 },
+  longhouse: { perTier: 2, offset: 0 }, // = the Farm level
   mine: { perTier: 2, offset: 0 },
   storehouse: { perTier: 2, offset: 0 },
   wall: { perTier: 1, offset: -1 },
@@ -712,11 +734,10 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   guard: 'foot',
   raider: 'foot',
   outrider: 'mounted',
-  knight: 'mounted',
+  knight: 'foot',
   pathfinder: 'pathfinder',
   chieftain: 'foot',
-  logram: 'carrier',
-  boulder: 'carrier',
+  firecart: 'carrier',
 };
 /** Length of one sample along the route, in tiles. */
 export const TERRAIN_SAMPLE_STEP = 1;
@@ -926,11 +947,13 @@ export const BUILDING_POINTS_BASE: Record<BuildingId, number> = {
   hall: 10,
   lumber: 8,
   farm: 8,
+  longhouse: 8,
   mine: 8,
   goldmine: 12,
   storehouse: 6,
   barracks: 10,
   stables: 12,
+  wrightyard: 12,
   wall: 8,
   vault: 6,
   market: 10,
@@ -1005,11 +1028,13 @@ export const BOT_BUILD_WEIGHTS: Record<BuildingId, number> = {
   hall: 2,
   lumber: 5,
   farm: 4,
+  longhouse: 4,
   mine: 5,
   goldmine: 3,
   storehouse: 4,
   barracks: 0,
   stables: 0,
+  wrightyard: 0,
   wall: 3,
   vault: 3,
   market: 1,
@@ -1064,12 +1089,13 @@ export const LOOKOUT_SIZE_BANDS = { smallBelow: 100, mediumBelow: 1000 } as cons
 export const LOOKOUT_LIST_LIMIT = 100;
 
 /**
- * First steps (docs/GAME_DESIGN.md "First steps"): eight starter tasks with a small reward each. Done is detected by the
+ * First steps (docs/GAME_DESIGN.md "First steps"): nine starter tasks with a small reward each. Done is detected by the
  * server (any order, sticky); the reward is claimed once into a village the player names. Order here = order shown.
  */
 export const FIRST_STEPS: readonly { id: FirstStepId; reward: Resources }[] = [
   { id: 'lumber2', reward: { wood: 150, food: 80, iron: 80, gold: 0 } },
   { id: 'farm2', reward: { wood: 80, food: 150, iron: 80, gold: 0 } },
+  { id: 'longhouse2', reward: { wood: 80, food: 150, iron: 80, gold: 0 } },
   { id: 'hall2', reward: { wood: 120, food: 120, iron: 120, gold: 0 } },
   { id: 'barracks2', reward: { wood: 250, food: 200, iron: 200, gold: 0 } },
   { id: 'raiders5', reward: { wood: 200, food: 200, iron: 200, gold: 20 } },

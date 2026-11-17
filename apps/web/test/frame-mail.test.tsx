@@ -91,13 +91,13 @@ test('toast kinds: ok means success; errors stay until closed; roles', () => {
   assert.equal(toastRole('info'), 'status');
 });
 
-test('population_full becomes a warning with a Farm action; other errors stay errors', () => {
+test('population_full becomes a warning with a Longhouse action; other errors stay errors', () => {
   let went = 0;
-  const t = errorToast('population_full', 'x', { farm: () => void went++ });
+  const t = errorToast('population_full', 'x', { longhouse: () => void went++ });
   assert.equal(t.kind, 'warning');
-  assert.equal(t.action?.label, 'Farm');
+  assert.equal(t.action?.label, 'Longhouse');
   t.action?.onClick();
   assert.equal(went, 1);
-  assert.equal(errorToast('not_found', 'x', { farm: () => undefined }).kind, 'error');
+  assert.equal(errorToast('not_found', 'x', { longhouse: () => undefined }).kind, 'error');
   assert.equal(errorToast('population_full', 'x', {}).kind, 'error');
 });

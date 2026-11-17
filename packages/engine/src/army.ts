@@ -136,7 +136,7 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
   }
   // Siege units only ever go on an attack: they cannot scout, found, occupy or be stationed.
   if (mission !== 'attack' && hasSiegeUnits(army)) {
-    return fail('invalid_input', 'Log Rams and Boulder Slings can only join an attack.');
+    return fail('invalid_input', 'Firecarts can only join an attack.');
   }
   const chieftains = army.chieftain;
   if (mission === 'found') {
@@ -243,7 +243,7 @@ export function moraleFactor(attackerPoints: number, defenderPoints: number, ena
 
 /**
  * Deterministic battle for a seed. Does not change any village; see applyBattleToDefender.
- * Log Rams fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
+ * Firecarts fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
  * With `s` of a world that has siege off (`features.siege` false) no siege step runs at all: the Wall stays as it is and
  * `siege` is []. Without `s` siege is on.
  */
@@ -283,7 +283,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     });
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
-  // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
+  // Firecarts sent fire first; the lowered Wall is what the defence uses in this battle.
   const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
   const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall) * (input.defenceMultiplier ?? 1);
 
@@ -315,8 +315,8 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden) + Math.max(0, Math.floor(input.extraLootable?.[r] ?? 0));
       loot = waterFillLoot(Math.floor(capacity), lootable);
     }
-    // The survivors shoot after the battle (Log Rams: full points, sharing their level cap with the during step).
-    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, input.seed, attackerUnits);
+    // The survivors shoot after the battle (Firecarts: full points on the picked building, the Wall if none).
+    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits);
   } else {
     const ratio = Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT);
     for (const u of UNIT_IDS) {
@@ -327,7 +327,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       });
     }
     // A lost attack still does reduced damage: a share of each siege kind counts as a survivor for the after step.
-    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, input.seed, attackerUnits);
+    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, attackerUnits);
   }
 
   return {

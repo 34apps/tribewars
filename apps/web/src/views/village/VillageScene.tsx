@@ -35,6 +35,7 @@ import {
   placementDepth,
   readySprite,
   SCENE_BASE_H,
+  SCENE_FIT_BOX,
   SCENE_VIEWBOX,
   scopeIds,
   spriteUrl,
@@ -68,11 +69,6 @@ const SHORT_NAME: Partial<Record<BuildingId, string>> = {
   vault: "Vault",
   bannerhall: "Banners",
 };
-/**
- * Middle of the village (the centre of the ground plate and ring wall, which is also the square), in scene units: where a desktop
- * frame centres the village. The Town Hall's sprite sits just below it and the towers rise above it, so the picture is balanced.
- */
-const VILLAGE_MIDDLE = { x: SCENE_FOCUS.x, y: SCENE_FOCUS.y + 26 } as const;
 const MAX_LEVELS = Object.fromEntries(
   BUILDING_IDS.map((id) => [id, BUILDINGS[id].maxLevel]),
 ) as Record<BuildingId, number>;
@@ -458,9 +454,12 @@ export const SceneArt = memo(function SceneArt({
         landscape={landscape}
         tier={tier}
         wide={wide}
+        // "id:look" of every building that stands or is queued: its road shows, surfaced by its look.
         built={BUILDING_IDS.filter(
           (id) => arts[id].stage > 0 || arts[id].queued,
-        ).join(",")}
+        )
+          .map((id) => `${id}:${Math.max(1, arts[id].stage)}`)
+          .join(",")}
       />
       <svg
         className="vv-svg"
@@ -793,9 +792,10 @@ export function VillageScene({
   // Landscape outside the walls grows with the village (whole-village progress or the wall's, whichever is further).
   const tier = villageTier(levels, MAX_LEVELS);
 
-  // One fixed scene box for every wall level: it always holds the headroom for the grandest towers and flags, so the
-  // village never changes size or position when the wall is upgraded and nothing is clipped at the top.
-  const vb = SCENE_VIEWBOX;
+  // One fixed scene box for every wall level, so the village never changes size or position when the wall is upgraded. Phones
+  // pan over the whole box (with the headroom for the grandest towers); the desktop picture fits the tighter box round the
+  // buildings (SCENE_FIT_BOX), so they stay as big as before the ring grew, and the wall tips paint past it.
+  const vb = mode === "fit" ? SCENE_FIT_BOX : SCENE_VIEWBOX;
   const VB = vb;
 
   // Hit buttons in painter's order, so the building in front wins where boxes overlap.
@@ -967,14 +967,7 @@ export function VillageScene({
           transform: pan ? `translate3d(${pan.x}px, ${pan.y}px, 0)` : undefined,
           visibility: pan ? undefined : "hidden",
         }
-      : ({
-          "--vb-ratio": VB.w / VB.h,
-          // The frame shows the scene "cover" style, centred on the middle of the box. The village is not in the middle of the box
-          // (headroom for tall towers above it), so shift the stage by the difference, as a share of its own size: whatever the
-          // frame's shape, the middle of the built-up area lands in the middle of the frame.
-          "--vb-dx": `${(0.5 - (VILLAGE_MIDDLE.x - VB.x) / VB.w) * 100}%`,
-          "--vb-dy": `${(0.5 - (VILLAGE_MIDDLE.y - VB.y) / VB.h) * 100}%`,
-        } as CSSProperties);
+      : ({ "--vb-ratio": VB.w / VB.h } as CSSProperties);
 
   return (
     <div

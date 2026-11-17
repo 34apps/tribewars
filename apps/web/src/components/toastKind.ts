@@ -23,8 +23,8 @@ export function toastTtl(kind: ToastKindInput | undefined, hasAction: boolean): 
 export const toastRole = (kind: ToastKindInput | undefined): 'alert' | 'status' => (normalizeKind(kind) === 'error' ? 'alert' : 'status');
 
 /** An error that has a known fix gets a warning with a button; everything else stays an error. */
-export function errorToast(code: string | undefined, message: string, fixes: { farm?: () => void }): { kind: ToastKind; action?: { label: string; onClick: () => void } } {
-  if (code === 'population_full' && fixes.farm) return { kind: 'warning', action: { label: 'Farm', onClick: fixes.farm } };
+export function errorToast(code: string | undefined, message: string, fixes: { longhouse?: () => void }): { kind: ToastKind; action?: { label: string; onClick: () => void } } {
+  if (code === 'population_full' && fixes.longhouse) return { kind: 'warning', action: { label: 'Longhouse', onClick: fixes.longhouse } };
   void message;
   return { kind: 'error' };
 }

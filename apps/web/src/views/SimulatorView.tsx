@@ -125,7 +125,7 @@ function OutcomeColumn({ label, o, setup }: { label: string; o: SimOutcome; setu
             <dt>Wall</dt>
             <dd>
               {o.wallBefore} → {o.wallAfter}
-              {o.wallAfter !== o.wallBefore && <span className="muted small"> (rams)</span>}
+              {o.wallAfter !== o.wallBefore && <span className="muted small"> (Firecarts)</span>}
             </dd>
           </div>
         )}
@@ -188,7 +188,7 @@ export function SimulatorView() {
   const supportUnits = useMemo(() => unitsFromText(support), [support]);
   const siegeOn = siegeEnabled(settings);
   const moraleOn = worldRules(settings).features.morale;
-  const hasSling = attacker.boulder > 0;
+  const hasSling = attacker.firecart > 0;
   const target = (BUILDINGS as Record<string, unknown>)[siegePick] ? (siegePick as BuildingId) : null;
 
   const setup: SimSetup = {

@@ -48,7 +48,7 @@ export function topMember<T extends Pick<TribeMemberDto, 'username' | 'points'>>
   return best;
 }
 
-/** What the Watchtower shows about an attack, as one short phrase ("medium, Log Rams", "small ~120, Raiders"), or '' when it shows nothing. */
+/** What the Watchtower shows about an attack, as one short phrase ("medium, Firecarts", "small ~120, Raiders"), or '' when it shows nothing. */
 export function alertDetail(a: Pick<TribeAlertDto, 'sizeBand' | 'sizeAbout' | 'slowestUnit'>, unitName: (u: UnitId) => string): string {
   const size = a.sizeBand ? `${a.sizeBand}${a.sizeAbout !== undefined && a.sizeAbout > 0 ? ` ~${a.sizeAbout.toLocaleString('en-US')}` : ''}` : '';
   const unit = a.slowestUnit ? unitName(a.slowestUnit) : '';

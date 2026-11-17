@@ -29,3 +29,4 @@ export * from './world-config.ts';
 export * from './tribe-projects.ts';
 export * from './badges.ts';
 export * from './firstSteps.ts';
+export * from './migrate.ts';

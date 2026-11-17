@@ -78,7 +78,7 @@ describe('normalizeVillage / old saved states', () => {
     const out = normalizeVillage(old);
     assert.deepEqual(out.troops, units({ pikeman: 12, raider: 6 }));
     assert.deepEqual(out.away, units({ raider: 4 }));
-    assert.deepEqual(out.trainQueues, { barracks: [], stables: [], bannerhall: [] });
+    assert.deepEqual(out.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
     assert.equal(out.buildings.vault, 0);
     assert.equal(out.buildings.barracks, 3);
     assert.notEqual(out.troops, old.troops);
@@ -180,7 +180,7 @@ describe('resolveBattle with support', () => {
     const attackerUnits = units({ raider: 30 });
     const alone = resolveBattle({ attackerUnits, defender: host({ pikeman: 80 }), seed: 2 });
     const split = resolveBattle({ attackerUnits, defender: host({ pikeman: 30 }), support: [units({ pikeman: 50 })], seed: 2 });
-    assert.ok(near(alone.defensePower, 80 * 15 + 20, 1e-9));
+    assert.ok(near(alone.defensePower, 80 * 14 + 20, 1e-9));
     assert.equal(split.defensePower, alone.defensePower);
     assert.equal(split.attackPower, alone.attackPower);
     // defenderUnits stays the village's own troops.
@@ -188,8 +188,8 @@ describe('resolveBattle with support', () => {
   });
 
   it('weighs support against the attack mix and applies the wall to it', () => {
-    const mixed = units({ raider: 50, outrider: 10 }); // 2000 infantry + 600 cavalry
-    const si = 2000 / 2600;
+    const mixed = units({ raider: 50, outrider: 10 }); // 1800 infantry + 650 cavalry
+    const si = 1800 / 2450;
     const sc = 1 - si;
     const r = resolveBattle({
       attackerUnits: mixed,
@@ -199,8 +199,8 @@ describe('resolveBattle with support', () => {
     });
     const perUnit = (inf: number, cav: number): number => inf * si + cav * sc;
     const dUnits =
-      (10 + 5) * perUnit(15, 45) + 8 * perUnit(45, 25) + 3 * perUnit(2, 1) + 1 * perUnit(70, 50);
-    assert.ok(near(r.defensePower, (dUnits + 20 + 15 * 2) * 1.1, 1e-9));
+      (10 + 5) * perUnit(14, 40) + 8 * perUnit(42, 22) + 3 * perUnit(3, 2) + 1 * perUnit(60, 60);
+    assert.ok(near(r.defensePower, (dUnits + 20 + 14 * 2) * 1.09, 1e-9));
   });
 
   it('one contingent, defender wins: every group loses round(count * (A/D)^1.5)', () => {

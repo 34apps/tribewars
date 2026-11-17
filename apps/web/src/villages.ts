@@ -13,7 +13,7 @@ import {
   UNIT_IDS,
   chieftainsNeeded,
   createNpcVillage,
-  hasChosenSiege,
+  hasSiegeUnits,
   moraleFactor,
   normalizeUnits,
   occupierPopulation,
@@ -307,7 +307,7 @@ export function occupyWarning(chosen: Partial<Units>, alreadyThere: number, minP
 
 /**
  * Units at home that make sense for this mode (scouts: Pathfinders only; support and occupy: no Chieftains). Siege units
- * (Log Ram, Boulder Sling) only join an attack, as in checkMission.
+ * (the Firecart) only join an attack, as in checkMission.
  */
 export function selectableUnits(mode: SendMode, atHome: Units, siegeOn = true): Array<(typeof UNIT_IDS)[number]> {
   const home = normalizeUnits(atHome);
@@ -330,12 +330,12 @@ export function selectableUnits(mode: SendMode, atHome: Units, siegeOn = true): 
 
 // ---- Siege (docs/GAME_DESIGN.md 18.9) -------------------------------------------------------------------
 
-/** The building picker shows only on an attack that carries Boulder Slings (the units that take a chosen building). */
+/** The building picker shows only on an attack that carries Firecarts (the units that burn a chosen building). */
 export function showsSiegePicker(mission: Mission, chosen: Partial<Units>, siegeOn = true): boolean {
-  return siegeOn && mission === 'attack' && hasChosenSiege(chosen);
+  return siegeOn && mission === 'attack' && hasSiegeUnits(chosen);
 }
 
-/** Buildings a Boulder Sling can be told to hit. Names only: levels are known from a scouting report, never here. */
+/** Buildings a Firecart can be told to burn. Names only: levels are known from a scouting report, never here. */
 export function siegeTargetOptions(): Array<{ id: BuildingId; name: string }> {
   return BUILDING_IDS.map((id) => ({ id, name: BUILDINGS[id].name }));
 }
@@ -382,18 +382,18 @@ export function abandonedStrength(points: number): { band: StrengthBand; maxTroo
   return { band: maxTroops <= WEAK_UP_TO_TROOPS ? 'weak' : maxTroops <= MEDIUM_UP_TO_TROOPS ? 'medium' : 'strong', maxTroops };
 }
 
-/** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = random = leave it out). */
+/** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = the Wall = leave it out). */
 export function siegeTargetFor(mission: Mission, chosen: Partial<Units>, picked: string): BuildingId | undefined {
   if (!showsSiegePicker(mission, chosen)) return undefined;
   return (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
 }
 
-/** One report line per siege hit: "Log Ram: Wall 8 -> 6", "Boulder Sling: Market 4 -> 3 (random)", or why nothing happened. */
+/** One report line per siege hit: "Firecart: Wall 8 -> 6", "Firecart: Market 4 -> 3", or why nothing happened. */
 export function siegeHitText(h: SiegeHit): string {
   const unit = UNITS[h.unit]?.name ?? h.unit;
   const building = BUILDINGS[h.building]?.name ?? h.building;
-  if (h.from === h.to) return `${unit} found nothing to hit at ${building}${h.random ? ' (random)' : ''}.`;
-  return `${unit}: ${building} ${h.from} → ${h.to}${h.random ? ' (random)' : ''}`;
+  if (h.from === h.to) return `${unit} found nothing to hit at ${building}.`;
+  return `${unit}: ${building} ${h.from} → ${h.to}`;
 }
 
 /** Free-tile Found needs exactly one Chieftain; the rest is the escort. */

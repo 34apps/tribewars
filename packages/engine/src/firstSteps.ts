@@ -18,6 +18,7 @@ export interface FirstStepsSnapshot {
 const BUILDING_STEPS: ReadonlyArray<[FirstStepId, BuildingId]> = [
   ['lumber2', 'lumber'],
   ['farm2', 'farm'],
+  ['longhouse2', 'longhouse'],
   ['hall2', 'hall'],
   ['barracks2', 'barracks'],
 ];

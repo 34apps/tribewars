@@ -21,7 +21,7 @@ const fail = (fn: () => unknown) => assert.throws(fn, (e: unknown) => e instance
 describe('cancelling queued jobs', () => {
   it('refund is 80% of the build cost, rounded down; the job leaves the queue', () => {
     assert.equal(CANCEL_REFUND_PERCENT, 80);
-    const start = village({ resources: rich, buildings: { storehouse: 20 } });
+    const start = village({ resources: rich, buildings: { storehouse: 25 } });
     const queued = applyBuild(start, 'lumber', 0, S1);
     const cost = buildingCost('lumber', queued.buildQueue[0]!.targetLevel);
     const { state, refund } = applyCancelBuild(queued, 0, 0, S1);
@@ -31,7 +31,7 @@ describe('cancelling queued jobs', () => {
   });
 
   it('only the newest build job can be cancelled; bad indexes are refused', () => {
-    let v = village({ resources: rich, buildings: { storehouse: 20 } });
+    let v = village({ resources: rich, buildings: { storehouse: 25 } });
     v = applyBuild(v, 'lumber', 0, S1);
     v = applyBuild(v, 'mine', 0, S1);
     fail(() => applyCancelBuild(v, 0, 0, S1));
@@ -41,7 +41,7 @@ describe('cancelling queued jobs', () => {
   });
 
   it('cancelling a training batch refunds 80% of the untrained rest and moves later batches up', () => {
-    let v = village({ resources: rich, buildings: { barracks: 3, storehouse: 20 } });
+    let v = village({ resources: rich, buildings: { barracks: 3, storehouse: 25 } });
     v = applyTrain(v, 'pikeman', 10, 0, S1);
     v = applyTrain(v, 'pikeman', 4, 0, S1);
     const second = v.trainQueues.barracks[1]!;
@@ -55,7 +55,7 @@ describe('cancelling queued jobs', () => {
   });
 
   it('units already trained stay and only the rest is refunded', () => {
-    let v = village({ resources: rich, buildings: { barracks: 3, storehouse: 20 } });
+    let v = village({ resources: rich, buildings: { barracks: 3, storehouse: 25 } });
     v = applyTrain(v, 'pikeman', 10, 0, S1);
     const perUnit = v.trainQueues.barracks[0]!.perUnitMs;
     const t = perUnit * 3 + 1;
@@ -74,7 +74,7 @@ describe('cancelling queued jobs', () => {
 
 describe('cancelling research', () => {
   it('refunds 80% of the cost, clears the job and leaves the unit unresearched', () => {
-    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 25, farm: 20, drillyard: 10 };
     const started = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
     const cost = UNITS.guard.research!.cost;
     const { state, refund } = applyCancelResearch(started, 0, 0, S1);
@@ -87,7 +87,7 @@ describe('cancelling research', () => {
   });
 
   it('cancelling the running research starts the waiting one right away', () => {
-    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+    const base = { hall: 10, barracks: 5, stables: 5, storehouse: 25, farm: 20, drillyard: 10 };
     const a = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
     const b = applyResearch(a, 'outrider', 0, S1);
     const outMs = UNITS.outrider.research!.timeSec * 1000;
@@ -99,7 +99,7 @@ describe('cancelling research', () => {
 });
 
 describe('research queue', () => {
-  const base = { hall: 10, barracks: 5, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
+  const base = { hall: 10, barracks: 5, stables: 5, storehouse: 25, farm: 20, drillyard: 10 };
   it('holds 2 by default, more with a larger limit, and finishes jobs one after another', () => {
     const a = applyResearch(village({ buildings: base, resources: rich }), 'guard', 0, S1);
     const b = applyResearch(a, 'outrider', 0, S1);

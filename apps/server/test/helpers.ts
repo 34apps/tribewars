@@ -131,14 +131,14 @@ export async function weakestAbandoned(c: Client, radius: number) {
 
 /**
  * Take a fresh village from nothing to `n` raiders at home using only the public API:
- * Town Hall 2 -> Barracks 1 -> Barracks 2 -> Storehouse 3 (a raider batch needs more food than the level 1 store holds), wait for resources, train,
+ * Town Hall 2 -> Barracks 1 -> Barracks 2 (a level 1 Storehouse holds 1,800 of each, enough for 14 raiders), wait for resources, train,
  * wait for training.
  */
 export async function trainRaiders(c: Client, clock: Clock, n: number): Promise<number> {
   const vid = (await c.village()).id;
-  for (const building of ['hall', 'barracks', 'barracks', 'storehouse', 'storehouse']) {
+  for (const building of ['hall', 'barracks', 'barracks']) {
     ok(await c.post(`/api/villages/${vid}/build`, { building }));
-    clock.advance(10 * MINUTE);
+    clock.advance(30 * MINUTE); // costs x1.5 (2026-11-11): the three builds need about 1,000 wood, the start stock is 600 (speed 10 makes 540 an hour)
   }
   clock.advance(3 * HOUR);
   const trained = await c.post(`/api/villages/${vid}/train`, { unit: 'raider', count: n });

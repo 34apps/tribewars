@@ -34,7 +34,7 @@ test('no pointer while the build queue is full (its button could not be pressed)
 });
 
 test('train step opens the barracks; after the building steps there is no pointer (no suggestions outside First steps)', () => {
-  const upTo = ['lumber2', 'farm2', 'hall2', 'barracks2'] as FirstStepId[];
+  const upTo = ['lumber2', 'farm2', 'longhouse2', 'hall2', 'barracks2'] as FirstStepId[];
   assert.deepEqual(pickGuide(dto(upTo), info({ barracks: 'build' })), { id: 'barracks', kind: 'open', title: 'Train 5 Raiders' });
   const done = FIRST_STEPS.map((s) => s.id).filter((s) => s !== 'raid' && s !== 'report' && s !== 'tribe');
   assert.equal(pickGuide(dto(done), info({ lumber: 'build', farm: 'build', mine: 'afford' })), null);

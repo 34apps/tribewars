@@ -20,10 +20,10 @@ async function one() {
   return { app, clock, p, vid };
 }
 
-test('a new player sees all eight steps, none done, in the approved order with the approved rewards', async () => {
+test('a new player sees all nine steps, none done, in the approved order with the approved rewards', async () => {
   const { p } = await one();
   const s = await steps(p.c);
-  assert.deepEqual(s.steps.map((x) => x.id), ['lumber2', 'farm2', 'hall2', 'barracks2', 'raiders5', 'raid', 'report', 'tribe']);
+  assert.deepEqual(s.steps.map((x) => x.id), ['lumber2', 'farm2', 'longhouse2', 'hall2', 'barracks2', 'raiders5', 'raid', 'report', 'tribe']);
   assert.ok(s.steps.every((x) => !x.done && !x.claimed));
   assert.deepEqual(s.steps.map((x) => x.reward), FIRST_STEPS.map((x) => x.reward));
   assert.equal(s.hidden, false);
@@ -36,6 +36,8 @@ test('a started upgrade to level 2 counts at once; levels reached before the car
   assert.deepEqual(await doneIds(p.c), ['lumber2']); // still under construction
   setBuilding(app, p.id, 'farm', 3); // an "old" player
   assert.deepEqual((await doneIds(p.c)).sort(), ['farm2', 'lumber2']);
+  ok(await p.c.post(`/api/villages/${vid}/build`, { building: 'longhouse' }));
+  assert.ok((await doneIds(p.c)).includes('longhouse2'), 'raising the Longhouse to 2 is a step of its own');
 });
 
 test('hall, barracks and raiders (counted while still training) become done through the real build and train routes', async () => {
@@ -58,7 +60,7 @@ test('raiders in training and away count toward five; the step is sticky when th
   assert.ok((await doneIds(p.c)).includes('raiders5')); // all five still in the queue
   // They all die (queue and troops wiped): the step stays done.
   const w = app.ctx.store.getVillage(vid)!;
-  w.state.trainQueues = { barracks: [], stables: [], bannerhall: [] };
+  w.state.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   w.state.troops.raider = 0;
   app.ctx.store.saveVillage(w.id, w.state, w.points);
   assert.ok((await doneIds(p.c)).includes('raiders5'));

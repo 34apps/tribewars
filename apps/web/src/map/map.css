@@ -1026,7 +1026,7 @@
   grid-template-columns: 1fr;
 }
 
-/* Boulder Sling target: a labelled full-width select (44 px tall, like the unit fields) and a one-line hint. */
+/* Firecart target: a labelled full-width select (44 px tall, like the unit fields) and a one-line hint. */
 .wm-siege {
   display: grid;
   gap: 4px;

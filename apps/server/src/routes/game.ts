@@ -114,7 +114,7 @@ const cancelTrainBody = {
   required: ['building', 'index'],
   additionalProperties: false,
   properties: {
-    building: { type: 'string', enum: ['barracks', 'stables', 'bannerhall'] },
+    building: { type: 'string', enum: ['barracks', 'stables', 'wrightyard', 'bannerhall'] },
     index: { type: 'integer', minimum: 0, maximum: queueIndexMax('queues.train') },
   },
 } as const;
@@ -147,7 +147,7 @@ const sendBody = {
     y: COORD,
     units: unitsObject,
     mission: { type: 'string', enum: [...MISSIONS] },
-    // Form only here (a string); whether it names a building, and that the army has Boulder Slings, is checked in game.send.
+    // Form only here (a string); whether it names a building, and that the army has Firecarts, is checked in game.send.
     targetBuilding: { type: 'string', maxLength: 32 },
     travelSeconds: { type: 'integer', minimum: 0, maximum: 86400 },
     returnSeconds: { type: 'integer', minimum: 0, maximum: 86400 },

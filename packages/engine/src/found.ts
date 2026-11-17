@@ -55,7 +55,7 @@ export function abandonVillageKeepBuildings(state: VillageState, now: number, s:
   delete v.feast;
   delete v.defenceMark;
   v.buildQueue = [];
-  v.trainQueues = { barracks: [], stables: [], bannerhall: [] };
+  v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   v.away = emptyUnits();
   const hall = v.buildings.hall;
   v.troops = fullGarrison(hall);

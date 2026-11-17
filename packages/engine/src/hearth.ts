@@ -215,7 +215,7 @@ export function applyOwnerChange(
   delete v.protectedUntil;
   v.renownPaid = paid;
   v.buildQueue = [];
-  v.trainQueues = { barracks: [], stables: [], bannerhall: [] };
+  v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   v.troops = emptyUnits();
   v.away = emptyUnits();
   const cap = storageCap(v);

@@ -24,11 +24,13 @@ const FILE: Record<BuildingId, string> = {
   hall: 'town-hall',
   lumber: 'lumber-camp',
   farm: 'farm',
+  longhouse: 'longhouse',
   mine: 'iron-mine',
   goldmine: 'gold-mine',
   storehouse: 'storehouse',
   barracks: 'barracks',
   stables: 'stables',
+  wrightyard: 'wrightyard',
   wall: 'wall',
   vault: 'hidden-vault',
   market: 'market',
@@ -42,17 +44,19 @@ const FILE: Record<BuildingId, string> = {
  * max level only (owner, 2026-11-06: four looks per building, the fourth only at the very last level).
  */
 export const STAGE_TOPS: Record<BuildingId, readonly [number, number]> = {
-  hall: [5, 12],
-  lumber: [5, 12],
-  farm: [5, 12],
-  mine: [5, 12],
-  storehouse: [5, 12],
+  hall: [6, 15],
+  lumber: [6, 15],
+  farm: [6, 15],
+  longhouse: [6, 15],
+  mine: [6, 15],
+  storehouse: [6, 15],
   barracks: [5, 12],
-  wall: [5, 12],
-  goldmine: [5, 10],
-  stables: [5, 10],
+  wall: [5, 13],
+  goldmine: [4, 10],
+  stables: [4, 10],
   vault: [3, 7],
-  market: [3, 6],
+  wrightyard: [3, 7],
+  market: [3, 7],
   drillyard: [3, 6],
   bannerhall: [1, 2],
 };
@@ -80,7 +84,7 @@ export function lookStartLevel(id: BuildingId, stage: Exclude<Stage, 0>): number
   return stage === 1 ? 1 : stage === 2 ? a + 1 : stage === 3 ? b + 1 : BUILDINGS[id].maxLevel;
 }
 
-/** "6–12" style level range of a stage, for captions ("20" for a single level). */
+/** "7–15" style level range of a stage, for captions ("25" for a single level). */
 export function stageRange(id: BuildingId, stage: Exclude<Stage, 0>): string {
   const [a, b] = STAGE_TOPS[id];
   const max = BUILDINGS[id].maxLevel;
@@ -109,12 +113,13 @@ export const SCAFFOLD_URL = fileUrl('scaffold');
 // the same 2:1 projection the sprites use. The ground plate is the square |u|, |v| <= WALL_RING.plate and the ring wall
 // runs along its very edge. The Town Hall stands in the middle on a small paved square; the core buildings form a ring
 // around it, joined by dirt roads radiating from the hall; the resource sites sit out in the four corners (forest, rocks,
-// fields). Owner 2026-11-06: the town looked crowded, so the plate grew from 234 to 273 (14 land tiles) and the plots were
-// spread in the same arrangement: no two drawings touch at any of their four looks (painted shapes measured from the art,
+// fields). Owner 2026-11-06: the town looked crowded, so the plate grew from 234 to 273 (14 land tiles). 2026-11-11: 312 (16 tiles)
+// for the Longhouse and the Wrightyard (351 made every building ~22% smaller on a desktop; the owner wants the old size), with
+// the plots spread in about the same arrangement: no two drawings touch at any of their four looks (painted shapes measured from the art,
 // test/village-layout.test.tsx).
 
-/** Ring centre in scene units. */
-const C = { x: 552, y: 412 } as const;
+/** Ring centre in scene units (both multiples of 4, the layout test's grid). */
+const C = { x: 2 * 312 + 8, y: 312 + 140 } as const;
 
 /** Screen point of the ground point (u, v), lifted by z. */
 export function iso(u: number, v: number, z = 0): [number, number] {
@@ -144,20 +149,28 @@ export const GATES: readonly Gate[] = [{ side: 'front-left', at: 8, half: 16, ma
  * The ground plate (half-side `plate` in grid units) and the ring wall on its edge (`r`: the wall's middle line).
  * One gate, `gateHalf` wide each way, where the main road leaves through the front-left wall at u = `gateU`.
  */
-export const WALL_RING = { cx: C.x, cy: C.y, r: 268, plate: 273, gateHalf: 16, gateU: 8 } as const;
+export const WALL_RING = { cx: C.x, cy: C.y, r: 307, plate: 312, gateHalf: 16, gateU: 8 } as const;
 
 /** Where the phone view first looks: the Town Hall. */
 export const SCENE_FOCUS = { x: C.x, y: C.y - 26 } as const;
 
 /**
  * Scene coordinate space: the ground plate plus its edge, with the same empty headroom above it at EVERY wall level.
- * The tallest thing is the grand (max wall level) back corner tower: plate corner 255 above the centre (273 - 18) +
- * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 392 units, plus pen width; 412 leaves ~20 units spare. Below the
- * centre: the plate's front corner (273), its earth side (24) and a few units. Sideways: the side corners (546) + 6.
+ * The tallest thing is the grand (max wall level) back corner tower: plate corner 294 above the centre (312 - 18) +
+ * footing 48 + shaft 34 + roof 32 + flag pole 4 + 19 = 431 units, plus pen width; 452 leaves ~21 units spare. Below the
+ * centre: the plate's front corner (312), its earth side (24) and a few units. Sideways: the side corners (624) + 8.
  * One fixed box (not one per wall look) means the village never changes size or position when the wall is upgraded,
- * and nothing is clipped at any level.
+ * and nothing is clipped at any level. The phone pans over this box.
  */
-export const SCENE_VIEWBOX = { x: C.x - 552, y: C.y - 412, w: 1104, h: 412 + 302 } as const;
+export const SCENE_VIEWBOX = { x: 0, y: 0, w: 2 * C.x, h: C.y + 312 + 29 } as const;
+
+/**
+ * What the desktop village picture fits (contain): every building drawing at every look with a margin, the whole front of
+ * the plate, and as much of the back as the frame's shape allows. The side corners of the ring (empty wall tips) and the top of the
+ * grand back tower paint past it (the scene draws outside its box; the frame clips). Its shape is the 1440x900 frame's
+ * picture (648 x 410 px), so there the village is 648 / 1104 = 0.587 px per unit, the size it had at plate 273.
+ */
+export const SCENE_FIT_BOX = { x: C.x - 541, y: C.y - 360, w: 1104, h: 698 } as const;
 
 /** Height the phone zoom is based on (kept from the smaller village, so buildings stay as big on a phone as before). */
 export const SCENE_BASE_H = 250 + 262;
@@ -189,23 +202,26 @@ export const OUTSIDE: ReadonlySet<BuildingId> = new Set<BuildingId>();
 export const PLACEMENT: Record<BuildingId, Placement> = {
   // The heart of the village: the Town Hall in the middle (a little forward, so its tower clears the Banner Hall behind).
   hall: plot(26, 26, 1.21),
-  // Core buildings in a ring around it.
-  storehouse: plot(208, -19, 1.365),
-  barracks: plot(-209, 22, 1.365),
-  stables: plot(58, -210, 1.32),
-  vault: plot(-148, -205, 1.155),
-  // Market and Drill Yard on either side of the main road to the gate.
-  market: plot(67, 182, 1.26),
-  drillyard: plot(-82, 143, 1.31),
+  // Core buildings in a ring around it; the Drill Yard beside the Barracks, on the left of the square.
+  barracks: plot(-244, -40, 1.365),
+  drillyard: plot(-96, 40, 1.31),
+  storehouse: plot(244, -112, 1.365),
+  stables: plot(52, -220, 1.32),
+  vault: plot(-148, -216, 1.155),
+  // Either side of the main street from the gate: the Market on the right, the Wrightyard on the left (carts roll straight out).
+  market: plot(76, 196, 1.26),
+  wrightyard: plot(-148, 152, 1.3),
   // The Banner Hall stands at the back behind the hall, on its own road straight up from the square.
-  bannerhall: plot(1, -131, 0.945),
-  // Resource sites out in the four corners: gold in the back rocks, iron on the right, timber on the left, fields in front.
-  goldmine: plot(-197, -115, 1.26),
-  mine: plot(206, -196, 1.365),
-  lumber: plot(-209, 163, 1.365),
-  farm: plot(184, 90, 1.365),
-  // The wall's own plot (building work only) sits on the front-right wall between the Storehouse and the Iron Mine.
-  wall: plot(268, -100, 0.6),
+  bannerhall: plot(0, -148, 0.945),
+  // The Longhouse, the clan's great hall, at the front right, clear of the front corner tower.
+  longhouse: plot(236, 128, 1.35),
+  // Resource sites out to the sides: gold in the back rocks, iron on the right, timber on the left, the Farm on the right.
+  goldmine: plot(-216, -144, 1.26),
+  mine: plot(240, -236, 1.365),
+  lumber: plot(-248, 204, 1.365),
+  farm: plot(224, 4, 1.365),
+  // The wall's own plot (building work only) sits on the front-right wall beside the Storehouse.
+  wall: plot(307, -40, 0.6),
 };
 
 /** Half width of the main street and the road out of the main gate (the land tile road is as wide). */
@@ -240,6 +256,39 @@ export function doorUV(id: BuildingId): { u: number; v: number } {
   return { u, v: v + 28 * PLACEMENT[id].scale - 3 };
 }
 
+/**
+ * How far in from its tile corner each drawing first covers its door line (sprite units along v' on the line u' = 0, from the
+ * tile's front-left face at v' = 26 towards the middle), per look 1..4: where the building or its yard begins (the first painted
+ * stretch at least 3 units deep, so a lone lamp or sack in front does not count).
+ * Measured from the painted masks (test/sprite-boxes.json); the layout test fails when a drawing changed and this did not.
+ */
+export const DOOR_DEPTH: Record<Exclude<BuildingId, 'wall' | 'hall'>, readonly [number, number, number, number]> = {
+  lumber: [30, 23.5, 26, 26],
+  farm: [14, 23.5, 23.5, 23.5],
+  longhouse: [15.5, 15.5, 18, 22],
+  mine: [26, 26, 26, 26],
+  goldmine: [26, 26, 26, 26],
+  storehouse: [15.5, 22, 15.5, 15.5],
+  barracks: [23.5, 23.5, 26, 26],
+  stables: [15.5, 7.5, 15.5, 22],
+  wrightyard: [22, 23.5, 26, 26],
+  vault: [32, 32, 23.5, 32],
+  market: [15.5, 22, 26, 22],
+  drillyard: [23.5, 23.5, 26, 30],
+  bannerhall: [26, 31.5, 31.5, 32],
+};
+/** The road runs this far (sprite units) in under the drawing's front, so it reads as walking straight in. */
+export const DOOR_TUCK = 4;
+
+/** Where a building's road ends at a look (1..4): on its door line, just in under the front of the drawing (never past the door point). */
+export function roadEnd(id: BuildingId, stage: number): { u: number; v: number } {
+  const d = doorUV(id);
+  if (id === 'wall' || id === 'hall') return d;
+  const { v } = plotUV(id);
+  const k = DOOR_DEPTH[id][Math.min(4, Math.max(1, stage)) - 1]!;
+  return { u: d.u, v: Math.min(d.v, v + (k - DOOR_TUCK) * PLACEMENT[id].scale) };
+}
+
 /** Roads on the land outside the wall to buildings standing there (none now; the main road belongs to the landscape). */
 export const OUTER_ROADS: readonly RoadDef[] = [];
 
@@ -252,11 +301,13 @@ const ROOF_TOP: Record<Exclude<BuildingId, 'wall'>, readonly [number, number, nu
   hall: [-62, -80, -82],
   lumber: [-50, -50, -62],
   farm: [-20, -30, -38],
+  longhouse: [-20, -34, -60],
   mine: [-38, -62, -58],
   goldmine: [-40, -54, -68],
   storehouse: [-14, -17, -20],
   barracks: [-46, -54, -86],
   stables: [-28, -45, -52],
+  wrightyard: [-10, -32, -58],
   vault: [-22, -25, -29],
   market: [-22, -32, -36],
   drillyard: [-20, -30, -40],
@@ -306,9 +357,9 @@ export function footprintFront(id: BuildingId): string {
   return `M${x - hw} ${cy}L${x} ${cy + hh}L${x + hw} ${cy}`;
 }
 
-/** Label area for the wall: on the front-right wall, between the Storehouse and the Iron Mine. */
+/** Label area for the wall: on the front-right wall, beside the Storehouse. */
 export const WALL_HIT: Box = (() => {
-  const [x, y] = iso(WALL_RING.r, -100);
+  const [x, y] = iso(WALL_RING.r, -40);
   return { x: x - 20, y: y - 44, w: 40, h: 40 };
 })();
 

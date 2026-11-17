@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_CHIEFTAIN, STAT_KEYS, type StatKey } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, STAT_KEYS, convertSiegeUnits, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
 import { DEFAULT_TEMPLATES } from './template-defaults.ts';
 
 /** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
@@ -602,6 +602,8 @@ export function applySchema(db: DatabaseSync): void {
   rebuildOutdatedTables(db);
   db.exec(SCHEMA);
   addMissingColumns(db);
+  migrateOriginality(db);
+  migrateRoster(db);
   seedTemplates(db);
 }
 
@@ -610,14 +612,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 16; // 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 18; // 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '09a8999dbbc97382';
+export const SCHEMA_FINGERPRINT = '7404276453a8a2ba';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -645,6 +647,64 @@ function backupBeforeMigration(db: DatabaseSync, dbPath: string, from: number): 
   const old = readdirSync(dir).filter((f) => MIGRATION_BACKUP.test(f)).sort();
   for (const f of old.slice(0, Math.max(0, old.length - MIGRATION_BACKUPS_KEPT))) rmSync(resolve(dir, f), { force: true });
   return target;
+}
+
+/**
+ * Originality pass (2026-11-11), once per database (a meta flag): every village gets Longhouse = Farm level, Log Rams and Boulder Slings
+ * (at home, away, stationed, at a site or marching) become Firecarts by population, queued siege batches and research are refunded, and a
+ * village with Barracks 5+ gets Wrightyard 1 free. The rules are in the engine (`migrateVillageOriginality`); this only walks the rows.
+ * A new database has no villages: it just sets the flag.
+ */
+function migrateOriginality(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'originality_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    // What each village's own movements and standing contingents became, so its `away` Firecarts always equal the sum.
+    const awayFire = new Map<number, number>();
+    const convertRows = (table: string, homeColumn: string): void => {
+      const rows = db.prepare(`SELECT id, ${homeColumn} AS home, units_json FROM ${table}`).all() as Array<{ id: number; home: number; units_json: string }>;
+      for (const row of rows) {
+        const units = convertSiegeUnits(JSON.parse(row.units_json) as Record<string, unknown>);
+        awayFire.set(row.home, (awayFire.get(row.home) ?? 0) + Number(units.firecart ?? 0));
+        db.prepare(`UPDATE ${table} SET units_json = ? WHERE id = ?`).run(JSON.stringify(units), row.id);
+      }
+    };
+    convertRows('movements', 'origin_village_id');
+    convertRows('stationed', 'home_village_id');
+    convertRows('site_garrison', 'home_village_id');
+    const villages = db.prepare('SELECT id, state_json FROM villages').all() as Array<{ id: number; state_json: string }>;
+    for (const row of villages) {
+      const state = migrateVillageOriginality(JSON.parse(row.state_json), awayFire.get(row.id) ?? 0);
+      db.prepare('UPDATE villages SET state_json = ?, points = ? WHERE id = ?').run(JSON.stringify(state), villagePoints(state), row.id);
+    }
+    db.prepare("INSERT INTO meta (key, value) VALUES ('originality_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
+/**
+ * Troop roster pass (originality piece 5, 2026-11-11), once per database (a meta flag). The Knight id is kept: every Knight, wherever it is
+ * (home, away, marching, stationed, at a site), is now an Ember Guard 1:1 with no row rewritten, and Knight research counts as Ember Guard
+ * research. Batches already queued at the Stables are left alone and finish there as Ember Guards (the simplest safe option: no refund,
+ * no re-timing; the queue code works by queue, not by the unit's usual building). New Ember Guards train at the Barracks only.
+ * This only writes the flag and logs how many queued batches stay at the Stables.
+ */
+function migrateRoster(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'roster_applied'").get()) return;
+  let batches = 0;
+  for (const row of db.prepare('SELECT state_json FROM villages').all() as Array<{ state_json: string }>) {
+    const queue = (JSON.parse(row.state_json) as { trainQueues?: { stables?: Array<{ unit?: string }> } }).trainQueues?.stables ?? [];
+    batches += queue.filter((j) => j.unit === 'knight').length;
+  }
+  if (batches > 0) console.info(`[db] roster: ${batches} queued Knight batch(es) finish at the Stables as Ember Guards`);
+  db.prepare("INSERT INTO meta (key, value) VALUES ('roster_applied', '1')").run();
 }
 
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */
@@ -725,7 +785,7 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   for (const col of ['target_x', 'target_y']) {
     if (!moveCols.some((c) => c.name === col)) db.exec(`ALTER TABLE movements ADD COLUMN ${col} INTEGER`);
   }
-  // The building a Boulder Sling attack was aimed at (sender's pick, never checked against the target; GAME_DESIGN 18.9).
+  // The building a Firecart attack was aimed at (sender's pick, never checked against the target; GAME_DESIGN 18.9).
   if (!moveCols.some((c) => c.name === 'siege_target')) db.exec('ALTER TABLE movements ADD COLUMN siege_target TEXT');
   // A shipment whose cargo goes into the sender's Tribe Store, not the target village's stock (GAME_DESIGN 18.5).
   if (!moveCols.some((c) => c.name === 'to_tribe_store')) db.exec('ALTER TABLE movements ADD COLUMN to_tribe_store INTEGER NOT NULL DEFAULT 0');

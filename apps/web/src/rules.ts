@@ -18,6 +18,7 @@ import {
   checkTrain,
   isAttackForbidden,
   isSupportAllowed,
+  popCapForLevel,
   populationCap,
   populationUsage,
   productionFromLevels,
@@ -127,6 +128,9 @@ export function buildingEffects(id: BuildingId, from: number, to: number, speed:
       }
       break;
     }
+    case 'longhouse':
+      lines.push({ label: 'Population room', from: formatInt(popCapForLevel(from)), to: formatInt(popCapForLevel(to)) });
+      break;
     case 'storehouse':
       lines.push({ label: 'Capacity', from: formatInt(storageCapForLevel(from)), to: formatInt(storageCapForLevel(to)) });
       break;
@@ -160,6 +164,7 @@ export function buildingEffects(id: BuildingId, from: number, to: number, speed:
       break;
     case 'barracks':
     case 'stables':
+    case 'wrightyard':
       lines.push({ label: 'Training speed', from: speedBonus(TRAIN_TIME_FACTOR, from), to: speedBonus(TRAIN_TIME_FACTOR, to) });
       break;
   }

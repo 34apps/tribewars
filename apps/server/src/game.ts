@@ -86,7 +86,6 @@ import {
   emptyResources,
   emptyUnits,
   hashSeed,
-  hasChosenSiege,
   hasSiegeUnits,
   isBuildingId,
   battleSeed,
@@ -613,7 +612,7 @@ export class GameService {
       defenderLosses: result.defenderLosses,
       supportUnits: contingents.length > 0 ? sumUnits(contingents.map((c) => c.units)) : null,
       supportLosses: contingents.length > 0 ? sumUnits(supportLosses) : null,
-      // The Wall as it counted in the battle (after the Log Rams' during hit); the Wall siege line below runs from before to after.
+      // The Wall as it counted in the battle (after the Firecarts' during hit); the Wall siege line below runs from before to after.
       wallLevel: result.wallDuring,
       ...(morale < 1 ? { morale } : {}),
       loot: result.loot,
@@ -622,7 +621,7 @@ export class GameService {
     };
     if (origin.ownerId !== null) {
       // An army wiped out sees nothing of the defence, except the Wall hit of a close loss (it shot during the battle).
-      const wallHits = (result.siege ?? []).filter((h) => UNITS[h.unit].siege?.target === 'wall');
+      const wallHits = (result.siege ?? []).filter((h) => h.building === 'wall');
       const battle: BattleReportData = survived
         ? full
         : {
@@ -1767,7 +1766,7 @@ export class GameService {
     };
   }
 
-  /** The caller's own latest scout report on a village with building levels (Boulder Sling picker); nothing else. Unknown village: 404. */
+  /** The caller's own latest scout report on a village with building levels (Firecart picker); nothing else. Unknown village: 404. */
   scoutedBuildings(player: PlayerRow, villageId: number): ScoutedResponse {
     if (!this.store.getVillage(villageId)) throw new GameError('not_found', 'Village not found.');
     const r = this.store.latestScoutBuildings(player.id, villageId);
@@ -1987,12 +1986,12 @@ export class GameService {
    */
   send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
     const s = this.settings;
-    // The Boulder Sling pick is checked for form only, NEVER against the target's buildings: any difference in the answer would
+    // The Firecart pick is checked for form only, NEVER against the target's buildings: any difference in the answer would
     // tell the sender what the village holds (docs/SECURITY_ROADMAP.md section 2).
     let siegeTarget: BuildingId | null = null;
     if (targetBuilding !== undefined && targetBuilding !== null) {
       if (!isBuildingId(targetBuilding)) throw new GameError('invalid_input', 'That is not a building.');
-      if (mission !== 'attack' || !hasChosenSiege(units)) throw new GameError('invalid_input', 'Only an attack with Boulder Slings can aim at a building.');
+      if (mission !== 'attack' || !hasSiegeUnits(units)) throw new GameError('invalid_input', 'Only an attack with Firecarts can aim at a building.');
       siegeTarget = targetBuilding;
     }
     const custom = timing.travelSeconds !== undefined || timing.returnSeconds !== undefined;

@@ -191,7 +191,7 @@ export function MovementsSection({ compact = false }: { compact?: boolean }) {
   );
 }
 
-const TRAIN_HOUSES = ['barracks', 'stables', 'bannerhall'] as const;
+const TRAIN_HOUSES = ['barracks', 'stables', 'wrightyard', 'bannerhall'] as const;
 
 /** The Army page's middle block: one line per building that is training troops (what, done at) with a link to that building's page. */
 export function TrainingSection({ onPick }: { onPick: (id: BuildingId) => void }) {

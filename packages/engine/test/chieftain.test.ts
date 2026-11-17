@@ -26,13 +26,13 @@ import type { VillageState } from '../src/index.ts';
 import { HOUR, S1, S10, units, village } from './helpers.ts';
 
 const rich = (bannerhall = 1): VillageState =>
-  village({ buildings: { bannerhall, farm: 10 }, resources: { wood: 20000, food: 20000, iron: 20000, gold: 1000 } });
+  village({ buildings: { bannerhall, farm: 10 }, resources: { wood: 40000, food: 40000, iron: 40000, gold: 1000 } });
 
 describe('Chieftain unit', () => {
   it('has the design numbers', () => {
     const c = UNITS.chieftain;
     assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry], [0, 10, 10, 5, 0]);
-    assert.deepEqual(c.cost, { wood: 4000, food: 3000, iron: 5000, gold: 0 });
+    assert.deepEqual(c.cost, { wood: 6000, food: 4500, iron: 7500, gold: 0 });
     assert.equal(c.trainTimeSec, 6 * 3600);
     assert.equal(c.building, 'bannerhall');
     assert.equal(c.unitClass, 'infantry');
@@ -92,11 +92,11 @@ describe('Chieftain unit', () => {
 describe('Chieftain Renown price', () => {
   it('villageRenownPrice = base x 1.6^(villages + outstanding - 1), rounded', () => {
     assert.equal(villageRenownPrice(1, 0), RENOWN_VILLAGE_BASE);
-    assert.equal(villageRenownPrice(1, 0), 1000, 'the 2nd village costs 1,000 since 2026-11-05');
-    assert.equal(villageRenownPrice(1, 1), 1600);
-    assert.equal(villageRenownPrice(2, 0), 1600);
-    assert.equal(villageRenownPrice(1, 2), 2560);
-    assert.equal(villageRenownPrice(3, 1), 4096);
+    assert.equal(villageRenownPrice(1, 0), 1300, 'the 2nd village costs 1,300 since 2026-11-11 (was 1,000)');
+    assert.equal(villageRenownPrice(1, 1), 2080);
+    assert.equal(villageRenownPrice(2, 0), 2080);
+    assert.equal(villageRenownPrice(1, 2), 3328);
+    assert.equal(villageRenownPrice(3, 1), 5325);
     assert.equal(villageRenownPrice(3, 1), villageRenownCost(4));
   });
 

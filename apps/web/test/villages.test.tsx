@@ -128,7 +128,7 @@ test('myOccupierPopulation adds up my troops standing in one village', () => {
     { host: { villageId: 5 }, units: units({ guard: 10 }) },
     { host: { villageId: 6 }, units: units({ pikeman: 999 }) },
   ];
-  assert.equal(myOccupierPopulation(abroad, 5), 100 + 5 * 4 + 10);
+  assert.equal(myOccupierPopulation(abroad, 5), 100 + 5 * 3 + 10);
   assert.equal(myOccupierPopulation(abroad, 9), 0);
 });
 
@@ -217,7 +217,7 @@ test('relief: a cold own, tribe-mate or ally village offers an attack next to Su
   assert.equal(sendMode('support', { pikeman: 5 }, 'player', true), 'support');
   assert.equal(SEND_MODE_BUTTON.relieve, 'Relieve');
   assert.match(SEND_MODE_HINT.relieve ?? '', /Fights only the occupiers holding this village\. No loot\. If they all fall the hearth relights\./);
-  const home = units({ pikeman: 10, raider: 4, chieftain: 1, logram: 2, boulder: 2 });
+  const home = units({ pikeman: 10, raider: 4, chieftain: 1, firecart: 2 });
   assert.deepEqual(selectableUnits('relieve', home), ['pikeman', 'raider'], 'no Chieftains, no siege');
 });
 
@@ -238,9 +238,9 @@ test('strikeWarning asks for an escort and enough Chieftains', () => {
   assert.equal(strikeWarning({ chieftain: 1, raider: 100 }), null);
   assert.match(strikeWarning({ chieftain: 1 }) ?? '', /No escort/);
   assert.match(strikeWarning({ raider: 100 }) ?? '', /needs 1 Chieftain/);
-  assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
+  assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 27000) ?? '', /needs 3 Chieftains/);
   // A player's village always carries the strong-escort advice once the count and escort are fine.
-  assert.match(strikeWarning({ chieftain: 3, raider: 100 }, false, 9000) ?? '', /player defends/);
+  assert.match(strikeWarning({ chieftain: 3, raider: 100 }, false, 27000) ?? '', /player defends/);
 });
 
 test('Strike on a player village: Chieftains needed, hint and escort warning', () => {
@@ -250,7 +250,7 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
   assert.equal(canStrike(null), false);
   assert.equal(strikeNeed('abandoned', 99_999), 1);
   assert.equal(strikeNeed('player', 0), 1);
-  assert.equal(strikeNeed('player', 9000), 3);
+  assert.equal(strikeNeed('player', 27000), 3);
   assert.ok(strikeHint('player').includes(`${HOLD_HOURS}-hour hold`));
   assert.match(strikeHint('player'), /Allies are safe/);
   assert.equal(strikeHint('abandoned').includes('Allies'), false);
@@ -259,7 +259,7 @@ test('Strike on a player village: Chieftains needed, hint and escort warning', (
     assert.ok(strikeHint(kind).includes(`Chieftains must land within ${STRIKE_CHAIN_WINDOW_HOURS} hours`), kind);
   }
   assert.match(strikeWarning({ chieftain: 1, raider: 100 }, false, 100) ?? '', /strong|defends/);
-  assert.match(strikeWarning({ raider: 100 }, false, 9000) ?? '', /needs 3 Chieftains/);
+  assert.match(strikeWarning({ raider: 100 }, false, 27000) ?? '', /needs 3 Chieftains/);
 });
 
 test('hearth alerts: held villages sort by the soonest hand-over, badge counts both lists', () => {
@@ -290,7 +290,7 @@ test('selectableUnits: scouts are Pathfinders only, support and occupy never tak
   assert.deepEqual(selectableUnits('scout', home), ['pathfinder']);
   assert.deepEqual(selectableUnits('support', home), ['pikeman', 'pathfinder']);
   assert.deepEqual(selectableUnits('occupy', home), ['pikeman', 'pathfinder']);
-  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain', 'logram', 'boulder']); // siege rows show at 0
+  assert.deepEqual(selectableUnits('attack', home), ['pikeman', 'pathfinder', 'chieftain', 'firecart']); // siege rows show at 0
   assert.deepEqual(selectableUnits('found', units({ chieftain: 1 })), ['chieftain']);
 });
 

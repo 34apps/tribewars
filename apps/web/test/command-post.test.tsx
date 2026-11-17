@@ -107,7 +107,7 @@ test('wide troop picker columns: Foot, Riders, Siege, Special (Chieftain and Pat
   const special = cols.find((c) => c.column === 'special')?.units ?? [];
   assert.deepEqual([...special].sort(), ['chieftain', 'pathfinder']);
   assert.ok((cols.find((c) => c.column === 'riders')?.units ?? []).includes('outrider'));
-  assert.ok((cols.find((c) => c.column === 'siege')?.units ?? []).includes('boulder'));
+  assert.ok((cols.find((c) => c.column === 'siege')?.units ?? []).includes('firecart'));
   assert.deepEqual(unitColumns(['pikeman', 'chieftain']).map((c) => c.column), ['foot', 'special']);
   assert.deepEqual(unitColumns([]), []);
 });

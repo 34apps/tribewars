@@ -74,10 +74,10 @@ describe('checkStrike', () => {
     assert.ok(!isStrikeBlocked({}, T));
   });
 
-  it('players: need = 1 + floor(points / 4000), at most 3 (on by default since step 4, can be switched off)', () => {
-    assert.deepEqual([0, 3999, 4000, 7999, 8000, 12000, 30000].map((p) => chieftainsNeeded(false, p)), [1, 1, 2, 2, 3, 3, 3]);
+  it('players: need = 1 + floor(points / 12000), at most 3 (on by default since step 4, can be switched off)', () => {
+    assert.deepEqual([0, 11999, 12000, 23999, 24000, 36000, 90000].map((p) => chieftainsNeeded(false, p)), [1, 1, 2, 2, 3, 3, 3]);
     assert.equal(chieftainsNeeded(true, 50000), 1);
-    const target = { abandoned: false, points: 4000, now: T };
+    const target = { abandoned: false, points: 12000, now: T };
     assert.ok(checkStrike(WON, units({ chieftain: 3 }), target).ok, 'player villages can be struck by default');
     const off = checkStrike(WON, units({ chieftain: 3 }), target, { playersEnabled: false });
     assert.ok(!off.ok && off.reason === 'players_disabled');
@@ -85,7 +85,7 @@ describe('checkStrike', () => {
     const one = checkStrike(WON, units({ chieftain: 1 }), target, opts);
     assert.ok(!one.ok && one.reason === 'too_few_chieftains' && one.need === 2);
     assert.deepEqual(checkStrike(WON, units({ chieftain: 2 }), target, opts), { ok: true, need: 2, chieftains: 2, banked: 0 });
-    const big = { ...target, points: 9000 };
+    const big = { ...target, points: 27000 };
     assert.ok(!checkStrike(WON, units({ chieftain: 2 }), big, opts).ok);
     assert.ok(checkStrike(WON, units({ chieftain: 3 }), big, opts).ok);
   });
@@ -107,7 +107,7 @@ describe('applyStrike', () => {
 
   it('149 population is not enough, 150 is; units count by their population', () => {
     assert.equal(occupierPopulation(units({ raider: 149 })), 149);
-    assert.equal(occupierPopulation(units({ knight: 2, outrider: 1, chieftain: 1 })), 8 + 2 + 8);
+    assert.equal(occupierPopulation(units({ knight: 2, outrider: 1, chieftain: 1 })), 6 + 2 + 8);
     assert.equal(struck(units({ raider: 149 })).hearth?.runningSince, null);
     assert.equal(struck(units({ raider: 150 })).hearth?.runningSince, T);
   });
@@ -218,7 +218,7 @@ describe('applyOwnerChange', () => {
     assert.deepEqual(v.resources, { wood: Math.floor(1000 * keep), food: Math.floor(801 * keep), iron: Math.floor(5 * keep), gold: Math.floor(99 * keep) });
     assert.equal(v.hearth, undefined);
     assert.equal(v.npc, undefined);
-    assert.deepEqual([v.buildQueue, v.trainQueues, v.researchQueue, v.ranks, v.researched], [[], { barracks: [], stables: [], bannerhall: [] }, undefined, undefined, undefined]);
+    assert.deepEqual([v.buildQueue, v.trainQueues, v.researchQueue, v.ranks, v.researched], [[], { barracks: [], stables: [], wrightyard: [], bannerhall: [] }, undefined, undefined, undefined]);
     assert.equal(v.lastUpdate, T + 6 * HOUR);
   });
 
@@ -350,14 +350,14 @@ describe('Chieftain chain', () => {
   });
 
   it('checkStrike: survivors plus banked Chieftains reach need, but at least one must survive this attack', () => {
-    const target = { abandoned: false, points: 4000, now: T }; // need 2
+    const target = { abandoned: false, points: 12000, now: T }; // need 2
     const one = units({ chieftain: 1 });
     assert.deepEqual(checkStrike(WON, one, target, {}, 1), { ok: true, need: 2, chieftains: 1, banked: 1 });
     const few = checkStrike(WON, one, target, {}, 0);
     assert.ok(!few.ok && few.reason === 'too_few_chieftains' && few.banked === 0);
     const none = checkStrike(WON, units({ raider: 10 }), target, {}, 5);
     assert.ok(!none.ok && none.reason === 'too_few_chieftains' && none.chieftains === 0 && none.banked === 5, 'banked alone is never enough');
-    const big = { ...target, points: 9000 }; // need 3
+    const big = { ...target, points: 27000 }; // need 3
     assert.ok(!checkStrike(WON, one, big, {}, 1).ok);
     assert.ok(checkStrike(WON, one, big, {}, 2).ok);
     assert.ok(checkStrike(WON, units({ chieftain: 2 }), big, {}, 1).ok);

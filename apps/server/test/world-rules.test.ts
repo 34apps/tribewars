@@ -42,7 +42,7 @@ async function twin(custom: Config, opts: { sandboxUsers?: string[] } = {}) {
 /** Give a player's first village every building the tests need and plenty of stock (written straight into the database). */
 function rich(app: App, p: P, levels: Partial<VillageState['buildings']> = {}, researched?: string[]): number {
   const v = app.ctx.store.villagesOfPlayer(p.id)[0]!;
-  Object.assign(v.state.buildings, { hall: 10, farm: 15, storehouse: 15, barracks: 5, drillyard: 3, ...levels });
+  Object.assign(v.state.buildings, { hall: 10, farm: 15, longhouse: 15, storehouse: 15, barracks: 5, drillyard: 3, ...levels });
   if (researched) v.state.researched = researched as never;
   Object.assign(v.state.resources, { wood: 50000, food: 50000, iron: 50000, gold: 5000 });
   app.ctx.store.saveVillage(v.id, v.state, villagePoints(v.state));
@@ -264,21 +264,21 @@ test('protection.beginnerHours: a new village is protected in the default world 
 
 // ---- (6) siege -------------------------------------------------------------------------------------------------------------
 
-test('features.siege off: a Log Ram can be neither researched nor trained; on by default', async () => {
+test('features.siege off: a Firecart can be neither researched nor trained; on by default', async () => {
   const { def, cus } = await twin({ features: { siege: false } });
   for (const [w, on] of [[def, true], [cus, false]] as const) {
     const p = await newPlayer(w.app, 'smith');
-    const vid = rich(w.app, p, { barracks: 5, drillyard: 3 });
-    const research = await p.c.post(`/api/villages/${vid}/research`, { unit: 'logram' });
+    const vid = rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 1 });
+    const research = await p.c.post(`/api/villages/${vid}/research`, { unit: 'firecart' });
     if (on) ok(research);
     else errorOf(research, 409, 'requirements_not_met');
     // Researched at once (as if done) so the training gate is what is checked.
-    rich(w.app, p, { barracks: 5, drillyard: 3 }, ['logram']);
-    const trained = await p.c.post(`/api/villages/${vid}/train`, { unit: 'logram', count: 1 });
+    rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 1 }, ['firecart']);
+    const trained = await p.c.post(`/api/villages/${vid}/train`, { unit: 'firecart', count: 1 });
     if (on) ok(trained);
     else errorOf(trained, 409, 'requirements_not_met');
     const v = (await p.c.village()) as OwnVillageDto;
-    assert.equal(v.state.trainQueues.barracks.length, on ? 1 : 0);
+    assert.equal(v.state.trainQueues.wrightyard.length, on ? 1 : 0);
   }
   await def.app.close();
   await cus.app.close();
