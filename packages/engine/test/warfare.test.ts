@@ -5,6 +5,7 @@ import {
   SCOUT_DEFENSE_FACTOR,
   SCOUT_LOSS_EXPONENT,
   UNIT_IDS,
+  UNITS,
   applyAttackerLosses,
   applyBattleToDefender,
   applyReturn,
@@ -199,7 +200,7 @@ describe('resolveBattle with support', () => {
     });
     const perUnit = (inf: number, cav: number): number => inf * si + cav * sc;
     const dUnits =
-      (10 + 5) * perUnit(14, 40) + 8 * perUnit(42, 22) + 3 * perUnit(3, 2) + 1 * perUnit(60, 60);
+      (10 + 5) * perUnit(14, 40) + 8 * perUnit(42, 22) + 3 * perUnit(3, 2) + 1 * perUnit(UNITS.knight.defenseInfantry, UNITS.knight.defenseCavalry);
     assert.ok(near(r.defensePower, (dUnits + 20 + 14 * 2) * 1.09, 1e-9));
   });
 

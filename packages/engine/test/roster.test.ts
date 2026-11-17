@@ -19,7 +19,7 @@ describe('troop roster', () => {
       ['raider', '36/8/6', 6, 28, 1],
       ['pathfinder', '0/3/2', 18, 0, 1],
       ['outrider', '65/18/16', 13, 75, 2],
-      ['knight', '70/60/60', 5, 20, 3],
+      ['knight', '140/90/90', 5, 20, 3],
     ];
     for (const [u, stats, speed, carry, pop] of table) {
       assert.equal(line(u), stats, u);

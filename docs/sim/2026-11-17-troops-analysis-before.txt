@@ -1,0 +1,293 @@
+# Troop analysis (real engine, world speed 1, luck 0)
+
+Value = wood + food + iron + 10 x gold. Train queue: 5 batches x 1000 units per building.
+Overrides (UNITS, this run only): none.
+
+## 1. Roster
+
+Value = wood + food + iron + 10 x gold. Defence columns: vs foot = against an infantry attack, vs riders = against cavalry. Speed in tiles per hour at world speed 1.
+
+### 1a. Stats
+| unit | cost (w/f/i/g) | value | pop | attack | def foot | def riders | carry | speed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Pikeman | 19/23/14/0 | 56 | 1 | 8 | 14 | 40 | 12 | 6 |
+| Shieldbearer | 17/30/28/0 | 75 | 1 | 12 | 42 | 22 | 10 | 5 |
+| Raider | 25/35/25/0 | 85 | 1 | 36 | 8 | 6 | 28 | 6 |
+| Elk Rider | 39/80/66/0 | 185 | 2 | 65 | 18 | 16 | 75 | 13 |
+| Ember Guard | 50/90/110/14 | 390 | 3 | 70 | 60 | 60 | 20 | 5 |
+| Pathfinder | 11/20/14/0 | 45 | 1 | 0 | 3 | 2 | 0 | 18 |
+| Chieftain | 6000/4500/7500/0 | 18000 | 8 | 0 | 10 | 10 | 0 | 5 |
+| Firecart | 99/88/121/6 | 368 | 3 | 5 | 7 | 5 | 0 | 3 |
+
+### 1b. Efficiency (per 100 value, per pop)
+| unit | atk/100v | atk/pop | defFoot/100v | defRiders/100v | defFoot/pop | defRiders/pop | carry/100v | carry/pop |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Pikeman | 14.3 | 8 | 25 | 71.4 | 14 | 40 | 21.4 | 12 |
+| Shieldbearer | 16 | 12 | 56 | 29.3 | 42 | 22 | 13.3 | 10 |
+| Raider | 42.4 | 36 | 9.4 | 7.1 | 8 | 6 | 32.9 | 28 |
+| Elk Rider | 35.1 | 32.5 | 9.7 | 8.6 | 9 | 8 | 40.5 | 37.5 |
+| Ember Guard | 17.9 | 23.3 | 15.4 | 15.4 | 20 | 20 | 5.1 | 6.7 |
+| Pathfinder | 0 | 0 | 6.7 | 4.4 | 3 | 2 | 0 | 0 |
+| Chieftain | 0 | 0 | 0.1 | 0.1 | 1.3 | 1.3 | 0 | 0 |
+| Firecart | 1.4 | 1.7 | 1.9 | 1.4 | 2.3 | 1.7 | 0 | 0 |
+
+### 1c. Travel on flat grass (hours, one way)
+| unit | speed | 10 tiles | 30 tiles | 60 tiles |
+| --- | --- | --- | --- | --- |
+| Pikeman | 6 | 1.67 | 5 | 10 |
+| Shieldbearer | 5 | 2 | 6 | 12 |
+| Raider | 6 | 1.67 | 5 | 10 |
+| Elk Rider | 13 | 0.77 | 2.31 | 4.62 |
+| Ember Guard | 5 | 2 | 6 | 12 |
+| Pathfinder | 18 | 0.56 | 1.67 | 3.33 |
+| Chieftain | 5 | 2 | 6 | 12 |
+| Firecart | 3 | 3.33 | 10 | 20 |
+
+### 1d. Training time (seconds for ONE unit; units one building at max level trains per day)
+| unit | building | max lvl | sec @ L1 | sec @ L10 | sec @ max | units/day @ L1 | units/day @ max | value/day @ max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Pikeman | Barracks | 20 | 260 | 149 | 80 | 332 | 1,077 | 60,298 |
+| Shieldbearer | Barracks | 20 | 320 | 183 | 99 | 270 | 875 | 65,614 |
+| Raider | Barracks | 20 | 290 | 166 | 90 | 298 | 965 | 82,055 |
+| Elk Rider | Stables | 18 | 620 | 355 | 217 | 139 | 399 | 73,811 |
+| Ember Guard | Barracks | 20 | 1,100 | 630 | 339 | 79 | 255 | 99,256 |
+| Pathfinder | Barracks | 20 | 170 | 97 | 52 | 508 | 1,647 | 74,105 |
+| Chieftain | Banner Hall | 4 | 21,600 | 17,941 (L4) | 17,941 | 4 | 5 | 86,686 |
+| Firecart | Wrightyard | 12 | 1,400 | 802 | 709 | 62 | 122 | 44,857 |
+
+## 2. Recruit
+
+Ladder: every building at 25 / 50 / 75 / 100% of its max level (rounded). Income = engine production for those levels (Gold Mine included at the same pct, otherwise gold would be 0). Pop room = Longhouse cap minus the pop of ALL buildings at that pct. The player spends 100% of income on one army type; stock starts at one full Storehouse of wood/food/iron (no gold). Money days include that stock. One building trains one unit at a time. Binding = which of money / the one training building is slower (the room caps the size, the queue only limits how far ahead one can order).
+
+### 2a. Income, storage, population per ladder step
+| pct | levels | wood/h | food/h | iron/h | gold/h | value/h | storage cap | pop cap | building pop | pop room |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 25% | Lumber/Farm/Mine 6, Gold 5, Longhouse 6, Store 6, Barracks 5, Stables 5, Wright 3 | 97 | 129 | 97 | 5 | 373 | 4,066 | 376 | 77 | 299 |
+| 50% | Lumber/Farm/Mine 13, Gold 9, Longhouse 13, Store 13, Barracks 10, Stables 9, Wright 6 | 221 | 294 | 221 | 8 | 816 | 12,723 | 1,346 | 108 | 1,238 |
+| 75% | Lumber/Farm/Mine 19, Gold 14, Longhouse 19, Store 19, Barracks 15, Stables 14, Wright 9 | 446 | 595 | 446 | 16 | 1,647 | 33,826 | 4,020 | 152 | 3,868 |
+| 100% | Lumber/Farm/Mine 25, Gold 18, Longhouse 25, Store 25, Barracks 20, Stables 18, Wright 12 | 902 | 1,203 | 902 | 27 | 3,277 | 89,931 | 12,004 | 221 | 11,783 |
+
+### 2b. Per army and ladder step
+| army | pct | value/unit | units/day money | units/day building | money / building | max queued (5 x 1000) | room (units) | days to fill room (binding) | days: rebuild 1000 pop | days: rebuild 3000 pop |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Raiders | 25% | 85 | 88 (food) | 382 | 0.23 | 5,000 units = 13.1 d | 299 units | 2.1 (money (food)) | 10 (over room) | 32.6 (over room) |
+| Raiders | 50% | 85 | 202 (food) | 520 | 0.39 | 5,000 units = 9.6 d | 1,238 units | 4.3 (money (food)) | 3.2 | 13.1 (over room) |
+| Raiders | 75% | 85 | 408 (food) | 708 | 0.58 | 5,000 units = 7.1 d | 3,868 units | 7.1 (money (food)) | 1.4 | 5 |
+| Raiders | 100% | 85 | 825 (food) | 965 | 0.85 | 5,000 units = 5.2 d | 11,783 units | 12.2 (building) | 1 | 3.1 |
+| Defence (Pikeman+Shieldbearer 50/50) | 25% | 66 | 111 (iron) | 382 | 0.29 | 5,000 units = 13.1 d | 298 units | 1.2 (money (iron)) | 7.3 (over room) | 25.3 (over room) |
+| Defence (Pikeman+Shieldbearer 50/50) | 50% | 66 | 253 (iron) | 520 | 0.49 | 5,000 units = 9.6 d | 1,238 units | 2.8 (money (iron)) | 2 | 9.5 (over room) |
+| Defence (Pikeman+Shieldbearer 50/50) | 75% | 66 | 510 (iron) | 708 | 0.72 | 5,000 units = 7.1 d | 3,868 units | 5.5 (building) | 1.4 | 4.2 |
+| Defence (Pikeman+Shieldbearer 50/50) | 100% | 66 | 1,031 (iron) | 965 | 1.07 | 5,000 units = 5.2 d | 11,782 units | 12.2 (building) | 1 | 3.1 |
+| Elk Riders | 25% | 185 | 35 (iron) | 178 | 0.2 | 5,000 units = 28 d | 149 units | 2.5 (money (iron)) | 12.4 (over room) | 40.8 (over room) |
+| Elk Riders | 50% | 185 | 80 (iron) | 229 | 0.35 | 5,000 units = 21.9 d | 619 units | 5.3 (money (iron)) | 3.9 | 16.3 (over room) |
+| Elk Riders | 75% | 185 | 162 (iron) | 312 | 0.52 | 5,000 units = 16.1 d | 1,934 units | 8.8 (money (iron)) | 1.6 | 6.1 |
+| Elk Riders | 100% | 185 | 328 (iron) | 399 | 0.82 | 5,000 units = 12.5 d | 5,891 units | 14.8 (building) | 1.3 | 3.8 |
+| Firecarts | 25% | 368 | 19 (iron) | 70 | 0.28 | 5,000 units = 71.6 d | 99 units | 5 (money (iron)) | 16.7 (over room) | 50.2 (over room) |
+| Firecarts | 50% | 368 | 32 (gold) | 84 | 0.38 | 5,000 units = 59.5 d | 412 units | 12.9 (money (gold)) | 10.4 | 31.3 (over room) |
+| Firecarts | 75% | 368 | 64 (gold) | 101 | 0.63 | 5,000 units = 49.4 d | 1,289 units | 20.1 (money (gold)) | 5.2 | 15.6 |
+| Firecarts | 100% | 368 | 108 (gold) | 122 | 0.89 | 5,000 units = 41 d | 3,927 units | 36.4 (money (gold)) | 3.1 | 9.3 |
+
+"money / building" above 1 means the one training building is the bottleneck, below 1 means money is.
+
+## 3. Battle
+
+Real engine, luck 0, no morale, no ranks, no loot. Defender: N pop of Pikeman + Shieldbearer 50/50 by count at home, Town Hall 10, Wall 0/10/22 (the Wall adds its militia and bonus in the engine). Attacker = smallest count of the main unit (Raiders) that the engine lets win. Survivors % and losses are by value. A won battle kills ALL defenders; a lost one kills ALL attackers. Firecarts stay fixed when the count is scaled; the Wall is lowered during the battle as the engine does (D already uses the lowered Wall).
+
+### 3a. Smallest winning army (luck 0)
+| N def pop | Wall | attacker | army | A (attack) | D (defence) | att value / def value | att pop / def pop | att survivors | def survivors | att loss (value) | def loss (value) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 500 | 0 | Raiders | 390 Raider | 14,040 | 14,020 | 1.01 | 0.78 | 0% | 0% | 33,065 | 32,750 |
+| 500 | 0 | Raiders + Elk Riders | 205 Raider + 114 Elk Rider | 14,790 | 14,772 | 1.18 | 0.87 | 0% | 0% | 38,515 | 32,750 |
+| 500 | 0 | Ember Guards | 201 Ember Guard | 14,070 | 14,020 | 2.39 | 1.21 | 0% | 0% | 78,000 | 32,750 |
+| 500 | 0 | Raiders + 6 Firecarts | 389 Raider + 6 Firecart | 14,034 | 14,020 | 1.08 | 0.81 | 0% | 0% | 35,188 | 32,750 |
+| 500 | 0 | Raiders + 12 Firecarts | 388 Raider + 12 Firecart | 14,028 | 14,020 | 1.14 | 0.85 | 0% | 0% | 37,396 | 32,750 |
+| 500 | 0 | Raiders + 24 Firecarts | 387 Raider + 24 Firecart | 14,052 | 14,020 | 1.27 | 0.92 | 0% | 0% | 41,642 | 32,750 |
+| 500 | 10 | Raiders | 571 Raider | 20,556 | 20,532 | 1.48 | 1.14 | 0% | 0% | 48,450 | 32,750 |
+| 500 | 10 | Raiders + Elk Riders | 301 Raider + 167 Elk Rider | 21,691 | 21,620 | 1.72 | 1.27 | 0% | 0% | 56,210 | 32,750 |
+| 500 | 10 | Ember Guards | 294 Ember Guard | 20,580 | 20,532 | 3.5 | 1.76 | 0% | 0% | 114,270 | 32,750 |
+| 500 | 10 | Raiders + 6 Firecarts | 570 Raider + 6 Firecart | 20,550 | 20,532 | 1.55 | 1.18 | 0% | 0% | 50,573 | 32,750 |
+| 500 | 10 | Raiders + 12 Firecarts | 569 Raider + 12 Firecart | 20,544 | 20,532 | 1.61 | 1.21 | 0% | 0% | 52,781 | 32,750 |
+| 500 | 10 | Raiders + 24 Firecarts | 568 Raider + 24 Firecart | 20,568 | 20,532 | 1.74 | 1.28 | 0% | 0% | 57,027 | 32,750 |
+| 500 | 22 | Raiders | 793 Raider | 28,548 | 28,513 | 2.06 | 1.59 | 0% | 0% | 67,320 | 32,750 |
+| 500 | 22 | Raiders + Elk Riders | 417 Raider + 231 Elk Rider | 30,027 | 30,005 | 2.39 | 1.76 | 0% | 0% | 78,180 | 32,750 |
+| 500 | 22 | Ember Guards | 408 Ember Guard | 28,560 | 28,513 | 4.86 | 2.45 | 0% | 0% | 158,730 | 32,750 |
+| 500 | 22 | Raiders + 6 Firecarts | 792 Raider + 6 Firecart | 28,542 | 28,513 | 2.12 | 1.62 | 0% | 0% | 69,443 | 32,750 |
+| 500 | 22 | Raiders + 12 Firecarts | 791 Raider + 12 Firecart | 28,536 | 28,513 | 2.19 | 1.65 | 0% | 0% | 71,566 | 32,750 |
+| 500 | 22 | Raiders + 24 Firecarts | 789 Raider + 24 Firecart | 28,524 | 28,513 | 2.32 | 1.72 | 0% | 0% | 75,897 | 32,750 |
+| 2000 | 0 | Raiders | 1,557 Raider | 56,052 | 56,020 | 1.01 | 0.78 | 0% | 0% | 132,260 | 131,000 |
+| 2000 | 0 | Raiders + Elk Riders | 820 Raider + 454 Elk Rider | 59,030 | 59,019 | 1.17 | 0.86 | 0% | 0% | 153,690 | 131,000 |
+| 2000 | 0 | Ember Guards | 801 Ember Guard | 56,070 | 56,020 | 2.38 | 1.2 | 0% | 0% | 312,000 | 131,000 |
+| 2000 | 0 | Raiders + 6 Firecarts | 1,556 Raider + 6 Firecart | 56,046 | 56,020 | 1.03 | 0.79 | 0% | 0% | 134,383 | 131,000 |
+| 2000 | 0 | Raiders + 12 Firecarts | 1,555 Raider + 12 Firecart | 56,040 | 56,020 | 1.04 | 0.8 | 0% | 0% | 136,506 | 131,000 |
+| 2000 | 0 | Raiders + 24 Firecarts | 1,553 Raider + 24 Firecart | 56,028 | 56,020 | 1.08 | 0.81 | 0% | 0% | 140,837 | 131,000 |
+| 2000 | 10 | Raiders | 2,263 Raider | 81,468 | 81,432 | 1.47 | 1.13 | 0% | 0% | 192,270 | 131,000 |
+| 2000 | 10 | Raiders + Elk Riders | 1,192 Raider + 660 Elk Rider | 85,812 | 85,781 | 1.71 | 1.26 | 0% | 0% | 223,335 | 131,000 |
+| 2000 | 10 | Ember Guards | 1,164 Ember Guard | 81,480 | 81,432 | 3.47 | 1.75 | 0% | 0% | 453,570 | 131,000 |
+| 2000 | 10 | Raiders + 6 Firecarts | 2,262 Raider + 6 Firecart | 81,462 | 81,432 | 1.48 | 1.14 | 0% | 0% | 194,393 | 131,000 |
+| 2000 | 10 | Raiders + 12 Firecarts | 2,261 Raider + 12 Firecart | 81,456 | 81,432 | 1.5 | 1.15 | 0% | 0% | 196,516 | 131,000 |
+| 2000 | 10 | Raiders + 24 Firecarts | 2,259 Raider + 24 Firecart | 81,444 | 81,432 | 1.53 | 1.17 | 0% | 0% | 200,847 | 131,000 |
+| 2000 | 22 | Raiders | 3,114 Raider | 112,104 | 112,093 | 2.02 | 1.56 | 0% | 0% | 264,690 | 131,000 |
+| 2000 | 22 | Raiders + Elk Riders | 1,641 Raider + 909 Elk Rider | 118,161 | 118,063 | 2.35 | 1.73 | 0% | 0% | 307,295 | 131,000 |
+| 2000 | 22 | Ember Guards | 1,602 Ember Guard | 112,140 | 112,093 | 4.77 | 2.4 | 0% | 0% | 624,390 | 131,000 |
+| 2000 | 22 | Raiders + 6 Firecarts | 3,113 Raider + 6 Firecart | 112,098 | 112,093 | 2.04 | 1.57 | 0% | 0% | 266,813 | 131,000 |
+| 2000 | 22 | Raiders + 12 Firecarts | 3,113 Raider + 12 Firecart | 112,128 | 112,093 | 2.05 | 1.57 | 0% | 0% | 268,936 | 131,000 |
+| 2000 | 22 | Raiders + 24 Firecarts | 3,111 Raider + 24 Firecart | 112,116 | 112,093 | 2.09 | 1.59 | 0% | 0% | 273,182 | 131,000 |
+
+### 3b. Near misses, luck, bigger armies (loss in value, attacker / defender)
+| N def pop | Wall | attacker | min wins | at 0.9x | at 0.7x | luck -10% (win count) | luck +10% (win count) | att loss share at 1.5x | att loss share at 2x |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 500 | 0 | Raiders | 390 | 29,835 / 28,034 | 23,205 / 19,257 | LOSE 33,150 / 28,034 | win 28,645 / 32,750 | 54% | 35% |
+| 500 | 0 | Raiders + Elk Riders | 205 | 34,595 / 27,903 | 27,040 / 19,257 | LOSE 38,515 / 28,034 | win 33,360 / 32,750 | 54% | 35% |
+| 500 | 0 | Ember Guards | 201 | 70,590 / 28,165 | 54,990 / 19,388 | LOSE 78,390 / 28,165 | win 67,470 / 32,750 | 54% | 35% |
+| 500 | 0 | Raiders + 6 Firecarts | 389 | 31,958 / 28,034 | 25,328 / 19,257 | LOSE 35,273 / 28,034 | win 30,485 / 32,750 | 54% | 35% |
+| 500 | 0 | Raiders + 12 Firecarts | 388 | 34,081 / 28,034 | 27,536 / 19,257 | LOSE 37,396 / 28,034 | win 32,240 / 32,750 | 55% | 35% |
+| 500 | 0 | Raiders + 24 Firecarts | 387 | 38,412 / 28,034 | 31,867 / 19,388 | LOSE 41,727 / 28,034 | win 36,118 / 32,750 | 54% | 36% |
+| 500 | 10 | Raiders | 571 | 43,690 / 28,034 | 34,000 / 19,257 | LOSE 48,535 / 28,034 | win 41,990 / 32,750 | 54% | 35% |
+| 500 | 10 | Raiders + Elk Riders | 301 | 50,785 / 28,034 | 39,580 / 19,257 | LOSE 56,480 / 28,034 | win 48,740 / 32,750 | 54% | 35% |
+| 500 | 10 | Ember Guards | 294 | 103,350 / 28,165 | 80,340 / 19,257 | LOSE 114,660 / 28,034 | win 99,060 / 32,750 | 54% | 35% |
+| 500 | 10 | Raiders + 6 Firecarts | 570 | 45,813 / 28,034 | 36,123 / 19,257 | LOSE 50,658 / 28,034 | win 43,745 / 32,750 | 54% | 35% |
+| 500 | 10 | Raiders + 12 Firecarts | 569 | 47,936 / 28,034 | 38,246 / 19,257 | LOSE 52,781 / 28,034 | win 45,585 / 32,750 | 55% | 35% |
+| 500 | 10 | Raiders + 24 Firecarts | 568 | 52,267 / 28,034 | 42,662 / 19,388 | LOSE 57,112 / 28,034 | win 49,463 / 32,750 | 54% | 36% |
+| 500 | 22 | Raiders | 793 | 60,690 / 28,034 | 47,175 / 19,257 | LOSE 67,405 / 28,034 | win 58,310 / 32,750 | 54% | 35% |
+| 500 | 22 | Raiders + Elk Riders | 417 | 70,355 / 28,034 | 54,790 / 19,257 | LOSE 78,180 / 28,034 | win 67,685 / 32,750 | 54% | 35% |
+| 500 | 22 | Ember Guards | 408 | 143,130 / 28,034 | 111,540 / 19,257 | LOSE 159,120 / 28,034 | win 137,670 / 32,750 | 54% | 35% |
+| 500 | 22 | Raiders + 6 Firecarts | 792 | 62,813 / 28,034 | 49,298 / 19,257 | LOSE 69,528 / 28,034 | win 60,065 / 32,750 | 54% | 35% |
+| 500 | 22 | Raiders + 12 Firecarts | 791 | 64,936 / 28,034 | 51,506 / 19,257 | LOSE 71,651 / 28,034 | win 61,905 / 32,750 | 55% | 35% |
+| 500 | 22 | Raiders + 24 Firecarts | 789 | 69,182 / 28,034 | 55,752 / 19,257 | LOSE 75,897 / 28,034 | win 65,783 / 32,750 | 54% | 36% |
+| 2000 | 0 | Raiders | 1,557 | 119,085 / 111,874 | 92,650 / 76,766 | LOSE 132,345 / 112,005 | win 114,580 / 131,000 | 54% | 35% |
+| 2000 | 0 | Raiders + Elk Riders | 820 | 138,395 / 112,005 | 107,620 / 76,766 | LOSE 153,690 / 111,874 | win 133,140 / 131,000 | 54% | 35% |
+| 2000 | 0 | Ember Guards | 801 | 281,190 / 112,005 | 218,790 / 76,897 | LOSE 312,390 / 112,005 | win 270,270 / 131,000 | 54% | 35% |
+| 2000 | 0 | Raiders + 6 Firecarts | 1,556 | 121,208 / 111,874 | 94,773 / 76,766 | LOSE 134,468 / 111,874 | win 116,420 / 131,000 | 54% | 35% |
+| 2000 | 0 | Raiders + 12 Firecarts | 1,555 | 123,416 / 112,005 | 96,981 / 76,897 | LOSE 136,591 / 111,874 | win 118,175 / 131,000 | 55% | 35% |
+| 2000 | 0 | Raiders + 24 Firecarts | 1,553 | 127,662 / 112,005 | 101,227 / 76,897 | LOSE 140,837 / 111,874 | win 122,138 / 131,000 | 54% | 35% |
+| 2000 | 10 | Raiders | 2,263 | 173,145 / 112,005 | 134,640 / 76,766 | LOSE 192,355 / 111,874 | win 166,600 / 131,000 | 54% | 35% |
+| 2000 | 10 | Raiders + Elk Riders | 1,192 | 201,095 / 111,874 | 156,360 / 76,766 | LOSE 223,420 / 111,874 | win 193,625 / 131,000 | 54% | 35% |
+| 2000 | 10 | Ember Guards | 1,164 | 408,720 / 112,005 | 317,850 / 76,766 | LOSE 453,960 / 112,005 | win 393,120 / 131,000 | 54% | 35% |
+| 2000 | 10 | Raiders + 6 Firecarts | 2,262 | 175,268 / 111,874 | 136,763 / 76,766 | LOSE 194,478 / 111,874 | win 168,440 / 131,000 | 54% | 35% |
+| 2000 | 10 | Raiders + 12 Firecarts | 2,261 | 177,391 / 111,874 | 138,971 / 76,766 | LOSE 196,601 / 111,874 | win 170,195 / 131,000 | 54% | 35% |
+| 2000 | 10 | Raiders + 24 Firecarts | 2,259 | 181,637 / 111,874 | 143,217 / 76,766 | LOSE 200,847 / 111,874 | win 174,158 / 131,000 | 54% | 35% |
+| 2000 | 22 | Raiders | 3,114 | 238,255 / 111,874 | 185,300 / 76,766 | LOSE 264,690 / 111,874 | win 229,415 / 131,000 | 54% | 35% |
+| 2000 | 22 | Raiders + Elk Riders | 1,641 | 276,875 / 112,005 | 215,325 / 76,766 | LOSE 307,650 / 112,005 | win 266,380 / 131,000 | 54% | 35% |
+| 2000 | 22 | Ember Guards | 1,602 | 562,380 / 112,005 | 437,190 / 76,766 | LOSE 624,780 / 111,874 | win 541,320 / 131,000 | 54% | 35% |
+| 2000 | 22 | Raiders + 6 Firecarts | 3,113 | 240,378 / 111,874 | 187,423 / 76,766 | LOSE 266,813 / 111,874 | win 231,170 / 131,000 | 54% | 35% |
+| 2000 | 22 | Raiders + 12 Firecarts | 3,113 | 242,586 / 111,874 | 189,631 / 76,766 | LOSE 269,021 / 111,874 | win 232,925 / 131,000 | 54% | 35% |
+| 2000 | 22 | Raiders + 24 Firecarts | 3,111 | 246,832 / 111,874 | 193,962 / 76,766 | LOSE 273,267 / 111,874 | win 236,888 / 131,000 | 54% | 35% |
+
+### 3c. Reference: 4,100 defenders behind Wall 20 (a real battle: attack ~96k lost, defence ~142k)
+| Shieldbearer share of 4,100 | D vs infantry attack | Raiders needed | attack points of those |
+| --- | --- | --- | --- |
+| 0% | 109,630 | 3,046 | 109,656 |
+| 15% | 142,348 | 3,955 | 142,380 |
+| 30% | 175,066 | 4,863 | 175,068 |
+| 50% | 218,690 | 6,075 | 218,700 |
+| 100% | 327,750 | 9,105 | 327,780 |
+
+Check: 2,667 Raiders (A=96,012) against 4,100 defenders with 15% Shieldbearers behind Wall 20: D=142,348, defender holds.
+
+## 4. Loot
+
+Abandoned villages from `createNpcVillage(tier)` (tier start levels), produce at NPC_PRODUCTION_FACTOR (0.45) of a player. "Fresh" = stock at creation. "10 d no build" = stock after 10 days of production only, capped by its storage. "Lootable" = stock minus what the Vault hides, per resource. After the first raid the garrison is dead (the engine never retrains it), so later raids only need carriers. Sustained loot/day = min(trips x carry, the village's production per day). Trips at 10 tiles: flat ground, Raiders, there and back only.
+
+### 4a. Abandoned villages (w/f/i/g = value)
+| tier | buildings | fresh stock | 10 d no build | 10 d real (self-build) | production/h (value) | vault hides (each) | garrison |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Hall 1, Wall 0, Vault 0, Store 2 | 1,695/1,695/1,695/40 = 5,485 | 2,119/2,119/2,119/40 = 6,757 | 4,005/4,786/4,786/40 = 13,977 | 27.5/36.5/27.5/0 = 91.4 | 0 | 4 Pikeman + 2 Shieldbearer |
+| 2 | Hall 2, Wall 1, Vault 1, Store 4 | 2,348/2,348/2,348/80 = 7,844 | 2,935/2,935/2,935/404 = 12,845 | 4,786/4,786/4,786/404 = 18,398 | 34.7/45.9/34.7/1.35 = 128.7 | 120 | 8 Pikeman + 4 Shieldbearer |
+| 3 | Hall 3, Wall 2, Vault 2, Store 6 | 3,252/3,252/3,252/120 = 10,956 | 4,066/4,066/4,066/444 = 16,638 | 4,786/4,786/4,786/444 = 18,798 | 43.7/58.1/43.7/1.35 = 158.9 | 154 | 12 Pikeman + 6 Shieldbearer |
+| 4 | Hall 4, Wall 3, Vault 3, Store 7 | 3,828/3,828/3,828/160 = 13,084 | 4,786/4,786/4,786/592 = 20,278 | 4,786/4,786/4,786/592 = 20,278 | 49.1/65.7/49.1/1.8 = 181.8 | 197 | 16 Pikeman + 8 Shieldbearer |
+| 5 | Hall 5, Wall 4, Vault 4, Store 7 | 3,828/3,828/3,828/200 = 13,484 | 4,786/4,786/4,786/632 = 20,678 | 4,786/4,786/4,786/632 = 20,678 | 49.1/65.7/49.1/1.8 = 181.8 | 252 | 20 Pikeman + 10 Shieldbearer |
+
+### 4b. Raiding them with Raiders (10 tiles)
+| tier | Raiders to kill garrison (min) | min army carry (and loot it took) | Raiders to also carry all lootable | round trips/day | village production/day | sustained loot/day | ratio vs own income @25% | @50% | @75% | @100% |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 5 | 28 (loot 91 of 5,485) | 185 (cost 15,725, carry 5,152, loot 5,485) | 7.2 | 2,192 | 2,192 | 24% | 11% | 6% | 3% |
+| 2 | 10 | 28 (loot 28 of 6,684) | 241 (cost 20,485, carry 6,692, loot 6,684) | 7.2 | 3,089 | 3,089 | 35% | 16% | 8% | 4% |
+| 3 | 15 | 28 (loot 28 of 9,294) | 335 (cost 28,475, carry 9,296, loot 9,294) | 7.2 | 3,812 | 3,812 | 43% | 19% | 10% | 5% |
+| 4 | 20 | 28 (loot 28 of 10,893) | 394 (cost 33,490, carry 10,920, loot 10,893) | 7.2 | 4,363 | 4,363 | 49% | 22% | 11% | 6% |
+| 5 | 26 | 28 (loot 28 of 10,728) | 390 (cost 33,150, carry 10,752, loot 10,728) | 7.2 | 4,363 | 4,363 | 49% | 22% | 11% | 6% |
+
+Own income per day (value): 25% = 8,952, 50% = 19,584, 75% = 39,528, 100% = 78,648. Ratio = sustained raid loot per day / own income per day.
+
+### 4c. Scouting duel (SCOUT_DEFENSE_FACTOR 1, loss exponent 1.5)
+5 Pathfinders cost 225 value (45 each). Fresh stock of an abandoned village: tier 1: 5,485; tier 2: 7,844; tier 3: 10,956; tier 4: 13,084; tier 5: 13,484. Abandoned villages have no Pathfinders, so scouting them is free.
+
+| defending Pathfinders | 5 scouts | scouts lost | loss (value) | defender scouts lost |
+| --- | --- | --- | --- | --- |
+| 0 | success | 0 | 0 | 0 |
+| 1 | success | 0 | 0 | 0 |
+| 2 | success | 1 | 45 | 0 |
+| 3 | success | 2 | 90 | 0 |
+| 4 | success | 4 | 180 | 0 |
+| 5 | caught | 5 | 225 | 5 |
+| 10 | caught | 5 | 225 | 4 |
+
+## 5. Firecart value
+
+Siege numbers in use: Firecart power 1 point(s) each, max 2 level(s) per step, value 368 each (pop 3); SIEGE_BASE_POINTS 6, SIEGE_POINTS_PER_LEVEL 2 (lowering level L costs 6 + 2 x L points), SIEGE_DURING_SHARE 0.5 (share of the points that fire at the Wall during the battle), SIEGE_LOST_SHARE 0.5 (share of carts counted after a LOST attack). Raider value 85. Luck 0, no morale, noLoot.
+
+### 5a. In the battle: Raiders saved by Firecarts (smallest Raider count that wins, carts sent)
+| N def pop | Wall | carts | min Raiders | Raiders saved | value saved | value of carts | net (saved - carts) | Wall during battle | D |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 500 | 10 | 0 | 571 | 0 | 0 | 0 | 0 | 10 | 20,532 |
+| 500 | 10 | 10 | 569 | 2 | 170 | 3,680 | -3,510 | 10 | 20,532 |
+| 500 | 10 | 25 | 567 | 4 | 340 | 9,200 | -8,860 | 10 | 20,532 |
+| 500 | 10 | 50 | 564 | 7 | 595 | 18,400 | -17,805 | 10 | 20,532 |
+| 500 | 10 | 100 | 520 | 51 | 4,335 | 36,800 | -32,465 | 8 | 19,220 |
+| 500 | 10 | 200 | 507 | 64 | 5,440 | 73,600 | -68,160 | 8 | 19,220 |
+| 500 | 22 | 0 | 793 | 0 | 0 | 0 | 0 | 22 | 28,513 |
+| 500 | 22 | 10 | 791 | 2 | 170 | 3,680 | -3,510 | 22 | 28,513 |
+| 500 | 22 | 25 | 789 | 4 | 340 | 9,200 | -8,860 | 22 | 28,513 |
+| 500 | 22 | 50 | 786 | 7 | 595 | 18,400 | -17,805 | 22 | 28,513 |
+| 500 | 22 | 100 | 760 | 33 | 2,805 | 36,800 | -33,995 | 21 | 27,841 |
+| 500 | 22 | 200 | 727 | 66 | 5,610 | 73,600 | -67,990 | 20 | 27,170 |
+| 2000 | 10 | 0 | 2,263 | 0 | 0 | 0 | 0 | 10 | 81,432 |
+| 2000 | 10 | 10 | 2,261 | 2 | 170 | 3,680 | -3,510 | 10 | 81,432 |
+| 2000 | 10 | 25 | 2,259 | 4 | 340 | 9,200 | -8,860 | 10 | 81,432 |
+| 2000 | 10 | 50 | 2,256 | 7 | 595 | 18,400 | -17,805 | 10 | 81,432 |
+| 2000 | 10 | 100 | 2,107 | 156 | 13,260 | 36,800 | -23,540 | 8 | 76,340 |
+| 2000 | 10 | 200 | 2,093 | 170 | 14,450 | 73,600 | -59,150 | 8 | 76,340 |
+| 2000 | 22 | 0 | 3,114 | 0 | 0 | 0 | 0 | 22 | 112,093 |
+| 2000 | 22 | 10 | 3,113 | 1 | 85 | 3,680 | -3,595 | 22 | 112,093 |
+| 2000 | 22 | 25 | 3,111 | 3 | 255 | 9,200 | -8,945 | 22 | 112,093 |
+| 2000 | 22 | 50 | 3,107 | 7 | 595 | 18,400 | -17,805 | 22 | 112,093 |
+| 2000 | 22 | 100 | 3,029 | 85 | 7,225 | 36,800 | -29,575 | 21 | 109,531 |
+| 2000 | 22 | 200 | 2,944 | 170 | 14,450 | 73,600 | -59,150 | 20 | 106,970 |
+
+### 5b. After a WON battle: surviving Firecarts needed to lower the picked building (after step only, no during-the-battle Wall step)
+| building | floor | levels lowered | surviving carts | carts value | defender rebuild cost (value, money only) | defender loss / cart cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| Wall 10 | 0 | 1 | 26 | 9,568 | 1,668 | 0.17 |
+| Wall 10 | 0 | 2 | 50 | 18,400 | 3,047 | 0.17 |
+| Wall 22 | 0 | 1 | 50 | 18,400 | 16,430 | 0.89 |
+| Wall 22 | 0 | 2 | 98 | 36,064 | 30,008 | 0.83 |
+| Banner Hall 4 | 0 | 1 | 14 | 5,152 | 21,282 | 4.13 |
+| Banner Hall 4 | 0 | 2 | 26 | 9,568 | 37,044 | 3.87 |
+| Barracks 20 | 0 | 1 | 46 | 16,928 | 36,007 | 2.13 |
+| Barracks 20 | 0 | 2 | 90 | 33,120 | 65,281 | 1.97 |
+| Lumber Camp 25 | 0 | 1 | 56 | 20,608 | 16,452 | 0.8 |
+| Lumber Camp 25 | 0 | 2 | 110 | 40,480 | 30,084 | 0.74 |
+| Storehouse 25 | 1 | 1 | 56 | 20,608 | 21,937 | 1.06 |
+| Storehouse 25 | 1 | 2 | 110 | 40,480 | 40,113 | 0.99 |
+
+Carts to SEND = surviving carts / (1 - attacker loss share of the battle). Rebuild time is not counted.
+
+## Flags (derived from the tables above)
+
+- NEVER WORTH BUILDING: Ember Guard is not the best combat unit in any of the 9 metrics (value, pop, speed, carry).
+- OUTLIER: Shieldbearer has 2.2x the Pikeman (next best) in def vs foot / value.
+- OUTLIER: Pikeman has 2.4x the Shieldbearer (next best) in def vs riders / value.
+- OUTLIER: Shieldbearer has 2.1x the Ember Guard (next best) in def vs foot / pop.
+- OUTLIER: Elk Rider has 2.2x the Pikeman (next best) in speed.
+
+Best combat unit per metric (Pathfinder, Chieftain and Firecart left out):
+| metric | best | value |
+| --- | --- | --- |
+| attack / value | Raider | 0.42 |
+| def vs foot / value | Shieldbearer | 0.56 |
+| def vs riders / value | Pikeman | 0.71 |
+| carry / value | Elk Rider | 0.41 |
+| attack / pop | Raider | 36 |
+| def vs foot / pop | Shieldbearer | 42 |
+| def vs riders / pop | Pikeman | 40 |
+| carry / pop | Elk Rider | 37.5 |
+| speed | Elk Rider | 13 |

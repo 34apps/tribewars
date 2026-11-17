@@ -146,9 +146,11 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
 | Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | **the only rider**, big carry |
-| **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 70 / 60 / 60 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
+| **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
 | Firecart (`firecart`) | Wrightyard 1 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege (§18.9) |
+
+BALANCE 14 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §14.
 
 The **Elk Rider** is the only `cavalry` unit, so "riders" in the defence mix now means Elk Riders only; the **Ember Guard** is `infantry`, walks
 the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
@@ -2148,7 +2150,7 @@ It walks over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier
 found or occupy; `checkMission` refuses it). It fights, but badly, and dies in the battle like everyone else (loss ratio is the same for every unit of
 the army).
 
-**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 1). Lowering a building from level L to L-1 costs
+**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 2 since BALANCE 14, 2026-11-17; it was 1). Lowering a building from level L to L-1 costs
 `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16). **Each step lowers
 at most `maxLevels` (2) levels** (so the Wall can lose up to 4 in one attack when it is both the during target and the picked building) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
@@ -2177,7 +2179,7 @@ queued siege batches at the Barracks and siege research are refunded in full (ca
 villages with Barracks 5 or more get Wrightyard 1 for free. The refund uses the old prices (`LEGACY_SIEGE` in `migrate.ts`).
 
 **Balance (`BALANCE.md` sections 8 and 13).** Firecarts help win the battle (the Wall is lower) and a close loss is not a total waste, but they are slow, so the defender sees
-them coming and can rebuild. The siege army is far more expensive than rebuilding what it lowers, is the slowest thing on the map, and is capped per step. So siege makes the
+them coming and can rebuild. With power 2 the siege army (Wall 5 to 15) still costs more than rebuilding the level it lowers, and a deep Wall (about level 22) is about break-even (rebuild 1.1 x the army's price, `npm run sim -- --siege`, section (a); the invariant line is 1.5 x); it is the slowest thing on the map and capped per step. So siege makes the
 next attack easier; it does not make defending pointless.
 
 ### 18.10 Incoming warnings and notifications (owner, 2026-11-05)

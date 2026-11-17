@@ -1,0 +1,157 @@
+# Firecart: balance experiments (real engine, fixed seeds)
+
+Unit prices (valued wood + food + iron + 10 x gold): Firecart 368 (pop 3), Raider 85, Pikeman 56, Shieldbearer 75. Points to lower a level: L1 8, L3 12, L6 18, L10 26, L15 36, L25 56. In a decisive win (attack = 2 x defence) 63% of an army comes back, so about 157% of the survivors must be sent.
+
+## (b) Firecarts that must SURVIVE the battle to lower a building (after-the-battle step)
+
+| level | points / level | 1 level | 2 levels (cap 2) |
+|---|---|---|---|
+| 3 | 12 | 6 | 11 |
+| 6 | 18 | 9 | 17 |
+| 10 | 26 | 13 | 25 |
+| 15 | 36 | 18 | 35 |
+| 22 | 50 | 25 | 49 |
+
+With 5,000 survivors one step still lowers a building by at most 2 levels, and a Wall hit by both steps (during + after) by at most 4: the per-step cap works.
+
+## (a) What siege costs the attacker vs what the defender pays to rebuild
+
+Siege army = the Firecarts that must be SENT so enough survive a decisive win (attack 2 x defence). "Loses" = the Firecarts that die in that win (value). Rebuild = resources of the lowered levels + build hours (Town Hall 10, speed 1). Check = real battles, average levels dropped over 9 seeds.
+
+| target | survivors | send | army value (capital) | loses (value) | defender rebuild cost | rebuild time | rebuild / loses | rebuild / capital | check: levels dropped |
+|---|---|---|---|---|---|---|---|---|---|
+| Wall 5->4 | 8 | 13 | 4,784 | 1,840 | 644 | 0.4 h | 0.35 | 0.13 | 1.0 (won 100%) |
+| Wall 10->9 | 13 | 21 | 7,728 | 2,944 | 1,668 | 1.1 h | 0.57 | 0.22 | 0.8 (won 100%) |
+| Wall 10->8 | 25 | 40 | 14,720 | 5,520 | 3,047 | 2.1 h | 0.55 | 0.21 | 3.0 (won 100%) |
+| Wall 15->14 | 18 | 29 | 10,672 | 4,048 | 4,326 | 3.7 h | 1.07 | 0.41 | 0.8 (won 100%) |
+| Wall 22->21 | 25 | 40 | 14,720 | 5,520 | 16,430 | 19.3 h | 2.98 | 1.12 | 0.8 (won 100%) |
+| Market 5->4 | 8 | 13 | 4,784 | 1,840 | 727 | 0.6 h | 0.40 | 0.15 | 1.0 (won 100%) |
+| Market 10->9 | 13 | 21 | 7,728 | 2,944 | 1,847 | 1.8 h | 0.63 | 0.24 | 0.8 (won 100%) |
+| Drillyard 5->4 | 8 | 13 | 4,784 | 1,840 | 2,811 | 0.8 h | 1.53 | 0.59 | 1.0 (won 100%) |
+| Drillyard 9->8 | 12 | 19 | 6,992 | 2,576 | 6,758 | 2.4 h | 2.62 | 0.97 | 0.8 (won 100%) |
+| Banner Hall 1->0 | 4 | 7 | 2,576 | 1,104 | 8,650 | 13.9 h | 7.84 | 3.36 | 1.0 (won 100%) |
+| Banner Hall 3->2 | 6 | 10 | 3,680 | 1,472 | 15,762 | 24.1 h | 10.71 | 4.28 | 1.0 (won 100%) |
+| Banner Hall 4->3 | 7 | 12 | 4,416 | 1,840 | 21,282 | 31.9 h | 11.57 | 4.82 | 1.0 (won 100%) |
+| Banner Hall 4->2 | 13 | 21 | 7,728 | 2,944 | 37,044 | 56.0 h | 12.58 | 4.79 | 1.8 (won 100%) |
+
+rebuild / loses above 1 means the defender pays MORE than the attacker lost in the attack; rebuild / capital above 1 means even buying the whole siege army for one attack would be cheaper than the damage (siege is a bargain).
+
+## (c) Attacks needed against a fortified village, with and without Firecarts
+
+Each wave: the attacker sends Raiders + Firecarts so that attack = 2 x the defence the engine reports (Wall as it stands before the battle, after the during-the-battle hit), wins, the garrison dies. Between waves the defender brings the garrison back to 50% of the original. Firecarts are sized to take 2 Wall levels after the battle from the starting level (survivors / 0.63). No siege = the same waves with no Firecarts (the Wall never drops).
+
+### Wall 10, 250 Pikemen + 150 Shieldbearers (40 Firecarts, value 14,720)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Firecarts sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 10 -> 10 | 14,442 | 803 | 0 | 68,255 | 20,910 |
+| 2 | no | 10 -> 10 | 7,337 | 408 | 0 | 34,680 | 13,175 |
+| 3 | no | 10 -> 10 | 7,337 | 408 | 0 | 34,680 | 12,240 |
+| 4 | no | 10 -> 10 | 7,337 | 408 | 0 | 34,680 | 14,280 |
+| 1 | yes | 10 -> 7 | 14,442 | 797 | 40 | 82,465 | 24,221 |
+| 2 | yes | 7 -> 3 | 6,599 | 362 | 40 | 45,490 | 15,607 |
+| 3 | yes | 3 -> 0 | 5,632 | 308 | 40 | 40,900 | 12,491 |
+
+Wave 2 needs 7,337 attack without siege and 6,844 after a siege wave took the Wall to 8: the attacker saves 27 Raider-equivalents per wave (2,330 value). To cancel that the defender adds 9 Shieldbearers (675 value) or rebuilds 2 Wall levels (3,047 value, 2.1 h). First waves: 172,295 sent without siege (2027 Raiders over the same waves) vs 168,855 with.
+
+### Wall 15, 250 Pikemen + 150 Shieldbearers (56 Firecarts, value 20,608)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Firecarts sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 15 -> 15 | 16,800 | 934 | 0 | 79,390 | 24,395 |
+| 2 | no | 15 -> 15 | 8,593 | 478 | 0 | 40,630 | 15,470 |
+| 3 | no | 15 -> 15 | 8,593 | 478 | 0 | 40,630 | 14,280 |
+| 4 | no | 15 -> 15 | 8,593 | 478 | 0 | 40,630 | 16,745 |
+| 1 | yes | 15 -> 12 | 16,800 | 926 | 56 | 99,318 | 29,008 |
+| 2 | yes | 12 -> 9 | 7,836 | 428 | 56 | 56,988 | 20,535 |
+| 3 | yes | 9 -> 5 | 7,090 | 387 | 56 | 53,503 | 16,994 |
+| 4 | yes | 5 -> 1 | 6,113 | 332 | 56 | 48,828 | 17,645 |
+| 5 | yes | 1 -> 0 | 5,156 | 279 | 56 | 44,323 | 13,481 |
+
+Wave 2 needs 8,593 attack without siege and 8,087 after a siege wave took the Wall to 13: the attacker saves 28 Raider-equivalents per wave (2,390 value). To cancel that the defender adds 8 Shieldbearers (600 value) or rebuilds 2 Wall levels (7,902 value, 6.7 h). First waves: 201,280 sent without siege (2368 Raiders over the same waves) vs 302,960 with.
+
+### Wall 15, empty (just the Wall and militia) (56 Firecarts, value 20,608)
+
+| wave | siege? | Wall before -> after | defence | Raiders sent | Firecarts sent | army sent (value) | army lost (value) |
+|---|---|---|---|---|---|---|---|
+| 1 | no | 15 -> 15 | 385 | 22 | 0 | 1,870 | 510 |
+| 2 | no | 15 -> 15 | 385 | 22 | 0 | 1,870 | 680 |
+| 3 | no | 15 -> 15 | 385 | 22 | 0 | 1,870 | 595 |
+| 4 | no | 15 -> 15 | 385 | 22 | 0 | 1,870 | 765 |
+| 1 | yes | 15 -> 12 | 385 | 14 | 56 | 21,798 | 5,860 |
+| 2 | yes | 12 -> 9 | 290 | 9 | 56 | 21,373 | 6,511 |
+| 3 | yes | 9 -> 5 | 205 | 4 | 56 | 20,948 | 4,501 |
+| 4 | yes | 5 -> 1 | 110 | 0 | 56 | 20,608 | 2,944 |
+| 5 | yes | 1 -> 0 | 36 | 0 | 56 | 20,608 | 368 |
+
+Wave 2 needs 385 attack without siege and 320 after a siege wave took the Wall to 13: the attacker saves 4 Raider-equivalents per wave (307 value). To cancel that the defender adds 1 Shieldbearers (75 value) or rebuilds 2 Wall levels (7,902 value, 6.7 h). First waves: 7,480 sent without siege (88 Raiders over the same waves) vs 105,335 with.
+
+Reading: against a village with a real garrison the Wall is only a part of the defence, so lowering it a few levels barely changes the attack the next wave needs. The Firecarts cost more than the Raiders they save, and the defender can undo it with a few Shieldbearers or a few cheap Wall levels. Only a village that is mostly Wall gains a lot from siege.
+
+## (d) Does siege make defending pointless?
+
+### (d1) The same attack at different strengths: a hold still costs the attacker, a lost attack lowers little
+
+Attacker: 60 Firecarts (picking the Banner Hall) + enough Raiders for the ratio. Defender: Wall 10, Banner Hall 3, Market 5, 250 Pikemen + 150 Shieldbearers. 9 seeds per row (luck +-10%).
+
+| attack / defence | battles won | buildings lowered when LOST | levels lowered when WON (avg) | attacker loses (value) | defender troops lost (avg) |
+|---|---|---|---|---|---|
+| 0.60 | 0 / 9 | 9 of 9 | - | 41,885 | 201 |
+| 0.90 | 2 / 9 | 7 of 7 | 2.0 | 51,509 | 364 |
+| 1.00 | 7 / 9 | 2 of 2 | 2.7 | 51,120 | 395 |
+| 1.10 | 9 / 9 | - | 3.3 | 47,735 | 400 |
+| 1.25 | 9 / 9 | - | 4.0 | 42,783 | 400 |
+| 1.50 | 9 / 9 | - | 4.0 | 36,905 | 400 |
+| 2.00 | 9 / 9 | - | 4.0 | 29,636 | 400 |
+| 3.00 | 9 / 9 | - | 4.0 | 22,200 | 400 |
+
+A defence that holds can still lose a Wall level or two: the Firecarts fire half their points during the battle, and a share of them counts as survivors on a loss. The attacker lost the whole army for it. A clear win lowers the most.
+
+### (d2) The army needed to win AND take one Wall level, by how well the village is defended
+
+Each row: Firecarts sized so one level survives a decisive win (attack 2 x defence), Raiders sized for the ratio. Defence = the engine's number for the village as it stands.
+
+| village | defence | Raiders | Firecarts | army pop | army value | x the empty-village army |
+|---|---|---|---|---|---|---|
+| Wall 10, no garrison | 232 | 10 | 21 | 73 | 8,578 | 1.0x |
+| Wall 10, 100 Pikemen + 60 Shieldbearers | 5,916 | 326 | 21 | 389 | 35,438 | 4.1x |
+| Wall 10, 250 Pikemen + 150 Shieldbearers | 14,442 | 800 | 21 | 863 | 75,728 | 8.8x |
+| Wall 15, 500 Pikemen + 300 Shieldbearers | 33,215 | 1842 | 29 | 1929 | 167,242 | 19.5x |
+
+The garrison, not the Wall, decides how big the attack must be; siege adds a fixed Firecart block on top and does nothing to shrink the garrison part.
+
+### (d3) The siege army is slow: warning time for the defender (20 tiles, speed 1, terrain from the world seed)
+
+| army | slowest unit | flat ground | with terrain |
+|---|---|---|---|
+| Raiders only | Raider (speed 6) | 3.3 h | 3.5 h |
+| Elk-class riders (Elk Riders only) | Elk Rider (speed 13) | 1.5 h | 1.7 h |
+| Pathfinder (scout) | Pathfinder (speed 18) | 67 min | 68 min |
+| Raiders + 20 Firecarts | Firecart (speed 3) | 6.7 h | 7.2 h |
+| Firecarts only | Firecart (speed 3) | 6.7 h | 7.2 h |
+
+Training: one Firecart takes 23 min in a Wrightyard level 1, so 20 are 7.8 h of queue; the unit first needs a Drillyard research of 3.0 h. The defender sees the army on the map for the whole trip and can reinforce, recall support or strike the slow column first.
+
+## Invariants
+
+- OK: per-step cap: at most 2 levels
+- OK: the Wall takes at most 2 x 2 levels when it is hit in both steps
+- OK: no pick: the Wall is the target
+- OK: the Farm and the Longhouse never drop below 1
+- OK: Wall levels are not a bargain to knock down (rebuild < 1.5 x attacker capital)
+- OK: against a garrisoned village siege lowers the next wave's defence by under 40%
+- OK: a lost battle never lowers more than the two steps may lower in one attack
+- OK: a real garrison + Wall needs a much bigger army even with siege (at least 5x the empty village)
+- OK: a siege column is at least 1.8x slower than Raiders over 20 tiles
+
+All invariants hold.
+
+## Computer players with and without siege units (same seed)
+
+| style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Rams + Slings trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |
+|---|---|---|---|---|---|---|---|---|---|
+| builder | 5725 / 5725 | 2 / 2 | 0 / 0 | 5.8 / 5.8 | 0 | never | 0 (0) | 0 | 0 |
+| raider | 5997 / 14041 | 2 / 2 | 330559 / 385782 | 1.2 / 1.2 | 0 | never | 0 (0) | 0 | 0 |
+| turtle | 1289 / 1289 | 1 / 1 | 0 / 0 | 5.2 / 5.2 | 0 | never | 0 (0) | 0 | 0 |
+| balanced | 12402 / 18258 | 2 / 2 | 344093 / 360711 | 6.5 / 3.8 | 0 | never | 0 (0) | 0 | 0 |
+

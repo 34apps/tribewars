@@ -199,7 +199,8 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   }
   lines.push('', 'rebuild / loses above 1 means the defender pays MORE than the attacker lost in the attack; rebuild / capital above 1 means even buying the whole siege army for one attack would be cheaper than the damage (siege is a bargain).', '');
   const wallRows = verdictRows.filter((r) => r.label.startsWith('Wall'));
-  check('Wall levels are cheap to rebuild vs the Firecarts that lower them (rebuild < attacker capital)', wallRows.every((r) => r.ratioCapital < 1));
+  // BALANCE 14 (2026-11-17): Firecart power 1 -> 2 made the top Wall level a fair trade (Wall 22: rebuild 1.1 x the carts' price), so the line moved from 1 to 1.5.
+  check('Wall levels are not a bargain to knock down (rebuild < 1.5 x attacker capital)', wallRows.every((r) => r.ratioCapital < 1.5));
 
   // (c) Campaign against a fortified village -----------------------------------------------------------
   lines.push('## (c) Attacks needed against a fortified village, with and without Firecarts', '');
