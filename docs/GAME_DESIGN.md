@@ -50,7 +50,10 @@ When a rule changes, change it here in the same commit.
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
   that would push used above the cap is refused (`population_full`); losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
-  Tuning (2026-11-11, 25 levels): growth 1.08 (buildings) / 1.20 (cap, base 151, level 0 = 120) so the Longhouse at level 25 holds about
+  Tuning (2026-11-17, economy pass): the cap grows `720 x 1.1244^(L-1)` (level 0 = 120), the same factor as production, so the room is about
+  1,150 at level 5, 2,070 at 10, 3,720 at 15, 6,680 at 20 and 12,000 at 25 (was 313 / 779 / 1,939 / 4,824 / 12,004) and a village needs about 12-13 days of its
+  own income to fill its free room with a mixed army at every stage of the ladder (was 3 days at a quarter of the ladder, 13 at the top); nobody loses room
+  in an old world (every level gives more than before). Before that (2026-11-11, 25 levels): growth 1.08 (buildings) / 1.20 (cap, base 151, level 0 = 120) so the Longhouse at level 25 holds about
   12,000 and a fully built village uses about 200 of it, leaving about 11,800 for troops. (Before: ~4,800 at Farm 20.) Since 2026-11-11 (originality piece 2) the room belongs to the **Longhouse**, not the Farm: the Farm makes food only and uses population like the Lumber Camp.
   The top bar shows a "Population used / cap" chip next to the resources for the current village (own row
   under the resources on phones), with a mini meter and warning colour from 90% (`aria-label` "Population X of Y").
@@ -71,8 +74,8 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   Banner Hall **4**; the **Longhouse** **25** and the **Wrightyard** **12** came with originality pieces 2 and 3 (below). No tiers, no Town Hall gates; levels only go up, so saved worlds keep every level (no migration). One curve per effect,
   own numbers: production `base x 1.1245^(L-1)` (54 wood / 72 food / 54 iron at level 1, about 900 / 1,200 / 900 at level 25; level 0 trickle 9;
   Gold Mine 3 x 1.138^(L-1), 27 at level 18 as the old level 15); storage `1,800 x 1.177^(L-1)` (about 90,000 at 25; level 0 = 1,350); Longhouse room
-  `151 x 1.2^(L-1)` (about 12,000 at 25; level 0 = 120); Vault `120 x 1.28^(L-1)` (1,813 at 12, the old level 10); Town Hall `x0.96` build time per
-  level (x0.38 at 25 = the old level 20); training `x0.94` per level (unchanged); Wall `+4.5%` defence per level and militia `20 + 14 L` (level 22
+  `720 x 1.1244^(L-1)` (about 12,000 at 25; level 0 = 120; 2026-11-17, was `151 x 1.2^(L-1)`); Vault `120 x 1.28^(L-1)` (1,813 at 12, the old level 10); Town Hall `x0.9566` build time per
+  level (x0.35 at 25; a whole village takes 25.0 builder-days, 2026-11-17, was x0.96 = x0.38 and 27.2 days); training `x0.94` per level (unchanged); Wall `+4.5%` defence per level and militia `20 + 14 L` (level 22
   = +99%, 328 militia). Building costs are x1.5 of before at level 1 (wood/food/iron; gold unchanged) with growth about `timeGrowth - 0.055`.
   Totals (cost = wood + food + iron + 10 x gold; time at Town Hall 1, growth as in config; % against the old ladder):
 
@@ -102,7 +105,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
 - Build time of level L in ms:
   `round(baseTimeSec * timeGrowth^(L-1) * HALL_TIME_FACTOR^(hallLevel-1) / speed * 1000)`,
   using the Town Hall level when the job is queued.
-- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.96): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
+- **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.9566): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
 - **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village, the same for everyone (the premium queue was removed
   on 2026-11-04, owner decision; the `premium` database column is unused). Cost paid when queued. A job starts at
@@ -122,7 +125,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   barracks/stables/wrightyard → faster training (`TRAIN_TIME_FACTOR^(L-1)`) and unit unlocks; wall → defense;
   vault → loot protection; longhouse → population room.
 - **Longhouse** (`longhouse`, originality piece 2, 2026-11-11): takes over the population room from the Farm. Max 25, starts at 1, no requirement, uses
-  no population itself, cost and time like the Farm; the room curve is the old Farm curve (about 12,000 at 25). The **Farm** now makes food only and takes population
+  no population itself, cost and time like the Farm; the room curve is `720 x 1.1244^(L-1)` (about 12,000 at 25, 2026-11-17; it began as the old Farm curve). The **Farm** now makes food only and takes population
   room like the Lumber Camp (`POP_BUILDING_FIRST.farm` 3). Siege floor 1 for both (`SIEGE_MIN_LEVEL`). Abandoned villages: Longhouse = Farm level (it follows the
   Farm when the Farm grows). First step `longhouse2` "Raise the Longhouse to 2" (§20). Old worlds: a one-time migration (schema v17, `migrate.ts`) sets
   Longhouse = the Farm level in every village; a queued Farm level still finishes as a Farm.

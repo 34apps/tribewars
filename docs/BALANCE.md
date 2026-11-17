@@ -897,3 +897,29 @@ GAME_DESIGN §18 updated. Raw: `docs/sim/2026-11-11-chieftain-points-{30d,90d,co
 
 The single-player 30-day and 90-day sims are **byte-identical** to the roster run (13.2): the change only touches Strikes on villages of 12,000+ points, which they never make.
 Takes by style: raider 2, balanced 4, builder 0 on the main seed; Strikes that fail to hold: 3 holds broken over all styles.
+
+## 14. Population room follows income; whole village in 25 builder-days (2026-11-17, economy-vs-genre pass)
+
+Full write-up with tables, options and sources: `docs/proposals/economy-vs-genre.md`. Raw: `docs/sim/2026-11-17-econ-*.txt`. Model: `npx tsx scripts/sim/econ-model.ts`.
+
+**Problem.** Room was `151 x 1.2^(L-1)`: 1,346 at a half-built village, 4,020 at three quarters, so a village at a quarter of the ladder filled its room in 3 days of its own income, at half in 5.5, at three quarters in 8.4, and only at the top in 12.7.
+The last ten levels held 84% of the 12,000. The whole village also took 27.2 builder-days (target about 25) after the Longhouse and Wrightyard.
+
+**Changes (`config.ts`).** `POP_CAP_BASE` 151 -> 720 and `POP_CAP_GROWTH` 1.2 -> 1.1244 (the production growth; level 25 still 12,007, level 0 still 120): room 720 / 1,151 / 2,068 / 3,717 / 6,681 / 12,007 at levels 1 / 5 / 10 / 15 / 20 / 25.
+Fill time of the free room with a mixed army is now 12.2 / 12.5 / 12.6 / 12.7 days at 25 / 50 / 75 / 100% of the ladder. Every level holds more than before, so old worlds lose nothing.
+`HALL_TIME_FACTOR` 0.96 -> 0.9566: 25.0 builder-days to max (build times summed with the Town Hall at 25). Tests that hard-coded the old numbers were updated.
+
+**Options tried (30 / 90 days, seed 20261104; conquest 5 seeds x 90 days):** A `260 x 1.1731` (R/B 1.57), B `400 x 1.1522` (1.57; conquest 41 takes / 22 restarts / worst 1.79), C `720 x 1.1244` (1.51; 43 / 18 / 1.67). C chosen; B is the fallback with more margin on the raider / builder ratio.
+
+| target | before | now |
+|---|---|---|
+| raider / builder score, 30 days | 1.60 | **1.51** |
+| 2nd village day builder / raider / balanced | 26.6 / 23.7 / 18.8 | **26.5 / 25.3 / 19.3** |
+| 3rd village day builder / raider / balanced (90 d) | 40.3 / 47.8 / 35.3 | 40.2 / 50.6 / 36.4 |
+| conquest takes / restarts / worst biggest-to-second (20 players, 90 d, 5 seeds) | 37 / 21 / 1.47 | **37 / 21 / 1.73** |
+| days of own income to fill 12,000 room | 12.7 | 12.7 |
+| builder-days to max a village | 27.2 | **25.0** |
+
+Not changed: income, storage, prices (a level costs 2.2 / 3.8 / 6.0 / 7.8 hours of the village's income at 25 / 50 / 75 / 100% of the ladder; storage fills in 42 / 58 / 76 / 100 h), points (a village is 973 / 3,747 / 11,250 / 31,265 points at 25 / 50 / 75 / 100%; the last quarter holds 64%), Chieftain rule (2 Chieftains from 77% of the ladder, 3 from 93%).
+Findings left open: the sim's computer players sit at 90% of storage for 12,000+ player-hours in 90 days whatever the room curve, so training time (not room) limits their armies; `MAP_STAGE_MIN_POINTS` tops out at 3,500, reached at half the ladder.
+The conquest runs before 2026-11-17 `--conquest --seeds 5` use 30 days unless `--days 90` is passed.
