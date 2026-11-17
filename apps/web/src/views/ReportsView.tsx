@@ -17,8 +17,11 @@ import { unitListText } from '../rules.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { ReportNoteChips } from '../components/Notes.tsx';
 import { reportCoords } from '../notes.ts';
+import { RaidAgainButton, RaidAgainNote } from '../components/RaidAgain.tsx';
+import { useRaidAgain } from '../hooks/useRaidAgain.ts';
+import type { RaidAgainCtl } from '../hooks/useRaidAgain.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
-import { DAY_GROUP_LABEL, formatShortAgo, groupByDay, reportLine } from '../reports.ts';
+import { DAY_GROUP_LABEL, formatShortAgo, groupByDay, reportFigures, reportHeadline, reportResultLine } from '../reports.ts';
 import { moraleLabel, villageReportText } from '../villages.ts';
 
 function VillageCell({ role, v, won }: { role: string; v: VillageRefDto; won: boolean }) {
@@ -549,28 +552,39 @@ function ReportBody({ report }: { report: ReportDto }) {
   return <p className="muted">No details.</p>;
 }
 
-function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
+function ReportDetail({ report, onBack, again }: { report: ReportDto; onBack: () => void; again: RaidAgainCtl }) {
   const { now, openSimulator } = useGame();
   const draft = draftFromReport(report);
+  const head = reportHeadline(report);
+  const result = reportResultLine(head);
+  const redo = report.digest?.again ?? null;
   return (
     <article className="rp-detail" aria-labelledby="report-title">
       <button className="btn btn-small back" onClick={onBack}>
         ← Reports
       </button>
       <header className="report-head">
-        <h2 id="report-title" className="rp-detail-title">{report.title}</h2>
+        <h2 id="report-title" className="rp-detail-title">
+          {head.title}
+          {head.coords && <small className="rp-dcoords"> ({head.coords})</small>}
+        </h2>
         <div className="report-meta">
           <OutcomeTag report={report} />
           <span className="muted">{metaText(report)} · {formatClock(report.createdAt, now)}</span>
         </div>
+        {result !== '' && <p className="rp-result">{result}</p>}
       </header>
-      {draft && (
-        <p>
-          <button type="button" className="btn btn-small" onClick={() => openSimulator(draft)}>
-            Simulate
-          </button>
+      {(draft || redo) && (
+        <p className="rp-acts">
+          {redo && <RaidAgainButton reportId={report.id} again={redo} ctl={again} variant="phone" />}
+          {draft && (
+            <button type="button" className="btn btn-small" onClick={() => openSimulator(draft)}>
+              Simulate
+            </button>
+          )}
         </p>
       )}
+      <RaidAgainNote reportId={report.id} ctl={again} variant="phone" />
       <ReportBody report={report} />
     </article>
   );
@@ -586,6 +600,7 @@ function Chevron() {
 
 export function ReportsView() {
   const { unreadReports, now } = useGame();
+  const again = useRaidAgain();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -661,7 +676,9 @@ export function ReportsView() {
               <h2 className="rp-label">{DAY_GROUP_LABEL[group]}</h2>
               <ul className="rp-list">
                 {items.map((r) => {
-                  const line = reportLine(r.title);
+                  const head = reportHeadline(r);
+                  const figs = reportFigures(head);
+                  const redo = r.digest?.again ?? null;
                   return (
                     <li key={r.id}>
                       <button
@@ -675,17 +692,31 @@ export function ReportsView() {
                         </span>
                         {!r.read ? <span className="dot" role="img" aria-label="Unread" /> : <span className="dot dot-gap" aria-hidden="true" />}
                         <span className="rp-main">
-                          <span className="rp-title">{line.text}</span>
-                          {line.coords && <span className="rp-coords">({line.coords})</span>}
+                          <span className="rp-line">
+                            <span className="rp-title">{head.title}</span>
+                            {head.coords && <span className="rp-coords">({head.coords})</span>}
+                          </span>
                           {(() => {
                             const c = reportCoords(r.title);
                             return c ? <ReportNoteChips x={c.x} y={c.y} /> : null;
                           })()}
+                          {(figs !== '' || head.coords) && (
+                            <span className="rp-sub">
+                              {head.coords && <span className="rp-subc">({head.coords}){figs !== '' ? ' \u00b7 ' : ''}</span>}
+                              {figs}
+                            </span>
+                          )}
                         </span>
                         <span className="rp-when">{formatShortAgo(r.createdAt, now)}</span>
                         <OutcomeTag report={r} />
                         <Chevron />
                       </button>
+                      {redo && (
+                        <div className="rp-again">
+                          <RaidAgainButton reportId={r.id} again={redo} ctl={again} variant="phone" />
+                        </div>
+                      )}
+                      <RaidAgainNote reportId={r.id} ctl={again} variant="phone" />
                     </li>
                   );
                 })}
@@ -695,7 +726,7 @@ export function ReportsView() {
         </section>
 
         <div className="rp-pane">
-          {report && <ReportDetail report={report} onBack={() => setSelected(null)} />}
+          {report && <ReportDetail report={report} onBack={() => setSelected(null)} again={again} />}
           {!report && showDetail && (
             <div className="rp-detail">
               <button className="btn btn-small back" onClick={() => setSelected(null)}>

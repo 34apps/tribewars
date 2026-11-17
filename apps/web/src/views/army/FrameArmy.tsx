@@ -32,6 +32,7 @@ import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { takePendingSend } from '../../simulator.ts';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
+import { useRaidListsAccess } from '../../hooks/useRaidListsOn.ts';
 import { useSupportTiming } from '../../hooks/useSupportTiming.ts';
 import { useSync } from '../../hooks/useSync.ts';
 import { useTroopGroups } from '../../hooks/useTroopGroups.ts';
@@ -123,7 +124,8 @@ const where = (v: { name: string; x: number; y: number }) => `${v.name} (${forma
 // ---- At home ---------------------------------------------------------------------------------------------------------
 
 function MusterPanel() {
-  const { live } = useGame();
+  const { live, navigate } = useGame();
+  const raidAccess = useRaidListsAccess();
   const rules = useRules();
   const info = useUnitInfo();
   const [chief, setChief] = useState(false);
@@ -156,6 +158,11 @@ function MusterPanel() {
           </>
         )}
         <span className="fv-sp" />
+        {raidAccess === 'no' && (
+          <button type="button" className="fv-btn sm" onClick={() => navigate('raids')}>
+            Raid lists (paid extra)
+          </button>
+        )}
         <button type="button" className="fa-chs" onClick={() => setChief(true)} aria-haspopup="dialog">
           <UnitFigure unit="chieftain" pose="icon" size={26} />
           {chiefs > 0 ? (

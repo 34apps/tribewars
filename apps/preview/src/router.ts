@@ -56,6 +56,8 @@ interface Schema {
   minimum?: number;
   maximum?: number;
   enum?: readonly unknown[];
+  items?: Schema;
+  maxItems?: number;
 }
 
 interface RouteOptions {
@@ -107,6 +109,13 @@ export function validate(schema: Schema, value: unknown, at: string): string | n
     if (typeof value !== 'number' || !Number.isInteger(value)) return `${at} must be integer`;
     if (schema.minimum !== undefined && value < schema.minimum) return `${at} must be >= ${schema.minimum}`;
     if (schema.maximum !== undefined && value > schema.maximum) return `${at} must be <= ${schema.maximum}`;
+  } else if (schema.type === 'array') {
+    if (!Array.isArray(value)) return `${at} must be array`;
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) return `${at} must NOT have more than ${schema.maxItems} items`;
+    for (let i = 0; i < value.length && schema.items; i++) {
+      const err = validate(schema.items, value[i], `${at}/${i}`);
+      if (err) return err;
+    }
   }
   if (schema.enum && !schema.enum.includes(value)) return `${at} must be equal to one of the allowed values`;
   return null;

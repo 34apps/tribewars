@@ -197,3 +197,14 @@ test('the Realm tab shows from the second village on; its route and the Notes pa
   assert.ok(TABS.includes('realm'), 'route still valid with one village');
   assert.ok(MENU_PAGES.includes('notes'));
 });
+
+test('the Raid lists tab sits right after Army, only for a player who has the extra; without it the route and page still work', async () => {
+  const { navTabs, TABS, RAID_TAB } = await import('../src/game.ts');
+  assert.ok(!navTabs(2).includes(RAID_TAB), 'default: no tab');
+  assert.ok(!navTabs(2, false).includes(RAID_TAB), 'not entitled: no tab');
+  const t = navTabs(2, true);
+  assert.equal(t[t.indexOf('army') + 1], 'raids');
+  assert.equal(t.length, 9, 'village, realm, map, army, raids, reports, mail, tribe, ranks');
+  assert.ok(!navTabs(1, true).includes('realm') && navTabs(1, true).includes('raids'), 'Realm still needs two villages');
+  assert.deepEqual(navTabs(2, false), TABS);
+});

@@ -84,6 +84,7 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - Tribe mass message (forum threads and player mail are done). Look at the forum + per-member tribe rights in a browser.
 
 ## Gameplay follow-ups
+- **Raid lists follow-ups (2026-11-17).** (1) Merged into `originality-tiers` as schema v25 (notes took v24); main must keep this order. (2) No shop yet: the extra is switched by `npm run admin -- extra <name> raidlists on|off` per world; the entitlement should later travel in the lobby's signed entry pass (add a claim like `bdg`) and the world should read it from there. (2b) Phone: open-report cells break words (long unit and village names); phone alerts wait for the native app. (3) Real worlds keep `features.raidLists` off until the owner decides to sell it. (4) Raid again drops the Firecart building pick. (5) Later: sort rows by best loot per hour, a Won/Lost filter and "mark all read" on reports (from the experience proposal).
 - Preview bots never build a Wrightyard or train Firecarts (found in the audit).
 - Preview bots stagnate after ~day 100 once everything is level 25; give them a late-game goal.
 - Ironhart (bot tribe) has no troops.

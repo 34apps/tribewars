@@ -21,14 +21,16 @@ import { worldRules } from '@clanfire/engine';
 import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
-export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
+export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'raids' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu or a link (not in the navigation bar); `incoming` opens from the attack chip. */
 export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator' | 'notes' | 'incoming';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'realm', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
-/** The tabs shown in the navigation: the Realm tab appears only from the second village on (its route still works with one). */
-export function navTabs(villageCount: number): readonly NavTab[] {
-  return villageCount >= 2 ? TABS : TABS.filter((t) => t !== 'realm');
+/** The Raid lists page (a paid extra): a tab only for a player who has the extra; it sits right after Army. Its route works for everyone. */
+export const RAID_TAB: NavTab = 'raids';
+/** The tabs shown in the navigation: Realm only from the second village on, Raid lists only for a player who has the extra (both routes still work without). */
+export function navTabs(villageCount: number, raidLists = false): readonly NavTab[] {
+  return TABS.flatMap((t): NavTab[] => (t === 'realm' && villageCount < 2 ? [] : t === 'army' && raidLists ? [t, RAID_TAB] : [t]));
 }
 export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator', 'notes', 'incoming'];
 

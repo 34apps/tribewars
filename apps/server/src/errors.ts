@@ -33,6 +33,7 @@ export function statusFor(code: GameErrorCode): number {
     case 'tribe_full':
     case 'already_in_tribe':
     case 'not_in_tribe':
+    case 'raid_list_limit':
     case 'group_limit':
     case 'note_limit':
     case 'march_limit':

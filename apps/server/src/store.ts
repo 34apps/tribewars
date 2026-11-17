@@ -30,6 +30,7 @@ import {
   totalUnits,
   isStaffRole,
   type BattleReportData,
+  type ReportDigest,
   type BuildingId,
   type BuildingLevels,
   type Mission,
@@ -51,6 +52,8 @@ import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import { NoteStore } from './notes-store.ts';
 import { TroopGroupStore } from './troop-group-store.ts';
+import { RaidListStore } from './raid-list-store.ts';
+import { reportDigest } from './report-digest.ts';
 import { FirstStepsStore } from './first-steps-store.ts';
 import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
@@ -99,6 +102,8 @@ export interface PlayerRow {
   muteReason: string | null;
   /** Lobby account this player belongs to, or null (worlds without a lobby, or not yet linked). */
   accountId: number | null;
+  /** Paid extras as bits (the old `premium` column; EXTRA_RAID_LISTS in the engine). 0 = none. Changed only through the operator CLI. */
+  premium: number;
 }
 
 export interface SharedIpGroup {
@@ -252,6 +257,8 @@ export interface ReportRow {
   read: boolean;
   /** Battles: the battle's own outcome. A support turned back counts as called off; scouting reports as 'battle'. */
   outcome: 'battle' | 'called_off';
+  /** Numbers behind the title, worked out when read (battle and scout reports only). */
+  digest?: ReportDigest;
 }
 
 /** The body of a report: exactly one of the three, matching `type`. */
@@ -414,6 +421,7 @@ function toPlayer(r: Raw): PlayerRow {
     mutedUntil: (r.muted_until as number | null) ?? null,
     muteReason: (r.mute_reason as string | null) ?? null,
     accountId: (r.account_id as number | null) ?? null,
+    premium: Number.isInteger(r.premium) && (r.premium as number) > 0 ? (r.premium as number) : 0,
   };
 }
 
@@ -530,6 +538,7 @@ export class Store extends SqlBase {
   readonly notifications: NotificationStore;
   readonly troopGroups: TroopGroupStore;
   readonly notes: NoteStore;
+  readonly raidLists: RaidListStore;
   readonly firstSteps: FirstStepsStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
@@ -556,6 +565,7 @@ export class Store extends SqlBase {
     this.notifications = new NotificationStore(db);
     this.troopGroups = new TroopGroupStore(db);
     this.notes = new NoteStore(db);
+    this.raidLists = new RaidListStore(db);
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
@@ -1063,6 +1073,11 @@ export class Store extends SqlBase {
 
   setChieftain(playerId: number, chieftain: string): void {
     this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
+  }
+
+  /** Switch one paid-extra bit of `players.premium` on or off, keeping the other bits. The operator CLI and the preview use it. */
+  setPremiumBit(playerId: number, bit: number, on: boolean): void {
+    this.run(on ? 'UPDATE players SET premium = premium | ? WHERE id = ?' : 'UPDATE players SET premium = premium & ~? WHERE id = ?', bit, playerId);
   }
 
   setProtectedUntil(playerId: number, t: number): void {
@@ -1732,12 +1747,23 @@ export class Store extends SqlBase {
   listReports(playerId: number, limit: number): ReportRow[] {
     return this.all(
       // Reports stored before tribes or scouting existed have no `outcome` / `type` in their JSON: they were all battles.
-      `SELECT id, player_id, side, won, title, created_at, read,
+      `SELECT id, player_id, side, won, title, created_at, read, battle_json,
               json_extract(battle_json, '$.outcome') AS outcome, json_extract(battle_json, '$.type') AS type
        FROM reports WHERE player_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`,
       playerId,
       limit,
-    ).map(toReport);
+    ).map((r) => {
+      const row = toReport(r);
+      if (row.type === 'battle' || row.type === 'scout') {
+        try {
+          const digest = reportDigest(row.side, parseReportBody(r.battle_json as string));
+          if (digest) row.digest = digest;
+        } catch {
+          // an unreadable old row simply has no digest
+        }
+      }
+      return row;
+    });
   }
 
   getReport(playerId: number, id: number): FullReport | null {
@@ -1749,6 +1775,8 @@ export class Store extends SqlBase {
       type: body.type,
       outcome: body.type === 'battle' ? body.battle.outcome : null,
     });
+    const digest = reportDigest(row.side, body);
+    if (digest) row.digest = digest;
     return {
       ...row,
       battle: body.type === 'battle' ? body.battle : null,

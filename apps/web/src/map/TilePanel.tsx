@@ -10,6 +10,7 @@ import { SupportTimingView } from '../components/hintViews.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { TargetNote } from '../components/Notes.tsx';
 import { useNotes } from '../hooks/useNotes.tsx';
+import { AddToRaidList } from './AddToRaidList.tsx';
 import { useUnitInfo } from '../components/UnitInfo.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { TroopGroupBar } from '../components/TroopGroups.tsx';
@@ -802,6 +803,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           {foundSite.message}
         </p>
       )}
+      {village?.kind === 'abandoned' && !hearth && <AddToRaidList x={tile.x} y={tile.y} name={village.name} />}
       {missions.length > 0 && !(free && foundSite && !foundSite.ok) && (
         <SendForm
           key={`${mine.id}|${tile.x}|${tile.y}|${preferred?.nonce ?? 0}`}

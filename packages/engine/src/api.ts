@@ -581,6 +581,38 @@ export interface ReportSummaryDto {
   read: boolean;
   /** Same meaning as `BattleReportData.outcome`; lets the list tell a called-off attack from a lost battle. */
   outcome: 'battle' | 'called_off';
+  /**
+   * What happened, in numbers, worked out from the stored report when it is read (nothing extra is stored, so old reports have it
+   * too). Lets the list and the open report say "Won, 340 loot, lost 3 of 120" at a glance. Absent for shipment and village reports.
+   */
+  digest?: ReportDigest;
+}
+
+/** The earlier march of an attack or scouting report, ready to be sent again through the normal send route. */
+export interface SendAgainDto extends Coords {
+  /** The village the troops left from (a village of the report owner; the send fails normally when it is gone or not theirs). */
+  fromVillageId: number;
+  /** attack for raids and attacks, scout for scouting reports. */
+  mission: 'attack' | 'scout';
+  /** What was sent (before losses). */
+  units: Units;
+  /** Target village name, for the button text. */
+  targetName: string;
+}
+
+/**
+ * Numbers behind a report title, from the report owner's point of view.
+ *  - attack side: `sent` / `lost` are the owner's marching troops, `loot` what they carried home (sum of the 4 resources).
+ *  - defense side: `sent` is the defending force (own + support, null when hidden), `lost` what died, `loot` what the attacker took.
+ *  - support side: like defense, for the owner's stationed troops.
+ *  - scout: `sent` = scouts sent, `lost` = scouts lost, `loot` 0.
+ */
+export interface ReportDigest {
+  loot: number;
+  sent: number | null;
+  lost: number | null;
+  /** Attack side only (battle that was not called off, and scouting): what to send again. null when not applicable. */
+  again: SendAgainDto | null;
 }
 
 // GET /api/scouted/:id -> 200 ScoutedResponse (signed in). The caller's OWN newest successful scout report on village :id that carries
@@ -2233,4 +2265,105 @@ export interface EntryPassClaims {
   /** Optional: the account's badges as a per-kind summary (at most one entry per BadgeKind; count 1-999, bestPlace 1-10 or null,
    *  non-null only for 'top10'). A world refuses a pass with a malformed `bdg`; a pass without it leaves the stored badges unchanged. */
   bdg?: BadgeSummaryDto[];
+}
+
+// ---- Raid lists, a paid extra (docs/GAME_DESIGN.md "Raid lists") ------------------------------------------------------------
+// A player saves abandoned villages with the troops for each and sends them all with one press. Convenience only: every row is an ordinary
+// attack sent through the same checks as POST /api/villages/:id/send (troops at home, protection, march cap, rate limits).
+// Needs BOTH the world switch `features.raidLists` and the player's entitlement (`players.premium` bit EXTRA_RAID_LISTS); the server
+// enforces both on every call except GET (which only reports `enabled` / `entitled`). Everything is keyed on the caller: another
+// player's list or row id answers 404 not_found. Bucket `raidlists` (30 per minute per account).
+//   GET  /api/raid-lists                              -> 200 RaidListsResponse (lists: [] unless enabled and entitled)
+//   POST /api/raid-lists                 body RaidListRequest        -> 201 RaidListResponse (409 raid_list_limit past RAID_LIST_MAX_LISTS)
+//   POST /api/raid-lists/:id             body RaidListRequest        -> 200 RaidListResponse (rename)
+//   POST /api/raid-lists/:id/delete      body {}                     -> 204
+//   POST /api/raid-lists/:id/rows        body RaidRowRequest         -> 201 RaidListResponse (409 raid_list_limit past RAID_LIST_MAX_ROWS;
+//                                         400 invalid_target unless an abandoned village stands at x/y; a village already in the list: 400 invalid_input)
+//   POST /api/raid-lists/:id/rows/:rowId body RaidRowUpdateRequest   -> 200 RaidListResponse (troops / from village)
+//   POST /api/raid-lists/:id/rows/:rowId/delete  body {}             -> 200 RaidListResponse
+//   POST /api/raid-lists/:id/send        body RaidListSendRequest    -> 200 RaidListSendResponse
+// Without the switch or the entitlement every write and the send answer 403 forbidden (the message says which). Rows are attacks of the
+// listed troops from the row's village; a row whose target is no longer abandoned is never sent.
+
+export interface RaidListRowDto extends Coords {
+  id: number;
+  villageId: number;
+  /** Target village name (abandoned villages are public on the map). */
+  name: string;
+  /** False when the village now belongs to a player (the row is skipped on send; the player should remove it). */
+  abandoned: boolean;
+  fromVillageId: number;
+  units: Partial<Units>;
+  /** Fields from the sending village. */
+  distance: number;
+  /** One way, seconds, for exactly these troops from that village at the world's pace (what a normal send would take now, including the player's tribe Waymarks). */
+  travelSeconds: number;
+  /** The caller's own newest report on this village: null when none. */
+  last: { at: number; won: boolean; loot: number } | null;
+}
+
+export interface RaidListDto {
+  id: number;
+  name: string;
+  rows: RaidListRowDto[];
+}
+
+export interface RaidListsResponse {
+  /** The world's `features.raidLists`. */
+  enabled: boolean;
+  /** The caller has the extra. The page shows the "paid extra" note instead of working buttons when this is false. */
+  entitled: boolean;
+  limits: { lists: number; rows: number; sendCap: number };
+  lists: RaidListDto[];
+}
+
+export interface RaidListRequest {
+  name: string;
+}
+
+export interface RaidListResponse {
+  list: RaidListDto;
+}
+
+export interface RaidRowRequest extends Coords {
+  fromVillageId: number;
+  units: Partial<Units>;
+}
+
+export interface RaidRowUpdateRequest {
+  fromVillageId?: number;
+  units?: Partial<Units>;
+}
+
+export interface RaidListSendRequest {
+  /** Only these rows (a subset the player ticked); omitted = every row of the list in list order. At most RAID_LIST_MAX_ROWS ids. */
+  rowIds?: number[];
+}
+
+export type RaidSkipReason =
+  | 'not_enough_troops'
+  | 'target_protected'
+  | 'not_abandoned'
+  | 'invalid_target'
+  | 'march_limit'
+  | 'press_cap'
+  | 'rate_limited'
+  | 'village_gone'
+  | 'other';
+
+export interface RaidSendResult {
+  rowId: number;
+  ok: boolean;
+  /** When sent: the movement and its arrival (server clock). */
+  movementId?: number;
+  arriveAt?: number;
+  /** When skipped: a short code and the same plain message a normal send would give. */
+  reason?: RaidSkipReason;
+  message?: string;
+}
+
+export interface RaidListSendResponse {
+  results: RaidSendResult[];
+  sent: number;
+  skipped: number;
 }

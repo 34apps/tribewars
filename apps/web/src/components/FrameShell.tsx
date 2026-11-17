@@ -13,6 +13,7 @@ import type { NavTab } from '../game.ts';
 import { formatCompact, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
+import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { bellCounts } from '../notifications.ts';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell.tsx';
@@ -179,7 +180,8 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const guardOrders = useGuardOrders();
   // Village, realm, notes, map, incoming attacks, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
   const tribeFixed = useTribeFixed();
-  const fixed = tab === 'village' || tab === 'realm' || tab === 'notes' || tab === 'incoming' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
+  const raidListsEntitled = useRaidListsEntitled();
+  const fixed = tab === 'village' || tab === 'realm' || tab === 'notes' || tab === 'incoming' || tab === 'map' || tab === 'army' || tab === 'raids' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
       <div className={`frame fr-tab-${tab}${fixed ? ' is-fixed' : ''}${worldEnd ? ' is-ended' : ''}`}>
@@ -193,7 +195,7 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
           <Who {...actions} />
         </header>
         <nav className="fr-tabs" aria-label="Main">
-          {navTabs(villages.length).map((t) => (
+          {navTabs(villages.length, raidListsEntitled).map((t) => (
             <FolderTab key={t} tab={t} />
           ))}
           <TabRowAlerts />

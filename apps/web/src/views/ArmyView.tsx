@@ -19,6 +19,7 @@ import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { errorToast } from '../components/toastKind.ts';
 import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
+import { useRaidListsAccess } from '../hooks/useRaidListsOn.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
 import { formatAgo, formatClock, formatCoords, formatDuration, formatInt } from '../format.ts';
@@ -678,7 +679,8 @@ function scrollToId(id: string) {
 }
 
 export function ArmyView() {
-  const { openSimulator, live } = useGame();
+  const { openSimulator, live, navigate } = useGame();
+  const raidAccess = useRaidListsAccess();
   const used = populationUsage(live).total;
   const cap = populationCap(live);
   return (
@@ -698,6 +700,11 @@ export function ArmyView() {
             <button type="button" className="btn btn-small" onClick={() => openSimulator()}>
               Battle simulator
             </button>
+            {raidAccess === 'no' && (
+              <button type="button" className="btn btn-small" onClick={() => navigate('raids')}>
+                Raid lists (paid extra)
+              </button>
+            )}
           </>
         }
       />
