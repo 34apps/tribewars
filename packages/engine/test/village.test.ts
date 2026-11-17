@@ -494,7 +494,7 @@ describe('checkTrain / applyTrain', () => {
 
   it('refuses invalid ids and counts with invalid_input', () => {
     const v = barracksVillage();
-    for (const count of [0, -1, 1.5, Number.NaN, Infinity, 1001, '5' as unknown as number]) {
+    for (const count of [0, -1, 1.5, Number.NaN, Infinity, 100_001, '5' as unknown as number]) {
       const c = checkTrain(v, 'pikeman', count, 0, S1);
       assert.ok(!c.ok && c.reason === 'invalid_input', `count ${String(count)}`);
     }

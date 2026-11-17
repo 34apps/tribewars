@@ -159,7 +159,7 @@ exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, 
 counts as Ember Guard research, and Knight batches already queued at the Stables finish there as Ember Guards (no refund, no change of time);
 new Ember Guards are trained at the Barracks only.
 
-- Train batch of `count` (1..MAX_TRAIN_BATCH) in the unit's building. Cost = unit cost × count, paid
+- Train batch of `count` (1 or more; no fixed limit, only resources, population room and the queue; `MAX_TRAIN_BATCH` = 100,000 is an input sanity bound) in the unit's building. Cost = unit cost × count, paid
   up front. Needs `requires` met. At most `MAX_TRAIN_QUEUE` batches per building.
 - Time per unit (ms): `round(trainTimeSec * TRAIN_TIME_FACTOR^(buildingLevel-1) / speed * 1000)`,
   fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
@@ -776,7 +776,10 @@ the server does not pass them yet), scout intel tiers. Earlier status: **engine 
 `checkRank/applyRank`, `checkRespec/applyRespec`, `mightMultiplier/bulwarkMultiplier/keenMultiplier`), optional
 `VillageState.researched/researchQueue/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
 `KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
-Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. Respec resets one track to 0: points return in full,
+Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. **Only `RANKABLE_UNITS` can be ranked (owner, 2026-11-18; schema v26):**
+Pikeman, Shieldbearer, Raider, Elk Rider, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Firecart (siege tool) have no rank tracks, `buyRank` refuses them
+(`invalid_input`), and the v26 migration removed any such ranks (points are derived from ranks, so they became free; resources paid were not refunded). 30 points
+(3 per level, 10 levels) stay. The page shows "Buy rank N", "Needs N points · M free", and "Researched" without a time for finished research. Respec resets one track to 0: points return in full,
 resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
 on the village's own troops and on each support contingent with its own home ranks); omitted = identical to before. Not built: server
 tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored only), web panel.

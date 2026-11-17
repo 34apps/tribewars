@@ -2159,7 +2159,7 @@ button.bs:active:not(:disabled) {
 }
 
 .fv-rcol.is-wide {
-  width: 470px;
+  width: 256px;
 }
 
 .fv-rcol.is-wide .fv-boxed {

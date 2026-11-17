@@ -2,8 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { UNITS, type Resources } from '@clanfire/engine';
-import { Client, errorOf, ok } from './helpers.ts';
+import { rmSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { UNITS, pointsSpent, pointsTotal, type Resources } from '@clanfire/engine';
+import { buildApp } from '../src/app.ts';
+import { Client, Clock, TEST_WORLD, TEST_WORLD_CONFIG, errorOf, ok, register } from './helpers.ts';
 import { village, world, type App, type P } from './warfare-helpers.ts';
 
 function setup(app: App, p: P, drillyard: number, res: Partial<Resources> = {}): number {
@@ -151,4 +156,49 @@ test('cancel-research: bad or out-of-range index, other players and guests are r
   const g = await guest.post(`/api/villages/${id}/cancel-research`, { index: 0 });
   assert.equal(g.statusCode, 401, g.body);
   assert.equal((await village(alice)).state.researchQueue?.length, 1);
+});
+
+test('ranks: Chieftain and Firecart cannot be ranked', async () => {
+  const { app, alice } = await world();
+  const id = setup(app, alice, 10);
+  const v = app.ctx.store.getVillage(id)!;
+  v.state.researched = [...(v.state.researched ?? []), 'chieftain', 'firecart'];
+  app.ctx.store.saveVillage(id, v.state, v.points);
+  for (const unit of ['chieftain', 'firecart']) {
+    for (const track of ['might', 'bulwark']) errorOf(await post(alice, id, 'rank', { unit, track }), 400, 'invalid_input');
+  }
+});
+
+test('migration v26: removes Chieftain/Firecart ranks everywhere, frees the points, twice changes nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-ranks-'));
+  try {
+    const dbPath = join(dir, 'game.sqlite');
+    const clock = new Clock();
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
+    let app = await open();
+    await register(app, 'alice');
+    const vid = app.ctx.store.abandonedVillageIds()[0]!; // any village row works for the state check
+    const mine = app.ctx.store.getVillage(vid)!;
+    mine.state.buildings.drillyard = 10;
+    mine.state.ranks = { pikeman: { might: 2, bulwark: 0, keen: 0 }, chieftain: { might: 3, bulwark: 0, keen: 0 }, firecart: { might: 0, bulwark: 2, keen: 0 } };
+    app.ctx.store.saveVillage(vid, mine.state, mine.points);
+    await app.close();
+
+    const raw = new DatabaseSync(dbPath);
+    raw.exec("DELETE FROM meta WHERE key = 'useless_ranks_applied'");
+    raw.exec('PRAGMA user_version = 25');
+    raw.close();
+
+    app = await open();
+    const st = app.ctx.store.getVillage(vid)!.state;
+    assert.deepEqual(st.ranks, { pikeman: { might: 2, bulwark: 0, keen: 0 } });
+    assert.equal(pointsTotal(st) - pointsSpent(st), 27, 'the 3 + 3 points of the removed ranks are free again');
+    const snap = JSON.stringify(app.ctx.store.db.prepare('SELECT id, state_json FROM villages ORDER BY id').all());
+    await app.close();
+    app = await open();
+    assert.equal(JSON.stringify(app.ctx.store.db.prepare('SELECT id, state_json FROM villages ORDER BY id').all()), snap);
+    await app.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
