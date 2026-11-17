@@ -947,7 +947,7 @@ export const SCOUT_APPROX_STEP = 10;
 // ---- Art-facing rules (docs/ART_DIRECTION.md) ----
 
 /** Map picture stage by village points: stage n starts at MAP_STAGE_MIN_POINTS[n-1]. */
-export const MAP_STAGE_MIN_POINTS = [0, 100, 300, 800, 1800, 3500] as const;
+export const MAP_STAGE_MIN_POINTS = [0, 300, 1000, 3750, 6500, 11250] as const; // spread over the 25-level ladder (owner, 2026-11-17): 1,000 / 3,750 / 11,250 = ~25 / 50 / 75% built (full village ~31,265); was 0/100/300/800/1,800/3,500
 
 /** Village points: level L of a building adds round(base * POINTS_GROWTH^(L-1)) points, so high levels are worth far more. */
 export const POINTS_GROWTH = 1.2;
