@@ -28,6 +28,14 @@ Written 2026-11-17 (originality pass + health check). Read this first, then `doc
 - **Owner's preview is the BUILT copy** (`npm run serve:preview`, :5174, detached). After each merge into main:
   `npm run build:preview:local`, then ask him to reload. No hot reload any more.
 
+- **Later on 2026-11-17 (all merged in main locally, 98 commits ahead of origin, schema v25):** owner picks after the genre
+  comparison (`docs/proposals/2026-11-17-owner-picks.md`): population room 720 x 1.1244^(L-1); ~25 builder-days; map stages
+  spread; server speed pass (v20-v22); Ember Guard 140/90/90; Firecart power 2; **abandoned villages have no defenders and no
+  Wall militia** (player-left villages keep their real troops; v23); **Realm** page (tab from 2 villages) + private **Notes/tags**
+  (v24); **incoming-attacks page**, help-in-time line, "you need N troops" hint (`GET /api/intel/:id`); **Raid again**, clear
+  report titles, **Raid lists as a paid extra** (v25; `features.raidLists` + bit 1 of `players.premium`; tab only with the
+  extra, Army button otherwise; on in the preview). Village first paint fixed (no deferred visible scene).
+
 ## Work in flight / very next step
 
 1. **Owner tests the built preview in Safari** (hand cursor, lag, small village picture, roads, Longhouse/Wrightyard, Firecart, old
