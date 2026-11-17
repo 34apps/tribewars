@@ -251,8 +251,10 @@
 }
 
 .rl-co {
+  margin-left: 4px;
   font: 600 12.5px/1.2 var(--font);
   color: var(--on-surface-muted);
+  white-space: nowrap;
 }
 
 .rl-warn {
@@ -286,6 +288,7 @@
 .rl-ds small {
   font: 600 12.5px/1.2 var(--font);
   color: var(--on-surface-muted);
+  white-space: nowrap;
 }
 
 .rl-ls {
@@ -465,7 +468,7 @@
 .rl-desktop .rl-hd,
 .rl-desktop .rl-row {
   display: grid;
-  grid-template-columns: 40px minmax(150px, 1.4fr) minmax(90px, 0.9fr) minmax(130px, 1.5fr) 100px minmax(110px, 1fr) 150px;
+  grid-template-columns: 40px minmax(170px, 1.5fr) minmax(90px, 0.9fr) minmax(100px, 1.1fr) 118px minmax(140px, 1.1fr) 150px;
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
@@ -642,6 +645,11 @@
   border: 2px solid var(--edge);
   border-radius: 12px;
   background: var(--surface-2);
+}
+
+.rl-chooser .wm-input:not(.rl-n) {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .rl-chooser .rl-n {

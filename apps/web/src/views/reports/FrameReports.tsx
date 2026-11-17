@@ -779,8 +779,8 @@ function ListPanel({
                     <span className="frp-rtx">
                       <span className="frp-rt1">
                         {!r.read && <span className="frp-udot" role="img" aria-label="Unread" />}
-                        {head.title}
-                        {head.coords && <small> ({head.coords})</small>}
+                        <span className="frp-rtt">{head.title}</span>
+                        {head.coords && <small>({head.coords})</small>}
                       </span>
                       {figs !== '' && <span className="frp-rt2">{figs}</span>}
                     </span>

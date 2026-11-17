@@ -80,7 +80,7 @@ export function RaidAgainNote({ reportId, ctl, variant }: { reportId: number; ct
         {d.text}
         {partial && (
           <>
-            {' '}
+            {'. '}
             <span className="ra-can">Can go now: {unitsText(d.units)}.</span>
           </>
         )}

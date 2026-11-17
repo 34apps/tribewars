@@ -9,7 +9,7 @@ import { DEFAULT_WORLD, createPlayerVillage, emptyUnits } from '@clanfire/engine
 import type { OwnVillageDto, SendAgainDto } from '@clanfire/engine';
 import { GameContext } from '../src/game.ts';
 import type { GameApi } from '../src/game.ts';
-import { useRaidAgain } from '../src/hooks/useRaidAgain.ts';
+import { SENT_COOLDOWN_MS, pressedTooSoon, useRaidAgain } from '../src/hooks/useRaidAgain.ts';
 import type { RaidAgainCtl } from '../src/hooks/useRaidAgain.ts';
 import { againLabel, decideAgain, homeTroops, missingText, sendAgain, unitsText } from '../src/raidAgain.ts';
 
@@ -171,4 +171,12 @@ test('missing troops: pressing sends nothing at all', async () => {
   } finally {
     run.m.restore();
   }
+});
+
+test('a second press on the same report right after a send is ignored; another report, or later, is not', () => {
+  const last = { reportId: 7, at: 10_000 };
+  assert.equal(pressedTooSoon(null, 7, 10_100), false);
+  assert.equal(pressedTooSoon(last, 7, 10_100), true, 'a double click or double tap');
+  assert.equal(pressedTooSoon(last, 7, 10_000 + SENT_COOLDOWN_MS), false, 'after the cooldown a new press is a new raid');
+  assert.equal(pressedTooSoon(last, 8, 10_100), false, 'another report is another raid');
 });

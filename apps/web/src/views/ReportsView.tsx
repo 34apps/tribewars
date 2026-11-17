@@ -694,7 +694,12 @@ export function ReportsView() {
                             <span className="rp-title">{head.title}</span>
                             {head.coords && <span className="rp-coords">({head.coords})</span>}
                           </span>
-                          {figs !== '' && <span className="rp-sub">{figs}</span>}
+                          {(figs !== '' || head.coords) && (
+                            <span className="rp-sub">
+                              {head.coords && <span className="rp-subc">({head.coords}){figs !== '' ? ' \u00b7 ' : ''}</span>}
+                              {figs}
+                            </span>
+                          )}
                         </span>
                         <span className="rp-when">{formatShortAgo(r.createdAt, now)}</span>
                         <OutcomeTag report={r} />

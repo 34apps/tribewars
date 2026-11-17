@@ -178,6 +178,9 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Problems with the add / edit form itself: shown under the form only (everything else is `error`, shown once: in the form column on the
+  // desktop, under the send bar on the phone, so the same words never appear twice).
+  const [formError, setFormError] = useState<string | null>(null);
   const [result, setResult] = useState<SendSummary | null>(null);
   // The add / edit form.
   const [x, setX] = useState('');
@@ -205,13 +208,14 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
   }, [page, pg.page]);
 
   /** One request per press: the shared lock refuses a second press in the same tick; every button greys while one runs. */
-  async function act<T>(job: () => Promise<T>, done: (r: T) => void) {
+  async function act<T>(job: () => Promise<T>, done: (r: T) => void, scope: 'list' | 'form' = 'list') {
     if (locked || !lock.begin()) return;
     setError(null);
+    setFormError(null);
     try {
       done(await job());
     } catch (e) {
-      setError(errorMessage(e));
+      (scope === 'form' ? setFormError : setError)(errorMessage(e));
     } finally {
       lock.end();
     }
@@ -228,6 +232,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
     resetForm();
   }
   function resetForm() {
+    setFormError(null);
     setEditRow(null);
     setCounts({});
     setX('');
@@ -276,7 +281,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
   function saveRow() {
     if (!list) return;
     const check = checkNewRow({ x: editing ? String(editing.x) : x, y: editing ? String(editing.y) : y, fromVillageId: fromId, counts });
-    if (!check.ok) return setError(check.message);
+    if (!check.ok) return setFormError(check.message);
     if (editing) {
       void act(
         () => api.updateRaidRow(list.id, editing.id, { fromVillageId: check.body.fromVillageId, units: check.body.units }),
@@ -284,6 +289,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
           putList(r.list);
           resetForm();
         },
+        'form',
       );
       return;
     }
@@ -296,6 +302,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
         setX('');
         setY('');
       },
+      'form',
     );
   }
   function removeRow(row: RaidListRowDto) {
@@ -313,6 +320,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
     setFromId(villages.some((v) => v.id === row.fromVillageId) ? row.fromVillageId : fromId);
     setCounts(countsFromUnits(row.units));
     setError(null);
+    setFormError(null);
     formRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }
   function send() {
@@ -577,9 +585,9 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
             </label>
           ))}
         </div>
-        {error && (
+        {(formError ?? (desktop ? error : null)) && (
           <p className="form-error rl-err" role="alert">
-            {error}
+            {formError ?? error}
           </p>
         )}
         <div className="rl-fact">
@@ -621,7 +629,7 @@ export function RaidListsPanel({ data, desktop: desktopProp }: { data: RaidLists
         {nameForm}
         {listHead}
         {rowsView}
-        {sendBar}
+        {(list || locked) && sendBar}
         {error && !desktop && (
           <p className="form-error rl-err" role="alert">
             {error}

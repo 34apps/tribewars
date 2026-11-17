@@ -246,7 +246,27 @@
   text-overflow: ellipsis;
 }
 
+/* The title gives way, the coordinates never do (many abandoned villages share one name). */
+.frp-rt1 {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.frp-rt1 .frp-udot {
+  flex: none;
+  align-self: center;
+  margin-right: 2px;
+}
+
+.frp-rtt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .frp-rt1 small {
+  flex: none;
   font: 500 12.5px/1.2 var(--font);
   color: var(--on-surface-muted);
 }
@@ -739,8 +759,9 @@
 }
 
 .frp-tiles {
+  container-type: inline-size;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -767,6 +788,24 @@
 .frp-tile b {
   font: 400 20px/1.35 var(--font-display);
   color: var(--heading);
+  white-space: nowrap;
+}
+
+/* Four tiles across a narrow box (the loot card) drop the little picture so a number of three or more digits fits; the label under it names the resource. */
+@container (max-width: 400px) {
+  .frp-tile {
+    grid-template-columns: auto;
+    column-gap: 0;
+  }
+
+  .frp-tile .icon {
+    display: none;
+  }
+
+  .frp-tile b,
+  .frp-tile span {
+    text-align: center;
+  }
 }
 
 .frp-tile span {
