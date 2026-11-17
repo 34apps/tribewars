@@ -2,7 +2,7 @@
 
 Written 2026-11-17 on branch `claude/brave-boyd-1f323b` (local, not merged, not pushed). Owner's ask: "compare the game to Tribal Wars,
 resources, units etc. but we shouldn't be the same, we might do better ... troops ... time". This session covers troops, recruit time,
-battles and raiding (the economy and the play experience are other sessions). Numbers: `docs/BALANCE.md` §14. Raw tables and sims: `docs/sim/2026-11-17-troops-*.txt`;
+battles and raiding (the economy and the play experience are other sessions). Numbers: `docs/BALANCE.md` §15. Raw tables and sims: `docs/sim/2026-11-17-troops-*.txt`;
 the analysis tool is `npm run sim:troops` (it reads the real engine, so it can be rerun after any number change).
 
 ## In short (5 bullets)
@@ -129,11 +129,11 @@ Raw: `docs/sim/2026-11-17-troops-{30d,90d,conquest90-5seeds,siege}.txt`; Option 
 | Dominant style flag | balanced 1.51x raider | balanced 1.51x raider (1.5x line, unchanged) | same |
 | `--siege` invariants | pass | **pass (one line moved, see above)** | n/a |
 
-`npm run check`: engine 553, lobby 99, preview 20, server 621, web 306, all pass. `npm run build`: passes (see BALANCE §14 for the final run).
+`npm run check`: engine 553, lobby 99, preview 20, server 621, web 306, all pass. `npm run build`: passes (see BALANCE §15 for the final run).
 
 ## 9. What changed on this branch (recommended set A)
 
-`packages/engine/src/config.ts` only: `knight` attack 140, defence 90 / 90; `firecart.siege.power` 2. `docs/GAME_DESIGN.md` §4 and §18.9, `docs/BALANCE.md` §14, tests that hard-coded the old numbers now read from `UNITS` (roster, siege, village, warfare), the analysis tool `scripts/sim/troops.ts` (`npm run sim:troops`, with `--set unit.field=value` previews), one siege invariant line in `scripts/sim/siege.ts`. Existing worlds: unit lines come from config, so battles in progress use the new numbers from the first fight after deployment; nothing is stored, so no migration.
+`packages/engine/src/config.ts` only: `knight` attack 140, defence 90 / 90; `firecart.siege.power` 2. `docs/GAME_DESIGN.md` §4 and §18.9, `docs/BALANCE.md` §15, tests that hard-coded the old numbers now read from `UNITS` (roster, siege, village, warfare), the analysis tool `scripts/sim/troops.ts` (`npm run sim:troops`, with `--set unit.field=value` previews), one siege invariant line in `scripts/sim/siege.ts`. Existing worlds: unit lines come from config, so battles in progress use the new numbers from the first fight after deployment; nothing is stored, so no migration.
 
 ## 10. Open for later (not done)
 
