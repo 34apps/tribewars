@@ -32,6 +32,7 @@ read or log other repos (e.g. MeetingNote) from a Clanfire session.**
 - `npm run build` — production build of the web client (`apps/web/dist`) and the bundled server (`apps/server/dist`).
 - `npm run sim` — balance simulator on the real engine (4 computer styles, 30 days; `--days N`, `--home x,y`, `--out file`); results in `docs/BALANCE.md` §6.
 - `npm run build:preview` / `npm run dev:preview` — build / hot-reload the single-file preview (`apps/preview`).
+- **The owner plays the BUILT preview** (since 2026-11-17): `npm run serve:preview` serves `apps/preview/dist-local` on http://localhost:5174 (same saved world, world mirror in `apps/preview/data/`). After every merge into main run `npm run build:preview:local` in the main checkout, then ask him to reload. Don't start `dev:preview` on 5174.
 - `npm run agent -- "task"` — run a dev task via the Agent SDK on the API key (`--budget`, `--model`, `--effort`, `--max-turns`, `--continue`); see `docs/AI-WORKFLOW.md`.
 - `npm start` — compiled production server (serves `apps/web/dist` only if it exists; on AWS the web is on S3).
 - `npm run backup` — consistent copy of the database to `data/backups`. AWS setup: `docs/DEPLOYMENT_PLAN.md`, `deploy/`.

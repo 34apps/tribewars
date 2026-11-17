@@ -43,6 +43,8 @@ Written 2026-11-10 (gold balance day). Read this first, then `docs/AI-WORKFLOW.m
 
 ## Traps
 
+- **Owner's preview is the built copy since 2026-11-17** (dev mode was 10-20x heavier): `npm run serve:preview` on :5174 from the main checkout, started detached (`nohup`). If :5174 is down, run it again; after each merge into main run `npm run build:preview:local` and ask him to reload (no hot reload any more). The released file is still `npm run build:preview` (no mirror).
+
 - Each preview player's world mirrors to `apps/preview/data/preview-world-<username>.sqlite` (owner: `preview-world-metinaltinbas.sqlite`; `?demo` accounts skipped) on every save while `npm run dev:preview` runs (worker mode, `8f8a523`). The preview game runs in a Web Worker; `?inpage` = old in-page mode (needed for design tooling that reads `clanfirePreview.ctx`).
 - Owner's preview tab gets laggy after a day of live edits (2026-11-11: fixed by a full reload, Cmd+R). Hot reload likely leaves old preview timers/bot loops running; after changing `apps/preview` ask him to reload before judging speed.
 - Preview: `apps/preview/src/clock.ts` replaces `Date` page-wide (game time); use `realTime()` for anything that must follow the wall clock.
