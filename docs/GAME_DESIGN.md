@@ -275,6 +275,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   - **Reserve.** `npc.keepShare` keeps a village that builds all the time from being empty when a raider arrives (it is lootable; only the Vault protects).
   - **Switch.** `npc.selfBuild` off: abandoned villages stay as created (tests, special worlds). A hearth that is out freezes production and starts no
     new build (a running one finishes).
+  - **Map points (2026-11-17).** The map shows the *stored* points of an abandoned village. The caretaker pass settles and saves each abandoned village at most once per hour of game time (`NPC_REFRESH_INTERVAL_MS` / world speed; `NPC_REFRESH_BATCH`, `NPC_REFRESH_BUDGET_MS` bound one pass), and a raid saves it as before, so the points on the map can lag the real growth by up to about an hour. Battles are unaffected: they settle at arrival. Skipped while the rule is off.
   - **Old databases.** The stored state keeps its shape (`npc: { tier, growthSteps, createdAt, growthSeed? }`; the build job is a normal `buildQueue`
     entry). `growthSteps` was the timer's step count and is now the build pointer, `createdAt` is informational. A village saved in the timer era
     with an empty queue just starts building from its stock and carries on from that pointer. No schema change, so no `SCHEMA_VERSION` bump.

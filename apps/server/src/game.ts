@@ -4,6 +4,8 @@
 import { randomInt } from 'node:crypto';
 import {
   BOT_BATCH_VILLAGES,
+  NPC_REFRESH_BATCH,
+  NPC_REFRESH_BUDGET_MS,
   BOT_MAX_STEPS_PER_RUN,
   GameError,
   claimReward,
@@ -46,6 +48,7 @@ import {
   abandonIdleMs,
   botIdleMs,
   botStepMs,
+  npcRefreshMs,
   mulberry32,
   RESOURCE_IDS,
   applyAttackerLosses,
@@ -317,6 +320,7 @@ export class GameService {
     // The world has ended: it is frozen. Movements in flight still resolve (above), but nobody builds or loses a village any more.
     if (this.store.isWorldEnded()) return 0;
     this.abandonIdleVillages(now);
+    this.refreshAbandonedVillages(now);
     const due = this.store.botDueVillages(now, now - botIdleMs(s), BOT_BATCH_VILLAGES);
     let queued = 0;
     for (const v of due) {
@@ -327,6 +331,37 @@ export class GameService {
       }
     }
     return queued;
+  }
+
+  /**
+   * Keep the stored state (and so the map points) of abandoned villages fresh. They grow on their own (engine settleVillage, world rule
+   * npc.selfBuild), so the oldest-refreshed ones, those last settled more than npcRefreshMs ago, are settled to `now` and saved, oldest first,
+   * at most `batch` villages and `budgetMs` of real time per pass. Same result as the lazy settle (settling in steps equals one settle), so
+   * a raid still settles at arrival as before. Call it only after every due movement is resolved (the caretaker does; the preview after its own
+   * processDue). Skipped when nothing can grow (rule off) and in a world that has ended.
+   * Returns the number of villages refreshed.
+   */
+  refreshAbandonedVillages(now: number, batch = NPC_REFRESH_BATCH, budgetMs = NPC_REFRESH_BUDGET_MS): number {
+    const s = this.settings;
+    if (!worldRules(s).npc.selfBuild || this.store.isWorldEnded()) return 0;
+    const started = performance.now();
+    let done = 0;
+    for (const { id } of this.store.npcRefreshOrder(now - npcRefreshMs(s), batch)) {
+      if (done > 0 && performance.now() - started >= budgetMs) break;
+      try {
+        this.store.tx(() => {
+          const v = this.store.getVillage(id);
+          if (!v || v.ownerId !== null) return;
+          const next = settleVillage(v.state, now, s);
+          this.store.saveVillage(id, next, villagePoints(next));
+          this.store.setNpcRefreshAt(id, now);
+        });
+        done++;
+      } catch (err) {
+        this.log.error({ err, villageId: id }, 'abandoned village refresh failed');
+      }
+    }
+    return done;
   }
 
   /**
@@ -1747,7 +1782,7 @@ export class GameService {
     const storeMarks = this.projects.storeMarkers(rows);
     const ownerPoints = this.store.playersPoints(rows.flatMap((r) => (r.ownerId === null ? [] : [r.ownerId])));
     return rows.map((r): MapVillageDto => {
-      const points = r.npcState ? villagePoints(settleVillage(r.npcState, t, this.settings)) : r.points;
+      const points = r.points;
       return {
         id: r.id,
         name: r.name,
@@ -1756,7 +1791,7 @@ export class GameService {
         kind: r.ownerId === null ? 'abandoned' : r.ownerId === player.id ? 'own' : 'player',
         ownerName: r.ownerName,
         ownerPoints: r.ownerId === null ? null : (ownerPoints.get(r.ownerId) ?? 0),
-        // Abandoned villages grow lazily and their stored points only refresh when raided: settle in memory (no write on GET).
+        // Abandoned villages: the stored points, refreshed at most hourly by the caretaker (refreshAbandonedVillages) and whenever one is raided.
         points,
         // A cold village (hearth out) is never shown as safe.
         protected: r.ownerId !== null && !r.coldState && (r.ownerProtectedUntil > t || r.protectedUntil > t),

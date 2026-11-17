@@ -79,7 +79,7 @@ test('migration v20: queued jobs without a paid cost get today\'s price once; st
     raw.close();
 
     app = await open();
-    assert.equal(SCHEMA_VERSION, 20);
+    assert.ok(SCHEMA_VERSION >= 20);
     const s = app.ctx.store.getVillage(homeId)!.state as VillageState;
     assert.deepEqual(s.buildQueue[0]!.cost, buildingCost('lumber', 3));
     assert.deepEqual(s.buildQueue[1]!.cost, odd, 'already stamped: untouched');

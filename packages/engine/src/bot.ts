@@ -1,7 +1,7 @@
 // Caretaker bot for idle owners (docs/GAME_DESIGN.md section 17). Pure and deterministic given the rng.
 // It only ever chooses a building to queue through the normal build check. It never trains, researches, or sends anything.
 
-import { ABANDON_IDLE_DAYS, BOT_BUILD_WEIGHTS, BOT_IDLE_DAYS, BOT_STEP_HOURS } from './config.ts';
+import { ABANDON_IDLE_DAYS, BOT_BUILD_WEIGHTS, BOT_IDLE_DAYS, BOT_STEP_HOURS, NPC_REFRESH_INTERVAL_MS } from './config.ts';
 import { checkBuild, settleVillage } from './village.ts';
 import { BUILDING_IDS } from './types.ts';
 import type { BuildingId, VillageState, WorldSettings } from './types.ts';
@@ -15,6 +15,8 @@ export const abandonIdleMs = (s: WorldSettings): number => (ABANDON_IDLE_DAYS * 
 export const abandonIdleDays = (s: WorldSettings): number => Math.round((ABANDON_IDLE_DAYS * 10) / s.speed) / 10;
 /** Minimum gap between two caretaker runs on the same village (ms, scaled by world speed). */
 export const botStepMs = (s: WorldSettings): number => (BOT_STEP_HOURS * MS_PER_HOUR) / s.speed;
+/** Minimum gap between two refreshes of an abandoned village's stored state (ms, scaled by world speed). */
+export const npcRefreshMs = (s: WorldSettings): number => NPC_REFRESH_INTERVAL_MS / s.speed;
 
 /** Is an owner whose last request was at `lastActive` idle at `now`? */
 export const isOwnerIdle = (lastActive: number, now: number, s: WorldSettings): boolean => now - lastActive >= botIdleMs(s);

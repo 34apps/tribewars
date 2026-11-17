@@ -1023,6 +1023,12 @@ export const BOT_STEP_HOURS = 2;
 export const BOT_MAX_STEPS_PER_RUN = 2;
 /** Most villages the caretaker handles in one pass of the periodic job. */
 export const BOT_BATCH_VILLAGES = 25;
+/** An abandoned village's stored state (and so its map points) is settled and saved by the caretaker once per this many hours (divided by world speed). */
+export const NPC_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+/** Most abandoned villages one caretaker pass refreshes (15,000 of them are all done within the hour at one pass a minute). */
+export const NPC_REFRESH_BATCH = 400;
+/** ... and the real time one pass may spend on it, whichever limit comes first. */
+export const NPC_REFRESH_BUDGET_MS = 20;
 /** How often the server runs the caretaker pass (real ms, not scaled). */
 export const BOT_PASS_INTERVAL_MS = 60_000;
 /** A player's last_active is written at most this often (real ms), so reads never cause write storms. */
