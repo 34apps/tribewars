@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { RESOURCE_IDS, productionPerHour, storageCap } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { bannerText } from '../domination.ts';
-import { TABS, useGame } from '../game.ts';
+import { navTabs, useGame } from '../game.ts';
 import type { NavTab } from '../game.ts';
 import { formatCompact, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
@@ -168,7 +168,7 @@ function TabRowAlerts() {
 }
 
 export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { children: ReactNode; onSignOut: () => void; onSignOutEverywhere: () => void }) {
-  const { tab, worldEnd, now, navigate } = useGame();
+  const { tab, worldEnd, now, navigate, villages } = useGame();
   const [choosing, setChoosing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -192,7 +192,7 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
           <Who {...actions} />
         </header>
         <nav className="fr-tabs" aria-label="Main">
-          {TABS.map((t) => (
+          {navTabs(villages.length).map((t) => (
             <FolderTab key={t} tab={t} />
           ))}
           <TabRowAlerts />

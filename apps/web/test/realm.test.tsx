@@ -187,3 +187,13 @@ test('paging: how many rows fit, never fewer than three, and the page split', ()
   assert.equal(last.to, 20);
   assert.equal(paging(1, 0, 3).pages, 1);
 });
+
+test('the Realm tab shows from the second village on; its route and the Notes page stay reachable', async () => {
+  const { navTabs, TABS, MENU_PAGES } = await import('../src/game.ts');
+  assert.ok(!navTabs(1).includes('realm'));
+  assert.ok(navTabs(2).includes('realm'));
+  assert.deepEqual(navTabs(2), TABS);
+  assert.deepEqual(navTabs(1), TABS.filter((t) => t !== 'realm'));
+  assert.ok(TABS.includes('realm'), 'route still valid with one village');
+  assert.ok(MENU_PAGES.includes('notes'));
+});

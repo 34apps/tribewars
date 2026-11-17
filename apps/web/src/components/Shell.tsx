@@ -348,7 +348,7 @@ export function Who(actions: AccountActions) {
 
 /** Phone: bottom sheet behind the More button: population, Mail / Tribe / Ranks, and the account items. */
 function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => void }) {
-  const { player, village, navigate, unreadMail, tribeInvites, tribeAlerts } = useGame();
+  const { player, village, villages, navigate, unreadMail, tribeInvites, tribeAlerts } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   const pop = usePopulation();
   useEffect(() => {
@@ -403,7 +403,7 @@ function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => vo
         </button>
       </div>
       <div className="more-rows">
-        {row('realm', 0)}
+        {villages.length >= 2 && row('realm', 0)}
         {row('mail', unreadMail)}
         {row('tribe', tribeInvites + tribeAlerts, tribeAlerts > 0)}
         {row('ranks', 0)}
