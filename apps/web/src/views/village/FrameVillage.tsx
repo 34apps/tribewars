@@ -3,7 +3,7 @@
 // all buildings with a quick "Up" on the right. Everything is real client data; actions call the same endpoints as the panels.
 // Clicking a building opens its own page (`#village/b/<id>`): the left column stays, the main area shows the building panel.
 
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { memo, startTransition, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BUILDING_IDS, UNITS, UNIT_IDS, villagePoints } from '@clanfire/engine';
 import { api } from '../../api.ts';
@@ -13,7 +13,9 @@ import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { Cost } from '../../components/ui.tsx';
 import { FIRST_STEP_LABEL, claimableSteps, doneCount, firstStepsVisible, nextOpenStep } from '../../firstSteps.ts';
 import { formatInt } from '../../format.ts';
-import { useGame } from '../../game.ts';
+import { GameContext, TickGameContext, useGame } from '../../game.ts';
+import type { GameApi } from '../../game.ts';
+import { deferTicks } from '../../hooks/tickLane.ts';
 import { BuildingPage } from './FrameBuilding.tsx';
 import { BuildingRow, Chev, LeftColumn } from './FrameParts.tsx';
 import { useFirstSteps } from './FirstSteps.tsx';
@@ -228,6 +230,55 @@ function BuildingsList({ busy, build, onPick, next }: { busy: boolean; build: (i
   );
 }
 
+// ---- The scene without the clock ----------------------------------------------------------------------------------------
+
+const SceneMemo = memo(VillageScene);
+
+/** Everything the scene draws from the game state, as text: equal text means the scene needs no new render (the clock alone never changes it). */
+export function sceneKey(g: Pick<GameApi, 'village' | 'live' | 'now'>): string {
+  return JSON.stringify([
+    g.village.id,
+    g.village.x,
+    g.village.y,
+    !!g.village.hearth,
+    g.live.buildings,
+    g.live.buildQueue.map((j) => [j.building, j.targetLevel, j.startAt, j.finishAt, j.startAt <= g.now]),
+  ]);
+}
+
+/**
+ * The village scene, shielded from the one-second game clock. `useGame()` gives a new `live` and `now` every second, which would
+ * re-render the whole scene (and restart any React transition it is part of). The scene gets a copy of the game state that only
+ * changes when something it draws changes (the buildings, the jobs and whether each has started, the village); the few small parts that
+ * follow the clock (build timers, the tip and guide bubbles) read the real state from TickGameContext.
+ */
+function SceneHost({
+  onSelect,
+  levelOverride,
+  guide,
+  lazyBack,
+}: {
+  onSelect: (id: BuildingId) => void;
+  levelOverride: Parameters<typeof VillageScene>[0]['levelOverride'];
+  guide: Parameters<typeof VillageScene>[0]['guide'];
+  lazyBack: boolean;
+}) {
+  const g = useGame();
+  const key = sceneKey(g);
+  const held = useRef<{ key: string; ctx: GameApi } | null>(null);
+  if (!held.current || held.current.key !== key) held.current = { key, ctx: g };
+  const gk = guide ? `${guide.id}|${guide.kind}|${guide.title}` : '';
+  const heldGuide = useRef<{ key: string; guide: typeof guide } | null>(null);
+  if (!heldGuide.current || heldGuide.current.key !== gk) heldGuide.current = { key: gk, guide };
+  return (
+    <TickGameContext.Provider value={g}>
+      <GameContext.Provider value={held.current.ctx}>
+        <SceneMemo mode="fit" selected={null} onSelect={onSelect} levelOverride={levelOverride} guide={heldGuide.current.guide} lazyBack={lazyBack} />
+      </GameContext.Provider>
+    </TickGameContext.Provider>
+  );
+}
+
 // ---- The page ---------------------------------------------------------------------------------------------------------
 
 export function FrameVillage({
@@ -253,29 +304,37 @@ export function FrameVillage({
     return () => document.removeEventListener('keydown', onKey);
   }, [active, building, openBuilding]);
   const steps = firstStepsVisible(firstSteps);
-  // The picture is only drawn at once when it is on screen. Behind a building page or another tab it is built after the first paint, in
-  // an idle moment and in small slices (a transition), so clicks and hovers stay answered while the page loads (owner 2026-11-17).
+  // The picture on screen is drawn in the very first render, as ordinary (urgent) work: never as a transition and never in an idle
+  // moment (a transition restarts on every urgent update, so the picture could stay a green box for a long time; owner 2026-11-17).
+  // Only a scene that nobody looks at (behind a building page or another tab) is built after the first paint, in an idle moment and
+  // in small slices (a transition), so clicks and hovers stay answered while the page loads.
   const visible = active && !building;
   // When the small picture is already up to date nothing needs the scene yet, so it waits a few seconds more (the first seconds after a
   // reload stay free for hovering and clicking); otherwise it is built right after the first paint, to make the picture.
   const fresh = useMiniFresh();
-  const [sceneOn, setSceneOn] = useState(false);
+  const [sceneOn, setSceneOn] = useState(visible);
+  if (visible && !sceneOn) setSceneOn(true); // on screen from now on: this very render
+  const release = useRef<(() => void) | null>(null);
   useEffect(() => {
-    if (sceneOn) return;
-    if (visible) {
-      // On screen: right away, but as a transition (React builds it in small slices and the page stays responsive meanwhile).
-      startTransition(() => setSceneOn(true));
+    if (sceneOn) {
+      release.current?.();
+      release.current = null;
       return;
     }
     let cancel = () => {};
     const timer = window.setTimeout(() => {
-      cancel = whenIdle(() => startTransition(() => setSceneOn(true)), 3000);
+      cancel = whenIdle(() => {
+        // The clock tick joins the transition's lane meanwhile, so it cannot restart the build every second.
+        release.current = deferTicks();
+        startTransition(() => setSceneOn(true));
+      }, 3000);
     }, fresh ? 5000 : 0);
     return () => {
       window.clearTimeout(timer);
       cancel();
     };
-  }, [sceneOn, visible, fresh]);
+  }, [sceneOn, fresh]);
+  useEffect(() => () => release.current?.(), []);
   // Keeps the small village picture (building pages, Army) up to date from this scene.
   const picRef = useRef<HTMLElement>(null);
   useMiniShooter(picRef, sceneOn);
@@ -291,7 +350,7 @@ export function FrameVillage({
           <div className="fv-notes">{notices}</div>
           <section ref={picRef} className="fv-pic" aria-label={`${village.name}, village`}>
             <h1 className="visually-hidden">{village.name}</h1>
-            {sceneOn && <VillageScene mode="fit" selected={null} onSelect={openBuilding} levelOverride={levelOverride} guide={guide} lazyBack={!visible} />}
+            {sceneOn && <SceneHost onSelect={openBuilding} levelOverride={levelOverride} guide={guide} lazyBack={!visible} />}
             <span className="fv-pcap">
               <Icon name="village" size={16} />
               Click a building to open its page

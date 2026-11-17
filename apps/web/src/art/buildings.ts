@@ -396,12 +396,48 @@ export interface SpriteData {
 // Quotes may be ' or " (Vite rewrites small SVGs it inlines as data: URLs).
 const TILE_RE = /^\s*(?:<path\b[^>]*\bfill=["']#(?:5E8C3A|3A5E27|A6C964)["'][^>]*>(?:\s*<\/path>)?\s*){3}/i;
 const cache = new Map<string, Promise<SpriteData>>();
+/** Loaded and parsed, but maybe not shown yet: a sprite is released to the scenes together with the others that were loading at the
+ *  same time (one re-render, so a village's buildings appear in one go and not one after another as each file arrives). */
+const loaded = new Map<string, SpriteData>();
 const ready = new Map<string, SpriteData>();
+const spriteListeners = new Set<() => void>();
+let spriteVersion = 0;
+let pending = 0;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+/** A slow file never holds the others back for longer than this. */
+const RELEASE_MAX_MS = 120;
+
+function releaseSprites() {
+  if (flushTimer !== null) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  let any = false;
+  for (const [u, d] of loaded) {
+    if (!ready.has(u)) {
+      ready.set(u, d);
+      any = true;
+    }
+  }
+  if (!any) return;
+  spriteVersion += 1;
+  for (const fn of Array.from(spriteListeners)) fn();
+}
+
+/** For useSyncExternalStore: one change per released batch of sprites. */
+export function subscribeSprites(fn: () => void): () => void {
+  spriteListeners.add(fn);
+  return () => spriteListeners.delete(fn);
+}
+export function spritesVersion(): number {
+  return spriteVersion;
+}
 
 /** Fetch + parse a sprite once. Only URLs from this module (our own bundled files) are ever loaded. */
 export function loadSprite(url: string): Promise<SpriteData> {
   let p = cache.get(url);
   if (!p) {
+    pending += 1;
     p = fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(`sprite ${r.status}`);
@@ -411,18 +447,54 @@ export function loadSprite(url: string): Promise<SpriteData> {
         const m = /<svg\b[^>]*\bviewBox=["']([^"']+)["'][^>]*>([\s\S]*)<\/svg>/i.exec(text);
         const body = m?.[2] ?? '';
         const data: SpriteData = { viewBox: m?.[1] ?? '-70 -122 140 190', body, ground: body.replace(TILE_RE, '') };
-        ready.set(url, data);
+        loaded.set(url, data);
         return data;
       });
+    const settle = () => {
+      pending -= 1;
+      if (pending <= 0) releaseSprites();
+      else if (flushTimer === null && loaded.size > ready.size) flushTimer = setTimeout(releaseSprites, RELEASE_MAX_MS);
+    };
+    p.then(settle, settle);
     p.catch(() => cache.delete(url));
     cache.set(url, p);
   }
   return p;
 }
 
-/** Already-loaded sprite, if any (lets components render without a blank first frame). */
+/** Already-loaded sprite that has been released to the scenes, if any (lets components render without a blank first frame). */
 export function readySprite(url: string): SpriteData | null {
   return ready.get(url) ?? null;
+}
+
+const SPRITES_KEY = 'clanfire.sprites.v1';
+let lastSaved = '';
+/** Remember which sprites the village scene used, so the next page load starts fetching them at start-up (before the game state arrives). */
+export function rememberSprites(urls: readonly string[]): void {
+  const text = JSON.stringify([...new Set(urls)].sort());
+  if (text === lastSaved) return;
+  lastSaved = text;
+  try {
+    window.localStorage.setItem(SPRITES_KEY, text);
+  } catch {
+    /* storage blocked: the sprites are fetched when the scene asks for them */
+  }
+}
+/** Start-up: begin loading the sprites the last visit used. */
+export function warmRememberedSprites(): void {
+  try {
+    const raw = window.localStorage.getItem(SPRITES_KEY);
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(list)) warmSprites(list.filter((u): u is string => typeof u === 'string').slice(0, 40));
+  } catch {
+    /* nothing remembered */
+  }
+}
+
+/** Start loading these sprites (nothing waits for them): a page that is about to draw them finds them ready. */
+export function warmSprites(urls: readonly string[]): void {
+  const known = new Set(Object.values(FILES));
+  for (const u of urls) if (known.has(u)) loadSprite(u).catch(() => undefined);
 }
 
 /** Make the sprite's internal ids unique per drawing so two copies on one page do not clash. */

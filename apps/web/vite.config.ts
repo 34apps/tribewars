@@ -13,6 +13,8 @@ const lobbyApiProxy = { '^/lobby/api(/|$|\\?)': { target: LOBBY_API, changeOrigi
 
 export default defineConfig({
   plugins: [react()],
+  // Tells a kept still picture (views/village/backPics.ts) which build made it: a new build never shows an old build's picture.
+  define: { __BUILD_ID__: JSON.stringify(String(Date.now())) },
   server: {
     port: 5173,
     // Listen on the LAN so phones can open the dev server.

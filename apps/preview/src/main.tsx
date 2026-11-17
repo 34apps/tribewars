@@ -16,8 +16,11 @@ import { connectInPage, connectWorker, type GameLink, type LinkEvents } from './
 import { loadSave, wipeSave } from './persist.ts';
 import { mountPill, type Pill } from './pill.ts';
 import { mountSpeed } from './speed.ts';
+import { warmVillage } from '../../web/src/warmup.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
 import { allowDesignPreviewForEveryone, setDesignPreview, setPreviewBuilding, setPreviewLook } from '../../web/src/views/village/designPreviewState.ts';
+
+warmVillage(); // the Village page's pictures start loading while the world boots
 
 function showFatal(message: string): void {
   const root = document.getElementById('root');

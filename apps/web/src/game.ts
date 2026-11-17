@@ -150,6 +150,20 @@ export function useGame(): GameApi {
   return ctx;
 }
 
+/**
+ * The same game state, but with the real per-second `live` and `now` even inside a part of the tree that gets a tick-free copy of
+ * the context (the village scene: see SceneHost in views/village/FrameVillage.tsx). Outside such a tree it is just `useGame()`.
+ */
+export const TickGameContext = createContext<GameApi | null>(null);
+
+export function useTickGame(): GameApi {
+  const own = useContext(TickGameContext);
+  const ctx = useContext(GameContext);
+  if (own) return own;
+  if (!ctx) throw new Error('useTickGame must be used inside <Game>');
+  return ctx;
+}
+
 /** The rules of this world (queue sizes, tribe limit, hold times, ...) from the settings the server sends. Defaults on an old server. */
 export function useRules(): WorldConfig {
   return worldRules(useGame().settings);

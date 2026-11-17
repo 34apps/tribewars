@@ -11,6 +11,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   CSSProperties,
@@ -35,6 +36,9 @@ import {
   lookStartLevel,
   placementDepth,
   readySprite,
+  rememberSprites,
+  subscribeSprites,
+  spritesVersion,
   SCENE_BASE_H,
   SCENE_FIT_BOX,
   SCENE_VIEWBOX,
@@ -45,6 +49,8 @@ import {
 import type { Box, Stage, WallLook } from "../../art/buildings.ts";
 import { landBox, villageTier } from "../../art/landscape.tsx";
 import type { LandBox } from "../../art/landscape.tsx";
+import { backPics, backPicsRestored, persistBackPic, rememberBackPic } from "./backPics.ts";
+import type { BackPic } from "./backPics.ts";
 import { renderStaticSvg } from "../../art/staticSvg.ts";
 import { LandscapeLayer, type LandscapeChoice } from "../../art/landscapes.tsx";
 import {
@@ -60,8 +66,9 @@ import { Icon } from "../../art/Icon.tsx";
 import { Workers } from "../../art/workers.tsx";
 import { formatDuration } from "../../format.ts";
 import { unmetRequirements } from "../../rules.ts";
-import { useGame, useRules } from "../../game.ts";
+import { useGame, useRules, useTickGame } from "../../game.ts";
 import { buildingInfo } from "./buildingInfo.ts";
+import type { BuildingInfo } from "./buildingInfo.ts";
 import { GuideCallout, HoverTip } from "./SceneGuide.tsx";
 import type { Spot } from "./SceneGuide.tsx";
 import type { Guide } from "./guide.ts";
@@ -93,19 +100,12 @@ export type Arts = Record<BuildingId, ArtState>;
 
 // ---- Sprites inside the scene ----------------------------------------------------------------------------------
 
-/** The sprite for `url` once loaded (null until then); re-renders when it arrives. */
+/** The sprite for `url` once loaded (null until then). Sprites are released in batches (art/buildings.ts), so every building that was
+ *  waiting appears in the same render. Already loaded (a warm page, or loaded at start-up): the very first render has it. */
 function useSpriteData(url: string) {
-  const [, setLoaded] = useState(0);
+  useSyncExternalStore(subscribeSprites, spritesVersion, spritesVersion);
   useEffect(() => {
-    if (readySprite(url)) return;
-    let alive = true;
-    loadSprite(url).then(
-      () => alive && setLoaded((n) => n + 1),
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
+    if (!readySprite(url)) loadSprite(url).catch(() => undefined);
   }, [url]);
   return readySprite(url);
 }
@@ -336,6 +336,7 @@ export const SceneArt = memo(function SceneArt({
     };
   }, []);
   const items: DepthItem[] = [...sceneryItems()];
+  const usedUrls: string[] = [];
   const wall = arts.wall;
   if (wall.stage > 0) {
     for (const it of wallItems(wall.stage as Exclude<WallLook, 0>)) {
@@ -359,6 +360,7 @@ export const SceneArt = memo(function SceneArt({
     let url = spriteUrl(id, art.stage as Stage);
     if (id === "wall" && art.stage > 0) url = SCAFFOLD_URL;
     else if (art.stage === 0 && art.queued) url = UNDER_CONSTRUCTION_URL;
+    usedUrls.push(url);
     const moment = id !== "wall" && art.stage > 0 ? moments[id] : undefined;
     const { x: px, y: py, scale: ps } = PLACEMENT[id];
     const gx = px;
@@ -457,6 +459,10 @@ export const SceneArt = memo(function SceneArt({
     items.push({ key: `b-${id}`, depth: placementDepth(id), node });
   }
   items.sort((a, b) => a.depth - b.depth);
+  const usedKey = usedUrls.join("|");
+  useEffect(() => {
+    if (usedKey) rememberSprites(usedKey.split("|"));
+  }, [usedKey]);
   const viewBox = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
   return (
     <>
@@ -605,20 +611,6 @@ export const SceneArt = memo(function SceneArt({
  *  redrawn when its inputs change (village size, a new road, landscape choice, screen mode); the old picture stays until the
  *  new one has decoded, so nothing flashes. Until the first picture is ready, and if one ever fails, the same layers are drawn
  *  live as before. The defs (trees, props) the live layer's <use>s point at stay in the page, in a zero-size SVG. */
-type BackPic = { url: string; box: LandBox; key: string };
-/** The still pictures made so far, newest last: the next scene (a page switch, the small picture) reuses one instead of drawing, serialising and decoding it again. */
-const backPics = new Map<string, BackPic>();
-function rememberBackPic(key: string, pic: BackPic) {
-  backPics.delete(key);
-  backPics.set(key, pic);
-  while (backPics.size > 6) {
-    const [oldKey, old] = backPics.entries().next().value as [string, BackPic];
-    backPics.delete(oldKey);
-    // Late: a scene may still be painting it for a moment.
-    setTimeout(() => URL.revokeObjectURL(old.url), 10000);
-  }
-}
-
 const SceneBackdrop = memo(function SceneBackdrop({
   viewBox,
   landscape,
@@ -647,44 +639,56 @@ const SceneBackdrop = memo(function SceneBackdrop({
     }
     let dead = false;
     let url: string | null = null;
-    // A timer, not the effect itself: rendering the static tree uses flushSync, which React forbids inside an effect.
-    const timer = setTimeout(() => {
-      try {
-        const [vx, vy, vw, vh] = viewBox.split(" ").map(Number) as [number, number, number, number];
-        const lb = landBox(wide);
-        const box = { x0: Math.min(lb.x0, vx!), y0: Math.min(lb.y0, vy!), x1: Math.max(lb.x1, vx! + vw!), y1: Math.max(lb.y1, vy! + vh!) };
-        const w = box.x1 - box.x0;
-        const h = box.y1 - box.y0;
-        const text = renderStaticSvg(
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox={`${box.x0} ${box.y0} ${w} ${h}`} width={w} height={h}>
-            <defs>
-              <SceneryDefs />
-            </defs>
-            <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
-            <Ground built={built} />
-          </svg>,
-        );
-        url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
-        const img = new Image();
-        img.src = url;
-        const mine = url;
-        img
-          .decode()
-          .then(() => {
-            if (dead) return;
-            url = null; // now owned by the cache
-            const made = { url: mine, box, key: cacheKey };
-            rememberBackPic(cacheKey, made);
-            setPic(made);
-          })
-          .catch(() => {
-            failed.current = true;
-            if (mine) URL.revokeObjectURL(mine);
-          });
-      } catch {
-        failed.current = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const make = () => {
+      const again = backPics.get(cacheKey);
+      if (again) {
+        setPic(again);
+        return;
       }
-    }, 0);
+      // A timer, not the effect itself: rendering the static tree uses flushSync, which React forbids inside an effect.
+      timer = setTimeout(() => {
+        try {
+          const [vx, vy, vw, vh] = viewBox.split(" ").map(Number) as [number, number, number, number];
+          const lb = landBox(wide);
+          const box = { x0: Math.min(lb.x0, vx!), y0: Math.min(lb.y0, vy!), x1: Math.max(lb.x1, vx! + vw!), y1: Math.max(lb.y1, vy! + vh!) };
+          const w = box.x1 - box.x0;
+          const h = box.y1 - box.y0;
+          const text = renderStaticSvg(
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox={`${box.x0} ${box.y0} ${w} ${h}`} width={w} height={h}>
+              <defs>
+                <SceneryDefs />
+              </defs>
+              <LandscapeLayer choice={landscape} tier={tier} wide={wide} />
+              <Ground built={built} />
+            </svg>,
+          );
+          url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
+          const img = new Image();
+          img.src = url;
+          const mine = url;
+          img
+            .decode()
+            .then(() => {
+              if (dead) return;
+              url = null; // now owned by the cache
+              const made = { url: mine, box, key: cacheKey };
+              rememberBackPic(cacheKey, made);
+              setPic(made);
+              // Kept for the next page load, so a reload shows this picture from the first paint (no landscape to draw again).
+              void persistBackPic(cacheKey, box, text);
+            })
+            .catch(() => {
+              failed.current = true;
+              if (mine) URL.revokeObjectURL(mine);
+            });
+        } catch {
+          failed.current = true;
+        }
+      }, 0);
+    };
+    // The start-up restore of kept pictures may still be reading: wait for it (it is usually long finished), then use or make.
+    void backPicsRestored().then(() => !dead && make());
     return () => {
       dead = true;
       clearTimeout(timer);
@@ -741,7 +745,7 @@ function BuildingHit({
   level,
   locked,
   selected,
-  finishIn,
+  finishAt,
   queuedNotStarted,
   onSelect,
   onHover,
@@ -755,7 +759,8 @@ function BuildingHit({
   level: number;
   locked: boolean;
   selected: boolean;
-  finishIn: number | null;
+  /** When the running job ends (game ms); null: nothing is running here. The countdown ticks inside this component. */
+  finishAt: number | null;
   queuedNotStarted: boolean;
   onSelect: (id: BuildingId) => void;
   /** Mouse (or keyboard focus) over / away: the scene shows its tooltip. */
@@ -763,6 +768,9 @@ function BuildingHit({
   wasDrag: () => boolean;
 }) {
   const name = BUILDINGS[id].name;
+  // The scene itself gets no per-second updates (see SceneHost); only this button and its timer follow the clock.
+  const { now } = useTickGame();
+  const finishIn = finishAt === null ? null : Math.max(0, finishAt - now);
   const upgrading = finishIn !== null;
   const aria = `${name}, level ${level}${level === 0 ? (locked ? ", locked, requirements not met" : ", not built") : ""}${upgrading ? `, building, ${formatDuration(finishIn)} left` : queuedNotStarted ? ", queued" : ""}`;
   const cx = pct((anchor ? anchor.x : box.x + box.w / 2) - vb.x, vb.w);
@@ -810,6 +818,14 @@ function BuildingHit({
   );
 }
 
+/** A building's cost / countdown facts for the guide bubble and the hover tip. They follow the clock (resources grow, timers run),
+ *  so this small part reads the real per-second state while the scene around it does not (see SceneHost). */
+function LiveInfo({ id, children }: { id: BuildingId; children: (info: BuildingInfo) => ReactElement }) {
+  const { live, now, village, settings } = useTickGame();
+  const limit = useRules().queues.build;
+  return children(buildingInfo(live, now, settings, !!village.hearth, limit, id));
+}
+
 // ---- Scene ---------------------------------------------------------------------------------------------------
 
 export function VillageScene({
@@ -846,8 +862,7 @@ export function VillageScene({
     work?: boolean;
   } | null;
 }) {
-  const { live, now, village, settings } = useGame();
-  const queueLimit = useRules().queues.build;
+  const { live, now, village } = useGame();
   const { busy: building, build } = useBuild();
   const [hover, setHover] = useState<BuildingId | null>(null);
   // Mouse over a building's drawing: it gets a soft pad highlight (replaces the old brightness filter on the whole drawing).
@@ -939,8 +954,6 @@ export function VillageScene({
   );
 
   // Guide bubble and hover tooltip: anchored on the building's label point (above it; below its drawing near the top edge).
-  const infoOf = (id: BuildingId) =>
-    buildingInfo(live, now, settings, !!village.hearth, queueLimit, id);
   const spotOf = (id: BuildingId): Spot => {
     const box = boxes[id] ?? defaultBox(id);
     const a =
@@ -979,15 +992,16 @@ export function VillageScene({
     if (!el) return;
     // No new state when nothing changed (the observer reports once at start). The fit picture only uses the size for a small
     // class switch, so it updates it as a transition: the scene is not drawn twice in one blocking go.
-    const measure = () => {
+    const measure = (first: boolean) => {
       const w = el.clientWidth;
       const h = el.clientHeight;
       const set = () => setView((v) => (v.w === w && v.h === h ? v : { w, h }));
-      if (mode === "fit") startTransition(set);
+      // The first measure is part of the first paint (a late class switch would resize the labels after the picture is up).
+      if (mode === "fit" && !first) startTransition(set);
       else set();
     };
-    measure();
-    const ro = new ResizeObserver(measure);
+    measure(true);
+    const ro = new ResizeObserver(() => measure(false));
     ro.observe(el);
     return () => ro.disconnect();
   }, [mode]);
@@ -1164,7 +1178,7 @@ export function VillageScene({
                 level={levels[id]}
                 locked={arts[id].locked}
                 selected={selected === id}
-                finishIn={active ? active.finishAt - now : null}
+                finishAt={active ? active.finishAt : null}
                 queuedNotStarted={!active && jobs.length > 0}
                 onSelect={onSelect}
                 onHover={setHover}
@@ -1173,20 +1187,24 @@ export function VillageScene({
             );
           })}
           {gd && (
-            <GuideCallout
-              guide={gd}
-              info={infoOf(gd.id)}
-              spot={spotOf(gd.id)}
-              busy={building}
-              onBuild={() => build(gd.id)}
-              onOpen={() => pick(gd.id)}
-            />
+            <LiveInfo id={gd.id}>
+              {(info) => (
+                <GuideCallout
+                  guide={gd}
+                  info={info}
+                  spot={spotOf(gd.id)}
+                  busy={building}
+                  onBuild={() => build(gd.id)}
+                  onOpen={() => pick(gd.id)}
+                />
+              )}
+            </LiveInfo>
           )}
           {hover &&
             hover !== selected &&
             !(gd && hover === gd.id) &&
             (levels[hover] > 0 || queue.some((j) => j.building === hover)) && (
-              <HoverTip info={infoOf(hover)} spot={spotOf(hover)} />
+              <LiveInfo id={hover}>{(info) => <HoverTip info={info} spot={spotOf(hover)} />}</LiveInfo>
             )}
         </div>
       </div>

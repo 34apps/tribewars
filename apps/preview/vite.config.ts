@@ -180,6 +180,8 @@ function worldMirror(): Plugin {
 // swaps are the Node built-ins the server imports, which get small browser shims.
 export default defineConfig({
   plugins: [react(), inlineAssets(), viteSingleFile(), artifactFragment(), worldMirror()],
+  // Tells a kept still picture (views/village/backPics.ts) which build made it: a new build never shows an old build's picture.
+  define: { __BUILD_ID__: JSON.stringify(String(Date.now())) },
   resolve: {
     alias: [
       { find: /^node:sqlite$/, replacement: shim('node-sqlite') },
