@@ -109,6 +109,15 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
   let dirty = true;
   let chain: Promise<void> = Promise.resolve();
   // The dev mirror: one POST at a time, in order; while one is in flight only the newest bytes wait (older ones are stale).
+  // In the built file the game worker runs from a blob: URL, where a relative address cannot be resolved: build the absolute one.
+  const mirrorUrl = (): string | null => {
+    try {
+      const href = String((globalThis as { location?: { href?: string } }).location?.href ?? '');
+      return new URL('/__clanfire/preview-world', href.replace(/^blob:/, '')).href;
+    } catch {
+      return null;
+    }
+  };
   let mirrorBusy = false;
   let mirrorNext: { player: string; bytes: Uint8Array } | null = null;
   const mirror = (player: string, bytes: Uint8Array): void => {
@@ -119,7 +128,9 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
       while (mirrorNext) {
         const job: { player: string; bytes: Uint8Array } = mirrorNext;
         mirrorNext = null;
-        await fetch('/__clanfire/preview-world', {
+        const url = mirrorUrl();
+        if (!url) break;
+        await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1', 'x-clanfire-player': job.player },
           body: job.bytes as Uint8Array<ArrayBuffer>,
