@@ -430,9 +430,9 @@ export const UNITS: Record<UnitId, UnitDef> = {
     name: 'Ember Guard',
     description: 'Elite warrior on foot who carries a live ember, strong in attack and defense. Costs gold.',
     unitClass: 'infantry',
-    attack: 70,
-    defenseInfantry: 60,
-    defenseCavalry: 60,
+    attack: 140, // 70 / 60 / 60 -> 140 / 90 / 90 (BALANCE 14): the best attack per population (46.7 vs the Raider's 36), the dearest per coin
+    defenseInfantry: 90,
+    defenseCavalry: 90,
     speed: 5,
     carry: 20,
     cost: res(50, 90, 110, 14), // 90 / 180 / 200 / 25 x 0.55 (food x 0.5)
@@ -488,7 +488,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'wrightyard',
     requires: { wrightyard: 1 },
     research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
-    siege: { power: 1, maxLevels: 2 },
+    siege: { power: 2, maxLevels: 2 }, // power 1 -> 2 (BALANCE 14): two Wall-22 levels took 98 survivors (36k of value) against 30k of rebuild; now 49 (18k)
   },
 };
 

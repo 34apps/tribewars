@@ -897,3 +897,23 @@ GAME_DESIGN §18 updated. Raw: `docs/sim/2026-11-11-chieftain-points-{30d,90d,co
 
 The single-player 30-day and 90-day sims are **byte-identical** to the roster run (13.2): the change only touches Strikes on villages of 12,000+ points, which they never make.
 Takes by style: raider 2, balanced 4, builder 0 on the main seed; Strikes that fail to hold: 3 holds broken over all styles.
+
+## 14. Troops against the genre: Ember Guard and Firecart (2026-11-17, branch `claude/brave-boyd-1f323b`, not merged)
+
+Full write-up with the genre comparison, options and sources: `docs/proposals/troops-vs-genre.md`. Analysis tool: `npm run sim:troops` (`--set unit.field=value` to preview a number
+without editing `config.ts`). Raw: `docs/sim/2026-11-17-troops-analysis-{before,after}.txt`, `-troops-{30d,90d,conquest90-5seeds,siege}.txt`; the defenders-train-faster option: `-troops-option2-trainfaster-*.txt`.
+
+**Findings (current roster, before the change).** Raider 42 attack per 100 coins and 36 per population, Shieldbearer 56 defence per 100 coins, Pikeman 71 against riders, Elk Rider best speed (2.2x) and carry
+(41 per 100 coins): every unit but two has a job. The **Ember Guard** (70/60/60, 390 coins, pop 3) was best in none of 9 measures; the **Firecart** (siege power 1) lost 24k coins net at 100 carts in a 2,000-defender /
+Wall-22 battle, and two Wall-22 levels after a win cost 98 surviving carts (36k) against 30k of rebuild. Attack against defence: a Wall of 0 / 10 / 22 makes the attacker pay 1.0x / 1.5x / 2.0x the defender's coins (Raiders), same shape as the genre; the owner's lost
+battle (2,667 Raiders, A 96k, against 4,100 defenders behind Wall 20, D 142k) needed 3,955 Raiders. Recruit time: money limits until the Barracks at the very top (825 Raiders a day paid, 965 trained); the 12,000 room fills in 12.2 days.
+
+**Changed (`config.ts` numbers only):** Ember Guard 70/60/60 -> **140/90/90** (best attack per population, 46.7; still worse per coin; gold-capped at ~46 a day); Firecart `siege.power` 1 -> **2**
+(two Wall-22 levels: 49 surviving carts = 18k coins against 30k to rebuild; Banner Hall 8x, Barracks 4x, Wall 22 1.8x, Wall 10 0.35x). One `--siege` invariant moved from `rebuild < 1 x attacker capital`
+to `< 1.5 x` (Wall 22 is now 1.12).
+
+**Sim results (baseline = §13.3): unchanged.** 30 days: raider / builder 1.60x, 2nd village 26.6 / 23.7 / 18.8; 90 days one per style: identical; conquest 20 players, 90 days, 5 seeds: takes 37, restarts 21, worst 1.47; `--siege` invariants pass.
+The sims hardly use either unit (the builder style trains 5% Ember Guards late; bots build no Wrightyard), so this shows the targets did not move, not that the units are balanced; the case rests on the analysis tables.
+
+**Option tried and not kept: defenders train as fast per coin as attackers** (Pikeman 260 -> 200 s, Shieldbearer 320 -> 260 s; they take 4.3-4.6 s of Barracks per coin against the Raider's 3.4). It tilts the sims toward defence: takes 37 -> 30, restarts 21 -> 17, worst 1.47 -> 1.74, raider 2nd village day 23.7 -> 25.6, raider 3rd village 47.8 -> 49.4 (all inside the targets, at the edge).
+Not simulated: stronger attackers against walls (Wall +4% a level, Firecart power 3, `SIEGE_DURING_SHARE` 0.75).

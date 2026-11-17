@@ -30,6 +30,7 @@
     "agent": "tsx scripts/agent/run.ts",
     "sim": "tsx scripts/sim/balance.ts",
     "sim:conquest": "tsx scripts/sim/conquest.ts",
+    "sim:troops": "tsx scripts/sim/troops.ts",
     "backup": "npm run backup -w @clanfire/server",
     "home:art": "npm run home:art -w @clanfire/web"
   },

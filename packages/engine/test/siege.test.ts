@@ -109,7 +109,8 @@ describe('resolveSiege: after the battle', () => {
   });
 
   it('exact threshold: one point short drops nothing, exactly enough drops one level', () => {
-    const lvl = 4;
+    // a level whose cost the cart power divides exactly, so "exactly enough" is a whole number of carts
+    const lvl = [3, 4, 5, 6, 7, 8].find((l) => siegePointsNeeded(l) % CART.power === 0)!;
     const exact = siegePointsNeeded(lvl) / CART.power;
     assert.ok(Number.isInteger(exact));
     assert.equal(resolveSiege(units({ firecart: exact - 1 }), levels({ wall: lvl }), null)[0]!.to, lvl);
