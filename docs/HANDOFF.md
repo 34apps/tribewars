@@ -48,7 +48,7 @@ Written 2026-11-17 (originality pass + health check). Read this first, then `doc
 - Approval questions: per item, before → after, picture or rule. Show only what changes.
 - Preview: `clock.ts` replaces `Date` (game time; `realTime()` for the wall clock). Call-back window is game time (1.2 s at 100x).
   World mirror: `apps/preview/data/preview-world-<player>.sqlite` (read the owner's reports with sqlite3; copy before any test).
-  World backups of 2026-11-17 are in this session's scratchpad only (not durable).
+  World backups of 2026-11-17: `apps/preview/data/backups/` in the main checkout (git-ignored).
 - If :5174 is down (Mac restart): `npm run serve:preview` from the main checkout, detached.
 - Sim runs are fast; never flip `config.ts` while an agent runs checks. `npm run sim -- --conquest --seeds 5` after Chieftain,
   hold or Renown changes. After changing any building SVG: `node scripts/measure-sprites.mjs`.
