@@ -566,7 +566,7 @@ export function SendForm({
             </div>
             <div>
               <dt>Arrives</dt>
-              <dd>{total > 0 && Number.isFinite(travel) ? <ArriveTime ts={now + travel} now={now} /> : '–'}</dd>
+              <dd className="wm-sum-arrive">{total > 0 && Number.isFinite(travel) ? <ArriveTime ts={now + travel} now={now} /> : '–'}</dd>
             </div>
             {mission === 'attack' && mode !== 'strike' && mode !== 'relieve' && (
               <div>
@@ -600,7 +600,7 @@ function ArriveTime({ ts, now }: { ts: number; now: number }) {
   return (
     <>
       {time}
-      {day && <small className="wm-sum-day">{day}</small>}
+      <small className="wm-sum-day">{day || 'today'}</small>
     </>
   );
 }

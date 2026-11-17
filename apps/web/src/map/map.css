@@ -844,6 +844,10 @@
   font-weight: 600;
 }
 
+.wm-sum-arrive {
+  min-height: 2.5em; /* time + day line always reserved: the tile never grows when "tomorrow" shows */
+}
+
 .wm-sum-slow {
   font-size: 0.76rem;
 }

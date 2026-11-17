@@ -43,7 +43,7 @@ test('the picker lists building names (the Wall first), no levels', () => {
   const plain = text(html);
   assert.match(plain, /Firecarts hit:/);
   assert.match(plain, /The Wall/);
-  assert.match(plain, /No scout report/);
+  assert.match(plain, /Building levels unknown/);
   assert.ok(html.indexOf('The Wall') < html.indexOf(BUILDINGS.hall.name));
   for (const id of BUILDING_IDS) assert.ok(html.includes(`value="${id}"`), id);
   for (const o of siegeTargetOptions()) assert.ok(plain.includes(o.name), o.name);
