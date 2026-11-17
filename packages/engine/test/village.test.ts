@@ -335,7 +335,7 @@ describe('checkBuild / applyBuild', () => {
       assert.equal(c.timeMs, 454_320);
     }
     const out = applyBuild(v, 'lumber', 5_000, S1);
-    assert.deepEqual(out.buildQueue, [{ building: 'lumber', targetLevel: 2, startAt: 5_000, finishAt: 459_320 }]);
+    assert.deepEqual(out.buildQueue, [{ building: 'lumber', targetLevel: 2, startAt: 5_000, finishAt: 459_320, cost: { wood: 91, food: 72, iron: 54, gold: 0 } }]);
     assert.ok(near(out.resources.wood, 600 + 54 * (5 / 3600) - 91));
   });
 
@@ -440,7 +440,7 @@ describe('checkTrain / applyTrain', () => {
     }
     const out = applyTrain(v, 'pikeman', 4, 0, S1);
     assert.equal(out.resources.wood, 5000 - UNITS.pikeman.cost.wood * 4);
-    assert.deepEqual(out.trainQueues.barracks, [{ unit: 'pikeman', count: 4, done: 0, perUnitMs: 260_000, startAt: 0 }]);
+    assert.deepEqual(out.trainQueues.barracks, [{ unit: 'pikeman', count: 4, done: 0, perUnitMs: 260_000, startAt: 0, unitCost: UNITS.pikeman.cost }]);
   });
 
   it('refuses when requirements are missing', () => {
@@ -474,7 +474,7 @@ describe('checkTrain / applyTrain', () => {
     assert.equal(trainTimeMs('pathfinder', v, S10), 15_980);
 
     const queued = applyTrain(v, 'pathfinder', 4, 0, S1);
-    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 159_800, startAt: 0 }]);
+    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 159_800, startAt: 0, unitCost: UNITS.pathfinder.cost }]);
     assert.deepEqual(queued.trainQueues.stables, []);
     assert.equal(queued.resources.wood, 5000 - UNITS.pathfinder.cost.wood * 4);
     assert.equal(settleVillage(queued, 70_499, S1).troops.pathfinder, 0);

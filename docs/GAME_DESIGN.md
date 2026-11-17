@@ -112,7 +112,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   be afforded), `not_enough_resources`, `queue_full`.
 - **Cancel** (owner, 2026-11-03): `POST /api/villages/:id/cancel-build {index}` cancels the newest job only
   (later levels depend on earlier ones); `cancel-train {building,index}` cancels any batch (units already
-  trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the paid cost (of the untrained
+  trained stay, later batches move up). Only `CANCEL_REFUND_PERCENT` (80%) of the cost paid when it was queued (of the untrained
   rest for training) comes back, rounded down, capped by the storehouse; the rest is lost. The client shows a
   confirm dialog with the amounts before and a toast after. `POST /api/villages/:id/cancel-research {index}`
   cancels a queued Drillyard research the same way (80% of its cost back; index 0 = running: the next queued

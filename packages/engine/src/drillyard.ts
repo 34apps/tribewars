@@ -101,7 +101,7 @@ export function applyResearch(
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
   const queue = (v.researchQueue ??= []);
   const startAt = queue.length > 0 ? queue[queue.length - 1]!.finishAt : v.lastUpdate;
-  queue.push({ unit: plan.unit, startAt, finishAt: startAt + plan.timeMs });
+  queue.push({ unit: plan.unit, startAt, finishAt: startAt + plan.timeMs, cost: { ...plan.cost } });
   return v;
 }
 
@@ -131,7 +131,7 @@ export function applyCancelResearch(
     cursor = j.finishAt;
   }
   if (queue.length === 0) delete v.researchQueue;
-  const refund = refundOf(rule ? rule.cost : emptyResources());
+  const refund = refundOf(job.cost ?? (rule ? rule.cost : emptyResources()));
   addRefund(v, refund);
   return { state: v, refund };
 }
