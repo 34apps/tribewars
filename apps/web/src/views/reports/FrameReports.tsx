@@ -13,13 +13,16 @@ import { BuildingArt } from '../../art/BuildingArt.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
+import { RaidAgainButton, RaidAgainNote } from '../../components/RaidAgain.tsx';
 import { UnitInfoButton } from '../../components/UnitInfo.tsx';
 import { formatCoords, formatInt, formatSignedPercent } from '../../format.ts';
 import { useGame } from '../../game.ts';
+import { useRaidAgain } from '../../hooks/useRaidAgain.ts';
+import type { RaidAgainCtl } from '../../hooks/useRaidAgain.ts';
 import { useReportRead } from '../../hooks/useReportRead.ts';
 import { useLiveTopic } from '../../hooks/useLive.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
-import { DAY_GROUP_LABEL, groupByDay, reportLine } from '../../reports.ts';
+import { DAY_GROUP_LABEL, groupByDay, reportFigures, reportHeadline, reportResultLine } from '../../reports.ts';
 import { unitListText } from '../../rules.ts';
 import { draftFromReport } from '../../simulator.ts';
 import { moraleLabel, siegeHitText, villageReportText } from '../../villages.ts';
@@ -638,11 +641,13 @@ function ContextLine({ report }: { report: ReportDto }) {
   );
 }
 
-function Detail({ report, position }: { report: ReportDto; position: string }) {
+function Detail({ report, position, again }: { report: ReportDto; position: string; again: RaidAgainCtl }) {
   const { openSimulator } = useGame();
   const draft = draftFromReport(report);
   const out = rowOutcome(report);
-  const line = reportLine(report.title);
+  const head = reportHeadline(report);
+  const result = reportResultLine(head);
+  const redo = report.digest?.again ?? null;
   return (
     <section className="fv-pn frp-detail" aria-labelledby="frp-title">
       <div className="fv-ph">
@@ -655,15 +660,17 @@ function Detail({ report, position }: { report: ReportDto; position: string }) {
           <Token r={report} size={44} />
           <div className="frp-rdt">
             <h2 id="frp-title">
-              {line.text}
-              {line.coords && <small> ({line.coords})</small>}
+              {head.title}
+              {head.coords && <small> ({head.coords})</small>}
             </h2>
             <div className="frp-rdm">
               <Tag tone={out.tone}>{out.label}</Tag>
+              {result !== '' && <b className="frp-rdf">{result}</b>}
               <ContextLine report={report} />
             </div>
           </div>
           <span className="fv-sp" />
+          {redo && <RaidAgainButton reportId={report.id} again={redo} ctl={again} variant="frame" />}
           <button type="button" className="fv-btn sm frp-share" disabled title="Sharing a report comes later">
             Share
             <span className="frp-soon">soon</span>
@@ -675,6 +682,7 @@ function Detail({ report, position }: { report: ReportDto; position: string }) {
             </button>
           )}
         </div>
+        <RaidAgainNote reportId={report.id} ctl={again} variant="frame" />
         <Body report={report} />
       </div>
     </section>
@@ -715,7 +723,9 @@ function ListPanel({
   now,
   error,
   retry,
+  again,
 }: {
+  again: RaidAgainCtl;
   list: ReportSummaryDto[] | null;
   filter: ReportFilter;
   setFilter: (f: ReportFilter) => void;
@@ -757,26 +767,28 @@ function ListPanel({
           <div key={group} role="group" aria-label={DAY_GROUP_LABEL[group]}>
             <div className="frp-grp fv-up">{DAY_GROUP_LABEL[group]}</div>
             {items.map((r) => {
-              const line = reportLine(r.title);
+              const head = reportHeadline(r);
+              const figs = reportFigures(head);
               const out = rowOutcome(r);
               const sel = selected === r.id;
+              const redo = r.digest?.again ?? null;
               return (
-                <button
-                  key={r.id}
-                  type="button"
-                  className={`frp-rr${sel ? ' sel' : ''}${!r.read && !sel ? ' unr' : ''}`}
-                  onClick={() => onSelect(r.id)}
-                  aria-current={sel ? 'true' : undefined}
-                  title={r.title}
-                >
-                  <Token r={r} size={30} />
-                  <span className="frp-rtx">
-                    {!r.read && <span className="frp-udot" role="img" aria-label="Unread" />}
-                    {line.text}
-                  </span>
-                  <Tag tone={out.tone}>{out.label}</Tag>
-                  <span className="frp-rtm">{rowTime(r.createdAt, now)}</span>
-                </button>
+                <div key={r.id} className={`frp-rr${sel ? ' sel' : ''}${!r.read && !sel ? ' unr' : ''}`}>
+                  <button type="button" className="frp-rb" onClick={() => onSelect(r.id)} aria-current={sel ? 'true' : undefined} title={r.title}>
+                    <Token r={r} size={30} />
+                    <span className="frp-rtx">
+                      <span className="frp-rt1">
+                        {!r.read && <span className="frp-udot" role="img" aria-label="Unread" />}
+                        {head.title}
+                        {head.coords && <small> ({head.coords})</small>}
+                      </span>
+                      {figs !== '' && <span className="frp-rt2">{figs}</span>}
+                    </span>
+                    <Tag tone={out.tone}>{out.label}</Tag>
+                    <span className="frp-rtm">{rowTime(r.createdAt, now)}</span>
+                  </button>
+                  {redo && <RaidAgainButton reportId={r.id} again={redo} ctl={again} variant="frame" onPressed={() => onSelect(r.id)} />}
+                </div>
               );
             })}
           </div>
@@ -800,6 +812,7 @@ function ListPanel({
 
 export function FrameReports() {
   const { unreadReports, now } = useGame();
+  const again = useRaidAgain();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReportFilter>('all');
@@ -886,9 +899,10 @@ export function FrameReports() {
         now={now}
         error={listError}
         retry={() => void loadList()}
+        again={again}
       />
       {shown ? (
-        <Detail report={shown} position={position} />
+        <Detail report={shown} position={position} again={again} />
       ) : (
         <section className="fv-pn frp-detail" aria-label="Report">
           <div className="fv-ph">

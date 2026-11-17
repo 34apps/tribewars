@@ -2205,6 +2205,34 @@ fields as the movement above and never the units. The web client shows an in-gam
 player presses a button** ("Turn on" next to "Browser alerts off" at the bottom of the alerts list), a browser `Notification` for each new one while the page
 is open (it never asks for permission automatically). Native push comes with the mobile app, later. The list (a non-modal sheet under the bell, "Game HUD" shell, 2026-11-09) splits into **On the way** (`arriveAt` still ahead, soonest first) and **Earlier** (newest first, one tappable row each), and the bell counts only **unread items still on the way** (red while one of them is an attack); the only attack warning on screen is one card (phone: one pill) under the HUD.
 
+### 18.12 Raid again, clear report titles, Raid lists (owner picks 2026-11-17; built 2026-11-17)
+
+Convenience only: nothing here changes a battle rule, a price, a speed or what a player may attack. Every send below goes through the normal
+send route (`GameService.send`) with all its checks (troops at home, protection, march cap, same-connection guard, rate limits).
+
+**Raid again.** Every battle report the player wrote as the attacker (and every scouting report) carries `digest.again`: the village the troops
+left from, the target tile, the mission and the troops that were sent (before losses). The report row and the open report show **Raid again**
+(**Scout again** for scouting). One press = one `POST /api/villages/:id/send`. The client first compares the old army with what stands at home
+(`planSendAgain`): everything there -> sent at once; something missing -> nothing is sent, the report says what is missing ("20 Raiders short,
+100 of 120 at home") and offers **Send what is there**. The server re-checks everything, so a village that was lost, a target now protected or a
+full march list simply answers with the normal error. The Firecart building pick is not kept (a repeated attack burns the Wall, the default).
+
+**Clear titles.** The stored title ("Raid on X (1|2)") is not changed. `ReportSummaryDto.digest` is worked out from the stored report each time it is read
+(old reports work too): loot total (sum of 4 resources), troops that marched / defended, troops lost. The list and the open report build the
+headline from it, e.g. "Raided Hillfort (12|-4) - won, 340 loot, lost 3 of 120", "... nothing taken", "Tolvek attacked you - held, lost 12",
+"Scouted X - seen" / "Scouts caught at X - lost 4 of 5".
+
+**Raid lists (a paid extra).** A player saves lists of **abandoned villages** with the troops for each row and sends a whole list with one press.
+Limits: 5 lists per player, 30 rows per list, at most 20 rows tried per press (`RAID_LIST_*` in `packages/engine/src/raid-lists.ts`). Rows are
+plain attacks (no Chieftains). A row whose village now belongs to a player is never sent. Skipped rows come back with the reason (not enough
+troops, protected, no longer abandoned, press cap, march cap, rate limit). Each row attempted also counts against the player's `send` rate limit
+(60 per minute), so a list can never move more troops per minute than manual sends; nothing is sent while the player is away (no timer).
+Each row shows distance, one-way travel time and the last result and loot from the player's own reports.
+**Paid:** the server requires BOTH the per-world switch `features.raidLists` (default OFF for real worlds, ON in the preview) and the player's
+entitlement, bit `EXTRA_RAID_LISTS` (1) of the old `players.premium` column (a world operator sets it with `npm run admin -- extra <name> raidlists on|off`;
+when a shop exists, the lobby carries it in the signed entry pass). Players without it see the page with a "paid extra" note and no working
+buttons; every write and the send answer 403. Never for sale with it: resources, troops, speed, or anything that wins a fight.
+
 ### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
 
 Settled by the owner on 2026-11-05 (§18.6): **one building at a time about 20% faster**, bought in the shop, per-world flag

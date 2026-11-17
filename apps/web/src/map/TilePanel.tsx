@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { chieftainPriceText } from '../chest.ts';
 import { HoldCard } from '../components/HoldCard.tsx';
+import { AddToRaidList } from './AddToRaidList.tsx';
 import { useUnitInfo } from '../components/UnitInfo.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { TroopGroupBar } from '../components/TroopGroups.tsx';
@@ -778,6 +779,7 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           {foundSite.message}
         </p>
       )}
+      {village?.kind === 'abandoned' && !hearth && <AddToRaidList x={tile.x} y={tile.y} name={village.name} />}
       {missions.length > 0 && !(free && foundSite && !foundSite.ok) && (
         <SendForm
           key={`${mine.id}|${tile.x}|${tile.y}|${preferred?.nonce ?? 0}`}

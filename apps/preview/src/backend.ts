@@ -5,7 +5,7 @@
 import initSqlJs, { type SqlJsStatic } from 'sql.js/dist/sql-asm-memory-growth.js';
 import type {} from '@fastify/cookie'; // type augmentation: req.cookies / reply.setCookie used by the route modules
 import type { FastifyInstance } from 'fastify';
-import { storageCap, villagePoints, type WorldSettings } from '@clanfire/engine';
+import { EXTRA_RAID_LISTS, applyWorldConfig, storageCap, villagePoints, worldRules, type WorldSettings } from '@clanfire/engine';
 import { AuthService, RateLimiter, SESSION_COOKIE } from '../../server/src/auth.ts';
 import type { AppContext } from '../../server/src/context.ts';
 import { openDatabase } from '../../server/src/db.ts';
@@ -23,6 +23,8 @@ import { dominationRoutes } from '../../server/src/routes/domination.ts';
 import { siteRoutes } from '../../server/src/routes/sites.ts';
 import { troopGroupRoutes } from '../../server/src/routes/troop-groups.ts';
 import { firstStepsRoutes } from '../../server/src/routes/first-steps.ts';
+import { raidListRoutes } from '../../server/src/routes/raid-lists.ts';
+import { RaidListService } from '../../server/src/raid-list-service.ts';
 import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
 import { ReportService } from '../../server/src/report-service.ts';
@@ -59,6 +61,27 @@ export function grantStarterPack(ctx: AppContext, username: string): void {
   const cap = storageCap(state);
   for (const r of ['wood', 'food', 'iron'] as const) state.resources[r] = Math.max(state.resources[r], cap);
   ctx.store.saveVillage(village.id, state, villagePoints(state));
+}
+
+/**
+ * Raid lists (a paid extra) are always on in the preview and every human player has the extra, so the owner can try them. A saved world
+ * keeps the settings it was created with, so the switch is also turned on in an existing world (stored, then copied into `settings` in
+ * place, the way the server does it on an operator change). Computer players never get the extra.
+ */
+function enableRaidLists(ctx: AppContext): void {
+  const { store, settings } = ctx;
+  if (!worldRules(settings).features.raidLists) {
+    const config = structuredClone(store.effectiveWorldConfig());
+    config.features.raidLists = true;
+    store.setWorldConfig(config);
+    Object.assign(settings, applyWorldConfig(settings, config));
+  }
+  grantRaidListsExtra(ctx);
+}
+
+/** Give every non-computer player the extra (computer players were created with the password marker 'bot'). One cheap statement. */
+function grantRaidListsExtra(ctx: AppContext): void {
+  ctx.store.db.prepare("UPDATE players SET premium = premium | ? WHERE password_hash != 'bot' AND (premium & ?) = 0").run(EXTRA_RAID_LISTS, EXTRA_RAID_LISTS);
 }
 
 export interface ApiResult {
@@ -125,6 +148,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     limiter: new RateLimiter(30, 60_000),
     auth: new AuthService(store, settings, now),
     game,
+    raidLists: new RaidListService(store, settings, game),
     domination: new DominationService(store, settings, game),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
@@ -135,6 +159,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   };
 
   neverExpireSessions(ctx.auth, store);
+  enableRaidLists(ctx);
 
   const app = new FakeApp();
   const fastifyLike = app as unknown as FastifyInstance;
@@ -151,6 +176,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   dominationRoutes(fastifyLike, ctx);
   siteRoutes(fastifyLike, ctx);
   troopGroupRoutes(fastifyLike, ctx);
+  raidListRoutes(fastifyLike, ctx);
   firstStepsRoutes(fastifyLike, ctx);
 
   let sessionToken = token;
@@ -166,6 +192,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
         console.error('processDue failed', err);
       }
       const res = await app.handle({ method, url, bodyText, cookies: { [SESSION_COOKIE]: sessionToken ?? undefined }, nowMs: t });
+      if (method === 'POST' && url.startsWith('/api/auth/')) grantRaidListsExtra(ctx); // a player who just registered has the extra from the next request on
       for (const change of res.cookieChanges) {
         if (change.name !== SESSION_COOKIE) continue;
         sessionToken = change.value;

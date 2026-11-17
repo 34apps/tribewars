@@ -1881,6 +1881,7 @@ export class GameService {
         won: r.won,
         read: r.read,
         outcome: r.outcome,
+        ...(r.digest ? { digest: r.digest } : {}),
       })),
     };
   }
@@ -1935,6 +1936,7 @@ export class GameService {
         won: r.won,
         read: true,
         outcome: r.outcome,
+        ...(r.digest ? { digest: r.digest } : {}),
         battle: r.battle,
         scout: r.scout,
         support: r.support,

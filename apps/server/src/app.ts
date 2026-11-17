@@ -37,6 +37,8 @@ import { notificationRoutes } from './routes/notifications.ts';
 import { dominationRoutes } from './routes/domination.ts';
 import { siteRoutes } from './routes/sites.ts';
 import { troopGroupRoutes } from './routes/troop-groups.ts';
+import { raidListRoutes } from './routes/raid-lists.ts';
+import { RaidListService } from './raid-list-service.ts';
 import { firstStepsRoutes } from './routes/first-steps.ts';
 import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
@@ -199,6 +201,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     live,
     auth: new AuthService(store, settings, now, opts.maxAccountsPerIp ?? 0),
     game,
+    raidLists: new RaidListService(store, settings, game),
     domination: new DominationService(store, settings, game),
     tribes: new TribeService(store, settings),
     mail: new MailService(store),
@@ -330,6 +333,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   for (const [bucket, limit] of Object.entries(ROUTE_LIMITS) as [RouteBucket, number][]) {
     routeLimiters.set(bucket, new RateLimiter(limit, ROUTE_LIMIT_WINDOW_MS));
   }
+  // The raid-list send charges one hit of the `send` bucket per row it tries (same key and window as the normal send route).
+  ctx.chargeSend = (playerId, nowMs) => routeLimiters.get('send')?.allow(String(playerId), nowMs) ?? true;
   app.addHook('preValidation', async (req, reply) => {
     if (!req.player) return;
     const bucket = routeBucket(req.method, req.routeOptions.url ?? '');
@@ -379,6 +384,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   dominationRoutes(app, ctx);
   siteRoutes(app, ctx);
   troopGroupRoutes(app, ctx);
+  raidListRoutes(app, ctx);
   firstStepsRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));

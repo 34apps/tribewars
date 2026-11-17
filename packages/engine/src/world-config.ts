@@ -129,6 +129,8 @@ export interface WorldConfig {
     sites: boolean;
     /** Attackers with 3 times the points of a player they hit fight at 75% strength. */
     morale: boolean;
+    /** Raid lists, a paid extra: saved abandoned villages sent with one press. Off in real worlds; players also need the entitlement (`players.premium`). */
+    raidLists: boolean;
     scavenging: boolean;
     paidSpeedups: boolean;
   };
@@ -172,7 +174,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   },
   domination: DOMINATION_DEFAULTS,
   tribe: { maxMembers: TRIBE_MAX_MEMBERS },
-  features: { siege: true, sites: true, morale: true, scavenging: false, paidSpeedups: false },
+  features: { siege: true, sites: true, morale: true, raidLists: false, scavenging: false, paidSpeedups: false },
   queues: { build: MAX_BUILD_QUEUE, research: MAX_RESEARCH_QUEUE, train: MAX_TRAIN_QUEUE },
 };
 
@@ -247,6 +249,7 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   flag('features.siege', 'Siege (Firecarts)', 'Siege can lower Wall and buildings.'),
   flag('features.sites', 'Fire Shrines and the Great Fire', 'Bonus sites on the map.'),
   flag('features.morale', 'Morale', 'Attacking a player with under a third of your points: your army fights at 75% strength.'),
+  flag('features.raidLists', 'Raid lists (paid extra)', 'Players with the extra can save abandoned villages and send them all with one press. Convenience only.'),
   flag('features.scavenging', 'Scavenging', 'Reserved: not built yet.'),
   flag('features.paidSpeedups', 'Paid speed-ups', 'Reserved: not built yet.'),
   num('queues.build', 'queues', 'Build queue', 'count', 1, 10, true, 'Build jobs per village.'),
@@ -265,7 +268,7 @@ export const worldConfigField = (path: string): WorldConfigField | undefined => 
  * size, and the reserved feature flags. Everything else (speeds, protection, conquest, abandoned villages, siege, sites,
  * morale, queues) is fixed when the world opens. Each change is audit-logged.
  */
-export const WORLD_CONFIG_SAFE_AFTER_OPEN: readonly string[] = ['tribe.maxMembers', 'features.scavenging', 'features.paidSpeedups'];
+export const WORLD_CONFIG_SAFE_AFTER_OPEN: readonly string[] = ['tribe.maxMembers', 'features.raidLists', 'features.scavenging', 'features.paidSpeedups'];
 
 export function isSafeAfterOpen(path: string): boolean {
   return path.startsWith('domination.') || WORLD_CONFIG_SAFE_AFTER_OPEN.includes(path);

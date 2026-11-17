@@ -25,6 +25,7 @@ export * from './staff.ts';
 export * from './domination.ts';
 export * from './sites.ts';
 export * from './troop-groups.ts';
+export * from './raid-lists.ts';
 export * from './world-config.ts';
 export * from './tribe-projects.ts';
 export * from './badges.ts';

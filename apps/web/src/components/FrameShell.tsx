@@ -8,11 +8,12 @@ import type { ReactNode } from 'react';
 import { RESOURCE_IDS, productionPerHour, storageCap } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { bannerText } from '../domination.ts';
-import { TABS, useGame } from '../game.ts';
+import { navTabs, useGame } from '../game.ts';
 import type { NavTab } from '../game.ts';
 import { formatCompact, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
+import { useRaidListsOn } from '../hooks/useRaidListsOn.ts';
 import { bellCounts } from '../notifications.ts';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell.tsx';
@@ -178,7 +179,8 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   const guardOrders = useGuardOrders();
   // Village, map, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
   const tribeFixed = useTribeFixed();
-  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
+  const raidLists = useRaidListsOn();
+  const fixed = tab === 'village' || tab === 'map' || tab === 'army' || tab === 'raids' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
       <div className={`frame fr-tab-${tab}${fixed ? ' is-fixed' : ''}${worldEnd ? ' is-ended' : ''}`}>
@@ -192,7 +194,7 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
           <Who {...actions} />
         </header>
         <nav className="fr-tabs" aria-label="Main">
-          {TABS.map((t) => (
+          {navTabs(raidLists).map((t) => (
             <FolderTab key={t} tab={t} />
           ))}
           <TabRowAlerts />

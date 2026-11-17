@@ -459,9 +459,42 @@
 :is(.page-sheet, .fr-page) .rp-main {
   display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+:is(.page-sheet, .fr-page) .rp-line {
+  display: flex;
   align-items: baseline;
   gap: 8px;
   min-width: 0;
+}
+
+:is(.page-sheet, .fr-page) .rp-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-surface-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+:is(.page-sheet, .fr-page) .rp-again {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 4px 0;
+}
+
+:is(.page-sheet, .fr-page) .rp-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:is(.page-sheet, .fr-page) .rp-result {
+  margin: 6px 0 0;
+  font-weight: 700;
 }
 
 :is(.page-sheet, .fr-page) .rp-title {
@@ -956,4 +989,10 @@
   :is(.page-sheet, .fr-page) .mv-arrive {
     display: none;
   }
+}
+
+:is(.page-sheet, .fr-page) .rp-dcoords {
+  color: var(--on-surface-muted);
+  font-size: 0.7em;
+  font-weight: 600;
 }

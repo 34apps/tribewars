@@ -321,6 +321,8 @@ export type GameErrorCode =
   | 'group_limit'
   /** Marches in flight: the player already has MAX_MARCHES_IN_FLIGHT on the road (HTTP 409). */
   | 'march_limit'
+  /** Raid lists: the player already has the maximum lists or rows (HTTP 409). */
+  | 'raid_list_limit'
   | 'step_not_done'
   | 'step_claimed'
   /** Unexpected server failure (HTTP 500). Never thrown by the engine. */

@@ -47,6 +47,13 @@ import type {
   RankRequest,
   ResearchRequest,
   ReportListResponse,
+  RaidListRequest,
+  RaidListResponse,
+  RaidListSendRequest,
+  RaidListSendResponse,
+  RaidListsResponse,
+  RaidRowRequest,
+  RaidRowUpdateRequest,
   SendMailRequest,
   SendRequest,
   RoleRequest,
@@ -319,6 +326,17 @@ export const api = {
   createTroopGroup: (body: TroopGroupRequest) => request<TroopGroupResponse>('POST', '/api/troop-groups', body),
   updateTroopGroup: (id: number, body: TroopGroupRequest) => request<TroopGroupResponse>('POST', `/api/troop-groups/${id}`, body),
   deleteTroopGroup: (id: number) => request<void>('POST', `/api/troop-groups/${id}/delete`, {}),
+  // ---- Raid lists (a paid extra; GET works for everyone and says `enabled` / `entitled`) ----
+  raidLists: () => request<RaidListsResponse>('GET', '/api/raid-lists'),
+  createRaidList: (name: string) => request<RaidListResponse>('POST', '/api/raid-lists', { name } satisfies RaidListRequest),
+  renameRaidList: (id: number, name: string) => request<RaidListResponse>('POST', `/api/raid-lists/${id}`, { name } satisfies RaidListRequest),
+  deleteRaidList: (id: number) => request<void>('POST', `/api/raid-lists/${id}/delete`, {}),
+  addRaidRow: (listId: number, body: RaidRowRequest) => request<RaidListResponse>('POST', `/api/raid-lists/${listId}/rows`, body),
+  updateRaidRow: (listId: number, rowId: number, body: RaidRowUpdateRequest) =>
+    request<RaidListResponse>('POST', `/api/raid-lists/${listId}/rows/${rowId}`, body),
+  deleteRaidRow: (listId: number, rowId: number) => request<RaidListResponse>('POST', `/api/raid-lists/${listId}/rows/${rowId}/delete`, {}),
+  /** One request for the ticked rows; omit `rowIds` for the whole list. */
+  sendRaidList: (listId: number, body: RaidListSendRequest = {}) => request<RaidListSendResponse>('POST', `/api/raid-lists/${listId}/send`, body),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
   mailList: (box: MailBox, before?: number) =>

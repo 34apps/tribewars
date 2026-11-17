@@ -21,11 +21,17 @@ import { worldRules } from '@clanfire/engine';
 import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
-export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
+export type NavTab = 'village' | 'map' | 'army' | 'raids' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu (not in the navigation bar). */
 export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
+/** The Raid lists page (a paid extra): a tab only in worlds that switch the feature on; it sits right after Army in the nav. */
+export const RAID_TAB: NavTab = 'raids';
+/** The tabs the desktop nav shows: the usual ones, plus Raid lists after Army when the world has it. */
+export function navTabs(raidLists: boolean): readonly NavTab[] {
+  return raidLists ? [...TABS.slice(0, 3), RAID_TAB, ...TABS.slice(3)] : TABS;
+}
 export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */

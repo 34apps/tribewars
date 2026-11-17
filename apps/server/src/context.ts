@@ -6,6 +6,7 @@ import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
 import type { LiveHub } from './live.ts';
 import type { MailService } from './mail-service.ts';
+import type { RaidListService } from './raid-list-service.ts';
 import type { ReportService } from './report-service.ts';
 import type { StaffService } from './staff-service.ts';
 import type { PlayerRow, Store } from './store.ts';
@@ -23,6 +24,13 @@ export interface AppContext {
   support: SupportService;
   staff: StaffService;
   msgReports: ReportService;
+  /** Raid lists, a paid extra (raid-list-service.ts). */
+  raidLists: RaidListService;
+  /**
+   * Count one hit of the account's `send` rate limit (the same bucket the normal send route uses); false when it is used up. The raid-list
+   * send charges it once per row so a list press never exceeds what manual sends would be allowed. Absent in the preview (it has no limits).
+   */
+  chargeSend?: (playerId: number, nowMs: number) => boolean;
   /** Domination win condition and world end (domination-service.ts). */
   domination: DominationService;
   settings: WorldSettings;
