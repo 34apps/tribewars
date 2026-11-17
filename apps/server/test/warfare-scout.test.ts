@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS, keenMultiplier, resolveScouting, settleVillage, travelTimeMs } from '@clanfire/engine';
+import { BUILDING_IDS, RESOURCE_IDS, UNIT_IDS, emptyUnits, keenMultiplier, resolveScouting, totalUnits, settleVillage, travelTimeMs } from '@clanfire/engine';
 import { setBuilding } from './tribe-helpers.ts';
 import { formPact, myTribe, newPlayer } from './tribe-helpers.ts';
 import { ok, weakestAbandoned } from './helpers.ts';
@@ -231,7 +231,7 @@ test('Pathfinders stationed as support alone are enough to spot scouts, and the 
   await app.close();
 });
 
-test('scouting an abandoned village: intel from its garrison, nobody else gets a report', async () => {
+test('scouting an abandoned village: intel shows no troops and the Wall, nobody else gets a report', async () => {
   const { app, clock, alice } = await world();
   giveTroops(app, alice, { pathfinder: 2 });
   giveKeen(app, alice, 5);
@@ -244,7 +244,7 @@ test('scouting an abandoned village: intel from its garrison, nobody else gets a
   assert.equal(s.scoutsLost, 0);
   const garrison = app.ctx.store.getVillage(npc.id)?.state.troops;
   assert.deepEqual(s.intel.troops, garrison);
-  assert.ok((s.intel.troops?.pikeman ?? 0) > 0, 'a real garrison');
+  assert.equal(totalUnits(s.intel.troops ?? emptyUnits()), 0, 'no defenders: only the Wall');
   assert.equal(s.intel.wallLevel, app.ctx.store.getVillage(npc.id)?.state.buildings.wall);
   await app.close();
 });

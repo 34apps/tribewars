@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_CHIEFTAIN, STAT_KEYS, UNITS, buildingCost, convertReportBody, convertSiegeRanks, convertSiegeUnits, hasLegacySiege, migrateVillageOriginality, villagePoints, type StatKey } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, STAT_KEYS, UNITS, buildingCost, convertReportBody, convertSiegeRanks, convertSiegeUnits, hasLegacySiege, migrateVillageOriginality, villagePoints, type StatKey, type VillageState } from '@clanfire/engine';
 import { DEFAULT_TEMPLATES } from './template-defaults.ts';
 
 /** SQL column of a stat counter: camelCase key to snake_case. Only ever fed constants from STAT_KEYS. */
@@ -149,6 +149,9 @@ CREATE TABLE IF NOT EXISTS villages (
   protected_until INTEGER NOT NULL DEFAULT 0,
   -- Abandoned villages only: when the stored state was last settled by the caretaker's refresh (NULL = never, due now). Owned villages leave it alone.
   npc_refresh_at INTEGER,
+  -- 1 while troops stand in the village (a copy of totalUnits(state.troops) > 0, kept in step by Store.saveVillage / insertVillage). The map shows it for
+  -- abandoned villages: map-born ones have no defenders at all, a village a player left keeps its garrison until it is beaten (schema v23).
+  has_troops INTEGER NOT NULL DEFAULT 0,
   UNIQUE (x, y)
 );
 CREATE INDEX IF NOT EXISTS idx_villages_owner ON villages(owner_id);
@@ -614,6 +617,7 @@ export function applySchema(db: DatabaseSync): void {
   migrateSiegeLeftovers(db);
   migratePaidCosts(db);
   migrateProtectedUntil(db);
+  migrateMapBornGarrison(db);
   seedTemplates(db);
 }
 
@@ -622,14 +626,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 22; // 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 23; // 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = 'e8e84087668b8f01';
+export const SCHEMA_FINGERPRINT = '4fbbf5a22cfc0c26';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -849,6 +853,54 @@ function migrateProtectedUntil(db: DatabaseSync): void {
   }
 }
 
+/**
+ * No defenders on the map (schema v23, 2026-11-17), once per database (a meta flag), after every earlier migration: removes the garrison of
+ * MAP-BORN abandoned villages and fills `villages.has_troops` for every village. Villages a player left (30 idle days) keep their garrison.
+ *
+ * How the two are told apart: a map-born village stores `npc.createdAt` = the time it was inserted: the world's creation time (`world_created_at`,
+ * the start batch) or the registration time of the player it was spawned for (`players.created_at`, same transaction, same clock reading). A village a
+ * player left stores the time of the abandonment (30+ idle days later, never a registration instant). So a village counts as map-born only when its
+ * `createdAt` is one of those instants; everything else keeps its troops (a map-born village spawned for a restart is left as it is too: the safe side).
+ * One transaction; logs how many were emptied and how many kept.
+ */
+function migrateMapBornGarrison(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'mapborn_garrison_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const born = new Set<number>();
+    const stamp = Number((db.prepare("SELECT value FROM meta WHERE key = 'world_created_at'").get() as { value: string } | undefined)?.value);
+    if (Number.isFinite(stamp)) born.add(stamp);
+    for (const p of db.prepare('SELECT created_at FROM players').all() as Array<{ created_at: number }>) born.add(p.created_at);
+    const write = db.prepare('UPDATE villages SET state_json = ?, has_troops = ? WHERE id = ?');
+    let emptied = 0;
+    let kept = 0;
+    for (const r of db.prepare('SELECT id, owner_id, state_json FROM villages').all() as Array<{ id: number; owner_id: number | null; state_json: string }>) {
+      const state = JSON.parse(r.state_json) as VillageState;
+      let left = Object.values(state.troops ?? {}).reduce((n, c) => n + (Number(c) || 0), 0);
+      let changed = false;
+      if (r.owner_id === null && state.npc && born.has(state.npc.createdAt)) {
+        if (left > 0) {
+          for (const u of Object.keys(state.troops)) (state.troops as Record<string, number>)[u] = 0;
+          left = 0;
+          changed = true;
+          emptied++;
+        }
+      } else if (r.owner_id === null && left > 0) kept++;
+      write.run(changed ? JSON.stringify(state) : r.state_json, left > 0 ? 1 : 0, r.id);
+    }
+    if (emptied + kept > 0) console.info(`[db] map-born abandoned villages: ${emptied} lost their garrison, ${kept} left by players kept theirs`);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('mapborn_garrison_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
 /** First start only (a meta flag remembers it, so templates an admin deleted do not come back). */
 function seedTemplates(db: DatabaseSync): void {
   const done = db.prepare("SELECT 1 AS x FROM meta WHERE key = 'templates_seeded'").get();
@@ -914,6 +966,7 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   if (!villageCols.some((c) => c.name === 'hold_due_at')) db.exec('ALTER TABLE villages ADD COLUMN hold_due_at INTEGER');
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_hold ON villages(hold_due_at) WHERE hold_due_at IS NOT NULL');
   if (!villageCols.some((c) => c.name === 'protected_until')) db.exec('ALTER TABLE villages ADD COLUMN protected_until INTEGER NOT NULL DEFAULT 0');
+  if (!villageCols.some((c) => c.name === 'has_troops')) db.exec('ALTER TABLE villages ADD COLUMN has_troops INTEGER NOT NULL DEFAULT 0');
   if (!villageCols.some((c) => c.name === 'npc_refresh_at')) db.exec('ALTER TABLE villages ADD COLUMN npc_refresh_at INTEGER');
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_npc_refresh ON villages(npc_refresh_at) WHERE owner_id IS NULL');
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;

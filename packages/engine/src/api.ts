@@ -531,6 +531,11 @@ export interface MapVillageDto extends Coords {
   chain?: ChainProgressDto;
   /** Owner's total points (the same public points as the rankings); null for abandoned villages. The send form uses it to preview morale. */
   ownerPoints?: number | null;
+  /**
+   * Abandoned villages only: true while troops still stand in it (a village a player left keeps a garrison until it is beaten). Absent = no
+   * defenders, only the Wall. Never a count.
+   */
+  defended?: true;
   /** Present (true) when this village holds its tribe's Tribe Store (public: anyone may raid it, GAME_DESIGN 18.5). Never the amounts. */
   tribeStore?: true;
 }

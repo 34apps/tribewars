@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
-import type { BattleReportData, GameStateResponse, MapResponse, OwnVillageDto, ReportDto, WorldSettings } from '@clanfire/engine';
+import type { BattleReportData, GameStateResponse, MapResponse, OwnVillageDto, ReportDto, Units, VillageState, WorldSettings } from '@clanfire/engine';
 import { buildApp, type BuildAppOptions } from '../src/app.ts';
 
 export const MINUTE = 60_000;
@@ -128,6 +128,14 @@ export async function weakestAbandoned(c: Client, radius: number) {
   const npcs = res.json<MapResponse>().villages.filter((v) => v.kind === 'abandoned');
   assert.ok(npcs.length > 0, 'world has abandoned villages');
   return npcs.reduce((a, b) => (b.points < a.points ? b : a));
+}
+
+/** Put troops into an abandoned village (map-born ones have none since 2026-11-17), e.g. so a small raid loses. */
+export function garrisonAbandoned(app: { ctx: { store: { getVillage(id: number): { id: number; points: number; state: VillageState } | null; saveVillage(id: number, s: VillageState, p: number): void } } }, id: number, troops: Partial<Units>): void {
+  const v = app.ctx.store.getVillage(id);
+  assert.ok(v, 'village exists');
+  v.state.troops = { ...v.state.troops, ...troops };
+  app.ctx.store.saveVillage(v.id, v.state, v.points);
 }
 
 /**

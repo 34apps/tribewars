@@ -633,8 +633,8 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
   const stageCount = village?.kind === 'abandoned' ? RUIN_NAMES.length : MAP_STAGE_NAMES.length;
   // Hold clock of a cold village: my own village shows the owner's numbers (occupiers), my claim shows my stationed troops.
   const hearth = ownHere?.hearth ?? village?.hearth;
-  // Rough strength of an abandoned village from its public points; my own banked Chieftains on this village (server sends only mine).
-  const strength = village?.kind === 'abandoned' ? abandonedStrength(village.points) : null;
+  // What defends an abandoned village (none, or the troops a player left); my own banked Chieftains on this village (server sends only mine).
+  const strength = village?.kind === 'abandoned' ? abandonedStrength(village.defended) : null;
   const chain = village ? chainText(village.chain, now) : null;
   const claimant = !!hearth && hearth.claimById === player.id;
   const viewpoint = isOwn ? 'owner' : claimant ? 'claimant' : 'other';
@@ -722,8 +722,8 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           <div className="wm-fact-wide">
             <dt>Strength</dt>
             <dd className={`wm-strength is-${strength.band}`}>
-              <span className="wm-strength-tag">{strength.band[0]!.toUpperCase() + strength.band.slice(1)}</span>
-              <span className="wm-fact-sub">≤ {strength.maxTroops} troops</span>
+              <span className="wm-strength-tag">{strength.tag}</span>
+              <span className="wm-fact-sub">{strength.note}</span>
             </dd>
           </div>
         )}

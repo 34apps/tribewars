@@ -691,6 +691,8 @@ export class GameService {
     this.applyContingentLosses(contingents, supportLosses, at);
     if (shares) for (const [id, n] of chiefLosses) if (id !== null) this.loseChieftains(id, n, shares);
 
+    // First steps: a WON raid on an abandoned village is the "raid" step (a lost one does not count; recorded here, at the event).
+    if (result.attackerWon && !strikeTry && target.ownerId === null && origin.ownerId !== null) this.store.firstSteps.markDone(origin.ownerId, 'raid', at);
     this.countBattleStats(origin, target, contingents, result, supportLosses);
     // Combat Renown (bonus source, section 18.2): states are the settled, pre-battle ones; who earns is decided in the service.
     const renownGained = this.renown.awardBattle({
@@ -1801,6 +1803,7 @@ export class GameService {
         relation: r.ownerId === null ? null : viewer.relationTo(r.ownerId, r.ownerTribeId),
         ...(r.coldState?.hearth ? { hearth: hearthDto(r.coldState.hearth, t, this.settings, this.store.getPlayer(r.coldState.hearth.claimBy)?.username ?? '?') } : {}),
         ...chainOf(r.id, r.ownerId === null, points),
+        ...(r.ownerId === null && r.defended ? { defended: true as const } : {}),
         ...(storeMarks.has(r.id) ? { tribeStore: true as const } : {}),
       };
     });
@@ -2188,8 +2191,6 @@ export class GameService {
         ...(siegeTarget ? { siegeTarget } : {}),
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
-      // First steps: an attack on an abandoned village is the "raid" step (recorded here, at the event).
-      if (mission === 'attack' && target && target.ownerId === null && !relief) this.store.firstSteps.markDone(player.id, 'raid', t);
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support, found and occupy never do.
       if ((mission === 'attack' || mission === 'scout') && target && target.ownerId !== null && !relief) this.store.setProtectedUntil(player.id, 0);
 

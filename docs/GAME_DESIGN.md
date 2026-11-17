@@ -150,7 +150,7 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
 | Firecart (`firecart`) | Wrightyard 1 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege (§18.9) |
 
-BALANCE 14 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §14.
+BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
 The **Elk Rider** is the only `cavalry` unit, so "riders" in the defence mix now means Elk Riders only; the **Ember Guard** is `infantry`, walks
 the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
@@ -261,9 +261,15 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   whatever the world stored. More abandoned villages still appear over time when inactive owners lose theirs (§18.2, existing rule).
 - Start levels for tier T: hall T; lumber, farm, longhouse (= farm), mine, storehouse 2T; wall, vault and gold mine T−1;
   others 0. Wood, food and iron start at `npc.startStockShare` (80%) of the cap; gold at `NPC_START_GOLD_PER_TIER × T` (the gold
-  mine they start with keeps producing; they do not build more). Garrison starts full.
-- Starting garrison = `NPC_GARRISON_PER_HALL[u] × hallLevel` for each unit (owner 2026-11-05: **an abandoned village never trains or regains
-  troops**; what a raid kills stays dead, so a cleared village is open for loot until a player takes it).
+  mine they start with keeps producing; they do not build more).
+- **No defenders at all (owner 2026-11-17).** A village born on the map (start rings, newcomer rings) has **no troops and never gets any**; its only
+  defence is its **Wall** (the Wall's flat militia `WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × level` still fights, its percentage bonus applies to
+  nothing). A 10-Raider raid loses about 0 of 10 against Wall 0-1 and about 3 of 10 against the top Wall 7 (BALANCE §15). The map says **"No defenders"**
+  (never a strength guess) and the scout report shows an empty troop list and the Wall level. The old rule (`NPC_GARRISON_PER_HALL` × Town Hall
+  level, 2026-11-05: never trains or regains) now applies **only to a village a player leaves**: after `ABANDON_IDLE_DAYS` the owner's village keeps its
+  buildings and gets that garrison for its Town Hall level; what a raid kills stays dead. The map marks such a village **"Defended"** (`MapVillageDto.defended`,
+  never a count; stored as `villages.has_troops`, schema v23, which also removed the garrison of map-born villages in existing worlds: those were told apart by
+  `npc.createdAt` being the world's creation time or a player's registration time). The First steps raid step needs a **won** raid on an abandoned village.
 - **Self-build (owner 2026-11-05; replaces the fixed growth timer `npcGrowthHours`, the growth steps and `NPC_MAX_STEPS_PER_SETTLE`).** An abandoned
   village builds itself up like a real player, **with its own resources only**. It produces like any village. When its build queue is empty it picks the
   next building in its build order (`NPC_GROWTH_ORDER`, a list with repeats so the economy comes first and Wall and Vault come late; a seeded shuffle of
@@ -284,12 +290,12 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   - **Old databases.** The stored state keeps its shape (`npc: { tier, growthSteps, createdAt, growthSeed? }`; the build job is a normal `buildQueue`
     entry). `growthSteps` was the timer's step count and is now the build pointer, `createdAt` is informational. A village saved in the timer era
     with an empty queue just starts building from its stock and carries on from that pointer. No schema change, so no `SCHEMA_VERSION` bump.
-  - Only the buildings grow. The garrison does not refill (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is removed) and nothing is ever trained.
+  - Only the buildings grow. Troops never appear (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is removed; map-born villages have none, 2026-11-17) and nothing is ever trained.
   - **Tuned 2026-11-05 (BALANCE.md section 10):** top level 7 (was 10), start stock 80% of the cap (was 50%), reserve 25%, build order
     `lumber farm mine storehouse lumber farm mine hall storehouse wall vault` (the gold mine is no longer built: gold counts 10x in loot value).
 - They produce resources like player villages, which is what raiders take.
 - **Raid loot is always full** (owner 2026-11-05; the 2026-11-04 repeat-raid reduction, `npc_raids`, `NPC_REPEAT_*` and the report's
-  "lootShare" are removed). Farming is limited instead by: the garrison dying once, the stock being finite (production is slow), and the
+  "lootShare" are removed). Farming is limited instead by: the Wall (and the garrison of a village a player left, which dies once), the stock being finite (production is slow), and the
   **diminishing Renown per attacker-target pair** (§18.2, `RENOWN_PAIR_CAP`: Renown, not loot, is what repeat raids stop paying).
 
 ## 9. Players, spawn, protection
@@ -306,7 +312,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   around them, plus up to `NPC_RING_EXTRA_MAX` extra ones, each with chance `NPC_RING_EXTRA_CHANCE`,
   so early raiding is close by and the owner of a village grows fast. Existing abandoned villages are never removed.
   In this layout **every abandoned village (start rings and newcomer rings) starts exactly like a new player
-  village** (start levels and resources, same small garrison) and grows in its **own random building order**
+  village** (start levels and resources, no troops) and grows in its **own random building order**
   (`npc.growthSeed`, a seeded shuffle of `NPC_GROWTH_ORDER`), so they develop in different directions.
   The default layout is `'scattered'` (everything above, random anywhere).
 - Terrain shares are tuned so mountains, lakes and forest leave room for many players (mountain+lake < 15% of tiles).
@@ -1200,7 +1206,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
-*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (garrison and tier from the Town Hall level); beginner
+*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (that garrison, which map-born villages no longer have, and tier from the Town Hall level); beginner
 protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
@@ -1767,7 +1773,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
-*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (garrison and tier from the Town Hall level); beginner
+*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (that garrison, which map-born villages no longer have, and tier from the Town Hall level); beginner
 protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
@@ -2150,7 +2156,7 @@ It walks over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier
 found or occupy; `checkMission` refuses it). It fights, but badly, and dies in the battle like everyone else (loss ratio is the same for every unit of
 the army).
 
-**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 2 since BALANCE 14, 2026-11-17; it was 1). Lowering a building from level L to L-1 costs
+**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 2 since BALANCE 15, 2026-11-17; it was 1). Lowering a building from level L to L-1 costs
 `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16). **Each step lowers
 at most `maxLevels` (2) levels** (so the Wall can lose up to 4 in one attack when it is both the during target and the picked building) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.

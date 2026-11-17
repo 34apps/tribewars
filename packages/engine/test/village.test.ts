@@ -17,6 +17,8 @@ import {
   checkTrain,
   createNpcVillage,
   createPlayerVillage,
+  emptyUnits,
+  totalUnits,
   populationCap,
   populationUsage,
   storageCap,
@@ -46,7 +48,7 @@ describe('village creation', () => {
     assert.deepEqual(v.buildQueue, []);
   });
 
-  it('abandoned village of tier T gets tier levels, half-full storage and a full garrison', () => {
+  it('abandoned village of tier T gets tier levels, half-full storage and NO troops', () => {
     const v = createNpcVillage(3, 500);
     assert.deepEqual(v.npc, { tier: 3, growthSteps: 0, createdAt: 500 });
     assert.equal(v.buildings.hall, 3);
@@ -59,9 +61,7 @@ describe('village creation', () => {
     // Gold is rare: a small per-tier stock instead of half the cap.
     const half = Math.floor(storageCap(v) * NPC_START_RESOURCE_SHARE);
     assert.deepEqual(v.resources, { wood: half, food: half, iron: half, gold: 120 });
-    assert.equal(v.troops.pikeman, 12);
-    assert.equal(v.troops.guard, 6);
-    assert.equal(v.troops.raider, 0);
+    assert.deepEqual(v.troops, emptyUnits(), 'no defenders at all (owner 2026-11-17): only the Wall');
     assert.equal(createNpcVillage(1, 0).buildings.wall, 0);
     expectGameError(() => createNpcVillage(0, 0), 'invalid_input');
     expectGameError(() => createNpcVillage(6, 0), 'invalid_input');
@@ -284,17 +284,15 @@ describe('abandoned village builds from its own stock (owner 2026-11-05)', () =>
     assert.deepEqual(out.buildQueue, []);
   });
 
-  it('never trains or regains troops (owner 2026-11-05): the starting garrison stays, what a raid kills stays dead', () => {
-    const v = startOf(); // Town Hall 1: garrison 4 pikemen + 2 shieldbearers at the start
-    assert.equal(v.troops.pikeman, 4);
-    assert.equal(v.troops.guard, 2);
+  it('never trains or regains troops (owner 2026-11-05, no defenders since 2026-11-17): nothing appears over time', () => {
+    const v = startOf(); // no troops at the start
+    assert.equal(totalUnits(v.troops), 0);
     const grown = settleVillage(v, 300 * HOUR, S1);
     assert.ok(grown.buildings.hall >= 2);
-    assert.equal(grown.troops.pikeman, 4);
-    assert.equal(grown.troops.guard, 2);
+    assert.equal(totalUnits(grown.troops), 0);
     assert.deepEqual(grown.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
+    // A village a player left keeps what it has (a few troops here): growth neither adds nor removes any.
     v.troops.pikeman = 1;
-    v.troops.guard = 0;
     const later = settleVillage(v, 300 * HOUR, S1);
     assert.equal(later.troops.pikeman, 1);
     assert.equal(later.troops.guard, 0);
@@ -307,8 +305,7 @@ describe('abandoned village builds from its own stock (owner 2026-11-05)', () =>
     const out = settleVillage(v, 1e6 * HOUR, S1);
     assert.ok(performance.now() - start < 200);
     for (const b of ORDER) assert.equal(out.buildings[b], Math.max(NPC_MAX_LEVEL, startOf(5).buildings[b]));
-    assert.equal(out.troops.pikeman, 20); // the start garrison of tier 5 (Town Hall 5): no growth, no refill
-    assert.equal(out.troops.guard, 10);
+    assert.equal(totalUnits(out.troops), 0); // no growth, no refill
     assert.equal(out.buildQueue.length, 0);
     // Buildings outside the order never grow.
     assert.equal(out.buildings.barracks, 0);

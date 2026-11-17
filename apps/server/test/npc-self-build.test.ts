@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { fullGarrison, settleVillage, totalUnits, villagePoints, type VillageState } from '@clanfire/engine';
+import { settleVillage, totalUnits, villagePoints, type VillageState } from '@clanfire/engine';
 import { HOUR, makeApp, register } from './helpers.ts';
 import type { App } from './village-helpers.ts';
 
@@ -53,8 +53,8 @@ test('the stored village is settled on read and the new levels are real: points 
   clock.advance(60 * HOUR);
   const later = settled(app, id, clock.t);
   assert.ok(villagePoints(later) > villagePoints(before.state), 'more points after a long wait');
-  assert.deepEqual(later.troops, before.state.troops, 'the garrison is exactly as created');
-  assert.equal(totalUnits(later.troops), totalUnits(fullGarrison(before.state.buildings.hall)));
+  assert.deepEqual(later.troops, before.state.troops, 'no troops, as created');
+  assert.equal(totalUnits(later.troops), 0);
   assert.deepEqual(later.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
   await app.close();
 });

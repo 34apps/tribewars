@@ -1650,7 +1650,7 @@ export function formatReport(rep: SimReport, full = false): string {
     '## Model',
     '',
     '- 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.',
-    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; the garrison never refills (what a raid kills stays dead; only buildings grow) and loot is always full: min(what the survivors carry, the stock above the Vault), however often the same village is raided (rules of 2026-11-05).',
+    '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; they have no troops at all since 2026-11-17 (only the Wall defends; only buildings grow) and loot is always full: min(what the survivors carry, the stock above the Vault), however often the same village is raided (rules of 2026-11-05).',
     '- Loot and losses valued wood+food+iron+10xgold. Troops eat no food (no upkeep); travel idle time and Drillyard ranks are not valued.',
     '- Enemy raiders hit every village that is not inside founding protection on days 7, 14, 21, 28 (4 x day raiders each) to give defence something to do; the turtle is never attacked (pure defender).',
     '- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).',

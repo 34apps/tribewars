@@ -957,3 +957,45 @@ The sims hardly use either unit (the builder style trains 5% Ember Guards late; 
 
 **Option tried and not kept: defenders train as fast per coin as attackers** (Pikeman 260 -> 200 s, Shieldbearer 320 -> 260 s; they take 4.3-4.6 s of Barracks per coin against the Raider's 3.4). It tilts the sims toward defence: takes 37 -> 30, restarts 21 -> 17, worst 1.47 -> 1.74, raider 2nd village day 23.7 -> 25.6, raider 3rd village 47.8 -> 49.4 (all inside the targets, at the edge).
 Not simulated: stronger attackers against walls (Wall +4% a level, Firecart power 3, `SIEGE_DURING_SHARE` 0.75).
+
+## 16. No defenders in abandoned villages (2026-11-17, branch `originality-tiers`; schema v23)
+
+Rule (owner pick): villages born on the map have no troops and never get any; only the Wall stands in the way (its flat militia `20 + 14 x level`, x
+`1 + 0.045 x level` fights; there is nothing for the percentage bonus to multiply). Villages a player leaves (30 idle days) keep a garrison for their Town Hall
+level until beaten (unchanged). Before: 4 Pikemen + 2 Shieldbearers per Town Hall level, i.e. a defence of 155-707 once the Wall was counted.
+
+**What a raid of 10 / 5 Raiders loses (Raider attack 36, battle luck +-10%, mean of 400 seeds; Wall levels as the village really has them after self-build, top level 7;
+`scratchpad` script on the real engine).** "fixed" = the tier start layout (`createNpcVillage(tier)`), "seeded" = the expanding layout (a new village starts at Wall 0).
+
+| village | day 1 | day 30 | day 90 |
+|---|---|---|---|
+| fixed tier 1 | Wall 1: 0.0 of 10 (0.1 of 5) | Wall 7: 3.0 of 10 (4.1 of 5) | Wall 7: 3.0 (4.1) |
+| fixed tier 3 | Wall 5: 2.0 of 10 (2.3 of 5) | Wall 7: 3.0 (4.1) | Wall 7: 3.0 (4.1) |
+| fixed tier 5 | Wall 7: 3.0 of 10 (4.1 of 5) | Wall 7: 3.0 (4.1) | Wall 7: 3.0 (4.1) |
+| seeded tier 1 / 3 / 5 | Wall 0: 0.0 of 10 (0.0 of 5) | Wall 7: 3.0 (4.1) | Wall 7: 3.0 (4.1) |
+
+Every raid is won (100%). Reading: the Wall alone no longer kills a newcomer's first raid where it matters: a village near a new player is brand new (Wall 0-1)
+and costs 0 Raiders. A **mature** Wall 7 village costs 3 of 10 Raiders (30%) and 4 of 5; that cost falls fast with the army (30 Raiders: about 0.2), so it is a
+tax on small raids on old villages, not a wall in front of the first one. In the "fixed" layout a tier 3-5 village already has Wall 5-7 on day 1 (2-3 of 10 lost); that
+layout is not the live one (`expanding`), so nothing was changed. If it ever matters, the smallest lever is the Wall's flat militia (`WALL_BASE_DEFENSE` 20 to 10
+makes a Wall 7 village cost 2.3 of 10), not troops.
+
+**Sims (`npm run sim`, `--days 90`, `--conquest --seeds 5 --days 90`, `--siege`; raw `docs/sim/2026-11-17-nodef-*`) against the targets.** Loot was NOT touched
+(`NPC_PRODUCTION_FACTOR` 0.45): the targets hold without it.
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days, 1.5-2x | **1.61x** (17,054 / 10,615; was 1.60x) |
+| 2nd village day, builder / raider / balanced (21-28) | 26.5 / 26.3 / 21.4 (was 26.6 / 23.7 / 18.8) |
+| conquest, 20 players, 90 days, 5 seeds: takes 30-50 | 40 |
+| restarts <= 26 | 22 |
+| worst biggest / second <= 2x | 1.36x |
+| `--siege` | all invariants hold |
+| raider / builder score, 90 days (not a target) | **0.94x** (65,311 / 69,254; owner's earlier figure 0.85) |
+
+The sim hardly feels the change because its raiders already attack with several times the garrison's defence; what changes is that the first raids on Tier 3-5
+villages lose a few Raiders less. Note for Renown: a won raid on a map-born village now earns Renown from the loot value only (no kills to count).
+
+**What would lift the 90-day raider / builder ratio (not done, owner's word first).** Raiders hit the same 8 targets per player and their production
+(`NPC_PRODUCTION_FACTOR` x 0.45) caps the loot while builders keep compounding: a test run with `NPC_PRODUCTION_FACTOR` 0.6 gave 1.06x at 90 days but 1.99x at 30 days
+(the upper edge), so the late game needs its own lever (more or richer targets for big raiders), not a higher global factor.

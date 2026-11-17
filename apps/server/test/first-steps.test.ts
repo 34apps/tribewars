@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FIRST_STEPS, storageCap, type FirstStepClaimResponse, type FirstStepId, type FirstStepsDto, type GameStateResponse } from '@clanfire/engine';
 import { endWorld } from '../src/domination-service.ts';
-import { Client, HOUR, MINUTE, errorOf, makeApp, ok, trainRaiders, weakestAbandoned } from './helpers.ts';
+import { Client, HOUR, MINUTE, errorOf, makeApp, ok, trainRaiders, weakestAbandoned, garrisonAbandoned } from './helpers.ts';
 import { found, join, newPlayer, setBuilding, setHall } from './tribe-helpers.ts';
 import { giveTroops, reports, sendOk, unprotect } from './warfare-helpers.ts';
 
@@ -67,7 +67,7 @@ test('raiders in training and away count toward five; the step is sticky when th
   assert.equal((await p.c.village()).state.troops.raider, 0);
 });
 
-test('raid: an attack on an abandoned village counts; an attack on a player does not', async () => {
+test('raid: a WON attack on an abandoned village counts; a lost one and an attack on a player do not', async () => {
   const { app, clock } = await makeApp();
   const alice = await newPlayer(app, 'alice');
   const bob = await newPlayer(app, 'bob');
@@ -77,7 +77,17 @@ test('raid: an attack on an abandoned village counts; an attack on a player does
   await sendOk(alice, { x: bobHome.x, y: bobHome.y }, 'attack', { raider: 2 });
   assert.ok(!(await doneIds(alice.c)).includes('raid'));
   const target = await weakestAbandoned(alice.c, 12);
-  await sendOk(alice, { x: target.x, y: target.y }, 'attack', { raider: 2 });
+  // A village a player left with troops inside beats two raiders: sending is not enough, the raid is lost.
+  garrisonAbandoned(app, target.id, { pikeman: 100_000 });
+  const lost = await sendOk(alice, { x: target.x, y: target.y }, 'attack', { raider: 2 });
+  assert.ok(!(await doneIds(alice.c)).includes('raid'), 'not ticked on sending');
+  clock.set(lost.movement.arriveAt);
+  assert.ok(!(await doneIds(alice.c)).includes('raid'), 'not ticked by a lost raid');
+  // A map-born village (no troops) falls to two raiders: ticked when the battle is won.
+  garrisonAbandoned(app, target.id, Object.fromEntries(Object.keys(app.ctx.store.getVillage(target.id)!.state.troops).map((u) => [u, 0])));
+  const won = await sendOk(alice, { x: target.x, y: target.y }, 'attack', { raider: 2 });
+  assert.ok(!(await doneIds(alice.c)).includes('raid'), 'still not before the battle');
+  clock.set(won.movement.arriveAt);
   assert.ok((await doneIds(alice.c)).includes('raid'));
   clock.advance(5 * HOUR);
   assert.ok((await doneIds(alice.c)).includes('raid')); // still there after the troops are home

@@ -64,7 +64,7 @@ test('loot is always full (owner 2026-11-05): repeat raids on one abandoned vill
   await app.close();
 });
 
-test('an abandoned village never regains the troops a raid killed, however long it waits; its buildings still grow', async () => {
+test('a map-born abandoned village never has defenders, however long it waits; its buildings still grow', async () => {
   const { app, clock } = await makeApp({ worldConfig: { npc: { selfBuild: true, maxLevel: 15 } } }); // the default top level 4 is reached long before the raid
   const c = await register(app, 'clearer');
   const vid = await trainRaiders(c, clock, 14);
@@ -75,14 +75,14 @@ test('an abandoned village never regains the troops a raid killed, however long 
     return { troops: totalUnits(settled.troops), levels: Object.values(settled.buildings).reduce((a, b) => a + b, 0) };
   };
   const before = row();
-  assert.ok(before.troops > 0);
+  assert.equal(before.troops, 0, 'no defenders at all, only the Wall');
   const { battle } = await raid(c, clock, vid, npc);
   assert.ok(battle.attackerWon);
-  assert.equal(row().troops, 0, 'the whole garrison died in the raid');
+  assert.equal(row().troops, 0);
   const levels = row().levels;
   clock.set(clock.t + 40 * HOUR);
   const after = row();
-  assert.equal(after.troops, 0, 'nobody comes back');
+  assert.equal(after.troops, 0, 'nobody ever comes');
   assert.ok(after.levels > levels, 'only the buildings grow');
   await app.close();
 });

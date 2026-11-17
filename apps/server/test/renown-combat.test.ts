@@ -23,7 +23,7 @@ import {
 } from '@clanfire/engine';
 import { RenownService } from '../src/renown-service.ts';
 import type { StationedRow } from '../src/store.ts';
-import { battleOf, makeApp, register, trainRaiders, weakestAbandoned, type Client, type Clock } from './helpers.ts';
+import { battleOf, makeApp, register, trainRaiders, weakestAbandoned, garrisonAbandoned, type Client, type Clock } from './helpers.ts';
 import { formPact, join, newPlayer } from './tribe-helpers.ts';
 import { giveTroops, latestReport, sendOk, stationSupport, unprotect, units, world, type App, type P } from './warfare-helpers.ts';
 import { near, pairRows, renownOf } from './renown-helpers.ts';
@@ -96,6 +96,7 @@ test('a raid on an abandoned village pays the attacker only, under the village k
   const c: Client = await register(app, 'farmer', '10.0.0.1');
   const vid = await trainRaiders(c, clock, 14);
   const npc = await weakestAbandoned(c, 12);
+  garrisonAbandoned(app, npc.id, { pikeman: 4, guard: 2 }); // kills count for Renown; map-born villages have none, a village a player left does
   const player = (await c.state()).player;
   const raid = async (): Promise<{ battle: BattleReportData; arriveAt: number }> => {
     const n = (await c.village()).state.troops.raider;

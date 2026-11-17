@@ -11,7 +11,7 @@ import {
   type SendResponse,
   type Units,
 } from '@clanfire/engine';
-import { HOUR, battleOf, errorOf, makeApp, ok, register, trainRaiders, weakestAbandoned } from './helpers.ts';
+import { HOUR, battleOf, errorOf, makeApp, ok, register, trainRaiders, weakestAbandoned, garrisonAbandoned } from './helpers.ts';
 
 const sum = (r: Record<string, number>): number => Object.values(r).reduce((a, b) => a + b, 0);
 
@@ -132,6 +132,7 @@ test('a lost raid: attacker sees no defence details and nobody comes home', asyn
   const c = await register(app, 'doomed');
   const vid = await trainRaiders(c, clock, 1);
   const npc = await weakestAbandoned(c, 12);
+  garrisonAbandoned(app, npc.id, { pikeman: 12, guard: 6 }); // a village a player left: the map-born ones have no troops
 
   const sent = (await c.post(`/api/villages/${vid}/send`, { x: npc.x, y: npc.y, units: { raider: 1 }, mission: 'attack' })).json<SendResponse>();
   clock.set(sent.movement.arriveAt);

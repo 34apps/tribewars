@@ -318,15 +318,16 @@ test('a cold village builds only the Wall; training keeps the plain reason', () 
   assert.equal(HEARTH_OUT_REASON, 'The hearth is out');
 });
 
-test('abandoned strength: a band from the points, never more troops than the start garrison of the highest tier its points allow', () => {
-  assert.equal(abandonedStrength(0).band, 'weak');
-  assert.ok(abandonedStrength(0).maxTroops > 0);
-  const small = abandonedStrength(50);
-  const big = abandonedStrength(100_000);
-  assert.ok(small.maxTroops <= big.maxTroops);
-  assert.equal(big.band, 'strong');
-  assert.equal(abandonedStrength(Number.NaN).band, 'weak');
-  for (const p of [0, 10, 50, 200, 1000, 5000]) assert.ok(abandonedStrength(p).maxTroops <= abandonedStrength(p + 500).maxTroops, `monotonic at ${p}`);
+test('abandoned strength: no troops means "No defenders" (only the Wall); troops left by a player say Defended, never a count', () => {
+  const none = abandonedStrength(undefined);
+  assert.equal(none.band, 'weak');
+  assert.equal(none.tag, 'No defenders');
+  assert.doesNotMatch(none.note, /troops/);
+  assert.equal(abandonedStrength(false).tag, 'No defenders');
+  const left = abandonedStrength(true);
+  assert.equal(left.band, 'strong');
+  assert.equal(left.tag, 'Defended');
+  assert.doesNotMatch(left.note, /\d/);
 });
 
 test('chain text: "1 of 2 Chieftains" with the time left; nothing without a chain or after it ends', () => {

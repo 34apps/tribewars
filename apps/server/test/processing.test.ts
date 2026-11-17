@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { emptyUnits, type ReportDto, type ReportListResponse, type Units, type VillageState } from '@clanfire/engine';
 import { REPORTS_KEEP } from '../src/store.ts';
-import { HOUR, battleOf, makeApp, ok, register, weakestAbandoned } from './helpers.ts';
+import { HOUR, battleOf, makeApp, ok, register, weakestAbandoned, garrisonAbandoned } from './helpers.ts';
 
 type App = Awaited<ReturnType<typeof makeApp>>['app'];
 
@@ -22,6 +22,7 @@ test('due movements are processed in (arrive_at, id) order, in batches, without 
   const c = await register(app, 'burst');
   const home = await c.village();
   const npc = await weakestAbandoned(c, 12);
+  garrisonAbandoned(app, npc.id, { pikeman: 100_000 }); // single raiders must lose, so no return trips pile up
   const t0 = clock.now();
   const N = 250; // more than two batches of 100
 
@@ -105,6 +106,7 @@ test('API requests process due movements before answering', async () => {
   const c = await register(app, 'lazy');
   const home = await c.village();
   const npc = await weakestAbandoned(c, 12);
+  garrisonAbandoned(app, npc.id, { pikeman: 40 });
   patchVillage(app, home.id, (s) => {
     s.away = units({ raider: 1 });
   });

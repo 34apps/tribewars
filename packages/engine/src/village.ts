@@ -94,7 +94,10 @@ export function admitTroops(state: VillageState, units: Partial<Units>): { state
   return { state: v, overflow };
 }
 
-/** Full garrison of an abandoned village for its current Town Hall level. */
+/**
+ * The garrison a village keeps when its player leaves it (`abandonVillageKeepBuildings`), for its Town Hall level. Map-born abandoned
+ * villages have NO troops at all (`createNpcVillage`; owner 2026-11-17): their only defence is the Wall.
+ */
 export function fullGarrison(hallLevel: number): Units {
   const out = emptyUnits();
   for (const u of UNIT_IDS) out[u] = (NPC_GARRISON_PER_HALL[u] ?? 0) * hallLevel;
@@ -125,7 +128,7 @@ export function createNpcVillage(tier: number, t: number, growthSeed?: number, s
     for (const b of BUILDING_IDS) v.buildings[b] = BUILDINGS[b].startLevel;
     v.resources = { ...START_RESOURCES };
   }
-  v.troops = fullGarrison(v.buildings.hall);
+  // No defenders (owner 2026-11-17): only the Wall's militia stands in the way; nothing ever trains or refills here.
   v.renownPaid = { ...v.buildings }; // abandoned villages never pay Renown
   v.npc = { tier, growthSteps: 0, createdAt: t };
   if (growthSeed !== undefined) v.npc.growthSeed = growthSeed >>> 0;

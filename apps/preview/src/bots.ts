@@ -846,12 +846,12 @@ function trySend(ctx: AppContext, bot: Bot, x: number, y: number, units: Partial
   }
 }
 
-/** A few abandoned villages near a bot, nearest first. */
+/** A few abandoned villages near a bot, nearest first. Bots leave the ones a player left with troops inside alone (they raid the Wall-only ones). */
 function nearbyAbandoned(ctx: AppContext, home: VillageRecord, take: number) {
   const R = 14;
   return ctx.store
     .mapVillages(home.x - R, home.x + R, home.y - R, home.y + R)
-    .filter((m) => m.ownerId === null)
+    .filter((m) => m.ownerId === null && !m.defended)
     .sort((a, b) => dist(a, home) - dist(b, home))
     .slice(0, take);
 }

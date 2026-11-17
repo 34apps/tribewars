@@ -8,11 +8,9 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
-  NPC_TIER_WEIGHTS,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
-  createNpcVillage,
   hasSiegeUnits,
   moraleFactor,
   normalizeUnits,
@@ -353,33 +351,17 @@ export function chainText(chain: MapVillageDto['chain'], now: number): string | 
   return `${chain.have} of ${chain.need} Chieftains (counts ${formatLeft(left)} more)`;
 }
 
-export type StrengthBand = 'weak' | 'medium' | 'strong';
-/** Display thresholds only (not balance): units a founding garrison can have at most, by band. */
-const WEAK_UP_TO_TROOPS = 12;
-const MEDIUM_UP_TO_TROOPS = 24;
-
-let tierStarts: Array<{ points: number; troops: number }> | null = null;
-/** Points and garrison an abandoned village has the day it is created, per tier (from the engine's own generator). */
-function npcTierStarts(): Array<{ points: number; troops: number }> {
-  if (!tierStarts) {
-    tierStarts = NPC_TIER_WEIGHTS.map((_, i) => {
-      const v = createNpcVillage(i + 1, 0);
-      return { points: villagePoints(v), troops: totalUnits(v.troops) };
-    });
-  }
-  return tierStarts;
-}
+export type StrengthBand = 'weak' | 'strong';
 
 /**
- * Rough strength of an abandoned village from what the map shows (its points). It was created with a tier whose starting points are
- * a floor for its points (buildings only grow), and its garrison never refills (GAME_DESIGN 8), so it cannot hold more troops than the
- * start garrison of the highest tier its points allow. Raids may have thinned it, so this is an upper bound, not a count.
+ * What the map says about the defence of an abandoned village (owner 2026-11-17). Villages born on the map have no troops at all: only
+ * their Wall stands in the way (its level is not public: scout for it). A village a player left keeps its garrison until it is beaten:
+ * the server marks it `defended` (never a count), and only a scout shows how many.
  */
-export function abandonedStrength(points: number): { band: StrengthBand; maxTroops: number } {
-  const p = Number.isFinite(points) ? points : 0;
-  let maxTroops = 0;
-  for (const t of npcTierStarts()) if (t.points <= p || maxTroops === 0) maxTroops = t.troops;
-  return { band: maxTroops <= WEAK_UP_TO_TROOPS ? 'weak' : maxTroops <= MEDIUM_UP_TO_TROOPS ? 'medium' : 'strong', maxTroops };
+export function abandonedStrength(defended: boolean | undefined): { band: StrengthBand; tag: string; note: string } {
+  return defended
+    ? { band: 'strong', tag: 'Defended', note: 'left by a player, troops inside: scout first' }
+    : { band: 'weak', tag: 'No defenders', note: 'only its Wall: scout for the level' };
 }
 
 /** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = the Wall = leave it out). */

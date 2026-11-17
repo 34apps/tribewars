@@ -170,7 +170,7 @@ export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
  * building prerequisites (it has no Barracks and never trains).
  */
 export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'lumber', 'farm', 'mine', 'hall', 'storehouse', 'wall', 'vault'];
-/** Full garrison = per-unit count * Town Hall level. */
+/** Garrison of a village a player left (30 idle days) = per-unit count * Town Hall level. Map-born abandoned villages have none (2026-11-17). */
 export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
 /** Safety bound: builds an abandoned village can start in one settle (a village is maxed after far fewer). */
 export const NPC_MAX_BUILDS_PER_SETTLE = 1000;

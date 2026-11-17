@@ -37,7 +37,6 @@ import {
   createPlayerVillage,
   emptyUnits,
   flatTravelTimeMs,
-  fullGarrison,
   popCapForLevel,
   populationUsage,
   productionFromLevels,
@@ -428,7 +427,7 @@ function loot(): string {
     const grown: Resources = { wood: 0, food: 0, iron: 0, gold: 0 };
     for (const r of RESOURCE_IDS) grown[r] = Math.min(cap, v.resources[r] + prod[r] * 240);
     const settled = settleVillage(v, 10 * DAY_MS, S);
-    const garrison = fullGarrison(v.buildings.hall);
+    const garrison = v.troops; // none since 2026-11-17 (only the Wall defends a map-born village)
     const hidden = vaultProtection(v);
     const lootableOf = (res: Resources): number => RESOURCE_IDS.reduce((n, r) => n + Math.max(0, res[r] - hidden) * (r === 'gold' ? 10 : 1), 0);
     rowsStock.push([
