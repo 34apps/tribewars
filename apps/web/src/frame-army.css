@@ -767,3 +767,13 @@
 .fv-boxin.is-fit .bh .bh-stepper {
   margin: 4px 0;
 }
+
+/* Attack hint / support timing under the travel line: takes the place of the recent-targets row while it shows (same height budget) */
+.fa-hintbox {
+  min-height: 58px;
+}
+
+.fa-hintbox .ah {
+  width: 100%;
+  box-sizing: border-box;
+}

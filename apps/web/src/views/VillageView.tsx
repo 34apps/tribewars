@@ -98,7 +98,7 @@ function DesktopVillage({ active }: { active: boolean }) {
 }
 
 function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean }) {
-  const { player } = useGame();
+  const { player, building } = useGame();
   const dp = useDesignPreview();
   const preview = designPreviewAllowed(player.sandbox) && dp.on;
   const [sheet, setSheet] = useState<Panel>(null);
@@ -126,6 +126,11 @@ function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean
   useEffect(() => {
     if (!active) setSheet(null);
   }, [active]);
+
+  // A link to a building (`#village/b/<id>`, "Recruit defenders" on the Incoming attacks page) opens its sheet.
+  useEffect(() => {
+    if (active && building) setSheet({ kind: 'building', id: building });
+  }, [active, building]);
 
   useEffect(() => {
     if (!sheet || !active) return;

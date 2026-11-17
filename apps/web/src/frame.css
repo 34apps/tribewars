@@ -106,13 +106,53 @@ html.layout-desktop .toasts {
 .fr-vname small {
   display: block;
   margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   font: 600 13px/1.2 var(--font);
   color: var(--on-surface-muted);
 }
 
+/* The village switcher is the one part of the top bar that gives way (long name, tags, several attacked villages): the name and the tags
+   shrink with an ellipsis, so the resources, the bell and the account button always stay on screen. */
 .fr-vwrap {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.frame .fr-top > * {
+  flex-shrink: 0;
+}
+
+.frame .fr-top > .fr-vwrap {
+  flex-shrink: 1;
+}
+
+.fr-vbtn {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.fr-vbtn .fr-vtag {
+  flex: 0 4 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Count of the OTHER attacked villages: a filled round number. */
+.fr-vbtn .fr-vbadge {
+  display: inline-grid;
+  place-items: center;
   flex: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px 1px;
+  border-radius: 99px;
+  background: var(--strip-danger);
+  color: var(--on-strip);
+  font: 700 13px/1 var(--font);
 }
 
 .fr-vbtn {
@@ -377,10 +417,16 @@ html.layout-desktop .toasts {
   padding: 0;
 }
 
+.fr-tabs > .fr-ft {
+  flex: none;
+}
+
 .fr-alerts {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0 0 0 auto;
   padding: 0 0 0 12px;
   align-self: center;
@@ -403,6 +449,19 @@ html.layout-desktop .toasts {
   font: 700 14px/1.2 var(--font);
   white-space: nowrap;
   cursor: pointer;
+  min-width: 0;
+  max-width: 380px;
+}
+
+/* The chip's text gives way (an owner with a long name, "5 attacks · ..."); the countdown stays. */
+.fr-ach-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fr-ach .fr-cd {
+  flex: none;
 }
 
 .fr-cd {

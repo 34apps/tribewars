@@ -4,62 +4,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { TRIBE_CHAT_KEEP, TRIBE_CHAT_MESSAGE_MAX, canTribe } from '@clanfire/engine';
-import type { ChatMessageDto, ForumThreadSummaryDto, TribeAlertDto, TribeHoldDto, TribeProjectRunDto } from '@clanfire/engine';
+import type { ChatMessageDto, ForumThreadSummaryDto, TribeProjectRunDto } from '@clanfire/engine';
 import { api, errorMessage } from '../../api.ts';
 import { ChieftainAvatar } from '../../art/Chieftain.tsx';
 import { formatAgo, formatChatTime, formatClock, formatDate, formatDuration, formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { pollMs } from '../../hooks/live.ts';
+import { useAlertFeed } from '../../hooks/useAlertFeed.ts';
 import { useLiveConnected, useLiveTopic } from '../../hooks/useLive.tsx';
 import { PlainText, RECRUITMENT_NAME } from '../../tribe/bits.tsx';
 import { useTribe } from '../../tribe/context.ts';
 import type { MemberProps } from '../../tribe/context.ts';
 import { SettingsForm } from '../../tribe/Overview.tsx';
-import { alertCount, sortHolds } from '../../villages.ts';
+import { alertCount } from '../../villages.ts';
 import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
 import { OVERVIEW_ALERTS, OVERVIEW_CHAT, alertDetail, diplomacyLine, formatHms, latestThreads, projectsLine, topMember } from './frame-tribe-logic.ts';
 
 export type TribeSection = 'alerts' | 'overview' | 'members' | 'diplomacy' | 'projects' | 'recruit' | 'chat' | 'forum' | 'log';
 
-const ALERT_POLL_MS = 10_000;
-
-/** Attacks and cold villages of the tribe, like the Alerts section (same endpoint, same refresh rules). */
-export function useAlertFeed() {
-  const { tribeAlerts } = useGame();
-  const [alerts, setAlerts] = useState<TribeAlertDto[] | null>(null);
-  const [holds, setHolds] = useState<TribeHoldDto[]>([]);
-  const [level, setLevel] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const seq = useRef(0);
-  const applied = useRef(0);
-  const load = useCallback(async () => {
-    const my = ++seq.current;
-    try {
-      const res = await api.tribeAlerts();
-      if (my < applied.current) return;
-      applied.current = my;
-      setAlerts([...res.alerts].sort((a, b) => a.arriveAt - b.arriveAt));
-      setHolds(sortHolds(res.holds ?? []));
-      setLevel(res.watchtowerLevel ?? 0);
-      setError(null);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }, []);
-  useEffect(() => {
-    void load();
-  }, [load, tribeAlerts]);
-  const every = pollMs(ALERT_POLL_MS, useLiveConnected());
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (!document.hidden) void load();
-    }, every);
-    return () => window.clearInterval(id);
-  }, [load, every]);
-  useLiveTopic('tribe', () => void load());
-  return { alerts, holds, level, error, retry: () => void load() };
-}
+// The alert feed hook lives in hooks/useAlertFeed.ts (the send forms use it too); re-exported here for the tribe pages.
+export { useAlertFeed };
 
 function AlertsPanel({ onOpen }: { onOpen: (s: TribeSection) => void }) {
   const { now, villages, showOnMap, viewMovement } = useGame();

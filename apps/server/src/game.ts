@@ -116,6 +116,7 @@ import {
   type MapResponse,
   type ChainProgressDto,
   type ScoutedResponse,
+  type VillageIntelDto,
   type MapVillageDto,
   type Mission,
   type MovementDto,
@@ -1890,6 +1891,12 @@ export class GameService {
     if (!this.store.getVillage(villageId)) throw new GameError('not_found', 'Village not found.');
     const r = this.store.latestScoutBuildings(player.id, villageId);
     return r ? { buildings: r.buildings, scoutedAt: r.createdAt } : { buildings: null, scoutedAt: null };
+  }
+
+  /** The caller's own newest usable report on a village (scout or attack) for the troops hint; nulls when none. Unknown village: 404. */
+  villageIntel(player: PlayerRow, villageId: number): VillageIntelDto {
+    if (!this.store.getVillage(villageId)) throw new GameError('not_found', 'Village not found.');
+    return this.store.latestIntel(player.id, villageId);
   }
 
   /** Incoming attacks on villages of the player's tribe members, soonest first. Members only. */

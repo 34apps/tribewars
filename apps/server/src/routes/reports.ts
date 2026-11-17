@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { ReportDto, ReportListResponse, ScoutedResponse } from '@clanfire/engine';
+import type { ReportDto, ReportListResponse, ScoutedResponse, VillageIntelDto } from '@clanfire/engine';
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
 
@@ -43,5 +43,22 @@ export function reportRoutes(app: FastifyInstance, ctx: AppContext): void {
       },
     },
     async (req): Promise<ScoutedResponse> => ctx.game.scoutedBuildings(playerOf(req), Number(req.params.id)),
+  );
+
+  // The caller's own newest usable report (scout or attack) on a village, for the "you need N troops" hint.
+  app.get<{ Params: { id: string } }>(
+    '/api/intel/:id',
+    {
+      ...auth,
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          additionalProperties: false,
+          properties: { id: { type: 'string', pattern: '^[0-9]{1,9}$' } },
+        },
+      },
+    },
+    async (req): Promise<VillageIntelDto> => ctx.game.villageIntel(playerOf(req), Number(req.params.id)),
   );
 }

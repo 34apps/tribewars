@@ -23,6 +23,8 @@ import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
+import { AttackHint } from '../../components/AttackHint.tsx';
+import { SupportTimingView, hintTarget } from '../../components/hintViews.tsx';
 import { SiegePicker } from '../../components/Siege.tsx';
 import { TroopGroupBar } from '../../components/TroopGroups.tsx';
 import { ChieftainPanel } from '../../components/ChieftainPanel.tsx';
@@ -30,6 +32,7 @@ import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { takePendingSend } from '../../simulator.ts';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
 import { useGame, useRules } from '../../game.ts';
+import { useSupportTiming } from '../../hooks/useSupportTiming.ts';
 import { useSync } from '../../hooks/useSync.ts';
 import { useTroopGroups } from '../../hooks/useTroopGroups.ts';
 import { useTribeWaymarks } from '../../hooks/useWaymarks.ts';
@@ -331,6 +334,10 @@ function SendPanel() {
   const travel = preview ? preview.ms : 0;
   const carry = UNIT_IDS.reduce((sum, u) => sum + chosen[u] * UNITS[u].carry, 0);
   const morale = moraleNow({ mission: 'attack', relief, target, chosen: partial, ownPoints: ownTotalPoints(villages), enabled: rules.features.morale });
+  // Under the travel line: "do I have enough?" for an attack, "will my help arrive in time?" for support (only when an attack is known).
+  const attackHintOn = known && allowed.includes('attack') && !relief && hintTarget(target);
+  const timingLines = useSupportTiming(target, known && allowed.includes('support'), preview ? travel : 0);
+  const hintOn = attackHintOn || timingLines.length > 0;
 
   /** Why this button cannot be used (null = it can). Same checks as the map's send form. */
   function blocked(mission: Go): string | null {
@@ -597,11 +604,17 @@ function SendPanel() {
           ) : null}
           {moraleLabel(morale) && total > 0 && <span className="fa-mor">{moraleLabel(morale)}</span>}
         </div>
+        {hintOn && (
+          <div className="fa-hintbox">
+            {attackHintOn && <AttackHint target={target} active chosen={chosen} morale={morale} />}
+            <SupportTimingView lines={timingLines} />
+          </div>
+        )}
         {siegeOn ? (
           <div className="fa-siege">
             <SiegePicker value={siegePick} onChange={setSiegePick} targetId={target && target.id > 0 ? target.id : undefined} now={now} />
           </div>
-        ) : (
+        ) : hintOn ? null : (
         <div className="fa-rct">
           <span className="fv-up">Recent targets</span>
           <div className="fa-rcl">
@@ -675,7 +688,7 @@ function movementText(m: MovementDto, villages: readonly { id: number }[], curre
 }
 
 function MovementRow({ m }: { m: MovementDto }) {
-  const { now, village, villages, highlightMovementId, applyMovementSwap, toast } = useGame();
+  const { now, village, villages, highlightMovementId, applyMovementSwap, toast, navigate } = useGame();
   const sync = useSync();
   const cancelLock = useRef(false);
   const [cancelling, setCancelling] = useState(false);
@@ -728,6 +741,10 @@ function MovementRow({ m }: { m: MovementDto }) {
           <span className="fa-cnc" title={`Troops can be called back only in the first ${CANCEL_WINDOW_MIN} minutes after they leave`}>
             <small className="fa-nocnc">{noCancel}</small>
           </span>
+        ) : atk ? (
+          <button type="button" className="fv-btn sm" onClick={() => navigate('incoming')} title="See every incoming attack and what you can do">
+            Defend
+          </button>
         ) : (
           <span className="fa-na">{word}</span>
         )}

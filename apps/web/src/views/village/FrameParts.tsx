@@ -170,7 +170,7 @@ export function MovementsSection({ compact = false }: { compact?: boolean }) {
           const title = atk ? `Attack from ${mv.origin.ownerName || mv.origin.name}` : movementLabel(mv);
           const sub = atk ? `${mv.origin.name} (${formatCoords(mv.origin.x, mv.origin.y)})` : movementCargo(mv) || mv.target.name;
           return (
-            <button key={mv.id} type="button" className={`fv-mv${atk ? ' is-atk' : ''}`} onClick={() => viewMovement(mv.id)} title={`${title}. Show in Army`}>
+            <button key={mv.id} type="button" className={`fv-mv${atk ? ' is-atk' : ''}`} onClick={() => (atk ? navigate('incoming') : viewMovement(mv.id))} title={atk ? `${title}. Open incoming attacks` : `${title}. Show in Army`}>
               <span className={`fv-tk ${tone}`}>
                 <Icon name={icon} size={20} />
               </span>

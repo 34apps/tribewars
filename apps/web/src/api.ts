@@ -18,6 +18,7 @@ import type {
   DiplomacyKind,
   DominationStatusDto,
   ScoutedResponse,
+  VillageIntelDto,
   SiteRecallRequest,
   SitesResponse,
   WorldEndResponse,
@@ -331,6 +332,7 @@ export const api = {
   sites: () => request<SitesResponse>('GET', '/api/sites'),
   /** My own newest scout report with building levels on a village (Firecart picker); both fields null when none. */
   scouted: (villageId: number) => request<ScoutedResponse>('GET', `/api/scouted/${villageId}`),
+  intel: (villageId: number) => request<VillageIntelDto>('GET', `/api/intel/${villageId}`),
   /** Mail as conversations (one row per person), newest first, 20 per page. */
   mailConversations: (page = 0) => request<MailConversationsResponse>('GET', `/api/mail/conversations?page=${page}`),
   /** The letters with one player, both directions, newest first. */

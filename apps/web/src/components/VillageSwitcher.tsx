@@ -158,6 +158,7 @@ export function VillageBar({ frame = false }: { frame?: boolean }) {
   );
   const current = rows.find((r) => r.id === village.id);
   const attacked = rows.filter((r) => r.incomingAttack && r.id !== village.id).length;
+  const attackedText = attacked === 1 ? '1 other village is under attack' : `${attacked} other villages are under attack`;
   const currentBadges = current ? villageBadges(current, now) : [];
 
   return (
@@ -168,16 +169,21 @@ export function VillageBar({ frame = false }: { frame?: boolean }) {
           className={`fr-vbtn${village.hearth ? ' is-cold' : ''}`}
           aria-expanded={open}
           aria-haspopup="true"
-          aria-label={`${villageLabel(village)}, ${villages.length} villages. Switch village`}
+          aria-label={`${villageLabel(village)}, ${villages.length} villages${attacked > 0 ? `, ${attackedText}` : ''}. Switch village`}
           onClick={() => setOpen((o) => !o)}
         >
           {nameBlock}
           {currentBadges.map((b) => (
-            <span key={b.kind} className={`tag ${BADGE_TAG[b.kind]} hud-village-tag`}>
+            <span key={b.kind} className={`tag ${BADGE_TAG[b.kind]} hud-village-tag fr-vtag`} title={b.text}>
               {b.text}
             </span>
           ))}
-          {attacked > 0 && <span className="tag tag-bad hud-village-tag">{attacked === 1 ? '1 other attacked' : `${attacked} others attacked`}</span>}
+          {/* A round count (the full words are the title and the button's label): the bar must never push the bell and the account out. */}
+          {attacked > 0 && (
+            <span className="tag tag-bad hud-village-tag fr-vbadge" title={attackedText}>
+              {attacked}
+            </span>
+          )}
           <span className="fr-sw" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
               <path d={open ? 'M3 10l5-5 5 5' : 'M3 6l5 5 5-5'} />
