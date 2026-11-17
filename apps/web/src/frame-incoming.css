@@ -310,10 +310,11 @@
 }
 
 .fin.is-phone .fin-row {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
-    'tag who when'
-    'size size size';
+    'tag when'
+    'who who'
+    'size size';
   gap: 6px 10px;
   align-items: start;
 }
@@ -332,6 +333,8 @@
 
 .fin.is-phone .fin-when {
   grid-area: when;
+  justify-self: end;
+  text-align: right;
 }
 
 .fin.is-phone .fin-pg {
