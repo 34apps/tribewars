@@ -612,9 +612,9 @@ button.rlc-sec:focus-visible,
 
 .rlc-k {
   flex: none;
-  width: 74px;
-  font: 700 12px/1.2 var(--font);
-  letter-spacing: 0.05em;
+  width: 84px;
+  font: 700 11px/1.2 var(--font);
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--on-surface-muted);
 }
