@@ -162,6 +162,7 @@ export function SimulatorView() {
   const [wallText, setWallText] = useState('');
   const [useRanks, setUseRanks] = useState(false);
   const [morale, setMorale] = useState(false);
+  const [abandoned, setAbandoned] = useState(false);
   const [bulwarkOpen, setBulwarkOpen] = useState(false);
   const [bulwark, setBulwark] = useState(0);
   const [supportBulwark, setSupportBulwark] = useState(0);
@@ -180,6 +181,7 @@ export function SimulatorView() {
     setSupportOpen(hasTroops(simDraft.support ?? {}));
     setWallText(simDraft.wall !== undefined ? String(Math.max(0, Math.min(WALL_MAX, Math.floor(simDraft.wall)))) : '');
     setMorale(simDraft.morale === true);
+    setAbandoned(simDraft.abandoned === true);
     setNote(null);
   }, [simDraft]);
 
@@ -198,6 +200,7 @@ export function SimulatorView() {
     wall: parseLevel(wallText, WALL_MAX),
     attackerRanks: useRanks ? live.ranks : undefined,
     morale: morale && moraleOn,
+    abandoned,
     defenderBulwark: bulwarkOpen ? bulwark : 0,
     supportBulwark: bulwarkOpen ? supportBulwark : 0,
     siegeTarget: hasSling ? target : null,
@@ -206,7 +209,7 @@ export function SimulatorView() {
   const outcomes = useMemo(
     () => simulateAll(setup, settings),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [attacker, defender, supportUnits, supportOpen, wallText, useRanks, morale, moraleOn, live.ranks, bulwarkOpen, bulwark, supportBulwark, hasSling, siegePick, targetText, settings],
+    [attacker, defender, supportUnits, supportOpen, wallText, useRanks, morale, abandoned, moraleOn, live.ranks, bulwarkOpen, bulwark, supportBulwark, hasSling, siegePick, targetText, settings],
   );
 
   const ready = hasTroops(attacker);
@@ -249,6 +252,10 @@ export function SimulatorView() {
             <label className="sim-switch">
               <input type="checkbox" role="switch" checked={useRanks} onChange={(e) => setUseRanks(e.target.checked)} />
               <span>Use my ranks (Might)</span>
+            </label>
+            <label className="sim-switch">
+              <input type="checkbox" role="switch" checked={abandoned} onChange={(e) => setAbandoned(e.target.checked)} />
+              <span>Abandoned village (no Wall militia)</span>
             </label>
             {moraleOn && (
               <span className="sim-morale">

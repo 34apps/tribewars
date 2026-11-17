@@ -4,10 +4,10 @@
 import { FOUND_START_RESOURCES, MAX_VILLAGES_PER_PLAYER, NPC_TIER_WEIGHTS, RESTART_EDGE_BAND } from './config.ts';
 import { storageCap } from './economy.ts';
 import { mulberry32 } from './random.ts';
-import { RESOURCE_IDS } from './types.ts';
+import { RESOURCE_IDS, UNIT_IDS } from './types.ts';
 import type { Coords, Units, VillageState, WorldSettings } from './types.ts';
-import { MS_PER_HOUR, cloneVillage, emptyUnits } from './util.ts';
-import { admitTroops, createPlayerVillage, fullGarrison, settleVillage } from './village.ts';
+import { MS_PER_HOUR, cloneVillage, emptyUnits, normalizeUnits } from './util.ts';
+import { admitTroops, createPlayerVillage, settleVillage } from './village.ts';
 import { worldRules } from './world-config.ts';
 import { expandingRadius, findExpandingSpawn, findSpawnLocation } from './world.ts';
 
@@ -40,25 +40,30 @@ export function createFoundedVillage(t: number, s: WorldSettings, escort: Partia
 /**
  * Turn an idle owner's village into an abandoned village that KEEPS ALL ITS BUILDINGS (owner 2026-11-04), so it becomes a
  * valuable target. The village is settled to `now` first. Then: `npc` = tier from the Town Hall level (clamped 1..tiers),
- * growthSteps 0, createdAt `now`, `growthSeed`; garrison = the full abandoned garrison for that Town Hall level; stock kept but
- * cut to the storehouse; build/training/research queues, ranks, researched units, units away, Feast window, hearth, locks and
- * protection cleared. Units of the owner that were away are gone; the server handles movements. `renownPaid` follows the levels.
+ * growthSteps 0, createdAt `now`, `growthSeed`; the troops standing at home STAY exactly as they are (owner 2026-11-17: they keep what they
+ * have until defeated; Drillyard ranks too; Chieftains are used up; nothing is added and nothing is ever trained or refilled); `returning` = units of
+ * the owner's marches that were on their way home (the server deletes the marches, so they join the village); stock kept but cut to the
+ * storehouse; build/training/research queues, researched units, other units away, Feast window, hearth, locks and protection cleared. Other
+ * away units are gone; the server handles movements. `renownPaid` follows the levels.
  */
-export function abandonVillageKeepBuildings(state: VillageState, now: number, s: WorldSettings, growthSeed: number): VillageState {
+export function abandonVillageKeepBuildings(state: VillageState, now: number, s: WorldSettings, growthSeed: number, returning: Partial<Units> = {}): VillageState {
   const v = settleVillage(state, now, s);
   delete v.hearth;
   delete v.lockUntil;
   delete v.protectedUntil;
   delete v.researched;
   delete v.researchQueue;
-  delete v.ranks;
   delete v.feast;
   delete v.defenceMark;
   v.buildQueue = [];
   v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   v.away = emptyUnits();
   const hall = v.buildings.hall;
-  v.troops = fullGarrison(hall);
+  const back = normalizeUnits(returning);
+  const home = emptyUnits();
+  for (const u of UNIT_IDS) home[u] = v.troops[u] + back[u];
+  home.chieftain = 0;
+  v.troops = home;
   const cap = storageCap(v);
   for (const r of RESOURCE_IDS) v.resources[r] = Math.min(v.resources[r], cap);
   v.npc = { tier: Math.min(NPC_TIER_WEIGHTS.length, Math.max(1, hall)), growthSteps: 0, createdAt: now, growthSeed: growthSeed >>> 0 };

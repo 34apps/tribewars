@@ -366,8 +366,8 @@ export class GameService {
 
   /**
    * Villages of owners away for ABANDON_IDLE_DAYS become abandoned villages that KEEP ALL THEIR BUILDINGS (engine
-   * `abandonVillageKeepBuildings`: a valuable target, garrison for its Town Hall level). Queues, the owner's old troops and the
-   * contingents of the village are cleared (troops of the owner that were away are disbanded); support of others standing in it
+   * `abandonVillageKeepBuildings`: a valuable target that keeps the troops standing at home, which defend until beaten; nothing
+   * is added or trained). Queues and the contingents of the village are cleared (troops of the owner on their way home join, others away are disbanded); support of others standing in it
    * goes home. Owners still under beginner protection and sandbox accounts are skipped. The Chieftains of the village leave the
    * Renown ledger like dead ones.
    */
@@ -388,11 +388,16 @@ export class GameService {
     const shares = this.sharesBefore([ownerId], now);
     const lostChieftains = chieftainsIn(settleVillage(v.state, now, s));
     // The owner's armies and contingents are gone; everybody else's troops standing here go home.
-    for (const m of this.store.movementsFrom(v.id)) this.store.deleteMovement(m.id);
+    // Troops on their way HOME join the village (their march is deleted); troops out on other missions are disbanded, as before.
+    const returning = emptyUnits();
+    for (const m of this.store.movementsFrom(v.id)) {
+      if (m.kind === 'return') for (const u of UNIT_IDS) returning[u] += m.units[u] ?? 0;
+      this.store.deleteMovement(m.id);
+    }
     for (const c of this.store.stationedHomedAt(v.id)) this.store.deleteStationed(c.id);
     this.sendHostedHome(v, now);
     const claim = v.state.hearth;
-    const next = abandonVillageKeepBuildings(v.state, now, s, randomInt(0, 0xffffffff));
+    const next = abandonVillageKeepBuildings(v.state, now, s, randomInt(0, 0xffffffff), returning);
     this.store.releaseVillage(v.id, NPC_VILLAGE_NAME); // before the save: villages without an owner pay no Renown
     this.store.saveVillage(v.id, next, villagePoints(next));
     this.loseChieftains(ownerId, lostChieftains, shares);

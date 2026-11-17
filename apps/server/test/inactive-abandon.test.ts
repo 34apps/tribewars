@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { NPC_TIER_WEIGHTS, abandonIdleMs, emptyUnits, fullGarrison, restartProtectionMs, type MapResponse } from '@clanfire/engine';
+import { NPC_TIER_WEIGHTS, abandonIdleMs, emptyUnits, restartProtectionMs, type MapResponse } from '@clanfire/engine';
 import { HOUR, MINUTE, makeApp } from './helpers.ts';
 import { assertLedgerSane, ledger, player, reserveFor, strongHome, villagesOf } from './village-helpers.ts';
 
@@ -30,7 +30,8 @@ test('an idle owner\'s village becomes abandoned with every building kept; queue
   const after = store.getVillage(vid)!;
   assert.equal(after.ownerId, null);
   assert.deepEqual(after.state.buildings, buildings, 'every building kept');
-  assert.deepEqual(after.state.troops, fullGarrison(after.state.buildings.hall), 'the garrison of an abandoned village of that size');
+  assert.equal(after.state.troops.raider, 35, 'the 30 at home stay and the batch that finished while he was away is there too (the 3 away are gone, nothing is added)');
+  assert.equal(after.state.troops.chieftain, 0, 'Chieftains are used up');
   assert.deepEqual(after.state.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
   assert.deepEqual(after.state.buildQueue, []);
   assert.deepEqual(after.state.away, emptyUnits());

@@ -30,22 +30,25 @@ test('a new world: abandoned villages have no troops and the map marks none as d
   await app.close();
 });
 
-test('a village a player leaves keeps a garrison and the map says defended; once it is beaten the mark is gone', async () => {
+test('a village a player leaves keeps the troops it had (nothing added) and the map says defended; once it is beaten the mark is gone', async () => {
   const { app, clock } = await makeApp();
   const gone = await register(app, 'gone');
   const here = await register(app, 'here');
   const vid = (await gone.village()).id;
+  const mine = app.ctx.store.getVillage(vid)!;
+  mine.state.troops = { ...mine.state.troops, pikeman: 7, raider: 2 };
+  app.ctx.store.saveVillage(vid, mine.state, mine.points);
   clock.advance(abandonIdleMs(app.ctx.settings) - HOUR);
   ok(await here.get('/api/state'));
   clock.advance(HOUR + 60_000);
   app.ctx.game.runCaretaker(clock.now());
   const v = app.ctx.store.getVillage(vid)!;
   assert.equal(v.ownerId, null);
-  assert.ok(totalUnits(v.state.troops) > 0, 'keeps its garrison');
+  assert.deepEqual([v.state.troops.pikeman, v.state.troops.raider, totalUnits(v.state.troops)], [7, 2, 9], 'keeps exactly the troops it had');
   const mark = async (): Promise<boolean | undefined> => (await mapAll(here)).find((m) => m.id === vid)?.defended;
   assert.equal(await mark(), true);
   assert.equal((await mapAll(here)).filter((m) => m.kind === 'abandoned' && m.defended).length, 1, 'only that one');
-  v.state.troops = { ...v.state.troops, pikeman: 0, guard: 0 };
+  v.state.troops = { ...v.state.troops, pikeman: 0, raider: 0 };
   app.ctx.store.saveVillage(v.id, v.state, v.points);
   assert.equal(await mark(), undefined, 'beaten: no defenders left');
   await app.close();

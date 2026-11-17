@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { abandonIdleMs, ACTIVITY_WRITE_INTERVAL_MS, BOT_MAX_STEPS_PER_RUN, botIdleMs, botStepMs, fullGarrison, totalUnits } from '@clanfire/engine';
+import { abandonIdleMs, ACTIVITY_WRITE_INTERVAL_MS, BOT_MAX_STEPS_PER_RUN, botIdleMs, botStepMs, totalUnits } from '@clanfire/engine';
 import { HOUR, MINUTE, makeApp, ok } from './helpers.ts';
 import { newPlayer, type App, type P } from './tribe-helpers.ts';
 
@@ -60,7 +60,7 @@ test('after 30 days idle the villages become abandoned, troops stay; the owner r
   assert.ok(v);
   assert.equal(v.ownerId, null, 'abandoned');
   assert.deepEqual(v.state.buildings, buildings, 'every building is kept');
-  assert.deepEqual(v.state.troops, fullGarrison(v.state.buildings.hall), 'garrison for its Town Hall level');
+  assert.equal(totalUnits(v.state.troops), 0, 'keeps the troops it had (none): nothing is added');
   assert.ok(v.state.npc, 'now an abandoned village');
   assert.equal(app.ctx.store.getVillage(hereId)?.ownerId, here.id, 'active owner keeps the village');
   assert.equal(app.ctx.store.villagesOfPlayer(gone.id).length, 0);

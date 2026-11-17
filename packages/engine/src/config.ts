@@ -156,9 +156,9 @@ export const MORALE_ATTACK_FACTOR = 0.75;
 
 /**
  * Abandoned villages produce this share of what the same levels would (their stock is the loot raiders live on; the 25-level economy with
- * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13; 0.5 -> 0.45 with the Longhouse split, which slows builders and so raised the raider / builder score ratio to 2.05). Players are never affected.
+ * cheap troops made loot supply the lever that holds raiders in line, BALANCE 13; 0.5 -> 0.45 with the Longhouse split, which slows builders and so raised the raider / builder score ratio to 2.05; back to 0.5 on 2026-11-17 when abandoned villages lost every defender and the Wall militia, BALANCE 16). Players are never affected.
  */
-export const NPC_PRODUCTION_FACTOR = 0.45;
+export const NPC_PRODUCTION_FACTOR = 0.5;
 
 /** Abandoned villages. */
 export const NPC_MAX_LEVEL = 7;
@@ -170,8 +170,6 @@ export const NPC_TIER_WEIGHTS = [0.4, 0.25, 0.18, 0.11, 0.06] as const;
  * building prerequisites (it has no Barracks and never trains).
  */
 export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'storehouse', 'lumber', 'farm', 'mine', 'hall', 'storehouse', 'wall', 'vault'];
-/** Garrison of a village a player left (30 idle days) = per-unit count * Town Hall level. Map-born abandoned villages have none (2026-11-17). */
-export const NPC_GARRISON_PER_HALL: Partial<Record<UnitId, number>> = { pikeman: 4, guard: 2 };
 /** Safety bound: builds an abandoned village can start in one settle (a village is maxed after far fewer). */
 export const NPC_MAX_BUILDS_PER_SETTLE = 1000;
 
@@ -1017,7 +1015,7 @@ export const ACHIEVEMENT_TIERS = {
 
 /** An owner who has not made an authenticated request for this many days (divided by world speed) is idle. */
 export const BOT_IDLE_DAYS = 3;
-/** An owner away this many days (divided by world speed) loses the villages to the map: they become abandoned villages, troops and queues kept. */
+/** An owner away this many days (divided by world speed) loses the villages to the map: they become abandoned villages: buildings and the troops standing at home stay (nothing is added, trained or refilled; they defend until beaten), queues go. */
 export const ABANDON_IDLE_DAYS = 30;
 /** The caretaker acts on an idle village at most once per this many hours (divided by world speed). */
 export const BOT_STEP_HOURS = 2;

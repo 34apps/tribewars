@@ -10,21 +10,21 @@ Rules in force: no pair cap; hold 8 h; 1 Chieftain per 12000 points (max 3); loc
 
 | style | day 7 villages | day 7 points | day 14 villages | day 14 points | day 21 villages | day 21 points | day 30 villages | day 30 points | day 90 villages | day 90 points |
 |---|---|---|---|---|---|---|---|---|---|---|
-| builder | 1.00 | 1764 | 1.00 | 2611 | 1.00 | 4358 | 1.00 | 4945 | 1.40 | 6201 |
-| raider | 1.00 | 1389 | 1.00 | 2769 | 1.00 | 3527 | 1.00 | 3967 | 1.60 | 9640 |
+| builder | 1.00 | 1855 | 1.00 | 2228 | 1.00 | 4121 | 1.00 | 4166 | 1.80 | 9596 |
+| raider | 1.00 | 1683 | 1.00 | 4021 | 1.20 | 5277 | 1.20 | 5669 | 1.60 | 6700 |
 | turtle | 1.00 | 308 | 1.00 | 399 | 1.00 | 608 | 1.00 | 758 | 1.00 | 2775 |
-| balanced | 1.00 | 1511 | 1.20 | 8517 | 1.40 | 15394 | 1.60 | 21494 | 3.00 | 23763 |
-| **all** | 1.00 | 1243 | 1.05 | 3574 | 1.10 | 5972 | 1.15 | 7791 | 1.75 | 10595 |
+| balanced | 1.00 | 1166 | 1.00 | 7401 | 2.00 | 14581 | 2.00 | 17792 | 3.00 | 20447 |
+| **all** | 1.00 | 1253 | 1.00 | 3512 | 1.30 | 6147 | 1.30 | 7096 | 1.85 | 9879 |
 
 ## Conquest events per style (sum over the 5 players; day 1-90)
 
 | style | Chieftains trained / lost | strikes sent | strikes fought | holds started | villages taken | holds broken | villages lost | restarts | founded | counter-attacks | raids on players (won) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| builder | 2 / 0 | 1 | 1 | 1 | 1 | 0 | 1 | 1 | 1 | 0 | 0 (0) |
-| raider | 3 / 0 | 2 | 2 | 2 | 2 | 0 | 3 | 3 | 1 | 0 | 4353 (4335) |
+| builder | 6 / 0 | 5 | 5 | 5 | 5 | 0 | 3 | 1 | 1 | 0 | 0 (0) |
+| raider | 3 / 0 | 1 | 1 | 1 | 1 | 0 | 3 | 3 | 2 | 0 | 2118 (2117) |
 | turtle | 0 / 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
-| balanced | 13 / 0 | 4 | 4 | 4 | 4 | 0 | 3 | 0 | 9 | 0 | 6436 (6426) |
-| **all** | 18 / 0 | 7 | 7 | 7 | 7 | 0 | 7 | 4 | 11 | 0 | 10789 (10761) |
+| balanced | 10 / 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10 | 0 | 2414 (2412) |
+| **all** | 19 / 0 | 6 | 6 | 6 | 6 | 0 | 6 | 4 | 13 | 0 | 4532 (4529) |
 
 Strikes that did not start a hold, by reason: none.
 
@@ -32,70 +32,69 @@ Strikes that did not start a hold, by reason: none.
 
 | day | biggest points | second | ratio | biggest villages | second | ratio |
 |---|---|---|---|---|---|---|
-| 7 | 2402 | 2215 | 1.08 | 1 | 1 | 1.00 |
-| 14 | 13671 | 10197 | 1.34 | 2 | 1 | 2.00 |
-| 21 | 22669 | 17781 | 1.27 | 2 | 2 | 1.00 |
-| 30 | 34859 | 19623 | 1.78 | 2 | 2 | 1.00 |
-| 90 | 41564 | 37816 | 1.10 | 4 | 4 | 1.00 |
+| 7 | 2502 | 2113 | 1.18 | 1 | 1 | 1.00 |
+| 14 | 9237 | 9237 | 1.00 | 1 | 1 | 1.00 |
+| 21 | 17450 | 16566 | 1.05 | 2 | 2 | 1.00 |
+| 30 | 17818 | 17798 | 1.00 | 2 | 2 | 1.00 |
+| 90 | 28558 | 20447 | 1.40 | 4 | 3 | 1.33 |
 
-Top 5 on day 90: #17 raider 4 villages 41564 points; #1 balanced 4 villages 37816 points; #10 balanced 3 villages 20447 points; #14 balanced 2 villages 20280 points; #3 balanced 3 villages 20135 points. Smallest: 228 points.
-Top 3 hold 47% of all points (an even split would be 15%).
-**Verdict: biggest has 1.10x the second's points and 1.00x its villages after 90 days; target (<= ~2x) MET.**
+Top 5 on day 90: #17 raider 4 villages 28558 points; #1 balanced 3 villages 20447 points; #3 balanced 3 villages 20447 points; #4 balanced 3 villages 20447 points; #10 balanced 3 villages 20447 points. Smallest: 124 points.
+Top 3 hold 35% of all points (an even split would be 15%).
+**Verdict: biggest has 1.40x the second's points and 1.33x its villages after 90 days; target (<= ~2x) MET.**
 
 ## Other seeds (same rules)
 
 | seed | takes | holds started | restarts | biggest points / second | ratio | biggest villages / second | ratio |
 |---|---|---|---|---|---|---|---|
-| 20261105 | 7 | 7 | 4 | 41564 / 37816 | 1.10 | 4 / 4 | 1.00 |
-| 20261106 | 6 | 8 | 4 | 27280 / 20447 | 1.33 | 4 / 3 | 1.33 |
-| 20261107 | 9 | 12 | 5 | 38486 / 37919 | 1.01 | 4 / 4 | 1.00 |
-| 20261108 | 10 | 10 | 5 | 38595 / 35376 | 1.09 | 4 / 3 | 1.33 |
-| 20261109 | 8 | 9 | 4 | 27902 / 20447 | 1.36 | 4 / 4 | 1.00 |
+| 20261105 | 6 | 6 | 4 | 28558 / 20447 | 1.40 | 4 / 3 | 1.33 |
+| 20261106 | 10 | 10 | 5 | 35812 / 25845 | 1.39 | 5 / 5 | 1.00 |
+| 20261107 | 9 | 10 | 5 | 37919 / 37794 | 1.00 | 4 / 4 | 1.00 |
+| 20261108 | 8 | 8 | 6 | 37919 / 37816 | 1.00 | 4 / 4 | 1.00 |
+| 20261109 | 15 | 15 | 4 | 36384 / 34425 | 1.06 | 5 / 5 | 1.00 |
 
 ## Chieftain gold (chest; main seed, sum over the 5 players of a style)
 
 | style | Chieftains trained | gold paid for Chieftains (chest gold, net of refunds) | wait hours by bucket | binding limit per Chieftain trained | chest per player on day 30 / 60 / 90 |
 |---|---|---|---|---|---|
-| builder | 2 | 4000 | renown+gold 2087, renown 6969, gold 0, resources 18, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 2, none 0 | 2132 / 6919 / 11035 |
-| raider | 3 | 10320 | renown+gold 1644, renown 4596, gold 0, resources 0, target 72, other 15 | renown+gold 0, renown 2, gold 0, resources 1, none 0 | 2590 / 6241 / 11341 |
+| builder | 6 | 13200 | renown+gold 1755, renown 7045, gold 0, resources 56, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 6, none 0 | 2194 / 6283 / 8655 |
+| raider | 3 | 10320 | renown+gold 1817, renown 5898, gold 0, resources 46, target 100, other 391 | renown+gold 0, renown 2, gold 0, resources 1, none 0 | 4259 / 10565 / 21463 |
 | turtle | 0 | 0 | renown+gold 0, renown 0, gold 0, resources 0, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 0, none 0 | 85 / 637 / 3517 |
-| balanced | 13 | 33920 | renown+gold 1123, renown 4452, gold 0, resources 129, target 944, other 3020 | renown+gold 0, renown 9, gold 0, resources 4, none 0 | 6856 / 13625 / 20809 |
-| **all** | 18 | 48240 | renown+gold 4854, renown 16017, gold 0, resources 147, target 1016, other 3035 | renown+gold 0, renown 11, gold 0, resources 7, none 0 | 2916 / 6855 / 11675 |
+| balanced | 10 | 26000 | renown+gold 870, renown 3838, gold 0, resources 372, target 728, other 3849 | renown+gold 0, renown 5, gold 0, resources 5, none 0 | 7247 / 14840 / 18545 |
+| **all** | 19 | 49520 | renown+gold 4442, renown 16781, gold 0, resources 474, target 829, other 4239 | renown+gold 0, renown 7, gold 0, resources 12, none 0 | 3446 / 8081 / 13045 |
 
 ## Summary over all seeds (5 seeds, 90 days)
 
 | style | players | 2nd village | 3rd village | 4th village | villages day 30 | villages day 60 | villages day 90 | gold per village day 90 | chest per player day 90 |
 |---|---|---|---|---|---|---|---|---|---|
-| builder | 25 | day 69.6 (19/25) | day 82.3 (8/25) | day 77.0 (1/25) | 1.00 | 1.12 | 2.08 | 52 | 8942 |
-| raider | 25 | day 53.4 (11/25) | day 59.7 (6/25) | day 71.3 (3/25) | 1.16 | 1.36 | 1.76 | 18 | 13058 |
+| builder | 25 | day 64.3 (22/25) | day 69.3 (12/25) | day 72.8 (6/25) | 1.00 | 1.48 | 2.60 | 50 | 7815 |
+| raider | 25 | day 31.8 (5/25) | day 41.3 (3/25) | day 64.3 (3/25) | 1.16 | 1.28 | 1.40 | 24 | 11953 |
 | turtle | 25 | never (0/25) | never (0/25) | never (0/25) | 1.00 | 1.00 | 1.00 | 19 | 3517 |
-| balanced | 25 | day 18.6 (23/25) | day 41.7 (22/25) | day 54.8 (4/25) | 1.88 | 2.88 | 2.96 | 1 | 19451 |
+| balanced | 25 | day 18.1 (22/25) | day 41.4 (22/25) | day 61.0 (7/25) | 2.00 | 2.84 | 3.08 | 1 | 21313 |
 
 | seed | takes | restarts | raids on players | biggest points / second | ratio |
 |---|---|---|---|---|---|
-| 20261105 | 7 | 4 | 10789 | 41564 / 37816 | 1.10 |
-| 20261106 | 6 | 4 | 8146 | 27280 / 20447 | 1.33 |
-| 20261107 | 9 | 5 | 10289 | 38486 / 37919 | 1.01 |
-| 20261108 | 10 | 5 | 8942 | 38595 / 35376 | 1.09 |
-| 20261109 | 8 | 4 | 8613 | 27902 / 20447 | 1.36 |
-| **total** | 40 | 22 | 46779 | | worst 1.36 |
+| 20261105 | 6 | 4 | 4532 | 28558 / 20447 | 1.40 |
+| 20261106 | 10 | 5 | 5378 | 35812 / 25845 | 1.39 |
+| 20261107 | 9 | 5 | 6554 | 37919 / 37794 | 1.00 |
+| 20261108 | 8 | 6 | 4567 | 37919 / 37816 | 1.00 |
+| 20261109 | 15 | 4 | 4289 | 36384 / 34425 | 1.06 |
+| **total** | 48 | 24 | 25320 | | worst 1.40 |
 
 | style | wait hours by bucket (all seeds) | binding limit per Chieftain trained (all seeds) |
 |---|---|---|
-| builder | renown+gold 10128, renown 33163, gold 0, resources 996, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 36, none 0 |
-| raider | renown+gold 9026, renown 23224, gold 242, resources 2654, target 845, other 735 | renown+gold 0, renown 12, gold 0, resources 12, none 0 |
+| builder | renown+gold 15062, renown 28541, gold 251, resources 800, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 52, none 0 |
+| raider | renown+gold 7082, renown 27128, gold 0, resources 893, target 556, other 446 | renown+gold 0, renown 6, gold 0, resources 5, none 0 |
 | turtle | renown+gold 0, renown 0, gold 0, resources 0, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 0, none 0 |
-| balanced | renown+gold 5589, renown 19516, gold 19, resources 2772, target 3589, other 13731 | renown+gold 0, renown 31, gold 0, resources 29, none 0 |
+| balanced | renown+gold 4644, renown 20304, gold 10, resources 2965, target 3540, other 11343 | renown+gold 0, renown 32, gold 0, resources 33, none 0 |
 
 ## Conquests (first 30)
 
-- day 13.9: #14 balanced took a 4882-point village from #18 raider (their LAST village: restart)
-- day 16.8: #4 balanced took a 8715-point village from #14 balanced
-- day 17.7: #3 balanced took a 9237-point village from #4 balanced
-- day 18.4: #1 balanced took a 8342-point village from #3 balanced
-- day 48.5: #17 raider took a 5985-point village from #19 raider (their LAST village: restart)
-- day 69.1: #17 raider took a 7418-point village from #15 raider (their LAST village: restart)
-- day 81.1: #5 builder took a 4965-point village from #11 builder (their LAST village: restart)
+- day 50.8: #17 raider took a 7196-point village from #18 raider (their LAST village: restart)
+- day 72.3: #5 builder took a 8652-point village from #15 raider (their LAST village: restart)
+- day 73.2: #0 builder took a 4989-point village from #5 builder
+- day 73.8: #9 builder took a 4945-point village from #13 builder (their LAST village: restart)
+- day 82.4: #11 builder took a 7196-point village from #12 raider (their LAST village: restart)
+- day 84.4: #5 builder took a 4989-point village from #11 builder
 
 ## Flags
 

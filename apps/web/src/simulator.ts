@@ -143,6 +143,8 @@ export interface SimSetup {
   targetLevel: number;
   /** Morale: the attacker fights at 75% (the player ticked it). */
   morale?: boolean;
+  /** The defending village is abandoned (no owner): the Wall has no militia, only its bonus on the troops that stand there. */
+  abandoned?: boolean;
 }
 
 /** What one luck setting gives: the engine result plus the numbers the page shows. */
@@ -169,6 +171,7 @@ export function battleInput(setup: SimSetup, luck: number): BattleInput {
   const target = setup.siegeTarget;
   if (target && target !== 'wall') village.buildings[target] = Math.max(0, Math.min(BUILDINGS[target].maxLevel, Math.floor(setup.targetLevel)));
   village.troops = normalizeUnits(setup.defender);
+  if (setup.abandoned) village.npc = { tier: 1, growthSteps: 0, createdAt: 0 }; // the engine reads `npc` as "abandoned": no militia
   const support = normalizeUnits(setup.support);
   const hasSupport = hasTroops(support);
   const input: BattleInput = {
@@ -227,6 +230,8 @@ export interface SimDraftData {
   wall?: number;
   /** Tick the Morale box. */
   morale?: boolean;
+  /** The target is an abandoned village (tick the box: no militia). */
+  abandoned?: boolean;
   /** Where the defender numbers come from, as a phrase for the Defender panel ("from your scouting of Cinderhold"). */
   source?: string;
 }
@@ -249,6 +254,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     if (b.defenderUnits) draft.defender = { ...normalizeUnits(b.defenderUnits) };
     if (b.supportUnits) draft.support = { ...normalizeUnits(b.supportUnits) };
     if (typeof b.morale === 'number' && b.morale < 1) draft.morale = true;
+    if (b.defender && b.defender.ownerName === null) draft.abandoned = true;
     if (b.defenderUnits && b.defender?.name) draft.source = `from the battle report on ${b.defender.name}`;
     // The Wall before the Firecarts fired, when the report says so; otherwise the Wall as it counted.
     const wallHit = (b.siege ?? []).find((h) => h.building === 'wall');
@@ -261,6 +267,7 @@ export function draftFromReport(report: ReportDto): SimDraftData | null {
     const draft: SimDraftData = {};
     if (s.intel.troops) draft.defender = { ...normalizeUnits(s.intel.troops) };
     if (typeof s.intel.wallLevel === 'number') draft.wall = s.intel.wallLevel;
+    if (s.target && s.target.ownerName === null) draft.abandoned = true;
     if (draft.defender && s.target?.name) draft.source = `from your scouting of ${s.target.name}`;
     return draft.defender || draft.wall !== undefined ? draft : null;
   }

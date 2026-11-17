@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { WAR_CHEST_BASE, chestChieftainPrice, chieftainRefund, villagePoints, type CancelResponse, type ChestDepositResponse, type SendResponse } from '@clanfire/engine';
-import { HOUR, errorOf, makeApp, ok, type Client } from './helpers.ts';
+import { HOUR, errorOf, makeApp, ok, garrisonAbandoned, type Client } from './helpers.ts';
 import { giveTroops, sendOk, unprotect } from './warfare-helpers.ts';
 import { assertLedgerSane, chestOf, fillChest, homeOf, ledger, player, runTo, strongHome, villagesOf, freeTileNear } from './village-helpers.ts';
 import { newPlayer } from './tribe-helpers.ts';
@@ -112,6 +112,7 @@ test('death: a Chieftain who dies gives half his share back to the chest', async
   assert.equal((await p.c.state()).villages[0]?.state.troops.chieftain, 2);
   const target = app.ctx.store.getVillage(app.ctx.store.abandonedVillageIds()[0] as number);
   assert.ok(target);
+  garrisonAbandoned(app, target.id, { pikeman: 50 }); // a village a player left, with troops: a Chieftain with one raider cannot win
   const { movement } = await sendOk(p, target, 'attack', { chieftain: 1, raider: 1 });
   const base = chestOf(app, p);
   clock.set(movement.arriveAt);

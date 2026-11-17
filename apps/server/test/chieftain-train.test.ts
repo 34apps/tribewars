@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CHIEFTAIN_RENOWN_REFUND_SHARE, UNITS, type CancelResponse, type OwnVillageDto } from '@clanfire/engine';
-import { errorOf, makeApp, ok, type Client } from './helpers.ts';
+import { errorOf, makeApp, ok, garrisonAbandoned, type Client } from './helpers.ts';
 import { sendOk } from './warfare-helpers.ts';
 import { assertLedgerSane, clearedTarget, fillChest, homeOf, ledger, player, reserveFor, strongHome } from './village-helpers.ts';
 
@@ -113,6 +113,7 @@ test('a Chieftain who dies in battle gives back half his average reservation; sp
   // The garrison is still there: a Chieftain with one raider cannot win.
   const target = app.ctx.store.getVillage(app.ctx.store.abandonedVillageIds()[0] as number);
   assert.ok(target);
+  garrisonAbandoned(app, target.id, { pikeman: 50 }); // a village a player left, with troops: a Chieftain with one raider cannot win
   const { movement } = await sendOk(p, target, 'attack', { chieftain: 1, raider: 1 });
   const base = ledger(app, p);
   clock.set(movement.arriveAt);

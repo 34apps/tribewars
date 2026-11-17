@@ -223,7 +223,7 @@ Tests and the simulator pass their own seeds.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
    Since the troop roster pass (2026-11-11) only the Elk Rider is cavalry; the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
-   at home. `D = (D_units + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall) × (1 + WALL_BONUS_PER_LEVEL × wall)`.
+   at home. `D = (D_units + M) × (1 + WALL_BONUS_PER_LEVEL × wall)` with the Wall's militia `M = WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall` **only in a village that has an owner** (villagers defend their home; an abandoned village has none, `M = 0`, owner 2026-11-17; the percentage bonus still counts for troops that stand there).
 5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
    unit; every defender unit dies.
    Else defender wins: defender loses `round(count × (A/D)^BATTLE_LOSS_EXPONENT)` of each unit;
@@ -262,14 +262,16 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
 - Start levels for tier T: hall T; lumber, farm, longhouse (= farm), mine, storehouse 2T; wall, vault and gold mine T−1;
   others 0. Wood, food and iron start at `npc.startStockShare` (80%) of the cap; gold at `NPC_START_GOLD_PER_TIER × T` (the gold
   mine they start with keeps producing; they do not build more).
-- **No defenders at all (owner 2026-11-17).** A village born on the map (start rings, newcomer rings) has **no troops and never gets any**; its only
-  defence is its **Wall** (the Wall's flat militia `WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × level` still fights, its percentage bonus applies to
-  nothing). A 10-Raider raid loses about 0 of 10 against Wall 0-1 and about 3 of 10 against the top Wall 7 (BALANCE §15). The map says **"No defenders"**
-  (never a strength guess) and the scout report shows an empty troop list and the Wall level. The old rule (`NPC_GARRISON_PER_HALL` × Town Hall
-  level, 2026-11-05: never trains or regains) now applies **only to a village a player leaves**: after `ABANDON_IDLE_DAYS` the owner's village keeps its
-  buildings and gets that garrison for its Town Hall level; what a raid kills stays dead. The map marks such a village **"Defended"** (`MapVillageDto.defended`,
-  never a count; stored as `villages.has_troops`, schema v23, which also removed the garrison of map-born villages in existing worlds: those were told apart by
-  `npc.createdAt` being the world's creation time or a player's registration time). The First steps raid step needs a **won** raid on an abandoned village.
+- **No defenders at all (owner 2026-11-17).** A village born on the map (start rings, newcomer rings) has **no troops and never gets any**, and an
+  abandoned village has **no Wall militia either** (`M = 0` in the battle formula, §7; the engine reads `npc` as "abandoned"): a raid on an undefended abandoned
+  village of any age and Wall level loses nothing, also for a newcomer in an old world. A **village a player leaves** (after `ABANDON_IDLE_DAYS`) keeps its
+  buildings **and the troops standing at home exactly as they are** (Drillyard ranks too; Chieftains are used up; training queues are dropped without
+  refund; the owner's troops on their way home join, other marches are disbanded as before; support of others goes home). Nothing is added, trained or refilled
+  afterwards; they defend until beaten, with the Wall's percentage bonus (no militia). The map says **"No defenders"** (never a strength guess) or
+  **"Defended"** (`MapVillageDto.defended`, never a count; stored as `villages.has_troops`), the scout report shows the troop list and the Wall level, the
+  battle simulator has an "Abandoned village" switch. Schema v23 removed the garrison of map-born villages in existing worlds (told apart from player-abandoned
+  ones by `npc.createdAt` being the world's creation time or a player's registration time); villages a player had already left keep what they hold. The First
+  steps raid step needs a **won** raid on an abandoned village.
 - **Self-build (owner 2026-11-05; replaces the fixed growth timer `npcGrowthHours`, the growth steps and `NPC_MAX_STEPS_PER_SETTLE`).** An abandoned
   village builds itself up like a real player, **with its own resources only**. It produces like any village. When its build queue is empty it picks the
   next building in its build order (`NPC_GROWTH_ORDER`, a list with repeats so the economy comes first and Wall and Vault come late; a seeded shuffle of
@@ -1206,7 +1208,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
-*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (that garrison, which map-born villages no longer have, and tier from the Town Hall level); beginner
+*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (the troops at home stay, and the tier comes from the Town Hall level); beginner
 protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
@@ -1219,7 +1221,7 @@ and an abandoned village starts no new build; build jobs and training batches al
 At a change of owner one Chieftain is used up (his ember lights the new hearth), further Chieftains and troops over the population cap go home;
 all buildings keep their levels and `renownPaid` is kept. A found mission needs exactly one Chieftain (escort optional, it becomes the garrison); an
 attack may contain 1-3 Chieftains (alone he simply dies); Chieftains cannot scout, support or occupy. Inactive owners' villages become abandoned
-with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall level 1..5, full garrison for that level).
+with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall level 1..5, the troops at home stay as they are).
 
 **What it needs**
 - Engine: `hearth.ts` (`checkStrike`, `applyStrike`, `holdClock`, `checkOccupy`, `applyOwnerChange` including move-in and wall/hall reset), `Chieftain` unit, `Banner Hall` building, `VillageState.hearth` (`lit | out`, `claimBy`, `outAt`, `holdEndsAt`, `underSince`), changes in `resolveBattle` (count Chieftains among survivors) and in `checkSend` (new mission `occupy`, villages limit). All pure, with tests for every transition, ties and exact-time ends.
@@ -1773,7 +1775,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
-*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (that garrison, which map-born villages no longer have, and tier from the Town Hall level); beginner
+*Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (the troops at home stay, and the tier comes from the Town Hall level); beginner
 protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
@@ -1786,7 +1788,7 @@ and an abandoned village starts no new build; build jobs and training batches al
 At a change of owner one Chieftain is used up (his ember lights the new hearth), further Chieftains and troops over the population cap go home;
 all buildings keep their levels and `renownPaid` is kept. A found mission needs exactly one Chieftain (escort optional, it becomes the garrison); an
 attack may contain 1-3 Chieftains (alone he simply dies); Chieftains cannot scout, support or occupy. Inactive owners' villages become abandoned
-with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall level 1..5, full garrison for that level).
+with all buildings kept (`abandonVillageKeepBuildings`: tier from Town Hall level 1..5, the troops at home stay as they are).
 
 **What it needs**
 - Engine: `hearth.ts` (`checkStrike`, `applyStrike`, `holdClock`, `checkOccupy`, `applyOwnerChange` including move-in and wall/hall reset), `Chieftain` unit, `Banner Hall` building, `VillageState.hearth` (`lit | out`, `claimBy`, `outAt`, `holdEndsAt`, `underSince`), changes in `resolveBattle` (count Chieftains among survivors) and in `checkSend` (new mission `occupy`, villages limit). All pure, with tests for every transition, ties and exact-time ends.

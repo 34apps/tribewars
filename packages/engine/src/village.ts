@@ -6,7 +6,6 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_MAX_QUEUED_BATCHES,
   MAX_TRAIN_BATCH,
-  NPC_GARRISON_PER_HALL,
   NPC_GROWTH_ORDER,
   NPC_MAX_BUILDS_PER_SETTLE,
   NPC_PRODUCTION_FACTOR,
@@ -92,16 +91,6 @@ export function admitTroops(state: VillageState, units: Partial<Units>): { state
     overflow[u] = want[u] - fit;
   }
   return { state: v, overflow };
-}
-
-/**
- * The garrison a village keeps when its player leaves it (`abandonVillageKeepBuildings`), for its Town Hall level. Map-born abandoned
- * villages have NO troops at all (`createNpcVillage`; owner 2026-11-17): their only defence is the Wall.
- */
-export function fullGarrison(hallLevel: number): Units {
-  const out = emptyUnits();
-  for (const u of UNIT_IDS) out[u] = (NPC_GARRISON_PER_HALL[u] ?? 0) * hallLevel;
-  return out;
 }
 
 /**

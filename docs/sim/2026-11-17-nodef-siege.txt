@@ -155,7 +155,7 @@ All invariants hold.
 | style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Rams + Slings trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |
 |---|---|---|---|---|---|---|---|---|---|
 | builder | 5725 / 5725 | 2 / 2 | 0 / 0 | 5.8 / 5.8 | 0 | never | 0 (0) | 0 | 0 |
-| raider | 5821 / 12525 | 2 / 1 | 355767 / 391764 | 1.3 / 1.3 | 0 | never | 0 (0) | 0 | 0 |
+| raider | 5562 / 14357 | 2 / 2 | 480807 / 474853 | 1.2 / 1.2 | 0 | never | 0 (0) | 0 | 0 |
 | turtle | 758 / 758 | 1 / 1 | 0 / 0 | 5.2 / 5.2 | 0 | never | 0 (0) | 0 | 0 |
-| balanced | 11367 / 20184 | 2 / 2 | 357495 / 375001 | 3.8 / 3.8 | 0 | never | 0 (0) | 0 | 0 |
+| balanced | 12449 / 23072 | 2 / 2 | 451233 / 436932 | 3.8 / 3.8 | 0 | never | 0 (0) | 0 | 0 |
 

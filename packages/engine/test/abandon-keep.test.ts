@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  NPC_GARRISON_PER_HALL,
   NPC_TIER_WEIGHTS,
   abandonVillageKeepBuildings,
   applyBuild,
   applyTrain,
   checkStrike,
+  createNpcVillage,
   resolveBattle,
   settleVillage,
   storageCap,
@@ -41,19 +41,34 @@ describe('abandonVillageKeepBuildings', () => {
     assert.equal(a.npc?.growthSeed, -1 >>> 0);
   });
 
-  it('the owner\'s troops are gone: the garrison is the full abandoned garrison for the Town Hall level', () => {
-    const a = abandonVillageKeepBuildings(built(8), NOW, S1, 1);
-    assert.equal(a.troops.pikeman, (NPC_GARRISON_PER_HALL.pikeman ?? 0) * 8);
-    assert.equal(a.troops.guard, (NPC_GARRISON_PER_HALL.guard ?? 0) * 8);
-    assert.equal(a.troops.raider, 0);
+  it('the troops standing at home stay exactly as they are (nothing added), away units are gone, returning ones join, Chieftains are used up', () => {
+    const p = built(8);
+    p.troops = { ...p.troops, chieftain: 1 };
+    const a = abandonVillageKeepBuildings(p, NOW, S1, 1);
+    assert.equal(a.troops.raider, 40);
+    assert.equal(a.troops.pikeman, 3);
+    assert.equal(a.troops.guard, 0, 'nothing added');
+    assert.equal(a.troops.chieftain, 0);
     assert.deepEqual(a.away, units({}));
+    const back = abandonVillageKeepBuildings(p, NOW, S1, 1, { raider: 5, outrider: 2 });
+    assert.equal(back.troops.raider, 45);
+    assert.equal(back.troops.outrider, 2);
   });
 
-  it('keeps the stock, clamped to the storehouse; clears queues, ranks and research', () => {
+  it('a village with no troops stays empty and keeps its Drillyard ranks; nothing refills over time', () => {
+    const p = built(8);
+    p.troops = units({});
+    p.ranks = { raider: { might: 1, bulwark: 0, keen: 0 } };
+    const a = abandonVillageKeepBuildings(p, NOW, S1, 1);
+    assert.deepEqual(a.troops, units({}));
+    assert.deepEqual(a.ranks, p.ranks);
+    assert.deepEqual(settleVillage(a, NOW + 500 * HOUR, S1).troops, units({}));
+  });
+
+  it('keeps the stock, clamped to the storehouse; clears queues and research', () => {
     let p = built(8);
     p = applyBuild(p, 'lumber', 0, S1);
     p = applyTrain({ ...p, resources: { wood: 99_999, food: 5000, iron: 5000, gold: 12 } }, 'raider', 2, 0, S1);
-    p.ranks = { raider: { might: 1, bulwark: 0, keen: 0 } };
     p.researched = ['guard'];
     p.feast = { windowStart: 0, count: 2 };
     p.protectedUntil = NOW * 2;
@@ -88,5 +103,24 @@ describe('abandonVillageKeepBuildings', () => {
     const p = deepFreeze(built(5));
     abandonVillageKeepBuildings(p, NOW, S1, 1);
     assert.equal(p.troops.raider, 40);
+  });
+
+  it('an abandoned village has no Wall militia (a raid loses nothing at any Wall level); a village with an owner keeps it; the Wall bonus still counts for troops that stand there', () => {
+    const raid = { attackerUnits: units({ raider: 5 }), seed: 3 };
+    for (const wall of [0, 7, 22]) {
+      const npc = createNpcVillage(5, 0);
+      npc.buildings.wall = wall;
+      const r = resolveBattle({ ...raid, defender: npc }, S1);
+      assert.ok(r.attackerWon);
+      assert.equal(r.defensePower, 0);
+      assert.equal(r.attackerLosses.raider, 0, `Wall ${wall}`);
+      const owned = village({ buildings: { wall }, troops: {} });
+      assert.ok(resolveBattle({ ...raid, defender: owned }, S1).defensePower > 0, 'owned village: militia');
+    }
+    const left = abandonVillageKeepBuildings(village({ buildings: { hall: 8, wall: 10 }, troops: { pikeman: 200 } }), NOW, S1, 1);
+    const plain = { ...left, buildings: { ...left.buildings, wall: 0 } };
+    const behind = resolveBattle({ ...raid, defender: left }, S1).defensePower;
+    const open = resolveBattle({ ...raid, defender: plain }, S1).defensePower;
+    assert.ok(open > 0 && Math.abs(behind / open - 1.45) < 0.01, 'Wall 10 = +45% on the left-behind troops, and no flat militia');
   });
 });

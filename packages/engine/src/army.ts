@@ -285,7 +285,10 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
   }
   // Firecarts sent fire first; the lowered Wall is what the defence uses in this battle.
   const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
-  const defensePower = (defenseUnits + WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall) * (1 + WALL_BONUS_PER_LEVEL * wall) * (input.defenceMultiplier ?? 1);
+  // The Wall's militia is the villagers defending their home: an abandoned village (`npc`, map-born or left by a player) has none (owner 2026-11-17).
+  // Its percentage bonus still counts for troops that stand there.
+  const militia = defender.npc ? 0 : WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall;
+  const defensePower = (defenseUnits + militia) * (1 + WALL_BONUS_PER_LEVEL * wall) * (input.defenceMultiplier ?? 1);
 
   const attackerWon = attackPower > defensePower;
   const attackerLosses = emptyUnits();
@@ -318,7 +321,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     // The survivors shoot after the battle (Firecarts: full points on the picked building, the Wall if none).
     if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits);
   } else {
-    const ratio = Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT);
+    const ratio = defensePower > 0 ? Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT) : 0; // nothing defends and nothing attacks: no losses
     for (const u of UNIT_IDS) {
       attackerLosses[u] = attackerUnits[u];
       defenderLosses[u] = Math.min(defenderUnits[u], Math.round(defenderUnits[u] * ratio));

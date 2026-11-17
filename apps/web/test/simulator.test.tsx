@@ -73,6 +73,17 @@ test('empty armies: no troops is not ready, an empty defender still meets the ba
   assert.deepEqual(raid.result.defenderLosses, emptyUnits());
 });
 
+test('an abandoned village has no Wall militia: an empty one loses nothing at any Wall, troops there still get the Wall bonus', () => {
+  const bare = simulate(setup({ attacker: units({ raider: 5 }), defender: emptyUnits(), wall: 20, abandoned: true }), 0);
+  assert.equal(bare.result.defensePower, 0);
+  assert.equal(bare.result.attackerLosses.raider, 0);
+  const owned = simulate(setup({ attacker: units({ raider: 5 }), defender: emptyUnits(), wall: 20 }), 0);
+  assert.ok(owned.result.defensePower > 0, 'an owned village keeps its militia');
+  const held = simulate(setup({ defender: units({ pikeman: 100 }), wall: 10, abandoned: true }), 0).result.defensePower;
+  const open = simulate(setup({ defender: units({ pikeman: 100 }), wall: 0, abandoned: true }), 0).result.defensePower;
+  assert.ok(Math.abs(held / open - 1.45) < 0.01);
+});
+
 test('Wall: more levels raise the defence; Firecarts lower it (before -> after)', () => {
   const low = simulate(setup({ wall: 0 }), 0).result.defensePower;
   const high = simulate(setup({ wall: 10 }), 0).result.defensePower;
