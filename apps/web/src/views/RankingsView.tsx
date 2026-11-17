@@ -10,6 +10,7 @@ import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
 import { ProfileExtras } from './ProfileExtras.tsx';
+import { PlayerNoteSection } from '../components/Notes.tsx';
 import { makeSample } from './rankingsSample.ts';
 
 type Section = 'players' | 'tribes' | 'renown';
@@ -286,7 +287,12 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
       ...(pickedRow.playerId > 0 && pickedRow.playerId !== meId ? [{ label: 'Send mail', onClick: () => composeMail(pickedRow.username) }] : []),
       ...(pickedRow.tribe && pickedRow.tribe.id > 0 ? [{ label: 'View tribe', onClick: () => viewTribe({ id: pickedRow.tribe!.id }) }] : []),
     ],
-    extra: prof ? <ProfileExtras stats={prof.stats} achievements={prof.achievements} badges={prof.badges} worldBadges={prof.worldBadges} /> : undefined,
+    extra: prof ? (
+      <>
+        {pickedRow.playerId > 0 && pickedRow.playerId !== meId && <PlayerNoteSection playerId={pickedRow.playerId} name={pickedRow.username} />}
+        <ProfileExtras stats={prof.stats} achievements={prof.achievements} badges={prof.badges} worldBadges={prof.worldBadges} />
+      </>
+    ) : undefined,
     note:
       pickedRow.playerId < 0
         ? 'Sample player: not a real account, so there is nothing to open.'

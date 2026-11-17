@@ -59,9 +59,10 @@ export const ROUTE_LIMITS = {
   search: 60, // tribe search / list, player profiles
   lookup: 30, // command post village / player name search, own scout intel on a village
   rankings: 30, // player and Renown rankings
-  world: 30, // domination status (a few ranking queries), the world end screen, the site list and Lookout sightings
+  world: 30, // domination status (a few ranking queries), the world end screen, the site list, Lookout sightings and the realm overview
   notifications: 60, // incoming-attack notifications: list and mark read
   groups: 30, // saved troop groups: list, create, update, delete
+  notes: 60, // private notes and tags: list, save, delete
   firststeps: 30, // first steps card: claim, hide
   projects: 30, // tribe projects: read the store and ledger, store village, start and cancel a project
 } as const;
@@ -78,12 +79,13 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'village', test: /^\/api\/villages(\/:id\/rename)?$/ },
   { bucket: 'mail', test: /^\/api\/mail(\/|$)/ },
   { bucket: 'groups', test: /^\/api\/troop-groups(\/|$)/ },
+  { bucket: 'notes', test: /^\/api\/notes(\/|$)/ },
   { bucket: 'firststeps', test: /^\/api\/first-steps(\/|$)/ },
   { bucket: 'notifications', test: /^\/api\/notifications(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'lookup', test: /^\/api\/(search\/villages|scouted\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
-  { bucket: 'world', test: /^\/api\/(domination|world-end|sites|tribe\/sightings)$/ },
+  { bucket: 'world', test: /^\/api\/(domination|world-end|sites|tribe\/sightings|realm)$/ },
   { bucket: 'projects', test: /^\/api\/tribe\/projects(\/|$)/ },
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },
 ];

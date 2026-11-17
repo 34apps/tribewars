@@ -3,8 +3,10 @@
 
 import type { AchievementProgress, PlayerStatsDto } from './achievements.ts';
 import type { SiteKind } from './config.ts';
+import type { NoteTag, NoteTargetKind } from './notes.ts';
 import type { WorldConfig } from './world-config.ts';
 import type {
+  BuildingId,
   BuildingLevels,
   Coords,
   Mission,
@@ -17,6 +19,7 @@ import type {
   TribeAction,
   TribeProjectId,
   TribeRole,
+  TrainingBuildingId,
   UnitId,
   Units,
   VillageRanks,
@@ -1908,6 +1911,104 @@ export interface TroopGroupsResponse {
 
 export interface TroopGroupResponse {
   group: TroopGroupDto;
+}
+
+// ---- Realm overview (docs/GAME_DESIGN.md, realm overview: a read-only page, no rule change) ----------------------------------
+// GET /api/realm -> 200 RealmResponse. One request, only the caller's own villages (never another player's), every village
+// settled to serverTime on the server. No query keys, no body (extra keys -> 400 invalid_input). At most MAX_VILLAGES_PER_PLAYER rows.
+export interface RealmBuildJobDto {
+  building: BuildingId;
+  targetLevel: number;
+  finishAt: number;
+}
+
+export interface RealmTrainBatchDto {
+  building: TrainingBuildingId;
+  unit: UnitId;
+  /** Units of this batch still to come. */
+  left: number;
+  /** When the last unit of this batch is done. */
+  finishAt: number;
+}
+
+export interface RealmVillageDto extends Coords {
+  id: number;
+  name: string;
+  points: number;
+  hearth: 'lit' | 'out';
+  /** The claimant's name while the hearth is out, else null. */
+  claimBy: string | null;
+  /** When the village changes owner if the hold clock keeps running; null when lit or paused. */
+  holdEndsAt: number | null;
+  /** The village cannot be attacked before this time, else null. */
+  protectedUntil: number | null;
+  /** Stock settled to serverTime, floored. */
+  resources: Resources;
+  /** Production per hour (speed applied). */
+  income: Resources;
+  /** Storage cap per resource. */
+  storageCap: number;
+  /** Population: used (buildings, troops at home and away, queued troops) and the Longhouse cap. */
+  population: { used: number; cap: number };
+  /** The build queue in order (running first) and its size limit; `slots - queue.length` is the free room. */
+  build: { queue: RealmBuildJobDto[]; slots: number };
+  /** Batches still training, in order of finishing. */
+  training: RealmTrainBatchDto[];
+  /** Units at home now (only non-zero entries). */
+  troops: Partial<Units>;
+  /** Units of this village that are out on a movement (only non-zero entries). */
+  away: Partial<Units>;
+  /** Attacks on the way here (scouts are never counted); `nextAt` is the soonest arrival, else null. */
+  incoming: { attacks: number; nextAt: number | null };
+  /** Marches of mine that left from this village and are not home yet, and the soonest arrival, else null. */
+  outgoing: { marches: number; nextAt: number | null };
+  /** The caller's own private note on this village, else null. */
+  note: { text: string; tags: NoteTag[] } | null;
+}
+
+export interface RealmResponse {
+  serverTime: number;
+  villages: RealmVillageDto[];
+}
+
+// ---- Notes and tags (docs/GAME_DESIGN.md, notes: private memory, no rule change) -------------------------------------------
+// Private to the author: nobody else (not the target, not tribe-mates) ever gets a note back. Plain text, shown as text only.
+// One note per target per author. A village note stays with the village when it changes owner. Limits: NOTE_TEXT_MAX characters,
+// NOTES_PER_PLAYER_MAX notes, at most all NOTE_TAGS; writes are rate limited (bucket `notes`).
+// GET  /api/notes                 -> 200 NotesResponse (the caller's own notes, newest edit first; no query keys)
+// POST /api/notes                 body NoteRequest -> 200 NoteResponse (creates or replaces the caller's note on that target; a
+//                                 target that does not exist -> 404 not_found; past the cap on a new one -> 409 note_limit)
+// POST /api/notes/:id/delete      body {} -> 204 (someone else's id -> 404 not_found, same as a missing one)
+export interface NoteRequest {
+  kind: NoteTargetKind;
+  /** Village id or player id. */
+  targetId: number;
+  text: string;
+  tags: NoteTag[];
+}
+
+export interface NoteDto {
+  id: number;
+  kind: NoteTargetKind;
+  targetId: number;
+  /** Village name (kind village) or player name (kind player), as it is today. */
+  targetName: string;
+  /** Village rows: the tile, and who owns it now (null = abandoned). Player rows: absent. */
+  x?: number;
+  y?: number;
+  ownerName?: string | null;
+  text: string;
+  tags: NoteTag[];
+  updatedAt: number;
+}
+
+export interface NotesResponse {
+  notes: NoteDto[];
+  limits: { textMax: number; max: number };
+}
+
+export interface NoteResponse {
+  note: NoteDto;
 }
 
 /** Server -> client text frames (JSON). */

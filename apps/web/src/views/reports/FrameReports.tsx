@@ -14,6 +14,8 @@ import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { UnitInfoButton } from '../../components/UnitInfo.tsx';
+import { ReportNoteChips } from '../../components/Notes.tsx';
+import { reportCoords } from '../../notes.ts';
 import { formatCoords, formatInt, formatSignedPercent } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { useReportRead } from '../../hooks/useReportRead.ts';
@@ -703,6 +705,12 @@ function rowTime(ts: number, now: number): string {
   return sameDay || yesterday ? time : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
+/** Chips of my note on the village a report is about (found by the coordinates in its title). */
+function ReportRowNote({ title }: { title: string }) {
+  const c = reportCoords(title);
+  return c ? <ReportNoteChips x={c.x} y={c.y} /> : null;
+}
+
 function ListPanel({
   list,
   filter,
@@ -774,6 +782,7 @@ function ListPanel({
                     {!r.read && <span className="frp-udot" role="img" aria-label="Unread" />}
                     {line.text}
                   </span>
+                  <ReportRowNote title={r.title} />
                   <Tag tone={out.tone}>{out.label}</Tag>
                   <span className="frp-rtm">{rowTime(r.createdAt, now)}</span>
                 </button>

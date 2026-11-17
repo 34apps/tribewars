@@ -34,6 +34,7 @@ export function statusFor(code: GameErrorCode): number {
     case 'already_in_tribe':
     case 'not_in_tribe':
     case 'group_limit':
+    case 'note_limit':
     case 'march_limit':
     case 'step_not_done':
     case 'step_claimed':

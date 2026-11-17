@@ -34,6 +34,10 @@ import { FrameMail } from './views/mail/FrameMail.tsx';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
+import { RealmView } from './views/RealmView.tsx';
+import { NotesView } from './views/NotesView.tsx';
+import { NotesProvider } from './hooks/useNotes.tsx';
+import './notes.css';
 import { SupportView } from './views/SupportView.tsx';
 
 const StaffView = lazy(() => import('./views/StaffView.tsx'));
@@ -102,7 +106,9 @@ const MAX_TOASTS = 2;
 export function Game({ onSignedOut }: { onSignedOut: () => void }) {
   return (
     <LiveProvider>
-      <GameScreen onSignedOut={onSignedOut} />
+      <NotesProvider>
+        <GameScreen onSignedOut={onSignedOut} />
+      </NotesProvider>
     </LiveProvider>
   );
 }
@@ -302,6 +308,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
 
   const pages = (
     <>
+      {tab === 'realm' && <RealmView />}
+      {tab === 'notes' && <NotesView />}
       {tab === 'army' && (desktop ? <FrameArmy /> : <ArmyView />)}
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
       {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
@@ -328,7 +336,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
         <KeepAlive active={tab === 'village'} value={ctx}>
           <VillageView active={tab === 'village'} backdrop={!desktop && isPage} />
         </KeepAlive>
-        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
+        {isPage && (desktop ? <div className={`fr-page${tab === 'army' || tab === 'reports' || tab === 'mail' || tab === 'realm' || tab === 'notes' ? ' is-fill' : ''}`}>{pages}</div> : <div className="page-sheet">{pages}</div>)}
         {mapVisited.current && (
           <KeepAlive active={tab === 'map'} value={ctx}>
             <MapView active={tab === 'map'} />

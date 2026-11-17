@@ -24,6 +24,7 @@ import {
   type SearchVillagesResponse,
   type MovementResponse,
   type OwnVillageDto,
+  type RealmResponse,
   type RecallRequest,
   type RenameVillageRequest,
   type SendRequest,
@@ -36,6 +37,8 @@ import {
 import type { AppContext } from '../context.ts';
 import { playerOf, requireAuth } from './auth.ts';
 import { fillSampleData, type SampleDataResponse } from '../sample-data.ts';
+
+const noQuery = { type: 'object', additionalProperties: false, properties: {} } as const;
 
 const idParams = {
   type: 'object',
@@ -253,6 +256,8 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
   });
 
   app.get('/api/state', auth, async (req): Promise<GameStateResponse> => ctx.game.getState(playerOf(req), req.nowMs));
+
+  app.get('/api/realm', { ...auth, schema: { querystring: noQuery } }, async (req): Promise<RealmResponse> => ctx.game.realm(playerOf(req), req.nowMs));
 
   app.get('/api/villages', auth, async (req): Promise<VillageListResponse> => ctx.game.villageList(playerOf(req), req.nowMs));
 

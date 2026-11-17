@@ -16,6 +16,7 @@ import { useDomination } from '../../hooks/useDomination.ts';
 import { Dialog } from '../army/FrameArmy.tsx';
 import { DominationRoad } from './DominationRoad.tsx';
 import { ProfileExtras } from '../ProfileExtras.tsx';
+import { PlayerNoteSection } from '../../components/Notes.tsx';
 import { makeSample } from '../rankingsSample.ts';
 import { paging, pageSlice } from '../reports/frame-reports-logic.ts';
 import { Chev } from '../village/FrameParts.tsx';
@@ -304,7 +305,12 @@ export function FrameRanks() {
           ...(row.playerId > 0 && !mine ? [{ label: 'Send mail', onClick: () => composeMail(row.username) }] : []),
           ...(row.tribe && row.tribe.id > 0 ? [{ label: 'View tribe', onClick: () => viewTribe({ id: row.tribe!.id }) }] : []),
         ],
-        extra: prof ? <ProfileExtras stats={prof.stats} achievements={prof.achievements} badges={prof.badges} worldBadges={prof.worldBadges} /> : undefined,
+        extra: prof ? (
+          <>
+            {row.playerId > 0 && !mine && <PlayerNoteSection playerId={row.playerId} name={row.username} />}
+            <ProfileExtras stats={prof.stats} achievements={prof.achievements} badges={prof.badges} worldBadges={prof.worldBadges} />
+          </>
+        ) : undefined,
         note:
           row.playerId < 0
             ? 'Sample player: not a real account, so there is nothing to open.'

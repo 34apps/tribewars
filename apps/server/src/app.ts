@@ -36,6 +36,7 @@ import { mailRoutes } from './routes/mail.ts';
 import { notificationRoutes } from './routes/notifications.ts';
 import { dominationRoutes } from './routes/domination.ts';
 import { siteRoutes } from './routes/sites.ts';
+import { noteRoutes } from './routes/notes.ts';
 import { troopGroupRoutes } from './routes/troop-groups.ts';
 import { firstStepsRoutes } from './routes/first-steps.ts';
 import { rankingRoutes } from './routes/rankings.ts';
@@ -379,6 +380,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   dominationRoutes(app, ctx);
   siteRoutes(app, ctx);
   troopGroupRoutes(app, ctx);
+  noteRoutes(app, ctx);
   firstStepsRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));

@@ -15,6 +15,8 @@ import type { IconName } from '../art/Icon.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { unitListText } from '../rules.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
+import { ReportNoteChips } from '../components/Notes.tsx';
+import { reportCoords } from '../notes.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { DAY_GROUP_LABEL, formatShortAgo, groupByDay, reportLine } from '../reports.ts';
 import { moraleLabel, villageReportText } from '../villages.ts';
@@ -675,6 +677,10 @@ export function ReportsView() {
                         <span className="rp-main">
                           <span className="rp-title">{line.text}</span>
                           {line.coords && <span className="rp-coords">({line.coords})</span>}
+                          {(() => {
+                            const c = reportCoords(r.title);
+                            return c ? <ReportNoteChips x={c.x} y={c.y} /> : null;
+                          })()}
                         </span>
                         <span className="rp-when">{formatShortAgo(r.createdAt, now)}</span>
                         <OutcomeTag report={r} />

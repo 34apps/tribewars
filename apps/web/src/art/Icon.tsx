@@ -900,6 +900,83 @@ const ICONS = {
       </>
     ),
   },
+  // Realm overview: a keep with a pennant and two small houses (all my villages at a glance).
+  realm: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M2 28V19h7v9z" fill="#F1E1C2" stroke="#2B211C" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M1 20l4.5-5L10 20z" fill="#C4623A" stroke="#2B211C" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M23 28V19h7v9z" fill="#F1E1C2" stroke="#2B211C" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M22 20l4.5-5L31 20z" fill="#C4623A" stroke="#2B211C" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M9 28V12h14v16z" fill="#C6AF88" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M9 12v-3h3v1.6h2.6V9h2.8v1.6H20V9h3v3z" fill="#A39E94" stroke="#2B211C" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M16 9V3" stroke="#2B211C" strokeWidth="2" strokeLinecap="round" />
+        <path d="M16 3.4h6l-1.8 2.4L22 8.2h-6z" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M13.4 28v-5.5a2.6 2.6 0 0 1 5.2 0V28z" fill="#714B29" stroke="#2B211C" strokeWidth="1.6" />
+      </>
+    ),
+  },
+  // A private note: a paper with a folded corner and written lines.
+  note: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M7 3h13l6 6v20H7z" fill="#FFF8E8" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M20 3v6h6" fill="#F1E1C2" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M11 15h11M11 19.5h11M11 24h7" stroke="#2B211C" strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+  },
+  // Note tags (own drawings): a sack of loot, a spiked burst, a heart, an eye, a rolled plan.
+  tagPrey: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M11 5.500c2 1.5 3.5 1.5 5 .6c1.5.9 3 .9 5-.6l-1.8 5.500c4 2.6 6.3 6.4 5.2 10.800c-.9 3.6-4.6 5.2-8.4 5.200s-7.5-1.6-8.4-5.200c-1.1-4.4 1.2-8.2 5.2-10.800z" fill="#C4623A" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M12.2 10.800h7.6" stroke="#2B211C" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="16" cy="20" r="4.2" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.8" />
+      </>
+    ),
+  },
+  tagMenace: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M16 2l3.2 7.200L27 6.500l-2.7 7.700L30 16l-5.7 1.800L27 25.500l-7.8-2.700L16 30l-3.2-7.200L5 25.500l2.7-7.700L2 16l5.7-1.800L5 6.500l7.8 2.700z" fill="#A9502D" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M16 10v7" stroke="#FFF8E8" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="16" cy="21.5" r="1.8" fill="#FFF8E8" />
+      </>
+    ),
+  },
+  tagFriend: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M16 28C8 22 3.5 17.5 3.5 11.800A6.6 6.6 0 0 1 16 8.600a6.6 6.6 0 0 1 12.5 3.200C28.5 17.5 24 22 16 28z" fill="#2F9AA0" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M8.5 11.200c.3-2 1.8-3 3.4-2.9" stroke="#7AD3CD" strokeWidth="2" strokeLinecap="round" fill="none" />
+      </>
+    ),
+  },
+  tagWatch: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M2 16C6 9.5 10.8 7 16 7s10 2.5 14 9c-4 6.5-8.8 9-14 9S6 22.5 2 16z" fill="#FFF8E8" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <circle cx="16" cy="16" r="5.2" fill="#F2B33D" stroke="#2B211C" strokeWidth="1.8" />
+        <circle cx="16" cy="16" r="2.2" fill="#2B211C" />
+      </>
+    ),
+  },
+  tagPlan: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M6 6h18a3 3 0 0 1 3 3v16a3 3 0 0 0 3 3H10a3 3 0 0 1-3-3V9a3 3 0 0 0-3-3z" fill="#FFF8E8" stroke="#2B211C" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M12 12h11M12 16.500h11M12 21h6" stroke="#7A3B5E" strokeWidth="2.2" strokeLinecap="round" />
+      </>
+    ),
+  },
 } satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

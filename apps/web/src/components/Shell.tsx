@@ -22,9 +22,9 @@ import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-export const TAB_LABEL: Record<Tab, string> = { village: 'Village', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
-export const TAB_ICON: Record<Tab, IconName> = { village: 'village', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
-/** The dock buttons on phones; Mail, Tribe and Ranks live in the More sheet. */
+export const TAB_LABEL: Record<Tab, string> = { village: 'Village', realm: 'Realm', map: 'Map', army: 'Army', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
+export const TAB_ICON: Record<Tab, IconName> = { village: 'village', realm: 'realm', map: 'map', army: 'army', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
+/** The dock buttons on phones; Realm, Mail, Tribe and Ranks live in the More sheet. */
 const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
 
 /** "+3k" style rate for the narrow phone chips ("per hour" is read out, not shown). */
@@ -241,6 +241,9 @@ function AccountItems({
             Rename village
           </button>
         ))}
+      <button type="button" className="btn btn-block" onClick={go(() => navigate('notes'))}>
+        Notes
+      </button>
       <button type="button" className="btn btn-block" onClick={go(onChangeChieftain)}>
         Change chieftain
       </button>
@@ -400,6 +403,7 @@ function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => vo
         </button>
       </div>
       <div className="more-rows">
+        {row('realm', 0)}
         {row('mail', unreadMail)}
         {row('tribe', tribeInvites + tribeAlerts, tribeAlerts > 0)}
         {row('ranks', 0)}

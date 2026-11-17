@@ -1,4 +1,4 @@
-import type { Mission, ResourceId, UnitId } from '@clanfire/engine';
+import type { Mission, NoteTag, ResourceId, UnitId } from '@clanfire/engine';
 import type { IconName } from './art/Icon.tsx';
 
 // Names of the drawn icons (src/art/Icon.tsx) per game thing. Buildings use their sprites (src/art/buildings.ts).
@@ -49,4 +49,13 @@ export const MISSION_NAME: Record<MovementKind, string> = {
   occupy: 'Occupy',
   return: 'Return',
   shipment: 'Shipment',
+};
+
+/** Note tags: one own drawing each (art/Icon.tsx); labels and hints come from the engine's NOTE_TAG_INFO. */
+export const NOTE_TAG_ICON: Record<NoteTag, IconName> = {
+  prey: 'tagPrey',
+  menace: 'tagMenace',
+  friend: 'tagFriend',
+  watch: 'tagWatch',
+  plan: 'tagPlan',
 };

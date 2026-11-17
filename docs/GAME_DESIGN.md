@@ -2273,3 +2273,34 @@ Nine small tasks with a small reward each, shown as a card in the web client. Nu
 - **Hide:** the player can fold the card away and bring it back (stored flag). When all nine are claimed (`allClaimed`) the client stops showing it.
 - Applies to every player, existing ones see what they already did as done, test accounts included. On an ended world claim and hide answer 403 "This world has ended."
 - API: `firstSteps` on `GET /api/state`; `POST /api/first-steps/:id/claim` `{villageId}`; `POST /api/first-steps/hidden` `{hidden}` (`packages/engine/src/api.ts`).
+
+## 21. Realm overview and notes (2026-11-17)
+
+Two convenience features for players with several villages and many targets. **No game rule changes, no balance numbers changed, nobody gets faster or stronger**: they only show what the player already owns and let the player remember things. Contract: `packages/engine/src/api.ts` ("Realm overview", "Notes and tags"); note rules: `packages/engine/src/notes.ts`.
+
+### 21.1 Realm overview (the "Realm" page)
+
+One page with all of the player's own villages side by side, so nobody has to open each village to see what needs attention.
+
+- **Columns:** village (name, tile, points, hold state: hearth lit or out, with the claimant's name and when the village changes owner if the hold keeps running); stock (wood, food, iron, gold with a fullness bar against the storage cap, and the income per hour with the world speed applied); population (used / Longhouse cap); build queue (what is building and when it ends, plus a flag when there is a free slot); training (batches still to come); troops at home (and the units that are away); incoming attacks (count and soonest arrival; scouts are never counted) and outgoing marches (count and soonest arrival); the player's own note and tags on the village.
+- **Totals row** at the bottom (stock, income, population, troops, incoming, outgoing).
+- **Sorting** by any column the player picks, chosen by hand (there is no automatic "attention first" order yet). **Paging** on desktop (a table, one row per village); on phones (360 px) one card per village.
+- **Click a cell** (build queue, troops, incoming, ...) to jump to that village's matching page.
+- **One request:** `GET /api/realm` returns the whole page. Only the caller's own villages, never anybody else's; every village is settled to the server's time in memory (nothing is saved by reading). The server runs a fixed number of queries (villages, incoming attacks, marches, notes: four) however many villages there are, plus one name lookup per distinct hearth claimant. At most `MAX_VILLAGES_PER_PLAYER` (20) rows. Read only: there are no "do it in all villages" buttons (the owner said not now).
+
+### 21.2 Private notes and tags
+
+A player can attach a short private note and tags to any village or any player ("raid again at noon", "has a big army"), to remember targets across a world that has hundreds of villages.
+
+- **Tags:** a fixed set of five (`NOTE_TAG_INFO` in `packages/engine/src/notes.ts`), at most all five on one note, always shown in this order:
+  - **Prey** — worth raiding again.
+  - **Menace** — dangerous: strong army or hits often.
+  - **Friend** — someone you play with.
+  - **Watch** — keep an eye on it.
+  - **Plan** — you mean to do something here.
+- **Text:** plain text, at most 280 characters (`NOTE_TEXT_MAX`), one line (no line breaks), no control characters and no text-direction override marks; trimmed. The text may be empty when at least one tag is set; a note with neither text nor tag is refused (delete it instead). The client shows it as text only: never as HTML, no automatic links.
+- **Limits:** one note per target per author (saving again replaces it); at most 500 notes per player (`NOTES_PER_PLAYER_MAX`); replacing a note never counts against the cap.
+- **Private:** only the author ever gets a note back. The target never sees it, and tribe-mates do not either. A tribe-shared version is a possible later option, not built.
+- **A village note stays with the village** when the village changes owner (it is about the place, and the note is still the author's own). A player note follows the player.
+- **Where notes show:** on the map tile panel (village note, and the owner's player note); on player profiles; next to the village names in report titles (matched by the coordinates in the title, until report summaries carry a village id); in the Realm page's own-village column; and on a Notes page that lists all of the player's notes with a filter by tag.
+- **API:** `GET /api/notes`, `POST /api/notes` (create or replace), `POST /api/notes/:id/delete`; writes are rate limited. Storage: table `notes` (schema v24), deleted together with the player. Not built: tribe-shared notes, notes on the incoming-attack page and the send form (those pages live on other branches), including notes in a data export.

@@ -37,6 +37,10 @@ import type {
   MeResponse,
   MovementResponse,
   MyTribeResponse,
+  NoteRequest,
+  NoteResponse,
+  NotesResponse,
+  RealmResponse,
   NotificationsReadRequest,
   NotificationsResponse,
   OwnVillageDto,
@@ -319,6 +323,12 @@ export const api = {
   createTroopGroup: (body: TroopGroupRequest) => request<TroopGroupResponse>('POST', '/api/troop-groups', body),
   updateTroopGroup: (id: number, body: TroopGroupRequest) => request<TroopGroupResponse>('POST', `/api/troop-groups/${id}`, body),
   deleteTroopGroup: (id: number) => request<void>('POST', `/api/troop-groups/${id}/delete`, {}),
+  /** Realm overview: all my villages in one request (read-only). */
+  realm: () => request<RealmResponse>('GET', '/api/realm'),
+  /** My private notes and tags on villages and players, newest edit first. */
+  notes: () => request<NotesResponse>('GET', '/api/notes'),
+  saveNote: (body: NoteRequest) => request<NoteResponse>('POST', '/api/notes', body),
+  deleteNote: (id: number) => request<void>('POST', `/api/notes/${id}/delete`, {}),
   reports: () => request<ReportListResponse>('GET', '/api/reports'),
   report: (id: number) => request<ReportDto>('GET', `/api/reports/${id}`),
   mailList: (box: MailBox, before?: number) =>

@@ -196,6 +196,21 @@ CREATE TABLE IF NOT EXISTS troop_groups (
 );
 CREATE INDEX IF NOT EXISTS idx_troop_groups_player ON troop_groups(player_id);
 
+-- ---- Private notes and tags (docs/GAME_DESIGN.md, notes): one note per author and target (a village id or a player id; the id is NOT a
+-- foreign key on purpose: a village note stays with the village when it changes owner). tags = JSON array of tag ids (engine NOTE_TAGS).
+-- At most NOTES_PER_PLAYER_MAX per author (checked inside one transaction). Rows are only ever read/changed keyed on player_id.
+CREATE TABLE IF NOT EXISTS notes (
+  id         INTEGER PRIMARY KEY,
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  kind       TEXT    NOT NULL CHECK (kind IN ('village', 'player')),
+  target_id  INTEGER NOT NULL,
+  text       TEXT    NOT NULL,
+  tags       TEXT    NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (player_id, kind, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_notes_player ON notes(player_id);
+
 -- ---- First steps (docs/GAME_DESIGN.md "First steps"): a row per step the game has seen done (sticky), claimed_at set once the
 -- reward was taken (the claim is one UPDATE ... WHERE claimed_at IS NULL inside a transaction). first_steps_card holds the hide flag.
 CREATE TABLE IF NOT EXISTS first_steps (
@@ -626,9 +641,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 23; // 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 24; // 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '4fbbf5a22cfc0c26';
+export const SCHEMA_FINGERPRINT = '6610176c84fa5377';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

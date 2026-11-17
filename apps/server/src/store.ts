@@ -46,6 +46,7 @@ import {
 import { statColumn } from './db.ts';
 import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
+import { NoteStore } from './notes-store.ts';
 import { TroopGroupStore } from './troop-group-store.ts';
 import { FirstStepsStore } from './first-steps-store.ts';
 import type { LiveEvent } from './live-events.ts';
@@ -525,6 +526,7 @@ export class Store extends SqlBase {
   readonly mail: MailStore;
   readonly notifications: NotificationStore;
   readonly troopGroups: TroopGroupStore;
+  readonly notes: NoteStore;
   readonly firstSteps: FirstStepsStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
@@ -550,6 +552,7 @@ export class Store extends SqlBase {
     this.msgReports = new ReportStore(db);
     this.notifications = new NotificationStore(db);
     this.troopGroups = new TroopGroupStore(db);
+    this.notes = new NoteStore(db);
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
@@ -1510,6 +1513,38 @@ export class Store extends SqlBase {
       playerId,
       playerId,
     ).map((r) => toMovementView(r, this.siteNameAt));
+  }
+
+  /**
+   * Realm overview: per own village, the attacks on the way to it (scouts and every other kind are never counted; attacks sent
+   * by the player themself are skipped, as in the village list) and the soonest arrival. One grouped query for all villages.
+   */
+  incomingAttackStats(playerId: number): Map<number, { count: number; nextAt: number }> {
+    const rows = this.all(
+      `SELECT m.target_village_id AS village_id, COUNT(*) AS n, MIN(m.arrive_at) AS next_at
+       FROM movements m JOIN villages o ON o.id = m.origin_village_id
+       WHERE m.kind = 'attack' AND COALESCE(o.owner_id, 0) <> ?
+         AND m.target_village_id IN (SELECT id FROM villages WHERE owner_id = ?)
+       GROUP BY m.target_village_id`,
+      playerId,
+      playerId,
+    );
+    return new Map(rows.map((r) => [r.village_id as number, { count: r.n as number, nextAt: r.next_at as number }]));
+  }
+
+  /**
+   * Realm overview: per own village, the movements whose army belongs to it (every kind; a return keeps its home village as origin)
+   * and the soonest arrival. One grouped query for all villages.
+   */
+  outgoingMarchStats(playerId: number): Map<number, { count: number; nextAt: number }> {
+    const rows = this.all(
+      `SELECT m.origin_village_id AS village_id, COUNT(*) AS n, MIN(m.arrive_at) AS next_at
+       FROM movements m
+       WHERE m.origin_village_id IN (SELECT id FROM villages WHERE owner_id = ?)
+       GROUP BY m.origin_village_id`,
+      playerId,
+    );
+    return new Map(rows.map((r) => [r.village_id as number, { count: r.n as number, nextAt: r.next_at as number }]));
   }
 
   /**

@@ -21,12 +21,12 @@ import { worldRules } from '@clanfire/engine';
 import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
-export type NavTab = 'village' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
+export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu (not in the navigation bar). */
-export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator';
+export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator' | 'notes';
 export type Tab = NavTab | MenuPage;
-export const TABS: readonly NavTab[] = ['village', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
-export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator'];
+export const TABS: readonly NavTab[] = ['village', 'realm', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
+export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator', 'notes'];
 
 /** Mail compose form pre-filled from elsewhere (profile, ranking row, Reply). */
 export interface MailDraft {

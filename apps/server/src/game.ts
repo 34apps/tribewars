@@ -11,6 +11,10 @@ import {
   claimReward,
   firstStepReward,
   storageCap,
+  MAX_BUILD_QUEUE,
+  populationCap,
+  populationUsage,
+  productionPerHour,
   HOLD_MIN_POPULATION,
   UNIT_IDS,
   abandonVillageKeepBuildings,
@@ -122,6 +126,9 @@ import {
   type MovementResponse,
   type OwnVillageDto,
   type PlayerDto,
+  type RealmResponse,
+  type RealmTrainBatchDto,
+  type RealmVillageDto,
   type ReportDto,
   type ReportListResponse,
   type Resources,
@@ -1840,6 +1847,71 @@ export class GameService {
           incomingAttack: incoming.has(v.id),
           nextAttackAt: incoming.get(v.id) ?? null,
           protectedUntil,
+        };
+      }),
+    };
+  }
+
+  /**
+   * The realm overview (GET /api/realm): all of the player's own villages, each settled to `t` in memory only (nothing is saved, like
+   * the village list). A constant number of queries however many villages there are: the villages, one grouped query each for incoming
+   * attacks and for marches, and one for the notes; the hearth claimant's name is read only for a village whose hearth is out.
+   */
+  realm(player: PlayerRow, t: number): RealmResponse {
+    const villages = this.store.villagesOfPlayer(player.id);
+    const incoming = this.store.incomingAttackStats(player.id);
+    const outgoing = this.store.outgoingMarchStats(player.id);
+    const notes = this.store.notes.forVillages(player.id, villages.map((v) => v.id));
+    const claimNames = new Map<number, string>();
+    return {
+      serverTime: t,
+      villages: villages.map((v): RealmVillageDto => {
+        const settled = settleVillage(v.state, t, this.settings);
+        const h = settled.hearth;
+        let claimBy: string | null = null;
+        if (h) {
+          claimBy = claimNames.get(h.claimBy) ?? null;
+          if (claimBy === null) {
+            claimBy = this.store.getPlayer(h.claimBy)?.username ?? '?';
+            claimNames.set(h.claimBy, claimBy);
+          }
+        }
+        const training: RealmTrainBatchDto[] = [];
+        for (const building of TRAINING_BUILDING_IDS) {
+          for (const job of settled.trainQueues[building] ?? []) {
+            if (job.done >= job.count) continue;
+            training.push({ building, unit: job.unit, left: job.count - job.done, finishAt: job.startAt + job.count * job.perUnitMs });
+          }
+        }
+        training.sort((a, b) => a.finishAt - b.finishAt);
+        const nonZero = (u: Units): Partial<Units> => {
+          const out: Partial<Units> = {};
+          for (const id of UNIT_IDS) if (u[id] > 0) out[id] = u[id];
+          return out;
+        };
+        const inc = incoming.get(v.id);
+        const out = outgoing.get(v.id);
+        return {
+          id: v.id,
+          name: v.name,
+          x: v.x,
+          y: v.y,
+          points: villagePoints(settled),
+          hearth: h ? 'out' : 'lit',
+          claimBy,
+          holdEndsAt: h && h.runningSince !== null ? holdDueAt(h, this.settings) : null,
+          protectedUntil: settled.protectedUntil !== undefined && settled.protectedUntil > t ? settled.protectedUntil : null,
+          resources: floorResources(settled.resources),
+          income: productionPerHour(settled, this.settings),
+          storageCap: storageCap(settled),
+          population: { used: populationUsage(settled).total, cap: populationCap(settled) },
+          build: { queue: settled.buildQueue.map((j) => ({ building: j.building, targetLevel: j.targetLevel, finishAt: j.finishAt })), slots: MAX_BUILD_QUEUE },
+          training,
+          troops: nonZero(settled.troops),
+          away: nonZero(settled.away),
+          incoming: { attacks: inc?.count ?? 0, nextAt: inc?.nextAt ?? null },
+          outgoing: { marches: out?.count ?? 0, nextAt: out?.nextAt ?? null },
+          note: notes.get(v.id) ?? null,
         };
       }),
     };

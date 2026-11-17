@@ -319,6 +319,7 @@ export type GameErrorCode =
   | 'not_in_tribe'
   /** Saved troop groups: the player already has the maximum (HTTP 409). */
   | 'group_limit'
+  | 'note_limit'
   /** Marches in flight: the player already has MAX_MARCHES_IN_FLIGHT on the road (HTTP 409). */
   | 'march_limit'
   | 'step_not_done'

@@ -6,6 +6,8 @@ import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { chieftainPriceText } from '../chest.ts';
 import { HoldCard } from '../components/HoldCard.tsx';
+import { TargetNote } from '../components/Notes.tsx';
+import { useNotes } from '../hooks/useNotes.tsx';
 import { useUnitInfo } from '../components/UnitInfo.tsx';
 import { SiegePicker } from '../components/Siege.tsx';
 import { TroopGroupBar } from '../components/TroopGroups.tsx';
@@ -594,6 +596,18 @@ function ArriveTime({ ts, now }: { ts: number; now: number }) {
   );
 }
 
+/** My private notes on this tile: on the village, and (when I already have one) on the player who owns it. The map carries no player id, so a new player note starts from the player's profile in the rankings. */
+function TileNotes({ villageId, owner, mine }: { villageId: number; owner: string | null; mine: boolean }) {
+  const notes = useNotes();
+  const ownerNote = !mine && owner ? notes.byPlayerName.get(owner.toLowerCase()) : undefined;
+  return (
+    <div className="nt-section wm-notes">
+      <TargetNote kind="village" targetId={villageId} label="Your note on this village" variant="wm" />
+      {ownerNote && <TargetNote kind="player" targetId={ownerNote.targetId} label={`Your note on ${ownerNote.targetName}`} variant="wm" />}
+    </div>
+  );
+}
+
 export function TilePanel({ tile, village, loaded, terrain, preferred, occupied, onClose }: Props) {
   const { village: mine, villages, selectVillage, player, navigate, viewTribe, settings, stationed, now } = useGame();
   // One of my villages stands here (the map may still be loading, then my own list answers).
@@ -746,6 +760,8 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           </div>
         )}
       </dl>
+
+      {(village || ownHere) && <TileNotes villageId={(village?.id ?? ownHere?.id)!} owner={owner} mine={isOwn} />}
 
       {village?.tribeStore && (
         <p className="wm-note" role="note">
