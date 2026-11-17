@@ -923,3 +923,17 @@ Fill time of the free room with a mixed army is now 12.2 / 12.5 / 12.6 / 12.7 da
 Not changed: income, storage, prices (a level costs 2.2 / 3.8 / 6.0 / 7.8 hours of the village's income at 25 / 50 / 75 / 100% of the ladder; storage fills in 42 / 58 / 76 / 100 h), points (a village is 973 / 3,747 / 11,250 / 31,265 points at 25 / 50 / 75 / 100%; the last quarter holds 64%), Chieftain rule (2 Chieftains from 77% of the ladder, 3 from 93%).
 Findings left open: the sim's computer players sit at 90% of storage for 12,000+ player-hours in 90 days whatever the room curve, so training time (not room) limits their armies; `MAP_STAGE_MIN_POINTS` tops out at 3,500, reached at half the ladder.
 The conquest runs before 2026-11-17 `--conquest --seeds 5` use 30 days unless `--days 90` is passed.
+
+## 14. Combined check, 2026-11-17 (server speed pass + economy picks + map stage spread, all merged on `originality-tiers`)
+
+Map picture stages are display only (no rules): `MAP_STAGE_MIN_POINTS` 0 / 300 / 1,000 / 3,750 / 6,500 / 11,250 (was 0 / 100 / 300 / 800 / 1,800 / 3,500); abandoned villages share them.
+
+| target | result |
+|---|---|
+| raider / builder score, 30 d | 16,022 / 10,615 = 1.51x (ok); at 90 d builder 69,254, raider 58,714, balanced 90,593 (no ratio target at 90 d) |
+| 2nd village day 21-28 | builder 26.5, raider 25.3 (balanced 19.3 by taking) (ok) |
+| conquest, 5 seeds x 90 d: worst biggest/second | 1.73 (ok, <= 2) |
+| player-village takes 30-50 | 37 over the 5 seeds (ok) |
+| restarts <= 26 | 21 (ok) |
+
+Nothing retuned (`NPC_PRODUCTION_FACTOR` untouched).
