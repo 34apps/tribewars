@@ -21,7 +21,7 @@ describe('building cost and time', () => {
   it('time shrinks with Town Hall level and with world speed', () => {
     assert.equal(buildTimeMs('hall', 1, 1, S1), 600_000);
     assert.equal(buildTimeMs('lumber', 3, 1, S1), 573_352);
-    assert.equal(buildTimeMs('lumber', 3, 5, S1), 486_974);
+    assert.equal(buildTimeMs('lumber', 3, 5, S1), 480_112);
     assert.equal(buildTimeMs('hall', 1, 1, S10), 60_000);
   });
 });

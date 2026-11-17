@@ -1,0 +1,193 @@
+# Balance simulation — 90 days, speed 1, seed 20261104
+
+## builder
+
+| day | wood | food | iron | gold | villages | bldg lvls (all) | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 50 | 1365 | 908 | 43 | 1 | 23 (home: hall 3 farm 4 barr 0) | 251 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 18 / 18 |
+| 2 | 47 | 2381 | 1298 | 43 | 1 | 33 (home: hall 3 farm 8 barr 0) | 475 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 43 / 43 |
+| 3 | 162 | 3363 | 2587 | 43 | 1 | 46 (home: hall 4 farm 8 barr 1) | 689 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 68 / 68 |
+| 5 | 513 | 4786 | 3846 | 43 | 1 | 63 (home: hall 5 farm 12 barr 1) | 1339 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 134 / 134 |
+| 7 | 371 | 9002 | 7008 | 38 | 1 | 84 (home: hall 10 farm 12 barr 3) | 1894 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 190 / 190 |
+| 10 | 383 | 8524 | 7759 | 137 | 1 | 96 (home: hall 10 farm 12 barr 3) | 2366 | 213 | 1804 | 5876 | 0 | 0 | 0 (0) | 290 / 290 |
+| 14 | 2892 | 17559 | 13257 | 80 | 1 | 122 (home: hall 12 farm 16 barr 3) | 4166 | 262 | 2208 | 7214 | 0 | 0 | 0 (0) | 570 / 570 |
+| 21 | 5587 | 9002 | 17392 | 157 | 1 | 153 (home: hall 12 farm 16 barr 8) | 4965 | 773 | 6632 | 21431 | 0 | 0 | 0 (0) | 1165 / 1165 |
+| 30 | 17774 | 4161 | 18977 | 37 | 2 | 203 (home: hall 12 farm 16 barr 8) | 5725 | 618 | 5320 | 17156 | 0 | 0 | 0 (0) | 2261 / 961 |
+| 90 | 71933 | 22206 | 87526 | 140 | 5 | 764 (home: hall 12 farm 16 barr 8) | 24740 | 3943 | 33688 | 109141 | 0 | 0 | 0 (0) | 21074 / 9041 |
+
+Trained: pikeman 3580, guard 560. Longest idle stretch (nothing worthwhile to do in any village): 5.8 h (from hour 13); starting from day 20 on: 0.7 h.
+Enemy raids (assumed, day x4 raiders on every unprotected village): d7: 28 raiders broke through, lost 784; d14: 56 raiders held; d21: 84 raiders held; d28: 112 raiders held; d28: 112 raiders broke through, lost 3024.
+Renown 21076 earned, 12033 reserved for Chieftains (buildings 2176, raids 0, defence kills 179, defender trickle 7810, Feast 10910 from 1091 Feasts).
+Villages: 5 at the end (points each: 4989, 4989, 4989, 4989, 4784). Gains: founded on day 26.6 with 48 points; founded on day 40.3 with 48 points; founded on day 56.4 with 48 points; founded on day 72.4 with 48 points. Chieftains 4 trained, strikes 0/0 won, lost 0, hold failed 0, founded 4, waited and fell back to founding 0.
+Chieftain gold (chest): 18512 paid for 4 Chieftains. Chest on day 30 / 60 / 90: 683 / 1731 / 12650. Waiting for the next Chieftain, hours: renown+gold 1591, renown 0, gold 299, resources 38, target 0, other 0. Binding limit per Chieftain trained: renown+gold 0, renown 0, gold 0, resources 4, none 0.
+
+## raider
+
+| day | wood | food | iron | gold | villages | bldg lvls (all) | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 100 | 1413 | 924 | 40 | 1 | 18 (home: hall 2 farm 3 barr 2) | 174 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 12 / 12 |
+| 2 | 413 | 2494 | 2060 | 40 | 1 | 26 (home: hall 2 farm 5 barr 2) | 293 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 23 / 23 |
+| 3 | 75 | 2961 | 2868 | 40 | 1 | 34 (home: hall 2 farm 7 barr 4) | 434 | 53 | 1596 | 473 | 7618 | 255 | 19 (17) | 58 / 58 |
+| 5 | 387 | 3390 | 3404 | 35 | 1 | 52 (home: hall 6 farm 9 barr 4) | 795 | 177 | 4128 | 1452 | 25126 | 1785 | 99 (96) | 132 / 132 |
+| 7 | 1582 | 2332 | 3745 | 20 | 1 | 56 (home: hall 7 farm 9 barr 4) | 866 | 391 | 9868 | 4021 | 50375 | 6545 | 196 (193) | 195 / 195 |
+| 10 | 572 | 6660 | 6099 | 20 | 1 | 86 (home: hall 8 farm 13 barr 8) | 1938 | 625 | 19576 | 5467 | 105603 | 17765 | 395 (390) | 452 / 452 |
+| 14 | 2363 | 10334 | 10398 | 20 | 1 | 97 (home: hall 11 farm 13 barr 11) | 2502 | 1429 | 42356 | 14108 | 170384 | 29580 | 641 (635) | 604 / 604 |
+| 21 | 2058 | 12642 | 13950 | 20 | 1 | 112 (home: hall 13 farm 14 barr 13) | 3805 | 2837 | 86452 | 26618 | 283910 | 47685 | 1121 (1116) | 1119 / 1119 |
+| 30 | 6415 | 16294 | 20603 | 140 | 2 | 193 (home: hall 14 farm 15 barr 14) | 5734 | 4864 | 164420 | 39716 | 402102 | 73440 | 1953 (1942) | 1831 / 531 |
+| 90 | 24121 | 32082 | 30929 | 260 | 3 | 307 (home: hall 16 farm 17 barr 16) | 14526 | 25804 | 771616 | 240040 | 941960 | 186065 | 9246 (9229) | 9056 / 5676 |
+
+Raids by target tier — T1: 4487 raids, 4481 won, loot 300792, losses 7395; T2: 3703 raids, 3693 won, loot 372172, losses 107355; T3: 882 raids, 881 won, loot 191670, losses 58140; T5: 175 raids, 175 won, loot 77353, losses 13175
+
+Trained: pikeman 4042, raider 22883, pathfinder 2142. Longest idle stretch (nothing worthwhile to do in any village): 1.2 h (from hour 2); starting from day 20 on: 0.8 h.
+Enemy raids (assumed, day x4 raiders on every unprotected village): d7: 28 raiders held; d14: 56 raiders held; d21: 84 raiders held; d28: 112 raiders broke through, lost 1197; d28: 112 raiders held.
+Renown 9057 earned, 3380 reserved for Chieftains (buildings 801, raids 232, defence kills 234, defender trickle 6519, Feast 1270 from 127 Feasts).
+Villages: 3 at the end (points each: 8507, 3602, 2417). Gains: taken (tier 5) on day 23.8 with 872 points; taken (tier 3) on day 49.3 with 834 points. Chieftains 2 trained, strikes 2/2 won, lost 0, hold failed 0, founded 0, waited and fell back to founding 0.
+Chieftain gold (chest): 5200 paid for 2 Chieftains. Chest on day 30 / 60 / 90: 3998 / 10631 / 21681. Waiting for the next Chieftain, hours: renown+gold 274, renown 1250, gold 0, resources 34, target 0, other 400. Binding limit per Chieftain trained: renown+gold 0, renown 0, gold 0, resources 2, none 0.
+
+## turtle
+
+| day | wood | food | iron | gold | villages | bldg lvls (all) | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 30 | 1671 | 752 | 15 | 1 | 21 (home: hall 2 farm 4 barr 1) | 211 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 15 / 15 |
+| 2 | 38 | 2440 | 1345 | 15 | 1 | 29 (home: hall 3 farm 4 barr 3) | 294 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 23 / 23 |
+| 3 | 293 | 2465 | 1964 | 15 | 1 | 30 (home: hall 3 farm 4 barr 3) | 308 | 61 | 440 | 1500 | 0 | 0 | 0 (0) | 24 / 24 |
+| 5 | 292 | 2465 | 2477 | 15 | 1 | 30 (home: hall 3 farm 4 barr 3) | 308 | 240 | 1736 | 5917 | 0 | 0 | 0 (0) | 68 / 68 |
+| 7 | 171 | 2494 | 2494 | 15 | 1 | 33 (home: hall 3 farm 5 barr 3) | 359 | 387 | 2800 | 9543 | 0 | 0 | 0 (0) | 146 / 146 |
+| 10 | 337 | 3431 | 3440 | 15 | 1 | 44 (home: hall 5 farm 6 barr 3) | 545 | 579 | 4176 | 14237 | 0 | 0 | 0 (0) | 273 / 273 |
+| 14 | 332 | 3430 | 3440 | 15 | 1 | 47 (home: hall 5 farm 6 barr 3) | 649 | 968 | 6928 | 23637 | 0 | 0 | 0 (0) | 428 / 428 |
+| 21 | 329 | 3413 | 3426 | 15 | 1 | 50 (home: hall 5 farm 6 barr 3) | 829 | 1653 | 11680 | 39903 | 0 | 0 | 0 (0) | 697 / 697 |
+| 30 | 332 | 3430 | 3355 | 15 | 1 | 53 (home: hall 5 farm 6 barr 3) | 1141 | 2474 | 17416 | 59522 | 0 | 0 | 0 (0) | 1043 / 1043 |
+| 90 | 4786 | 4786 | 4786 | 19 | 1 | 69 (home: hall 7 farm 6 barr 3) | 2775 | 7377 | 59776 | 190008 | 0 | 0 | 0 (0) | 3281 / 3281 |
+
+Trained: pikeman 5093, guard 1586, pathfinder 698. Longest idle stretch (nothing worthwhile to do in any village): 5.2 h (from hour 26); starting from day 20 on: 3.3 h.
+Enemy raids (assumed, day x4 raiders on every unprotected village): none.
+Renown 3281 earned, 0 reserved for Chieftains (buildings 177, raids 0, defence kills 0, defender trickle 3104, Feast 0 from 0 Feasts).
+Villages: 1 at the end (points each: 2775). Gains: none. Chieftains 0 trained, strikes 0/0 won, lost 0, hold failed 0, founded 0, waited and fell back to founding 0.
+Chieftain gold (chest): 0 paid for 0 Chieftains. Chest on day 30 / 60 / 90: 85 / 1917 / 4797. Waiting for the next Chieftain, hours: renown+gold 0, renown 0, gold 0, resources 0, target 0, other 0. Binding limit per Chieftain trained: renown+gold 0, renown 0, gold 0, resources 0, none 0.
+
+## balanced
+
+| day | wood | food | iron | gold | villages | bldg lvls (all) | points | army | attack | defense | raid loot | raid losses | raids (won) | renown total / balance |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 120 | 1618 | 968 | 20 | 1 | 19 (home: hall 2 farm 4 barr 2) | 198 | 0 | 0 | 0 | 0 | 0 | 0 (0) | 13 / 13 |
+| 2 | 194 | 2458 | 1335 | 20 | 1 | 26 (home: hall 2 farm 6 barr 2) | 299 | 32 | 704 | 544 | 0 | 0 | 0 (0) | 24 / 24 |
+| 3 | 230 | 3431 | 3423 | 20 | 1 | 39 (home: hall 3 farm 8 barr 3) | 484 | 75 | 1636 | 1285 | 8050 | 255 | 12 (12) | 64 / 64 |
+| 5 | 311 | 3330 | 3379 | 0 | 1 | 48 (home: hall 5 farm 8 barr 3) | 675 | 372 | 7484 | 6824 | 27872 | 3400 | 92 (88) | 153 / 153 |
+| 7 | 377 | 5043 | 4303 | 39 | 1 | 70 (home: hall 7 farm 10 barr 3) | 1177 | 697 | 12032 | 14239 | 61539 | 8500 | 192 (192) | 323 / 323 |
+| 10 | 478 | 7373 | 5635 | 0 | 1 | 96 (home: hall 10 farm 12 barr 5) | 2023 | 1196 | 20689 | 26357 | 118805 | 14620 | 323 (319) | 627 / 627 |
+| 14 | 683 | 14874 | 14757 | 0 | 1 | 121 (home: hall 14 farm 15 barr 5) | 3736 | 1620 | 27741 | 36415 | 181580 | 20060 | 483 (480) | 932 / 932 |
+| 21 | 694 | 26418 | 22758 | 39 | 2 | 210 (home: hall 17 farm 18 barr 5) | 7451 | 3076 | 57619 | 66082 | 286072 | 31635 | 866 (861) | 1534 / 234 |
+| 30 | 2579 | 39523 | 41192 | 100 | 2 | 258 (home: hall 19 farm 20 barr 5) | 11868 | 6052 | 116818 | 127249 | 391800 | 55790 | 1680 (1670) | 2729 / 1429 |
+| 90 | 72736 | 79531 | 83913 | 39 | 4 | 482 (home: hall 22 farm 23 barr 5) | 31084 | 34494 | 732122 | 693308 | 730265 | 80045 | 13651 (13619) | 13063 / 6355 |
+
+Raids by target tier — T1: 10975 raids, 10949 won, loot 288073, losses 2805; T2: 2114 raids, 2106 won, loot 239139, losses 35460; T3: 481 raids, 481 won, loot 141240, losses 34895; T5: 84 raids, 84 won, loot 61835, losses 6885
+
+Trained: pikeman 17071, guard 3853, raider 12855, outrider 1882. Longest idle stretch (nothing worthwhile to do in any village): 3.8 h (from hour 6); starting from day 20 on: 0.2 h.
+Enemy raids (assumed, day x4 raiders on every unprotected village): d7: 28 raiders held; d14: 56 raiders held; d21: 84 raiders held; d21: 84 raiders held; d28: 112 raiders held; d28: 112 raiders held.
+Renown 13064 earned, 6708 reserved for Chieftains (buildings 1555, raids 211, defence kills 234, defender trickle 8703, Feast 2360 from 236 Feasts).
+Villages: 4 at the end (points each: 18761, 5701, 4911, 1711). Gains: taken (tier 5) on day 19.1 with 872 points; taken (tier 3) on day 36.3 with 834 points; taken (tier 2) on day 58.0 with 684 points. Chieftains 3 trained, strikes 3/3 won, lost 0, hold failed 0, founded 0, waited and fell back to founding 0.
+Chieftain gold (chest): 10320 paid for 3 Chieftains. Chest on day 30 / 60 / 90: 3447 / 4686 / 16257. Waiting for the next Chieftain, hours: renown+gold 928, renown 831, gold 0, resources 16, target 0, other 118. Binding limit per Chieftain trained: renown+gold 0, renown 1, gold 0, resources 2, none 0.
+
+## Renown pace and several villages: when does the 2nd village come? (days since start)
+
+| | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| Renown earned reaches 1300 (2nd village price) | 21.7 | 23.1 | 36.9 | 18.3 |
+| Banner Hall level 1 finished (Chieftain needs it) | 8.7 | 7.5 | not within run | 9.8 |
+| real pace: the later of both (Chieftain could be reserved; the pace measured before step 2) | 21.7 | 23.1 | not within run | 18.3 |
+| Chieftain queued (Renown reserved, resources paid) | 26.3 | 23.3 | not within run | 18.7 |
+| **2nd village is the player's** | 26.6 | 23.8 | not within run | 19.1 |
+| route of the 2nd village | founded | taken, tier 5 | - | taken, tier 5 |
+| 3rd village | 40.3 | 49.3 | not within run | 36.3 |
+| 4th village | 56.4 | not within run | not within run | 58.0 |
+| villages at the end | 5 | 3 | 1 | 4 |
+| points at the end, all villages | 24740 | 14526 | 2775 | 31084 |
+| longest idle stretch, whole run (target < 8 h) | 5.8 h | 1.2 h | 5.2 h | 3.8 h |
+| longest idle stretch starting after day 20 | 0.7 h | 0.8 h | 3.3 h | 0.2 h |
+
+Score (points of all villages + 2 x Renown earned + troops/100 + net raid/100): builder 69202, raider 60455, turtle 13693, balanced 89639.
+
+## Raid routes from the village at -30|-10 (10 Raiders; terrain from the world seed, GAME_DESIGN 18.4a)
+
+| target | tier | tiles | on flat ground | with terrain | slower by |
+|---|---|---|---|---|---|
+| -27\|-9 | 1 | 3.2 | 32 min | 32 min | 0% |
+| -28\|-5 | 1 | 5.4 | 54 min | 54 min | 0% |
+| -32\|-5 | 2 | 5.4 | 54 min | 54 min | 0% |
+| -36\|-7 | 2 | 6.7 | 67 min | 67 min | 0% |
+| -37\|-13 | 3 | 7.6 | 76 min | 88 min | 16% |
+| -34\|-19 | 3 | 9.8 | 98 min | 119 min | 21% |
+| -25\|-21 | 4 | 12.1 | 121 min | 121 min | 0% |
+| -17\|-15 | 5 | 13.9 | 139 min | 167 min | 20% |
+
+## First affordable in the first village (hours / days since start, own economy)
+
+| item | builder | raider | turtle | balanced |
+|---|---|---|---|---|
+| building hall (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building lumber (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building farm (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building longhouse (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building mine (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building goldmine (next level) | 28.0 h | day 3.1 | 35.3 h | day 2.4 |
+| building storehouse (next level) | 0.0 h | 0.0 h | 0.0 h | 0.0 h |
+| building barracks (next level) | 38.8 h | 7.3 h | 12.8 h | 16.7 h |
+| building stables (next level) | day 6.6 | day 4.0 | never | day 3.7 |
+| building wrightyard (next level) | day 16.5 | day 7.5 | never | day 7.5 |
+| building wall (next level) | day 2.9 | 9.7 h | 15.0 h | 19.0 h |
+| building vault (next level) | 19.3 h | 3.3 h | 9.3 h | 13.2 h |
+| building market (next level) | 23.2 h | day 3.1 | 34.2 h | day 2.4 |
+| building drillyard (next level) | day 6.5 | day 3.9 | day 9.5 | day 3.7 |
+| building bannerhall (next level) | day 8.1 | day 6.8 | never | day 9.2 |
+| unit pikeman | day 2.8 | 7.7 h | 13.2 h | 17.0 h |
+| unit guard | day 6.5 | day 2.4 | 44.7 h | day 2.5 |
+| unit raider | day 6.4 | 13.7 h | 37.8 h | 22.5 h |
+| unit outrider | day 8.7 | day 4.6 | never | day 3.7 |
+| unit knight | day 16.9 | day 8.9 | never | never |
+| unit pathfinder | day 6.4 | 13.7 h | 37.8 h | 22.5 h |
+| unit chieftain | day 21.0 | day 23.3 | never | day 18.7 |
+| unit firecart | never | never | never | never |
+
+## Unit value (static)
+
+| unit | attack/cost | defense/cost (avg) | carry/cost | pop | building |
+|---|---|---|---|---|---|
+| pikeman | 0.143 | 0.482 | 0.214 | 1 | barracks |
+| guard | 0.160 | 0.427 | 0.133 | 1 | barracks |
+| raider | 0.424 | 0.082 | 0.329 | 1 | barracks |
+| outrider | 0.351 | 0.092 | 0.405 | 2 | stables |
+| knight | 0.179 | 0.154 | 0.051 | 3 | barracks |
+| pathfinder | 0.000 | 0.056 | 0.000 | 1 | barracks |
+| chieftain | 0.000 | 0.001 | 0.000 | 8 | bannerhall |
+| firecart | 0.014 | 0.016 | 0.000 | 3 | wrightyard |
+
+## Flags
+
+- PILE-UP: builder sat at >= 90% storage in wood for 1445 h of 2160 h.
+- PILE-UP: builder sat at >= 90% storage in iron for 1623 h of 2160 h.
+- PILE-UP: raider sat at >= 90% storage in wood for 562 h of 2160 h.
+- PILE-UP: raider sat at >= 90% storage in food for 1077 h of 2160 h.
+- PILE-UP: raider sat at >= 90% storage in iron for 1723 h of 2160 h.
+- PILE-UP: turtle sat at >= 90% storage in food for 1457 h of 2160 h.
+- PILE-UP: turtle sat at >= 90% storage in iron for 980 h of 2160 h.
+- PILE-UP: balanced sat at >= 90% storage in wood for 910 h of 2160 h.
+- PILE-UP: balanced sat at >= 90% storage in food for 1815 h of 2160 h.
+- PILE-UP: balanced sat at >= 90% storage in iron for 1711 h of 2160 h.
+- UNUSED UNIT: Ember Guard — nobody trained one (affordable from hour 214 but never trained).
+- UNUSED UNIT: Firecart — nobody trained one (never even affordable within 90 days).
+
+## Model
+
+- 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.
+- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; the garrison never refills (what a raid kills stays dead; only buildings grow) and loot is always full: min(what the survivors carry, the stock above the Vault), however often the same village is raided (rules of 2026-11-05).
+- Loot and losses valued wood+food+iron+10xgold. Troops eat no food (no upkeep); travel idle time and Drillyard ranks are not valued.
+- Enemy raiders hit every village that is not inside founding protection on days 7, 14, 21, 28 (4 x day raiders each) to give defence something to do; the turtle is never attacked (pure defender).
+- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).
+- Renown (engine renown.ts): building levels pay once per village and level after each settle (collectBuildRenown; a taken village pays nothing for the levels it came with); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.
+- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step for EVERY village from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection of the account (the sim player never attacks a player).
+- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed. Try `--home` for other starts.
+- SEVERAL VILLAGES (step 2): Renown is reserved when a Chieftain is queued (villageRenownPrice; 500, 800, 1,280 ...; he costs 4,000/3,000/5,000 + 150 gold and 6 h) and half comes back if he dies in a strike (chieftainRefund). One Chieftain at a time. The first village with a Banner Hall trains him. Take styles first build an escort of 1.05 x HOLD_MIN_POPULATION fighters (they stop raiding and train as usual; only once the Banner Hall exists). Then, while the Renown is there, the village saves up: it only builds what leaves his cost untouched (plus the storehouse / farm he needs) and trains nothing.
+- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, occupiers move in up to the population cap, the rest walks home). The strike army carries no loot (noLoot: a Strike attempt is not a raid). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.
+- FOUND (builder, turtle): the Chieftain + up to 30 defenders walk to the nearest free buildable tile (checkFoundTarget); createFoundedVillage (start levels, 300/300/150, 24 h protection, the escort is the garrison).
+- Extra villages play the same style script (build list, army, research, raids against the shared abandoned villages from their own tile, Feast), starting from their own levels; a taken village starts with all its buildings. Chieftains are only trained in the first village with a Banner Hall. Not modeled: sending resources or troops between the player's villages, a second hold wave (occupiers who arrive late), the Banner Hall of an extra village training Chieftains, enemy attacks on a village while it is struck, players as targets.
+- IDLE STRETCH ("dead period"): after the player did everything the style wants at a step, the longest time until the next step at which something useful was still possible in ANY village (a building, a batch of 10 units, a research, a Feast, a Chieftain with Renown to pay him). Target under 8 h. Reported for the whole run and for gaps that start on or after day 20. "Pile-up" = resource at >= 90% storage (first village).

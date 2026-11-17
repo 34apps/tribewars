@@ -128,11 +128,13 @@ export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes ab
 export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 3, pathfinder: 1, chieftain: 8, firecart: 3 };
 /** Cap: Longhouse level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
-export const POP_CAP_BASE = 151;
-export const POP_CAP_GROWTH = 1.2; // level 25 = about 12,000 (owner 2026-11-11): room for a big mixed army
+export const POP_CAP_BASE = 720;
+// Level 25 = about 12,000 (owner 2026-11-11). Room grows as fast as production (x1.1244 per level, same as PRODUCTION_GROWTH), so a village needs about 12-13
+// days of its own income to fill its room at EVERY stage of the ladder (2026-11-17, docs/proposals/economy-vs-genre.md; the old x1.2 left the middle levels with a tenth of the room).
+export const POP_CAP_GROWTH = 1.1244;
 
 /** Town Hall speeds construction: time * HALL_TIME_FACTOR^(hallLevel-1). */
-export const HALL_TIME_FACTOR = 0.96; // 25 levels: the max level speeds construction as much as the old level 20 did (x0.38)
+export const HALL_TIME_FACTOR = 0.9566; // 25 levels: the max level builds in x0.35 of the time; a whole village then takes 25.0 builder-days (27.2 at x0.96)
 /** Barracks/Stables/Wrightyard speed training: time * TRAIN_TIME_FACTOR^(buildingLevel-1). */
 export const TRAIN_TIME_FACTOR = 0.94;
 

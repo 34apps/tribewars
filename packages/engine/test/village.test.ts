@@ -513,7 +513,7 @@ describe('checkTrain / applyTrain', () => {
   });
 
   it('troops eat no food (owner 2026-11-05): only resources, queue and the population room limit training', () => {
-    const stock = { wood: 50_000, food: 5000, iron: 50_000 };
+    const stock = { wood: 50_000, food: 50_000, iron: 50_000 }; // enough to fill the whole room (about 650 at Longhouse 1)
     // Farm level 0 makes 5 food an hour; the old upkeep rule refused anything above 20 pikemen. Now only population matters.
     const v = village({ buildings: { barracks: 1, storehouse: 10, farm: 0 }, resources: stock });
     assert.ok(checkTrain(v, 'pikeman', 21, 0, S1).ok);

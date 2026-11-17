@@ -234,11 +234,11 @@ describe('applyOwnerChange', () => {
   it('only up to the population cap; the rest is returned', () => {
     const v = createNpcVillage(1, 0, 1);
     const hearthed = applyStrike(v, { claimBy: 1, now: T, settings: S1 });
-    const r = applyOwnerChange(hearthed, { newOwnerOccupiers: units({ pikeman: 500 }), now: T, settings: S1 });
+    const r = applyOwnerChange(hearthed, { newOwnerOccupiers: units({ pikeman: 2000 }), now: T, settings: S1 });
     const usage = populationUsage(r.state);
     assert.ok(usage.total <= populationCap(r.state));
-    assert.ok(r.state.troops.pikeman > 0 && r.state.troops.pikeman < 500);
-    assert.equal(r.state.troops.pikeman + r.overflow.pikeman, 500);
+    assert.ok(r.state.troops.pikeman > 0 && r.state.troops.pikeman < 2000);
+    assert.equal(r.state.troops.pikeman + r.overflow.pikeman, 2000);
     assert.equal(populationUsage(r.state).total, populationCap(r.state), 'filled to the cap');
   });
 
