@@ -108,7 +108,7 @@ export class MultiStore extends SqlBase {
 
   // ---- retention -----------------------------------------------------------------------------------
 
-  /** Delete everything older than `cutoff` (ms). Returns the number of rows removed. */
+  /** Delete everything older than `cutoff` (ms) and blank old audit-log addresses. Returns the number of rows changed. */
   cleanup(cutoff: number): number {
     let n = 0;
     n += this.run('DELETE FROM player_ips WHERE last_seen < ?', cutoff).changes;
@@ -116,6 +116,8 @@ export class MultiStore extends SqlBase {
     n += this.run('DELETE FROM player_activity WHERE slot < ?', slotOf(cutoff)).changes;
     n += this.run('DELETE FROM pair_events WHERE at < ?', cutoff).changes;
     n += this.run('DELETE FROM multi_reviews WHERE reviewed_at < ?', cutoff).changes;
+    // Audit log: the entry stays (who did what, when), only the address is blanked (the one update its trigger allows).
+    n += this.run('UPDATE audit_log SET actor_ip = NULL WHERE actor_ip IS NOT NULL AND at < ?', cutoff).changes;
     return n;
   }
 

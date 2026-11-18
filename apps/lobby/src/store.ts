@@ -1,7 +1,7 @@
 // All lobby SQL. Prepared statements with bound parameters only.
 
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import { BADGE_KINDS, isBadgeKind, isStaffRole, type AccountBadgeDto, type BadgeKind, type StaffRole, type WorldEndKind, type WorldStatus } from '@clanfire/engine';
+import { BADGE_KINDS, MULTI_RETENTION_MS, isBadgeKind, isStaffRole, type AccountBadgeDto, type BadgeKind, type StaffRole, type WorldEndKind, type WorldStatus } from '@clanfire/engine';
 
 type Raw = Record<string, unknown>;
 type Param = string | number | null;
@@ -259,8 +259,24 @@ export class Store {
 
   // ---- multi-account detection (moved here from the worlds) --------------------------------------
 
-  /** Remember that this account was seen on this IP. */
+  private connectionDataPurgedAt = 0;
+
+  /**
+   * Privacy (owner 2026-11-18): addresses are kept 30 days (MULTI_RETENTION_MS). IP rows not seen since `cutoff` are deleted and old audit-log
+   * entries lose their address (the entry stays; the audit_no_update trigger allows exactly that update). Returns rows changed.
+   */
+  purgeConnectionData(cutoff: number): number {
+    let n = this.run('DELETE FROM account_ips WHERE last_seen < ?', cutoff).changes;
+    n += this.run('UPDATE audit_log SET actor_ip = NULL WHERE actor_ip IS NOT NULL AND at < ?', cutoff).changes;
+    return Number(n);
+  }
+
+  /** Remember that this account was seen on this IP. Also runs the 30-day purge, at most hourly (the lobby has no timer of its own). */
   recordIp(accountId: number, ip: string, now: number): void {
+    if (now - this.connectionDataPurgedAt >= 3_600_000) {
+      this.connectionDataPurgedAt = now;
+      this.purgeConnectionData(now - MULTI_RETENTION_MS);
+    }
     this.run(
       'INSERT INTO account_ips (account_id, ip, first_seen, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(account_id, ip) DO UPDATE SET last_seen = excluded.last_seen',
       accountId,

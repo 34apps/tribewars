@@ -63,3 +63,40 @@ test('db: a new database has the finished status from the start', () => {
   store.insertWorld({ id: 'w1', name: 'One', status: 'finished', path: '/w/w1/', createdAt: 0 });
   assert.equal(store.getWorld('w1')?.status, 'finished');
 });
+
+test('db v6: a v5 lobby database gets the new audit guard; addresses older than 30 days are blanked and IP rows purged', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-lobby-ip-'));
+  try {
+    const file = join(dir, 'lobby.sqlite');
+    const first = openDatabase(file);
+    first.exec('DROP TRIGGER audit_no_update');
+    first.exec("CREATE TRIGGER audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END");
+    first.exec('PRAGMA user_version = 5');
+    first.close();
+
+    const db = openDatabase(file);
+    const DAY = 24 * 3_600_000;
+    const now = 100 * DAY;
+    const ins = db.prepare('INSERT INTO audit_log (at, actor_ip, action, detail) VALUES (?, ?, ?, ?)');
+    ins.run(now - 40 * DAY, '203.0.113.1', 'old', 'd');
+    ins.run(now - 5 * DAY, '203.0.113.2', 'young', 'd');
+    db.exec("INSERT INTO accounts (username, username_lower, password_hash, chieftain, created_at) VALUES ('A', 'a', 'x', 'Chief', 1)");
+    const store = new Store(db);
+    store.recordIp(1, '203.0.113.1', now - 40 * DAY);
+    store.recordIp(1, '203.0.113.2', now - 5 * DAY); // purges nothing yet that matters; the first call already ran the purge at its own time
+    store.purgeConnectionData(now - 30 * DAY);
+    const log = (db.prepare('SELECT action, actor_ip, detail FROM audit_log ORDER BY id').all() as object[]).map((r) => ({ ...r }));
+    assert.deepEqual(log, [
+      { action: 'old', actor_ip: null, detail: 'd' },
+      { action: 'young', actor_ip: '203.0.113.2', detail: 'd' },
+    ]);
+    assert.deepEqual((db.prepare('SELECT ip FROM account_ips').all() as { ip: string }[]).map((r) => r.ip), ['203.0.113.2']);
+    assert.throws(() => db.exec('DELETE FROM audit_log'), /append-only/);
+    assert.throws(() => db.exec("UPDATE audit_log SET actor_ip = '198.51.100.1'"), /append-only/);
+    assert.throws(() => db.exec("UPDATE audit_log SET action = 'x'"), /append-only/);
+    db.close();
+    openDatabase(file).close(); // a second open is safe
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

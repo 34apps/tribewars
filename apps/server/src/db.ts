@@ -62,6 +62,15 @@ const REBUILDS = [
   },
 ] as const;
 
+/**
+ * The audit log is append-only: no delete, and no change to id, at, action or detail. The one allowed update is blanking `actor_ip` (set to NULL),
+ * which the caretaker does for entries older than MULTI_RETENTION_MS (privacy, 2026-11-18; schema v29). The age check lives in the caretaker
+ * (the database has no game clock); the guard allows nothing but "actor_ip becomes NULL, everything else equal".
+ */
+const AUDIT_UPDATE_GUARD_SQL = `CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log
+WHEN NOT (NEW.id IS OLD.id AND NEW.at IS OLD.at AND NEW.action IS OLD.action AND NEW.detail IS OLD.detail AND NEW.actor_ip IS NULL)
+BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
@@ -512,8 +521,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_actor  ON audit_log(actor_id, id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, id);
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
-CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log
-BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
+${AUDIT_UPDATE_GUARD_SQL}
 
 -- kind 'player' has no ref_id and no snapshot; the others keep a copy of the text so evidence survives deletion.
 CREATE TABLE IF NOT EXISTS message_reports (
@@ -709,6 +717,7 @@ export function applySchema(db: DatabaseSync): void {
   migrateProtectedUntil(db);
   migrateMapBornGarrison(db);
   migrateUselessRanks(db);
+  migrateAuditIpGuard(db);
   seedTemplates(db);
 }
 
@@ -717,14 +726,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 28; // 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 29; // 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '51980f0272db26ca';
+export const SCHEMA_FINGERPRINT = '87704f137687a164';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), migrateAuditIpGuard.toString(), AUDIT_UPDATE_GUARD_SQL, seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -987,6 +996,29 @@ function migrateMapBornGarrison(db: DatabaseSync): void {
       db.exec('ROLLBACK');
     } catch {
       // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
+/**
+ * Audit log privacy (schema v29, 2026-11-18), once per database (a meta flag): the old trigger forbade every update, so addresses stayed forever.
+ * It is dropped and recreated (AUDIT_UPDATE_GUARD_SQL) so that the only allowed update is setting actor_ip to NULL. No rows are touched here;
+ * the caretaker blanks addresses older than 30 days. Deletes stay forbidden by the unchanged audit_no_delete trigger.
+ */
+function migrateAuditIpGuard(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'audit_ip_guard_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec('DROP TRIGGER IF EXISTS audit_no_update');
+    db.exec(AUDIT_UPDATE_GUARD_SQL);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('audit_ip_guard_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // The transaction may already be gone; the original error matters more.
     }
     throw err;
   }

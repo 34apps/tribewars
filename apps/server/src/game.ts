@@ -354,7 +354,7 @@ export class GameService {
     return queued;
   }
 
-  /** Privacy: IPs, device hashes, activity slots and the pair log are deleted after MULTI_RETENTION_MS. Checked at most hourly (also in a frozen world). */
+  /** Privacy: IPs, device hashes, activity slots and the pair log are deleted, and audit-log addresses blanked, after MULTI_RETENTION_MS. Checked at most hourly (also in a frozen world). */
   private multiCleanedAt = 0;
   private cleanMultiData(now: number): void {
     if (now - this.multiCleanedAt < 3_600_000) return;

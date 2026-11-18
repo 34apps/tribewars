@@ -217,8 +217,10 @@ are logged in `pair_events` where they happen (never for abandoned villages or t
 response, never fingerprinted beyond the random id, and **deleted after 30 days** by the caretaker (`GameService.runCaretaker`, at most hourly, also in a frozen world).
 A consequence: an IP link the guard uses (`shareAnIp`) also expires 30 days after the account last used that IP. They belong in the planned **data export and delete**
 list (export: the account's IPs with first/last seen and device labels; delete: rows of `player_ips`, `player_devices`, `player_activity`, `pair_events` for the account;
-all cascade with the account). Open: the audit log keeps `actor_ip` of sign-ins (append-only by trigger, so it is not purged after 30 days: needs an
-amended trigger and the owner's decision); the lobby has its own IP table (`apps/lobby`, no device id yet); a privacy text for the stored IPs and devices.
+all cascade with the account). **Audit log addresses (owner, 2026-11-18, schema v29; lobby v6).** The staff audit log keeps its entries for good (who did what, when) but `actor_ip` is **blanked after 30 days**
+(`MULTI_RETENTION_MS`) by the same caretaker pass. The append-only trigger now allows exactly one update: `actor_ip` set to NULL with every other column equal; deletes and every other change
+stay refused. The 30-day age check is in the caretaker (the database has no game clock), the trigger enforces the shape. The lobby does the same for its `audit_log` and deletes `account_ips`
+rows not seen for 30 days (hourly, lazily when an address is recorded: it has no timer). Open: a privacy text for the stored IPs and devices; the lobby has no device id yet.
 
 **Gate (section 4).** (1) Staff only, server-enforced (`requireStaff`, 404 not staff, 403 below moderator). (2) The review body is a schema-checked key of 2-100 ids; no free text.
 (3) Reads are bounded (`MULTI_GROUPS_MAX`). (4) No leaks: the device id is only ever sent by its own browser; responses carry labels (8 hex of the hash). (5) Server-side logging

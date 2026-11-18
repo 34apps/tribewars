@@ -4,8 +4,13 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+/** Append-only, except that `actor_ip` may be set to NULL (privacy, v6): the purge in Store.purgeConnectionData does it after 30 days. */
+const AUDIT_UPDATE_GUARD_SQL = `CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log
+WHEN NOT (NEW.id IS OLD.id AND NEW.at IS OLD.at AND NEW.action IS OLD.action AND NEW.detail IS OLD.detail AND NEW.actor_ip IS NULL)
+BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
+
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6; // 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
 
 /**
  * The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
@@ -136,8 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_actor  ON audit_log(actor_id, id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, id);
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
-CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE OF id, at, actor_ip, action, detail ON audit_log
-BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
+${AUDIT_UPDATE_GUARD_SQL}
 `;
 
 /** Open (creating the folder and schema if needed) the lobby database. */
@@ -160,6 +164,11 @@ export function openDatabase(path: string): DatabaseSync {
       SELECT target_account, detail, MIN(at), MAX(at) FROM audit_log
       WHERE action = 'enter' AND target_account IS NOT NULL AND target_account IN (SELECT id FROM accounts)
       GROUP BY target_account, detail`);
+  }
+  // v6: the old trigger forbade every update; replace it (idempotent: dropping and recreating gives the same guard).
+  if (before > 0 && before < 6) {
+    db.exec('DROP TRIGGER IF EXISTS audit_no_update');
+    db.exec(AUDIT_UPDATE_GUARD_SQL);
   }
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
