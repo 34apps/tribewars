@@ -36,6 +36,15 @@ Written 2026-11-17 (originality pass + health check). Read this first, then `doc
   report titles, **Raid lists as a paid extra** (v25; `features.raidLists` + bit 1 of `players.premium`; tab only with the
   extra, Army button otherwise; on in the preview). Village first paint fixed (no deferred visible scene).
 
+- **2026-11-18 (merged in main locally, schema v29, not pushed past `3e21e08`):** Drillyard (no Chieftain/Firecart ranks, fits
+  1440x900, Ranks/Research switch at 7+ cards); no fixed Recruit limit (`MAX_TRAIN_BATCH` 100,000 sanity bound); map panel Send
+  button pinned; **Feasts unlimited** (price 810/2,025/810, -10% per Banner Hall level, count field); **no limit on resources
+  received** (owner); **Fighter rankings** (`fighter_totals` v27, Attacker/Defender/Total), report lines (destroyed value,
+  Renown reason), close lost attacks reveal the defence (`LOST_ATTACK_SEEN_SHARE` 0.5); **staff Shared connections** page
+  (device id, pair log, rules `MULTI_*`, v28); audit/lobby IPs blanked after 30 days (v29, lobby v6); **Hearthwarden** (Stables 4,
+  fast support rider); **Log Ram** back (Wall only, power 6) + Firecart buildings only (power 4); `SIEGE_POINTS_PER_LEVEL` 7,
+  `SIEGE_EXTRA_POINTS.bannerhall` 40. World mirror works from the built preview (server logs refused saves).
+
 ## Work in flight / very next step
 
 1. **Owner tests the built preview in Safari** (hand cursor, lag, small village picture, roads, Longhouse/Wrightyard, Firecart, old
