@@ -43,6 +43,7 @@ import {
   resourceValue,
   settleVillage,
   sizeFactor,
+  troopPeople,
   troopValue,
   villagePoints,
   villageRenownCost,
@@ -508,5 +509,12 @@ describe('battleRenown', () => {
     const awards = battleRenown({ ...base, result: result({ attackerWon: false, attackerLosses: units({ raider: 10 }), attackerSurvivors: units({}) }) });
     assert.equal(awards[0]?.value, 0);
     assert.equal(awards[0]?.skipped, 'min_value');
+  });
+});
+
+describe('people defeated (fighter rankings)', () => {
+  it('troopPeople counts POP_PER_UNIT, not value', () => {
+    assert.equal(troopPeople(units({ raider: 10, outrider: 3, knight: 2, chieftain: 1 })), 10 + 6 + 6 + 8);
+    assert.equal(troopPeople(units({})), 0);
   });
 });

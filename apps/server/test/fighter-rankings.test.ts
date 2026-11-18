@@ -1,9 +1,9 @@
-// Fighter rankings (docs/GAME_DESIGN.md, "Fighter rankings"): value of enemy troops destroyed per player, attacker / defender / total,
+// Fighter rankings (docs/GAME_DESIGN.md, "Fighter rankings"): people among the enemy troops defeated per player, attacker / defender / total,
 // counted in the battle's own transaction, listed for players and tribes through GET /api/rankings/fighters.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { troopValue, type FighterRankingResponse, type PlayerProfileDto, type Units } from '@clanfire/engine';
+import { troopPeople, type FighterRankingResponse, type PlayerProfileDto, type Units } from '@clanfire/engine';
 import { battleOf, makeApp, register, trainRaiders, weakestAbandoned, garrisonAbandoned, type Client } from './helpers.ts';
 import { giveTroops, latestReport, sendOk, stationSupport, world, type App, type P } from './warfare-helpers.ts';
 import { near } from './renown-helpers.ts';
@@ -25,7 +25,7 @@ async function ranking(p: P, scope: string, kind: string): Promise<FighterRankin
   return res.json<FighterRankingResponse>();
 }
 
-test('a battle counts the destroyed value for the attacker and the defender exactly once, and the reports say it', async () => {
+test('a battle counts the defeated people for the attacker and the defender exactly once, and the reports say it', async () => {
   const { app, clock, bob, lou } = await world();
   giveTroops(app, bob, { raider: 30 });
   giveTroops(app, lou, { pikeman: 30 });
@@ -35,15 +35,15 @@ test('a battle counts the destroyed value for the attacker and the defender exac
 
   const mine = battleOf(await latestReport(bob));
   const theirs = battleOf(await latestReport(lou));
-  const killed = troopValue(mine.defenderLosses as Units);
-  const lost = troopValue(mine.attackerLosses);
+  const killed = troopPeople(mine.defenderLosses as Units);
+  const lost = troopPeople(mine.attackerLosses);
   assert.ok(killed > 0 && lost > 0, 'both sides killed something');
   near(totals(app, bob.id).attack, killed);
   assert.equal(totals(app, bob.id).defence, 0);
   near(totals(app, lou.id).defence, lost);
   assert.equal(totals(app, lou.id).attack, 0);
-  assert.equal(mine.destroyedValue, Math.floor(killed + 1e-9));
-  assert.equal(theirs.destroyedValue, Math.floor(lost + 1e-9));
+  assert.equal(mine.defeatedPeople, Math.floor(killed + 1e-9));
+  assert.equal(theirs.defeatedPeople, Math.floor(lost + 1e-9));
 
   // Reading, polling and letting the clock run (the returning troops) never counts it again.
   for (const t of [1, 2]) {
@@ -65,8 +65,8 @@ test('a support owner is credited as defender next to the village owner; the sha
   const { movement } = await sendOk(bob, amy, 'attack', { raider: 20 });
   clock.set(movement.arriveAt);
   const b = battleOf(await latestReport(amy)); // the wiped-out attacker would not see the defence
-  const lost = troopValue(b.attackerLosses);
-  const killed = troopValue(b.defenderLosses as Units) + troopValue(b.supportLosses as Units);
+  const lost = troopPeople(b.attackerLosses);
+  const killed = troopPeople(b.defenderLosses as Units) + troopPeople(b.supportLosses as Units);
   const a = totals(app, alice.id);
   const m = totals(app, amy.id);
   assert.ok(a.defence > 0 && m.defence > 0, 'the supporter and the village owner both earn as defenders');
@@ -76,7 +76,7 @@ test('a support owner is credited as defender next to the village owner; the sha
   near(totals(app, bob.id).attack, killed);
   // The supporter's own report shows their share.
   const read = battleOf(await latestReport(alice));
-  assert.equal(read.destroyedValue, Math.floor(a.defence + 1e-9));
+  assert.equal(read.defeatedPeople, Math.floor(a.defence + 1e-9));
   await app.close();
 });
 
@@ -92,7 +92,7 @@ test('troops of an abandoned village count for the attacker', async () => {
   clock.set(sent.json<{ movement: { arriveAt: number } }>().movement.arriveAt);
   await c.state();
   const id = (await c.state()).player.id;
-  const killed = troopValue(battleOf(await latestReportOf(c)).defenderLosses as Units);
+  const killed = troopPeople(battleOf(await latestReportOf(c)).defenderLosses as Units);
   assert.ok(killed > 0);
   near(totals(app, id).attack, killed);
   assert.equal(rowCount(app), 1, 'the village without an owner has no row');
@@ -203,7 +203,7 @@ test('a report says why no Renown was paid (not allowed against this opponent)',
   assert.equal(mine.renownGained, undefined);
   assert.equal(mine.renownNote, 'not_allowed');
   assert.equal(theirs.renownNote, 'not_allowed');
-  assert.ok((theirs.destroyedValue ?? 0) > 0, 'what was destroyed still counts for the rankings');
+  assert.ok((theirs.defeatedPeople ?? 0) > 0, 'what was destroyed still counts for the rankings');
   assert.ok(totals(app, lou.id).defence > 0);
   await app.close();
 });
@@ -217,10 +217,10 @@ test('a battle under the minimum says it was too small; a wiped-out attacker get
   const mine = battleOf(await latestReport(bob));
   const theirs = battleOf(await latestReport(lou));
   assert.equal(mine.defenderLosses, null, 'the attacker was wiped out');
-  assert.equal(mine.destroyedValue, undefined);
+  assert.equal(mine.defeatedPeople, undefined);
   assert.equal(mine.renownNote, 'too_small');
   assert.equal(theirs.renownNote, 'too_small');
-  assert.equal(theirs.destroyedValue, Math.floor(troopValue(theirs.attackerLosses) + 1e-9));
+  assert.equal(theirs.defeatedPeople, Math.floor(troopPeople(theirs.attackerLosses) + 1e-9));
   await app.close();
 });
 
@@ -239,7 +239,7 @@ test('a wiped-out attack that was at least half the defence still shows the defe
       assert.ok(ratio >= 0.5, `ratio ${ratio}`);
       assert.ok(mine.defenderUnits !== null && mine.defenderLosses !== null, 'units shown');
       assert.equal(mine.seenInLoss, true);
-      assert.ok((mine.destroyedValue ?? 0) > 0 || troopValue(mine.defenderLosses as Units) === 0);
+      assert.ok((mine.defeatedPeople ?? 0) > 0 || troopPeople(mine.defenderLosses as Units) === 0);
     } else {
       assert.ok(ratio < 0.5, `ratio ${ratio}`);
       assert.equal(mine.defenderUnits, null);

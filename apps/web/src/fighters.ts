@@ -57,9 +57,9 @@ export function useFighterRanking(active: boolean, scope: FighterScope, kind: Fi
   return { data: data && data.scope === scope && data.kind === kind ? data : null, error };
 }
 
-/** "You destroyed troops worth N" (null when the report has no such number). */
-export function destroyedLine(b: Pick<BattleReportData, 'destroyedValue'>): string | null {
-  return b.destroyedValue !== undefined && b.destroyedValue > 0 ? `You destroyed troops worth ${formatInt(b.destroyedValue)}` : null;
+/** "You defeated N people" (null when the report has no such number). */
+export function destroyedLine(b: Pick<BattleReportData, 'defeatedPeople'>): string | null {
+  return b.defeatedPeople !== undefined && b.defeatedPeople > 0 ? `You defeated ${formatInt(b.defeatedPeople)} ${b.defeatedPeople === 1 ? 'person' : 'people'}` : null;
 }
 
 const RENOWN_NOTE: Record<NonNullable<BattleReportData['renownNote']>, string> = {

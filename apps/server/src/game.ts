@@ -765,13 +765,13 @@ export class GameService {
     });
     // Per report owner: Renown earned (or why none), and the value of enemy troops their side destroyed (the fighter rankings' number).
     // `hideDestroyed`: a wiped-out attacker sees nothing of the defence, so the defender's losses stay hidden from them too.
-    const gained = (playerId: number | null, hideDestroyed = false): Pick<BattleReportData, 'renownGained' | 'destroyedValue' | 'renownNote'> => {
+    const gained = (playerId: number | null, hideDestroyed = false): Pick<BattleReportData, 'renownGained' | 'defeatedPeople' | 'renownNote'> => {
       const o = playerId === null ? undefined : outcomes.get(playerId);
       if (!o) return {};
       const destroyed = Math.floor(o.destroyed + 1e-9);
       return {
         ...(o.renown > 0 ? { renownGained: o.renown } : {}),
-        ...(destroyed > 0 && !hideDestroyed ? { destroyedValue: destroyed } : {}),
+        ...(destroyed > 0 && !hideDestroyed ? { defeatedPeople: destroyed } : {}),
         ...(o.renown < 1 && o.note ? { renownNote: o.note } : {}),
       };
     };

@@ -623,7 +623,7 @@ function RenownRanking({ data, sample }: { data: RenownRankingResponse; sample: 
   );
 }
 
-/** Fighters: value of enemy troops destroyed (attacker, defender, total), for players and for tribes. Counted from the day the lists began. */
+/** Fighters: people among the enemy troops defeated (attacker, defender, total), for players and for tribes. Counted from the day the lists began. */
 function FighterRanking() {
   const { viewTribe, showOnMap, player } = useGame();
   const [scope, setScope] = useState<FighterScope>(lastFScope);
@@ -644,8 +644,8 @@ function FighterRanking() {
   return (
     <>
       <p className="rk-note muted small">
-        Fighters ranks the value of enemy troops destroyed in battle: Attacker when you attacked, Defender when you defended (or your troops stood in a defence), Total
-        both. Counted from the day this list began. A tribe counts what its members have destroyed.
+        Fighters ranks the people you defeated in battle (an Elk Rider counts 2, an Ember Guard 3): Attacker when you attacked, Defender when you defended (or your troops stood in a defence), Total
+        both. Counted from the day this list began. A tribe counts what its members have defeated.
       </p>
       <div className="rk-fsw">
         <div className="rk-seg" role="group" aria-label="Who">

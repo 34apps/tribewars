@@ -587,7 +587,7 @@ export function FrameRanks() {
                 ))}
               </div>
               <span className="fv-sp" />
-              <span className="fv-mut frk-fnote" title="Value of the enemy troops destroyed in battle since this list began">Troops destroyed, by value</span>
+              <span className="fv-mut frk-fnote" title="People among the enemy troops defeated in battle since this list began">People defeated</span>
             </div>
           )}
           {failure ? (

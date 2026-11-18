@@ -318,3 +318,35 @@ function countTrimmedFirstRanks(a: VillageState): number {
   ];
   return wasOne.filter(([u, t]) => (a.ranks as Record<string, Record<string, number>>)[u]![t] === 0).length;
 }
+
+test('migration v33: fighter totals (value) are reset once; a later re-run does not wipe new people totals', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-fighter-people-'));
+  try {
+    const dbPath = join(dir, 'game.sqlite');
+    const clock = new Clock();
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
+    let app = await open();
+    await register(app, 'alice');
+    await app.close();
+    const raw = new DatabaseSync(dbPath);
+    const id = (raw.prepare('SELECT id FROM players LIMIT 1').get() as { id: number }).id;
+    raw.prepare('INSERT OR REPLACE INTO fighter_totals (player_id, attack, defence) VALUES (?, 120000, 45000)').run(id);
+    raw.exec("DELETE FROM meta WHERE key = 'fighter_people_applied'");
+    raw.exec('PRAGMA user_version = 32');
+    raw.close();
+    app = await open();
+    await app.close();
+    const after = new DatabaseSync(dbPath);
+    assert.equal((after.prepare('SELECT COUNT(*) AS n FROM fighter_totals').get() as { n: number }).n, 0, 'old value totals are gone');
+    assert.equal((after.prepare("SELECT value FROM meta WHERE key = 'fighter_people_applied'").get() as { value: string }).value, '1');
+    after.prepare('INSERT INTO fighter_totals (player_id, attack, defence) VALUES (?, 12, 3)').run(id);
+    after.close();
+    app = await open();
+    await app.close();
+    const last = new DatabaseSync(dbPath, { readOnly: true });
+    assert.equal((last.prepare('SELECT COUNT(*) AS n FROM fighter_totals').get() as { n: number }).n, 1, 'a second start keeps the new totals');
+    last.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

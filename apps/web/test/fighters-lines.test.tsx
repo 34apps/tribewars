@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import { LOST_SEEN_LINE, destroyedLine, renownNoteLine, strikeLine } from '../src/fighters.ts';
 
 test('destroyed line shows only when something was destroyed', () => {
-  assert.equal(destroyedLine({ destroyedValue: 1234 }), 'You destroyed troops worth 1,234');
-  assert.equal(destroyedLine({ destroyedValue: 0 }), null);
+  assert.equal(destroyedLine({ defeatedPeople: 1234 }), 'You defeated 1,234 people');
+  assert.equal(destroyedLine({ defeatedPeople: 0 }), null);
+  assert.equal(destroyedLine({ defeatedPeople: 1 }), 'You defeated 1 person');
   assert.equal(destroyedLine({}), null);
 });
 

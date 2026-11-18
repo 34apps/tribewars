@@ -268,7 +268,7 @@ export interface RenownRankingResponse {
 // ---- Fighter rankings (docs/GAME_DESIGN.md, "Fighter rankings") ----
 // GET /api/rankings/fighters?scope=players|tribes&kind=attacker|defender|total -> 200 FighterRankingResponse (signed in; rate-limited with the
 //   other rankings; top 100 by the chosen value, ties share a rank, the caller's own row (or own tribe's row) is always included).
-//   Values are the troop value (`troopValue`, the scale Renown uses) of enemy troops destroyed since the feature began (no back-fill):
+//   Values are the PEOPLE (`POP_PER_UNIT`: Raider 1, Elk Rider 2, Ember Guard 3, Chieftain 8, ...) among the enemy troops defeated since the feature began (schema v33 reset the first day's value-based totals to 0):
 //   attacker = in battles the player attacked; defender = in battles the player's village defended, plus the player's share of the defence
 //   when their troops stood there as support; total = attacker + defender. Tribe values are the sum of the CURRENT members' values.
 export type FighterKind = 'attacker' | 'defender' | 'total';
@@ -757,11 +757,11 @@ export interface BattleReportData {
   /** True in a lost attacker's report that still shows the defence because the fight was close (attack power >= LOST_ATTACK_SEEN_SHARE of the defence); the Wall level stays hidden. */
   seenInLoss?: boolean;
   /**
-   * Value (`troopValue`, the scale of the fighter rankings) of the enemy troops the report owner's side destroyed, as the fighter rankings
+   * People (`POP_PER_UNIT`, the scale of the fighter rankings) among the enemy troops the report owner's side defeated, as the fighter rankings
    * counted it for them (attacker: all defender and support losses; defender or support owner: their share of the attacker's losses).
    * Absent on older reports, when it was 0, and when the attacker's army was wiped out (it sees nothing of the defence). Floored.
    */
-  destroyedValue?: number;
+  defeatedPeople?: number;
   /**
    * Why the report owner earned no Renown from this battle, when the server knew (written with the report; absent on older reports and
    * when Renown was paid): 'not_allowed' (this opponent never pays: same tribe or ally, shared connection, test account), 'too_small'

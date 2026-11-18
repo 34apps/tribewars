@@ -39,7 +39,7 @@ export interface BattleForRenown {
 export interface BattleOutcome {
   /** Whole Renown (floored). */
   renown: number;
-  /** Value of enemy troops destroyed by this player's side: attacker, or defender plus support shares (not floored). */
+  /** People among the enemy troops defeated by this player's side: attacker, or defender plus support shares (not floored). */
   destroyed: number;
   /** Why no Renown was paid, when the server knows (see BattleReportData.renownNote). */
   note?: NonNullable<BattleReportData['renownNote']>;
@@ -110,7 +110,7 @@ export class RenownService {
       },
     });
 
-    // Fighter rankings: the value each side destroyed (same shares as the Renown above, whoever may or may not earn Renown). Abandoned
+    // Fighter rankings: the people each side defeated (same shares as the Renown above, whoever may or may not earn Renown). Abandoned
     // villages have no owner and earn nothing; their troops still count for the attacker.
     const destroyed = new Map<number, number>();
     const fight = new Map<number, { attack: number; defence: number }>();
@@ -121,12 +121,12 @@ export class RenownService {
       supportRanks: b.contingents.map((c) => c.ranks ?? undefined),
     })) {
       const id = who(sh).playerId;
-      if (id === null || !(sh.killValue > 0)) continue;
+      if (id === null || !(sh.killPeople > 0)) continue;
       const f = fight.get(id) ?? { attack: 0, defence: 0 };
-      if (sh.side === 'attacker') f.attack += sh.killValue;
-      else f.defence += sh.killValue;
+      if (sh.side === 'attacker') f.attack += sh.killPeople;
+      else f.defence += sh.killPeople;
       fight.set(id, f);
-      destroyed.set(id, (destroyed.get(id) ?? 0) + sh.killValue);
+      destroyed.set(id, (destroyed.get(id) ?? 0) + sh.killPeople);
     }
     for (const [id, f] of fight) store.fighters.add(id, f.attack, f.defence);
 

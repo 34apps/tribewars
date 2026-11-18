@@ -11,6 +11,7 @@ import {
   FEAST_LEVEL_DISCOUNT,
   FEAST_MAX_COUNT,
   FEAST_RENOWN,
+  POP_PER_UNIT,
   RENOWN_BUILD_EXP,
   RENOWN_BUILD_SCALE,
   RENOWN_MIN_BATTLE_VALUE,
@@ -47,6 +48,13 @@ export function troopValue(units: Partial<Units>): number {
   let v = 0;
   for (const u of UNIT_IDS) v += (units[u] || 0) * resourceValue(UNITS[u].cost);
   return v;
+}
+
+/** People in an army: POP_PER_UNIT per unit (Raider 1, Elk Rider 2, Ember Guard 3, Chieftain 8, ...). The fighter rankings count this, not value. */
+export function troopPeople(units: Partial<Units>): number {
+  let n = 0;
+  for (const u of UNIT_IDS) n += (units[u] || 0) * POP_PER_UNIT[u];
+  return n;
 }
 
 // ---- Renown from buildings ------------------------------------------------------------------------
@@ -337,8 +345,10 @@ export interface RenownShare extends RenownEarner {
   value: number;
   /** Value of the loot taken (attacker only). */
   lootValue: number;
-  /** Value of the enemy troops destroyed. */
+  /** Value of the enemy troops destroyed (Renown). */
   killValue: number;
+  /** People among the enemy troops destroyed (POP_PER_UNIT; the fighter rankings and the report line), split like killValue. */
+  killPeople: number;
 }
 
 /** The parts of the BattleInput that decide who carried how much of the defence (needed for the support split). */
@@ -365,6 +375,8 @@ export function battleValueShares(result: BattleResult, ctx: BattleShareContext 
   const lootValue = resourceValue(result.loot);
   let attackerKills = troopValue(result.defenderLosses);
   for (const l of losses) attackerKills += troopValue(l);
+  let attackerPeople = troopPeople(result.defenderLosses);
+  for (const l of losses) attackerPeople += troopPeople(l);
 
   // Attack mix, like resolveBattle: share of attack power that is infantry.
   const attackers = normalizeUnits(addUnits(result.attackerLosses, result.attackerSurvivors));
@@ -389,6 +401,7 @@ export function battleValueShares(result: BattleResult, ctx: BattleShareContext 
   const total = own + parts.reduce((a, b) => a + b, 0);
 
   const defendersValue = troopValue(result.attackerLosses);
+  const defendersPeople = troopPeople(result.attackerLosses);
   const shareOf = (part: number, fallback: number): number => (total > 0 ? part / total : fallback);
   const kill = (side: 'defender' | 'support', share: number, index?: number): RenownShare => ({
     side,
@@ -396,9 +409,10 @@ export function battleValueShares(result: BattleResult, ctx: BattleShareContext 
     value: defendersValue * share,
     lootValue: 0,
     killValue: defendersValue * share,
+    killPeople: defendersPeople * share,
   });
   const out: RenownShare[] = [
-    { side: 'attacker', value: lootValue + attackerKills, lootValue, killValue: attackerKills },
+    { side: 'attacker', value: lootValue + attackerKills, lootValue, killValue: attackerKills, killPeople: attackerPeople },
     kill('defender', shareOf(own, 1)),
   ];
   parts.forEach((p, i) => out.push(kill('support', shareOf(p, 0), i)));
