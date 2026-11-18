@@ -1287,3 +1287,19 @@ Average Lumber / Farm / Mine level of an abandoned village (400 villages, tiers 
 (the fixed order started at tier levels and maxed them quickly; the random order spends some of its stock on the Wall, Hall and military buildings first, so resources lag a little early and loot supply is about the same).
 Average Wall at day 7 / 30 / 90: 7.0 -> 5.0 / 6.6 / 7.0. Military buildings (Barracks + Stables + Wrightyard + Drillyard summed): 0 -> 1.0 / 6.9 / 12.4. Everything ends at the top level (7) after about 90 days.
 No number was tuned (raider ratio stayed in 1.5-2 at 30 days). Levers if it moves: the personality weights only.
+
+### 24.1 Rerun on the merged code (after the Chieftain price, Drillyard ranks and fighter-people; 2026-11-18, branch `originality-tiers`)
+
+Personality growth plus Drillyard ranks plus 12,000-point Chieftains, seed 20261104 (conquest: 5 seeds x 90 days). Nothing tuned.
+
+| | result | target |
+|---|---|---|
+| Score raider / builder, 30 days | 18713 / 10315 = 1.81 | 1.5-2 : met |
+| Score raider / builder, 90 days | 63894 / 68125 = 0.94 | - |
+| 2nd village day, builder / raider / balanced | 27.7 / 28.1 / 19.7 | 21-28 : builder met, raider 28.1 just over |
+| Conquest worst biggest/second | 1.81 | <= 2 : met |
+| Conquest takes (total, 5 seeds) | 70 (5 / 14 / 9 / 35 / 7) | 110-150 : MISSED (was 133 before personality growth) |
+| Conquest restarts | 24 | <= 26 : met |
+| Siege (`--siege`) | all invariants hold | met |
+
+Takes fell from 133 to 70 with the merge; the 47-take level of section 21 had no ranks. Seed 4 (35 takes) carries half; the other seeds are quiet. Not tuned: reported to the lead.
