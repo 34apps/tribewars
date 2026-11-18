@@ -3,7 +3,7 @@
 // a share of its siege units (docs/GAME_DESIGN.md 18.9).
 // Pure and deterministic: same army, same village, same result.
 
-import { SIEGE_BASE_POINTS, SIEGE_DURING_SHARE, SIEGE_LOST_SHARE, SIEGE_MIN_LEVEL, SIEGE_POINTS_PER_LEVEL, UNITS } from './config.ts';
+import { SIEGE_BASE_POINTS, SIEGE_EXTRA_POINTS, SIEGE_DURING_SHARE, SIEGE_LOST_SHARE, SIEGE_MIN_LEVEL, SIEGE_POINTS_PER_LEVEL, UNITS } from './config.ts';
 import { BUILDING_IDS, UNIT_IDS } from './types.ts';
 import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageState, WorldSettings } from './types.ts';
 import { isBuildingId, normalizeUnits } from './util.ts';
@@ -22,9 +22,9 @@ export function siegeFloor(building: BuildingId): number {
   return SIEGE_MIN_LEVEL[building] ?? 0;
 }
 
-/** Siege points it takes to lower a building from `level` to `level - 1`. */
-export function siegePointsNeeded(level: number): number {
-  return SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * level;
+/** Siege points it takes to lower a building from `level` to `level - 1` (a sturdy building, SIEGE_EXTRA_POINTS, costs more). */
+export function siegePointsNeeded(level: number, building?: BuildingId): number {
+  return SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * level + (building ? SIEGE_EXTRA_POINTS[building] ?? 0 : 0);
 }
 
 /** Is any siege unit in this army? */
@@ -42,8 +42,8 @@ export function hasBuildingSiegeUnits(units: Partial<Units>): boolean {
 /** Lower `level` with `points` siege points, at most `maxLevels` levels, never below the building's floor. */
 function knockDown(building: BuildingId, level: number, points: number, maxLevels: number): { level: number; dropped: number } {
   let dropped = 0;
-  while (dropped < maxLevels && level > siegeFloor(building) && points >= siegePointsNeeded(level)) {
-    points -= siegePointsNeeded(level);
+  while (dropped < maxLevels && level > siegeFloor(building) && points >= siegePointsNeeded(level, building)) {
+    points -= siegePointsNeeded(level, building);
     level -= 1;
     dropped += 1;
   }

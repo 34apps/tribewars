@@ -8,6 +8,7 @@ import {
   BUILDING_IDS,
   SIEGE_BASE_POINTS,
   SIEGE_DURING_SHARE,
+  SIEGE_EXTRA_POINTS,
   SIEGE_LOST_SHARE,
   SIEGE_MIN_LEVEL,
   SIEGE_POINTS_PER_LEVEL,
@@ -81,6 +82,19 @@ describe('the two siege units', () => {
 describe('siege helpers', () => {
   it('level cost is base + perLevel * L', () => {
     for (const l of [1, 2, 5, 10, 25]) assert.equal(siegePointsNeeded(l), SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * l);
+  });
+
+  it('some buildings are sturdier: the Banner Hall costs extra points per level, every other building none', () => {
+    assert.deepEqual(Object.keys(SIEGE_EXTRA_POINTS), ['bannerhall']);
+    const extra = SIEGE_EXTRA_POINTS.bannerhall!;
+    assert.ok(extra > 0);
+    for (const l of [1, 4]) assert.equal(siegePointsNeeded(l, 'bannerhall'), siegePointsNeeded(l) + extra);
+    assert.equal(siegePointsNeeded(4, 'market'), siegePointsNeeded(4));
+    // one point short drops nothing, exactly enough drops one level
+    const need = siegePointsNeeded(3, 'bannerhall');
+    const carts = Math.ceil(need / CART.power);
+    assert.equal(resolveSiege(units({ firecart: carts - 1 }), levels({ bannerhall: 3 }), 'bannerhall')[0]!.to, 3);
+    assert.equal(resolveSiege(units({ firecart: carts }), levels({ bannerhall: 3 }), 'bannerhall')[0]!.to, 2);
   });
 
   it('the floor is 1 for the Hall, Farm, Longhouse and Storehouse and 0 for the rest', () => {

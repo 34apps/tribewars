@@ -542,6 +542,8 @@ export const SIEGE_BASE_POINTS = 6;
 export const SIEGE_POINTS_PER_LEVEL = 7;
 export const SIEGE_DURING_SHARE = 0.5;
 export const SIEGE_LOST_SHARE = 0.5;
+/** Some buildings are sturdier: extra siege points added to the cost of lowering one level of that building (cost = base + per level x L + extra). Absent = 0. The Banner Hall is paid in gold, so it costs far more to rebuild than its level suggests (BALANCE 18). */
+export const SIEGE_EXTRA_POINTS: Partial<Record<BuildingId, number>> = { bannerhall: 40 };
 
 // ---- Notifications (docs/GAME_DESIGN.md 18.10) ----
 export const NOTIFICATIONS_KEEP = 100; // per player

@@ -2173,7 +2173,7 @@ found or occupy; `checkMission` refuses them). They fight, but badly, and die in
 the army). Neither can be ranked (not in `RANKABLE_UNITS`).
 
 **Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (Firecart power 4, Log Ram power 6, BALANCE 18; the Firecart was 1, then 2). Lowering a building from level L to L-1 costs
-`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (7) x L` points (BALANCE 18: it was 2), so high levels are much harder to knock down (level 10: 76 points, level 22: 160, level 5: 41). **Each step lowers
+`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (7) x L` points (BALANCE 18: it was 2), so high levels are much harder to knock down (level 10: 76 points, level 22: 160, level 5: 41). **Some buildings are sturdier** (`SIEGE_EXTRA_POINTS`): the Banner Hall, which is paid for in gold, needs 40 more points per level, so burning it is not a bargain; every other building has none. **Each step lowers
 at most `maxLevels` levels** (Log Ram 3, so the Wall can lose up to 6 in one won attack; Firecart 2) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
 

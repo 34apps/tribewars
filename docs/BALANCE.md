@@ -1073,11 +1073,11 @@ Firecart army (sent = survivors / 0.63, value 368 each) against one level, power
 | Iron Mine 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 2,786 / 7,136 / 18,281 | 0.17 / 0.33 / 0.67 |
 | Stables 18 | 33 | 19,504 | 39,378 | 2.02 |
 | Drillyard 10 | 19 | 11,408 | 8,410 | 0.74 |
-| Banner Hall 4 | 9 | 5,520 | 21,282 | 3.86 |
+| Banner Hall 4 (with `SIEGE_EXTRA_POINTS` 40) | 19 | 11,408 | 21,282 | 1.93 (was 3.86; levels 1 to 4: 1.02 / 1.59 / 1.93) |
 | Market 10 / Vault 8 | 19 / 16 | 11,408 / 9,568 | 1,847 / 744 | 0.16 / 0.08 (poor targets, cheap to rebuild: fine) |
 
-Not met, on purpose or by necessity: Banner Hall 3.9x (limit 2x; it is priced in gold, valued 10 each, and only power 2 holds 2x, which would leave the rest of the table below 0.4), economy buildings at levels
-15 and 20 (0.15 to 0.4, below 0.5), Stables 18 at 2.02x. Raise the power to 5 or 6 for 0.2 to 1.2 on the economy buildings and 2.1 to 3.1 on Barracks 20 and Stables 18; lower it to 2 to hold the Banner Hall at 2x.
+The Banner Hall is paid in gold, so it got **40 extra siege points per level** (`SIEGE_EXTRA_POINTS`, cost = 6 + 7 x L + 40): 1.02 to 1.93x at levels 1 to 4. Not met, on purpose or by necessity: economy buildings at levels
+15 and 20 (0.15 to 0.4, below 0.5), Stables 18 at 2.02x. Raise the power to 5 or 6 for 0.2 to 1.2 on the economy buildings and 2.1 to 3.1 on Barracks 20 and Stables 18; lower it to 2 for cheaper economy-building hits.
 Three or more levels are not offered by the Firecart (2 per step), so a single hit costs the defender at most about 2x this per attack.
 
 **Invariants (sim section (a) at Firecart power 4: Market 0.11 to 0.17, Drillyard 0.42 to 0.63, Banner Hall 3.4 to 3.9).** All 10 sim invariants hold with the Wall line at 2x for every Wall level; the per-attack cap (3 levels per step, 6 on the Wall in one won attack) is unchanged. Hard-chipping a Wall 15+ stays
