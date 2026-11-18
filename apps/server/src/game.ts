@@ -124,6 +124,10 @@ import {
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
+  type MapOverviewCode,
+  type MapOverviewResponse,
+  MAP_OVERVIEW_CACHE_MS,
+  hasWideOverviewExtra,
   type ChainListItemDto,
   type HoldListItemDto,
   type ChainProgressDto,
@@ -2020,6 +2024,27 @@ export class GameService {
     return { villages: this.mapDtos(player, this.store.mapVillages(x, x + w - 1, y, y + h - 1), t) };
   }
 
+  /** Base rows for the whole-world overview, kept for MAP_OVERVIEW_CACHE_MS (per world: one process = one world). */
+  private overviewCache: { at: number; rows: Array<{ x: number; y: number; ownerId: number | null; tribeId: number | null }> } | null = null;
+
+  /** GET /api/map/overview: premium only (checked here, 403 otherwise). Light `[x, y, code]` rows with the relation computed for this viewer. */
+  mapOverview(player: PlayerRow, t: number): MapOverviewResponse {
+    if (!hasWideOverviewExtra(player.premium)) throw new GameError('forbidden', 'The wide overview is part of Premium, and this account does not have it.');
+    if (!this.overviewCache || t - this.overviewCache.at >= MAP_OVERVIEW_CACHE_MS || t < this.overviewCache.at) {
+      this.overviewCache = { at: t, rows: this.store.overviewRows() };
+    }
+    const viewer = loadRelationViewer(this.store.tribes, player.id, t);
+    const CODE: Record<string, MapOverviewCode> = { self: 1, tribe: 2, ally: 3, nap: 4, enemy: 5 };
+    return {
+      serverTime: t,
+      villages: this.overviewCache.rows.map((r): [number, number, MapOverviewCode] => [
+        r.x,
+        r.y,
+        r.ownerId === null ? 0 : (CODE[viewer.relationTo(r.ownerId, r.tribeId)] ?? 6),
+      ]),
+    };
+  }
+
   /**
    * Village search for the command post (GET /api/search/villages): the same per-viewer rows as the map, nothing more.
    * `from` (optional) must be one of the caller's own villages; results are then nearest first.
@@ -2836,7 +2861,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
   }
 
   /**

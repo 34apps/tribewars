@@ -88,6 +88,8 @@ export interface PlayerDto {
   sandbox: boolean;
   /** Staff role of this account (support / moderator / admin), else null. Lets the client show a staff entry. */
   staffRole?: StaffRole | null;
+  /** This account has the premium extra "wide overview" (EXTRA_WIDE_OVERVIEW). Absent = no. The server enforces it on GET /api/map/overview. */
+  wideOverview?: boolean;
 }
 
 // POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
@@ -626,6 +628,23 @@ export interface MapVillageDto extends Coords {
 
 export interface MapResponse {
   villages: MapVillageDto[];
+}
+
+// GET /api/map/overview -> 200 MapOverviewResponse   (premium extra "wide overview"; no query keys)
+// Light rows for the WHOLE world, for the premium "Whole world" overview, so the client does not fetch every map chunk.
+// Premium only, checked on the server: 403 `forbidden` without the extra (EXTRA_WIDE_OVERVIEW in `players.premium`), 401 signed out,
+// 400 `invalid_input` for any query key. Bucket `world` (30/min per account). The server keeps the base rows for about
+// MAP_OVERVIEW_CACHE_MS per world; the relation is computed per viewer on each call. Same visibility as GET /api/map: one row
+// per village, and nothing else (no ids, names, owners or points): the relation code is all the client needs for the colour.
+// The client refreshes at most every MAP_OVERVIEW_REFRESH_MS and only while the overview is visible.
+export const MAP_OVERVIEW_CACHE_MS = 60_000;
+export const MAP_OVERVIEW_REFRESH_MS = 300_000;
+/** 0 abandoned, 1 own, 2 tribe, 3 ally, 4 non-aggression pact, 5 enemy, 6 other player (neutral). */
+export type MapOverviewCode = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export interface MapOverviewResponse {
+  serverTime: number;
+  /** One `[x, y, code]` per village. */
+  villages: Array<[number, number, MapOverviewCode]>;
 }
 
 // GET /api/search/villages?q=<text>&by=village|player[&from=<own village id>] -> 200 SearchVillagesResponse

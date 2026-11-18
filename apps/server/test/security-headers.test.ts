@@ -60,6 +60,7 @@ test('route patterns map to the intended limit buckets', () => {
     ['POST', '/api/notes', 'notes'],
     ['POST', '/api/notes/:id/delete', 'notes'],
     ['GET', '/api/realm', 'world'],
+    ['GET', '/api/map/overview', 'world'],
     ['GET', '/api/raid-lists', 'raidlists'],
     ['POST', '/api/raid-lists', 'raidlists'],
     ['POST', '/api/raid-lists/:id/rows/:rowId/delete', 'raidlists'],

@@ -24,7 +24,7 @@ export class MapChunks {
   private readonly loading = new Set<string>();
   private readonly failedAt = new Map<string, number>();
   private wanted: Array<{ ci: number; cj: number }> = [];
-  /** Chunks for the whole-world overview: fetched only when nothing the main view needs is waiting. */
+  /** Chunks for the overview's region: fetched only when nothing the main view needs is waiting. */
   private background: Array<{ ci: number; cj: number }> = [];
   private inflight = 0;
   private disposed = false;
@@ -87,13 +87,13 @@ export class MapChunks {
     this.pump();
   }
 
-  /** How many chunks make up the world, and how many of them are loaded. */
-  coverage(): { loaded: number; total: number } {
+  /** How many chunks make up the tile rectangle (clamped to the world), and how many of them are loaded. */
+  coverage(minX: number, minY: number, maxX: number, maxY: number): { loaded: number; total: number } {
     const r = this.radius;
     let total = 0;
     let loaded = 0;
-    for (let ci = Math.floor(-r / CHUNK); ci <= Math.floor(r / CHUNK); ci++) {
-      for (let cj = Math.floor(-r / CHUNK); cj <= Math.floor(r / CHUNK); cj++) {
+    for (let ci = Math.floor(Math.max(-r, minX) / CHUNK); ci <= Math.floor(Math.min(r, maxX) / CHUNK); ci++) {
+      for (let cj = Math.floor(Math.max(-r, minY) / CHUNK); cj <= Math.floor(Math.min(r, maxY) / CHUNK); cj++) {
         total += 1;
         if (this.chunks.has(chunkKey(ci, cj))) loaded += 1;
       }
@@ -101,25 +101,35 @@ export class MapChunks {
     return { loaded, total };
   }
 
-  /** Queue every missing or stale chunk of the world (centre first) behind whatever the main view needs: feeds the overview. */
-  ensureAll(staleMs: number): void {
+  /**
+   * Queue every missing or stale chunk touching the tile rectangle (the overview's region, centre first) behind whatever the main
+   * view needs. Only the region is ever asked for, never the whole world.
+   */
+  ensureRegion(minX: number, minY: number, maxX: number, maxY: number, staleMs: number): void {
     const r = this.radius;
     const now = Date.now();
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
     const list: Array<{ ci: number; cj: number; d: number }> = [];
-    for (let ci = Math.floor(-r / CHUNK); ci <= Math.floor(r / CHUNK); ci++) {
-      for (let cj = Math.floor(-r / CHUNK); cj <= Math.floor(r / CHUNK); cj++) {
+    for (let ci = Math.floor(Math.max(-r, minX) / CHUNK); ci <= Math.floor(Math.min(r, maxX) / CHUNK); ci++) {
+      for (let cj = Math.floor(Math.max(-r, minY) / CHUNK); cj <= Math.floor(Math.min(r, maxY) / CHUNK); cj++) {
         const key = chunkKey(ci, cj);
         if (this.loading.has(key)) continue;
         const failed = this.failedAt.get(key);
         if (failed !== undefined && now - failed < RETRY_MS) continue;
         const have = this.chunks.get(key);
         if (have && now - have.fetchedAt < staleMs) continue;
-        list.push({ ci, cj, d: Math.hypot(ci * CHUNK + CHUNK / 2, cj * CHUNK + CHUNK / 2) });
+        list.push({ ci, cj, d: Math.hypot(ci * CHUNK + CHUNK / 2 - cx, cj * CHUNK + CHUNK / 2 - cy) });
       }
     }
     list.sort((a, b) => a.d - b.d);
     this.background = list;
     this.pump();
+  }
+
+  /** Drop the overview's queued chunks (the overview is hidden or switched to the whole-world rows). */
+  clearRegion(): void {
+    this.background = [];
   }
 
   /** Villages stored in chunk (ci, cj); empty until loaded. */

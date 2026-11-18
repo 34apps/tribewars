@@ -1524,6 +1524,13 @@ export class Store extends SqlBase {
     ).map(mapRowOf);
   }
 
+  /** Light rows for the premium whole-world overview: position, owner and the owner's tribe, nothing else (same villages the map lists). */
+  overviewRows(): Array<{ x: number; y: number; ownerId: number | null; tribeId: number | null }> {
+    return this.all(
+      `SELECT v.x, v.y, v.owner_id, tm.tribe_id FROM villages v LEFT JOIN tribe_members tm ON tm.player_id = v.owner_id`,
+    ).map((r) => ({ x: r.x as number, y: r.y as number, ownerId: (r.owner_id as number | null) ?? null, tribeId: (r.tribe_id as number | null) ?? null }));
+  }
+
   /**
    * Name search for the command post: villages whose name (by = village, abandoned ones too) or whose owner's name
    * (by = player) contains `text`, case-insensitive. `%`, `_` and `\` in the text are literal (escaped, ESCAPE clause).

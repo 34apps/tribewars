@@ -168,7 +168,7 @@ test('labels: own beats sites beats other villages; the lower one is nudged or d
   assert.ok(apart[0] && apart[1]);
 });
 
-test('overview: counts per relation, flat square mapping, click to world, own squares biggest', () => {
+test('overview: counts per relation, region geometry (isometric diamond), click to world, tokens', () => {
   const vs = [
     village({ kind: 'own', relation: 'self' }),
     village({ relation: 'tribe' }), village({ relation: 'tribe' }),
@@ -178,50 +178,46 @@ test('overview: counts per relation, flat square mapping, click to world, own sq
   ];
   assert.deepEqual(overview.countVillages(vs), { own: 1, tribe: 2, ally: 0, nap: 0, enemy: 1, neutral: 1, abandoned: 1 });
   assert.deepEqual(overview.OVERVIEW_ROWS.map((r: { label: string }) => r.label), ['Your villages', 'Tribe', 'Allies', 'Pact', 'Enemies', 'Others', 'Abandoned']);
-  // Corners and centre of the board.
-  const R = 30;
-  const px = 244;
-  const a = overview.worldToOverview(-R, -R, R, px);
-  const b = overview.worldToOverview(R, R, R, px);
-  assert.ok(a.x > 0 && a.y > 0 && b.x < px && b.y < px);
-  const mid = overview.worldToOverview(0, 0, R, px);
-  assert.ok(Math.abs(mid.x - px / 2) < 1e-9 && Math.abs(mid.y - px / 2) < 1e-9);
-  // Round trip, and clicks outside the square stay on the board.
-  for (const [x, y] of [[-30, -30], [0, 0], [12, -7], [30, 30]]) {
-    const p = overview.worldToOverview(x, y, R, px);
-    assert.deepEqual(overview.overviewToWorld(p.x, p.y, R, px), { x, y });
+  assert.deepEqual(overview.countPoints([{ x: 0, y: 0, a: 'own' }, { x: 1, y: 1, a: 'ally' }, { x: 2, y: 2, a: 'ally' }]), { own: 1, tribe: 0, ally: 2, nap: 0, enemy: 0, neutral: 0, abandoned: 0 });
+  // Server codes of the whole-world rows map to the map's relations.
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(overview.allegianceOfCode), ['abandoned', 'own', 'tribe', 'ally', 'nap', 'enemy', 'neutral']);
+  // Region: 100 fields round the view centre in steps of 5, never off the board; 0 or a size covering the world = the whole world.
+  assert.equal(overview.OVERVIEW_REGION, 100);
+  const R = 300;
+  const mid = overview.regionOf(100, R, 12, -7);
+  assert.equal(mid.span, 100);
+  assert.deepEqual([mid.cx, mid.cy, mid.x1 - mid.x0 + 1, mid.y1 - mid.y0 + 1], [10, -5, 100, 100]);
+  const edge = overview.regionOf(100, R, 299, 299);
+  assert.ok(edge.x1 <= R && edge.y1 <= R && edge.x0 >= -R && edge.y0 >= -R, 'region stays on the board');
+  assert.equal(overview.regionOf(0, R, 100, 100).whole, true);
+  assert.equal(overview.regionOf(200, 30, 0, 0).whole, true, 'a world smaller than the size is shown whole');
+  // Isometry: same orientation as the main map (+x down-right, +y down-left); round trip; corners of the diamond.
+  const l = overview.diamondLayout(mid, 400, 6);
+  const c = overview.worldToDiamond(l, mid, mid.cx, mid.cy);
+  assert.ok(Math.abs(c.x - 200) < 1e-9 && Math.abs(c.y - (6 + 100)) < 1e-9);
+  const px = overview.worldToDiamond(l, mid, mid.cx + 10, mid.cy);
+  assert.ok(px.x > c.x && px.y > c.y);
+  const py = overview.worldToDiamond(l, mid, mid.cx, mid.cy + 10);
+  assert.ok(py.x < c.x && py.y > c.y);
+  for (const [x, y] of [[-30, -10], [10, -5], [12, 20], [55, 40]]) {
+    const p = overview.worldToDiamond(l, mid, x, y);
+    assert.deepEqual(overview.diamondToWorld(l, mid, p.x, p.y, R), { x, y });
   }
-  assert.deepEqual(overview.overviewToWorld(-50, 9999, R, px), { x: -30, y: 30 });
-  const sc = overview.overviewScale(R, px);
-  assert.ok(overview.squareSize('own', sc) >= overview.squareSize('enemy', sc) * 1.4);
-  assert.ok(overview.squareSize('abandoned', sc) < overview.squareSize('neutral', sc));
-  // Sizes follow the world: about 0.55 tile, 2-4 px (own 3-6, abandoned from 1.5), at radius 30 and radius 300.
-  for (const [r, px2] of [[30, 300], [30, 200], [300, 300]] as const) {
-    const s2 = overview.overviewScale(r, px2);
-    for (const k of ['neutral', 'enemy', 'tribe', 'ally', 'nap'] as const) {
-      const z = overview.squareSize(k, s2);
-      assert.ok(z >= 2 && z <= 4, `${k} ${r} ${z}`);
-    }
-    const ab = overview.squareSize('abandoned', s2);
-    assert.ok(ab >= 1.5 && ab <= overview.squareSize('neutral', s2));
-    const own = overview.squareSize('own', s2);
-    assert.ok(own >= 3 && own <= 6);
+  // The main view is an upright rectangle on the overview, scaled by overview tile / main tile; a huge view is only a cross.
+  const f = overview.frameRect(l, mid, { cx: 10, cy: -5, tile: 80 }, { w: 800, h: 500 });
+  assert.equal(f.kind, 'frame');
+  assert.ok(Math.abs(f.x1 - f.x0 - 800 * (l.tile / 80)) < 1e-9 && Math.abs(f.y1 - f.y0 - 500 * (l.tile / 80)) < 1e-9);
+  assert.equal(overview.frameRect(l, mid, { cx: 10, cy: -5, tile: 8 }, { w: 800, h: 500 }).kind, 'cross');
+  // Tokens: own biggest, abandoned smallest, always at least a pixel, never a blob.
+  for (const tile of [0.4, 1, 2.4, 5, 10]) {
+    const own = overview.tokenRadius('own', tile);
+    const enemy = overview.tokenRadius('enemy', tile);
+    const ab = overview.tokenRadius('abandoned', tile);
+    assert.ok(own > enemy && enemy >= ab && ab >= 0.8 && own <= 7 && enemy <= 4.2, `${tile}: ${own} ${enemy} ${ab}`);
   }
-  assert.equal(overview.squareSize('neutral', overview.overviewScale(300, 300)), 2);
-  assert.equal(overview.squareSize('abandoned', overview.overviewScale(300, 300)), 1.5);
-  // Frame vs crosshair: a small view is an upright rectangle (bounding box of the corners), a view over most of the world a crosshair.
-  const sq = (c: number, hw: number) => [{ x: c, y: c - hw }, { x: c + hw, y: c }, { x: c, y: c + hw }, { x: c - hw, y: c }];
-  const small = overview.frameShape(sq(100, 30), 300);
-  assert.equal(small.kind, 'frame');
-  assert.deepEqual([small.x0, small.y0, small.x1, small.y1], [70, 70, 130, 130]);
-  const big = overview.frameShape(sq(150, 140), 300);
-  assert.equal(big.kind, 'cross');
-  assert.ok(Math.abs(big.cx - 150) < 1e-9 && Math.abs(big.cy - 150) < 1e-9);
-  // The main view's frame: a screen of 800x600 at tile 40 sees a diamond around the centre.
-  const f = overview.frameCorners({ cx: 5, cy: 5, tile: 40 }, { w: 800, h: 600 });
-  assert.equal(f.length, 4);
-  assert.ok(Math.abs((f[0].x + f[2].x) / 2 - 5) < 1e-9);
-});
+  assert.ok(overview.tickStep(5, 34) < overview.tickStep(0.8, 34));
+}
+);
 
 test('far-out maps are re-read less often', () => {
   assert.ok(zoom.chunkStaleMs(10) > zoom.chunkStaleMs(80));
@@ -274,5 +270,33 @@ test('MapChunks refetches only the invalidated chunk, and shows the new owner', 
   chunks.ensure(0, 0, 59, 59, 30, 30);
   await settle();
   assert.equal(calls.length, 9);
+  chunks.detach();
+});
+
+test('overview region: only the chunks of the region are asked for (never the whole world), fresh ones are kept, and clearRegion drops the queue', async () => {
+  const calls: string[] = [];
+  apiMod.api.map = async (x: number, y: number, w: number, h: number) => {
+    calls.push(`${x},${y},${w},${h}`);
+    return { villages: [] };
+  };
+  const chunks = new chunksMod.MapChunks(300);
+  chunks.attach(() => {});
+  const settle = () => new Promise((r) => setTimeout(r, 30));
+  const region = overview.regionOf(100, 300, 0, 0);
+  chunks.ensureRegion(region.x0, region.y0, region.x1, region.y1, 180_000);
+  await settle();
+  // 100 fields touch at most 5 x 5 chunks of 30; a world of 601 would be 441.
+  assert.ok(calls.length >= 16 && calls.length <= 25, `calls ${calls.length}`);
+  assert.deepEqual(chunks.coverage(region.x0, region.y0, region.x1, region.y1), { loaded: calls.length, total: calls.length });
+  const n = calls.length;
+  chunks.ensureRegion(region.x0, region.y0, region.x1, region.y1, 180_000);
+  await settle();
+  assert.equal(calls.length, n, 'fresh chunks are not asked again');
+  // The region moves: only the new chunks load; clearRegion empties the queue.
+  chunks.ensureRegion(region.x0 + 60, region.y0, region.x1 + 60, region.y1, 180_000);
+  chunks.clearRegion();
+  await settle();
+  assert.ok(calls.length - n <= 3, 'only what was already in flight');
+  assert.equal(typeof chunks.ensureAll, 'undefined', 'the whole-world fetch is gone');
   chunks.detach();
 });

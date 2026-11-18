@@ -16,6 +16,14 @@ export const RAID_LIST_NAME_MAX = 30;
 /** Bits of `players.premium` (the old column, unused since the premium queue was removed). A world with the switch off ignores them. */
 export const EXTRA_RAID_LISTS = 1;
 
+/** Premium extra: the wide world overview (bigger area, whole world; GET /api/map/overview). Another bit of `players.premium`. */
+export const EXTRA_WIDE_OVERVIEW = 2;
+
+/** Does this `premium` value carry the wide-overview extra? */
+export function hasWideOverviewExtra(premium: number): boolean {
+  return Number.isInteger(premium) && premium > 0 && (premium & EXTRA_WIDE_OVERVIEW) !== 0;
+}
+
 /** Does this `premium` value carry the raid-list extra? */
 export function hasRaidListsExtra(premium: number): boolean {
   return Number.isInteger(premium) && premium > 0 && (premium & EXTRA_RAID_LISTS) !== 0;

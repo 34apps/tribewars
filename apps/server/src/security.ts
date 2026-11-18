@@ -88,7 +88,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'lookup', test: /^\/api\/(search\/villages|scouted\/:id|intel\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'rankings', test: /^\/api\/rankings\// },
-  { bucket: 'world', test: /^\/api\/(domination|world-end|sites|tribe\/sightings|realm)$/ },
+  { bucket: 'world', test: /^\/api\/(domination|world-end|sites|tribe\/sightings|realm|map\/overview)$/ },
   { bucket: 'projects', test: /^\/api\/tribe\/projects(\/|$)/ },
   { bucket: 'tribe', test: /^\/api\/(tribes|tribe|invites|applications)(\/|$)/, methods: ['POST', 'PUT', 'PATCH', 'DELETE'] },
 ];

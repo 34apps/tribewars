@@ -23,7 +23,7 @@
 // This is the WORLD's operator tool: it works on the database named by DATABASE_PATH (one world). `npm run lobby:admin` is the
 // lobby's own CLI with a separate database (accounts, world list) and cannot reach any world database, so per-world settings are changed here.
 
-import { EXTRA_RAID_LISTS, MUTE_MAX_MINUTES, STAFF_ROLES, hasRaidListsExtra, isStaffRole } from '@clanfire/engine';
+import { EXTRA_RAID_LISTS, EXTRA_WIDE_OVERVIEW, MUTE_MAX_MINUTES, STAFF_ROLES, hasRaidListsExtra, hasWideOverviewExtra, isStaffRole } from '@clanfire/engine';
 import { loadDotEnv, loadEnv } from './env.ts';
 import { openDatabase } from './db.ts';
 import { DOMINATION_USAGE, isDominationCommand, runDominationCommand } from './domination-admin.ts';
@@ -117,14 +117,14 @@ if (cmd === 'shared-ips') {
   // Paid extras are bits of players.premium. When a shop exists the lobby should carry the extra in the signed entry pass; until then the operator sets it here.
   const p = player(name);
   const [extra, state] = rest;
-  if (extra !== 'raidlists' || (state !== 'on' && state !== 'off')) {
-    console.error('Usage: extra <username> raidlists on|off');
+  if ((extra !== 'raidlists' && extra !== 'overview') || (state !== 'on' && state !== 'off')) {
+    console.error('Usage: extra <username> raidlists|overview on|off');
     process.exitCode = 1;
   } else {
-    store.setPremiumBit(p.id, EXTRA_RAID_LISTS, state === 'on');
-    log('extra_set', p.id, `raidlists ${state}`);
+    store.setPremiumBit(p.id, extra === 'overview' ? EXTRA_WIDE_OVERVIEW : EXTRA_RAID_LISTS, state === 'on');
+    log('extra_set', p.id, `${extra} ${state}`);
     const now = store.getPlayer(p.id);
-    console.log(`${p.username}: raid lists ${hasRaidListsExtra(now?.premium ?? 0) ? 'on' : 'off'}.`);
+    console.log(`${p.username}: ${extra === 'overview' ? `wide overview ${hasWideOverviewExtra(now?.premium ?? 0) ? 'on' : 'off'}` : `raid lists ${hasRaidListsExtra(now?.premium ?? 0) ? 'on' : 'off'}`}.`);
   }
 } else if (cmd === 'unmute') {
   const p = player(name);

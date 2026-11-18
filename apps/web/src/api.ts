@@ -35,6 +35,7 @@ import type {
   MailThreadResponse,
   MailListResponse,
   MapResponse,
+  MapOverviewResponse,
   SearchVillagesBy,
   SearchVillagesResponse,
   MeResponse,
@@ -370,6 +371,8 @@ export const api = {
   worldEnd: () => request<WorldEndResponse>('GET', '/api/world-end'),
   /** Great Fire and Fire Shrines. May answer 404 on an older server: callers treat a failure as "no sites". */
   sites: () => request<SitesResponse>('GET', '/api/sites'),
+  /** Premium wide overview: light rows for the whole world (403 without the extra). */
+  mapOverview: () => request<MapOverviewResponse>('GET', '/api/map/overview'),
   /** My own newest scout report with building levels on a village (Firecart picker); both fields null when none. */
   scouted: (villageId: number) => request<ScoutedResponse>('GET', `/api/scouted/${villageId}`),
   intel: (villageId: number) => request<VillageIntelDto>('GET', `/api/intel/${villageId}`),

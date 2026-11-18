@@ -7,7 +7,7 @@ import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
 import { mapRevision, staleSince } from '../map/revision.ts';
 import type { MapRevision } from '../map/revision.ts';
-import { CHUNK_STALE_DOT_MS, chunkStaleMs } from '../map/zoomMode.ts';
+import { chunkStaleMs } from '../map/zoomMode.ts';
 import { Overview } from '../map/Overview.tsx';
 import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
 import type { View } from '../map/iso.ts';
@@ -264,11 +264,9 @@ export function MapView({ active }: { active: boolean }) {
       setVersion((v) => v + 1);
       schedule();
     });
-    chunks.ensureAll(CHUNK_STALE_DOT_MS);
     const id = window.setInterval(() => {
       if (activeRef.current && !document.hidden) {
         ensureChunks();
-        chunks.ensureAll(CHUNK_STALE_DOT_MS);
       }
     }, 5000);
     return () => {
@@ -710,6 +708,8 @@ export function MapView({ active }: { active: boolean }) {
         radius={radius}
         sites={sites}
         version={version}
+        active={active}
+        premium={player.wideOverview === true}
         viewRef={viewRef}
         sizeRef={sizeRef}
         drawRef={overviewDrawRef}

@@ -22,6 +22,7 @@ import {
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
+  type MapOverviewResponse,
   type SearchVillagesResponse,
   type MovementResponse,
   type OwnVillageDto,
@@ -397,6 +398,13 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
       const { x, y, w, h } = req.query;
       return ctx.game.map(playerOf(req), Number(x), Number(y), Number(w), Number(h), req.nowMs);
     },
+  );
+
+  // Premium whole-world overview: light rows, checked on the server (403 without the extra), no query keys.
+  app.get(
+    '/api/map/overview',
+    { ...auth, schema: { querystring: { type: 'object', additionalProperties: false, properties: {} } } },
+    async (req): Promise<MapOverviewResponse> => ctx.game.mapOverview(playerOf(req), req.nowMs),
   );
 
   // Command post: find villages by village or player name. Read only; the rows are the map's per-viewer rows.

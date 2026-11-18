@@ -1399,39 +1399,95 @@
   font-weight: 400;
   letter-spacing: 0.01em;
 }
-.wm-ov {
+.wm-ov-where {
+  margin-top: -4px;
+}
+/* The overview card: parchment, thick dark outline, rounded; the board with its slab is drawn inside the canvas. */
+.wm-ov-card {
   width: 100%;
-  aspect-ratio: 1;
+  box-sizing: border-box;
+  padding: 6px 4px 2px;
+  background: var(--surface-2);
+  border: 3px solid var(--wm-ink);
+  border-radius: 16px;
+  box-shadow: 0 3px 0 var(--wm-ink);
 }
 .wm-ov-canvas {
   display: block;
   max-width: 100%;
-  border: 2px solid var(--wm-ink);
-  border-radius: 10px;
-  box-sizing: border-box;
   touch-action: none;
   cursor: crosshair;
-  background: #e3ebc2;
 }
 .wm-ov-note {
   margin: 0;
   font-size: 12px;
   color: var(--on-surface-muted, #5a4a3c);
 }
+.wm-ov-sub {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--wm-display);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.wm-ov-prem {
+  font-family: var(--wm-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--wm-sun);
+  color: var(--wm-ink);
+}
+.wm-ov-arrows {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.wm-ov-arrow {
+  width: 44px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 2.5px solid var(--wm-ink);
+  background: var(--surface);
+  color: var(--wm-ink);
+  box-shadow: 0 2px 0 var(--wm-ink);
+  cursor: pointer;
+}
+.wm-ov-arrow:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+.wm-ov-arrow svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+/* Legend: a two-column list of filled chips, each with the round token of its relation. */
 .wm-ov-legend {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 5px;
-  font-size: 13.5px;
+  font-size: 12.5px;
 }
 .wm-ov-legend li {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
 }
 .wm-ov-label {
   flex: 1;
@@ -1443,27 +1499,43 @@
 .wm-ov-count {
   font-variant-numeric: tabular-nums;
 }
-.wm-ov-sw {
+.wm-ov-tok {
   flex: none;
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   box-sizing: border-box;
+  border-radius: 50%;
   border: 1.5px solid var(--wm-ink);
 }
-.wm-ov-sw-own {
-  width: 14px;
-  height: 14px;
-  box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--wm-ink);
-  margin: 0 1px;
+.wm-ov-tok-own {
+  width: 15px;
+  height: 15px;
+  margin: -2px -2px;
+  border-color: #fff;
+  box-shadow: 0 0 0 1.5px var(--wm-ink);
+  position: relative;
 }
-.wm-ov-sw-small {
-  width: 8px;
-  height: 8px;
-  margin: 0 2px;
+.wm-ov-tok-own::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #c4623a;
 }
-.wm-ov-sw-site {
-  background: #fff2b8;
-  transform: rotate(45deg) scale(0.85);
+.wm-ov-tok-abandoned {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border-color: #6e675e;
+}
+.wm-ov-tok-site {
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  background: #ffb52e;
+  transform: scale(0.9);
 }
 .wm-ov-toggles {
   display: flex;
@@ -1477,12 +1549,40 @@
   gap: 6px;
   min-height: 28px;
 }
+/* Premium Expand: size choices and the large view; locked and greyed for everybody else. */
+.wm-ov-expand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.wm-ov-sizes {
+  display: flex;
+  gap: 6px;
+}
+.wm-ov-size {
+  flex: 1;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 2px solid var(--wm-ink);
+  background: var(--surface);
+  color: var(--wm-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wm-ov-size.is-on {
+  background: var(--wm-sun);
+}
+.wm-ov-size:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-style: dashed;
+}
 
 @media (max-width: 767px) {
-  .wm-ov-legend {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 14px;
-  }
   /* Phone: the overview is a full-width block under the map; the page scrolls to it. */
   .wm {
     flex-direction: column;
@@ -1498,9 +1598,15 @@
     width: 100%;
     padding-bottom: calc(var(--dock-space, 96px) + 12px);
   }
-  .wm-ov {
-    max-width: 420px;
-    align-self: center;
+  /* Large view on a phone: the block goes edge to edge and grows taller (the diamond is as wide as the screen allows). */
+  .wm-side-large {
+    padding-left: 6px;
+    padding-right: 6px;
+    gap: 12px;
+  }
+  .wm-side-large .wm-ov-card {
+    padding: 14px 0 10px;
+    border-radius: 14px;
   }
 }
 
@@ -1509,10 +1615,13 @@
     position: sticky;
     top: 0;
     align-self: stretch;
-    width: 268px;
+    width: 300px;
     border-top: 0;
     border-left: 3px solid var(--edge);
     box-shadow: -4px 0 0 var(--edge-shadow);
     padding-top: 14px;
+  }
+  .wm-side-large {
+    width: min(540px, 50vw);
   }
 }
