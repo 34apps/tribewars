@@ -1387,7 +1387,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--on-surface, var(--wm-ink));
   border-top: 3px solid var(--edge);
   padding: 12px 14px 16px;
@@ -1402,21 +1402,73 @@
 .wm-ov-where {
   margin-top: -4px;
 }
-/* The overview card: parchment, thick dark outline, rounded; the board with its slab is drawn inside the canvas. */
+/* The overview card: parchment, thick dark outline, rounded. Header (title + Expand pills), the board with its slab and edge notches
+   (drawn in the canvas), the hint, the legend. */
 .wm-ov-card {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 4px 2px;
-  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  background: var(--surface);
   border: 3px solid var(--wm-ink);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: 0 3px 0 var(--wm-ink);
+}
+.wm-ov-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.wm-ov-head .wm-side-title {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.wm-ov-board {
+  position: relative;
+  width: 100%;
 }
 .wm-ov-canvas {
   display: block;
   max-width: 100%;
   touch-action: none;
   cursor: crosshair;
+}
+/* Small arrow notches on the diamond's four edges: a 44 px touch area round a ~10 px arrow. */
+.wm-ov-notch {
+  position: absolute;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.wm-ov-notch svg {
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  fill: #e4b67c;
+  stroke: var(--wm-ink);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.wm-ov-notch:hover svg,
+.wm-ov-notch:focus-visible svg {
+  fill: var(--wm-sun);
+}
+.wm-ov-hint {
+  margin: -2px 0 0;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--on-surface-muted, #8a7a66);
 }
 .wm-ov-note {
   margin: 0;
@@ -1442,34 +1494,6 @@
   background: var(--wm-sun);
   color: var(--wm-ink);
 }
-.wm-ov-arrows {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-.wm-ov-arrow {
-  width: 44px;
-  height: 40px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  border: 2.5px solid var(--wm-ink);
-  background: var(--surface);
-  color: var(--wm-ink);
-  box-shadow: 0 2px 0 var(--wm-ink);
-  cursor: pointer;
-}
-.wm-ov-arrow:active {
-  transform: translateY(2px);
-  box-shadow: none;
-}
-.wm-ov-arrow svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
 /* Legend: a two-column list of filled chips, each with the round token of its relation. */
 .wm-ov-legend {
   list-style: none;
@@ -1478,14 +1502,14 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .wm-ov-legend li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  padding: 4px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: var(--surface-2);
 }
@@ -1499,6 +1523,26 @@
 .wm-ov-count {
   font-variant-numeric: tabular-nums;
 }
+.wm-ov-count-soft {
+  font-weight: 600;
+  color: var(--on-surface-muted, #8a7a66);
+}
+.wm-ov-opt {
+  font-weight: 400;
+}
+@media (max-width: 480px) {
+  /* Phone chips are narrow: the "(hatch)" hint and the "empty" word go first. */
+  .wm-ov-opt,
+  .wm-ov-count-soft {
+    display: none;
+  }
+}
+.wm-ov-sw {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: -3px -2px;
+}
 .wm-ov-tok {
   flex: none;
   width: 11px;
@@ -1507,30 +1551,11 @@
   border-radius: 50%;
   border: 1.5px solid var(--wm-ink);
 }
-.wm-ov-tok-own {
-  width: 15px;
-  height: 15px;
-  margin: -2px -2px;
-  border-color: #fff;
-  box-shadow: 0 0 0 1.5px var(--wm-ink);
-  position: relative;
-}
-.wm-ov-tok-own::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 4px;
-  height: 4px;
-  margin: -2px 0 0 -2px;
-  border-radius: 50%;
-  background: #c4623a;
-}
 .wm-ov-tok-abandoned {
   width: 9px;
   height: 9px;
   background: transparent;
-  border-color: #6e675e;
+  border-color: #4a4640;
 }
 .wm-ov-tok-site {
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
@@ -1549,37 +1574,49 @@
   gap: 6px;
   min-height: 28px;
 }
-/* Premium Expand: size choices and the large view; locked and greyed for everybody else. */
+/* Premium Expand: compact pills in the card header (100 / 200 / World); locked and greyed for everybody else. */
 .wm-ov-expand {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 4px;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.wm-ov-expand-label {
+  display: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--on-surface-muted, #8a7a66);
+}
+.wm-side-large .wm-ov-expand-label {
+  display: inline;
 }
 .wm-ov-sizes {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 .wm-ov-size {
-  flex: 1;
-  min-height: 40px;
-  padding: 4px 8px;
+  min-height: 28px;
+  padding: 2px 9px;
   border-radius: 999px;
   border: 2px solid var(--wm-ink);
   background: var(--surface);
   color: var(--wm-ink);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
 }
 .wm-ov-size.is-on {
-  background: var(--wm-sun);
+  background: var(--wm-ink);
+  color: #fff4de;
 }
 .wm-ov-size:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   border-style: dashed;
+}
+.wm-ov-large {
+  margin-left: auto;
 }
 
 @media (max-width: 767px) {
@@ -1605,8 +1642,8 @@
     gap: 12px;
   }
   .wm-side-large .wm-ov-card {
-    padding: 14px 0 10px;
-    border-radius: 14px;
+    padding: 12px 4px 10px;
+    border-radius: 16px;
   }
 }
 
@@ -1620,6 +1657,10 @@
     border-left: 3px solid var(--edge);
     box-shadow: -4px 0 0 var(--edge-shadow);
     padding-top: 14px;
+  }
+  /* The territory map (200, World) needs a wider board to read; the large view is wider still. */
+  .wm-side-wide {
+    width: min(420px, 38vw);
   }
   .wm-side-large {
     width: min(540px, 50vw);

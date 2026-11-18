@@ -6,9 +6,9 @@ import type { MapAllegiance } from './allegiance.ts';
 import type { MapOverviewCode } from '@clanfire/engine';
 import type { Size, View } from './iso.ts';
 
-/** Legend order and words: the owner's "Your villages · Tribe · Allies · Pact · Enemies · Others · Abandoned". */
+/** Legend order and words: the owner's "Mine · Tribe · Allies · Pact · Enemies · Others · Abandoned". */
 export const OVERVIEW_ROWS: ReadonlyArray<{ key: MapAllegiance; label: string }> = [
-  { key: 'own', label: 'Your villages' },
+  { key: 'own', label: 'Mine' },
   { key: 'tribe', label: 'Tribe' },
   { key: 'ally', label: 'Allies' },
   { key: 'nap', label: 'Pact' },
@@ -31,7 +31,7 @@ export const OVERVIEW_REGION = 100;
 export const OVERVIEW_SIZES: ReadonlyArray<{ span: number; label: string }> = [
   { span: OVERVIEW_REGION, label: '100' },
   { span: 2 * OVERVIEW_REGION, label: '200' },
-  { span: 0, label: 'Whole world' },
+  { span: 0, label: 'World' },
 ];
 /** Chunks of the region are refetched after this long (the main map keeps its own, shorter times). */
 export const OVERVIEW_STALE_MS = 180_000;
@@ -164,3 +164,44 @@ export function siteHalf(tile: number): number {
 
 /** Draw order: abandoned and plain players first, relations above them, own villages on top. */
 export const OVERVIEW_ORDER: readonly MapAllegiance[] = ['abandoned', 'neutral', 'nap', 'ally', 'tribe', 'enemy', 'own'];
+
+/** Touch area of an edge notch in px (a square; the visible arrow is much smaller). */
+export const NOTCH_HIT = 44;
+/** The hint under the board. */
+export const OVERVIEW_HINT = 'Drag to move · tap to jump';
+
+export interface Notch {
+  key: 'up' | 'right' | 'down' | 'left';
+  /** Centre of the arrow in canvas px, just outside the board edge. */
+  x: number;
+  y: number;
+  /** Arrow direction in radians (screen). */
+  angle: number;
+  /** Which way the map moves, as a world step. */
+  dx: number;
+  dy: number;
+}
+
+/**
+ * Four small arrow notches, one on each edge of the diamond (replacing the row of big arrow buttons). `rim` is the height of the wooden
+ * slab: the two lower notches sit on its lower edge. Edge "up" is the top-right edge (world -y), "right" the bottom-right (+x), "down" the
+ * bottom-left (+y), "left" the top-left (-x), so every arrow points the way the map moves on screen.
+ */
+export function notchSpots(l: DiamondLayout, region: Region, rim: number, gap = 8): Notch[] {
+  const e = 0.5;
+  const top = worldToDiamond(l, region, region.x0 - e, region.y0 - e);
+  const right = worldToDiamond(l, region, region.x1 + e, region.y0 - e);
+  const bottom = worldToDiamond(l, region, region.x1 + e, region.y1 + e);
+  const left = worldToDiamond(l, region, region.x0 - e, region.y1 + e);
+  const s = Math.SQRT1_2;
+  const mid = (a: { x: number; y: number }, b: { x: number; y: number }, ox: number, oy: number, down: number) => ({
+    x: (a.x + b.x) / 2 + ox * gap,
+    y: (a.y + b.y) / 2 + oy * gap + down,
+  });
+  return [
+    { key: 'up', ...mid(top, right, s, -s, 0), angle: -Math.PI / 4, dx: 0, dy: -1 },
+    { key: 'right', ...mid(right, bottom, s, s, rim * 0.5), angle: Math.PI / 4, dx: 1, dy: 0 },
+    { key: 'down', ...mid(left, bottom, -s, s, rim * 0.5), angle: (3 * Math.PI) / 4, dx: 0, dy: 1 },
+    { key: 'left', ...mid(left, top, -s, -s, 0), angle: (-3 * Math.PI) / 4, dx: -1, dy: 0 },
+  ];
+}

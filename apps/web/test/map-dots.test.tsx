@@ -177,7 +177,7 @@ test('overview: counts per relation, region geometry (isometric diamond), click 
     village({ kind: 'abandoned', ownerId: null, relation: null }),
   ];
   assert.deepEqual(overview.countVillages(vs), { own: 1, tribe: 2, ally: 0, nap: 0, enemy: 1, neutral: 1, abandoned: 1 });
-  assert.deepEqual(overview.OVERVIEW_ROWS.map((r: { label: string }) => r.label), ['Your villages', 'Tribe', 'Allies', 'Pact', 'Enemies', 'Others', 'Abandoned']);
+  assert.deepEqual(overview.OVERVIEW_ROWS.map((r: { label: string }) => r.label), ['Mine', 'Tribe', 'Allies', 'Pact', 'Enemies', 'Others', 'Abandoned']);
   assert.deepEqual(overview.countPoints([{ x: 0, y: 0, a: 'own' }, { x: 1, y: 1, a: 'ally' }, { x: 2, y: 2, a: 'ally' }]), { own: 1, tribe: 0, ally: 2, nap: 0, enemy: 0, neutral: 0, abandoned: 0 });
   // Server codes of the whole-world rows map to the map's relations.
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(overview.allegianceOfCode), ['abandoned', 'own', 'tribe', 'ally', 'nap', 'enemy', 'neutral']);
