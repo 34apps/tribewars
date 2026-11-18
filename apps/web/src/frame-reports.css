@@ -950,3 +950,23 @@
   padding: 5px 11px 5px 9px;
   border-radius: 14px;
 }
+
+/* The scouts of an attack, compact inside the forces card (the full intel opens in a dialog). */
+.frp-scbox {
+  align-self: stretch;
+}
+
+.frp-scst {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+/* Inside the dialog the troops and the buildings stack, so the building grid is not cut off. */
+.frp-scdlg .frp-sc2 {
+  flex-direction: column;
+}
+
+.frp-scdlg .frp-sc2 > * {
+  width: 100%;
+}

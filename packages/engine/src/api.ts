@@ -804,6 +804,26 @@ export interface BattleReportData {
   siege?: SiegeHit[];
   /** Battles at a map site only: the site's Wall after the battle (`wallLevel` above is the one that counted in it) and when it next rises. */
   siteWall?: { level: number; max: number; nextInMs: number | null };
+  /**
+   * The scouting of the Pathfinders that rode inside this attack (one report per attack, since 2026-11-18; they used to get a separate
+   * scout report). The duel is the same as a scouting march; `attackerUnits` / `attackerLosses` above do not count them. Absent on older
+   * reports and when no Pathfinder went along. The attacker's report carries `intel` on success; the defender's report only when the
+   * scouts were spotted (somebody had Pathfinders there), never with intel.
+   */
+  scouting?: BattleScouting;
+}
+
+export interface BattleScouting {
+  /** Pathfinders in the attack. */
+  sent: number;
+  /** Pathfinders that fell in the duel. */
+  lost: number;
+  success: boolean;
+  /** Defending Pathfinders (own + support). Shown to the defender always; to the sender only on success; null otherwise. */
+  defenderScouts: number | null;
+  defenderScoutsLost: number;
+  /** What the scouts saw: the sender's report on success only. */
+  intel: ScoutIntel | null;
 }
 
 export interface StrikeOutcome {

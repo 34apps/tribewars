@@ -546,10 +546,14 @@ scouts, it will automatically scout"). Every send carries `mission`:
   - *Pathfinders plus other troops:* a normal attack (`kind: 'attack'`, shown as incoming to the target like any attack).
     On arrival the Pathfinders scout first, with the same duel and formulas as below (only the army's Pathfinders count;
     the target's own Pathfinders that die in the duel are gone before the battle). Then the rest of the army fights;
-    **Pathfinders take no part in the battle and suffer no battle losses**. The sender gets **two reports**: the scout
-    report (intel on success, a failure note otherwise; the intel is the village as it stood on arrival, before the battle)
-    and the battle report. The target gets the "Pathfinders spotted" report only under the usual rule (it had a defending
-    Pathfinder), besides the battle report. Surviving Pathfinders walk home with the army's survivors; if the rest of the
+    **Pathfinders take no part in the battle and suffer no battle losses**. **One report per attack** (owner, 2026-11-18): the sender gets only the battle report,
+    with a **Scouts** section inside (`BattleReportData.scouting`: sent, lost, success, defending Pathfinders, and the intel on
+    success; the intel is the village as it stood on arrival, before the battle); there is no separate scout report. The target
+    gets one battle report, with a line on the scouts caught (`scouting` without intel) only under the usual rule (it had a
+    defending Pathfinder). The report list shows one row; its "sent" and "lost" figures and **Raid again** include the Pathfinders;
+    the troops hint, the Firecart picker and the simulator read the intel from the battle report too. Reports from before this
+    change stay as they were (two reports). A Pathfinders-only march keeps its own scout report.
+    Surviving Pathfinders walk home with the army's survivors; if the rest of the
     army is wiped out (or stays behind after a Strike) they walk home alone. Not applied to a relief attack on a cold
     village or to a site attack (there the Pathfinders fight like any unit that has no attack).
 - `scout` — the old scouting mission, still accepted by the API for older clients: Pathfinders only (any other unit →

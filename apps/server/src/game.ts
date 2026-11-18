@@ -145,6 +145,7 @@ import {
   type ReportDto,
   type ReportListResponse,
   type Resources,
+  type BattleScouting,
   type ScoutReportData,
   type SendResponse,
   type SendShipmentResponse,
@@ -676,8 +677,12 @@ export class GameService {
     if (scoutsSent > 0 && totalUnits(m.units) === scoutsSent) return this.resolveScout(m);
     let scoutSurvivors = emptyUnits();
     let fighters = m.units;
+    // One report per attack: the duel's result goes into the battle reports as their `scouting` part (no separate scout report).
+    let scouting: { data: ScoutReportData; spotted: boolean } | null = null;
     if (scoutsSent > 0) {
-      scoutSurvivors = this.runScouting(m, origin, target, at);
+      const duel = this.runScouting(m, origin, target, at, true);
+      scoutSurvivors = duel.survivors;
+      scouting = { data: duel.data, spotted: duel.spotted };
       fighters = { ...m.units, pathfinder: 0 };
       origin = this.store.getVillage(m.originVillageId) ?? origin; // both villages were saved by the duel
       target = this.store.getVillage(m.targetVillageId) ?? target;
@@ -843,6 +848,15 @@ export class GameService {
       ...(lootFromStore ? { lootFromTribeStore: lootFromStore } : {}),
       ...(hasSiegeUnits(fighters) ? { siege: result.siege ?? [] } : {}),
     };
+    // The Pathfinders' part, as each side may see it: the sender sees the intel and (on success) the defending scouts; the defender
+    // hears of it only when somebody there spotted them.
+    const scoutingFor = (side: 'attack' | 'defense'): { scouting: BattleScouting } | Record<string, never> => {
+      if (!scouting) return {};
+      const d = scouting.data;
+      if (side === 'attack') return { scouting: { sent: d.scoutsSent, lost: d.scoutsLost, success: d.success, defenderScouts: d.defenderScouts, defenderScoutsLost: d.defenderScoutsLost, intel: d.intel } };
+      if (!scouting.spotted) return {};
+      return { scouting: { sent: d.scoutsSent, lost: d.scoutsLost, success: d.success, defenderScouts: d.defenderScouts, defenderScoutsLost: d.defenderScoutsLost, intel: null } };
+    };
     if (origin.ownerId !== null) {
       // An army wiped out sees nothing of the defence, except the Wall hit of a close loss (it shot during the battle).
       const wallHits = (result.siege ?? []).filter((h) => h.building === 'wall');
@@ -869,7 +883,7 @@ export class GameService {
         title: `Raid on ${target.name} ${coords(target)}`,
         createdAt: at,
         type: 'battle',
-        battle: { ...battle, ...(strikeInfo ? { strike: strikeInfo } : {}), ...gained(origin.ownerId, !seen) },
+        battle: { ...battle, ...(strikeInfo ? { strike: strikeInfo } : {}), ...gained(origin.ownerId, !seen), ...scoutingFor('attack') },
       });
     }
     if (target.ownerId !== null) {
@@ -880,7 +894,7 @@ export class GameService {
         title: `Attack from ${origin.name} ${coords(origin)}`,
         createdAt: at,
         type: 'battle',
-        battle: { ...full, ...gained(target.ownerId) },
+        battle: { ...full, ...gained(target.ownerId), ...scoutingFor('defense') },
       });
     }
     // Everyone who had troops standing there gets the full picture (one report per owner).
@@ -1543,7 +1557,7 @@ export class GameService {
       const rel = relationBetweenPlayers(this.store.tribes, origin.ownerId, target.ownerId, at);
       if (isAttackForbidden(rel.relation)) return this.turnBack(m, origin, target);
     }
-    const survivors = this.runScouting(m, origin, target, at);
+    const { survivors } = this.runScouting(m, origin, target, at, false);
     let spawned: number | null = null;
     if (totalUnits(survivors) > 0) {
       spawned = at + (m.returnSecs != null ? m.returnSecs * 1000 : travelTimeMs({ x: target.x, y: target.y }, { x: origin.x, y: origin.y }, survivors, this.settings, this.sites.waymarksForPlayer(origin.ownerId)));
@@ -1563,11 +1577,13 @@ export class GameService {
 
   /**
    * The scouting duel of the Pathfinders in movement `m` against the village `target`: losses on both sides are saved, stats
-   * counted, and the reports written (the sender's, and the target's if somebody there spotted them). Used by a Pathfinder-only
-   * march and, first of all, by an attack that carries Pathfinders. Returns the surviving Pathfinders (units); the caller sends
-   * them home. Re-read the villages afterwards: both were saved here.
+   * counted. Used by a Pathfinder-only march and, first of all, by an attack that carries Pathfinders. A scouting march gets its own
+   * reports here (the sender's, and the target's if somebody there spotted them); with `merged` (an attack) nothing is written: the
+   * caller puts `data` into the battle reports (`scouting`), so there is one report per attack. Returns the surviving Pathfinders
+   * (units), the report data and whether the target's side spotted them; the caller sends the survivors home. Re-read the villages
+   * afterwards: both were saved here.
    */
-  private runScouting(m: MovementRow, origin: VillageRecord, target: VillageRecord, at: number): Units {
+  private runScouting(m: MovementRow, origin: VillageRecord, target: VillageRecord, at: number, merged: boolean): { survivors: Units; data: ScoutReportData; spotted: boolean } {
     const s = this.settings;
     const originState = settleVillage(origin.state, at, s);
     const targetState = settleVillage(target.state, at, s);
@@ -1635,6 +1651,8 @@ export class GameService {
           })
         : null,
     };
+    const spotted = target.ownerId !== null && defenderScouts > 0;
+    if (merged) return { survivors, data, spotted };
     if (origin.ownerId !== null) {
       this.store.insertReport({
         playerId: origin.ownerId,
@@ -1647,9 +1665,9 @@ export class GameService {
       });
     }
     // The target hears of it only if somebody was there to spot the scouts (their own or stationed Pathfinders).
-    if (target.ownerId !== null && defenderScouts > 0) {
+    if (spotted) {
       this.store.insertReport({
-        playerId: target.ownerId,
+        playerId: target.ownerId as number,
         side: 'defense',
         won: !result.success,
         title: `Enemy scouts from ${origin.name} ${coords(origin)}`,
@@ -1659,7 +1677,7 @@ export class GameService {
       });
     }
 
-    return survivors;
+    return { survivors, data, spotted };
   }
 
   /**
