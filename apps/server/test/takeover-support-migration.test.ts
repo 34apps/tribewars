@@ -13,7 +13,7 @@ import { Client, Clock, PASSWORD, TEST_WORLD, TEST_WORLD_CONFIG, ok } from './he
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** A world with one player (home village) and one taken village that holds the army that took it, plus the three reports of the old rule. */
-async function oldWorld(dir: string, opts: { originStillTheirs: boolean }) {
+async function oldWorld(dir: string, opts: { originStillTheirs: boolean; flag?: string }) {
   const dbPath = join(dir, 'game.sqlite');
   const clock = new Clock();
   const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
@@ -43,7 +43,7 @@ async function oldWorld(dir: string, opts: { originStillTheirs: boolean }) {
   ins.run(playerId, 'Raid', t, JSON.stringify({ type: 'battle', outcome: 'battle', attacker: ref(homeId), defender: ref(takenId), attackerWon: true, attackerUnits: { raider: 600, chieftain: 2 }, attackerLosses: { raider: 50 } }));
   ins.run(playerId, 'Hearth out', t, JSON.stringify({ type: 'village', kind: 'struck', village: ref(takenId), holdEndsAt: t + 1000 }));
   ins.run(playerId, 'Village taken', t + 1000, JSON.stringify({ type: 'village', kind: 'taken', village: ref(takenId), overflow: { raider: 20, chieftain: 1 } }));
-  raw.prepare("DELETE FROM meta WHERE key = 'takeover_support_applied'").run();
+  raw.prepare('DELETE FROM meta WHERE key = ?').run(opts.flag ?? 'takeover_support_applied');
   raw.close();
   return { dbPath, open, homeId, takenId, playerId };
 }
@@ -104,6 +104,50 @@ test('no reports of a takeover: a village with its own troops is left alone', as
     const a = read(w.dbPath, w.homeId, w.takenId);
     assert.equal(a.rows.length, 0);
     assert.equal(a.taken.troops.raider, 540);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Schema v35: the owner's browser world had the v34 flag but kept the army as own troops. The second pass (flag takeover_support_retry_applied) converts it.
+test('v35 second pass: a world flagged v34 whose army is still own troops is converted once', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-takeover-'));
+  try {
+    const w = await oldWorld(dir, { originStillTheirs: true, flag: 'takeover_support_retry_applied' });
+    const raw = new DatabaseSync(w.dbPath);
+    assert.ok(raw.prepare("SELECT 1 FROM meta WHERE key = 'takeover_support_applied'").get(), 'the v34 flag is set, as in the owner world');
+    raw.close();
+    await (await w.open()).close();
+    const a = read(w.dbPath, w.homeId, w.takenId);
+    assert.equal(a.rows.length, 1);
+    assert.equal(JSON.parse(a.rows[0]!.units_json).raider, 530);
+    assert.equal(a.taken.troops.raider, 10);
+    assert.equal(a.taken.troops.pikeman, 30);
+    assert.equal(a.home.away.raider, 530);
+    await (await w.open()).close();
+    assert.deepEqual(read(w.dbPath, w.homeId, w.takenId), a, 'a second start changes nothing');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('v35 second pass: a village that already holds support is not converted again (even with new own troops)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-takeover-'));
+  try {
+    const w = await oldWorld(dir, { originStillTheirs: true });
+    await (await w.open()).close(); // v34 converts
+    const a = read(w.dbPath, w.homeId, w.takenId);
+    const raw = new DatabaseSync(w.dbPath);
+    const st = a.taken;
+    st.troops.raider += 400; // trained there since
+    raw.prepare('UPDATE villages SET state_json = ? WHERE id = ?').run(JSON.stringify(st), w.takenId);
+    raw.prepare("DELETE FROM meta WHERE key = 'takeover_support_retry_applied'").run();
+    raw.close();
+    await (await w.open()).close();
+    const b = read(w.dbPath, w.homeId, w.takenId);
+    assert.equal(b.rows.length, 1);
+    assert.equal(JSON.parse(b.rows[0]!.units_json).raider, 530, 'unchanged');
+    assert.equal(b.taken.troops.raider, 410, 'the trained troops stay');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

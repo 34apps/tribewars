@@ -744,6 +744,7 @@ export function applySchema(db: DatabaseSync): void {
   migrateRankRework(db);
   migrateFighterPeople(db);
   migrateTakeoverSupport(db);
+  migrateTakeoverSupportRetry(db);
   migrateAuditIpGuard(db);
   seedTemplates(db);
 }
@@ -753,14 +754,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 34; // 34: taken villages: the occupiers stay as support from the village that sent them (new rule); villages already taken by a Strike-and-Hold get their moved-in army turned into stationed support once, where the reports tell the origin (data step migrateTakeoverSupport, flag takeover_support_applied) (2026-11-18); 33: fighter rankings count people defeated (POP_PER_UNIT), not troop value: fighter_totals is reset to 0 once (data step migrateFighterPeople, flag fighter_people_applied; the lists were a day old and value cannot be turned into people exactly) (2026-11-18); 32: Drillyard rank rework: ranks on tracks a unit no longer has are removed and refunded, ranks over the new Training-Point pool are trimmed and refunded (data step migrateRankRework, flag rank_rework_applied) (2026-11-18); 31: chieftain_claims table (the rest of a village's price is reserved when a Strike/Found order is sent) + Chieftain deposits instead of growing reservations; the game service refunds the difference on old worlds once (meta flag chieftain_deposit_applied, no data step in applySchema) (2026-11-18); 30: sites.wall_level/wall_at (self-building site Wall) + keepers_base/keepers_since (keepers regrow) and tribe_members.site_renown_at (daily Renown per member from held sites; added by addMissingColumns, null = since joined_at, no data step) (2026-11-18); 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 35; // 35: second pass of the takeover conversion for worlds whose v34 run left the army as own troops (data step migrateTakeoverSupportRetry, flag takeover_support_retry_applied; skips villages that already hold support) (2026-11-18); 34: taken villages: the occupiers stay as support from the village that sent them (new rule); villages already taken by a Strike-and-Hold get their moved-in army turned into stationed support once, where the reports tell the origin (data step migrateTakeoverSupport, flag takeover_support_applied) (2026-11-18); 33: fighter rankings count people defeated (POP_PER_UNIT), not troop value: fighter_totals is reset to 0 once (data step migrateFighterPeople, flag fighter_people_applied; the lists were a day old and value cannot be turned into people exactly) (2026-11-18); 32: Drillyard rank rework: ranks on tracks a unit no longer has are removed and refunded, ranks over the new Training-Point pool are trimmed and refunded (data step migrateRankRework, flag rank_rework_applied) (2026-11-18); 31: chieftain_claims table (the rest of a village's price is reserved when a Strike/Found order is sent) + Chieftain deposits instead of growing reservations; the game service refunds the difference on old worlds once (meta flag chieftain_deposit_applied, no data step in applySchema) (2026-11-18); 30: sites.wall_level/wall_at (self-building site Wall) + keepers_base/keepers_since (keepers regrow) and tribe_members.site_renown_at (daily Renown per member from held sites; added by addMissingColumns, null = since joined_at, no data step) (2026-11-18); 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '4bd9a03e8589df10';
+export const SCHEMA_FINGERPRINT = '0bf45bd860a7ebb1';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), migrateRankRework.toString(), migrateFighterPeople.toString(), migrateTakeoverSupport.toString(), migrateAuditIpGuard.toString(), AUDIT_UPDATE_GUARD_SQL, seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), migrateRankRework.toString(), migrateFighterPeople.toString(), migrateTakeoverSupport.toString(), migrateTakeoverSupportRetry.toString(), migrateAuditIpGuard.toString(), AUDIT_UPDATE_GUARD_SQL, seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -1135,8 +1136,8 @@ function migrateFighterPeople(db: DatabaseSync): void {
  * origin -> taken village, stamped with the origin village's current ranks (the Drillyard ranks of the Strike are not stored; this is the closest record).
  * Villages where the reports are missing or do not agree are skipped (logged). Rows with nothing to convert are not written; a second run changes nothing.
  */
-function migrateTakeoverSupport(db: DatabaseSync): void {
-  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'takeover_support_applied'").get()) return;
+function migrateTakeoverSupport(db: DatabaseSync, flag = 'takeover_support_applied', skipExisting = false): void {
+  if (db.prepare('SELECT 1 AS x FROM meta WHERE key = ?').get(flag)) return;
   db.exec('BEGIN IMMEDIATE');
   try {
     type Rep = { id: number; player_id: number; title: string; created_at: number; battle_json: string };
@@ -1176,6 +1177,7 @@ function migrateTakeoverSupport(db: DatabaseSync): void {
       if (newer) continue; // only the village's latest takeover matters
       const vRow = getVillage.get(t.vid) as { id: number; owner_id: number | null; state_json: string } | undefined;
       if (!vRow || vRow.owner_id !== t.r.player_id) continue; // gone, or someone else's now
+      if (skipExisting && db.prepare('SELECT 1 AS x FROM stationed WHERE host_village_id = ? AND owner_player_id = ? LIMIT 1').get(vRow.id, t.r.player_id)) continue; // already support there (converted, or a takeover under the new rule)
       const struck = [...strucks].reverse().find((x) => x.vid === t.vid && x.r.player_id === t.r.player_id && x.r.created_at <= t.r.created_at);
       const battle = struck
         ? (db.prepare("SELECT id, player_id, title, created_at, battle_json FROM reports WHERE player_id = ? AND created_at = ? AND battle_json LIKE '%\"type\":\"battle\"%'").all(t.r.player_id, struck.r.created_at) as unknown as Rep[])
@@ -1227,7 +1229,7 @@ function migrateTakeoverSupport(db: DatabaseSync): void {
       console.info(`[db] takeover support: village ${vRow.id} -> stationed support from village ${oRow.id} (${Object.entries(move).map(([u, n]) => `${n} ${u}`).join(', ')})`);
     }
     if (converted + skipped > 0) console.info(`[db] takeover support: ${converted} village(s) converted, ${skipped} skipped (reports do not tell the origin)`);
-    db.prepare("INSERT INTO meta (key, value) VALUES ('takeover_support_applied', '1')").run();
+    db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(flag, '1');
     db.exec('COMMIT');
   } catch (err) {
     try {
@@ -1237,6 +1239,17 @@ function migrateTakeoverSupport(db: DatabaseSync): void {
     }
     throw err;
   }
+}
+
+/**
+ * Second pass of the takeover conversion (schema v35, 2026-11-18), once per database (flag takeover_support_retry_applied). The owner's browser world
+ * carried the v34 flag but its army was still in the taken village as own troops (the conversion above is correct on copies of that world, in node, headless
+ * Chrome and WebKit, so the browser run is not understood; nothing in the game undoes support, and the stationed id counter shows it was never written).
+ * Same rules as migrateTakeoverSupport, plus: a village that already has stationed support of its owner is left alone (converted by v34, or taken under the
+ * new rule), so a world where v34 worked is not touched twice.
+ */
+function migrateTakeoverSupportRetry(db: DatabaseSync): void {
+  migrateTakeoverSupport(db, 'takeover_support_retry_applied', true);
 }
 
 /**
