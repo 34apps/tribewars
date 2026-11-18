@@ -5,6 +5,9 @@ import { terrainAmountOf } from '@clanfire/engine';
 import { useGame, useRules } from '../game.ts';
 import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
+import { mapRevision, staleSince } from '../map/revision.ts';
+import type { MapRevision } from '../map/revision.ts';
+import { chunkStaleMs } from '../map/zoomMode.ts';
 import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
 import type { View } from '../map/iso.ts';
 import { drawMap, pickTile, pickVillage } from '../map/render.ts';
@@ -39,7 +42,7 @@ declare global {
 }
 
 export function MapView({ active }: { active: boolean }) {
-  const { settings, village, mapFocus, tribeVersion, player, movements, now } = useGame();
+  const { settings, village, mapFocus, tribeVersion, player, movements, now, villages: myVillages, holds } = useGame();
   const radius = settings.radius;
 
   const terrainAmount = terrainAmountOf(settings);
@@ -126,7 +129,7 @@ export function MapView({ active }: { active: boolean }) {
     if (!force && Math.abs(v.cx - last.cx) + Math.abs(v.cy - last.cy) < 3 && v.tile === last.tile) return;
     lastEnsure.current = { cx: v.cx, cy: v.cy, tile: v.tile };
     const b = visibleTileBounds(v, { w, h }, PREFETCH_TILES);
-    chunks.ensure(b.x0, b.y0, b.x1, b.y1, v.cx, v.cy, (x0, y0, x1, y1) => rectOnScreen(v, { w, h }, x0, y0, x1, y1, v.tile * PREFETCH_TILES));
+    chunks.ensure(b.x0, b.y0, b.x1, b.y1, v.cx, v.cy, (x0, y0, x1, y1) => rectOnScreen(v, { w, h }, x0, y0, x1, y1, v.tile * PREFETCH_TILES), chunkStaleMs(v.tile));
   }, [chunks]);
 
   // `schedule` is defined below; frames re-arm themselves through this ref.
@@ -278,11 +281,25 @@ export function MapView({ active }: { active: boolean }) {
   }, [sites, sightings, player.tribe?.id, schedule]);
 
   // My tribe or a diplomatic relation changed: villages change banners and tags, so refetch the visible chunks.
+  // A village changed owner (taken, lost, held, freed): the state refresh that follows the server's hint changes my village or
+  // hold list, and only the chunks holding those villages are refetched. A tribe change refetches every visible chunk.
   const tribeId = player.tribe?.id ?? 0;
+  const revision = useRef<MapRevision | null>(null);
   useEffect(() => {
-    chunks.invalidate();
+    const next = mapRevision({
+      tribeId,
+      tribeVersion,
+      villages: myVillages.map((v) => ({ id: v.id, x: v.x, y: v.y, hearthOut: !!v.hearth })),
+      holds: holds ?? [],
+    });
+    const stale = staleSince(revision.current, next);
+    revision.current = next;
+    if (stale.all) chunks.invalidate();
+    else if (stale.tiles.length > 0) chunks.invalidateAt(stale.tiles);
+    else return;
+    ensureChunks();
     schedule();
-  }, [chunks, schedule, tribeVersion, tribeId]);
+  }, [chunks, schedule, ensureChunks, tribeVersion, tribeId, myVillages, holds]);
 
   /** Pan so a freshly selected tile is not hidden behind the bottom sheet on phones. */
   const reveal = useCallback((c: Coords) => {

@@ -1348,3 +1348,27 @@
   border: 2px solid var(--wm-ink);
   border-radius: 12px;
 }
+
+/* Legend samples for the far-zoom dots (toy ink outline, own villages with a white edge). */
+.wm-dot-sample {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0 5px;
+  border: 1.5px solid #2b211c;
+  border-radius: 50%;
+}
+.wm-dot-sample.wm-dot-own {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #2b211c;
+}
+.wm-dot-site {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin: 0 6px;
+  background: #f2b33d;
+  border: 1.5px solid #2b211c;
+  transform: rotate(45deg);
+}

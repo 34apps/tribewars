@@ -4,7 +4,7 @@
 
 import type { Coords, LookoutSightingDto, MapVillageDto, MovementDto, Route, SiteDto, Terrain } from '@clanfire/engine';
 import { mapStage, ruinStage, travelRoute, tribeWaymarks } from '@clanfire/engine';
-import { siteName, siteRange } from '../sites.ts';
+import { isUtilitySite, siteName, siteRange } from '../sites.ts';
 import { UTILITY_ART } from './siteArt.ts';
 import { ALLEGIANCE_STYLE, allegianceOf, villageSprite } from './allegiance.ts';
 import { CHUNK } from './chunks.ts';
@@ -14,6 +14,9 @@ import type { View } from './iso.ts';
 import { tileArt } from './blocks.ts';
 import type { TerrainBlocks } from './blocks.ts';
 import { ArtPainter, BANNER_BASE, CLEARED_TILE, RUIN_TOP, STAGE_TOP, TILE_LIFT, allTilesReady, hitSprite } from './sprites.ts';
+import type { Allegiance } from './sprites.ts';
+import { villageDot } from './dots.ts';
+import { bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
 import { GRASS, HILLS } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -64,6 +67,10 @@ export interface DrawnVillage {
   x: number;
   y: number;
   scale: number;
+  /** Far zoom: the village is a dot of this radius (CSS px) and `sprite` is empty. */
+  dot?: number;
+  /** Screen box of the banner (pole and cloth), so a tap on the banner selects the village. */
+  bannerBox?: { x0: number; y0: number; x1: number; y1: number };
 }
 
 /** A drawn site, kept for picking: tile-centre position and the tile scale (hitsSiteBox in ../sites.ts). */
@@ -216,6 +223,7 @@ export function drawMap(sc: Scene): FrameResult {
   const rimShown = drawBoard(sc);
 
   const far = t < FAR_TILE && allTilesReady();
+  const dot = isDotMode(t);
   const painter = new ArtPainter(ctx, t, dpr, sc.quick);
 
   // Villages near the view, keyed by tile.
@@ -267,7 +275,8 @@ export function drawMap(sc: Scene): FrameResult {
 
   if (far) sc.blocks.draw(ctx, t, dpr, sc.quick, vb, (x, y) => sxy(x - y, x + y), W, H);
 
-  for (let v = vMin; v <= vMax; v++) {
+  // Far zoom (dots) skips the per-tile rows: terrain comes from blocks, villages are dots drawn below.
+  for (let v = vMin; v <= (dot ? vMin - 1 : vMax); v++) {
     // |x| <= R and |y| <= R with x = (u + v) / 2, y = (v - u) / 2; u and v share parity.
     let lo = Math.max(uMin, -2 * R - v, v - 2 * R);
     const hi = Math.min(uMax, 2 * R - v, v + 2 * R);
@@ -312,7 +321,11 @@ export function drawMap(sc: Scene): FrameResult {
         drawn.push(drawVillage(ctx, painter, vil, gx, gy, s));
         if (isSel) {
           const top = vil.kind === 'abandoned' ? RUIN_TOP[ruinStage(vil.points) - 1] : STAGE_TOP[mapStage(vil.points) - 1];
-          pointerAt = { x: gx, y: gy + ((top ?? -80) * (vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : VILLAGE_DRAW_SCALE) - 16) * s };
+          const kk = vil.kind === 'abandoned' ? RUIN_DRAW_SCALE : VILLAGE_DRAW_SCALE;
+          const base = BANNER_BASE[mapStage(vil.points) - 1] ?? BANNER_BASE[0]!;
+          // The banner now rises above the roof: the pointer sits above whichever is higher.
+          const flagTop = vil.kind === 'abandoned' ? 0 : (base[1] - (POLE_H + 4) * BANNER_K) * kk;
+          pointerAt = { x: gx, y: gy + (Math.min((top ?? -80) * kk, flagTop) - 16) * s };
         }
       } else if (site) {
         drawnSites.push(drawSite(ctx, site, gx, gy, s, sc.myTribeId));
@@ -323,6 +336,11 @@ export function drawMap(sc: Scene): FrameResult {
     }
   }
 
+  if (dot) {
+    const dots = drawDotLayer(sc, vb, villages, siteTiles, sxy, far, drawn, drawnSites);
+    pointerAt = dots.pointerAt;
+  }
+
   // ---- Overlays (always on top) ----
   if (selFrame) drawSelectFrame(ctx, selFrame.x, selFrame.y, s, 'front');
   drawSiteRange(sc);
@@ -330,17 +348,17 @@ export function drawMap(sc: Scene): FrameResult {
   const markerSpeed = Math.max(drawSightings(sc), drawMovements(sc));
 
   const fs = Math.max(10, Math.min(14, t * 0.13));
-  for (const d of drawn) {
+  for (const d of dot ? [] : drawn) {
     const vil = d.village;
     const own = vil.kind === 'own';
     if (!own && t < LABEL_TILE) continue;
     const coords = `${vil.x}|${vil.y}`;
     const ly = d.y + 30 * s + fs * 0.6;
     if (own) pill(ctx, t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, fs, SUN, INK);
-    else pill(ctx, coords, d.x, ly, fs, INK, BONE, vil.tribeTag ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined);
+    else pill(ctx, coords, d.x, ly, fs, INK, BONE, labelChipVisible(t, vil.tribeTag) ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined);
   }
   // Sites: name and holder tag (always a tag when held, so a far-out map still shows who owns what).
-  for (const d of drawnSites) {
+  for (const d of dot ? [] : drawnSites) {
     const st = d.site;
     const ly = d.y + 30 * s + fs * 0.6;
     const chip = st.holder ? { text: `[${st.holder.tag}]`, color: siteRingColor(st, sc.myTribeId) } : undefined;
@@ -460,6 +478,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
   const style = ALLEGIANCE_STYLE[al];
   const sprite = villageSprite(v);
   const abandoned = al === 'abandoned';
+  let bannerBox: DrawnVillage['bannerBox'];
   const dome = v.protected && !abandoned;
   // Hearth out (step 2): a grey ring whatever the owner, plus a thin smoke line above the roofs.
   const cold = !!v.hearth;
@@ -516,7 +535,8 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
       ctx.stroke(RING_FRONT);
     });
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
-    painter.draw(`banner-${al}`, x + base[0] * s * k, y + base[1] * s * k, 1.15 * k);
+    const tag = bannerTagVisible(s * 96, v.tribeTag) ? v.tribeTag : null;
+    bannerBox = drawBanner(ctx, al as Allegiance, x + base[0] * s * k, y + base[1] * s * k, s * k * BANNER_K, tag);
   }
 
   if (v.tribeStore) drawChest(ctx, x + 46 * s, y - 2 * s, s);
@@ -556,7 +576,297 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     });
   }
 
-  return { village: v, sprite, x, y, scale: s * k };
+  return { village: v, sprite, x, y, scale: s * k, bannerBox };
+}
+
+// ---- Banners: a pole rising above the roof, a cloth in the relation's shape and colour, the tribe tag written on it ----
+
+/** Pole height above its foot, in tile-centre SVG px, and the scale of the whole banner against the village art. */
+const POLE_H = 40;
+const BANNER_K = 1.2;
+const CLOTH_H = 20;
+const CLOTH_TOP = -POLE_H + 1;
+const CLOTH_BOTTOM = CLOTH_TOP + CLOTH_H;
+const CLOTH_MID = (CLOTH_TOP + CLOTH_BOTTOM) / 2;
+/** Cloth colours per relation: main, light top edge, dark underside (the same trio the sprites used). */
+const CLOTH: Record<Allegiance, { main: string; hi: string; lo: string }> = {
+  own: { main: '#F2B33D', hi: '#FFDC7A', lo: '#B07720' },
+  tribe: { main: '#5E8C3A', hi: '#A6C964', lo: '#3A5E27' },
+  ally: { main: '#2F9AA0', hi: '#7AD3CD', lo: '#1A646B' },
+  nap: { main: '#B86C92', hi: '#E2A7C4', lo: '#7A3B5E' },
+  enemy: { main: '#C4623A', hi: '#EF9C6E', lo: '#843A23' },
+  neutral: { main: '#A39E94', hi: '#E0DCD3', lo: '#665F57' },
+};
+const tagWidths = new Map<string, number>();
+
+function tagWidth(ctx: CanvasRenderingContext2D, tag: string): number {
+  let w = tagWidths.get(tag);
+  if (w === undefined) {
+    ctx.save();
+    ctx.font = `700 12px ${FONT}`;
+    w = ctx.measureText(tag).width;
+    ctx.restore();
+    tagWidths.set(tag, w);
+  }
+  return w;
+}
+
+/** Cloth outline per relation in pole-foot units; `x0`/`x1` bound it, `textX` is where the tag starts (centre for the war banner). */
+function clothShape(al: Allegiance, tw: number): { path: Path2D; x0: number; x1: number; textX: number; center: boolean; midY: number; bottom: number } {
+  const p = new Path2D();
+  const T = CLOTH_TOP;
+  const B = CLOTH_BOTTOM;
+  const M = CLOTH_MID;
+  switch (al) {
+    case 'own': {
+      const W = Math.max(26, tw + 15);
+      p.moveTo(0, T);
+      p.lineTo(W, T);
+      p.lineTo(W - 7, M);
+      p.lineTo(W, B);
+      p.lineTo(0, B);
+      p.closePath();
+      return { path: p, x0: 0, x1: W, textX: 5, center: false, midY: M, bottom: B };
+    }
+    case 'tribe': {
+      const W = Math.max(24, tw + 11);
+      const r = 3;
+      p.moveTo(r, T);
+      p.arcTo(W, T, W, B, r);
+      p.arcTo(W, B, 0, B, r);
+      p.arcTo(0, B, 0, T, r);
+      p.arcTo(0, T, W, T, r);
+      p.closePath();
+      return { path: p, x0: 0, x1: W, textX: 5.5, center: false, midY: M, bottom: B };
+    }
+    case 'ally': {
+      const W = Math.max(32, tw * 1.5 + 14);
+      p.moveTo(0, T);
+      p.lineTo(W, M);
+      p.lineTo(0, B);
+      p.closePath();
+      return { path: p, x0: 0, x1: W, textX: 4, center: false, midY: M, bottom: B };
+    }
+    case 'nap': {
+      const W = Math.max(26, tw + 18);
+      const r = CLOTH_H / 2;
+      p.moveTo(0, T);
+      p.lineTo(W - r, T);
+      p.arc(W - r, M, r, -Math.PI / 2, Math.PI / 2);
+      p.lineTo(0, B);
+      p.closePath();
+      return { path: p, x0: 0, x1: W, textX: 5, center: false, midY: M, bottom: B };
+    }
+    case 'enemy': {
+      // Hangs from a crossbar, centred on the pole, with a notched hem.
+      const hw = Math.max(12, tw / 2 + 6);
+      const top = T + 1;
+      const hem = B + 6;
+      p.moveTo(-hw, top);
+      p.lineTo(hw, top);
+      p.lineTo(hw, hem);
+      p.lineTo(hw / 2, hem - 5);
+      p.lineTo(0, hem);
+      p.lineTo(-hw / 2, hem - 5);
+      p.lineTo(-hw, hem);
+      p.closePath();
+      return { path: p, x0: -hw, x1: hw, textX: 0, center: true, midY: (top + hem - 4) / 2, bottom: hem };
+    }
+    default: {
+      // Neutral: a lozenge-ended sign.
+      const W = Math.max(26, tw + 18);
+      p.moveTo(0, M);
+      p.lineTo(8, T);
+      p.lineTo(W - 8, T);
+      p.lineTo(W, M);
+      p.lineTo(W - 8, B);
+      p.lineTo(8, B);
+      p.closePath();
+      return { path: p, x0: 0, x1: W, textX: 9, center: false, midY: M, bottom: B };
+    }
+  }
+}
+
+/** Cloth banner with the pole foot at (x, y); k = screen px per SVG px. Returns its screen box for picking. */
+function drawBanner(ctx: CanvasRenderingContext2D, al: Allegiance, x: number, y: number, k: number, tag: string | null): { x0: number; y0: number; x1: number; y1: number } {
+  const col = CLOTH[al];
+  const tw = tag ? tagWidth(ctx, tag) : 0;
+  const c = clothShape(al, tw);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(k, k);
+  ctx.setLineDash([]);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  // Pole: ink outline, wood centre.
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -POLE_H);
+  ctx.lineWidth = 3.2;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  ctx.lineWidth = 1.3;
+  ctx.strokeStyle = '#E4B67C';
+  ctx.stroke();
+  if (al === 'enemy') {
+    ctx.beginPath();
+    ctx.moveTo(c.x0 - 2, CLOTH_TOP);
+    ctx.lineTo(c.x1 + 2, CLOTH_TOP);
+    ctx.lineWidth = 3.4;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = '#E4B67C';
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, -POLE_H - 1.5, 2.4, 0, Math.PI * 2);
+    ctx.fillStyle = SUN;
+    ctx.fill();
+    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+  }
+  // Cloth: flat colour, a light top edge and a dark underside, dark outline.
+  ctx.fillStyle = col.main;
+  ctx.fill(c.path);
+  ctx.save();
+  ctx.clip(c.path);
+  ctx.fillStyle = col.hi;
+  ctx.fillRect(c.x0 - 2, CLOTH_TOP - 2, c.x1 - c.x0 + 4, 4.5);
+  ctx.fillStyle = col.lo;
+  ctx.fillRect(c.x0 - 2, c.bottom - 4.5, c.x1 - c.x0 + 4, 6);
+  ctx.restore();
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = INK;
+  ctx.stroke(c.path);
+  if (tag) {
+    ctx.font = `700 12px ${FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = c.center ? 'center' : 'left';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK;
+    ctx.strokeText(tag, c.textX, c.midY + 0.5);
+    ctx.fillStyle = BONE;
+    ctx.fillText(tag, c.textX, c.midY + 0.5);
+  }
+  ctx.restore();
+  return { x0: x + (Math.min(c.x0, 0) - 3) * k, y0: y - (POLE_H + 4) * k, x1: x + (c.x1 + 2) * k, y1: y };
+}
+
+// ---- Far zoom: villages as dots, sites as small diamonds ----
+
+const SITE_DOT_STONE = '#BDB5A6';
+
+interface DotLayer {
+  pointerAt: { x: number; y: number } | null;
+}
+
+function drawDotLayer(
+  sc: Scene,
+  vb: { x0: number; y0: number; x1: number; y1: number },
+  villages: ReadonlyMap<number, MapVillageDto>,
+  siteTiles: ReadonlyMap<number, SiteDto>,
+  sxy: (u: number, v: number) => { x: number; y: number },
+  far: boolean,
+  drawn: DrawnVillage[],
+  drawnSites: DrawnSite[],
+): DotLayer {
+  const { ctx, width: W, height: H, view } = sc;
+  const t = view.tile;
+  const s = t / 96;
+  const pos = (x: number, y: number) => sxy(x - y, x + y);
+  const onScreen = (p: { x: number; y: number }, m: number) => p.x >= -m && p.x <= W + m && p.y >= -m && p.y <= H + m;
+
+  // Terrain: blocks when the art is ready (drawn by the caller), else cheap flat diamonds.
+  if (!far) {
+    const R = sc.radius;
+    for (let y = Math.max(-R, vb.y0); y <= Math.min(R, vb.y1); y++) {
+      for (let x = Math.max(-R, vb.x0); x <= Math.min(R, vb.x1); x++) {
+        const p = pos(x, y);
+        if (onScreen(p, t)) drawFlatTile(ctx, sc.terrain.get(x, y), p.x, p.y, s);
+      }
+    }
+  }
+
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.lineJoin = 'round';
+  // Sites: a small diamond (gold lit, stone dormant) in the holder colour; utility sites a small square.
+  for (const st of siteTiles.values()) {
+    const p = pos(st.x, st.y);
+    if (!onScreen(p, 12)) continue;
+    const ring = siteRingColor(st, sc.myTribeId);
+    const r = st.kind === 'great_fire' ? 7 : 5;
+    ctx.beginPath();
+    if (isUtilitySite(st.kind)) {
+      ctx.rect(p.x - 3, p.y - 3, 6, 6);
+    } else {
+      ctx.moveTo(p.x, p.y - r - 1);
+      ctx.lineTo(p.x + r, p.y);
+      ctx.lineTo(p.x, p.y + r + 1);
+      ctx.lineTo(p.x - r, p.y);
+      ctx.closePath();
+    }
+    ctx.fillStyle = isUtilitySite(st.kind) ? SITE_DOT_STONE : st.awake ? SUN : SITE_DOT_STONE;
+    ctx.fill();
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = ring;
+    ctx.stroke();
+    drawnSites.push({ site: st, x: p.x, y: p.y + 9, scale: 0.21 });
+  }
+
+  // Villages: others first, own on top.
+  const list = [...villages.values()].sort((a, b) => Number(a.kind === 'own') - Number(b.kind === 'own') || a.x + a.y - (b.x + b.y));
+  let pointerAt: { x: number; y: number } | null = null;
+  const sel = sc.selected;
+  for (const v of list) {
+    const p = pos(v.x, v.y);
+    if (!onScreen(p, 12)) continue;
+    const d = villageDot(v, t);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, d.radius, 0, Math.PI * 2);
+    if (d.own) {
+      ctx.lineWidth = d.edgeWidth + 1.6;
+      ctx.strokeStyle = INK;
+      ctx.stroke();
+    }
+    ctx.fillStyle = d.fill;
+    ctx.fill();
+    ctx.lineWidth = d.edgeWidth;
+    ctx.strokeStyle = d.edge;
+    ctx.stroke();
+    drawn.push({ village: v, sprite: '', x: p.x, y: p.y, scale: 1, dot: d.radius });
+  }
+
+  // Hover and selection rings.
+  const ring = (c: Coords, r: number, color: string, w: number) => {
+    const p = pos(c.x, c.y);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.lineWidth = w + 2;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    ctx.lineWidth = w;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    return p;
+  };
+  const radiusAt = (c: Coords) => {
+    const v = villages.get(vkey(c.x, c.y));
+    return v ? villageDot(v, t).radius + 3.5 : siteTiles.has(vkey(c.x, c.y)) ? 10 : 5;
+  };
+  if (sc.hover && !(sel && sel.x === sc.hover.x && sel.y === sc.hover.y)) ring(sc.hover, radiusAt(sc.hover), BONE, 1.6);
+  if (sel) {
+    const r = radiusAt(sel);
+    const p = ring(sel, r, SUN, 2.2);
+    pointerAt = { x: p.x, y: p.y - r - 2 };
+  }
+  ctx.restore();
+  return { pointerAt };
 }
 
 // ---- Sites: Great Fire and Fire Shrines (stone plinth, standing stones, a brazier: lit when awake, ash when dormant) ----
@@ -1225,12 +1535,26 @@ function pawn(ctx: CanvasRenderingContext2D, x: number, y: number, m: number, co
 export function pickVillage(drawn: readonly DrawnVillage[], px: number, py: number): MapVillageDto | null {
   for (let i = drawn.length - 1; i >= 0; i--) {
     const d = drawn[i]!;
+    if (d.dot !== undefined) continue;
+    const b = d.bannerBox;
+    if (b && px >= b.x0 && px <= b.x1 && py >= b.y0 && py <= b.y1) return d.village;
     const fx = (px - d.x) / d.scale;
     const fy = (py - d.y) / d.scale;
     if (fx < -64 || fx > 64 || fy < -116 || fy > 40) continue;
     if (hitSprite(d.sprite, fx, fy)) return d.village;
   }
-  return null;
+  // Far zoom: the nearest dot within a finger-friendly radius.
+  let best: MapVillageDto | null = null;
+  let bestD = Infinity;
+  for (const d of drawn) {
+    if (d.dot === undefined) continue;
+    const dist = Math.hypot(px - d.x, py - d.y);
+    if (dist <= dotHitRadius(d.dot) && dist < bestD) {
+      best = d.village;
+      bestD = dist;
+    }
+  }
+  return best;
 }
 
 /** Tile whose (raised or sunken) top face is under the point; front-most wins. */
