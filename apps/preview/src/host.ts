@@ -6,6 +6,7 @@ import { sha256Hex } from '../../server/src/auth.ts';
 import { clock } from './clock.ts';
 import { createBackend, type ApiResult, type Backend } from './backend.ts';
 import { botTick, seedBots } from './bots.ts';
+import { createProblemReporter, mirrorUrl } from './mirror.ts';
 import type { Save } from './persist.ts';
 import { applyShowcase } from './showcase-apply.ts';
 import type { ShowcaseStage, StageTops } from './showcase.ts';
@@ -110,14 +111,7 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
   let chain: Promise<void> = Promise.resolve();
   // The dev mirror: one POST at a time, in order; while one is in flight only the newest bytes wait (older ones are stale).
   // In the built file the game worker runs from a blob: URL, where a relative address cannot be resolved: build the absolute one.
-  const mirrorUrl = (): string | null => {
-    try {
-      const href = String((globalThis as { location?: { href?: string } }).location?.href ?? '');
-      return new URL('/__clanfire/preview-world', href.replace(/^blob:/, '')).href;
-    } catch {
-      return null;
-    }
-  };
+  const mirrorProblem = createProblemReporter((msg) => console.warn(msg));
   let mirrorBusy = false;
   let mirrorNext: { player: string; bytes: Uint8Array } | null = null;
   const mirror = (player: string, bytes: Uint8Array): void => {
@@ -128,13 +122,21 @@ export async function startHost(saved: Save | null, env: HostEnv): Promise<{ hos
       while (mirrorNext) {
         const job: { player: string; bytes: Uint8Array } = mirrorNext;
         mirrorNext = null;
-        const url = mirrorUrl();
-        if (!url) break;
+        const url = mirrorUrl((globalThis as { location?: { href?: string } }).location?.href);
+        if (!url) {
+          mirrorProblem('no usable address (location.href)');
+          break;
+        }
         await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/octet-stream', 'x-clanfire-mirror': '1', 'x-clanfire-player': job.player },
           body: job.bytes as Uint8Array<ArrayBuffer>,
-        }).catch(() => {});
+        }).then(
+          (res) => {
+            if (!res.ok) mirrorProblem(`the server answered ${res.status}`);
+          },
+          (err: unknown) => mirrorProblem(`the request failed (${String(err)})`),
+        );
       }
       mirrorBusy = false;
     })();
