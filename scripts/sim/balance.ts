@@ -924,16 +924,17 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (!hearth) return;
       const up = updateHold(hearth, occupierPopulation(e.occupiers), e.at, s);
       if (up.outcome === 'taken') {
-        const oc = applyOwnerChange(tg.state, { newOwnerOccupiers: e.occupiers, now: up.at, settings: s });
+        const oc = applyOwnerChange(tg.state, { occupiers: e.occupiers, now: up.at, settings: s });
         tg.alive = false;
-        // The occupiers that moved in (and the used-up Chieftain) are no longer "away"; the rest walks home.
-        o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.occupiers, oc.overflow));
+        // The occupiers stay as support (rule since 2026-11-18); the sim recalls them at once: the used-up Chieftain is lost, the rest walks home.
+        const used = { ...emptyUnits(), chieftain: oc.chieftainUsed };
+        o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), used);
         chiefReserved = 0; // the deposit and the claim paid for this village (spent)
         chestReserved = 0;
         claimRenown = 0;
         claimGold = 0;
         addVillage(oc.state, tg.pos, 'taken', e.at, tg.tier);
-        homeTrip(o, tg.pos, e.at, oc.overflow);
+        homeTrip(o, tg.pos, e.at, subUnits(e.occupiers, used));
       } else {
         // The claim failed (occupiers under the minimum for too long): the hearth relights and everybody goes home.
         expansion.holdFails += 1;
@@ -1729,7 +1730,7 @@ export function formatReport(rep: SimReport, full = false): string {
     '- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step for EVERY village from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection of the account (the sim player never attacks a player).',
     '- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed. Try `--home` for other starts.',
     '- SEVERAL VILLAGES (step 2): Renown is reserved when a Chieftain is queued (villageRenownPrice; 500, 800, 1,280 ...; he costs 4,000/3,000/5,000 + 150 gold and 6 h) and half comes back if he dies in a strike (chieftainRefund). One Chieftain at a time. The first village with a Banner Hall trains him. Take styles first build an escort of 1.05 x HOLD_MIN_POPULATION fighters (they stop raiding and train as usual; only once the Banner Hall exists). Then, while the Renown is there, the village saves up: it only builds what leaves his cost untouched (plus the storehouse / farm he needs) and trains nothing.',
-    '- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, occupiers move in up to the population cap, the rest walks home). The strike army carries no loot (noLoot: a Strike attempt is not a raid). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.',
+    '- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, the occupiers stay as support and the sim recalls them at once (all walk home, the used Chieftain is lost)). The strike army carries no loot (noLoot: a Strike attempt is not a raid). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.',
     '- FOUND (builder, turtle): the Chieftain + up to 30 defenders walk to the nearest free buildable tile (checkFoundTarget); createFoundedVillage (start levels, 300/300/150, 24 h protection, the escort is the garrison).',
     '- Extra villages play the same style script (build list, army, research, raids against the shared abandoned villages from their own tile, Feast), starting from their own levels; a taken village starts with all its buildings. Chieftains are only trained in the first village with a Banner Hall. Not modeled: sending resources or troops between the player\'s villages, a second hold wave (occupiers who arrive late), the Banner Hall of an extra village training Chieftains, enemy attacks on a village while it is struck, players as targets.',
     `- IDLE STRETCH ("dead period"): after the player did everything the style wants at a step, the longest time until the next step at which something useful was still possible in ANY village (a building, a batch of 10 units, a research, a Feast, a Chieftain with Renown to pay him). Target under 8 h. Reported for the whole run and for gaps that start on or after day ${LATE_DAY}. "Pile-up" = resource at >= 90% storage (first village).`,

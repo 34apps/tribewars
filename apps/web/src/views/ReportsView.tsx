@@ -546,6 +546,12 @@ function VillageDetail({ d }: { d: VillageReportData }) {
           <p>{unitListText(d.units)}</p>
         </section>
       )}
+      {d.stays && unitListText(d.stays) !== '' && (
+        <section className="subsection" aria-label="Troops staying as support">
+          <h4 className="subtitle-small">Staying as support (recall from the Support box)</h4>
+          <p>{unitListText(d.stays)}</p>
+        </section>
+      )}
       {d.overflow && unitListText(d.overflow) !== '' && (
         <section className="subsection" aria-label="Troops that did not fit">
           <h4 className="subtitle-small">Sent home</h4>

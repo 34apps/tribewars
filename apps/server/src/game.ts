@@ -1170,7 +1170,7 @@ export class GameService {
 
   /**
    * The hold clock ran out: the village changes owner in ONE transaction (the caller's). All buildings stay; the claimant's
-   * occupiers move in up to the population cap (the rest walks home), one Chieftain is used up; the old owner's troops, queues
+   * occupiers stay as support from their home villages (no own troops), one Chieftain is used up, the others walk home; the old owner's troops, queues
    * and contingents are gone and everyone else's troops standing here go home. `at` is the exact end of the clock.
    */
   private completeTake(v: VillageRecord, h: HearthState, at: number): void {
@@ -1193,39 +1193,65 @@ export class GameService {
       for (const c of this.store.stationedHomedAt(v.id)) this.store.deleteStationed(c.id);
     }
 
-    const change = applyOwnerChange(v.state, { newOwnerOccupiers: sumUnits(occ.map((c) => c.units)), now: at, settings: s });
+    // Occupiers stay as SUPPORT from the village that sent them (owner 2026-11-18): the stationed rows, home village and ranks stay as
+    // they are, and the units keep counting in their home village (away). Edge case (decided): a contingent whose home village is gone or
+    // no longer the claimant's cannot be support; it moves in as the village's own troops up to the population cap (the old rule).
+    const occTotal = sumUnits(occ.map((c) => c.units));
+    const stayRows = occ.filter((c) => {
+      const home = this.store.getVillage(c.homeVillageId);
+      return home && home.id !== v.id && home.ownerId === claimant.id;
+    });
+    const fallbackRows = occ.filter((c) => !stayRows.includes(c));
+    const moveIn = sumUnits(fallbackRows.map((c) => c.units));
+    moveIn.chieftain = 0;
+    const change = applyOwnerChange(v.state, { occupiers: occTotal, moveIn, now: at, settings: s });
     const name = foundedVillageName(claimant.username, owned + 1);
     this.store.setVillageOwner(v.id, claimant.id, name);
     this.store.saveVillage(v.id, change.state, villagePoints(change.state));
 
-    // Occupiers: each contingent's home loses the units that moved in (the new village feeds them now) and the Chieftain used up;
-    // what did not fit walks home.
+    // One Chieftain is used up (taken off his home village's away count); the other Chieftains walk home, everyone else stays.
+    const here: VillageRecord = { ...v, ownerId: claimant.id, ownerName: claimant.username, name };
+    let usedLeft = change.chieftainUsed;
     const overflowLeft = { ...change.overflow };
     const overflowTotal = emptyUnits();
-    const here: VillageRecord = { ...v, ownerId: claimant.id, ownerName: claimant.username, name };
+    const stays = emptyUnits();
     for (const c of occ) {
-      this.store.deleteStationed(c.id);
       const home = this.store.getVillage(c.homeVillageId);
-      if (!home || home.id === v.id) continue;
-      const back = emptyUnits();
-      const gone = emptyUnits(); // moved in, or the Chieftain used up
-      for (const u of UNIT_IDS) {
-        const take = Math.min(c.units[u], overflowLeft[u]);
-        back[u] = take;
-        overflowLeft[u] -= take;
-        gone[u] = c.units[u] - take;
+      const used = Math.min(usedLeft, c.units.chieftain);
+      usedLeft -= used;
+      const walk = emptyUnits(); // goes home on a return movement
+      walk.chieftain = c.units.chieftain - used;
+      const gone = emptyUnits(); // used up, or moved in as own troops
+      gone.chieftain = used;
+      const keep = { ...c.units, chieftain: 0 };
+      if (stayRows.includes(c)) {
+        if (totalUnits(keep) > 0) this.store.setStationedUnits(c.id, keep);
+        else this.store.deleteStationed(c.id);
+        for (const u of UNIT_IDS) stays[u] += keep[u];
+      } else {
+        this.store.deleteStationed(c.id);
+        for (const u of UNIT_IDS) {
+          if (u === 'chieftain') continue;
+          const take = Math.min(keep[u], overflowLeft[u]); // did not fit: goes home
+          walk[u] += take;
+          overflowLeft[u] -= take;
+          gone[u] += keep[u] - take;
+        }
       }
-      const next = applyAttackerLosses(settleVillage(home.state, at, s), gone);
-      this.store.saveVillage(home.id, next, villagePoints(next));
-      if (totalUnits(back) > 0) {
-        this.insertReturn(home, here, back, at);
-        for (const u of UNIT_IDS) overflowTotal[u] += back[u];
+      if (!home || home.id === v.id) continue;
+      if (totalUnits(gone) > 0) {
+        const next = applyAttackerLosses(settleVillage(home.state, at, s), gone);
+        this.store.saveVillage(home.id, next, villagePoints(next));
+      }
+      if (totalUnits(walk) > 0) {
+        this.insertReturn(home, here, walk, at);
+        for (const u of UNIT_IDS) overflowTotal[u] += walk[u];
       }
     }
     this.consumeChieftains(claimant.id, change.chieftainUsed, shares);
     this.spendClaimOn(claimant.id, v.id, null); // the rest of the price is spent too: the village is paid once
     // Everyone else's troops standing here go home.
-    this.sendHostedHome(v, at);
+    this.sendHostedHome(v, at, (c) => c.ownerPlayerId !== claimant.id);
 
     const ref = refOf(here);
     this.store.insertReport({
@@ -1235,7 +1261,7 @@ export class GameService {
       title: `Village taken: ${name} ${coords(v)}`,
       createdAt: at,
       type: 'village',
-      village: { kind: 'taken', village: ref, ...(totalUnits(overflowTotal) > 0 ? { overflow: overflowTotal } : {}) },
+      village: { kind: 'taken', village: ref, ...(totalUnits(stays) > 0 ? { stays } : {}), ...(totalUnits(overflowTotal) > 0 ? { overflow: overflowTotal } : {}) },
     });
     if (oldOwnerId !== null) {
       this.store.multi.logEvent({ at, kind: 'conquest', a: claimant.id, b: oldOwnerId });

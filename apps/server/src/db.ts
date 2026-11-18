@@ -743,6 +743,7 @@ export function applySchema(db: DatabaseSync): void {
   migrateUselessRanks(db);
   migrateRankRework(db);
   migrateFighterPeople(db);
+  migrateTakeoverSupport(db);
   migrateAuditIpGuard(db);
   seedTemplates(db);
 }
@@ -752,14 +753,14 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 33; // 33: fighter rankings count people defeated (POP_PER_UNIT), not troop value: fighter_totals is reset to 0 once (data step migrateFighterPeople, flag fighter_people_applied; the lists were a day old and value cannot be turned into people exactly) (2026-11-18); 32: Drillyard rank rework: ranks on tracks a unit no longer has are removed and refunded, ranks over the new Training-Point pool are trimmed and refunded (data step migrateRankRework, flag rank_rework_applied) (2026-11-18); 31: chieftain_claims table (the rest of a village's price is reserved when a Strike/Found order is sent) + Chieftain deposits instead of growing reservations; the game service refunds the difference on old worlds once (meta flag chieftain_deposit_applied, no data step in applySchema) (2026-11-18); 30: sites.wall_level/wall_at (self-building site Wall) + keepers_base/keepers_since (keepers regrow) and tribe_members.site_renown_at (daily Renown per member from held sites; added by addMissingColumns, null = since joined_at, no data step) (2026-11-18); 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 34; // 34: taken villages: the occupiers stay as support from the village that sent them (new rule); villages already taken by a Strike-and-Hold get their moved-in army turned into stationed support once, where the reports tell the origin (data step migrateTakeoverSupport, flag takeover_support_applied) (2026-11-18); 33: fighter rankings count people defeated (POP_PER_UNIT), not troop value: fighter_totals is reset to 0 once (data step migrateFighterPeople, flag fighter_people_applied; the lists were a day old and value cannot be turned into people exactly) (2026-11-18); 32: Drillyard rank rework: ranks on tracks a unit no longer has are removed and refunded, ranks over the new Training-Point pool are trimmed and refunded (data step migrateRankRework, flag rank_rework_applied) (2026-11-18); 31: chieftain_claims table (the rest of a village's price is reserved when a Strike/Found order is sent) + Chieftain deposits instead of growing reservations; the game service refunds the difference on old worlds once (meta flag chieftain_deposit_applied, no data step in applySchema) (2026-11-18); 30: sites.wall_level/wall_at (self-building site Wall) + keepers_base/keepers_since (keepers regrow) and tribe_members.site_renown_at (daily Renown per member from held sites; added by addMissingColumns, null = since joined_at, no data step) (2026-11-18); 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '3489f4f67356a0aa';
+export const SCHEMA_FINGERPRINT = '4bd9a03e8589df10';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
   const rebuilds = REBUILDS.map((r) => `${r.table}|${r.marker}|${r.columns}|${r.create(r.table)}`).join('\n');
-  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), migrateRankRework.toString(), migrateFighterPeople.toString(), migrateAuditIpGuard.toString(), AUDIT_UPDATE_GUARD_SQL, seedTemplates.toString()].join('\n----\n');
+  return [SCHEMA, rebuilds, rebuildOutdatedTables.toString(), addMissingColumns.toString(), migrateOriginality.toString(), migrateRoster.toString(), migrateSiegeLeftovers.toString(), migratePaidCosts.toString(), migrateProtectedUntil.toString(), migrateMapBornGarrison.toString(), migrateUselessRanks.toString(), migrateRankRework.toString(), migrateFighterPeople.toString(), migrateTakeoverSupport.toString(), migrateAuditIpGuard.toString(), AUDIT_UPDATE_GUARD_SQL, seedTemplates.toString()].join('\n----\n');
 }
 
 const MIGRATION_BACKUP = /^pre-migrate-v\d+-v\d+-\d{8}-\d{6}\.sqlite$/;
@@ -1110,6 +1111,123 @@ function migrateFighterPeople(db: DatabaseSync): void {
     const n = db.prepare('DELETE FROM fighter_totals').run().changes;
     if (Number(n) > 0) console.info(`[db] fighter rankings: ${n} total(s) reset (now counted in people defeated)`);
     db.prepare("INSERT INTO meta (key, value) VALUES ('fighter_people_applied', '1')").run();
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // already gone; the original error matters more
+    }
+    throw err;
+  }
+}
+
+/**
+ * Strike-and-Hold takeovers: the occupiers stay as SUPPORT (schema v34, 2026-11-18), once per database (a meta flag). Before, they moved into the
+ * taken village as its own troops. For every village taken that way, the army is turned back into stationed support from the village that sent it,
+ * but only where the stored reports tell it reliably:
+ *  - the claimant's newest "taken" report for the village (kind taken) and the village still belongs to that player, and no newer "taken" report exists;
+ *  - the closest earlier "struck" report of the same player and village, and the battle report written at the same moment (the Strike) names the origin village
+ *    (attacker.villageId), which must still belong to the same player and not be the taken village itself;
+ *  - moved in = Strike survivors (units - losses) minus what the "taken" report says went home (overflow), Chieftains never; converted per unit =
+ *    min(moved in, the village's own troops now), so nothing is invented. Units that came later (reinforcements, trained) are not touched.
+ * The converted units leave the village's own troops, count in the origin village's away troops, and become (or join) the stationed row
+ * origin -> taken village, stamped with the origin village's current ranks (the Drillyard ranks of the Strike are not stored; this is the closest record).
+ * Villages where the reports are missing or do not agree are skipped (logged). Rows with nothing to convert are not written; a second run changes nothing.
+ */
+function migrateTakeoverSupport(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 AS x FROM meta WHERE key = 'takeover_support_applied'").get()) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    type Rep = { id: number; player_id: number; title: string; created_at: number; battle_json: string };
+    const parse = (r: Rep): Record<string, unknown> | null => {
+      try {
+        const v: unknown = JSON.parse(r.battle_json);
+        return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
+      } catch {
+        return null;
+      }
+    };
+    const unitsOf = (raw: unknown): Record<string, number> => {
+      const out: Record<string, number> = {};
+      if (raw && typeof raw === 'object') for (const [k, n] of Object.entries(raw as Record<string, unknown>)) if (typeof n === 'number' && Number.isFinite(n)) out[k] = n;
+      return out;
+    };
+    const villageId = (raw: unknown): number | null => {
+      const id = raw && typeof raw === 'object' ? (raw as { villageId?: unknown }).villageId : undefined;
+      return typeof id === 'number' ? id : null;
+    };
+    const getVillage = db.prepare('SELECT id, owner_id, state_json FROM villages WHERE id = ?');
+    const saveVillage = db.prepare('UPDATE villages SET state_json = ?, has_troops = ? WHERE id = ?');
+    const reports = db.prepare("SELECT id, player_id, title, created_at, battle_json FROM reports WHERE side = 'attack' AND battle_json LIKE '%\"type\":\"village\"%' ORDER BY created_at, id").all() as unknown as Rep[];
+    const takens: Array<{ r: Rep; vid: number; data: Record<string, unknown> }> = [];
+    const strucks: Array<{ r: Rep; vid: number }> = [];
+    for (const r of reports) {
+      const d = parse(r);
+      const vid = d ? villageId(d.village) : null;
+      if (!d || vid === null) continue;
+      if (d.kind === 'taken') takens.push({ r, vid, data: d });
+      else if (d.kind === 'struck') strucks.push({ r, vid });
+    }
+    let converted = 0;
+    let skipped = 0;
+    for (const t of takens) {
+      const newer = takens.some((o) => o.vid === t.vid && (o.r.created_at > t.r.created_at || (o.r.created_at === t.r.created_at && o.r.id > t.r.id)));
+      if (newer) continue; // only the village's latest takeover matters
+      const vRow = getVillage.get(t.vid) as { id: number; owner_id: number | null; state_json: string } | undefined;
+      if (!vRow || vRow.owner_id !== t.r.player_id) continue; // gone, or someone else's now
+      const struck = [...strucks].reverse().find((x) => x.vid === t.vid && x.r.player_id === t.r.player_id && x.r.created_at <= t.r.created_at);
+      const battle = struck
+        ? (db.prepare("SELECT id, player_id, title, created_at, battle_json FROM reports WHERE player_id = ? AND created_at = ? AND battle_json LIKE '%\"type\":\"battle\"%'").all(t.r.player_id, struck.r.created_at) as unknown as Rep[])
+            .map((r) => parse(r))
+            .find((d) => d && d.attackerWon === true && villageId(d.defender) === t.vid)
+        : undefined;
+      const origin = battle ? villageId(battle.attacker) : null;
+      const oRow = origin === null ? undefined : (getVillage.get(origin) as { id: number; owner_id: number | null; state_json: string } | undefined);
+      if (!battle || origin === null || !oRow || oRow.id === t.vid || oRow.owner_id !== t.r.player_id) {
+        skipped++;
+        continue;
+      }
+      const vState = JSON.parse(vRow.state_json) as VillageState;
+      const oState = JSON.parse(oRow.state_json) as VillageState;
+      const start = unitsOf(battle.attackerUnits);
+      const lost = unitsOf(battle.attackerLosses);
+      const home = unitsOf(t.data.overflow);
+      const move: Record<string, number> = {};
+      let any = false;
+      for (const u of Object.keys(vState.troops)) {
+        if (u === 'chieftain') continue;
+        const moved = Math.max(0, (start[u] ?? 0) - (lost[u] ?? 0) - (home[u] ?? 0));
+        const n = Math.min(moved, (vState.troops as unknown as Record<string, number>)[u] ?? 0);
+        if (n > 0) {
+          move[u] = n;
+          any = true;
+        }
+      }
+      if (!any) continue;
+      for (const [u, n] of Object.entries(move)) {
+        (vState.troops as unknown as Record<string, number>)[u]! -= n;
+        (oState.away as unknown as Record<string, number>)[u] = ((oState.away as unknown as Record<string, number>)[u] ?? 0) + n;
+      }
+      const ranks = oState.ranks ? JSON.stringify(oState.ranks) : null;
+      const row = db.prepare('SELECT id, units_json FROM stationed WHERE home_village_id = ? AND host_village_id = ?').get(oRow.id, vRow.id) as { id: number; units_json: string } | undefined;
+      if (row) {
+        const units = unitsOf(JSON.parse(row.units_json));
+        for (const [u, n] of Object.entries(move)) units[u] = (units[u] ?? 0) + n;
+        db.prepare('UPDATE stationed SET units_json = ? WHERE id = ?').run(JSON.stringify(units), row.id);
+      } else {
+        const units: Record<string, number> = {};
+        for (const u of Object.keys(vState.troops)) units[u] = move[u] ?? 0;
+        db.prepare('INSERT INTO stationed (owner_player_id, home_village_id, host_village_id, units_json, arrived_at, ranks_json) VALUES (?, ?, ?, ?, ?, ?)').run(t.r.player_id, oRow.id, vRow.id, JSON.stringify(units), t.r.created_at, ranks);
+      }
+      const hasTroops = Object.values(vState.troops as unknown as Record<string, number>).some((n) => n > 0) ? 1 : 0;
+      saveVillage.run(JSON.stringify(vState), hasTroops, vRow.id);
+      saveVillage.run(JSON.stringify(oState), (Object.values(oState.troops as unknown as Record<string, number>).some((n) => n > 0) ? 1 : 0), oRow.id);
+      converted++;
+      console.info(`[db] takeover support: village ${vRow.id} -> stationed support from village ${oRow.id} (${Object.entries(move).map(([u, n]) => `${n} ${u}`).join(', ')})`);
+    }
+    if (converted + skipped > 0) console.info(`[db] takeover support: ${converted} village(s) converted, ${skipped} skipped (reports do not tell the origin)`);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('takeover_support_applied', '1')").run();
     db.exec('COMMIT');
   } catch (err) {
     try {

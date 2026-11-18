@@ -852,7 +852,7 @@ export interface ShipmentReportData {
  * What happened to a village's hearth or ownership (step 2). `side` is 'attack' for the claimant / founder, 'defense' for the owner.
  *  - struck: your attack put the hearth out (claimant). `holdEndsAt` is when it is yours if the clock keeps running (null = paused).
  *  - hearth_out: your village's hearth was put out (owner; `claimBy` names the claimant).
- *  - taken: the hold ended and the village is yours (claimant; `overflow` = troops that did not fit and went home).
+ *  - taken: the hold ended and the village is yours (claimant; `stays` = the occupiers who stay in it as support from their home villages (since 2026-11-18); `overflow` = troops that went home: spare Chieftains, or in the edge case of a lost home village those that did not fit).
  *  - lost: your village changed owner (previous owner; `units` = troops that were away and are disbanded).
  *  - founded: a new village stands at the tile (founder; `overflow` as for taken).
  *  - found_failed: the Chieftain found the tile taken / the village limit reached and walked home (`reason`).
@@ -867,6 +867,8 @@ export interface VillageReportData {
   claimBy?: string;
   reason?: 'tile_taken' | 'village_limit' | 'time' | 'relit' | 'replaced' | 'no_room' | 'no_claim';
   units?: Units;
+  /** taken: occupiers staying in the village as support from their home villages. */
+  stays?: Units;
   overflow?: Units;
 }
 

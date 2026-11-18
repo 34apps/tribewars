@@ -630,6 +630,12 @@ function VillageBody({ d }: { d: VillageReportData }) {
           <UnitsTable units={d.units} />
         </div>
       )}
+      {d.stays && unitListText(d.stays) !== '' && (
+        <div className="frp-ig frp-sct2w">
+          <span className="fv-up">Staying as support</span>
+          <UnitsTable units={d.stays} />
+        </div>
+      )}
       {d.overflow && unitListText(d.overflow) !== '' && (
         <div className="frp-ig frp-sct2w">
           <span className="fv-up">Sent home</span>

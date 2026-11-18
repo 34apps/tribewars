@@ -1037,8 +1037,19 @@ village has a grey ring and a thin line of smoke). Orders already in the queues 
   and the village starts with a fresh protection: **no new Strike for 24 hours** (`STRIKE_LOCK_HOURS`). Normal
   attacks (raids) are still possible.
 - Build, train and research queues carry on for the new owner (this is the existing rule in §3).
-- The occupiers **move in**: they become the village's own troops, up to its population cap (extra ones go
-  home on a return movement). Their food is paid by the new village, not by the old home.
+- **The occupiers stay as support (owner 2026-11-18, replaces "the occupiers move in").** The surviving occupiers stay in the taken village as
+  **support from the village that sent them**: the same stationed contingents as any support, home village unchanged, Drillyard ranks kept.
+  The new village starts with **no own troops**. Their food stays with their HOME village (they keep counting there as away troops), so the taken
+  village's population cap no longer matters and nothing is cut. One Chieftain is used up (his ember lights the new hearth); the other Chieftains
+  go home on a return movement. The owner recalls all or part of them from the Support box (`POST /api/stationed/:id/recall`, partial by amount).
+  They defend the village like any support while they stand there. **Edge case (decided):** an occupier contingent whose home village is gone or is no
+  longer the claimant's at that moment cannot stay as support; it moves in as the village's own troops up to the population cap (the old rule),
+  the rest is lost with its home. The "Village taken" report lists what stays (`stays`) and what went home (`overflow`).
+- **Existing worlds** (schema v34, once, data step `migrateTakeoverSupport`, meta flag `takeover_support_applied`): for each village already taken by a
+  Strike and Hold, where the stored reports tell the origin (the claimant's newest "taken" report, the "struck" report before it and the Strike's battle report
+  at the same moment name the sending village, which still belongs to the same player), the army that moved in (Strike survivors minus what went home, never
+  Chieftains) is turned into support from that village: min(moved in, the village's own troops now) per unit, stamped with the origin's current ranks. Villages where
+  the reports do not agree are skipped.
 - The old owner's troops and the support of others that were still inside are sent home.
 - Points move to the new owner at once (the ranking already adds up all of a player's villages).
 
@@ -1055,7 +1066,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   Both cost the same Renown (`RENOWN_VILLAGE_BASE x 1.6^(villages - 1)`), independent of the target's size.
 - **A captured village changes owner with ALL buildings intact.** No automatic level loss: the old "Wall and Banner Hall go back to level 0" rule is
   dropped. Buildings only drop through **siege units** (a later run). Resources are partly kept (`TAKE_KEEP_RESOURCE_SHARE`); the old owner's troops are gone;
-  the new owner's occupiers move in (up to the population cap); queues are cleared (costs were paid by the old owner, not refunded); the Renown
+  the new owner's occupiers stay as support from their home villages (2026-11-18; before: moved in up to the population cap); queues are cleared (costs were paid by the old owner, not refunded); the Renown
   already paid for building levels stays remembered by the village, so a taken village earns no building Renown a second time.
 - **A player's LAST village CAN be taken** (replaces "last village is safe"; `LAST_VILLAGE_SAFE` is dropped). That player is not wiped out: they get
   a **fresh starting village at the outer edge of the current world circle** (expanding layout: the edge placement a newcomer gets, with its ring of
@@ -1115,7 +1126,7 @@ Renown and `chestVillageCost(owned)` War Chest gold), however many Chieftains it
   Both sides see a **hold card** with the countdown. Live hints (WebSocket `game` / `tribe` topics) go to the owner, the claimant and the owner's tribe when the hearth
   goes out, the clock starts / pauses, the hold is broken or ends, and when the village is taken.
 - **On change of owner** (as already built): all buildings stay, stock × `TAKE_KEEP_RESOURCE_SHARE`, old queues cleared, the old owner's troops there are gone, the old
-  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers move in (up to the population cap). Points move at once (rankings add up villages).
+  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers stay as support from their home villages (2026-11-18; no own troops in the new village). Points move at once (rankings add up villages).
 - **Anti-abuse (server, deterministic, in order of arrival):** no Strike on same-IP accounts, tribe-mates or allies (refused at send and again at arrival); none on
   players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; ~~**pair cap**~~ (2 takes per victim per 7 days: **removed 2026-11-05**, see the box below). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
 - **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
@@ -1649,8 +1660,19 @@ village has a grey ring and a thin line of smoke). Orders already in the queues 
   and the village starts with a fresh protection: **no new Strike for 24 hours** (`STRIKE_LOCK_HOURS`). Normal
   attacks (raids) are still possible.
 - Build, train and research queues carry on for the new owner (this is the existing rule in §3).
-- The occupiers **move in**: they become the village's own troops, up to its population cap (extra ones go
-  home on a return movement). Their food is paid by the new village, not by the old home.
+- **The occupiers stay as support (owner 2026-11-18, replaces "the occupiers move in").** The surviving occupiers stay in the taken village as
+  **support from the village that sent them**: the same stationed contingents as any support, home village unchanged, Drillyard ranks kept.
+  The new village starts with **no own troops**. Their food stays with their HOME village (they keep counting there as away troops), so the taken
+  village's population cap no longer matters and nothing is cut. One Chieftain is used up (his ember lights the new hearth); the other Chieftains
+  go home on a return movement. The owner recalls all or part of them from the Support box (`POST /api/stationed/:id/recall`, partial by amount).
+  They defend the village like any support while they stand there. **Edge case (decided):** an occupier contingent whose home village is gone or is no
+  longer the claimant's at that moment cannot stay as support; it moves in as the village's own troops up to the population cap (the old rule),
+  the rest is lost with its home. The "Village taken" report lists what stays (`stays`) and what went home (`overflow`).
+- **Existing worlds** (schema v34, once, data step `migrateTakeoverSupport`, meta flag `takeover_support_applied`): for each village already taken by a
+  Strike and Hold, where the stored reports tell the origin (the claimant's newest "taken" report, the "struck" report before it and the Strike's battle report
+  at the same moment name the sending village, which still belongs to the same player), the army that moved in (Strike survivors minus what went home, never
+  Chieftains) is turned into support from that village: min(moved in, the village's own troops now) per unit, stamped with the origin's current ranks. Villages where
+  the reports do not agree are skipped.
 - The old owner's troops and the support of others that were still inside are sent home.
 - Points move to the new owner at once (the ranking already adds up all of a player's villages).
 
@@ -1667,7 +1689,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   Both cost the same Renown (`RENOWN_VILLAGE_BASE x 1.6^(villages - 1)`), independent of the target's size.
 - **A captured village changes owner with ALL buildings intact.** No automatic level loss: the old "Wall and Banner Hall go back to level 0" rule is
   dropped. Buildings only drop through **siege units** (a later run). Resources are partly kept (`TAKE_KEEP_RESOURCE_SHARE`); the old owner's troops are gone;
-  the new owner's occupiers move in (up to the population cap); queues are cleared (costs were paid by the old owner, not refunded); the Renown
+  the new owner's occupiers stay as support from their home villages (2026-11-18; before: moved in up to the population cap); queues are cleared (costs were paid by the old owner, not refunded); the Renown
   already paid for building levels stays remembered by the village, so a taken village earns no building Renown a second time.
 - **A player's LAST village CAN be taken** (replaces "last village is safe"; `LAST_VILLAGE_SAFE` is dropped). That player is not wiped out: they get
   a **fresh starting village at the outer edge of the current world circle** (expanding layout: the edge placement a newcomer gets, with its ring of
@@ -1701,7 +1723,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   Both sides see a **hold card** with the countdown. Live hints (WebSocket `game` / `tribe` topics) go to the owner, the claimant and the owner's tribe when the hearth
   goes out, the clock starts / pauses, the hold is broken or ends, and when the village is taken.
 - **On change of owner** (as already built): all buildings stay, stock × `TAKE_KEEP_RESOURCE_SHARE`, old queues cleared, the old owner's troops there are gone, the old
-  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers move in (up to the population cap). Points move at once (rankings add up villages).
+  owner's support and everyone else's troops are sent home, 24 h Strike lock, the occupiers stay as support from their home villages (2026-11-18; no own troops in the new village). Points move at once (rankings add up villages).
 - **Anti-abuse (server, deterministic, in order of arrival):** no Strike on same-IP accounts, tribe-mates or allies (refused at send and again at arrival); none on
   players in beginner or restart protection (refused at send; a Strike also checks it at arrival); none on a locked village; ~~**pair cap**~~ (2 takes per victim per 7 days: **removed 2026-11-05**, see the box below). No new route was added (strike, relief and occupy use the existing send route and its rate limit).
 - **Balance:** `BALANCE.md` 7.6: 20-player simulation, biggest ≤ 1.84× the second after 30 days on five seeds.
