@@ -2,12 +2,8 @@
 
 import {
   CANCEL_REFUND_PERCENT,
-  DRILLYARD_POINTS_PER_LEVEL,
-  KEEN_BONUS,
-  RANK_BONUS,
+  RANK_COST,
   RANK_MAX,
-  RANKABLE_UNITS,
-  SCOUT_UNIT,
   UNITS,
   UNIT_IDS,
   checkRank,
@@ -35,19 +31,7 @@ import { reasonText } from '../../rules.ts';
 import { goldNeverArrives, needsGoldText } from '../../shortfall.ts';
 import { useConfirm } from '../../tribe/Confirm.tsx';
 import { useCancelJob } from '../cancelJob.tsx';
-
-const TRACKS: readonly { id: RankTrack; name: string; hint: string }[] = [
-  // Plain words on screen (owner 2026-11-11: "Might, Bulwark ... too hard to understand"); the engine ids stay might/bulwark/keen.
-  { id: 'might', name: 'Attack', hint: 'Stronger in attack' },
-  { id: 'bulwark', name: 'Defence', hint: 'Stronger in defence, against foot and riders' },
-  { id: 'keen', name: 'Scouting', hint: 'Scouts see more and survive better' },
-];
-
-const trackApplies = (unit: UnitId, track: RankTrack) =>
-  track === 'keen' ? unit === SCOUT_UNIT : track === 'might' ? unit !== SCOUT_UNIT : true;
-
-/** Units that get a rank card on the Drillyard page (researched, or free, and rankable). */
-export const rankCardUnits = (live: Parameters<typeof isResearched>[0]): UnitId[] => UNIT_IDS.filter((u) => RANKABLE_UNITS.includes(u) && isResearched(live, u));
+import { TRACK_NAME, nextRankPoints, pointsRuleText, rankCardUnits, rankRows, trackBonusPct, trackEffect } from './drillyardLogic.ts';
 
 /** `part` splits the panel for the desktop building page (research in the side column, ranks in the main area); omitted = everything. */
 export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
@@ -75,7 +59,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
 
   async function reset(unit: UnitId, track: RankTrack, refund: number) {
     const ok = await confirm({
-      title: `Reset ${UNITS[unit].name} ${trackName(track)}?`,
+      title: `Reset ${UNITS[unit].name} ${TRACK_NAME[track]}?`,
       body: (
         <p>
           Free. +{refund} {refund === 1 ? 'point' : 'points'} back; resources spent are lost.
@@ -195,81 +179,78 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
               {formatInt(spent)}/{formatInt(total)} used
             </span>
           </div>
-          <p className="drill-howto">
-            Each level of the Drillyard gives {DRILLYARD_POINTS_PER_LEVEL} points. Rank 1 costs 1 point, rank 2 costs 2, … Reset gives the points back.
-          </p>
+          <p className="drill-howto">{pointsRuleText()}</p>
           <ul className="drill-units">
-            {trained.map((u) => {
+            {rankRows(trained).map(({ unit: u, track, first }) => {
               const def = UNITS[u];
+              const name = TRACK_NAME[track];
+              const rank = rankOf(live.ranks, u, track);
+              const check = checkRank(live, u, track, now, settings);
+              const respec = rank > 0 ? checkRespec(live, u, track, now, settings) : null;
+              const atMax = rank >= RANK_MAX;
+              const points = nextRankPoints(rank);
+              const refusal = atMax || check.ok ? null : reasonText(check);
+              const needsPoints = points !== null && points > free;
+              const lowOnResources = !check.ok && check.reason === 'not_enough_resources';
               return (
-                <li key={u} className="drill-uc">
-                  <div className="drill-unit-head">
+                <li key={`${u}-${track}`} className="drill-uc">
+                  <div className="drill-tr">
                     <span className="drill-icon" aria-hidden="true">
-                      <UnitFigure unit={u} pose="icon" size={32} />
+                      {first && <UnitFigure unit={u} pose="icon" size={32} />}
                     </span>
-                    <span className="drill-name">{def.name}</span>
-                  </div>
-                  <div className="drill-trs">
-                  {TRACKS.filter((t) => trackApplies(u, t.id)).map((t) => {
-                    const rank = rankOf(live.ranks, u, t.id);
-                    const per = t.id === 'keen' ? KEEN_BONUS : RANK_BONUS;
-                    const check = checkRank(live, u, t.id, now, settings);
-                    const respec = rank > 0 ? checkRespec(live, u, t.id, now, settings) : null;
-                    const atMax = rank >= RANK_MAX;
-                    const full = atMax ? null : !check.ok ? reasonText(check) : null;
-                    const short = !full ? null : rank + 1 > free ? `Needs ${rank + 1} ${rank === 0 ? 'point' : 'points'} · ${free} free` : check.ok === false && check.reason === 'not_enough_resources' ? 'Low on resources' : full;
-                    return (
-                      <div key={t.id} className="drill-tr">
-                        <span className="drill-tname" title={t.hint}>
-                          {t.name}
-                        </span>
-                        <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
-                        {rank > 0 && (
-                          <button
-                            type="button"
-                            className="drill-reset"
-                            disabled={!respec?.ok || busy}
-                            title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
-                            aria-label={`Reset ${def.name} ${t.name}`}
-                            onClick={() => respec?.ok && void reset(u, t.id, respec.refund)}
-                          >
-                            Reset{respec?.ok ? ` +${respec.refund}` : ''}
-                          </button>
-                        )}
-                        <span className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
-                          {Array.from({ length: RANK_MAX }, (_, i) => (
-                            <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
-                          ))}
-                        </span>
-                        <span className="drill-tbtns">
-                          {!atMax && (
-                            <button
-                              type="button"
-                              className="btn btn-primary drill-buy"
-                              disabled={!!full || busy}
-                              title={full ?? undefined}
-                              aria-label={`Buy ${def.name} ${t.name} rank ${rank + 1}`}
-                              onClick={() => void run(() => api.rank(village.id, u, t.id), `${def.name} ${t.name} rank ${rank + 1}`)}
-                            >
-                              Buy rank {rank + 1}
-                            </button>
-                          )}
-                          {atMax && <span className="drill-max">Max</span>}
-                        </span>
-                        {/* Third line: what the next rank costs (or why not). */}
-                        <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
-                          {atMax
-                            ? null
-                            : (short ??
-                              (check.ok ? (
-                                <>
-                                  {check.points} pt <Cost cost={check.cost} have={live.resources} />
-                                </>
-                              ) : null))}
-                        </span>
-                      </div>
-                    );
-                  })}
+                    <span className="drill-head">
+                      <span className="drill-name">{def.name}</span>
+                      <span className="drill-tag">{name}</span>
+                    </span>
+                    <span className="drill-fx" title={trackEffect(track, u)}>
+                      {trackEffect(track, u)}
+                      {rank > 0 && <strong className="drill-bonus"> · now +{trackBonusPct(track, rank)}%</strong>}
+                    </span>
+                    <span className="drill-pips" role="img" aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}>
+                      {Array.from({ length: RANK_MAX }, (_, i) => (
+                        <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
+                      ))}
+                    </span>
+                    {/* The next rank: what it costs (points and resources), or why it cannot be bought. */}
+                    <span className={`drill-tinfo${needsPoints || (refusal && !lowOnResources) ? ' is-warn' : ''}`}>
+                      {atMax ? null : needsPoints ? (
+                        `Needs ${points} ${points === 1 ? 'point' : 'points'} · ${free} free`
+                      ) : refusal && !lowOnResources ? (
+                        refusal
+                      ) : (
+                        <>
+                          {points} {points === 1 ? 'pt' : 'pts'} <Cost cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!} have={live.resources} />
+                        </>
+                      )}
+                    </span>
+                    <span className="drill-tbtns">
+                      {atMax ? (
+                        <span className="drill-max">Max</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary drill-buy"
+                          disabled={!check.ok || busy}
+                          title={refusal ?? undefined}
+                          aria-label={`Buy ${def.name} ${name} rank ${rank + 1}`}
+                          onClick={() => void run(() => api.rank(village.id, u, track), `${def.name} ${name} rank ${rank + 1}`)}
+                        >
+                          Buy rank {rank + 1}
+                        </button>
+                      )}
+                      {rank > 0 && (
+                        <button
+                          type="button"
+                          className="drill-reset"
+                          disabled={!respec?.ok || busy}
+                          title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
+                          aria-label={`Reset ${def.name} ${name}`}
+                          onClick={() => respec?.ok && void reset(u, track, respec.refund)}
+                        >
+                          Reset{respec?.ok ? ` +${respec.refund}` : ''}
+                        </button>
+                      )}
+                    </span>
                   </div>
                 </li>
               );
@@ -281,8 +262,4 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
       {cancel.dialog}
     </div>
   );
-}
-
-function trackName(t: RankTrack): string {
-  return TRACKS.find((x) => x.id === t)?.name ?? t;
 }

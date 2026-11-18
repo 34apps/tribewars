@@ -251,7 +251,7 @@ export function SimulatorView() {
             </button>
             <label className="sim-switch">
               <input type="checkbox" role="switch" checked={useRanks} onChange={(e) => setUseRanks(e.target.checked)} />
-              <span>Use my ranks (Might)</span>
+              <span>Use my ranks (Might, Breach)</span>
             </label>
             <label className="sim-switch">
               <input type="checkbox" role="switch" checked={abandoned} onChange={(e) => setAbandoned(e.target.checked)} />

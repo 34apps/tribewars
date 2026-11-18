@@ -45,6 +45,8 @@ Written 2026-11-17 (originality pass + health check). Read this first, then `doc
   fast support rider); **Log Ram** back (Wall only, power 6) + Firecart buildings only (power 4); `SIEGE_POINTS_PER_LEVEL` 7,
   `SIEGE_EXTRA_POINTS.bannerhall` 40. World mirror works from the built preview (server logs refused saves).
 
+- **Drillyard ranks rework (2026-11-18, branch `claude/hungry-kapitsa-ba124a`, schema v32, not merged):** 5 points per level, every rank 2 points, new Breach track (+2% siege power per rank) for Log Ram and Firecart, 10 meaningful tracks; options and sim numbers in `docs/proposals/drillyard-ranks.md`; the owner still picks option 1/2/3. Sims now spend ranks (`scripts/sim/ranks.ts`).
+
 ## Work in flight / very next step
 
 1. **Owner tests the built preview in Safari** (hand cursor, lag, small village picture, roads, Longhouse/Wrightyard, Firecart, old

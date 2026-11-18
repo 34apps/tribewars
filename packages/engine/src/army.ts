@@ -285,7 +285,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
   // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
-  const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
+  const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall, input.attackerRanks).wall : defender.buildings.wall;
   // The Wall's militia is the villagers defending their home: an abandoned village (`npc`, map-born or left by a player) has none (owner 2026-11-17).
   // Its percentage bonus still counts for troops that stand there.
   const militia = defender.npc ? 0 : WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL * wall;
@@ -320,7 +320,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       loot = waterFillLoot(Math.floor(capacity), lootable);
     }
     // The survivors shoot after the battle (Log Rams: the Wall again; Firecarts: the picked building, a random one but the Wall if none).
-    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits, siegeDraw);
+    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits, siegeDraw, input.attackerRanks);
   } else {
     const ratio = defensePower > 0 ? Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT) : 0; // nothing defends and nothing attacks: no losses
     for (const u of UNIT_IDS) {
@@ -331,7 +331,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       });
     }
     // A lost attack still does reduced damage: a share of each siege kind counts as a survivor for the after step.
-    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, attackerUnits, siegeDraw);
+    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, attackerUnits, siegeDraw, input.attackerRanks);
   }
 
   return {

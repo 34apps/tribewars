@@ -34,7 +34,7 @@ const rich = (bannerhall = 1): VillageState =>
 describe('Chieftain unit', () => {
   it('has the design numbers', () => {
     const c = UNITS.chieftain;
-    assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry], [0, 10, 10, 5, 0]);
+    assert.deepEqual([c.attack, c.defenseInfantry, c.defenseCavalry, c.speed, c.carry], [0, 10, 10, 2.5, 0]);
     assert.deepEqual(c.cost, { wood: 6000, food: 4500, iron: 7500, gold: 0 });
     assert.equal(c.trainTimeSec, 6 * 3600);
     assert.equal(c.building, 'bannerhall');
@@ -148,11 +148,11 @@ describe('Chieftain Renown price (pay for the village, not for each Chieftain, 2
 });
 
 describe('Chieftain in armies and missions', () => {
-  it('makes the army slow: speed 5 beats raiders at 6', () => {
-    assert.equal(armySpeed(units({ raider: 10, chieftain: 1 })), 5);
+  it('makes the army slow: speed 2.5, the slowest unit in the game, beats raiders at 6', () => {
+    assert.equal(armySpeed(units({ raider: 10, chieftain: 1 })), 2.5);
     const a = flatTravelTimeMs({ x: 0, y: 0 }, { x: 10, y: 0 }, units({ raider: 10 }), S1);
     const b = flatTravelTimeMs({ x: 0, y: 0 }, { x: 10, y: 0 }, units({ raider: 10, chieftain: 1 }), S1);
-    assert.equal(b, 2 * HOUR);
+    assert.equal(b, 4 * HOUR);
     assert.ok(b > a);
   });
 

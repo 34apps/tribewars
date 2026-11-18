@@ -1,12 +1,16 @@
 // Drillyard: unit research (once per village) and Training-Point ranks. See docs/GAME_DESIGN.md sections 4 and 15.
 
 import {
+  BREACH_BONUS,
+  DRILLYARD_HALL_FROM,
+  DRILLYARD_POINTS_PER_HALL_LEVEL,
   DRILLYARD_POINTS_PER_LEVEL,
   KEEN_BONUS,
   RANK_BONUS,
   RANK_COST,
   RANK_MAX,
-  RANKABLE_UNITS,
+  RANK_POINTS,
+  RANK_TRACKS_OF,
   SCOUT_APPROX_STEP,
   SCOUT_INTEL_KEEN,
   SCOUT_UNIT,
@@ -139,10 +143,28 @@ export function applyCancelResearch(
 
 // ---- Ranks --------------------------------------------------------------------------------------
 
-export const emptyRanks = (): UnitRanks => ({ might: 0, bulwark: 0, keen: 0 });
+export const emptyRanks = (): UnitRanks => ({ might: 0, bulwark: 0, keen: 0, breach: 0 });
 
-/** Rank of one track (0 when none). */
+/** Can this unit be ranked in this track at all (RANK_TRACKS_OF)? */
+export const hasTrack = (u: UnitId, track: RankTrack): boolean => RANK_TRACKS_OF[u]?.includes(track) ?? false;
+
+/** Training Points that ranks 1..r of one track cost together. */
+export function rankPointsUpTo(r: number): number {
+  let sum = 0;
+  for (let i = 0; i < Math.min(RANK_MAX, Math.floor(r)); i++) sum += RANK_POINTS[i] ?? 0;
+  return sum;
+}
+
+/** Resources that ranks 1..r of one track cost together (what a refund of those ranks returns). */
+export function rankResourcesUpTo(r: number): Resources {
+  const sum = emptyResources();
+  for (let i = 0; i < Math.min(RANK_MAX, Math.floor(r)); i++) for (const id of RESOURCE_IDS) sum[id] += RANK_COST[i]?.[id] ?? 0;
+  return sum;
+}
+
+/** Rank of one track (0 when none, and 0 for a track the unit does not have: stale ranks on a retired track do nothing). */
 export function rankOf(ranks: VillageRanks | undefined, u: UnitId, track: RankTrack): number {
+  if (!hasTrack(u, track)) return 0;
   const n = ranks?.[u]?.[track];
   return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(RANK_MAX, Math.floor(n))) : 0;
 }
@@ -155,6 +177,11 @@ export function mightMultiplier(ranks: VillageRanks | undefined, u: UnitId): num
 /** Multiplier for both defences from Bulwark (1 when no rank). */
 export function bulwarkMultiplier(ranks: VillageRanks | undefined, u: UnitId): number {
   return 1 + RANK_BONUS * rankOf(ranks, u, 'bulwark');
+}
+
+/** Multiplier for the siege power of a Log Ram or Firecart from Breach (1 when no rank). */
+export function breachMultiplier(ranks: VillageRanks | undefined, u: UnitId): number {
+  return 1 + BREACH_BONUS * rankOf(ranks, u, 'breach');
 }
 
 /** Scout-strength multiplier from the pathfinder's Keen (1 when no rank). Used by the scout duel and the intel tiers. */
@@ -210,19 +237,17 @@ export function scoutStrength(groups: Array<{ count: number; ranks: VillageRanks
   return groups.reduce((sum, g) => sum + g.count * keenMultiplier(g.ranks), 0);
 }
 
-/** Training Points a village has: DRILLYARD_POINTS_PER_LEVEL per Drillyard level. */
+/** Training Points a village has: DRILLYARD_POINTS_PER_LEVEL per Drillyard level plus DRILLYARD_POINTS_PER_HALL_LEVEL per Town Hall level above DRILLYARD_HALL_FROM. */
 export function pointsTotal(state: VillageState): number {
-  return DRILLYARD_POINTS_PER_LEVEL * Math.max(0, state.buildings.drillyard || 0);
+  const hallExtra = Math.max(0, (state.buildings.hall || 0) - DRILLYARD_HALL_FROM);
+  return DRILLYARD_POINTS_PER_LEVEL * Math.max(0, state.buildings.drillyard || 0) + DRILLYARD_POINTS_PER_HALL_LEVEL * hallExtra;
 }
 
-/** Points already used: reaching rank r of a track cost 1 + 2 + .. + r. */
+/** Points already used: reaching rank r of a track cost RANK_POINTS[0] + .. + RANK_POINTS[r - 1]. */
 export function pointsSpent(state: VillageState): number {
   let spent = 0;
   for (const u of Object.keys(UNITS) as UnitId[]) {
-    for (const track of RANK_TRACKS) {
-      const r = rankOf(state.ranks, u, track);
-      spent += (r * (r + 1)) / 2;
-    }
+    for (const track of RANK_TRACKS) spent += rankPointsUpTo(rankOf(state.ranks, u, track));
   }
   return spent;
 }
@@ -239,17 +264,17 @@ function planRank(v: VillageState, u: unknown, track: unknown): CheckResult<Rank
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   if (!isTrack(track)) return fail('invalid_input', 'Unknown rank track.');
   const name = UNITS[u].name;
-  if (!RANKABLE_UNITS.includes(u)) return fail('invalid_input', `${name}s cannot be trained to ranks.`);
-  if (track === 'keen' && u !== SCOUT_UNIT) return fail('invalid_input', `Keen is only for ${UNITS[SCOUT_UNIT].name}s.`);
-  if (track === 'might' && u === SCOUT_UNIT) return fail('invalid_input', `${name}s do not fight, so Might does not apply.`);
+  if (!RANK_TRACKS_OF[u]) return fail('invalid_input', `${name}s cannot be trained to ranks.`);
+  if (!hasTrack(u, track)) return fail('invalid_input', `${name}s have no ${track} track.`);
   if (!isResearched(v, u)) return fail('requirements_not_met', `Research ${name} first.`);
   const rank = rankOf(v.ranks, u, track) + 1;
   if (rank > RANK_MAX) return fail('max_level', `${name} is already at the top rank in this track.`);
   const free = pointsTotal(v) - pointsSpent(v);
-  if (rank > free) return fail('requirements_not_met', `Not enough Training Points (need ${rank}, ${Math.max(0, free)} left).`);
+  const points = RANK_POINTS[rank - 1] ?? 0;
+  if (points > free) return fail('requirements_not_met', `Not enough Training Points (need ${points}, ${Math.max(0, free)} left).`);
   const cost = { ...(RANK_COST[rank - 1] ?? emptyResources()) };
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
-  return { ok: true, unit: u, track, rank, points: rank, cost };
+  return { ok: true, unit: u, track, rank, points, cost };
 }
 
 /** Can the next rank of `track` for `u` be bought at time t? Never throws. */
@@ -284,7 +309,7 @@ function planRespec(v: VillageState, u: unknown, track: unknown): CheckResult<{ 
   if (!isTrack(track)) return fail('invalid_input', 'Unknown rank track.');
   const rank = rankOf(v.ranks, u, track);
   if (rank <= 0) return fail('invalid_input', 'Nothing to reset in this track.');
-  return { ok: true, unit: u, track, refund: (rank * (rank + 1)) / 2 };
+  return { ok: true, unit: u, track, refund: rankPointsUpTo(rank) };
 }
 
 /** Can this track be reset at time t? `refund` is the Training Points returned. Never throws. */

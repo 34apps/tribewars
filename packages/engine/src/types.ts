@@ -93,11 +93,11 @@ export interface UnitDef {
   siege?: { power: number; maxLevels: number; hits: 'wall' | 'buildings' };
 }
 
-/** Training-point tracks (docs/GAME_DESIGN.md section 15). Keen is for the scout unit only. */
-export const RANK_TRACKS = ['might', 'bulwark', 'keen'] as const;
+/** Training-point tracks (docs/GAME_DESIGN.md section 15). Which unit has which track: RANK_TRACKS_OF in config.ts. */
+export const RANK_TRACKS = ['might', 'bulwark', 'keen', 'breach'] as const;
 export type RankTrack = (typeof RANK_TRACKS)[number];
 /** Rank 0..RANK_MAX per track. */
-export type UnitRanks = Record<RankTrack, number>;
+export type UnitRanks = Record<Exclude<RankTrack, 'breach'>, number> & { breach?: number }; // older saved ranks have no breach
 export type VillageRanks = Partial<Record<UnitId, UnitRanks>>;
 
 export interface ResearchJob {

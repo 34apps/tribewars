@@ -7,6 +7,8 @@ import {
   applyTrain,
   checkStrike,
   createNpcVillage,
+  normalizeVillage,
+  rankOf,
   resolveBattle,
   settleVillage,
   storageCap,
@@ -61,7 +63,8 @@ describe('abandonVillageKeepBuildings', () => {
     p.ranks = { raider: { might: 1, bulwark: 0, keen: 0 } };
     const a = abandonVillageKeepBuildings(p, NOW, S1, 1);
     assert.deepEqual(a.troops, units({}));
-    assert.deepEqual(a.ranks, p.ranks);
+    assert.equal(rankOf(a.ranks, 'raider', 'might'), 1);
+    assert.deepEqual(a.ranks, normalizeVillage(p).ranks, 'the ranks stay as they were');
     assert.deepEqual(settleVillage(a, NOW + 500 * HOUR, S1).troops, units({}));
   });
 

@@ -148,7 +148,7 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
 | **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | 60 / 90 / 110 | 700 s | **fast support defender** (2026-11-18) |
 | **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
-| Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
+| Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 2.5 | 0 | 8 | unchanged | 6 h | takes villages; **the slowest unit in the game** (2.5, below the siege units' 3; owner 2026-11-18, was 5) |
 | Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
 | Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
 
@@ -793,12 +793,19 @@ the server does not pass them yet), scout intel tiers. Earlier status: **engine 
 `VillageState.researched/researchQueue/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
 `KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
 Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. **Only `RANKABLE_UNITS` can be ranked (owner, 2026-11-18; schema v26):**
-Pikeman, Shieldbearer, Raider, Elk Rider, Hearthwarden, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Log Ram and the Firecart (siege tools) have no rank tracks, `buyRank` refuses them
+Pikeman, Shieldbearer, Raider, Elk Rider, Hearthwarden, Ember Guard, Pathfinder; the Chieftain (attack 0) has no rank track (the Log Ram and the Firecart had none either until the 2026-11-18 rework below gave them Breach), `buyRank` refuses them
 (`invalid_input`), and the v26 migration removed any such ranks (points are derived from ranks, so they became free; resources paid were not refunded). 30 points
 (3 per level, 10 levels) stay. The page shows "Buy rank N", "Needs N points · M free", and "Researched" without a time for finished research. Respec resets one track to 0: points return in full,
 resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
 on the village's own troops and on each support contingent with its own home ranks); omitted = identical to before. Not built: server
 tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored only), web panel.
+
+**Rework 2026-11-18 (schema v32; options and sim numbers: `docs/proposals/drillyard-ranks.md`, `docs/BALANCE.md` §22).** The owner found the system too limited, so:
+- **Training Points:** `DRILLYARD_POINTS_PER_LEVEL` **5** (50 at level 10; was 3) plus `DRILLYARD_POINTS_PER_HALL_LEVEL` x Town Hall levels above `DRILLYARD_HALL_FROM` (0 now: option 3 of the proposal uses it). **Every rank costs `RANK_POINTS[r-1]` = 2 points** (was r points); resources per rank `RANK_COST` unchanged. A village can buy 25 ranks (5 maxed tracks).
+- **Tracks per unit (`RANK_TRACKS_OF`), only tracks that change a fight:** Pikeman, Shieldbearer, Hearthwarden: Bulwark. Raider, Elk Rider: Might. Ember Guard: Might + Bulwark. Pathfinder: Keen. **Log Ram, Firecart: Breach (new, `BREACH_BONUS` 0.04 = +4% siege power per rank, +20% at rank 5; owner 2026-11-18, together with `SIEGE_POINTS_PER_LEVEL` 8).** Chieftain: none. `rankOf` returns 0 for a track the unit lacks, so stale ranks do nothing and cost no points. (Hearthwarden Might, Pikeman/Shieldbearer Might, Raider/Elk Rider/Pathfinder Bulwark were retired: their stat is token.)
+- **Breach reaches `resolveSiege` and `resolveSiegeDuring` through `attackerRanks`** (ranks stamped on the march, like Might): each siege kind's points = count x power x (1 + BREACH_BONUS x rank). It is capped by the siege rule of §18.9 (rebuild cost under 2x the attacker's capital at every Wall level, Breach 5 included).
+- **Existing worlds (v32, `migrateRankRework`, flag `rank_rework_applied`):** ranks on a track a unit lost are removed and their resources refunded in full (never above the storehouse); a village still over its pool loses its highest rank (ties: later unit) with that rank refunded, until it fits.
+- The Drillyard page shows one row per (unit, track); the three numbers above and `RANK_POINTS` are the whole option switch.
 
 **Build order if approved:** config + types → engine (rank multipliers in `resolveBattle`, tier filter on intel,
 tests) → server (table, research queue, security gate per SECURITY_ROADMAP §4) → web (Armory panel with a points
@@ -2229,6 +2236,8 @@ the rules live in `packages/engine/src/siege.ts`. Until 2026-11-11 there were tw
 Barracks), then one (the Firecart, Wrightyard). On 2026-11-18 the owner asked for a ram "only for the wall, more powerful for wall demolishing": **two siege units at the
 Wrightyard**, each with its own job (`UnitDef.siege.hits`).
 
+**Ranks (2026-11-18):** the Drillyard track **Breach** (+4% siege power per rank, max +20%, `BREACH_BONUS`) raises the power of the Log Ram and the Firecart of the sending village; see §15. It is paid for by the dearer buildings (`SIEGE_POINTS_PER_LEVEL` 8), so the Wall is never a bargain to knock down at any level with Breach 5 (BALANCE 22).
+
 **Rule.** A building level never drops by itself: not on capture, not with time. It drops only through siege units in an attack. **Log Rams only hit the Wall**, in two steps:
 **during the battle** (the lowered Wall counts in that battle) and **again after a won battle with the survivors**. **Firecarts burn buildings after the battle only (no during-the-battle step)**:
 the building the sender picked, **the Wall included** (owner, 2026-11-18), or **a random building other than the Wall** when none was picked ("Any building"; chosen by the server from the buildings above their floor, from the
@@ -2245,7 +2254,7 @@ found or occupy; `checkMission` refuses them). They fight, but badly, and die in
 the army). Neither can be ranked (not in `RANKABLE_UNITS`).
 
 **Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (Firecart power 4, Log Ram power 6, BALANCE 18; the Firecart was 1, then 2). Lowering a building from level L to L-1 costs
-`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (7) x L` points (BALANCE 18: it was 2), so high levels are much harder to knock down (level 10: 76 points, level 22: 160, level 5: 41). **Some buildings are sturdier** (`SIEGE_EXTRA_POINTS`): the Banner Hall, which is paid for in gold, needs 40 more points per level, so burning it is not a bargain; every other building has none. **Each step lowers
+`SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (8) x L` points (BALANCE 18: it was 2, then 7; 8 since 2026-11-18 with Breach +4%), so high levels are much harder to knock down (level 10: 86 points, level 22: 182, level 5: 46). **Some buildings are sturdier** (`SIEGE_EXTRA_POINTS`): the Banner Hall, which is paid for in gold, needs 40 more points per level, so burning it is not a bargain; every other building has none. **Each step lowers
 at most `maxLevels` levels** (Log Ram 3, so the Wall can lose up to 6 in one won attack; Firecart 2) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
 

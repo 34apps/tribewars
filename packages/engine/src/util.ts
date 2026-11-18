@@ -122,7 +122,7 @@ export function normalizeVillage(v: VillageState): VillageState {
     const ranks: VillageRanks = {};
     for (const id of UNIT_IDS) {
       const r = v.ranks[id];
-      if (r) ranks[id] = { might: r.might || 0, bulwark: r.bulwark || 0, keen: r.keen || 0 };
+      if (r) ranks[id] = { might: r.might || 0, bulwark: r.bulwark || 0, keen: r.keen || 0, breach: r.breach || 0 };
     }
     out.ranks = ranks;
   }

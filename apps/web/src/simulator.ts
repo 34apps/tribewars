@@ -4,6 +4,7 @@
 import {
   BATTLE_LUCK,
   BUILDINGS,
+  BREACH_BONUS,
   RANK_BONUS,
   RANK_MAX,
   UNITS,
@@ -11,6 +12,7 @@ import {
   createPlayerVillage,
   emptyUnits,
   normalizeUnits,
+  rankOf,
   MORALE_ATTACK_FACTOR,
   resolveBattle,
 } from '@clanfire/engine';
@@ -41,14 +43,26 @@ export function luckFromPercent(pct: number): number {
 /** Luck fraction back to slider percent. */
 export const percentFromLuck = (luck: number): number => Math.round(luck * 1000) / 10;
 
-/** "Raider Might 2 · +10% attack": the army's unit with the most Might ranks. Null when the ranks give the army nothing. */
-export function mightText(ranks: VillageRanks | undefined, army: Partial<Units>): string | null {
+/** Which of the army's units has the highest rank in a track (only tracks the unit really has count: rankOf). */
+function bestRanked(ranks: VillageRanks | undefined, army: Partial<Units>, track: 'might' | 'breach'): { unit: UnitId; rank: number } | null {
   let best: { unit: UnitId; rank: number } | null = null;
   for (const u of UNIT_IDS) {
-    const r = ranks?.[u]?.might ?? 0;
+    const r = rankOf(ranks, u, track);
     if ((army[u] ?? 0) > 0 && r > (best?.rank ?? 0)) best = { unit: u, rank: r };
   }
+  return best;
+}
+
+/** "Raider Might 2 · +10% attack": the army's unit with the most Might ranks. Null when the ranks give the army nothing. */
+export function mightText(ranks: VillageRanks | undefined, army: Partial<Units>): string | null {
+  const best = bestRanked(ranks, army, 'might');
   return best ? `${UNITS[best.unit].name} Might ${best.rank} · +${Math.round(best.rank * RANK_BONUS * 100)}% attack` : null;
+}
+
+/** "Log Ram Breach 3 · +18% siege power": the army's siege unit with the most Breach ranks. Null when the ranks give the army nothing. */
+export function breachText(ranks: VillageRanks | undefined, army: Partial<Units>): string | null {
+  const best = bestRanked(ranks, army, 'breach');
+  return best ? `${UNITS[best.unit].name} Breach ${best.rank} · +${Math.round(best.rank * BREACH_BONUS * 100)}% siege power` : null;
 }
 
 /** How many of the sent units survive: { home, sent } (units, not carry). */
@@ -115,7 +129,7 @@ export function uniformBulwark(rank: number): VillageRanks | undefined {
   const r = Math.max(0, Math.min(RANK_MAX, Math.floor(Number.isFinite(rank) ? rank : 0)));
   if (r === 0) return undefined;
   const out: VillageRanks = {};
-  for (const u of UNIT_IDS) out[u] = { might: 0, bulwark: r, keen: 0 };
+  for (const u of UNIT_IDS) out[u] = { might: 0, bulwark: r, keen: 0, breach: 0 };
   return out;
 }
 
@@ -132,7 +146,7 @@ export interface SimSetup {
   /** Support contingent stationed in the defending village (one list: the simulator treats it as one contingent). */
   support: Units;
   wall: number;
-  /** The attacking village's ranks (Might); undefined = none. */
+  /** The attacking village's ranks (Might, Breach); undefined = none. */
   attackerRanks?: VillageRanks;
   /** Bulwark rank 0..RANK_MAX for the village's own troops / for the support. */
   defenderBulwark: number;

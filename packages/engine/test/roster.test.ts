@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { UNITS, POP_PER_UNIT, RANKABLE_UNITS, applyRank, checkResearch, UNIT_TERRAIN_FAMILY, applyTrain, armySpeed, checkTrain, normalizeVillage, resolveBattle } from '../src/index.ts';
+import { UNITS, POP_PER_UNIT, RANKABLE_UNITS, applyRank, checkRank, rankOf, checkResearch, UNIT_TERRAIN_FAMILY, applyTrain, armySpeed, checkTrain, normalizeVillage, resolveBattle } from '../src/index.ts';
 import type { UnitId, VillageState } from '../src/index.ts';
 import { S1, units, village } from './helpers.ts';
 
@@ -118,10 +118,11 @@ describe('troop roster', () => {
     assert.ok(checkResearch(village({ buildings: base, resources: rich }), 'hearthwarden', 0, S1).ok);
     const v = normalizeVillage(village({ buildings: base, resources: rich, troops: { hearthwarden: 1 } }));
     assert.ok(v.researched?.includes('hearthwarden'), 'old saves with the unit count as researched');
-    const m = applyRank(v, 'hearthwarden', 'might', 0, S1);
-    const b = applyRank(m, 'hearthwarden', 'bulwark', 0, S1);
-    assert.equal(b.ranks?.hearthwarden?.might, 1);
+    assert.ok(RANKABLE_UNITS.includes('hearthwarden'));
+    assert.ok(!checkRank(v, 'hearthwarden', 'might', 0, S1).ok, 'a defender has no Might track');
+    const b = applyRank(v, 'hearthwarden', 'bulwark', 0, S1);
     assert.equal(b.ranks?.hearthwarden?.bulwark, 1);
+    assert.equal(rankOf(b.ranks, 'hearthwarden', 'might'), 0);
   });
 
   it('old saved rows without the Hearthwarden or the Log Ram read as 0', () => {

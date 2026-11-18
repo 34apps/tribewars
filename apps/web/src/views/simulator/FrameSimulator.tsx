@@ -22,6 +22,7 @@ import {
   hasTroops,
   luckFromPercent,
   luckText,
+  breachText,
   mightText,
   parseLevel,
   setPendingSend,
@@ -142,6 +143,7 @@ export function FrameSimulator() {
   const builtins = builtinGroups({ visible: units, home: live.troops, mission: 'attack', relief: false, target: null });
   const totalSent = units.reduce((n, u) => n + attacker[u], 0);
   const might = useRanks ? mightText(live.ranks, attacker) : null;
+  const breach = useRanks ? breachText(live.ranks, attacker) : null;
   const setCount = (set: (fn: (t: Text) => Text) => void) => (u: UnitId, value: string) => set((t) => ({ ...t, [u]: value }));
 
   function fillHome() {
@@ -313,7 +315,8 @@ export function FrameSimulator() {
               Use my ranks
             </Switch>
             {might && <span className="fv-tag fv-tag-tl">{might}</span>}
-            {useRanks && !might && <span className="fv-mut">no Might ranks for these units</span>}
+            {breach && <span className="fv-tag fv-tag-tl">{breach}</span>}
+            {useRanks && !might && !breach && <span className="fv-mut">no Might or Breach ranks for these units</span>}
           </div>
           {moraleOn && (
             <div className="fsm-opt is-b">

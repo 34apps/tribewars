@@ -10,6 +10,7 @@ import {
   BUILDINGS,
   DEFAULT_WORLD,
   POP_PER_UNIT,
+  RANK_MAX,
   RESOURCE_IDS,
   UNITS,
   applyBattleToDefender,
@@ -25,7 +26,7 @@ import {
   trainTimeMs,
   travelPreview,
 } from '../../packages/engine/src/index.ts';
-import type { BattleResult, BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
+import type { BattleResult, BuildingId, Resources, UnitId, Units, VillageRanks, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 
 const HOUR = 3_600_000;
 /** Same value weights as the balance simulator: gold is rare, so it counts 10x. */
@@ -56,9 +57,14 @@ function village(buildings: Partial<Record<BuildingId, number>>, troops: Partial
   return v;
 }
 const army = (spec: Partial<Units>): Units => ({ ...emptyUnits(), ...spec });
+/** Both siege units at the top Breach rank (the engine ignores a track a unit does not have in RANK_TRACKS_OF). */
+const BREACH_TOP: VillageRanks = {
+  logram: { might: 0, bulwark: 0, keen: 0, breach: RANK_MAX },
+  firecart: { might: 0, bulwark: 0, keen: 0, breach: RANK_MAX },
+};
 
-function fight(def: VillageState, units: Units, seed: number, target?: BuildingId): BattleResult {
-  return resolveBattle({ attackerUnits: units, defender: def, seed, noLoot: true, ...(target ? { siegeTarget: target } : {}) });
+function fight(def: VillageState, units: Units, seed: number, target?: BuildingId, ranks?: VillageRanks): BattleResult {
+  return resolveBattle({ attackerUnits: units, defender: def, seed, noLoot: true, ...(ranks ? { attackerRanks: ranks } : {}), ...(target ? { siegeTarget: target } : {}) });
 }
 
 /** The defence the engine computes against an all-infantry attack (every siege unit and the Raider is infantry). */
@@ -77,10 +83,10 @@ function raidersFor(def: VillageState, ratio: number, other: Partial<Units> = {}
 }
 
 /** Smallest number of SURVIVING siege units of `unit` that lowers `building` (from `level`) by `drop` levels, or undefined (cap or floor). */
-function survivorsNeeded(unit: 'logram' | 'firecart', building: BuildingId, level: number, drop: number): number | undefined {
+function survivorsNeeded(unit: 'logram' | 'firecart', building: BuildingId, level: number, drop: number, ranks?: VillageRanks): number | undefined {
   const levels = village({ [building]: level }).buildings;
   for (let n = 1; n <= 800; n++) {
-    const hit = resolveSiege(army({ [unit]: n }), levels, building).find((h) => h.unit === unit);
+    const hit = resolveSiege(army({ [unit]: n }), levels, building, undefined, 0, ranks).find((h) => h.unit === unit);
     if (hit && hit.from - hit.to >= drop) return n;
   }
   return undefined;
@@ -113,13 +119,13 @@ function rebuild(b: BuildingId, lowTo: number, from: number): { value: number; h
 }
 
 /** Real battles of `units` against `def`: share won, average levels dropped on `building` by `unit`, average attacker loss value. */
-function averageFight(def: VillageState, units: Units, building: BuildingId, unit: 'logram' | 'firecart'): { won: number; dropped: number; lossValue: number; defenderUnitsLost: number } {
+function averageFight(def: VillageState, units: Units, building: BuildingId, unit: 'logram' | 'firecart', ranks?: VillageRanks): { won: number; dropped: number; lossValue: number; defenderUnitsLost: number } {
   let won = 0;
   let dropped = 0;
   let loss = 0;
   let defLost = 0;
   for (const seed of SEEDS) {
-    const r = fight(def, units, seed, building);
+    const r = fight(def, units, seed, building, ranks);
     if (r.attackerWon) won += 1;
     const after = applyBattleToDefender(def, r);
     dropped += def.buildings[building] - after.buildings[building];
@@ -209,6 +215,72 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   // 9 points per level, which makes the Firecart useless against ordinary buildings).
   check('Wall levels are not a bargain to knock down with Log Rams (rebuild < 2 x attacker capital, every Wall level)', wallRows.every((r) => r.ratioCapital < 2));
   check('one Log Ram costs less than one Firecart and does at least 3x its old Wall damage (power 2)', unitValue('logram') < unitValue('firecart') && (ram.siege?.power ?? 0) >= 3 * 2);
+
+  // (a2) The same with Breach ranks (Drillyard, GAME_DESIGN 15): rank 0 vs rank RANK_MAX ---------------------------------
+  lines.push(`## (a2) Breach rank 0 vs ${RANK_MAX} (the Drillyard track of the Log Ram and the Firecart: more siege power per unit)`, '');
+  lines.push(
+    `Same method as (b) and (a); "Breach ${RANK_MAX}" = both siege units at rank ${RANK_MAX} in the sending village (attackerRanks / resolveSiege ranks). The defender's rebuild cost does not change, so a cheaper siege army pushes rebuild / capital up: the table checks the line "rebuild < 2 x the attacker's capital" for EVERY Wall level.`,
+    '',
+  );
+  lines.push(`| level | Log Rams to lower the Wall 1 level: Breach 0 | Breach ${RANK_MAX} | ${cap} levels: Breach 0 | Breach ${RANK_MAX} | Firecarts (Market) 1 level: Breach 0 | Breach ${RANK_MAX} |`);
+  lines.push('|---|---|---|---|---|---|---|');
+  for (const level of [3, 6, 10, 15, 22]) {
+    const f = (u: 'logram' | 'firecart', b: BuildingId, d: number, r?: VillageRanks): string => String(survivorsNeeded(u, b, level, d, r) ?? 'n/a');
+    lines.push(`| ${level} | ${f('logram', 'wall', 1)} | ${f('logram', 'wall', 1, BREACH_TOP)} | ${f('logram', 'wall', cap)} | ${f('logram', 'wall', cap, BREACH_TOP)} | ${f('firecart', 'market', 1)} | ${f('firecart', 'market', 1, BREACH_TOP)} |`);
+  }
+  lines.push('');
+  lines.push(`Wall, one level at a time (send = survivors needed / ${fDecisive.toFixed(2)} so enough live through a decisive win; Town Hall 10, speed 1):`, '');
+  lines.push(`| Wall level -> | Log Rams sent, Breach 0 | capital | rebuild / capital | Log Rams sent, Breach ${RANK_MAX} | capital | rebuild / capital |`);
+  lines.push('|---|---|---|---|---|---|---|');
+  const wallMax = BUILDINGS.wall.maxLevel;
+  const ratioAt: Record<'0' | 'top', number[]> = { '0': [], top: [] };
+  let sweepMissing = 0;
+  for (let level = 2; level <= wallMax; level++) {
+    const cells: string[] = [];
+    for (const [which, ranks] of [['0', undefined], ['top', BREACH_TOP]] as const) {
+      const need = survivorsNeeded('logram', 'wall', level, 1, ranks);
+      if (need === undefined) {
+        cells.push('n/a', '', '');
+        sweepMissing += 1;
+        continue;
+      }
+      const send = Math.ceil(need / fDecisive);
+      const capital = send * unitValue('logram');
+      const ratio = rebuild('wall', level - 1, level).value / capital;
+      ratioAt[which].push(ratio);
+      cells.push(String(send), n0(capital), ratio.toFixed(2));
+    }
+    lines.push(`| ${level} -> ${level - 1} | ${cells.join(' | ')} |`);
+  }
+  const maxRatio0 = Math.max(...ratioAt['0']);
+  const maxRatioTop = Math.max(...ratioAt.top);
+  lines.push('', `Highest rebuild / capital over the Wall levels: ${maxRatio0.toFixed(2)} at Breach 0, ${maxRatioTop.toFixed(2)} at Breach ${RANK_MAX} (line: 2).`, '');
+  const wallTop: number[] = [];
+  for (const [b, level, drop] of rowsA.filter(([b]) => b === 'wall')) {
+    const need = survivorsNeeded('logram', b, level, drop, BREACH_TOP);
+    if (need === undefined) continue;
+    wallTop.push(rebuild(b, level - drop, level).value / (Math.ceil(need / fDecisive) * unitValue('logram')));
+  }
+  check(`Wall levels are not a bargain with Log Rams at Breach ${RANK_MAX} either (rebuild < 2 x attacker capital, the rows of (a))`, wallTop.length > 0 && wallTop.every((r) => r < 2));
+  check(`... and at EVERY Wall level 2..${wallMax} one level at a time (Breach 0 and Breach ${RANK_MAX})`, sweepMissing === 0 && maxRatio0 < 2 && maxRatioTop < 2);
+
+  lines.push(`Real battles, Wall 10, 250 Pikemen + 150 Shieldbearers, Raiders for 2 x the defence + the Log Rams that Breach 0 needs for ${cap} Wall levels; same army with Breach 0 and ${RANK_MAX} (${SEEDS.length} seeds):`, '');
+  lines.push('| Breach | battles won | Wall levels lowered (avg) | attacker loses (value) |');
+  lines.push('|---|---|---|---|');
+  {
+    const wallDef = village({ wall: 10 }, { pikeman: 250, guard: 150 });
+    const rams = Math.ceil((survivorsNeeded('logram', 'wall', 10, cap) ?? 0) / fDecisive);
+    const raiders = raidersFor(wallDef, DECISIVE, { logram: rams });
+    const units = army({ raider: raiders, logram: rams });
+    const dropped: number[] = [];
+    for (const [label, ranks] of [['0', undefined], [String(RANK_MAX), BREACH_TOP]] as const) {
+      const real = averageFight(wallDef, units, 'wall', 'logram', ranks);
+      dropped.push(real.dropped);
+      lines.push(`| ${label} | ${(real.won * 100).toFixed(0)}% | ${real.dropped.toFixed(2)} | ${n0(real.lossValue)} |`);
+    }
+    lines.push('', `(${raiders} Raiders + ${rams} Log Rams.) Breach ${RANK_MAX} lowers ${dropped[1] !== undefined && dropped[0] !== undefined ? (dropped[1] - dropped[0]).toFixed(2) : '?'} more Wall levels than Breach 0 with the same army.`, '');
+    check(`Breach ${RANK_MAX} never lowers fewer Wall levels than Breach 0 with the same army`, dropped.length === 2 && (dropped[1] as number) >= (dropped[0] as number));
+  }
 
   // (c) Campaign against a fortified village -----------------------------------------------------------
   lines.push('## (c) Attacks needed against a fortified village, with and without Log Rams', '');

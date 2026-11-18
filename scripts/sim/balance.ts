@@ -83,6 +83,8 @@ import {
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 import { formatSiegeExperiments, runSiegeExperiments } from './siege.ts';
+import { RankPolicy, battleRanks, formatByEntry } from './ranks.ts';
+import type { RankKind } from './ranks.ts';
 
 const HOUR = 3_600_000;
 const STEP_MS = 10 * 60_000; // a player "looks at the game" every 10 minutes
@@ -102,6 +104,8 @@ const LATE_DAY = 20;
 
 export type StyleName = 'builder' | 'raider' | 'turtle' | 'balanced';
 export const STYLES: StyleName[] = ['builder', 'raider', 'turtle', 'balanced'];
+/** How each style spends Training Points (ranks.ts): attackers Might first, defenders Bulwark first, balanced takes turns. */
+export const STYLE_RANK_KIND: Record<StyleName, RankKind> = { builder: 'defender', raider: 'attacker', turtle: 'defender', balanced: 'balanced' };
 
 // ---- Styles -------------------------------------------------------------------------------------
 
@@ -230,6 +234,8 @@ export interface DayRow {
   renownBalance: number;
   /** War Chest gold (0 unless `--chief-gold chest`). */
   chest: number;
+  /** Ranks bought so far, all villages (Drillyard Training Points; 0 with `--no-ranks`). */
+  ranks: number;
 }
 
 export interface RenownSources {
@@ -318,6 +324,8 @@ export interface StyleResult {
   siege?: SiegeStats;
   /** Gold paid for Chieftains (village gold in flat / growth, chest gold net of refunds in chest). */
   chiefGoldPaid: number;
+  /** Ranks bought by the rank policy (ranks.ts) by (unit track). */
+  ranksByEntry: Record<string, number>;
   /** Waiting hours by bucket and binding limit per Chieftain trained. */
   chiefWait: ChiefWait;
 }
@@ -344,6 +352,8 @@ export interface SimOptions {
   chestBase?: number;
   /** The builder plays a Knight army (`--knight-builders`). */
   knightBuilders?: boolean;
+  /** Computer players buy Drillyard ranks and every battle carries them (default ON; `--no-ranks` = the old sim without ranks). */
+  ranks?: boolean;
 }
 
 /** What siege did to one style's run (only present when `SimOptions.siege`). */
@@ -464,7 +474,7 @@ export function withKnightBuilders(style: StyleName, def: Style): Style {
  * Gold a village keeps back when it pays into the War Chest: the gold of its next build, of the next research not yet done or
  * queued in the style's list, and a Knight allowance (the share of Knights in the army wheel of the largest batch).
  */
-export function chestReserveGold(def: Style, state: VillageState, nextBuild: Resources): number {
+export function chestReserveGold(def: Style, state: VillageState, nextBuild: Resources, rankGold = 0): number {
   // Gold for the next build, or for the first build still to do in the list (then the tail) that costs gold: whichever is more.
   const lvl = (b: BuildingId): number => state.buildings[b] + state.buildQueue.filter((j) => j.building === b).length;
   const goldAt = (b: BuildingId): number => (lvl(b) + 1 <= BUILDINGS[b].maxLevel ? buildingCost(b, lvl(b) + 1).gold : 0);
@@ -475,7 +485,7 @@ export function chestReserveGold(def: Style, state: VillageState, nextBuild: Res
     if (firstGold > 0) break;
   }
   if (firstGold <= 0) for (const b of def.tail) if ((firstGold = goldAt(b)) > 0) break;
-  let keep = Math.max(nextBuild.gold, firstGold);
+  let keep = Math.max(nextBuild.gold, firstGold) + rankGold;
   const nextResearch = def.research.find((u) => !(state.researched ?? []).includes(u) && !(state.researchQueue ?? []).some((j) => j.unit === u));
   if (nextResearch) keep += UNITS[nextResearch].research?.cost.gold ?? 0;
   const total = def.army.reduce((a, x) => a + x.weight, 0);
@@ -640,6 +650,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const base = opt.siege ? withSiege(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
   const def = opt.knightBuilders ? withKnightBuilders(style, base) : base;
   const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
+  const rankPolicy = new RankPolicy(STYLE_RANK_KIND[style], def.army.map((a) => a.unit));
+  const ranksOn = opt.ranks !== false;
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const siegeStats: SiegeStats = { trained: { logram: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
@@ -836,7 +848,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       }
       const def0 = targetAt(e.target, e.at);
       const withSiege = e.units.logram > 0;
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...battleRanks(o.state.ranks, def0.ranks), ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
       tg.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       raidRenown(r, o.state, `t${e.target}`, e.at);
@@ -874,7 +886,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         return;
       }
       const def0 = targetAt(e.target, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true, ...battleRanks(o.state.ranks, def0.ranks) });
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       tg.state = applyBattleToDefender(def0, r);
       raidRenown(r, o.state, `t${e.target}`, e.at);
@@ -1075,6 +1087,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
   };
 
+  /** Units of the village at home, away or in the queues (the rank policy ranks rare units only while they are owned). */
+  const ownedOf = (vil: Vil): Units => addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
+  const tryRanks = (vil: Vil, t: number): void => {
+    if (!ranksOn || vil.state.hearth) return;
+    vil.state = rankPolicy.step(vil.id, vil.state, t, s, ownedOf(vil), nextBuildCost(vil));
+  };
+
   const tryResearch = (vil: Vil, t: number): void => {
     for (const u of def.research) {
       if ((vil.state.researched ?? []).includes(u) || (vil.state.researchQueue ?? []).some((j) => j.unit === u)) continue;
@@ -1114,6 +1133,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           attackerUnits: army,
           defender: arrival,
           seed: hashSeed(styleSeed, 999, raidSeq),
+          ...battleRanks(vil.state.ranks, arrival.ranks),
           ...(siegeArmy ? { siegeTarget: 'wall' as BuildingId } : {}),
         });
         // A won battle costs the winner (defence / attack)^1.5 of the army, so a thin win loses most of it. A sensible
@@ -1247,7 +1267,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (!tg.alive || tg.state.hearth || isStrikeBlocked(tg.state, t)) continue;
         const travel = travelTimeMs(holder.pos, tg.pos, send, s);
         const arrival = settleVillage(targetAt(i, t), t + travel, s);
-        const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 555, strikeSeq), noLoot: true });
+        const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(styleSeed, 555, strikeSeq), noLoot: true, ...battleRanks(holder.state.ranks, arrival.ranks) });
         // Needs the usual margin, a surviving Chieftain and enough survivors to keep the hold clock running.
         if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
         if (pre.attackerSurvivors.chieftain < 1 || occupierPopulation(pre.attackerSurvivors) < HOLD_MIN_POPULATION) continue;
@@ -1318,7 +1338,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           vil.state = settleVillage(vil.state, th, s);
           const atk = emptyUnits();
           atk.raider = raiders;
-          const r = resolveBattle({ attackerUnits: atk, defender: vil.state, seed: hashSeed(styleSeed, 777, day, vil.id) });
+          const r = resolveBattle({ attackerUnits: atk, defender: vil.state, seed: hashSeed(styleSeed, 777, day, vil.id), ...battleRanks(undefined, vil.state.ranks) });
           const before = totalUnits(vil.state.troops);
           // The enemy is a real player of about our size: the defender earns Renown for the raiders that die (pair 'enemy').
           const points = villagePoints(vil.state);
@@ -1356,7 +1376,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         // War Chest: every village pays its gold above what it needs next (build, research, Knights) into the chest, one way.
         for (const vil of vils) {
           if (vil.state.hearth) continue;
-          const spare = vil.state.resources.gold - chestReserveGold(def, vil.state, nextBuildCost(vil));
+          const spare = vil.state.resources.gold - chestReserveGold(def, vil.state, nextBuildCost(vil), ranksOn ? rankPolicy.goldNeed(vil.id, vil.state, ownedOf(vil)) : 0);
           if (spare <= 0) continue;
           chest += spare;
           vil.state = { ...vil.state, resources: { ...vil.state.resources, gold: vil.state.resources.gold - spare } };
@@ -1388,6 +1408,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         tryChieftain(vil, t);
         tryBuild(vil, t);
         tryResearch(vil, t);
+        tryRanks(vil, t);
         tryTrain(vil, t, day);
         tryRaid(vil, t);
         tryFeast(vil, t);
@@ -1457,6 +1478,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         renownTotal: Math.floor(renownTotal),
         renownBalance: Math.floor(renownTotal - renownSpent),
         chest: Math.floor(chest),
+        ranks: rankPolicy.bought.length,
       });
       nextDay += 1;
     }
@@ -1506,6 +1528,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     villagePointsEach: finals,
     ...(opt.siege ? { siege: siegeStats } : {}),
     chiefGoldPaid: Math.floor(chiefGoldPaid),
+    ranksByEntry: rankPolicy.byEntry(),
     chiefWait: waits.wait,
   };
 }
@@ -1640,6 +1663,10 @@ export function formatReport(rep: SimReport, full = false): string {
     const x = r.expansion;
     out.push(`Villages: ${r.villages} at the end (points each: ${r.villagePointsEach.join(', ')}). Gains: ${r.gains.map((g) => `${g.route === 'take' ? `taken (tier ${g.tier})` : 'founded'} on day ${(g.hour / 24).toFixed(1)} with ${g.points} points`).join('; ') || 'none'}. Chieftains ${x.chieftainsTrained} trained, strikes ${x.strikeWins}/${x.strikes} won, lost ${x.chieftainsLost}, hold failed ${x.holdFails}, founded ${x.founds}, waited and fell back to founding ${x.fallbacks}.`);
     if (r.siege) out.push(formatSiegeStats(r.siege));
+    if (rep.options.ranks !== false) {
+      const rankDays = [30, 60, 90].filter((d) => d <= rep.options.days);
+      out.push(`Ranks bought (Drillyard policy, ranks.ts): ${rankDays.map((d) => `day ${d}: ${r.rows[d - 1]?.ranks ?? 0}`).join(', ')}; by track at the end: ${formatByEntry(r.ranksByEntry)}.`);
+    }
     const chestDays = [30, 60, 90].filter((d) => d <= rep.options.days);
     const chestText = (rep.options.chiefGold ?? 'chest') === 'chest' ? ` Chest on day ${chestDays.join(' / ')}: ${chestDays.map((d) => r.rows[d - 1]?.chest ?? 0).join(' / ')}.` : '';
     out.push(`Chieftain gold (${rep.options.chiefGold ?? 'chest'}): ${r.chiefGoldPaid} paid for ${x.chieftainsTrained} Chieftains.${chestText} Waiting for the next Chieftain, hours: ${formatChiefHours(r.chiefWait)}. Binding limit per Chieftain trained: ${formatChiefLimits(r.chiefWait)}.`);
@@ -1655,6 +1682,7 @@ export function formatReport(rep: SimReport, full = false): string {
   out.push(`| route of the 2nd village | ${rep.results.map((r) => (r.gains[0] ? (r.gains[0].route === 'take' ? `taken, tier ${r.gains[0].tier}` : 'founded') : '-')).join(' | ')} |`);
   out.push(`| 3rd village | ${rep.results.map((r) => fmtDay(r.gains[1] ? r.gains[1].hour : undefined)).join(' | ')} |`);
   out.push(`| 4th village | ${rep.results.map((r) => fmtDay(r.gains[2] ? r.gains[2].hour : undefined)).join(' | ')} |`);
+  if (rep.options.ranks !== false) for (const d of [30, 90].filter((x) => x <= rep.options.days)) out.push(`| ranks bought by day ${d} (all villages) | ${rep.results.map((r) => r.rows[d - 1]?.ranks ?? 0).join(' | ')} |`);
   out.push(`| villages at the end | ${rep.results.map((r) => r.villages).join(' | ')} |`);
   out.push(`| points at the end, all villages | ${rep.results.map((r) => r.finalPoints).join(' | ')} |`);
   out.push(`| longest idle stretch, whole run (target < 8 h) | ${rep.results.map((r) => `${r.longestIdleHours.toFixed(1)} h`).join(' | ')} |`);
@@ -1689,7 +1717,10 @@ export function formatReport(rep: SimReport, full = false): string {
     '',
     '- 10-minute decision steps, free-player queues (2 builds, 2 batches per training building). Real engine calls only; no server.',
     '- 8 abandoned villages (tiers 1-5, 3-14 tiles away) per style; they have no troops at all since 2026-11-17 (only the Wall defends; only buildings grow) and loot is always full: min(what the survivors carry, the stock above the Vault), however often the same village is raided (rules of 2026-11-05).',
-    '- Loot and losses valued wood+food+iron+10xgold. Troops eat no food (no upkeep); travel idle time and Drillyard ranks are not valued.',
+    '- Loot and losses valued wood+food+iron+10xgold. Troops eat no food (no upkeep); travel idle time is not valued.',
+    rep.options.ranks === false
+      ? '- Drillyard ranks OFF (`--no-ranks`): no rank is bought and no battle carries ranks (the sims before 2026-11-18).'
+      : '- Drillyard ranks (scripts/sim/ranks.ts, real engine checkRank / applyRank): each style spends Training Points on a priority list (attackers Might Raider / Elk Rider / Knight then Bulwark then Breach; defenders Bulwark Shieldbearer / Pikeman / Knight / Hearthwarden then Might Raider; balanced takes turns), only on units it trains and has researched, at most one rank per village per day, and only when the stock after paying still holds half the next planned building (and the War Chest keeps the rank\'s gold back). Every battle carries the attacking village\'s ranks (attackerRanks) and the defender\'s (defenderRanks); abandoned villages have none. No support is stationed in these sims, so supportRanks never apply.',
     '- Enemy raiders hit every village that is not inside founding protection on days 7, 14, 21, 28 (4 x day raiders each) to give defence something to do; the turtle is never attacked (pure defender).',
     '- Raids pick the target with the best NET profit per travel time (loot minus the value of the units that die), need attack >= 1.25 x defence in a preview with another seed, and send all raiders (a won battle costs the winner (defence/attack)^1.5 of its army, so thin wins are never worth it).',
     '- Renown (engine renown.ts): building levels pay once per village and level after each settle (collectBuildRenown; a taken village pays nothing for the levels it came with); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.',
@@ -1732,12 +1763,13 @@ function main(): void {
   const targetsAt = args.indexOf('--targets');
   const base = { days: get('--days', 30), speed: get('--speed', 1), seed: get('--seed', 20261104), home, ...(targetsAt >= 0 ? { targets: get('--targets', 8) } : {}), ...parseChiefGoldArgs(args) };
   const siege = args.includes('--siege');
-  const rep = runSimulation(siege ? { ...base, siege: true } : base);
+  const withRanks = args.includes('--no-ranks') ? { ranks: false } : {};
+  const rep = runSimulation(siege ? { ...base, ...withRanks, siege: true } : { ...base, ...withRanks });
   let text: string;
   if (args.includes('--json')) text = JSON.stringify(rep, null, 1);
   else if (siege) {
     // --siege: the focused siege experiments (scripts/sim/siege.ts), then the computer players without and with siege units.
-    text = [formatSiegeExperiments(runSiegeExperiments(rep.options.home)), formatSiegeComparison(runSimulation(base), rep)].join('\n');
+    text = [formatSiegeExperiments(runSiegeExperiments(rep.options.home)), formatSiegeComparison(runSimulation({ ...base, ...withRanks }), rep)].join('\n');
     if (args.includes('--full')) text += `\n${formatReport(rep, true)}`;
   } else text = formatReport(rep, args.includes('--full'));
   const outAt = args.indexOf('--out');

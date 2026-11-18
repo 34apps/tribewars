@@ -304,7 +304,7 @@ test('Log Rams lower the Wall, a Firecart burns the picked building; with no pic
   setBuildings(c.app, c.target.id, { market: 4, stables: 2, wall: 14 });
   await attack(c, { raider: 300, logram: 100 });
   const w = await lastBattle(c.p);
-  assert.deepEqual(w.siege?.map((h) => [h.unit, h.building, h.from, h.to]), [['logram', 'wall', 14, 8]]);
+  assert.deepEqual(w.siege?.map((h) => [h.unit, h.building, h.from, h.to]), [['logram', 'wall', 14, 9]]);
   assert.deepEqual([buildingsOf(c.app, c.target.id).market, buildingsOf(c.app, c.target.id).stables], [4, 2]);
 });
 
