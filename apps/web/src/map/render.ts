@@ -16,6 +16,7 @@ import type { TerrainBlocks } from './blocks.ts';
 import { ArtPainter, BANNER_BASE, CLEARED_TILE, RUIN_TOP, STAGE_TOP, TILE_LIFT, allTilesReady, hitSprite } from './sprites.ts';
 import type { Allegiance } from './sprites.ts';
 import { DOT_HALO, villageDot } from './dots.ts';
+import { drawFlag, drawHouse, farLook, mixVillage } from './farLook.ts';
 import { LABEL_PRIORITY, SHIELD_SPOT, placeLabels } from './markers.ts';
 import type { LabelRequest, Rect } from './markers.ts';
 import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
@@ -873,10 +874,17 @@ function drawDotLayer(
   const list = [...villages.values()].sort((a, b) => Number(a.kind === 'own') - Number(b.kind === 'own') || a.x + a.y - (b.x + b.y));
   let pointerAt: { x: number; y: number } | null = null;
   const sel = sc.selected;
-  for (const v of list) {
-    const p = pos(v.x, v.y);
+  for (const v0 of list) {
+    const p = pos(v0.x, v0.y);
     if (!onScreen(p, 12)) continue;
+    const v = mixVillage(v0);
     const d = villageDot(v, t);
+    const look = farLook();
+    if (look !== 'dots') {
+      (look === 'houses' ? drawHouse : drawFlag)(ctx, p.x, p.y, d.radius, d.allegiance);
+      drawn.push({ village: v, sprite: '', x: p.x, y: p.y, scale: 1, dot: d.radius });
+      continue;
+    }
     ctx.beginPath();
     ctx.arc(p.x, p.y, d.radius, 0, Math.PI * 2);
     // Pale halo, then the ink ring, so every colour stays clear of the grass.
