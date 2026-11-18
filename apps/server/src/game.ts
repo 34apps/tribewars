@@ -112,6 +112,7 @@ import {
   totalUnits,
   travelTimeMs,
   villagePoints,
+  LOST_ATTACK_SEEN_SHARE,
   type BattleReportData,
   type BuildingId,
   type FeastResponse,
@@ -707,7 +708,7 @@ export class GameService {
     if (result.attackerWon && !strikeTry && target.ownerId === null && origin.ownerId !== null) this.store.firstSteps.markDone(origin.ownerId, 'raid', at);
     this.countBattleStats(origin, target, contingents, result, supportLosses);
     // Combat Renown (bonus source, section 18.2): states are the settled, pre-battle ones; who earns is decided in the service.
-    const renownGained = this.renown.awardBattle({
+    const outcomes = this.renown.awardBattle({
       at,
       result,
       origin,
@@ -717,9 +718,17 @@ export class GameService {
       attackerRanks: m.ranks ?? undefined,
       contingents,
     });
-    const gained = (playerId: number | null): { renownGained?: number } => {
-      const n = playerId === null ? 0 : (renownGained.get(playerId) ?? 0);
-      return n > 0 ? { renownGained: n } : {};
+    // Per report owner: Renown earned (or why none), and the value of enemy troops their side destroyed (the fighter rankings' number).
+    // `hideDestroyed`: a wiped-out attacker sees nothing of the defence, so the defender's losses stay hidden from them too.
+    const gained = (playerId: number | null, hideDestroyed = false): Pick<BattleReportData, 'renownGained' | 'destroyedValue' | 'renownNote'> => {
+      const o = playerId === null ? undefined : outcomes.get(playerId);
+      if (!o) return {};
+      const destroyed = Math.floor(o.destroyed + 1e-9);
+      return {
+        ...(o.renown > 0 ? { renownGained: o.renown } : {}),
+        ...(destroyed > 0 && !hideDestroyed ? { destroyedValue: destroyed } : {}),
+        ...(o.renown < 1 && o.note ? { renownNote: o.note } : {}),
+      };
     };
 
     const survived = totalUnits(result.attackerSurvivors) > 0;
@@ -747,9 +756,14 @@ export class GameService {
     if (origin.ownerId !== null) {
       // An army wiped out sees nothing of the defence, except the Wall hit of a close loss (it shot during the battle).
       const wallHits = (result.siege ?? []).filter((h) => h.building === 'wall');
+      // A close lost fight (attack power at least LOST_ATTACK_SEEN_SHARE of the defence) still shows what held the village; decided here, on the
+      // server, as the report is written. The Wall level and the buildings stay hidden either way.
+      const seen = survived || result.attackPower >= LOST_ATTACK_SEEN_SHARE * result.defensePower;
       const battle: BattleReportData = survived
         ? full
-        : {
+        : seen
+          ? { ...full, wallLevel: null, seenInLoss: true, ...(hasSiegeUnits(fighters) ? { siege: wallHits } : {}) }
+          : {
             ...full,
             defenderUnits: null,
             defenderLosses: null,
@@ -765,7 +779,7 @@ export class GameService {
         title: `Raid on ${target.name} ${coords(target)}`,
         createdAt: at,
         type: 'battle',
-        battle: { ...battle, ...gained(origin.ownerId) },
+        battle: { ...battle, ...gained(origin.ownerId, !seen) },
       });
     }
     if (target.ownerId !== null) {

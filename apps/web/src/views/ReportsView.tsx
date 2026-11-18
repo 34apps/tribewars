@@ -5,6 +5,7 @@ import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, Sh
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useReportRead } from '../hooks/useReportRead.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
+import { LOST_SEEN_LINE, destroyedLine, renownNoteLine } from '../fighters.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
@@ -223,6 +224,7 @@ function BattleDetail({ b }: { b: BattleReportData }) {
           </table>
         </div>
         {!defenderKnown && <p className="muted note">Defender forces unknown.</p>}
+        {b.seenInLoss && <p className="muted note">{LOST_SEEN_LINE}</p>}
       </section>
 
       <section className="subsection" aria-label="Battle numbers">
@@ -288,11 +290,17 @@ function BattleDetail({ b }: { b: BattleReportData }) {
               .join(', ')}
           </p>
         )}
+        {destroyedLine(b) && (
+          <p className="report-renown">
+            <strong>{destroyedLine(b)}</strong>
+          </p>
+        )}
         {b.renownGained !== undefined && b.renownGained > 0 && (
           <p className="report-renown">
             <strong>Renown +{formatInt(b.renownGained)}</strong>
           </p>
         )}
+        {renownNoteLine(b) && <p className="muted">{renownNoteLine(b)}</p>}
       </section>
     </>
   );

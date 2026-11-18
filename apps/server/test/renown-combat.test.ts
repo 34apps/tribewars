@@ -299,7 +299,7 @@ function award(app: App, clock: Clock, att: P, def: P, result: BattleResult = BI
   const origin = store.villagesOfPlayer(att.id)[0];
   const target = store.villagesOfPlayer(def.id)[0];
   assert.ok(origin && target);
-  return new RenownService(store, app.ctx.game.settings).awardBattle({
+  const outcomes = new RenownService(store, app.ctx.game.settings).awardBattle({
     at: opts.at ?? clock.t,
     result,
     origin,
@@ -309,6 +309,7 @@ function award(app: App, clock: Clock, att: P, def: P, result: BattleResult = BI
     attackerRanks: undefined,
     contingents: opts.contingents ?? [],
   });
+  return new Map([...outcomes].map(([id, o]) => [id, o.renown]));
 }
 
 const paidTo = (gains: Map<number, number>, ...ps: P[]): number[] => ps.map((p) => gains.get(p.id) ?? 0);

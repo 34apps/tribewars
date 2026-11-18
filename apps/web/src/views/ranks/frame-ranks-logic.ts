@@ -5,11 +5,12 @@ import { daysOfText, daysText, percentText, shareProgress } from '../../dominati
 import { formatInt } from '../../format.ts';
 import type { DominationStatusDto, PlayerRankDto, PlayerRankingResponse, RenownRankDto, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 
-export type RankSection = 'players' | 'tribes' | 'renown' | 'domination';
+export type RankSection = 'players' | 'tribes' | 'renown' | 'fighters' | 'domination';
 export const RANK_SECTIONS: Array<{ id: RankSection; label: string }> = [
   { id: 'players', label: 'Players' },
   { id: 'tribes', label: 'Tribes' },
   { id: 'renown', label: 'Renown' },
+  { id: 'fighters', label: 'Fighters' },
   { id: 'domination', label: 'Domination' },
 ];
 export const RANKS_PER_PAGE = 20;

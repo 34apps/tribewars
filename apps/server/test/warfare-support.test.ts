@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { battleSeed, resolveBattle, settleVillage, travelTimeMs, totalUnits, type MovementDto } from '@clanfire/engine';
+import { LOST_ATTACK_SEEN_SHARE, battleSeed, resolveBattle, settleVillage, travelTimeMs, totalUnits, type MovementDto } from '@clanfire/engine';
 import { battleOf, errorOf, ok } from './helpers.ts';
 import { addMember, formPact, myTribe } from './tribe-helpers.ts';
 import {
@@ -113,9 +113,18 @@ test('support defends: the host\'s own troops and every contingent fight; each l
   assert.equal((await village(amy)).state.troops.pikeman, 6 - expected.defenderLosses.pikeman);
   assert.deepEqual((await stateOf(alice)).stationed.abroad.map((e) => e.units.pikeman), [10 - lossAlice.pikeman]);
 
-  // The attacker is wiped out: sees only its own side (support figures are hidden like the defenders').
+  // The attacker is wiped out: sees only its own side unless the fight was close (LOST_ATTACK_SEEN_SHARE); the Wall is never shown.
   const theirs = battleOf(await latestReport(bob));
-  assert.deepEqual([theirs.attackerWon, theirs.defenderUnits, theirs.defenderLosses, theirs.supportUnits, theirs.supportLosses, theirs.wallLevel], [false, null, null, null, null, null]);
+  const closeFight = theirs.attackPower >= LOST_ATTACK_SEEN_SHARE * theirs.defensePower;
+  assert.equal(theirs.attackerWon, false);
+  assert.equal(theirs.wallLevel, null);
+  if (closeFight) {
+    assert.equal(theirs.seenInLoss, true);
+    assert.equal(theirs.defenderUnits?.pikeman, 6);
+    assert.ok(theirs.supportUnits !== null && theirs.supportLosses !== null, 'support is shown like the defender\'s own report');
+  } else {
+    assert.deepEqual([theirs.defenderUnits, theirs.defenderLosses, theirs.supportUnits, theirs.supportLosses], [null, null, null, null]);
+  }
   assert.equal((await reports(bob))[0]?.side, 'attack');
 
   // The host and the supporters get the whole picture: totals of all contingents.
@@ -132,8 +141,9 @@ test('support defends: the host\'s own troops and every contingent fight; each l
     assert.deepEqual([list[0]?.side, list[0]?.type, list[0]?.won, list[0]?.outcome, list[0]?.read], ['support', 'battle', true, 'battle', false]);
     assert.equal(list[0]?.title, `Your troops at ${amyHome.name} (${amyHome.x}|${amyHome.y}) were attacked`);
     const sb = battleOf(await latestReport(p));
-    // Same battle; only the Renown line is per reader.
-    assert.deepEqual({ ...sb, renownGained: undefined }, { ...b, renownGained: undefined }, 'the supporter reads the same battle');
+    // Same battle; only the Renown and destroyed-value lines are per reader.
+    const own = { renownGained: undefined, destroyedValue: undefined, renownNote: undefined };
+    assert.deepEqual({ ...sb, ...own }, { ...b, ...own }, 'the supporter reads the same battle');
     assert.equal(sb.attacker.ownerName, 'bob');
   }
   assert.deepEqual((await reports(amy)).length, 1);
