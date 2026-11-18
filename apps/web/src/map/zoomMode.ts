@@ -26,10 +26,24 @@ export function labelChipVisible(tile: number, tag: string | null | undefined): 
   return !!tag && !bannerTagVisible(tile, tag);
 }
 
-/** Dot radius in CSS px: grows a little with the zoom; own villages are bigger so they pop. */
+/** Dot radius in CSS px: grows with the zoom (3 px on a phone-sized world, ~7 px at the top of the dot range); own villages are clearly the biggest. */
 export function dotRadius(tile: number, own: boolean): number {
-  const base = Math.max(2.4, Math.min(5.5, tile * 0.18 + 1.4));
-  return own ? base + 1.6 : base;
+  const base = Math.max(3, Math.min(7, tile * 0.3 + 1.2));
+  return own ? base + 3.5 : base;
+}
+
+/** Abandoned villages are drawn smaller (and hollow) so they never read as neutral players. */
+export const ABANDONED_DOT_SCALE = 0.78;
+
+/** Banner size against the village art, and the smallest text height (CSS px) the tribe tag may have. */
+export const BANNER_K = 1.2;
+export const BANNER_TEXT_PX = 12;
+export const BANNER_MIN_TEXT_PX = 8;
+
+/** Scale (screen px per SVG px) of the whole banner: follows the tile, but never so small that the tag is below 8 px tall. */
+export function bannerScale(tile: number, withTag: boolean): number {
+  const k = (tile / 96) * BANNER_K;
+  return withTag ? Math.max(k, BANNER_MIN_TEXT_PX / BANNER_TEXT_PX) : k;
 }
 
 /** Tap radius (CSS px) around a dot: never smaller than a finger-friendly 9 px. */

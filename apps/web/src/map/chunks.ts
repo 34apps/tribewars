@@ -24,6 +24,8 @@ export class MapChunks {
   private readonly loading = new Set<string>();
   private readonly failedAt = new Map<string, number>();
   private wanted: Array<{ ci: number; cj: number }> = [];
+  /** Chunks for the whole-world overview: fetched only when nothing the main view needs is waiting. */
+  private background: Array<{ ci: number; cj: number }> = [];
   private inflight = 0;
   private disposed = false;
   /** Called after a chunk arrived. */
@@ -85,6 +87,41 @@ export class MapChunks {
     this.pump();
   }
 
+  /** How many chunks make up the world, and how many of them are loaded. */
+  coverage(): { loaded: number; total: number } {
+    const r = this.radius;
+    let total = 0;
+    let loaded = 0;
+    for (let ci = Math.floor(-r / CHUNK); ci <= Math.floor(r / CHUNK); ci++) {
+      for (let cj = Math.floor(-r / CHUNK); cj <= Math.floor(r / CHUNK); cj++) {
+        total += 1;
+        if (this.chunks.has(chunkKey(ci, cj))) loaded += 1;
+      }
+    }
+    return { loaded, total };
+  }
+
+  /** Queue every missing or stale chunk of the world (centre first) behind whatever the main view needs: feeds the overview. */
+  ensureAll(staleMs: number): void {
+    const r = this.radius;
+    const now = Date.now();
+    const list: Array<{ ci: number; cj: number; d: number }> = [];
+    for (let ci = Math.floor(-r / CHUNK); ci <= Math.floor(r / CHUNK); ci++) {
+      for (let cj = Math.floor(-r / CHUNK); cj <= Math.floor(r / CHUNK); cj++) {
+        const key = chunkKey(ci, cj);
+        if (this.loading.has(key)) continue;
+        const failed = this.failedAt.get(key);
+        if (failed !== undefined && now - failed < RETRY_MS) continue;
+        const have = this.chunks.get(key);
+        if (have && now - have.fetchedAt < staleMs) continue;
+        list.push({ ci, cj, d: Math.hypot(ci * CHUNK + CHUNK / 2, cj * CHUNK + CHUNK / 2) });
+      }
+    }
+    list.sort((a, b) => a.d - b.d);
+    this.background = list;
+    this.pump();
+  }
+
   /** Villages stored in chunk (ci, cj); empty until loaded. */
   villagesIn(ci: number, cj: number): readonly MapVillageDto[] {
     return this.chunks.get(chunkKey(ci, cj))?.villages ?? [];
@@ -113,7 +150,7 @@ export class MapChunks {
 
   private pump(): void {
     while (!this.disposed && this.inflight < MAX_INFLIGHT) {
-      const next = this.wanted.shift();
+      const next = this.wanted.shift() ?? this.background.shift();
       if (!next) return;
       void this.load(next.ci, next.cj);
     }

@@ -67,6 +67,7 @@ Source files: `design/style-directions/` (artboards + renders).
    lettering with an ink outline. Abandoned villages have no banner. Below 30 px (zoom range 6-160 px) sprites, rings
    and banners are dropped: every village is a dot in its relation colour (abandoned dark grey, ink outline); own villages
    are bigger with a white edge; Fire sites are small diamonds, tribe utility sites small squares. The legend shows the dots.
+   **Polish (2026-11-18):** the cloth hangs from a short crossbar with a wavy hem; the protection shield sits low on the base's left tip (never on pole or cloth); labels are placed by priority own > site > others (banners are obstacles); the smallest zoom is "whole world fits the map area"; dots use one strong palette (own gold with white ring, tribe green, ally blue, NAP pink, enemy red, others tan, abandoned small and hollow). **World overview** (side column on desktop, block under the map on phones): flat top-down square, one small square per village in the same palette, a frame for the main view, click or drag to move, counts per relation, toggles for others and abandoned.
 3. **Characters**: a portrait/figure for each unit, selectable chieftain avatars for players, an
    advisor/guide character for tips and the tutorial, and building art.
 

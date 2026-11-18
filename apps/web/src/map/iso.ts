@@ -6,10 +6,10 @@
 import type { Coords } from '@clanfire/engine';
 
 /**
- * Tile width in CSS px (the diamond is half as tall). At 6 px the whole default world (201 tiles wide) is 1206 px across:
- * a laptop sees all of it, a phone a good part. Below DOT_TILE (zoomMode.ts) villages are drawn as dots.
+ * Tile width in CSS px (the diamond is half as tall). The real minimum is `fitTile` (whole world fits the map area); MIN_TILE is
+ * only the floor before the map area has a size. Below DOT_TILE (zoomMode.ts) villages are drawn as dots.
  */
-export const MIN_TILE = 6;
+export const MIN_TILE = 1;
 export const MAX_TILE = 160;
 export const DEFAULT_TILE = 84;
 
@@ -26,8 +26,31 @@ export interface Size {
   h: number;
 }
 
-export function clampView(view: View, radius: number): void {
-  view.tile = Math.max(MIN_TILE, Math.min(MAX_TILE, view.tile));
+/**
+ * The tile width at which the whole board (with a small margin) fits the map area: the smallest zoom allowed, so the world
+ * never floats as a small slab in an empty table. Capped so a tiny world still starts at a sensible size.
+ */
+export function fitTile(radius: number, size: Size): number {
+  if (size.w <= 0 || size.h <= 0) return MIN_TILE;
+  const span = 2 * radius + 1;
+  const t = Math.min((size.w * 0.94) / span, (size.h * 0.86) / (span / 2));
+  return Math.max(MIN_TILE, Math.min(t, DEFAULT_TILE / 2));
+}
+
+/** Smallest allowed tile width: "whole world fits" once the map area size is known. */
+export function minTile(radius: number, size?: Size): number {
+  return size ? fitTile(radius, size) : MIN_TILE;
+}
+
+export function clampView(view: View, radius: number, size?: Size): void {
+  const lo = minTile(radius, size);
+  view.tile = Math.max(lo, Math.min(MAX_TILE, view.tile));
+  // Fully zoomed out the board is centred: nothing to pan.
+  if (size && view.tile <= lo * 1.001) {
+    view.cx = 0;
+    view.cy = 0;
+    return;
+  }
   const lim = radius + 2;
   view.cx = Math.max(-lim, Math.min(lim, view.cx));
   view.cy = Math.max(-lim, Math.min(lim, view.cy));
@@ -66,11 +89,11 @@ export function panBy(view: View, dxPx: number, dyPx: number): void {
 /** Zoom so the world point under (px, py) stays under it. */
 export function zoomAround(view: View, size: Size, px: number, py: number, nextTile: number, radius: number): void {
   const before = toWorld(view, size, px, py);
-  view.tile = Math.max(MIN_TILE, Math.min(MAX_TILE, nextTile));
+  view.tile = Math.max(minTile(radius, size), Math.min(MAX_TILE, nextTile));
   const after = toWorld(view, size, px, py);
   view.cx += before.x - after.x;
   view.cy += before.y - after.y;
-  clampView(view, radius);
+  clampView(view, radius, size);
 }
 
 /** Bounding box (in tiles) of everything the viewport shows, plus a margin. */

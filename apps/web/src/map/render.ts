@@ -15,8 +15,10 @@ import { tileArt } from './blocks.ts';
 import type { TerrainBlocks } from './blocks.ts';
 import { ArtPainter, BANNER_BASE, CLEARED_TILE, RUIN_TOP, STAGE_TOP, TILE_LIFT, allTilesReady, hitSprite } from './sprites.ts';
 import type { Allegiance } from './sprites.ts';
-import { villageDot } from './dots.ts';
-import { bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
+import { DOT_HALO, villageDot } from './dots.ts';
+import { LABEL_PRIORITY, SHIELD_SPOT, placeLabels } from './markers.ts';
+import type { LabelRequest, Rect } from './markers.ts';
+import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
 import { GRASS, HILLS } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -151,6 +153,18 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+/** Size of a `pill` label, for collision handling. */
+function pillSize(ctx: CanvasRenderingContext2D, text: string, size: number, chip?: { text: string }): { w: number; h: number } {
+  ctx.font = `600 ${size}px ${FONT}`;
+  const tw = ctx.measureText(text).width;
+  let cw = 0;
+  if (chip) {
+    ctx.font = `700 ${size * 0.86}px ${FONT}`;
+    cw = ctx.measureText(chip.text).width + size * 0.8;
+  }
+  return { w: tw + size * 1.2 + (chip ? cw + size * 0.35 : 0), h: Math.round(size * 1.7) + 2 };
 }
 
 /** Chunky rounded label centred on (cx, cy), optionally with a coloured chip (tribe tag) at the end. */
@@ -348,23 +362,37 @@ export function drawMap(sc: Scene): FrameResult {
   const markerSpeed = Math.max(drawSightings(sc), drawMovements(sc));
 
   const fs = Math.max(10, Math.min(14, t * 0.13));
+  // Labels: own village first, then sites, then the rest; a label that would sit on a banner or on a more important label
+  // is nudged down (own, sites) or left out (the rest).
+  const labels: Array<LabelRequest & { draw: (cx: number, cy: number) => void }> = [];
+  const addLabel = (text: string, x: number, y: number, bg: string, fg: string, chip: { text: string; color: string } | undefined, priority: number, nudge: boolean) => {
+    const sz = pillSize(ctx, text, fs, chip);
+    labels.push({ cx: x, cy: y, w: sz.w, h: sz.h, priority, nudges: nudge ? [sz.h + 2, 2 * (sz.h + 2)] : [], overBanners: priority === LABEL_PRIORITY.own, draw: (cx, cy) => pill(ctx, text, cx, cy, fs, bg, fg, chip) });
+  };
   for (const d of dot ? [] : drawn) {
     const vil = d.village;
     const own = vil.kind === 'own';
     if (!own && t < LABEL_TILE) continue;
     const coords = `${vil.x}|${vil.y}`;
     const ly = d.y + 30 * s + fs * 0.6;
-    if (own) pill(ctx, t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, fs, SUN, INK);
-    else pill(ctx, coords, d.x, ly, fs, INK, BONE, labelChipVisible(t, vil.tribeTag) ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined);
+    if (own) addLabel(t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, SUN, INK, undefined, LABEL_PRIORITY.own, true);
+    else addLabel(coords, d.x, ly, INK, BONE, labelChipVisible(t, vil.tribeTag) ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined, LABEL_PRIORITY.other, false);
   }
   // Sites: name and holder tag (always a tag when held, so a far-out map still shows who owns what).
   for (const d of dot ? [] : drawnSites) {
     const st = d.site;
     const ly = d.y + 30 * s + fs * 0.6;
     const chip = st.holder ? { text: `[${st.holder.tag}]`, color: siteRingColor(st, sc.myTribeId) } : undefined;
-    if (t >= LABEL_TILE) pill(ctx, siteName(st), d.x, ly, fs, INK, BONE, chip);
-    else if (chip) pill(ctx, chip.text, d.x, ly, fs, INK, BONE);
+    if (t >= LABEL_TILE) addLabel(siteName(st), d.x, ly, INK, BONE, chip, LABEL_PRIORITY.site, true);
+    else if (chip) addLabel(chip.text, d.x, ly, INK, BONE, undefined, LABEL_PRIORITY.site, true);
   }
+  const banners: Rect[] = [];
+  for (const d of drawn) if (d.bannerBox) banners.push(d.bannerBox);
+  const placed = placeLabels(labels, banners);
+  labels.forEach((l, i) => {
+    const at = placed[i];
+    if (at) l.draw(at.cx, at.cy);
+  });
 
   if (pointerAt) {
     const k = Math.max(0.8, Math.min(1.5, s * 1.3));
@@ -536,7 +564,7 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
     });
     const base = BANNER_BASE[mapStage(v.points) - 1] ?? BANNER_BASE[0]!;
     const tag = bannerTagVisible(s * 96, v.tribeTag) ? v.tribeTag : null;
-    bannerBox = drawBanner(ctx, al as Allegiance, x + base[0] * s * k, y + base[1] * s * k, s * k * BANNER_K, tag);
+    bannerBox = drawBanner(ctx, al as Allegiance, x + base[0] * s * k, y + base[1] * s * k, bannerScale(s * 96 * k, !!tag), tag);
   }
 
   if (v.tribeStore) drawChest(ctx, x + 46 * s, y - 2 * s, s);
@@ -561,7 +589,11 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#2F9AA0';
       ctx.stroke(DOME_FRONT_RIM);
-      ctx.translate(34, -66);
+    });
+    // The shield sits low on the base's left tip: never on the pole or the cloth, which rise above the roof.
+    withTile(ctx, x, y, s, () => {
+      ctx.translate(SHIELD_SPOT.x, SHIELD_SPOT.y);
+      ctx.scale(1.1, 1.1);
       ctx.lineJoin = 'round';
       ctx.fillStyle = '#2F9AA0';
       ctx.fill(SHIELD);
@@ -583,9 +615,8 @@ function drawVillage(ctx: CanvasRenderingContext2D, painter: ArtPainter, v: MapV
 
 /** Pole height above its foot, in tile-centre SVG px, and the scale of the whole banner against the village art. */
 const POLE_H = 40;
-const BANNER_K = 1.2;
-const CLOTH_H = 20;
-const CLOTH_TOP = -POLE_H + 1;
+const CLOTH_H = 22;
+const CLOTH_TOP = -POLE_H + 2;
 const CLOTH_BOTTOM = CLOTH_TOP + CLOTH_H;
 const CLOTH_MID = (CLOTH_TOP + CLOTH_BOTTOM) / 2;
 /** Cloth colours per relation: main, light top edge, dark underside (the same trio the sprites used). */
@@ -611,76 +642,93 @@ function tagWidth(ctx: CanvasRenderingContext2D, tag: string): number {
   return w;
 }
 
-/** Cloth outline per relation in pole-foot units; `x0`/`x1` bound it, `textX` is where the tag starts (centre for the war banner). */
+/** Hem wave: the bottom edge ripples a little, as cloth hanging from a bar does. */
+function wave(x: number): number {
+  return Math.sin(x * 0.55) * 1.1;
+}
+
+/** Walk the bottom edge from x1 back to x0 along the wavy hem at height `y`. */
+function hemTo(p: Path2D, x1: number, x0: number, y: number): void {
+  for (let x = x1; x > x0; x -= 3) p.lineTo(x, y + wave(x));
+  p.lineTo(x0, y + wave(x0));
+}
+
+/**
+ * Cloth outline per relation in pole-foot units. The cloth hangs from a crossbar that leaves the pole (top edge straight along
+ * the bar, hem wavy); its far end is shaped per relation. `x0`/`x1` bound it (and the bar); `textX` is where the tag starts.
+ */
 function clothShape(al: Allegiance, tw: number): { path: Path2D; x0: number; x1: number; textX: number; center: boolean; midY: number; bottom: number } {
   const p = new Path2D();
-  const T = CLOTH_TOP;
+  const T = CLOTH_TOP + 2; // just under the bar
   const B = CLOTH_BOTTOM;
-  const M = CLOTH_MID;
+  const M = (T + B) / 2;
+  const L = 1.2; // the cloth starts at the pole
   switch (al) {
     case 'own': {
+      // Swallowtail: the far end is notched.
       const W = Math.max(26, tw + 15);
-      p.moveTo(0, T);
+      p.moveTo(L, T);
       p.lineTo(W, T);
       p.lineTo(W - 7, M);
-      p.lineTo(W, B);
-      p.lineTo(0, B);
+      p.lineTo(W, B + wave(W));
+      hemTo(p, W - 3, L, B);
       p.closePath();
       return { path: p, x0: 0, x1: W, textX: 5, center: false, midY: M, bottom: B };
     }
     case 'tribe': {
+      // Square cloth with a plain wavy hem.
       const W = Math.max(24, tw + 11);
-      const r = 3;
-      p.moveTo(r, T);
-      p.arcTo(W, T, W, B, r);
-      p.arcTo(W, B, 0, B, r);
-      p.arcTo(0, B, 0, T, r);
-      p.arcTo(0, T, W, T, r);
+      p.moveTo(L, T);
+      p.lineTo(W, T);
+      p.quadraticCurveTo(W + 1.2, M, W, B + wave(W));
+      hemTo(p, W - 3, L, B);
       p.closePath();
       return { path: p, x0: 0, x1: W, textX: 5.5, center: false, midY: M, bottom: B };
     }
     case 'ally': {
+      // Long pennant: the hem rises to a point at the far end.
       const W = Math.max(32, tw * 1.5 + 14);
-      p.moveTo(0, T);
-      p.lineTo(W, M);
-      p.lineTo(0, B);
+      p.moveTo(L, T);
+      p.lineTo(W, M + 1);
+      p.lineTo(W - 3, M + 3);
+      hemTo(p, W - 8, L, B);
       p.closePath();
-      return { path: p, x0: 0, x1: W, textX: 4, center: false, midY: M, bottom: B };
+      return { path: p, x0: 0, x1: W, textX: 4, center: false, midY: M + 0.5, bottom: B };
     }
     case 'nap': {
+      // Round tongue.
       const W = Math.max(26, tw + 18);
-      const r = CLOTH_H / 2;
-      p.moveTo(0, T);
+      const r = (B - T) / 2;
+      p.moveTo(L, T);
       p.lineTo(W - r, T);
       p.arc(W - r, M, r, -Math.PI / 2, Math.PI / 2);
-      p.lineTo(0, B);
+      hemTo(p, W - r, L, B);
       p.closePath();
       return { path: p, x0: 0, x1: W, textX: 5, center: false, midY: M, bottom: B };
     }
     case 'enemy': {
-      // Hangs from a crossbar, centred on the pole, with a notched hem.
+      // Hangs from the crossbar centred on the pole, with a notched hem.
       const hw = Math.max(12, tw / 2 + 6);
-      const top = T + 1;
       const hem = B + 6;
-      p.moveTo(-hw, top);
-      p.lineTo(hw, top);
+      p.moveTo(-hw, T);
+      p.lineTo(hw, T);
       p.lineTo(hw, hem);
       p.lineTo(hw / 2, hem - 5);
       p.lineTo(0, hem);
       p.lineTo(-hw / 2, hem - 5);
       p.lineTo(-hw, hem);
       p.closePath();
-      return { path: p, x0: -hw, x1: hw, textX: 0, center: true, midY: (top + hem - 4) / 2, bottom: hem };
+      return { path: p, x0: -hw, x1: hw, textX: 0, center: true, midY: (T + hem - 4) / 2, bottom: hem };
     }
     default: {
       // Neutral: a lozenge-ended sign.
       const W = Math.max(26, tw + 18);
-      p.moveTo(0, M);
+      p.moveTo(L, M);
       p.lineTo(8, T);
       p.lineTo(W - 8, T);
       p.lineTo(W, M);
-      p.lineTo(W - 8, B);
-      p.lineTo(8, B);
+      p.lineTo(W - 8, B + wave(W - 8));
+      hemTo(p, W - 11, 8, B);
       p.closePath();
       return { path: p, x0: 0, x1: W, textX: 9, center: false, midY: M, bottom: B };
     }
@@ -688,7 +736,7 @@ function clothShape(al: Allegiance, tw: number): { path: Path2D; x0: number; x1:
 }
 
 /** Cloth banner with the pole foot at (x, y); k = screen px per SVG px. Returns its screen box for picking. */
-function drawBanner(ctx: CanvasRenderingContext2D, al: Allegiance, x: number, y: number, k: number, tag: string | null): { x0: number; y0: number; x1: number; y1: number } {
+function drawBanner(ctx: CanvasRenderingContext2D, al: Allegiance, x: number, y: number, k: number, tag: string | null): Rect {
   const col = CLOTH[al];
   const tw = tag ? tagWidth(ctx, tag) : 0;
   const c = clothShape(al, tw);
@@ -708,47 +756,49 @@ function drawBanner(ctx: CanvasRenderingContext2D, al: Allegiance, x: number, y:
   ctx.lineWidth = 1.3;
   ctx.strokeStyle = '#E4B67C';
   ctx.stroke();
-  if (al === 'enemy') {
-    ctx.beginPath();
-    ctx.moveTo(c.x0 - 2, CLOTH_TOP);
-    ctx.lineTo(c.x1 + 2, CLOTH_TOP);
-    ctx.lineWidth = 3.4;
-    ctx.strokeStyle = INK;
-    ctx.stroke();
-    ctx.lineWidth = 1.4;
-    ctx.strokeStyle = '#E4B67C';
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.arc(0, -POLE_H - 1.5, 2.4, 0, Math.PI * 2);
-    ctx.fillStyle = SUN;
-    ctx.fill();
-    ctx.lineWidth = 1.3;
-    ctx.strokeStyle = INK;
-    ctx.stroke();
-  }
-  // Cloth: flat colour, a light top edge and a dark underside, dark outline.
+  // Finial.
+  ctx.beginPath();
+  ctx.arc(0, -POLE_H - 1.5, 2.4, 0, Math.PI * 2);
+  ctx.fillStyle = SUN;
+  ctx.fill();
+  ctx.lineWidth = 1.3;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  // Cloth first, then the crossbar over its top edge so the cloth reads as hanging from it.
   ctx.fillStyle = col.main;
   ctx.fill(c.path);
   ctx.save();
   ctx.clip(c.path);
   ctx.fillStyle = col.hi;
-  ctx.fillRect(c.x0 - 2, CLOTH_TOP - 2, c.x1 - c.x0 + 4, 4.5);
+  ctx.fillRect(c.x0 - 2, CLOTH_TOP, c.x1 - c.x0 + 4, 4.5);
   ctx.fillStyle = col.lo;
-  ctx.fillRect(c.x0 - 2, c.bottom - 4.5, c.x1 - c.x0 + 4, 6);
+  ctx.fillRect(c.x0 - 2, c.bottom - 4.5, c.x1 - c.x0 + 4, 8);
+  // A soft fold down the cloth.
+  ctx.fillStyle = 'rgba(43, 33, 28, 0.13)';
+  const fx = c.center ? c.x0 + (c.x1 - c.x0) * 0.82 : c.x1 * 0.82;
+  ctx.fillRect(fx, CLOTH_TOP, 1.8, CLOTH_H + 10);
   ctx.restore();
   ctx.lineWidth = 1.8;
   ctx.strokeStyle = INK;
   ctx.stroke(c.path);
+  ctx.beginPath();
+  ctx.moveTo(c.x0 - 1, CLOTH_TOP + 1);
+  ctx.lineTo(c.x1 + 1, CLOTH_TOP + 1);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#E4B67C';
+  ctx.stroke();
   if (tag) {
     ctx.font = `700 12px ${FONT}`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = c.center ? 'center' : 'left';
     ctx.lineWidth = 3;
     ctx.strokeStyle = INK;
-    ctx.strokeText(tag, c.textX, c.midY + 0.5);
+    ctx.strokeText(tag, c.textX, c.midY + 1.2);
     ctx.fillStyle = BONE;
-    ctx.fillText(tag, c.textX, c.midY + 0.5);
+    ctx.fillText(tag, c.textX, c.midY + 1.2);
   }
   ctx.restore();
   return { x0: x + (Math.min(c.x0, 0) - 3) * k, y0: y - (POLE_H + 4) * k, x1: x + (c.x1 + 2) * k, y1: y };
@@ -829,16 +879,31 @@ function drawDotLayer(
     const d = villageDot(v, t);
     ctx.beginPath();
     ctx.arc(p.x, p.y, d.radius, 0, Math.PI * 2);
-    if (d.own) {
+    // Pale halo, then the ink ring, so every colour stays clear of the grass.
+    ctx.lineWidth = d.edgeWidth + 3.4;
+    ctx.strokeStyle = DOT_HALO;
+    ctx.stroke();
+    if (!d.hollow) {
       ctx.lineWidth = d.edgeWidth + 1.6;
       ctx.strokeStyle = INK;
       ctx.stroke();
     }
-    ctx.fillStyle = d.fill;
-    ctx.fill();
-    ctx.lineWidth = d.edgeWidth;
-    ctx.strokeStyle = d.edge;
-    ctx.stroke();
+    if (d.hollow) {
+      // Abandoned: a hollow ring, the ground shows through.
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = d.fill;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = d.fill;
+      ctx.fill();
+      if (d.own) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, d.radius - d.edgeWidth / 2, 0, Math.PI * 2);
+        ctx.lineWidth = d.edgeWidth;
+        ctx.strokeStyle = d.edge;
+        ctx.stroke();
+      }
+    }
     drawn.push({ village: v, sprite: '', x: p.x, y: p.y, scale: 1, dot: d.radius });
   }
 

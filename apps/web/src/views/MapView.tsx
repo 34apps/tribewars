@@ -7,7 +7,8 @@ import { TerrainBlocks } from '../map/blocks.ts';
 import { MapChunks } from '../map/chunks.ts';
 import { mapRevision, staleSince } from '../map/revision.ts';
 import type { MapRevision } from '../map/revision.ts';
-import { chunkStaleMs } from '../map/zoomMode.ts';
+import { CHUNK_STALE_DOT_MS, chunkStaleMs } from '../map/zoomMode.ts';
+import { Overview } from '../map/Overview.tsx';
 import { DEFAULT_TILE, clampView, panBy, rectOnScreen, toScreen, visibleTileBounds, zoomAround } from '../map/iso.ts';
 import type { View } from '../map/iso.ts';
 import { drawMap, pickTile, pickVillage } from '../map/render.ts';
@@ -78,6 +79,8 @@ export function MapView({ active }: { active: boolean }) {
   /** The view as last drawn (zoom snapped to device pixels), for picking. */
   const drawnViewRef = useRef<View>(viewRef.current);
   const zoomedAt = useRef(0);
+  /** Redraws the overview's frame (registered by the Overview component). */
+  const overviewDrawRef = useRef<(() => void) | null>(null);
   const settleTimer = useRef(0);
   const marchTimer = useRef(0);
   const lastEnsure = useRef({ cx: Infinity, cy: Infinity, tile: 0 });
@@ -179,6 +182,7 @@ export function MapView({ active }: { active: boolean }) {
       if (list.length > 600) list.splice(0, list.length - 600);
     }
     drawnRef.current = res.villages;
+    overviewDrawRef.current?.();
     drawnSitesRef.current = res.sites;
     if (res.stale || quick) {
       window.clearTimeout(settleTimer.current);
@@ -234,8 +238,9 @@ export function MapView({ active }: { active: boolean }) {
           const p = toScreen(v, { w, h }, sel.x, sel.y);
           if (p.x > w - 90) panBy(v, w / 2 - p.x, 0);
         }
-        clampView(v, radius);
+        clampView(v, radius, { w, h });
       }
+      if (w > 0 && h > 0) clampView(viewRef.current, radius, { w, h });
       canvas.width = Math.max(1, Math.round(w * dpr));
       canvas.height = Math.max(1, Math.round(h * dpr));
       schedule();
@@ -259,8 +264,12 @@ export function MapView({ active }: { active: boolean }) {
       setVersion((v) => v + 1);
       schedule();
     });
+    chunks.ensureAll(CHUNK_STALE_DOT_MS);
     const id = window.setInterval(() => {
-      if (activeRef.current && !document.hidden) ensureChunks();
+      if (activeRef.current && !document.hidden) {
+        ensureChunks();
+        chunks.ensureAll(CHUNK_STALE_DOT_MS);
+      }
     }, 5000);
     return () => {
       chunks.detach();
@@ -311,7 +320,7 @@ export function MapView({ active }: { active: boolean }) {
     // under it), so the tile goes to the upper quarter, below the search bar.
     if (p.y > h * 0.3 || p.y < v.tile * 1.6) {
       panBy(v, w / 2 - p.x, h * 0.24 - p.y);
-      clampView(v, radius);
+      clampView(v, radius, size());
     }
   }, [radius]);
 
@@ -332,7 +341,7 @@ export function MapView({ active }: { active: boolean }) {
       v.cx = x;
       v.cy = y;
       if (minTile) v.tile = Math.max(v.tile, minTile);
-      clampView(v, radius);
+      clampView(v, radius, size());
       schedule();
     },
     [radius, schedule],
@@ -519,7 +528,7 @@ export function MapView({ active }: { active: boolean }) {
       f.last = nowMs;
       panBy(v, p.x - prev.x, p.y - prev.y);
       if (!g.moved && Math.hypot(p.x - g.startX, p.y - g.startY) > (e.pointerType === 'mouse' ? TAP_SLOP_MOUSE : TAP_SLOP_TOUCH)) g.moved = true;
-      clampView(v, radius);
+      clampView(v, radius, size());
       schedule();
     } else {
       const pr = pair();
@@ -571,7 +580,7 @@ export function MapView({ active }: { active: boolean }) {
       prevT = t;
       const v = viewRef.current;
       panBy(v, f.vx * dt, f.vy * dt);
-      clampView(v, radius);
+      clampView(v, radius, size());
       const k = Math.pow(FLING_DECAY, dt / 16);
       f.vx *= k;
       f.vy *= k;
@@ -606,7 +615,7 @@ export function MapView({ active }: { active: boolean }) {
     }
     if (!handled) return;
     e.preventDefault();
-    clampView(v, radius);
+    clampView(v, radius, size());
     schedule();
   }
 
@@ -695,6 +704,17 @@ export function MapView({ active }: { active: boolean }) {
           </div>
         </div>
       </div>
+      <Overview
+        chunks={chunks}
+        terrain={terrain}
+        radius={radius}
+        sites={sites}
+        version={version}
+        viewRef={viewRef}
+        sizeRef={sizeRef}
+        drawRef={overviewDrawRef}
+        onJump={(x, y) => centerOn(x, y)}
+      />
       {selected && selectedSite && (
         <SitePanel site={selectedSite} wakesAt={wakesAt} terrain={terrain} preferred={selectedPreferred} onChanged={reloadSites} onClose={() => select(null)} />
       )}

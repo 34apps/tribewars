@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { MAP_STAGE_NAMES } from '@clanfire/engine';
 import { ALLEGIANCE_STYLE, stageRange } from './allegiance.ts';
+import { dotFill } from './dots.ts';
 import { ROUTE_DOT_COLOR } from './render.ts';
 import { ALLEGIANCES, STAGE_FILES, artUrl } from './sprites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
@@ -77,9 +78,9 @@ export function Legend({ sites = true }: { sites?: boolean }) {
         <ul className="wm-legend-banners wm-legend-dots">
           {([...ALLEGIANCES, 'abandoned'] as const).map((a) => (
             <li key={a}>
-              <span className={`wm-dot-sample${a === 'own' ? ' wm-dot-own' : ''}`} style={{ background: ALLEGIANCE_STYLE[a].ring }} aria-hidden="true" />
+              <span className={`wm-dot-sample${a === 'own' ? ' wm-dot-own' : ''}${a === 'abandoned' ? ' wm-dot-hollow' : ''}`} style={a === 'abandoned' ? { borderColor: dotFill(a) } : { background: dotFill(a) }} aria-hidden="true" />
               {ALLEGIANCE_STYLE[a].label}
-              {a === 'own' ? ' · white edge' : ''}
+              {a === 'own' ? ' · biggest, white ring' : a === 'abandoned' ? ' · small, hollow' : ''}
             </li>
           ))}
           <li className="wm-legend-wide">

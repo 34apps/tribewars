@@ -1362,6 +1362,13 @@
 .wm-dot-sample.wm-dot-own {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #2b211c;
 }
+.wm-dot-sample.wm-dot-hollow {
+  width: 10px;
+  height: 10px;
+  margin: 0 7px;
+  border-width: 2px;
+  background: transparent;
+}
 .wm-dot-site {
   display: inline-block;
   flex: none;
@@ -1371,4 +1378,141 @@
   background: #f2b33d;
   border: 1.5px solid #2b211c;
   transform: rotate(45deg);
+}
+
+/* World overview: a flat top-down minimap in a side column (desktop) or a block below the map (phone). */
+.wm-side {
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--on-surface, var(--wm-ink));
+  border-top: 3px solid var(--edge);
+  padding: 12px 14px 16px;
+}
+.wm-side-title {
+  margin: 0;
+  font-family: var(--wm-display);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.wm-ov {
+  width: 100%;
+  aspect-ratio: 1;
+}
+.wm-ov-canvas {
+  display: block;
+  max-width: 100%;
+  border: 2px solid var(--wm-ink);
+  border-radius: 10px;
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: crosshair;
+  background: #e3ebc2;
+}
+.wm-ov-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--on-surface-muted, #5a4a3c);
+}
+.wm-ov-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  font-size: 13.5px;
+}
+.wm-ov-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.wm-ov-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wm-ov-count {
+  font-variant-numeric: tabular-nums;
+}
+.wm-ov-sw {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--wm-ink);
+}
+.wm-ov-sw-own {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--wm-ink);
+  margin: 0 1px;
+}
+.wm-ov-sw-small {
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+}
+.wm-ov-sw-site {
+  background: #fff2b8;
+  transform: rotate(45deg) scale(0.85);
+}
+.wm-ov-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13px;
+}
+.wm-ov-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+@media (max-width: 767px) {
+  .wm-ov-legend {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+  }
+  /* Phone: the overview is a full-width block under the map; the page scrolls to it. */
+  .wm {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .wm-stage {
+    flex: none;
+    width: 100%;
+    height: 100%;
+  }
+  .wm-side {
+    width: 100%;
+    padding-bottom: calc(var(--dock-space, 96px) + 12px);
+  }
+  .wm-ov {
+    max-width: 420px;
+    align-self: center;
+  }
+}
+
+@media (min-width: 768px) {
+  .wm-side {
+    position: sticky;
+    top: 0;
+    align-self: stretch;
+    width: 268px;
+    border-top: 0;
+    border-left: 3px solid var(--edge);
+    box-shadow: -4px 0 0 var(--edge-shadow);
+    padding-top: 14px;
+  }
 }
