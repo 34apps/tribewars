@@ -4,6 +4,8 @@ import {
   BUILDINGS,
   DEFAULT_WORLD_CONFIG,
   NPC_GROWTH_ORDER,
+  NPC_PERSONALITIES,
+  NPC_RESOURCE_SPREAD,
   NPC_PRODUCTION_FACTOR,
   NPC_MAX_LEVEL,
   NPC_START_RESOURCE_SHARE,
@@ -17,6 +19,7 @@ import {
   checkTrain,
   createNpcVillage,
   createPlayerVillage,
+  npcPersonality,
   emptyUnits,
   totalUnits,
   populationCap,
@@ -321,6 +324,79 @@ describe('abandoned village builds from its own stock (owner 2026-11-05)', () =>
     const later = settleVillage(old, 200 * HOUR, S1);
     assert.ok(levels(later) > levels(old) + 5);
     assert.equal(later.troops.pikeman, old.troops.pikeman);
+  });
+});
+
+describe('seeded abandoned villages grow by personality (owner 2026-11-18)', () => {
+  const grown = (seed: number, hours: number, tier = 1): VillageState => settleVillage(createNpcVillage(tier, 0, seed), hours * HOUR, S1);
+  const seeds = Array.from({ length: 40 }, (_, i) => i * 7919 + 3);
+
+  it('the personality and the whole growth are fixed by the seed', () => {
+    for (const seed of seeds.slice(0, 8)) {
+      assert.equal(npcPersonality(seed), npcPersonality(seed));
+      assert.deepEqual(grown(seed, 300).buildings, grown(seed, 300).buildings);
+    }
+    const names = new Set(seeds.map(npcPersonality));
+    assert.equal(names.size, Object.keys(NPC_PERSONALITIES).length, 'every personality occurs');
+    assert.ok(new Set(seeds.slice(0, 12).map((x) => JSON.stringify(grown(x, 300).buildings))).size > 4, 'villages differ');
+  });
+
+  it('settling in one go or in steps gives the same village', () => {
+    for (const seed of [11, 4242, 99999]) {
+      const v = createNpcVillage(2, 0, seed);
+      const once = settleVillage(v, 500 * HOUR, S1);
+      let stepped = v;
+      for (let h = 9; h <= 500; h += 9) stepped = settleVillage(stepped, h * HOUR, S1);
+      stepped = settleVillage(stepped, 500 * HOUR, S1);
+      assert.deepEqual(once.buildings, stepped.buildings);
+    }
+  });
+
+  it('respects the top level, keeps Lumber / Farm / Mine within the spread, and stays under the storehouse', () => {
+    for (const seed of seeds.slice(0, 15)) {
+      let v = createNpcVillage(1, 0, seed);
+      for (let h = 10; h <= 900; h += 10) {
+        v = settleVillage(v, h * HOUR, S1);
+        for (const b of Object.keys(v.buildings) as (keyof typeof v.buildings)[]) {
+          if (['lumber', 'farm', 'mine', 'storehouse', 'hall', 'wall', 'vault', 'market', 'barracks', 'stables', 'wrightyard', 'drillyard'].includes(b)) assert.ok(v.buildings[b] <= NPC_MAX_LEVEL, `${b} over the top level`);
+        }
+        const r = [v.buildings.lumber, v.buildings.farm, v.buildings.mine];
+        assert.ok(Math.max(...r) - Math.min(...r) <= NPC_RESOURCE_SPREAD, 'resource buildings drifted apart');
+        for (const x of ['wood', 'food', 'iron', 'gold'] as const) assert.ok(v.resources[x] >= 0 && v.resources[x] <= storageCap(v));
+      }
+    }
+  });
+
+  it('every personality raises its Wall, the stronghold most; military buildings appear without any training', () => {
+    const byPers: Record<string, { wall: number; n: number; mil: number }> = {};
+    for (const seed of seeds) {
+      const v = grown(seed, 1500, 3);
+      const p = npcPersonality(seed);
+      const e = (byPers[p] ??= { wall: 0, n: 0, mil: 0 });
+      e.wall += v.buildings.wall;
+      e.n++;
+      e.mil += v.buildings.barracks + v.buildings.stables + v.buildings.wrightyard + v.buildings.drillyard;
+      assert.equal(totalUnits(v.troops), 0, 'never trains');
+      assert.deepEqual(v.trainQueues, { barracks: [], stables: [], wrightyard: [], bannerhall: [] });
+      assert.equal(v.buildings.bannerhall, 0);
+    }
+    for (const p of Object.keys(NPC_PERSONALITIES)) assert.ok((byPers[p]?.wall ?? 0) > 0, `${p} builds the Wall`);
+    const avg = (p: string): number => (byPers[p]!.wall / byPers[p]!.n);
+    assert.ok(avg('stronghold') >= avg('farmstead') && avg('stronghold') >= avg('market'));
+    assert.ok(byPers.stronghold!.mil > 0);
+    assert.equal(byPers.farmstead!.mil, 0, 'a farmstead builds no military buildings');
+  });
+
+  it('waits and saves when it cannot pay (no resource goes below zero) and keeps growing a village saved before', () => {
+    const v = createNpcVillage(1, 0, 5);
+    v.resources = { wood: 0, food: 0, iron: 0, gold: 0 };
+    const out = settleVillage(v, 2 * HOUR, S1);
+    assert.ok(Object.values(out.resources).every((x) => x >= 0));
+    // A seeded village saved with a pointer from the old shuffled order just continues by the new rule.
+    const old = createNpcVillage(2, 0, 77);
+    old.npc!.growthSteps = 6;
+    const later = settleVillage(old, 300 * HOUR, S1);
+    assert.ok(Object.values(later.buildings).reduce((a, b) => a + b, 0) > Object.values(old.buildings).reduce((a, b) => a + b, 0) + 5);
   });
 });
 

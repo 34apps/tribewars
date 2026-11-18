@@ -7,6 +7,10 @@ import {
   CHIEFTAIN_MAX_QUEUED_BATCHES,
   MAX_TRAIN_BATCH,
   NPC_GROWTH_ORDER,
+  NPC_LEVEL_DAMPING,
+  NPC_PERSONALITIES,
+  NPC_RESOURCE_SPREAD,
+  type NpcPersonality,
   NPC_MAX_BUILDS_PER_SETTLE,
   NPC_PRODUCTION_FACTOR,
   NPC_START_LEVELS,
@@ -124,22 +128,73 @@ export function createNpcVillage(tier: number, t: number, growthSeed?: number, s
   return v;
 }
 
-/** This village's growth order: the fixed one, or a seeded shuffle of it. */
-function growthOrder(seed: number | undefined): readonly BuildingId[] {
-  if (seed === undefined) return NPC_GROWTH_ORDER;
-  const out = [...NPC_GROWTH_ORDER];
-  let a = seed >>> 0;
-  const rnd = (): number => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let x = Math.imul(a ^ (a >>> 15), 1 | a);
-    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    [out[i], out[j]] = [out[j] as BuildingId, out[i] as BuildingId];
+/** Deterministic number in [0, 1) from a seed and a salt (same on server and clients). */
+function seededUnit(seed: number, salt: number): number {
+  let a = (seed ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+  a = (a + 0x6d2b79f5) >>> 0;
+  let x = Math.imul(a ^ (a >>> 15), 1 | a);
+  x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+  return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+}
+
+/** The growth personality of a village with this `growthSeed` (pure; the same everywhere). */
+export function npcPersonality(seed: number): NpcPersonality {
+  let r = seededUnit(seed >>> 0, 0x7fffffff);
+  let last: NpcPersonality = 'mixed';
+  for (const [name, p] of Object.entries(NPC_PERSONALITIES) as [NpcPersonality, { share: number }][]) {
+    last = name;
+    if (r < p.share) return name;
+    r -= p.share;
   }
-  return out;
+  return last;
+}
+
+/** Cost of an abandoned village's next level of `b` against its storehouse and production: 'ok', 'storage' (does not fit yet) or 'never'. */
+function npcBuildState(v: VillageState, b: BuildingId, rate: Resources, cap: number, keep: number): 'ok' | 'storage' | 'never' {
+  const cost = buildingCost(b, v.buildings[b] + 1);
+  let state: 'ok' | 'storage' = 'ok';
+  for (const r of RESOURCE_IDS) {
+    if (cost[r] <= 0) continue;
+    if (cost[r] + keep > cap) state = 'storage';
+    else if (cost[r] + keep > v.resources[r] && !(rate[r] > 0)) return 'never';
+  }
+  return state;
+}
+
+/**
+ * The next build of a seeded abandoned village (owner 2026-11-18): weighted random from its personality, the pick fixed by the seed and
+ * the build pointer. Sanity rules: below the top level; Lumber / Farm / Mine within NPC_RESOURCE_SPREAD of each other; never something
+ * it can never pay (no production of a missing resource); when the pick does not fit the storehouse yet, the Storehouse comes first.
+ * The pick depends on levels and pointer only, never on the stock: it then waits and saves (settling in one go or in steps agrees).
+ */
+function npcPickSeeded(v: VillageState, top: number, rate: Resources, cap: number, keep: number): BuildingId | null {
+  const seed = v.npc?.growthSeed ?? 0;
+  const weights = NPC_PERSONALITIES[npcPersonality(seed)].weights;
+  const lowest = Math.min(v.buildings.lumber, v.buildings.farm, v.buildings.mine);
+  const stateOf = (b: BuildingId): 'ok' | 'storage' | 'never' => npcBuildState(v, b, rate, cap, keep);
+  const open = (b: BuildingId): boolean => v.buildings[b] < Math.min(top, BUILDINGS[b].maxLevel);
+  const storehouseOk = open('storehouse') && stateOf('storehouse') === 'ok';
+  const options: { b: BuildingId; w: number }[] = [];
+  for (const [id, base] of Object.entries(weights) as [BuildingId, number][]) {
+    if (!open(id) || !(base > 0)) continue;
+    if ((id === 'lumber' || id === 'farm' || id === 'mine') && v.buildings[id] + 1 > lowest + NPC_RESOURCE_SPREAD) continue;
+    const st = stateOf(id);
+    if (st === 'never' || (st === 'storage' && !storehouseOk)) continue;
+    options.push({ b: st === 'storage' ? 'storehouse' : id, w: base / (1 + NPC_LEVEL_DAMPING * v.buildings[id]) });
+  }
+  const total = options.reduce((x, o) => x + o.w, 0);
+  if (!(total > 0)) return null;
+  let r = seededUnit(seed, v.npc?.growthSteps ?? 0) * total;
+  for (const o of options) {
+    if (r < o.w) return o.b;
+    r -= o.w;
+  }
+  return options[options.length - 1]!.b;
+}
+
+/** This village's fixed growth order (villages without a seed). */
+function growthOrder(): readonly BuildingId[] {
+  return NPC_GROWTH_ORDER;
 }
 
 /**
@@ -153,11 +208,23 @@ function npcNextBuild(
   v: VillageState,
   s: WorldSettings,
 ): { building: BuildingId; targetLevel: number; cost: Resources; waitMs: number; skipped: number } | null {
-  const order = growthOrder(v.npc?.growthSeed);
+  const order = growthOrder();
   const top = worldRules(s).npc.maxLevel;
   const rate = productionFromLevels(v.buildings, s.speed * NPC_PRODUCTION_FACTOR); // only abandoned villages plan builds
   const cap = storageCapForLevel(v.buildings.storehouse);
   const keep = Math.max(0, Math.min(0.9, worldRules(s).npc.keepShare)) * cap;
+  if (v.npc?.growthSeed !== undefined) {
+    const b = npcPickSeeded(v, top, rate, cap, keep);
+    if (b === null) return null;
+    const targetLevel = v.buildings[b] + 1;
+    const cost = buildingCost(b, targetLevel);
+    let waitMs = 0;
+    for (const r of RESOURCE_IDS) {
+      const missing = cost[r] + keep - v.resources[r];
+      if (cost[r] > 0 && missing > 0) waitMs = Math.max(waitMs, Math.ceil((missing / rate[r]) * MS_PER_HOUR));
+    }
+    return { building: b, targetLevel, cost, waitMs, skipped: 0 };
+  }
   const start = v.npc?.growthSteps ?? 0;
   for (let k = 0; k < order.length; k++) {
     const b = order[(start + k) % order.length] as BuildingId;

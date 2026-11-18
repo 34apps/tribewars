@@ -660,7 +660,9 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const kept = keptTargets(opt.targets ?? defaultTargetCount());
   const targets: Target[] = kept.map((i) => {
     const [tier, distance] = TARGET_LAYOUT[i] as [number, number];
-    return { state: createNpcVillage(tier, 0), tier, distance, pos: targetPos(opt.home, i, distance), alive: true };
+    const state = createNpcVillage(tier, 0);
+    state.npc!.growthSeed = hashSeed(opt.seed, 100 + i) >>> 0; // tier start levels, grown by the seeded personality rule like real worlds (2026-11-18)
+    return { state, tier, distance, pos: targetPos(opt.home, i, distance), alive: true };
   });
   const events: Event[] = [];
   const errors: string[] = [];

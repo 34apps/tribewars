@@ -349,7 +349,12 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   // Deterministic shuffle of the styles over the grid places.
   const place = styleOrder.map((st, i) => ({ st, key: hashSeed(opt.seed, 1000 + i) })).sort((a, b) => a.key - b.key).map((x) => x.st);
 
-  const makeNpcs = (home: Pos): Npc[] => TARGET_LAYOUT.map(([tier, d], i) => ({ state: createNpcVillage(tier, 0), tier, pos: npcPos(home, i, d) }));
+  const makeNpcs = (home: Pos): Npc[] =>
+    TARGET_LAYOUT.map(([tier, d], i) => {
+      const state = createNpcVillage(tier, 0);
+      state.npc!.growthSeed = hashSeed(opt.seed, 5000 + home.x * 31 + home.y * 7 + i) >>> 0; // seeded personality growth (2026-11-18)
+      return { state, tier, pos: npcPos(home, i, d) };
+    });
   const newVil = (owner: number, state: VillageState, pos: Pos): Vil => {
     const v: Vil = { id: nextVilId++, owner, state, pos, trainCursor: 0, alive: true };
     world.set(v.id, v);
