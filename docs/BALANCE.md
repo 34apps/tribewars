@@ -1190,3 +1190,24 @@ whole map needs 30 players with 3,000 population standing at each of nine sites,
   village; what differs is the defence they must first beat (keepers or the tribe's stationed troops with +99%, but no flat village militia).
 - **Pace**: the Wall heals 2 levels a day, so even a full 6-level assault is healed in 3 days; a tribe that wants a soft shrine must attack again within a day
   or two. That is slow enough to matter and fast enough that a site is never left broken for weeks, so the 12 hour step was kept at 22 levels.
+
+## 21. Abandoned villages grow by personality (2026-11-18, branch `npc-growth`; no schema change)
+
+Owner: "abandoned villages can also have walls; they randomly increase their buildings over time, some build resources, some barracks, but half meaningfully random."
+A village with a `growthSeed` takes one of four personalities and picks each build by weighted random (GAME_DESIGN 8, `NPC_PERSONALITIES`): farmstead 30%, stronghold 25%,
+market town 20%, mixed 25%. Military buildings add looks and points only (no training, ever). The simulator now gives every abandoned target a seed (tier start levels kept),
+so the sims below use the new rule; "before" is the fixed order of section 10.
+
+| | before (fixed order) | after (personalities) |
+|---|---|---|
+| Score raider / builder, 30 days | 19139 / 10591 = 1.81 | 18684 / 10591 = 1.76 |
+| Score raider / builder, 90 days | 64295 / 70179 = 0.92 | 67586 / 70179 = 0.96 |
+| 2nd village, day (builder / raider / balanced) | 26.7 / 27.5 / 20.7 | 26.7 / 27.9 / 20.1 |
+| Conquest, 5 seeds x 90 days: worst biggest/second ratio | 1.75 | 1.80 |
+| Conquest: restarts (total, max per seed) | 21 (6) | 23 (5) |
+| Conquest: takes (total, per seed 1..16) | 49 | 47 (6..14) |
+
+Average Lumber / Farm / Mine level of an abandoned village (400 villages, tiers mixed, speed 1, one run each): day 7: 7.00 -> 6.52; day 14: 7.00 -> 6.69; day 30: 7.00 -> 6.91; day 90: 7.00 -> 7.00
+(the fixed order started at tier levels and maxed them quickly; the random order spends some of its stock on the Wall, Hall and military buildings first, so resources lag a little early and loot supply is about the same).
+Average Wall at day 7 / 30 / 90: 7.0 -> 5.0 / 6.6 / 7.0. Military buildings (Barracks + Stables + Wrightyard + Drillyard summed): 0 -> 1.0 / 6.9 / 12.4. Everything ends at the top level (7) after about 90 days.
+No number was tuned (raider ratio stayed in 1.5-2 at 30 days). Levers if it moves: the personality weights only.

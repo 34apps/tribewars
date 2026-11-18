@@ -303,6 +303,16 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   - Only the buildings grow. Troops never appear (the 2026-11-04 refill, `NPC_GARRISON_REFILL_SHARE`, is removed; map-born villages have none, 2026-11-17) and nothing is ever trained.
   - **Tuned 2026-11-05 (BALANCE.md section 10):** top level 7 (was 10), start stock 80% of the cap (was 50%), reserve 25%, build order
     `lumber farm mine storehouse lumber farm mine hall storehouse wall vault` (the gold mine is no longer built: gold counts 10x in loot value).
+  - **Personalities (owner 2026-11-18: "half meaningfully random").** A village **with a `growthSeed`** (every village of an expanding world and every village a
+    player left) no longer follows the fixed list: its seed gives it one of four personalities (`npcPersonality`, `NPC_PERSONALITIES` in config.ts; names are ours,
+    players see only the result): **farmstead** (30%: mostly Lumber / Farm / Mine and Storehouse), **stronghold** (25%: most Wall, then Hall and the military buildings
+    Barracks, Stables, Wrightyard, Drillyard, which only add looks and points: it never trains or researches), **market town** (20%: Market, Storehouse, Vault, resources)
+    and **mixed** (25%). Each next build is a **weighted random pick** from the personality's weights (a building's weight is divided by `1 + 0.3 x level`), fixed by
+    the seed and the build pointer (`growthSteps`, now +1 per build), so server and clients agree and a village behaves the same however it is settled. Sanity rules:
+    below the top level (7); Lumber, Farm and Mine stay within `NPC_RESOURCE_SPREAD` (2) levels of each other; never a building it can never pay for (a missing
+    resource it does not produce); a pick whose cost does not fit the storehouse yet becomes the **Storehouse** first; it then waits and saves as before. Every personality
+    may raise its Wall. The pick looks at levels, never at the stock. Villages **without** a seed (the fixed layout, old tests) keep the fixed order above. Existing
+    seeded villages need no migration: the next build simply follows the new rule (nothing jumps; the pointer only counts builds now).
 - They produce resources like player villages, which is what raiders take.
 - **Raid loot is always full** (owner 2026-11-05; the 2026-11-04 repeat-raid reduction, `npc_raids`, `NPC_REPEAT_*` and the report's
   "lootShare" are removed). Farming is limited instead by: the Wall (and the garrison of a village a player left, which dies once), the stock being finite (production is slow), and the
