@@ -59,6 +59,14 @@ Source files: `design/style-directions/` (artboards + renders).
 2. **World map**: 2.5D isometric. Each village's picture grows in visible stages as it gains points —
    e.g. a small hamlet with a palisade → larger palisade village → stone walls → walled town → castle
    (with moat at the top). Abandoned villages look ruined. Tribe allegiance shown by banners/colours.
+   **Map markers (2026-11-18):** at normal zoom (tile 30 px and up) a cloth banner on a tall pole rises above each
+   player village's roof: flat relation colour (own gold, tribe green, ally teal, NAP pink, enemy terracotta, neutral
+   grey), dark outline, light top edge and dark underside, one shape per relation (swallowtail, square, pennant, round
+   tongue, hanging war banner with crossbar, lozenge-ended sign). **No symbols on the cloth** (owner: the green check
+   looked like an app icon): the cloth is plain colour, and from tile 50 px it carries the owner's tribe tag in bone
+   lettering with an ink outline. Abandoned villages have no banner. Below 30 px (zoom range 6-160 px) sprites, rings
+   and banners are dropped: every village is a dot in its relation colour (abandoned dark grey, ink outline); own villages
+   are bigger with a white edge; Fire sites are small diamonds, tribe utility sites small squares. The legend shows the dots.
 3. **Characters**: a portrait/figure for each unit, selectable chieftain avatars for players, an
    advisor/guide character for tips and the tutorial, and building art.
 

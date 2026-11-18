@@ -62,12 +62,29 @@ export function Legend({ sites = true }: { sites?: boolean }) {
             </li>
           ))}
           <li className="wm-legend-wide">
+            Tribe tag written on the cloth when the owner is in a tribe
+          </li>
+          <li className="wm-legend-wide">
             <span className="wm-dome-sample" aria-hidden="true" />
             Beginner protection
           </li>
           <li className="wm-legend-wide">
             <span className="wm-cold-sample" aria-hidden="true" />
             Hearth out
+          </li>
+        </ul>
+        <h3>Zoomed far out · dots</h3>
+        <ul className="wm-legend-banners wm-legend-dots">
+          {([...ALLEGIANCES, 'abandoned'] as const).map((a) => (
+            <li key={a}>
+              <span className={`wm-dot-sample${a === 'own' ? ' wm-dot-own' : ''}`} style={{ background: ALLEGIANCE_STYLE[a].ring }} aria-hidden="true" />
+              {ALLEGIANCE_STYLE[a].label}
+              {a === 'own' ? ' · white edge' : ''}
+            </li>
+          ))}
+          <li className="wm-legend-wide">
+            <span className="wm-dot-site" aria-hidden="true" />
+            Fire site (diamond)
           </li>
         </ul>
         {sites && (

@@ -22,12 +22,12 @@ interface Style {
 }
 
 export const ALLEGIANCE_STYLE: Record<MapAllegiance, Style> = {
-  own: { ring: '#F2B33D', dash: [], label: 'Own', words: 'Your village', banner: 'Swallowtail with a flame' },
-  tribe: { ring: '#5E8C3A', dash: [], label: 'Tribe', words: 'Your tribe', banner: 'Square with a chevron' },
+  own: { ring: '#F2B33D', dash: [], label: 'Own', words: 'Your village', banner: 'Swallowtail cloth' },
+  tribe: { ring: '#5E8C3A', dash: [], label: 'Tribe', words: 'Your tribe', banner: 'Square cloth' },
   ally: { ring: '#2F9AA0', dash: [], label: 'Ally', words: 'Ally', banner: 'Long pennant' },
-  nap: { ring: '#B86C92', dash: [9, 5], label: 'NAP', words: 'Non-aggression pact', banner: 'Round tongue, dashed ring' },
+  nap: { ring: '#B86C92', dash: [9, 5], label: 'NAP', words: 'Non-aggression pact', banner: 'Round-tongue cloth, dashed ring' },
   enemy: { ring: '#C4623A', dash: [], label: 'Enemy', words: 'Enemy', banner: 'Hanging war banner' },
-  neutral: { ring: '#A39E94', dash: [3, 5], label: 'Neutral', words: 'Neutral', banner: 'Lozenge sign, dotted ring' },
+  neutral: { ring: '#A39E94', dash: [3, 5], label: 'Neutral', words: 'Neutral', banner: 'Lozenge-ended sign, dotted ring' },
   abandoned: { ring: '#6E675E', dash: [6, 6], label: 'Abandoned', words: 'Abandoned', banner: 'No banner, grey dashed ring' },
 };
 

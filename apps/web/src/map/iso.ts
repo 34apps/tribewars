@@ -5,8 +5,11 @@
 
 import type { Coords } from '@clanfire/engine';
 
-/** Tile width in CSS px (the diamond is half as tall). */
-export const MIN_TILE = 28;
+/**
+ * Tile width in CSS px (the diamond is half as tall). At 6 px the whole default world (201 tiles wide) is 1206 px across:
+ * a laptop sees all of it, a phone a good part. Below DOT_TILE (zoomMode.ts) villages are drawn as dots.
+ */
+export const MIN_TILE = 6;
 export const MAX_TILE = 160;
 export const DEFAULT_TILE = 84;
 

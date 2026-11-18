@@ -1,9 +1,9 @@
 import type { MapVillageDto } from '@clanfire/engine';
 import { MAP_MAX_SPAN } from '@clanfire/engine';
 import { api } from '../api.ts';
+import { CHUNK_STALE_MS } from './zoomMode.ts';
 
 export const CHUNK = 30;
-const STALE_MS = 30_000;
 const RETRY_MS = 5_000;
 const MAX_INFLIGHT = 3;
 
@@ -18,7 +18,7 @@ interface Chunk {
 const tileKey = (x: number, y: number) => (x + 32768) * 65536 + (y + 32768);
 const chunkKey = (ci: number, cj: number) => `${ci},${cj}`;
 
-/** Cache of /api/map results in CHUNK x CHUNK blocks; refetches blocks older than 30 s when asked. */
+/** Cache of /api/map results in CHUNK x CHUNK blocks; refetches blocks older than `staleMs` when asked. */
 export class MapChunks {
   private readonly chunks = new Map<string, Chunk>();
   private readonly loading = new Set<string>();
@@ -54,6 +54,8 @@ export class MapChunks {
     cx: number,
     cy: number,
     onScreen?: (x0: number, y0: number, x1: number, y1: number) => boolean,
+    /** Age after which a loaded chunk is refetched (longer when zoomed far out; see chunkStaleMs). */
+    staleMs: number = CHUNK_STALE_MS,
   ): void {
     const r = this.radius;
     const x0 = Math.max(-r, minX);
@@ -70,7 +72,7 @@ export class MapChunks {
           const failed = this.failedAt.get(key);
           if (failed !== undefined && now - failed < RETRY_MS) continue;
           const have = this.chunks.get(key);
-          if (have && now - have.fetchedAt < STALE_MS) continue;
+          if (have && now - have.fetchedAt < staleMs) continue;
           if (onScreen && !onScreen(ci * CHUNK, cj * CHUNK, ci * CHUNK + CHUNK - 1, cj * CHUNK + CHUNK - 1)) continue;
           const dx = ci * CHUNK + CHUNK / 2 - cx;
           const dy = cj * CHUNK + CHUNK / 2 - cy;
@@ -99,6 +101,14 @@ export class MapChunks {
   /** Force every chunk to refetch on the next ensure() (e.g. after leaving beginner protection). */
   invalidate(): void {
     for (const c of this.chunks.values()) c.fetchedAt = 0;
+  }
+
+  /** Make only the chunks holding these tiles refetch on the next ensure() (a village changed owner or hold state). */
+  invalidateAt(tiles: ReadonlyArray<{ x: number; y: number }>): void {
+    for (const t of tiles) {
+      const c = this.chunks.get(chunkKey(Math.floor(t.x / CHUNK), Math.floor(t.y / CHUNK)));
+      if (c) c.fetchedAt = 0;
+    }
   }
 
   private pump(): void {
