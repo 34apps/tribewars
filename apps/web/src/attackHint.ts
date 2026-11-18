@@ -24,7 +24,7 @@ export interface AttackHintInput {
   abandoned: boolean;
   /** Morale factor of this send (1 = none; the same number the form shows). */
   morale?: number;
-  /** The sending village's ranks (Might). */
+  /** The sending village's ranks (Might, and Breach for siege units). */
   attackerRanks?: VillageRanks;
   /** Raiders at home that are not in the army: the "more Raiders" answer is left out when it asks for more than that. undefined = no limit. */
   spareRaiders?: number;

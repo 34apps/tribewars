@@ -1190,3 +1190,29 @@ whole map needs 30 players with 3,000 population standing at each of nine sites,
   village; what differs is the defence they must first beat (keepers or the tribe's stationed troops with +99%, but no flat village militia).
 - **Pace**: the Wall heals 2 levels a day, so even a full 6-level assault is healed in 3 days; a tribe that wants a soft shrine must attack again within a day
   or two. That is slow enough to matter and fast enough that a site is never left broken for weeks, so the 12 hour step was kept at 22 levels.
+
+## 21. Drillyard ranks: 5 points per level, flat 2-point ranks, Breach for siege (2026-11-18, branch `claude/hungry-kapitsa-ba124a`; schema v32)
+
+Owner: "Drillyard rank increase system is too limited ... also there should be [ranks for] the ram etc." Options, genre comparison and the player-facing view: `docs/proposals/drillyard-ranks.md`. Built: option 1.
+
+**Finding first:** until now **no sim bought or used a rank** (balance.ts: "Drillyard ranks are not valued"; every `resolveBattle` call had no `attackerRanks`/`defenderRanks`). So the old ranks were never balance-checked. Now `scripts/sim/ranks.ts` is a spending policy on the real engine (`checkRank`/`applyRank`, `RANK_TRACKS_OF`, `RANK_COST`): at most 1 rank per village per day, only when the stock after paying still holds 50% of the next planned building; priority lists by style (attackers: Attack Raider, Elk Rider, Ember Guard, then Defence, then Breach on owned Log Rams; defenders: Defence Shieldbearer, Pikeman, Ember Guard, Hearthwarden, then Attack Raider); all battles carry the ranks. `--no-ranks` reproduces the old sims.
+
+**Rules (config.ts):** `DRILLYARD_POINTS_PER_LEVEL` 5 (was 3), `RANK_POINTS` 2 per rank (was 1..5), `BREACH_BONUS` 0.02, `RANK_TRACKS_OF` (10 tracks; see GAME_DESIGN 15).
+
+**Results, option 1 (current config; the other two options in the proposal):**
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days: 1.5-2x | 1.87 (no ranks: 1.81) |
+| 2nd village day 21-28 | builder 27.7, raider 26.2 |
+| 90 days, 3rd village | builder 41.4, raider 47.8 |
+| conquest, 5 seeds x 90 days: worst biggest/second at most 2x | 1.69 (no ranks 1.75) |
+| takes 30-50, restarts at most 26 | 47 takes, 20 restarts |
+| ranks bought by day 30 / 90 (policy, average per player) | builder 15 / 69, raider 8 / 15, balanced 14 / 23, turtle 0 / 2 |
+
+Option 2 (6 per level, ranks 1..5): ratio 1.89, 2nd village 27.7 / 28.0, takes 38, restarts 19, worst 1.84. Option 3 (3 per level + 1 per Hall level above 10): ratio 1.98, 2nd village 27.5 / 24.1, takes 45, restarts 24, worst 1.79. All hold.
+
+**Breach and the siege rule (`npm run sim -- --siege`, section a2):** the Wall must never be a bargain: rebuild cost under 2x the attacker's capital at EVERY Wall level, Breach 5 included. Highest rebuild / capital (Wall 22): Breach 0 1.82; +2% per rank 1.96 (built); +3% 2.06 and +6% 2.30 fail; +4% with `SIEGE_POINTS_PER_LEVEL` 8 holds (1.91; 1.60 without ranks) but makes every siege about 12% dearer. So Breach is +2% per rank (+10% at rank 5). The siege sim checks Breach 5 in two new invariants and "Breach 5 never lowers fewer Wall levels than Breach 0".
+
+**Not measured:** the sim styles with low Drillyard (raider, balanced) use far fewer ranks than the pool allows (1 per day, reserve), so the full 50 points of a veteran are only tested by the arithmetic in the proposal; watch real play. `sim:troops` has a new table 1e (value per population at top rank: Attack and Defence x1.25, Breach x1.1).
+

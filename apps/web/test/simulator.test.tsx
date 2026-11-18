@@ -2,11 +2,12 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BATTLE_LUCK, UNITS, emptyUnits, normalizeUnits, resolveBattle } from '@clanfire/engine';
+import { BATTLE_LUCK, BREACH_BONUS, RANK_MAX, UNITS, emptyUnits, normalizeUnits, resolveBattle } from '@clanfire/engine';
 import type { BattleReportData, ReportDto, ScoutReportData, Units } from '@clanfire/engine';
 import {
   LUCK_PCT_MAX,
   SIM_LUCKS,
+  breachText,
   comeHome,
   luckFromPercent,
   mightText,
@@ -219,6 +220,8 @@ test('mightText names the unit with the most Might ranks in the army; comeHome c
   assert.equal(mightText(ranks, units({ raider: 5, knight: 1 })), 'Ember Guard Might 5 · +25% attack');
   assert.equal(mightText(ranks, units({ pikeman: 5 })), null);
   assert.equal(mightText(undefined, units({ raider: 5 })), null);
+  // A Might rank on a unit without a Might track (stale data) does nothing.
+  assert.equal(mightText({ pikeman: { might: 3, bulwark: 0, keen: 0 } }, units({ pikeman: 5 })), null);
   assert.deepEqual(comeHome(units({ raider: 10, knight: 2 }), units({ raider: 3 })), { home: 3, sent: 12 });
 });
 
@@ -226,4 +229,16 @@ test('send hand-over: read once, only what is at home', () => {
   setPendingSend(units({ raider: 10, knight: 3 }));
   assert.deepEqual(takePendingSend(units({ raider: 4 })), { raider: '4' });
   assert.deepEqual(takePendingSend(units({ raider: 4 })), {});
+});
+
+test('ranks: Breach on Log Rams and Firecarts flows through to the siege (bigger drop); breachText names the best siege unit', () => {
+  const ranks = { logram: { might: 0, bulwark: 0, keen: 0, breach: 5 }, firecart: { might: 0, bulwark: 0, keen: 0, breach: 5 } };
+  const rams = setup({ attacker: units({ raider: 400, logram: 8 }), defender: units({ pikeman: 10 }), wall: 20 });
+  assert.ok(simulate({ ...rams, attackerRanks: ranks }, 0).wallAfter <= simulate(rams, 0).wallAfter);
+  const carts = setup({ attacker: units({ raider: 400, firecart: 8 }), defender: units({ pikeman: 10 }), wall: 0, siegeTarget: 'market', targetLevel: 20 });
+  const buildingTo = (o: ReturnType<typeof simulate>) => (o.result.siege ?? []).find((h) => h.building === 'market')?.to ?? 20;
+  assert.ok(buildingTo(simulate({ ...carts, attackerRanks: ranks }, 0)) <= buildingTo(simulate(carts, 0)));
+  assert.equal(breachText(ranks, units({ logram: 3 })), `Log Ram Breach 5 · +${Math.round(BREACH_BONUS * RANK_MAX * 100)}% siege power`);
+  assert.equal(breachText(ranks, units({ raider: 3 })), null);
+  assert.equal(breachText(undefined, units({ logram: 3 })), null);
 });

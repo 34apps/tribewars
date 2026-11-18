@@ -4,8 +4,9 @@
 // Pure and deterministic: same army, same village, same result.
 
 import { SIEGE_BASE_POINTS, SIEGE_EXTRA_POINTS, SIEGE_DURING_SHARE, SIEGE_LOST_SHARE, SIEGE_MIN_LEVEL, SIEGE_POINTS_PER_LEVEL, UNITS } from './config.ts';
+import { breachMultiplier } from './drillyard.ts';
 import { BUILDING_IDS, UNIT_IDS } from './types.ts';
-import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageState, WorldSettings } from './types.ts';
+import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageRanks, VillageState, WorldSettings } from './types.ts';
 import { isBuildingId, normalizeUnits } from './util.ts';
 import { worldRules } from './world-config.ts';
 
@@ -60,7 +61,7 @@ export function randomSiegeCandidates(buildings: BuildingLevels): BuildingId[] {
  * of their points at the Wall (Firecarts have no such step). Returns the Wall level the defence has to use in that battle and what each siege kind lowered
  * (levels, at most its `maxLevels`). Pure; a siege kind that was not sent is absent.
  */
-export function resolveSiegeDuring(sent: Partial<Units>, wall: number): { wall: number; dropped: Partial<Record<UnitId, number>>; from: Partial<Record<UnitId, number>> } {
+export function resolveSiegeDuring(sent: Partial<Units>, wall: number, ranks?: VillageRanks): { wall: number; dropped: Partial<Record<UnitId, number>>; from: Partial<Record<UnitId, number>> } {
   const army = normalizeUnits(sent);
   const dropped: Partial<Record<UnitId, number>> = {};
   const from: Partial<Record<UnitId, number>> = {};
@@ -68,7 +69,7 @@ export function resolveSiegeDuring(sent: Partial<Units>, wall: number): { wall: 
   for (const unit of UNIT_IDS) {
     const rule = UNITS[unit].siege;
     if (!rule || rule.hits !== 'wall' || !(army[unit] > 0)) continue;
-    const r = knockDown('wall', level, army[unit] * rule.power * SIEGE_DURING_SHARE, rule.maxLevels);
+    const r = knockDown('wall', level, army[unit] * rule.power * breachMultiplier(ranks, unit) * SIEGE_DURING_SHARE, rule.maxLevels);
     from[unit] = level;
     dropped[unit] = r.dropped;
     level = r.level;
@@ -95,6 +96,7 @@ export function siegeLostSurvivors(sent: Partial<Units>, lossRatio: number): Uni
  * The two steps each get their own `maxLevels`. A Wall hit of the Log Rams is ONE hit from the pre-battle level to the level after both steps.
  * A hit with `from === to` is a miss (too few survivors). A Wall hit of the during step is only listed when it lowered the Wall.
  * `chosen` is never checked against the village here: that would tell the sender what the village holds.
+ * `ranks` = the sending village's ranks: each siege kind's power counts with its Breach multiplier (the Drillyard, GAME_DESIGN 15).
  */
 export function resolveSiege(
   survivors: Partial<Units>,
@@ -102,11 +104,12 @@ export function resolveSiege(
   chosen: BuildingId | null | undefined,
   sent?: Partial<Units>,
   random = 0,
+  ranks?: VillageRanks,
 ): SiegeHit[] {
   const alive = normalizeUnits(survivors);
   const levels = { ...buildings };
   const hits: SiegeHit[] = [];
-  const during = sent ? resolveSiegeDuring(sent, buildings.wall) : null;
+  const during = sent ? resolveSiegeDuring(sent, buildings.wall, ranks) : null;
   if (during) levels.wall = during.wall;
   let target: BuildingId | null | undefined = isBuildingId(chosen) ? chosen : undefined;
   if (target === undefined) {
@@ -123,7 +126,7 @@ export function resolveSiege(
       const duringHit: SiegeHit | undefined = during !== null && (during.dropped[unit] ?? 0) > 0 ? { unit, building: 'wall', from: buildings.wall, to: levels.wall } : undefined;
       if (duringHit) hits.push(duringHit);
       if (!(count > 0)) continue;
-      const r = knockDown('wall', levels.wall, count * rule.power, rule.maxLevels);
+      const r = knockDown('wall', levels.wall, count * rule.power * breachMultiplier(ranks, unit), rule.maxLevels);
       if (duringHit) duringHit.to = r.level;
       else hits.push({ unit, building: 'wall', from: levels.wall, to: r.level });
       levels.wall = r.level;
@@ -131,7 +134,7 @@ export function resolveSiege(
       if (!(count > 0) || !target) continue;
       // Firecarts on the Wall (picked): after the Log Rams' steps, from the level they left, with their own cap; no during-the-battle step.
       const building: BuildingId = target;
-      const r = knockDown(building, levels[building], count * rule.power, rule.maxLevels);
+      const r = knockDown(building, levels[building], count * rule.power * breachMultiplier(ranks, unit), rule.maxLevels);
       hits.push({ unit, building, from: levels[building], to: r.level });
       levels[building] = r.level;
     }

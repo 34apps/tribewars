@@ -91,6 +91,7 @@ import {
   LIMIT_NAMES,
   STYLES,
   STYLE_DEFS,
+  STYLE_RANK_KIND,
   WAIT_BUCKETS,
   WaitTracker,
   addChiefWait,
@@ -104,6 +105,7 @@ import {
   withKnightBuilders,
 } from './balance.ts';
 import type { ChiefGoldMode, ChiefWait, StyleName } from './balance.ts';
+import { RankPolicy, battleRanks, formatByEntry } from './ranks.ts';
 
 type StyleDef = (typeof STYLE_DEFS)[StyleName];
 type Pos = { x: number; y: number };
@@ -142,6 +144,8 @@ export interface ConquestOptions {
   chiefGold?: ChiefGoldMode;
   chestBase?: number;
   knightBuilders?: boolean;
+  /** Players buy Drillyard ranks and every battle carries them (default ON; `--no-ranks` = the old sim without ranks). */
+  ranks?: boolean;
 }
 
 // ---- Model types --------------------------------------------------------------------------------
@@ -174,6 +178,8 @@ interface DayRowC {
   /** Gold in stock in all the player's villages. */
   gold: number;
   chest: number;
+  /** Ranks bought so far (all villages). */
+  ranks: number;
 }
 interface Plan {
   kind: 'strike' | 'found';
@@ -224,6 +230,8 @@ interface Player {
   goldPaid: number;
   wait: WaitTracker;
   rows: DayRowC[];
+  /** Drillyard rank policy (ranks.ts); `bought` counts every rank of all the player's villages. */
+  ranks: RankPolicy;
 }
 
 type Event =
@@ -254,6 +262,8 @@ export interface PlayerResult {
   stats: Stats;
   goldPaid: number;
   wait: ChiefWait;
+  /** Ranks bought by (unit track) over the whole run. */
+  ranksByEntry: Record<string, number>;
 }
 
 export interface ConquestReport {
@@ -310,6 +320,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const end = opt.days * DAY;
   const eligibleFrom = protectionEndsAt(0, s);
   const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
+  const ranksOn = opt.ranks !== false;
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
   const errors: string[] = [];
   const conquests: Conquest[] = [];
@@ -344,10 +355,11 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     const pos: Pos = { x: origin.x + (i % COLUMNS) * SPACING, y: origin.y + Math.floor(i / COLUMNS) * SPACING };
     const st = createPlayerVillage(0);
     st.protectedUntil = eligibleFrom; // beginner protection (72 h): nobody can strike or raid it, and it does not attack players
+    const def = opt.knightBuilders ? withKnightBuilders(style, STYLE_DEFS[style]) : STYLE_DEFS[style];
     const p: Player = {
       id: i,
       style,
-      def: opt.knightBuilders ? withKnightBuilders(style, STYLE_DEFS[style]) : STYLE_DEFS[style],
+      def,
       seed: hashSeed(opt.seed, i),
       vils: [],
       npcs: makeNpcs(pos),
@@ -368,6 +380,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       goldPaid: 0,
       wait: new WaitTracker(),
       rows: [],
+      ranks: new RankPolicy(STYLE_RANK_KIND[style], def.army.map((a) => a.unit)),
     };
     p.vils.push(newVil(i, st, pos));
     players.push(p);
@@ -611,7 +624,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       const npc = att.npcs[e.npc] as Npc;
       if (e.owner !== att.id) return;
       npc.state = settleVillage(npc.state, e.at, s);
-      const r = resolveBattle({ attackerUnits: e.units, defender: npc.state, seed: e.seed });
+      const r = resolveBattle({ attackerUnits: e.units, defender: npc.state, seed: e.seed, ...battleRanks(o.state.ranks, undefined) });
       npc.state = applyBattleToDefender(npc.state, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       award(r, att, null, `t${e.npc}`, e.at);
@@ -626,7 +639,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         return;
       }
       const def0 = settleOf(tv, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...battleRanks(o.state.ranks, def0.ranks) });
       tv.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       award(r, att, P(tv.owner), '', e.at);
@@ -645,7 +658,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         return;
       }
       const def0 = settleOf(tv, e.at);
-      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
+      const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true, ...battleRanks(o.state.ranks, def0.ranks) });
       const n0 = outstanding(att);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
       tv.state = applyBattleToDefender(def0, r);
@@ -686,7 +699,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     }
     const cold = settleOf(tv, e.at);
     const def0: VillageState = { ...cold, troops: { ...claim.occupiers } };
-    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true });
+    const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, noLoot: true, ...battleRanks(o.state.ranks, (world.get(claim.origin) as Vil).state.ranks) });
     o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
     const claimant = P(claim.by);
     award(r, att, claimant, '', e.at);
@@ -815,6 +828,13 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     }
   };
 
+  /** Units of the village at home, away or in the queues (the rank policy ranks rare units only while they are owned). */
+  const ownedOf = (vil: Vil): Units => addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
+  const tryRanks = (p: Player, vil: Vil, t: number): void => {
+    if (!ranksOn) return;
+    vil.state = p.ranks.step(vil.id, vil.state, t, s, ownedOf(vil), nextBuildCost(p, vil));
+  };
+
   const tryResearch = (p: Player, vil: Vil, t: number): void => {
     for (const u of p.def.research) {
       if ((vil.state.researched ?? []).includes(u) || (vil.state.researchQueue ?? []).some((j) => j.unit === u)) continue;
@@ -865,7 +885,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       travel = travelTimeMs(vil.pos, tv.pos, send, s);
       if (isStrikeBlocked(arrival, t + travel)) continue;
       if (pts < ownBest * STRIKE_MIN_RATIO) continue;
-      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(p.seed, 555, p.strikeSeq), noLoot: true });
+      const pre = resolveBattle({ attackerUnits: send, defender: arrival, seed: hashSeed(p.seed, 555, p.strikeSeq), noLoot: true, ...battleRanks(vil.state.ranks, arrival.ranks) });
       if (!(pre.attackPower > pre.defensePower * 1.25)) continue;
       if (pre.attackerSurvivors.chieftain < kNeed || occupierPopulation(pre.attackerSurvivors) < HOLD_MIN_POPULATION) continue;
       if (pts > bestPoints) {
@@ -942,7 +962,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const depositChest = (p: Player): void => {
     for (const vil of p.vils) {
       if (vil.state.hearth) continue;
-      const spare = vil.state.resources.gold - chestReserveGold(p.def, vil.state, nextBuildCost(p, vil));
+      const spare = vil.state.resources.gold - chestReserveGold(p.def, vil.state, nextBuildCost(p, vil), ranksOn ? p.ranks.goldNeed(vil.id, vil.state, ownedOf(vil)) : 0);
       if (spare <= 0) continue;
       p.chest += spare;
       vil.state = { ...vil.state, resources: { ...vil.state.resources, gold: vil.state.resources.gold - spare } };
@@ -960,7 +980,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     let best: Pick | undefined;
     let bestScore = 0;
     const consider = (travel: number, arrivalState: VillageState, make: Pick): void => {
-      const pre = resolveBattle({ attackerUnits: send, defender: arrivalState, seed: hashSeed(p.seed, 999, p.raidSeq) });
+      const pre = resolveBattle({ attackerUnits: send, defender: arrivalState, seed: hashSeed(p.seed, 999, p.raidSeq), ...battleRanks(vil.state.ranks, arrivalState.ranks) });
       if (!(pre.attackPower > pre.defensePower * 1.25)) return; // a thin win loses most of the army
       let lossVal = 0;
       for (const u of UNIT_IDS) lossVal += pre.attackerLosses[u] * value(UNITS[u].cost);
@@ -1068,7 +1088,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
         if (totalUnits(army) < 1) continue;
         const travel = src === cold ? 0 : travelTimeMs(src.pos, cold.pos, army, s);
         if (t + travel >= due) continue;
-        const pre = resolveBattle({ attackerUnits: army, defender, seed: hashSeed(p.seed, 888, t), noLoot: true });
+        const pre = resolveBattle({ attackerUnits: army, defender, seed: hashSeed(p.seed, 888, t), noLoot: true, ...battleRanks(src.state.ranks, (world.get(claim.origin) as Vil).state.ranks) });
         if (!(pre.attackPower > pre.defensePower * 1.1)) continue;
         if (!best || travel < best.travel) best = { src, army, travel };
       }
@@ -1107,6 +1127,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
           tryChieftain(p, vil, t);
           tryBuild(p, vil, t);
           tryResearch(p, vil, t);
+          tryRanks(p, vil, t);
           tryTrain(p, vil, t);
           tryRaid(p, vil, t);
           tryFeast(p, vil, t);
@@ -1126,6 +1147,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
           points: settled.reduce((a, st) => a + villagePoints(st), 0),
           gold: settled.reduce((a, st) => a + st.resources.gold, 0),
           chest: p.chest,
+          ranks: p.ranks.bought.length,
         });
       }
       nextDay++;
@@ -1143,6 +1165,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     stats: p.stats,
     goldPaid: Math.floor(p.goldPaid),
     wait: p.wait.wait,
+    ranksByEntry: p.ranks.byEntry(),
   }));
   return { options: opt, players: results, conquests, errors };
 }
@@ -1152,7 +1175,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
 const SNAPSHOT_DAYS = [7, 14, 21, 30];
 
 function rowAt(p: PlayerResult, day: number): DayRowC {
-  return p.rows[Math.min(day, p.rows.length) - 1] ?? { villages: 1, points: 0, gold: 0, chest: 0 };
+  return p.rows[Math.min(day, p.rows.length) - 1] ?? { villages: 1, points: 0, gold: 0, chest: 0, ranks: 0 };
 }
 
 /** Biggest vs second biggest by total points (and by villages) at `day`. */
@@ -1214,6 +1237,16 @@ function summarySection(reps: ConquestReport[]): string[] {
     ];
     out.push(`| ${cells.join(' | ')} |`);
   }
+  if (reps[0]?.options.ranks !== false) {
+    const rd = [30, 90].filter((d) => d <= days);
+    out.push('', `| style | ${rd.map((d) => `ranks per player by day ${d}`).join(' | ')} | ranks by track (all seeds, whole run) |`, `|---|${rd.map(() => '---').join('|')}|---|`);
+    for (const st of STYLES) {
+      const ps = reps.flatMap((r) => r.players.filter((p) => p.style === st));
+      const by: Record<string, number> = {};
+      for (const p of ps) for (const [k, n] of Object.entries(p.ranksByEntry)) by[k] = (by[k] ?? 0) + n;
+      out.push(`| ${st} | ${rd.map((d) => mean(ps.map((p) => rowAt(p, d).ranks)).toFixed(1)).join(' | ')} | ${formatByEntry(by)} |`);
+    }
+  }
   out.push('', '| seed | takes | restarts | raids on players | biggest points / second | ratio |', '|---|---|---|---|---|---|');
   let takes = 0;
   let restarts = 0;
@@ -1251,6 +1284,7 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
   ];
   const goldLevers = describeChiefGold(o);
   if (goldLevers) levers.push(goldLevers);
+  levers.push(o.ranks === false ? 'Drillyard ranks OFF' : 'Drillyard ranks on (ranks.ts policy)');
   out.push(`# Conquest simulation: ${o.players} players, ${days} days, speed 1, seed ${o.seed}`, '', `Rules in force: ${levers.join('; ')}.`, '');
   const shown = SNAPSHOT_DAYS.filter((d) => d <= days);
   if (!shown.includes(days)) shown.push(days);
@@ -1353,6 +1387,7 @@ export function main(): void {
   set('chiefPoints', '--chief-points');
   set('lockHours', '--lock-hours');
   Object.assign(opt, parseChiefGoldArgs(args));
+  if (args.includes('--no-ranks')) opt.ranks = false;
   const seeds = get('--seeds') ?? 1;
   const first = runConquest(opt);
   const extra: Array<{ seed: number; rep: ConquestReport }> = [];

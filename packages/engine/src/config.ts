@@ -2,7 +2,7 @@
 // Change numbers here (not in logic files) when tuning the game.
 
 import type { FirstStepId } from './api.ts';
-import type { BuildingDef, BuildingId, DominationSettings, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
+import type { BuildingDef, BuildingId, DominationSettings, RankTrack, ResourceId, Resources, Terrain, TribeAction, TribeRole, UnitDef, UnitId, WorldSettings } from './types.ts';
 
 const res = (wood: number, food: number, iron: number, gold = 0): Resources => ({ wood, food, iron, gold });
 
@@ -647,17 +647,49 @@ export const DEFENDER_RENOWN_DAILY_CAP = 36;
 
 // ---- Drillyard: research and ranks (docs/GAME_DESIGN.md sections 4 and 15) -----------------------------
 
-/** Training Points a village gets per Drillyard level. */
-export const DRILLYARD_POINTS_PER_LEVEL = 3;
+/**
+ * Training Points (docs/GAME_DESIGN.md 15, docs/proposals/drillyard-ranks.md). A village's pool =
+ * DRILLYARD_POINTS_PER_LEVEL x Drillyard level + DRILLYARD_POINTS_PER_HALL_LEVEL x (Town Hall level above DRILLYARD_HALL_FROM).
+ * The three numbers and RANK_POINTS below are the whole "option switch" of the proposal:
+ *   option 1 (built): 5 per level, 0 per Hall level, every rank 2 points.   option 2: 6 per level, ranks 1,2,3,4,5 points.
+ *   option 3: 3 per level, 1 per Hall level above 10, every rank 2 points.
+ */
+export const DRILLYARD_POINTS_PER_LEVEL = 5;
+export const DRILLYARD_POINTS_PER_HALL_LEVEL = 0;
+export const DRILLYARD_HALL_FROM = 10;
 /** Highest rank per track. */
 export const RANK_MAX = 5;
+/** Training Points that buying rank r (index r - 1) of one track costs. */
+export const RANK_POINTS: readonly number[] = [2, 2, 2, 2, 2];
 /** Might: +attack, Bulwark: +both defences, per rank (max RANK_MAX * 5% = +25%). */
 export const RANK_BONUS = 0.05;
-/** Units that can be ranked (the Chieftain has no attack and the siege units are tools: ranks would do nothing, 2026-11-18). */
-export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
 /** Keen (pathfinder only): +scout strength per rank. */
 export const KEEN_BONUS = 0.1;
-/** Resources paid for buying rank r (index r - 1) of one track. Points cost r. */
+/**
+ * Breach (siege units only): +siege power per rank of the Log Ram (Wall) and the Firecart (buildings); max RANK_MAX * 2% = +10%.
+ * Capped by the siege invariant (BALANCE 19): the Wall must never be a bargain to knock down (rebuild cost < 2 x the attacker's capital at EVERY
+ * Wall level, Breach 5 included). With SIEGE_POINTS_PER_LEVEL 7 that is 0.02 (1.96 at Wall 22); 0.04 needs SIEGE_POINTS_PER_LEVEL 8 (1.91).
+ */
+export const BREACH_BONUS = 0.02;
+/**
+ * Which tracks each unit can be ranked in: only tracks that change a fight (2026-11-18): Pikeman, Shieldbearer and Hearthwarden are
+ * defenders (their attack is token), Raider and Elk Rider attack (their defence is token), the Ember Guard does both, the Pathfinder
+ * scouts, the siege units breach. The Chieftain has no track. A unit missing here cannot be ranked.
+ */
+export const RANK_TRACKS_OF: Partial<Record<UnitId, readonly RankTrack[]>> = {
+  pikeman: ['bulwark'],
+  guard: ['bulwark'],
+  hearthwarden: ['bulwark'],
+  raider: ['might'],
+  outrider: ['might'],
+  knight: ['might', 'bulwark'],
+  pathfinder: ['keen'],
+  logram: ['breach'],
+  firecart: ['breach'],
+};
+/** Units that can be ranked, in the order of the page. */
+export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'hearthwarden', 'raider', 'outrider', 'knight', 'pathfinder', 'logram', 'firecart'];
+/** Resources paid for buying rank r (index r - 1) of one track. */
 export const RANK_COST: readonly Resources[] = [
   res(60, 40, 60),
   res(120, 80, 120),

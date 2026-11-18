@@ -41,7 +41,8 @@ import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import '../../components/war-chest.css';
-import { DrillyardPanel, rankCardUnits } from './Drillyard.tsx';
+import { DrillyardPanel } from './Drillyard.tsx';
+import { rankCardUnits, rankRows } from './drillyardLogic.ts';
 import { takeResearchFocus } from './drillFocus.ts';
 import { setResearchFocus } from './drillFocus.ts';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
@@ -646,13 +647,13 @@ function PanelBox({ title, children, fit = false, aside }: { title: string; chil
   );
 }
 
-/** More rank cards than fit two rows beside the research column: one wide panel with a Ranks / Research switch (so 7 cards still fit 1440x900 without scrolling). */
-const SIDE_BY_SIDE_RANK_CARDS = 6;
+/** More rank rows (one per unit and track) than fit two columns of three beside the research column: one wide panel with a Ranks / Research switch (so all 9 rankable units, 10 rows, still fit 1440x900 without scrolling). */
+const SIDE_BY_SIDE_RANK_ROWS = 6;
 
 function DrillyardFrame() {
   const { live } = useGame();
   const [tab, setTab] = useState<'ranks' | 'research'>(() => (takeResearchFocus() ? 'research' : 'ranks'));
-  if (rankCardUnits(live).length <= SIDE_BY_SIDE_RANK_CARDS) {
+  if (rankRows(rankCardUnits(live)).length <= SIDE_BY_SIDE_RANK_ROWS) {
     return (
       <>
         <PanelBox title="Training Points and ranks" fit>

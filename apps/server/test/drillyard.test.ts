@@ -6,7 +6,7 @@ import { rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { UNITS, pointsSpent, pointsTotal, type Resources } from '@clanfire/engine';
+import { DRILLYARD_POINTS_PER_LEVEL, RANK_POINTS, UNITS, pointsSpent, pointsTotal, rankPointsUpTo, type Resources } from '@clanfire/engine';
 import { buildApp } from '../src/app.ts';
 import { Client, Clock, TEST_WORLD, TEST_WORLD_CONFIG, errorOf, ok, register } from './helpers.ts';
 import { village, world, type App, type P } from './warfare-helpers.ts';
@@ -62,44 +62,59 @@ test('research input and rules: unknown/free units, level gate, money, no client
 
 test('ranks: points per Drillyard level, researched only, track rules, respec returns points', async () => {
   const { app, alice } = await world();
-  const id = setup(app, alice, 1); // 3 points
-  errorOf(await post(alice, id, 'rank', { unit: 'guard', track: 'might' }), 409, 'requirements_not_met'); // not researched
+  const id = setup(app, alice, 1);
+  const pool = pointsTotal(app.ctx.store.getVillage(id)!.state);
+  assert.equal(pool, DRILLYARD_POINTS_PER_LEVEL, 'one Drillyard level gives its points (and no Hall bonus at Hall 5)');
+  errorOf(await post(alice, id, 'rank', { unit: 'guard', track: 'bulwark' }), 409, 'requirements_not_met'); // not researched
   errorOf(await post(alice, id, 'rank', { unit: 'pikeman', track: 'keen' }), 400, 'invalid_input');
+  errorOf(await post(alice, id, 'rank', { unit: 'pikeman', track: 'might' }), 400, 'invalid_input'); // a defender has no Might
+  errorOf(await post(alice, id, 'rank', { unit: 'guard', track: 'might' }), 400, 'invalid_input');
+  errorOf(await post(alice, id, 'rank', { unit: 'raider', track: 'bulwark' }), 400, 'invalid_input'); // an attacker has no Bulwark
   errorOf(await post(alice, id, 'rank', { unit: 'pathfinder', track: 'might' }), 400, 'invalid_input');
   errorOf(await post(alice, id, 'rank', { unit: 'pikeman', track: 'speed' }), 400, 'invalid_input');
 
-  const r1 = await post(alice, id, 'rank', { unit: 'pikeman', track: 'might' }); // 1 point
-  ok(r1, 200);
-  assert.equal(r1.json<{ state: { ranks: { pikeman: { might: number } } } }>().state.ranks.pikeman.might, 1);
-  ok(await post(alice, id, 'rank', { unit: 'pikeman', track: 'might' }), 200); // 2 points, total 3
-  errorOf(await post(alice, id, 'rank', { unit: 'pikeman', track: 'bulwark' }), 409, 'requirements_not_met'); // no points left
+  // Buy Pikeman Bulwark ranks until the next one no longer fits the pool.
+  let spent = 0;
+  let bought = 0;
+  while (spent + RANK_POINTS[bought]! <= pool) {
+    const r = await post(alice, id, 'rank', { unit: 'pikeman', track: 'bulwark' });
+    ok(r, 200);
+    spent += RANK_POINTS[bought]!;
+    bought++;
+    assert.equal(r.json<{ state: { ranks: { pikeman: { bulwark: number } } } }>().state.ranks.pikeman.bulwark, bought);
+  }
+  assert.ok(bought >= 1);
+  assert.equal(pointsSpent(app.ctx.store.getVillage(id)!.state), spent);
+  assert.ok(pool - spent < RANK_POINTS[0]!, 'not even a first rank of another track fits now');
+  errorOf(await post(alice, id, 'rank', { unit: 'raider', track: 'might' }), 409, 'requirements_not_met'); // no points left
 
   const gold = (await village(alice)).state.resources.gold;
-  const back = await post(alice, id, 'respec', { unit: 'pikeman', track: 'might' });
+  const back = await post(alice, id, 'respec', { unit: 'pikeman', track: 'bulwark' });
   ok(back, 200);
-  const st = back.json<{ state: { ranks: { pikeman: { might: number } }; resources: Resources } }>().state;
-  assert.equal(st.ranks.pikeman.might, 0);
+  const st = back.json<{ state: { ranks: { pikeman: { bulwark: number } }; resources: Resources } }>().state;
+  assert.equal(st.ranks.pikeman.bulwark, 0);
   assert.ok(Math.abs(st.resources.gold - gold) < 1);
-  errorOf(await post(alice, id, 'respec', { unit: 'pikeman', track: 'might' }), 400, 'invalid_input'); // nothing left to reset
-  ok(await post(alice, id, 'rank', { unit: 'pikeman', track: 'bulwark' }), 200);
+  assert.equal(pointsSpent(app.ctx.store.getVillage(id)!.state), 0, 'every point came back');
+  errorOf(await post(alice, id, 'respec', { unit: 'pikeman', track: 'bulwark' }), 400, 'invalid_input'); // nothing left to reset
+  ok(await post(alice, id, 'rank', { unit: 'raider', track: 'might' }), 200);
 });
 
 test('authorization: another player cannot research, buy or reset in my village; guests are refused', async () => {
   const { app, alice, bob } = await world();
   const id = setup(app, alice, 3);
-  ok(await post(alice, id, 'rank', { unit: 'pikeman', track: 'might' }), 200);
+  ok(await post(alice, id, 'rank', { unit: 'pikeman', track: 'bulwark' }), 200);
   for (const [path, body] of [
     ['research', { unit: 'guard' }],
-    ['rank', { unit: 'pikeman', track: 'bulwark' }],
-    ['respec', { unit: 'pikeman', track: 'might' }],
+    ['rank', { unit: 'raider', track: 'might' }],
+    ['respec', { unit: 'pikeman', track: 'bulwark' }],
   ] as const) {
     errorOf(await post(bob, id, path, body), 403, 'forbidden'); // same answer as build/train (uniform-errors item is open in the roadmap)
     errorOf(await post(bob, 999_999, path, body), 404, 'not_found');
     errorOf(await post(bob, 'abc', path, body), 400, 'invalid_input');
   }
   const mine = (await village(alice)).state;
-  assert.equal(mine.ranks?.pikeman?.bulwark ?? 0, 0);
-  assert.equal(mine.ranks?.pikeman?.might, 1);
+  assert.equal(mine.ranks?.raider?.might ?? 0, 0);
+  assert.equal(mine.ranks?.pikeman?.bulwark, 1);
   assert.equal(mine.researchQueue, undefined);
 });
 
@@ -158,15 +173,15 @@ test('cancel-research: bad or out-of-range index, other players and guests are r
   assert.equal((await village(alice)).state.researchQueue?.length, 1);
 });
 
-test('ranks: Chieftain and Firecart cannot be ranked', async () => {
+test('ranks: the Chieftain cannot be ranked, the Firecart only in Breach', async () => {
   const { app, alice } = await world();
   const id = setup(app, alice, 10);
   const v = app.ctx.store.getVillage(id)!;
   v.state.researched = [...(v.state.researched ?? []), 'chieftain', 'firecart'];
   app.ctx.store.saveVillage(id, v.state, v.points);
-  for (const unit of ['chieftain', 'firecart']) {
-    for (const track of ['might', 'bulwark']) errorOf(await post(alice, id, 'rank', { unit, track }), 400, 'invalid_input');
-  }
+  for (const track of ['might', 'bulwark', 'keen', 'breach']) errorOf(await post(alice, id, 'rank', { unit: 'chieftain', track }), 400, 'invalid_input');
+  for (const track of ['might', 'bulwark', 'keen']) errorOf(await post(alice, id, 'rank', { unit: 'firecart', track }), 400, 'invalid_input');
+  ok(await post(alice, id, 'rank', { unit: 'firecart', track: 'breach' }), 200);
 });
 
 test('migration v26: removes Chieftain/Firecart ranks everywhere, frees the points, twice changes nothing', async () => {
@@ -180,7 +195,7 @@ test('migration v26: removes Chieftain/Firecart ranks everywhere, frees the poin
     const vid = app.ctx.store.abandonedVillageIds()[0]!; // any village row works for the state check
     const mine = app.ctx.store.getVillage(vid)!;
     mine.state.buildings.drillyard = 10;
-    mine.state.ranks = { pikeman: { might: 2, bulwark: 0, keen: 0 }, chieftain: { might: 3, bulwark: 0, keen: 0 }, firecart: { might: 0, bulwark: 2, keen: 0 } };
+    mine.state.ranks = { pikeman: { might: 0, bulwark: 2, keen: 0 }, chieftain: { might: 3, bulwark: 0, keen: 0 }, firecart: { might: 0, bulwark: 2, keen: 0 } };
     app.ctx.store.saveVillage(vid, mine.state, mine.points);
     await app.close();
 
@@ -191,8 +206,8 @@ test('migration v26: removes Chieftain/Firecart ranks everywhere, frees the poin
 
     app = await open();
     const st = app.ctx.store.getVillage(vid)!.state;
-    assert.deepEqual(st.ranks, { pikeman: { might: 2, bulwark: 0, keen: 0 } });
-    assert.equal(pointsTotal(st) - pointsSpent(st), 27, 'the 3 + 3 points of the removed ranks are free again');
+    assert.deepEqual(st.ranks, { pikeman: { might: 0, bulwark: 2, keen: 0, breach: 0 } }); // a loaded village always has all four tracks
+    assert.equal(pointsSpent(st), rankPointsUpTo(2), 'the points of the removed Chieftain and Firecart ranks are free again');
     const snap = JSON.stringify(app.ctx.store.db.prepare('SELECT id, state_json FROM villages ORDER BY id').all());
     await app.close();
     app = await open();

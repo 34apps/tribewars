@@ -22,6 +22,8 @@ import {
   MAX_TRAIN_QUEUE,
   NPC_PRODUCTION_FACTOR,
   POP_PER_UNIT,
+  RANK_MAX,
+  RANK_TRACKS_OF,
   RESOURCE_IDS,
   SCOUT_DEFENSE_FACTOR,
   SIEGE_BASE_POINTS,
@@ -32,11 +34,14 @@ import {
   SCOUT_UNIT,
   UNITS,
   UNIT_IDS,
+  breachMultiplier,
   buildingCost,
+  bulwarkMultiplier,
   createNpcVillage,
   createPlayerVillage,
   emptyUnits,
   flatTravelTimeMs,
+  mightMultiplier,
   popCapForLevel,
   populationUsage,
   productionFromLevels,
@@ -51,7 +56,7 @@ import {
   trainTimeMs,
   vaultProtection,
 } from '../../packages/engine/src/index.ts';
-import type { BattleResult, BuildingId, ResourceId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
+import type { BattleResult, BuildingId, ResourceId, Resources, UnitId, Units, VillageRanks, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 
 const S: WorldSettings = DEFAULT_WORLD; // world speed 1
 const HOUR_MS = 3_600_000;
@@ -157,6 +162,32 @@ function roster(): string {
         const max = BUILDINGS[b].maxLevel;
         const l10 = Math.min(10, max);
         return [UNITS[u].name, BUILDINGS[b].name, max, fmt(trainSec(u, 1), 0), `${fmt(trainSec(u, l10), 0)}${l10 < 10 ? ` (L${l10})` : ''}`, fmt(trainSec(u, max), 0), fmt(86400 / trainSec(u, 1), 0), fmt(86400 / trainSec(u, max), 0), fmt((86400 / trainSec(u, max)) * unitValue(u), 0)];
+      }),
+    ),
+  );
+  // 1e: this file deliberately plays WITHOUT ranks everywhere else; here the units that can be ranked show the top of each of their tracks.
+  const maxRanks: VillageRanks = {};
+  for (const u of UNIT_IDS) {
+    const tracks = RANK_TRACKS_OF[u];
+    if (tracks) maxRanks[u] = { might: tracks.includes('might') ? RANK_MAX : 0, bulwark: tracks.includes('bulwark') ? RANK_MAX : 0, keen: tracks.includes('keen') ? RANK_MAX : 0, breach: tracks.includes('breach') ? RANK_MAX : 0 };
+  }
+  const ranked = UNIT_IDS.filter((u) => RANK_TRACKS_OF[u] && !(RANK_TRACKS_OF[u] as readonly string[]).every((t) => t === 'keen'));
+  out.push('', `### 1e. With ranks (every other table in this file has NO ranks): the unit with every track at rank ${RANK_MAX}`);
+  out.push(
+    'Might = attack, Bulwark = both defences, Breach = siege power (engine mightMultiplier / bulwarkMultiplier / breachMultiplier). A unit shows only the tracks it has (RANK_TRACKS_OF); "x" is the multiplier at the top rank. The Pathfinder\'s Keen (scouting) and the Chieftain are not in this table.',
+    '',
+  );
+  out.push(
+    table(
+      ['unit', 'tracks', 'atk/pop', 'atk/pop ranked', 'x', 'defFoot/pop', 'defFoot/pop ranked', 'x', 'siege power/pop', 'siege power/pop ranked', 'x'],
+      ranked.map((u) => {
+        const d = UNITS[u];
+        const pop = POP_PER_UNIT[u];
+        const might = mightMultiplier(maxRanks, u);
+        const bulwark = bulwarkMultiplier(maxRanks, u);
+        const breach = breachMultiplier(maxRanks, u);
+        const siegePower = d.siege?.power ?? 0;
+        return [d.name, (RANK_TRACKS_OF[u] as readonly string[]).join(' + '), fmt(d.attack / pop), fmt((d.attack * might) / pop), fmt(might, 2), fmt(d.defenseInfantry / pop), fmt((d.defenseInfantry * bulwark) / pop), fmt(bulwark, 2), siegePower > 0 ? fmt(siegePower / pop) : '-', siegePower > 0 ? fmt((siegePower * breach) / pop) : '-', siegePower > 0 ? fmt(breach, 2) : '-'];
       }),
     ),
   );
