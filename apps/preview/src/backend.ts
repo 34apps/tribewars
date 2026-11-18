@@ -30,6 +30,7 @@ import { reportRoutes } from '../../server/src/routes/reports.ts';
 import { tribeRoutes } from '../../server/src/routes/tribes.ts';
 import { ReportService } from '../../server/src/report-service.ts';
 import { StaffService } from '../../server/src/staff-service.ts';
+import { MultiService } from '../../server/src/multi-service.ts';
 import { Store } from '../../server/src/store.ts';
 import { SupportService } from '../../server/src/support-service.ts';
 import { TribeService } from '../../server/src/tribe-service.ts';
@@ -156,6 +157,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     forum,
     support,
     staff: new StaffService(store, support),
+    multi: new MultiService(store),
     msgReports: new ReportService(store, forum),
   };
 

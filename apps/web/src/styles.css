@@ -3569,6 +3569,51 @@ a.btn {
   overflow-wrap: anywhere;
 }
 
+/* Shared connections (staff): one card per group, two columns on wide screens */
+.multi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.multi-page {
+  display: grid;
+  gap: 12px;
+}
+
+.multi-head,
+.multi-flags,
+.multi-member-line,
+.multi-ban {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.multi-risk {
+  margin: 8px 0;
+  font-weight: 600;
+}
+
+.multi-members {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.multi-ban {
+  margin-top: 6px;
+}
+
+.multi-ban .input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
 .check-row {
   display: flex;
   align-items: center;

@@ -6,6 +6,7 @@ import type { ForumService } from './forum-service.ts';
 import type { GameService } from './game.ts';
 import type { LiveHub } from './live.ts';
 import type { MailService } from './mail-service.ts';
+import type { MultiService } from './multi-service.ts';
 import type { RaidListService } from './raid-list-service.ts';
 import type { ReportService } from './report-service.ts';
 import type { StaffService } from './staff-service.ts';
@@ -23,6 +24,8 @@ export interface AppContext {
   forum: ForumService;
   support: SupportService;
   staff: StaffService;
+  /** Shared connections / multi-account tooling for staff (multi-service.ts). */
+  multi: MultiService;
   msgReports: ReportService;
   /** Raid lists, a paid extra (raid-list-service.ts). */
   raidLists: RaidListService;
@@ -65,5 +68,7 @@ declare module 'fastify' {
     nowMs: number;
     /** Set by the auth hook on routes that need a signed-in player. */
     player: PlayerRow | null;
+    /** Hashes of the device ids this request carried (device.ts); empty when none. */
+    deviceHashes: string[];
   }
 }

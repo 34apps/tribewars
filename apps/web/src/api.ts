@@ -1,5 +1,7 @@
 // Typed fetch wrapper for the Clanfire HTTP API (contract: packages/engine/src/api.ts).
 
+import { DEVICE_HEADER, deviceId } from './device.ts';
+
 import type {
   ApiError,
   ApplyRequest,
@@ -100,6 +102,8 @@ import type {
   MessageReportReceipt,
   MessageReportStatus,
   MuteRequest,
+  MultiGroupsResponse,
+  MultiReviewRequest,
   ResolveReportRequest,
   StaffPlayerDetailDto,
   StaffPlayerListResponse,
@@ -214,7 +218,12 @@ async function send<T>(method: Method, url: string, body?: unknown): Promise<T> 
       method,
       credentials: 'same-origin',
       cache: method === 'GET' ? 'no-store' : 'default',
-      headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        // The lobby never gets the device id; only the world's own API (multi-account tooling for staff).
+        ...(url.startsWith(`${lobbyApiBase}/`) ? {} : { [DEVICE_HEADER]: deviceId() }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -476,6 +485,8 @@ export const api = {
   staffBan: (id: number, body: BanRequest) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/ban`, body),
   staffUnban: (id: number) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/unban`, {}),
   staffWarn: (id: number, body: WarnRequest) => request<StaffPlayerDetailDto>('POST', `/api/staff/players/${id}/warn`, body),
+  staffMulti: (all = false) => request<MultiGroupsResponse>('GET', `/api/staff/multi${all ? '?all=1' : ''}`),
+  staffMultiReview: (key: string) => request<MultiGroupsResponse>('POST', '/api/staff/multi/review', { key } satisfies MultiReviewRequest),
   staffAudit: (f: { player?: number; before?: number }) => {
     const q = new URLSearchParams();
     if (f.player !== undefined) q.set('player', String(f.player));

@@ -31,9 +31,10 @@ import type {
 import { api, errorMessage } from '../api.ts';
 import { formatAgo } from '../format.ts';
 import { useGame } from '../game.ts';
+import { MultiGroups } from './staff/MultiGroups.tsx';
 import { CATEGORY_LABEL, PRIORITY_LABEL, REPORT_CATEGORY_LABEL, STATUS_LABEL, TicketThread } from '../components/supportBits.tsx';
 
-type Section = 'tickets' | 'reports' | 'players' | 'audit';
+type Section = 'tickets' | 'reports' | 'players' | 'multi' | 'audit';
 
 const REPORT_STATUS_LABEL: Record<MessageReportStatus, string> = { open: 'Open', actioned: 'Action taken', dismissed: 'Dismissed' };
 
@@ -913,6 +914,7 @@ export default function StaffView() {
     { id: 'tickets', label: 'Tickets', minRank: 1 },
     { id: 'reports', label: 'Reports', minRank: 2 },
     { id: 'players', label: 'Players', minRank: 1 },
+    { id: 'multi', label: 'Shared connections', minRank: 2 },
     { id: 'audit', label: 'Audit', minRank: 2 },
   ];
   const visible = sections.filter((s) => rank >= s.minRank);
@@ -943,6 +945,15 @@ export default function StaffView() {
         />
       )}
       {section === 'players' && <PlayerLookup initialId={lookupId} />}
+      {section === 'multi' && rank >= 2 && (
+        <MultiGroups
+          canBan={rank >= 2}
+          onProfile={(id) => {
+            setLookupId(id);
+            setSection('players');
+          }}
+        />
+      )}
       {section === 'audit' && rank >= 2 && <AuditView />}
     </div>
   );

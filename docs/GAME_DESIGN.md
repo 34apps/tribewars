@@ -2347,3 +2347,20 @@ A player can attach a short private note and tags to any village or any player (
 - **A village note stays with the village** when the village changes owner (it is about the place, and the note is still the author's own). A player note follows the player.
 - **Where notes show:** on the map tile panel (village note, and the owner's player note); on player profiles; next to the village names in report titles (matched by the coordinates in the title, until report summaries carry a village id); in the Realm page's own-village column; and on a Notes page that lists all of the player's notes with a filter by tag.
 - **API:** `GET /api/notes`, `POST /api/notes` (create or replace), `POST /api/notes/:id/delete`; writes are rate limited. Storage: table `notes` (schema v24), deleted together with the player. Not built: tribe-shared notes, notes on the incoming-attack page and the send form (those pages live on other branches), including notes in a data export.
+
+## 22. Multiple accounts (owner, 2026-11-18; staff tooling built 2026-11-18)
+
+- **The rule:** two accounts of one person in the same world are banned. People who really share a connection (family, flat) declare it
+  ("same household", account menu); accounts that shared an IP cannot attack, scout, support or ship to each other (section 12, 13). Nothing bans
+  automatically: **staff see and judge**.
+- **Shared connections page** (staff area, moderator and admin; `GET /api/staff/multi`): groups of accounts that shared an IP or a browser device in
+  the last 30 days (an IP or device used by more than `MULTI_LINK_MAX_ACCOUNTS` accounts links nobody). Per group: members (household declared
+  yes/no, villages, points, tribe), the links with first and last seen, what happened between the members, and a risk line in plain words. Buttons:
+  Ban (reason, the existing ban service and audit log), Mark reviewed (hidden until a newer event involves the members), open the staff profile.
+- **Device id:** the web client makes one random id per browser (localStorage), sends it to its world, the server keeps it in a first-party cookie
+  too and stores only a SHA-256 hash. Accounts on one device show in the same group even with different IPs (a VPN). No other fingerprinting.
+- **Rules** (numbers in `config.ts`, `MULTI_*`; full list in `docs/SECURITY_ROADMAP.md` "Multi-account tooling"): feeding (attacks that meet no defence,
+  loot one way), one-way flow (shipments with nothing back), relay (A to a third account to B within 48 h), alternating play (never on together,
+  always within minutes), device on different connections, refused attempts, a village taken or a hearth put out between the members.
+  Each finding adds to a risk score: low (declared and quiet), "worth a look", high.
+- **Privacy:** IPs, device hashes, activity slots and the pair log are personal data: staff-only, never shown to players, deleted after 30 days.
