@@ -29,3 +29,4 @@ Source proposals: `economy-vs-genre.md` (merged), `troops-vs-genre.md` (branch `
 Own design (never Tribal Wars/Travian names, text or layouts); keep mechanics simple; each feature its own page that fits
 1440x900 without scrolling, phone 360 px; Parchment look; server tests for every new endpoint; security gate
 (`docs/SECURITY_ROADMAP.md` §4). Questions for the owner go through the main session as choice questions, never asked in a side session.
+- 2026-11-18: owner kept NO limit on resources received from other players (unlimited Feasts + shipments accepted as a risk; revisit if pushing becomes a problem).
