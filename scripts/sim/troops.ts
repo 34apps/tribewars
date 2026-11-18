@@ -182,6 +182,7 @@ const MIXES: Mix[] = [
   { name: 'Raiders', set: { raider: 1 }, building: 'barracks' },
   { name: 'Defence (Pikeman+Shieldbearer 50/50)', set: { pikeman: 1, guard: 1 }, building: 'barracks' },
   { name: 'Elk Riders', set: { outrider: 1 }, building: 'stables' },
+  { name: 'Log Rams', set: { logram: 1 }, building: 'wrightyard' },
   { name: 'Firecarts', set: { firecart: 1 }, building: 'wrightyard' },
 ];
 
@@ -312,7 +313,7 @@ const ATTACKERS: Attacker[] = [
   // 50/50 by attack points: n Raiders and as many Elk Riders as carry the same attack.
   { name: 'Raiders + Elk Riders', make: (n) => army({ raider: n, outrider: Math.round((n * UNITS.raider.attack) / UNITS.outrider.attack) }) },
   { name: 'Ember Guards', make: (n) => army({ knight: n }) },
-  ...[6, 12, 24].map((c): Attacker => ({ name: `Raiders + ${c} Firecarts`, make: (n) => army({ raider: n, firecart: c }) })),
+  ...[6, 12, 24].map((c): Attacker => ({ name: `Raiders + ${c} Log Rams`, make: (n) => army({ raider: n, logram: c }) })),
 ];
 
 /** Smallest n whose army wins at luck 0 (exponential then binary search; the engine decides). */
@@ -490,16 +491,17 @@ function loot(): string {
 
 /** Smallest Raider count that wins together with `carts` Firecarts (0 when the carts alone win). */
 function minRaidersWith(carts: number, def: VillageState): number {
-  const make = (n: number): Units => army({ raider: n, firecart: carts });
+  const make = (n: number): Units => army({ raider: n, logram: carts }); // the Log Ram is the unit that works in the battle (the Wall)
   if (carts > 0 && fight(make(0), def).attackerWon) return 0;
   return minWin(make, def);
 }
 
-/** Smallest count of surviving Firecarts that lowers `building` (at `level`) by `levels` in the after-battle step. */
+/** Smallest count of surviving siege units (Log Rams for the Wall, Firecarts for everything else) that lowers `building` (at `level`) by `levels` in the after-battle step. */
 function cartsToLower(building: BuildingId, level: number, levels: number): number {
+  const unit = building === 'wall' ? 'logram' : 'firecart';
   const lowered = (c: number): number => {
-    const hits = resolveSiege(army({ firecart: c }), village({ [building]: level }).buildings, building);
-    const h = hits.find((x) => x.building === building && x.unit === 'firecart');
+    const hits = resolveSiege(army({ [unit]: c }), village({ [building]: level }).buildings, building);
+    const h = hits.find((x) => x.building === building && x.unit === unit);
     return h ? h.from - h.to : 0;
   };
   let hi = 1;
@@ -519,10 +521,11 @@ function cartsToLower(building: BuildingId, level: number, levels: number): numb
 function firecartValue(): string {
   const f = UNITS.firecart;
   const cartValue = unitValue('firecart');
+  const ramValue = unitValue('logram');
   const raiderValue = unitValue('raider');
-  const out: string[] = ['## 5. Firecart value', ''];
+  const out: string[] = ['## 5. Siege value (Log Ram in the battle and on the Wall, Firecart on other buildings)', ''];
   out.push(
-    `Siege numbers in use: Firecart power ${f.siege?.power ?? 'none'} point(s) each, max ${f.siege?.maxLevels ?? '-'} level(s) per step, value ${fmt(cartValue, 0)} each (pop ${POP_PER_UNIT.firecart}); ` +
+    `Siege numbers in use: Log Ram power ${UNITS.logram.siege?.power ?? 'none'}, max ${UNITS.logram.siege?.maxLevels ?? '-'} levels per step, value ${fmt(unitValue('logram'), 0)}; Firecart power ${f.siege?.power ?? 'none'} point(s) each, max ${f.siege?.maxLevels ?? '-'} level(s) per step, value ${fmt(cartValue, 0)} each (pop ${POP_PER_UNIT.firecart}); ` +
       `SIEGE_BASE_POINTS ${SIEGE_BASE_POINTS}, SIEGE_POINTS_PER_LEVEL ${SIEGE_POINTS_PER_LEVEL} (lowering level L costs ${SIEGE_BASE_POINTS} + ${SIEGE_POINTS_PER_LEVEL} x L points), ` +
       `SIEGE_DURING_SHARE ${SIEGE_DURING_SHARE} (share of the points that fire at the Wall during the battle), SIEGE_LOST_SHARE ${SIEGE_LOST_SHARE} (share of carts counted after a LOST attack). ` +
       `Raider value ${fmt(raiderValue, 0)}. Luck 0, no morale, noLoot.`,
@@ -535,14 +538,14 @@ function firecartValue(): string {
       const base = minRaidersWith(0, def);
       for (const c of [0, 10, 25, 50, 100, 200]) {
         const need = minRaidersWith(c, def);
-        const r = fight(army({ raider: need, firecart: c }), def);
+        const r = fight(army({ raider: need, logram: c }), def);
         const savedV = (base - need) * raiderValue;
-        const cartsV = c * cartValue;
+        const cartsV = c * ramValue;
         rowsA.push([n, wall, c, fmt(need, 0), fmt(base - need, 0), fmt(savedV, 0), fmt(cartsV, 0), fmt(savedV - cartsV, 0), r.wallDuring, fmt(r.defensePower, 0)]);
       }
     }
   }
-  out.push('### 5a. In the battle: Raiders saved by Firecarts (smallest Raider count that wins, carts sent)');
+  out.push('### 5a. In the battle: Raiders saved by Log Rams (smallest Raider count that wins, rams sent)');
   out.push(table(['N def pop', 'Wall', 'carts', 'min Raiders', 'Raiders saved', 'value saved', 'value of carts', 'net (saved - carts)', 'Wall during battle', 'D'], rowsA));
 
   const rowsB: Array<Array<string | number>> = [];
@@ -552,11 +555,11 @@ function firecartValue(): string {
       const c = cartsToLower(b, level, k);
       let rebuild = 0;
       for (let l = level; l > level - k; l--) rebuild += value(buildingCost(b, l));
-      const cost = c * cartValue;
+      const cost = c * (b === 'wall' ? ramValue : cartValue);
       rowsB.push([`${BUILDINGS[b].name} ${level}`, siegeFloor(b), k, fmt(c, 0), fmt(cost, 0), fmt(rebuild, 0), fmt(rebuild / cost, 2)]);
     }
   }
-  out.push('', '### 5b. After a WON battle: surviving Firecarts needed to lower the picked building (after step only, no during-the-battle Wall step)');
+  out.push('', '### 5b. After a WON battle: surviving siege units needed to lower the building (Wall: Log Rams; others: Firecarts picked; after step only, no during-the-battle Wall step)');
   out.push(table(['building', 'floor', 'levels lowered', 'surviving carts', 'carts value', 'defender rebuild cost (value, money only)', 'defender loss / cart cost'], rowsB));
   out.push('', 'Carts to SEND = surviving carts / (1 - attacker loss share of the battle). Rebuild time is not counted.');
   return out.join('\n');

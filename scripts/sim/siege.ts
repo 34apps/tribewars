@@ -204,11 +204,10 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   }
   lines.push('', 'rebuild / loses above 1 means the defender pays MORE than the attacker lost in the attack; rebuild / capital above 1 means even buying the whole siege army for one attack would be cheaper than the damage (siege is a bargain).', '');
   const wallRows = verdictRows.filter((r) => r.label.startsWith('Wall'));
-  // BALANCE 14 (2026-11-17): Firecart power 1 -> 2 made the top Wall level a fair trade, so the line moved from 1 to 1.5. BALANCE 17 (2026-11-18): the
-  // Log Ram took over the Wall (owner pick: about 3x the power, and cheaper). Siege points grow linearly with the level while a Wall level's price
-  // grows ~1.22x per level, so a very high Wall (15+) is now a bargain for the ram by design: the line is kept for the levels most villages hold (Wall 10 and
-  // below), and the high rows are reported, not checked (docs/BALANCE.md section 17).
-  check('Wall levels up to 10 are not a bargain to knock down with Log Rams (rebuild < 1.5 x attacker capital)', wallRows.filter((r) => /^Wall (5|10)->/.test(r.label)).every((r) => r.ratioCapital < 1.5));
+  // BALANCE 14 (2026-11-17): the Wall line moved from 1 to 1.5 x. BALANCE 18 (2026-11-18): the Log Ram took over the Wall (owner pick: about 3x the power,
+  // cheaper) and SIEGE_POINTS_PER_LEVEL went 2 -> 7 so a high Wall is not a bargain: the line is 2 x for EVERY Wall level (Wall 22 comes out at 1.8 x; 1.5 x would need
+  // 9 points per level, which makes the Firecart useless against ordinary buildings).
+  check('Wall levels are not a bargain to knock down with Log Rams (rebuild < 2 x attacker capital, every Wall level)', wallRows.every((r) => r.ratioCapital < 2));
   check('one Log Ram costs less than one Firecart and does at least 3x its old Wall damage (power 2)', unitValue('logram') < unitValue('firecart') && (ram.siege?.power ?? 0) >= 3 * 2);
 
   // (c) Campaign against a fortified village -----------------------------------------------------------

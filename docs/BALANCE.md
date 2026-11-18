@@ -1036,25 +1036,31 @@ Tool: `npm run sim -- --siege` (section (a), real engine; value = wood + food + 
 power 6, 3 levels per step (about 3x the Firecart's old Wall power per unit, and 43% cheaper: 210 vs 368). Firecart unchanged (power 2, 2 levels, 368), but Wrightyard 4, Drillyard 3.
 Not tuned after the first pass: the numbers above are the brief's starting numbers; no sim target moved.
 
-**Units to knock the Wall down (survivors after a decisive win; "send" = survivors / 0.63, the share of an army that comes back):**
+**Follow-up the same day: `SIEGE_POINTS_PER_LEVEL` 2 -> 7 (cost of one level = 6 + 7 x L points; the brief said "3", the file said 2).** With 2, a Wall-22 level cost the attacker 3,150 against a 16,430 rebuild (5.2x), so high Walls
+were not worth building. Tried 6 (Wall 22: 2.11x, just over the line), 7 (1.82x) and 8 (1.60x); 7 is the smallest under 2x at every Wall level. The Log Ram's power 6 is unchanged. 1.5x would need about 9 per level, and the
+Firecart (which shares the rule) is already near useless on ordinary buildings, so the Wall invariant is set at **2x for every Wall level** (was 1.5x; I could not hold 1.5x at Wall 22 without wrecking the Firecart).
 
-| Wall | levels | Log Rams (survivors / send) | Log Ram army value | Firecarts before (send, same Wall) | Firecart army value | Defender rebuild cost |
+**Units to knock the Wall down (survivors / units sent after a decisive win; 63% of an army comes back; points per level at 10 / 15 / 22 = 76 / 111 / 160):**
+
+| Wall | levels | Log Rams (survivors / send) | Log Ram army value | Firecarts before (send, same Wall, old rule) | Defender rebuild | rebuild / army |
 |---|---|---|---|---|---|---|
-| 10 | 1 | 5 / 8 | 1,680 | 13 / 21 | 7,728 | 1,668 |
-| 10 | 3 | 12 / 20 | 4,200 | n/a (cap 2 per step) | | 4,187 |
-| 15 | 1 | 6 / 10 | 2,100 | 18 / 29 | 10,672 | 4,326 |
-| 15 | 3 | 17 / 27 | 5,670 | n/a | | 10,856 |
-| 22 | 1 | 9 / 15 | 3,150 | 25 / 40 | 14,720 | 16,430 |
-| 22 | 3 | 24 / 39 | 8,190 | n/a | | 41,229 |
+| 10 | 1 | 13 / 21 | 4,410 | 13 / 21 (7,728) | 1,668 | 0.38 |
+| 10 | 3 | 35 / 56 | 11,760 | n/a (cap 2 per step) | 4,187 | 0.36 |
+| 15 | 1 | 19 / 30 | 6,300 | 18 / 29 (10,672) | 4,326 | 0.69 |
+| 15 | 3 | 52 / 83 | 17,430 | n/a | 10,856 | 0.62 |
+| 22 | 1 | 27 / 43 | 9,030 | 25 / 40 (14,720) | 16,430 | 1.82 |
+| 22 | 3 | 77 / 123 | 25,830 | n/a | 41,229 | 1.60 |
 
-The Log Ram needs about 2.7x fewer units and pays about 4.6x less per Wall level than the Firecart did. The Log Ram also fires during the battle, so the defence meets the lowered Wall and the
-real levels dropped in a fight are higher than the table's after-step number (3.1 levels on Wall 10 with 15 sent: during step 1-2 plus after).
+(Section (a) of the sim: Wall 5 0.26, 10 0.38, 15 0.69, 22 1.82.) So the Log Ram is about the same number of units as the old Firecart per Wall level but 43% cheaper each, and it now also fires during the battle.
+Wall levels cost more to break than they did in the first pass of this section (about 2.7x more units at the same level), the Wall is still the cheapest thing to chip per coin of rebuild, but never a bargain beyond 2x.
 
-**Invariants.** Wall rows: rebuild / attacker capital 0.61 (Wall 5), 0.99 (Wall 10), 2.06 (Wall 15), 5.22 (Wall 22). The old line "Wall levels are not a bargain (< 1.5 x)" is kept for Wall 5 and 10
-and **no longer enforced for Wall 15 and above**: siege points grow linearly with the level (6 + 2 x L) while a Wall level's price grows about 1.22x per level, so a very high Wall is cheap to chip
-for any unit with this much power; the owner picked the stronger ram, and the garrison, not the Wall, still sets the army size ((d2): Wall 10 with 400 defenders needs 25x the empty village's army, the
-8 Log Rams are a small block on top). Per-attack damage stays capped (3 levels per step, 6 on the Wall in one won attack). The sim's other checks all hold (10 of 10, `All invariants hold`).
-Firecart rows (other buildings) are still no bargain on Market (0.15 to 0.24 of the army's price) and Drillyard 5 to 9 (0.59 to 0.97); the Banner Hall (gold) is a bargain as before (3.4 to 4.8).
+**Effect on the Firecart (buildings; same rule).** Survivors for one level: Market 5 8 -> 21, Market 10 13 -> 38, Drillyard 9 12 -> 35, Banner Hall 4 7 -> 17 (with 2 -> 7 points per level). Rebuild / army: Market 0.06 to 0.08,
+Drillyard 0.22 to 0.33, Banner Hall (gold) 1.86 to 2.14. So the Firecart is a poor trade on Market, Drillyard and the rest and only pays against gold-heavy buildings (Banner Hall, about 2x): a niche tool for
+the building the owner picks, not a way to wear a village down. The no-bargain line was never enforced on those rows. If the owner wants the Firecart more useful, lower its price or raise its power in `config.ts`
+(a separate call).
+
+**Invariants.** All 10 sim invariants hold with the Wall line at 2x for every Wall level; the per-attack cap (3 levels per step, 6 on the Wall in one won attack) is unchanged. Hard-chipping a Wall 15+ stays
+possible (0.6x to 1.8x of the army's price) but the garrison, not the Wall, still sets the army size ((d2): Wall 10 with 400 defenders needs about 25x the empty village's army).
 
 **Sims (the default sim has no siege units, so these moved only by noise from the extra seed draw, which does not change luck):**
 
@@ -1065,6 +1071,6 @@ Firecart rows (other buildings) are still no bargain on Market (0.15 to 0.24 of 
 | 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526 |
 | conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x |
 | takes 30-50 / restarts <= 26 | 45 / 20 |
-| `--siege` computer players (Log Rams: balanced trains 29, 15 siege raids all won, 21 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 12,906 |
+| `--siege` computer players (Log Rams: balanced trains 29, 14 siege raids all won, 22 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 13,239 |
 
 The sim players use Log Rams only (Wall); the Firecart's tests are the section (a) building rows and the engine tests. Builder 10,633 vs 10,615 in section 17: not isolated (the default sim has no siege).

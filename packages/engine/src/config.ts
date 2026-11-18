@@ -539,7 +539,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
  * other than the Wall if none). On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT * SIEGE_LOST_SHARE) of each kind count as survivors for step 2.
  */
 export const SIEGE_BASE_POINTS = 6;
-export const SIEGE_POINTS_PER_LEVEL = 2;
+export const SIEGE_POINTS_PER_LEVEL = 7;
 export const SIEGE_DURING_SHARE = 0.5;
 export const SIEGE_LOST_SHARE = 0.5;
 
