@@ -15,7 +15,7 @@
 
 import {
   BUILDINGS,
-  FEAST_COST,
+  FEAST_MAX_COUNT,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
@@ -30,7 +30,7 @@ import {
   createPlayerVillage,
   emptyResources,
   emptyUnits,
-  feastAllowance,
+  feastPrice,
   findSpawnLocation,
   mulberry32,
   protectionEndsAt,
@@ -606,13 +606,16 @@ function trainStep(ctx: AppContext, player: PlayerRow, vid: number, def: StyleDe
 function feastStep(ctx: AppContext, player: PlayerRow, vid: number, def: StyleDef, t: number, hold: Resources | null): number {
   const s = settledState(ctx, vid, t);
   if (!s || s.hearth || s.buildings.bannerhall < 1) return 0;
-  const left = feastAllowance(s, t, ctx.settings).left;
-  if (left < 1) return 0;
+  // No daily limit any more (2026-11-18): the price is the brake. Like the sim players, a bot feasts only to empty a storehouse
+  // that is filling up, and never touches what the next building (or a Chieftain he saves for) needs, so it keeps building.
+  const cap = storageCap(s);
+  const price = feastPrice(s.buildings.bannerhall);
+  if (!RESOURCE_IDS.some((id) => price[id] > 0 && s.resources[id] >= cap * 0.5)) return 0;
   const reserve = nextBuildCost(def, s);
   const factor = reserveFactor(def, s);
-  let n = left;
+  let n = FEAST_MAX_COUNT;
   for (const id of RESOURCE_IDS) {
-    if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((s.resources[id] - Math.max(reserve[id] * factor, hold?.[id] ?? 0)) / FEAST_COST[id]));
+    if (price[id] > 0) n = Math.min(n, Math.floor((s.resources[id] - Math.max(reserve[id] * factor, hold?.[id] ?? 0)) / price[id]));
   }
   if (n < 1 || !checkFeast(s, n, t, ctx.settings).ok) return 0;
   try {
@@ -737,7 +740,7 @@ function growBot(ctx: AppContext, bot: Bot, t: number): Milestones & { hall: num
     ...done,
     hall: Math.max(0, ...after.map((s) => s.buildings.hall)),
     villages: villageIds().length,
-    feasted: after.some((s) => s.feast !== undefined && s.feast.count > 0),
+    feasted: done.feasts > 0,
   };
 }
 

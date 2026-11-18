@@ -87,7 +87,7 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
     case 'bannerhall':
       return level === 0
         ? 'The Banner Hall turns surplus resources into Renown at a Feast. Renown is what lets you own more than one village.'
-        : `Hold Feasts here while the stores are full: ${FEAST_RENOWN} Renown each, and Renown is never lost. More levels allow more Feasts a day.`;
+        : `Hold Feasts here while the stores are full: ${FEAST_RENOWN} Renown each, and Renown is never lost. Every level makes a Feast cheaper.`;
     case 'vault':
       return level === 0
         ? 'Raiders take what they find. A Vault keeps some of each resource out of their reach.'

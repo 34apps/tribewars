@@ -215,7 +215,7 @@ export interface VillageState {
    * `normalizeVillage` then fills in each building's start level (everything above it pays once). See renown.ts.
    */
   renownPaid?: BuildingLevels;
-  /** Feast limit window: starts at the first Feast, resets after FEAST_WINDOW_HOURS / speed. See renown.ts. */
+  /** @deprecated Old Feast limit window (removed 2026-11-18, no daily limit). Never written any more; old saves may still carry it and it is ignored. */
   feast?: { windowStart: number; count: number };
   /**
    * Defender Renown (renown.ts `collectDefenderRenown`): time it was last paid up to and the stationed defence at that time.

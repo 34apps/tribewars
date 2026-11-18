@@ -7,6 +7,7 @@
 //   npm run sim -- --out docs/sim/<file>.txt       write the report to a file
 //   npm run sim -- --home -10,-10                  other start tile (terrain on the raid routes)
 //   npm run sim -- --targets 8                     how many of the 8 abandoned villages around the village exist (default: share left by npc.perNewcomer)
+//   npm run sim -- --feast-all                     stress test: computer players Feast with all they have above the next building (default: only to empty a filling store)
 //   npm run sim -- --siege                         siege units (GAME_DESIGN 18.9): focused experiments (scripts/sim/siege.ts) + the
 //                                                  computer players with and without siege. Without --siege nothing about siege runs.
 //
@@ -37,7 +38,7 @@ import {
   applyStrike,
   applyTrain,
   buildingCost,
-  FEAST_COST,
+  FEAST_MAX_COUNT,
   battleRenown,
   canAfford,
   checkBuild,
@@ -59,7 +60,7 @@ import {
   WAR_CHEST_BASE,
   emptyResources,
   emptyUnits,
-  feastAllowance,
+  feastPrice,
   hashSeed,
   holdDueAt,
   isAttackBlocked,
@@ -401,6 +402,9 @@ export const HISTORICAL_CHIEF_GOLD = 150;
 const KNIGHT_MAX_BATCH = 40;
 
 /** g(base, owned, k): sum over i in 0..k-1 of round(base x GROWTH^(owned + i - 1)); same shape as villageRenownPrice. */
+/** `--feast-all`: stress test where the computer players put every spare resource into Feasts (no daily limit since 2026-11-18). */
+const FEAST_ALL = process.argv.includes('--feast-all');
+
 export function chiefGoldSum(base: number, owned: number, k: number): number {
   let sum = 0;
   for (let i = 0; i < k; i++) {
@@ -1126,16 +1130,16 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
    */
   const tryFeast = (vil: Vil, t: number): void => {
     if (vil.state.buildings.bannerhall < 1) return;
-    const left = feastAllowance(vil.state, t, s).left;
-    if (left < 1) return;
+    const price = feastPrice(vil.state.buildings.bannerhall); // no daily limit (2026-11-18): the price is the brake
     const cap = storageCap(vil.state);
-    const nearCap = RESOURCE_IDS.some((id) => FEAST_COST[id] > 0 && vil.state.resources[id] >= cap * 0.5);
-    if (!nearCap && hasAction(vil, t, true)) return;
+    const nearCap = RESOURCE_IDS.some((id) => price[id] > 0 && vil.state.resources[id] >= cap * 0.5);
+    // --feast-all (stress test, 2026-11-18): feast with EVERYTHING above the next building's cost, not only to empty a filling store.
+    if (!FEAST_ALL && !nearCap && hasAction(vil, t, true)) return;
     const reserve = nextBuildCost(vil);
     const chief = (chiefSaving(vil) ? chiefNeed() : emptyResources());
-    let n = left;
+    let n = FEAST_MAX_COUNT;
     for (const id of RESOURCE_IDS) {
-      if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * def.reserve, chief[id])) / FEAST_COST[id]));
+      if (price[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * def.reserve, chief[id])) / price[id]));
     }
     if (n < 1 || !checkFeast(vil.state, n, t, s).ok) return;
     const r = applyFeast(vil.state, n, t, s);

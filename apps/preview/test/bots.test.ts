@@ -83,6 +83,13 @@ test('bots grow alongside a human at speed 1: points, Feast, War Chest, Chieftai
   assert.ok(human);
   const startPoints = new Map(ids.map((id) => [id, pointsOf(ctx, id)]));
 
+  let feastsHeld = 0;
+  const gameFeast = ctx.game.feast.bind(ctx.game);
+  ctx.game.feast = (...a: Parameters<typeof gameFeast>) => {
+    const r = gameFeast(...a);
+    feastsHeld += a[2];
+    return r;
+  };
   const day = { invite: -1, feast: -1, chest: -1, chieftain: -1, found: -1 };
   const CHUNK = 20 * MINUTE; // each bot plays one step per 20 game minutes, so this loses nothing against 10-minute chunks
   const t0 = clock.t;
@@ -95,7 +102,7 @@ test('bots grow alongside a human at speed 1: points, Feast, War Chest, Chieftai
     if (day.invite < 0 && ctx.store.tribes.invitesForPlayer(human.id, clock.t).length > 0) day.invite = d;
     for (const id of ids) {
       const villages = ctx.store.villagesOfPlayer(id);
-      if (day.feast < 0 && villages.some((v) => (v.state.feast?.count ?? 0) > 0)) day.feast = d;
+      if (day.feast < 0 && feastsHeld > 0) day.feast = d;
       if (day.chest < 0 && (ctx.store.getPlayer(id)?.chestGold ?? 0) > 0) day.chest = d;
       if (day.chieftain < 0 && villages.some((v) => v.state.troops.chieftain + v.state.away.chieftain + v.state.trainQueues.bannerhall.length > 0)) day.chieftain = d;
       if (day.found < 0 && villages.length > 1) day.found = d;

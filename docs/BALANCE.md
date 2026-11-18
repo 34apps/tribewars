@@ -991,3 +991,49 @@ because a won raid now earns Renown from loot only, no kills); 0.5 gives 1.82x a
 
 **What would lift the 90-day ratio (not done, owner's word first).** Raiders hit the same 8 targets per player and their production caps the loot while builders compound;
 a higher global factor would break the 30-day target (0.6 gives 2.09x), so the late game needs its own lever: more or richer targets for big raiders.
+
+
+## 17. Feast without a daily limit, cheaper per Banner Hall level (2026-11-18, branch `originality-tiers`)
+
+Owner decision: no daily Feast limit, the price is the brake. Before: 3 Feasts per Banner Hall level per 24 h at 600/1,500/600 for 10 Renown
+(at most 120 Renown a day). Now: any number, `FEAST_COST` 810/2,025/810 (x1.35; wood : food : iron unchanged, food 55.6%), Banner Hall level L pays
+`1 - 0.1 x (L - 1)` of that (100 / 90 / 80 / 70%), one request may hold up to 1,000 Feasts. Village Renown prices, War Chest gold and all other Renown sources are untouched.
+The sim players already Feast with everything they do not need for the next building or a saved Chieftain (to empty a filling store); `--feast-all` (new sim flag) gave
+identical numbers, so the sim styles were already "all in" with the surplus. Raw output: `docs/sim/2026-11-18-feast-nocap-{30d,90d,conquest90-5seeds}.txt`.
+
+**Price search** (30 days single run / 90 days, 5-seed conquest; the conquest numbers are chaotic, a price step moves takes and restarts by a few either way):
+
+| FEAST_COST (level discount) | builder / raider 2nd village (single run) | score raider / builder | conquest takes (30-50) | restarts (<= 26) | worst biggest / second |
+|---|---|---|---|---|---|
+| before: 600/1,500/600, 3 per level per day | 26.5 / 25.8 | 1.82 (19,342 / 10,615) | 48 | 24 | 1.40 |
+| uncapped at 600/1,500/600 | 26.5 / 25.8 | 1.74 | **53** | 23 | 1.60 |
+| 660/1,650/660 (x1.1) | 26.6 / 27.3 | 1.76 | 47 | **27** | 1.81 |
+| 750/1,875/750 (x1.25) | 26.5 / 27.4 | 1.78 | 45 | **27** | 1.15 |
+| 750/1,875/750, discount 5% / 15% | 26.5 / 27.4 | 1.82 / 1.73 | 42 / 40 | 22 / 22 | 1.15 / 1.73 |
+| 900/2,250/900 (x1.5) | 26.6 / **29.2** | 1.87 | **56** | **28** | 1.26 |
+| **810/2,025/810 (x1.35), discount 10% (chosen)** | **26.5 / 27.5** | **1.81** (19,139 / 10,575) | **43** | **22** | **1.74** |
+
+The raider's 2nd village is the limit on the price: above about x1.35 it passes day 28 (x1.5: 29.2). Below about x1.25 uncapped Feasting lets the conquest sim over-take
+(53 player-village takes). 810/2,025/810 passes every target with the 10% discount the owner asked for.
+
+**Day each sim style gets its 2nd / 3rd / 4th village, before -> after.** Single 90-day run (seed 20261104): builder 26.5 / 40.2 / 56.3 -> 26.5 / 40.2 / 56.3;
+raider 25.8 / 46.7 / 68.8 -> 27.5 / 49.9 / not in 90 days; balanced 20.3 / 32.8 / 47.0 -> 20.7 / 35.3 / 50.8. Conquest sim, mean over the 5 seeds (players that got one):
+builder 64.3 / 69.3 / 72.8 -> 62.1 / 64.5 / 76.3; raider 31.8 / 41.3 / 64.3 -> 28.5 / 28.0 / 38.5; balanced 18.1 / 41.4 / 61.0 -> 18.3 / 31.6 / 43.1 (villages at day 90: 3.08 -> 4.88).
+Reading it: the alone-in-the-world runs stay where they were (a Chieftain also needs 2,000+ War Chest gold and 6 h, which Feasts cannot buy). In the crowded conquest runs the
+balanced computer player expands about 10 days earlier from the 3rd village on, because its surplus now turns into Renown without a ceiling; it is not a target but worth watching
+(`FEAST_COST` x1.5 brings it to 4.4 villages but breaks the raider's 2nd village day).
+
+**What a Feast costs in a maxed village** (levels 25 Lumber Camp / Farm / Iron Mine: 21,648 wood, 28,872 food, 21,648 iron a day, 72,168 in all):
+
+| village (Renown price) | Feasts | at Banner Hall 4 (70%): resources, days of all income / by scarcest resource | at level 1 (100%) |
+|---|---|---|---|
+| 2nd (1,300) | 130 | 331,760, 4.6 / 6.4 days | 473,850, 6.6 / 9.1 days |
+| 3rd (2,080) | 208 | 530,816, 7.4 / 10.2 days | 758,160, 10.5 / 14.6 days |
+| 5th (5,325) | 533 | 1,358,940, 18.8 / 26.2 days | 1,940,963, 26.9 / 37.3 days |
+
+Putting a maxed village's whole income (food is the scarcest) into Feasts makes about 143 Renown a day at level 1 and 204 at level 4 (the old limit allowed 120). Real players also need
+to build and train, so the realistic rate is far lower; a bigger realm with several maxed villages multiplies it, as it should. Gold for the Chieftain (War Chest) is a second, separate gate.
+
+**Abuse check (resources pushed in from other accounts).** See `docs/SECURITY_ROADMAP.md` gate note "Feast without a limit": shipments are limited by Market level (300 + 200 x level per shipment), 5 on the road per village,
+30 requests a minute per account, same-connection refusal and the 200-marches cap, but there is NO per-day cap on what an account receives, so a few feeder accounts (different connections) can now turn into Renown
+about as fast as their production allows. Proposed guard, not built: a per-day cap on resources received from other players' villages.

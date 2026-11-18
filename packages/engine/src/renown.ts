@@ -7,9 +7,9 @@ import {
   DEFENDER_RENOWN_DAILY_CAP,
   DEFENDER_RENOWN_PER_DEFENCE,
   FEAST_COST,
-  FEAST_DAILY_PER_LEVEL,
+  FEAST_LEVEL_DISCOUNT,
+  FEAST_MAX_COUNT,
   FEAST_RENOWN,
-  FEAST_WINDOW_HOURS,
   RENOWN_BUILD_EXP,
   RENOWN_BUILD_SCALE,
   RENOWN_MIN_BATTLE_VALUE,
@@ -136,33 +136,18 @@ export function makeRenownInfo(total: number, spent: number, villagesOwned: numb
 
 // ---- Feast ----------------------------------------------------------------------------------------
 
-/** Length of the Feast window in ms (FEAST_WINDOW_HOURS divided by world speed). */
-export function feastWindowMs(s: WorldSettings): number {
-  return (FEAST_WINDOW_HOURS * MS_PER_HOUR) / s.speed;
+/** Price factor of a Feast at a Banner Hall of `level`: 1 at level 1, FEAST_LEVEL_DISCOUNT less per further level (never below 0). */
+export function feastPriceFactor(level: number): number {
+  const l = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
+  return Math.max(0, 1 - FEAST_LEVEL_DISCOUNT * (l - 1));
 }
 
-/** Feasts a village may still hold now. `windowEnd` is when the current window ends (null when no window is open). */
-export interface FeastAllowance {
-  /** Most Feasts per window: FEAST_DAILY_PER_LEVEL * Banner Hall level. */
-  max: number;
-  used: number;
-  /** max - used, never below 0. */
-  left: number;
-  windowEnd: number | null;
-}
-
-/** Feast allowance of a village at `now` (settles first, so a finished Banner Hall level counts). */
-export function feastAllowance(state: VillageState, now: number, s: WorldSettings): FeastAllowance {
-  const v = settleVillage(state, now, s);
-  return allowanceOf(v, now, s);
-}
-
-function allowanceOf(v: VillageState, now: number, s: WorldSettings): FeastAllowance {
-  const max = FEAST_DAILY_PER_LEVEL * Math.max(0, v.buildings.bannerhall);
-  const end = v.feast ? v.feast.windowStart + feastWindowMs(s) : 0;
-  const open = !!v.feast && now < end;
-  const used = open ? (v.feast as { count: number }).count : 0;
-  return { max, used, left: Math.max(0, max - used), windowEnd: open ? end : null };
+/** Price of ONE Feast at Banner Hall `level` (whole numbers, rounded). Level 0 pays the level-1 price (it cannot Feast anyway). */
+export function feastPrice(level: number): Resources {
+  const f = feastPriceFactor(level);
+  const cost = emptyResources();
+  for (const r of RESOURCE_IDS) cost[r] = Math.round(FEAST_COST[r] * f);
+  return cost;
 }
 
 interface FeastPlan {
@@ -171,23 +156,20 @@ interface FeastPlan {
   renown: number;
 }
 
-function planFeast(v: VillageState, count: unknown, now: number, s: WorldSettings): CheckResult<FeastPlan> {
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > 1_000_000) {
-    return fail('invalid_input', 'Count must be a whole number of at least 1.');
+function planFeast(v: VillageState, count: unknown): CheckResult<FeastPlan> {
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > FEAST_MAX_COUNT) {
+    return fail('invalid_input', `Count must be a whole number from 1 to ${FEAST_MAX_COUNT}.`);
   }
   if (v.npc) return fail('invalid_input', 'Abandoned villages cannot hold a Feast.');
   if (v.buildings.bannerhall < 1) return fail('requirements_not_met', 'Requires Banner Hall level 1.');
-  const allowance = allowanceOf(v, now, s);
-  if (count > allowance.left) {
-    return fail('queue_full', allowance.left > 0 ? `Only ${allowance.left} more Feast(s) allowed in this window.` : 'No more Feasts allowed in this window.');
-  }
+  const price = feastPrice(v.buildings.bannerhall);
   const cost = emptyResources();
-  for (const r of RESOURCE_IDS) cost[r] = FEAST_COST[r] * count;
+  for (const r of RESOURCE_IDS) cost[r] = price[r] * count;
   if (!canAfford(v.resources, cost)) return fail('not_enough_resources', 'Not enough resources.');
   return { ok: true, count, cost, renown: FEAST_RENOWN * count };
 }
 
-/** Can `count` Feasts be held at `now`? Never throws. Result carries the total cost and Renown. */
+/** Can `count` Feasts be held at `now`? Never throws. Result carries the total cost and Renown. All or nothing. */
 export function checkFeast(
   state: VillageState,
   count: number,
@@ -195,14 +177,24 @@ export function checkFeast(
   s: WorldSettings,
 ): CheckResult<{ cost: Resources; renown: number }> {
   if (!Number.isFinite(now)) return fail('invalid_input', 'Invalid time.');
-  const plan = planFeast(settleVillage(state, now, s), count, now, s);
+  const plan = planFeast(settleVillage(state, now, s), count);
   if (!plan.ok) return plan;
   return { ok: true, cost: plan.cost, renown: plan.renown };
 }
 
+/** How many Feasts the village can pay for right now (settled to `now`; 0 without a Banner Hall), at most FEAST_MAX_COUNT. */
+export function feastMaxCount(state: VillageState, now: number, s: WorldSettings): number {
+  const v = settleVillage(state, now, s);
+  if (v.npc || v.buildings.bannerhall < 1) return 0;
+  const price = feastPrice(v.buildings.bannerhall);
+  let n = FEAST_MAX_COUNT;
+  for (const r of RESOURCE_IDS) if (price[r] > 0) n = Math.min(n, Math.floor(v.resources[r] / price[r]));
+  return Math.max(0, n);
+}
+
 /**
- * Settle to `now`, then hold `count` Feasts: pay FEAST_COST * count from the village and start the 24 h window at the first
- * one (it resets after it ends). Returns the new state and the Renown earned; the caller adds it to the player's total.
+ * Settle to `now`, then hold `count` Feasts: pay the level price x count from the village. No daily limit, no window.
+ * Returns the new state and the Renown earned; the caller adds it to the player's total.
  * Throws GameError with the check's reason when invalid.
  */
 export function applyFeast(
@@ -213,11 +205,9 @@ export function applyFeast(
 ): { state: VillageState; renown: number; cost: Resources } {
   if (!Number.isFinite(now)) throw new GameError('invalid_input', 'Invalid time.');
   const v = settleVillage(state, now, s);
-  const plan = planFeast(v, count, now, s);
+  const plan = planFeast(v, count);
   if (!plan.ok) throw new GameError(plan.reason, plan.message);
   for (const r of RESOURCE_IDS) v.resources[r] -= plan.cost[r];
-  const open = allowanceOf(v, now, s).windowEnd !== null;
-  v.feast = open && v.feast ? { windowStart: v.feast.windowStart, count: v.feast.count + plan.count } : { windowStart: now, count: plan.count };
   return { state: v, renown: plan.renown, cost: plan.cost };
 }
 

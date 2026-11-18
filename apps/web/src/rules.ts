@@ -3,7 +3,6 @@
 
 import {
   BUILDINGS,
-  FEAST_DAILY_PER_LEVEL,
   HALL_TIME_FACTOR,
   MAX_TRAIN_BATCH,
   POP_PER_UNIT,
@@ -42,6 +41,7 @@ import type {
   WorldSettings,
 } from '@clanfire/engine';
 import { formatCompact, formatInt, formatRate } from './format.ts';
+import { feastDiscountPercent } from './renown.ts';
 import { RESOURCE_NAME } from './icons.ts';
 
 export interface UnmetRequirement {
@@ -157,7 +157,7 @@ export function buildingEffects(id: BuildingId, from: number, to: number, speed:
       });
       break;
     case 'bannerhall':
-      lines.push({ label: 'Feasts per day', from: formatInt(FEAST_DAILY_PER_LEVEL * from), to: formatInt(FEAST_DAILY_PER_LEVEL * to) });
+      lines.push({ label: 'Feast price', from: from < 1 ? dash : `-${feastDiscountPercent(from)}%`, to: `-${feastDiscountPercent(to)}%` });
       break;
     case 'hall':
       lines.push({ label: 'Build speed', from: speedBonus(HALL_TIME_FACTOR, Math.max(1, from)), to: speedBonus(HALL_TIME_FACTOR, to) });

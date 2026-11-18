@@ -127,8 +127,6 @@ export interface OwnVillageDto extends Coords {
   name: string;
   /** Settled to serverTime. */
   state: VillageState;
-  /** Feasts this village may still hold (engine feastAllowance at serverTime). Max 0 without a Banner Hall. */
-  feastAllowance: FeastAllowanceDto;
   /** Present while this village's hearth is out (somebody struck it and holds it); `state.hearth` has the raw clock. */
   hearth?: HearthInfoDto;
 }
@@ -158,22 +156,13 @@ export interface HearthInfoDto {
   occupierPopulation?: number;
 }
 
-/** Feast limit of one village (engine `feastAllowance`). */
-export interface FeastAllowanceDto {
-  /** FEAST_DAILY_PER_LEVEL * Banner Hall level. */
-  max: number;
-  used: number;
-  left: number;
-  /** When the open window ends (ms), or null when no window is open (the next Feast starts one). */
-  windowEnd: number | null;
-}
-
 // ---- Renown (docs/GAME_DESIGN.md section 18.2) ----------------------------------------------
 // GameStateResponse.renown carries the player's Renown. All numbers are integers, floored (the server may store fractions).
 // POST /api/villages/:id/feast  body FeastRequest -> 200 FeastResponse
-//   Needs Banner Hall level 1 (409 requirements_not_met), FEAST_COST * count in the village (409 not_enough_resources) and
-//   count <= feastAllowance.left (409 queue_full). Server: settle, applyFeast, add `renown` to the player's total, all in one
-//   transaction; the village row also stores `feast` (window). 400 invalid_input for a bad count.
+//   Needs Banner Hall level 1 (409 requirements_not_met) and feastPrice(level) * count in the village (409 not_enough_resources).
+//   No daily limit (2026-11-18): the price is the brake; Banner Hall levels make a Feast cheaper (FEAST_LEVEL_DISCOUNT). All or
+//   nothing. Server: settle, applyFeast, add `renown` to the player's total, all in one transaction. 400 invalid_input for a
+//   bad count (whole number 1..FEAST_MAX_COUNT). `OwnVillageDto.feastAllowance` was removed (the client prices from the level).
 // GET  /api/rankings/renown -> 200 RenownRankingResponse (signed in; top 100 by Renown earned (total, not balance), ties share a rank)
 
 export interface RenownInfo {
@@ -201,14 +190,14 @@ export interface RenownInfo {
 }
 
 export interface FeastRequest {
-  /** Whole number, 1 or more. */
+  /** Whole number, 1 to FEAST_MAX_COUNT. All Feasts are held or none. */
   count: number;
 }
 
 export interface FeastResponse {
   village: OwnVillageDto;
   renown: RenownInfo;
-  /** Renown this Feast gave (count * FEAST_RENOWN). */
+  /** Renown these Feasts gave (count * FEAST_RENOWN). */
   gained: number;
 }
 

@@ -15,6 +15,7 @@ import {
   type CancelResearchRequest,
   type CancelTrainRequest,
   worldConfigField,
+  FEAST_MAX_COUNT,
   type ChestDepositRequest,
   type ChestDepositResponse,
   type FeastRequest,
@@ -94,8 +95,6 @@ const renameBody = {
   properties: { name: { type: 'string', minLength: 1, maxLength: 60 } },
 } as const;
 
-// A Feast count is a small whole number; the engine's daily limit (FEAST_DAILY_PER_LEVEL x Banner Hall level) is far below this cap.
-const FEAST_MAX_COUNT = 100;
 // A deposit is a whole number of gold; no village can hold more than the cap below (the cap only bounds the schema).
 const CHEST_MAX_DEPOSIT = 1_000_000_000;
 const chestBody = {

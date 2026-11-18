@@ -257,7 +257,7 @@ test('a version 3 database is upgraded in place: backup first, Renown columns an
     const st = await c.state();
     assert.equal(st.renown.total, 0, 'start levels pay nothing');
     assert.equal(st.villages[0]?.state.buildings.bannerhall, 0);
-    assert.deepEqual(st.villages[0]?.feastAllowance, { max: 0, used: 0, left: 0, windowEnd: null });
+    assert.equal(st.villages[0] !== undefined && 'feastAllowance' in st.villages[0], false);
     await app.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

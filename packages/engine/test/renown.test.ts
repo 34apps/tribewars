@@ -5,7 +5,8 @@ import {
   BUILDING_IDS,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   FEAST_COST,
-  FEAST_DAILY_PER_LEVEL,
+  FEAST_LEVEL_DISCOUNT,
+  FEAST_MAX_COUNT,
   FEAST_RENOWN,
   GameError,
   RENOWN_BUILD_EXP,
@@ -29,8 +30,9 @@ import {
   collectBuildRenown,
   createNpcVillage,
   createPlayerVillage,
-  feastAllowance,
-  feastWindowMs,
+  feastMaxCount,
+  feastPrice,
+  feastPriceFactor,
   makeRenownInfo,
   markRenownPaid,
   normalizeVillage,
@@ -202,10 +204,10 @@ describe('Feast', () => {
     const c = checkFeast(v, 1, 0, S1);
     assert.ok(!c.ok && c.reason === 'requirements_not_met');
     expectGameError(() => applyFeast(v, 1, 0, S1), 'requirements_not_met');
-    assert.equal(feastAllowance(v, 0, S1).max, 0);
+    assert.equal(feastMaxCount(v, 0, S1), 0);
   });
 
-  it('costs FEAST_COST per Feast and gives FEAST_RENOWN', () => {
+  it('level 1 pays FEAST_COST per Feast and gives FEAST_RENOWN; nothing is stored about a window', () => {
     const v = deepFreeze(feastVillage(1));
     const c = checkFeast(v, 2, 0, S1);
     assert.ok(c.ok);
@@ -218,8 +220,58 @@ describe('Feast', () => {
     assert.equal(out.state.resources.wood, 20000 - FEAST_COST.wood * 2);
     assert.equal(out.state.resources.iron, 20000 - FEAST_COST.iron * 2);
     assert.equal(out.state.resources.gold, 0);
-    assert.deepEqual(out.state.feast, { windowStart: 0, count: 2 });
+    assert.equal(out.state.feast, undefined);
     assert.equal(v.resources.wood, 20000); // input untouched
+  });
+
+  it('each Banner Hall level after the first makes a Feast FEAST_LEVEL_DISCOUNT cheaper (100 / 90 / 80 / 70%)', () => {
+    assert.deepEqual([1, 2, 3, 4].map(feastPriceFactor).map((f) => Math.round(f * 100)), [100, 90, 80, 70]);
+    assert.equal(FEAST_LEVEL_DISCOUNT, 0.1);
+    assert.deepEqual(feastPrice(1), FEAST_COST);
+    assert.equal(feastPrice(4).food, Math.round(FEAST_COST.food * 0.7));
+    for (const level of [1, 2, 3, 4]) {
+      const price = feastPrice(level);
+      const out = applyFeast(feastVillage(level), 3, 0, S1);
+      assert.equal(out.state.resources.wood, 20000 - price.wood * 3);
+      assert.equal(out.state.resources.food, 20000 - price.food * 3);
+      assert.equal(out.renown, FEAST_RENOWN * 3, 'Renown does not depend on the level');
+    }
+    assert.equal(feastPriceFactor(0), 1);
+    assert.equal(feastPriceFactor(Number.NaN), 1);
+  });
+
+  it('has no daily limit: as many Feasts as the village can pay, again and again, at any time', () => {
+    let v = feastVillage(1, 39000);
+    const n = feastMaxCount(v, 0, S1);
+    assert.ok(n > 10, 'far more than the old 3 per level');
+    v = applyFeast(v, n, 0, S1).state;
+    assert.equal(feastMaxCount(v, 0, S1), 0);
+    v.resources = res(20000, 20000, 20000, 0);
+    const again = applyFeast(v, 5, HOUR, S1); // same hour, no window
+    assert.equal(again.renown, FEAST_RENOWN * 5);
+    for (const s of [S1, S10]) assert.equal(applyFeast(feastVillage(4, 39000), 15, 0, s).renown, FEAST_RENOWN * 15);
+  });
+
+  it('count: a whole number from 1 to FEAST_MAX_COUNT, all or nothing', () => {
+    const v = feastVillage(1);
+    for (const bad of [0, -1, 1.5, Number.NaN, FEAST_MAX_COUNT + 1, '2' as unknown as number]) {
+      expectGameError(() => applyFeast(v, bad, 0, S1), 'invalid_input');
+    }
+    // One Feast more than the village can pay: the whole request is refused and nothing is taken.
+    const n = feastMaxCount(v, 0, S1);
+    expectGameError(() => applyFeast(v, n + 1, 0, S1), 'not_enough_resources');
+    const c = checkFeast(v, n + 1, 0, S1);
+    assert.ok(!c.ok && c.reason === 'not_enough_resources');
+    assert.ok(checkFeast(v, n, 0, S1).ok);
+    assert.equal(v.resources.wood, 20000);
+  });
+
+  it('feastMaxCount follows the scarcest resource, the level price and the cap', () => {
+    const v = feastVillage(3, 1e9);
+    v.resources = res(1e9, 1e9, feastPrice(3).iron * 7 + 1, 0);
+    assert.equal(feastMaxCount(v, 0, S1), 7);
+    const rich = feastVillage(1, 1e9);
+    assert.equal(feastMaxCount(rich, 0, S1), FEAST_MAX_COUNT);
   });
 
   it('refuses when resources are short', () => {
@@ -227,56 +279,20 @@ describe('Feast', () => {
     expectGameError(() => applyFeast(v, 1, 0, S1), 'not_enough_resources');
   });
 
-  it('refuses bad counts', () => {
-    const v = feastVillage(1);
-    for (const bad of [0, -1, 1.5, Number.NaN, '2' as unknown as number]) expectGameError(() => applyFeast(v, bad, 0, S1), 'invalid_input');
-  });
-
-  it('caps Feasts per window at FEAST_DAILY_PER_LEVEL * Banner Hall level', () => {
-    let v = feastVillage(2);
-    const max = FEAST_DAILY_PER_LEVEL * 2;
-    assert.equal(feastAllowance(v, 0, S1).left, max);
-    v = applyFeast(v, max - 1, 0, S1).state;
-    assert.deepEqual(feastAllowance(v, 0, S1), { max, used: max - 1, left: 1, windowEnd: 24 * HOUR });
-    expectGameError(() => applyFeast(v, 2, HOUR, S1), 'queue_full');
-    v = applyFeast(v, 1, HOUR, S1).state;
-    assert.equal(feastAllowance(v, HOUR, S1).left, 0);
-    const c = checkFeast(v, 1, HOUR, S1);
-    assert.ok(!c.ok && c.reason === 'queue_full');
-  });
-
-  it('starts the window at the first Feast and resets after it ends', () => {
-    let v = feastVillage(1);
-    v = applyFeast(v, 3, 2 * HOUR, S1).state;
-    assert.equal(feastAllowance(v, 3 * HOUR, S1).windowEnd, 26 * HOUR);
-    expectGameError(() => applyFeast(v, 1, 25 * HOUR, S1), 'queue_full');
-    // Just after the window: a new one starts at this Feast.
-    const next = applyFeast(v, 1, 26 * HOUR, S1).state;
-    assert.deepEqual(next.feast, { windowStart: 26 * HOUR, count: 1 });
-    assert.equal(feastAllowance(next, 26 * HOUR, S1).left, 2);
-  });
-
   it('a Banner Hall level finished meanwhile counts (settles first)', () => {
     const v = feastVillage(1);
     v.buildQueue.push({ building: 'bannerhall', targetLevel: 2, startAt: 0, finishAt: HOUR });
-    assert.equal(feastAllowance(v, 0, S1).max, FEAST_DAILY_PER_LEVEL);
-    assert.equal(feastAllowance(v, 2 * HOUR, S1).max, FEAST_DAILY_PER_LEVEL * 2);
-  });
-
-  it('the window is shorter on a fast world', () => {
-    assert.equal(feastWindowMs(S1), 24 * HOUR);
-    assert.equal(feastWindowMs(S10), 8_640_000);
-    let v = feastVillage(1);
-    v = applyFeast(v, 3, 0, S10).state;
-    expectGameError(() => applyFeast(v, 1, 2 * HOUR, S10), 'queue_full');
-    const again = applyFeast(v, 1, 8_640_000, S10);
-    assert.deepEqual(again.state.feast, { windowStart: 8_640_000, count: 1 });
+    const c1 = checkFeast(v, 1, 0, S1);
+    const c2 = checkFeast(v, 1, 2 * HOUR, S1);
+    assert.ok(c1.ok && c2.ok);
+    if (c1.ok && c2.ok) assert.ok(c2.cost.food < c1.cost.food);
   });
 
   it('abandoned villages cannot feast', () => {
     const npc = createNpcVillage(3, 0);
     npc.buildings.bannerhall = 1;
     expectGameError(() => applyFeast(npc, 1, 0, S1), 'invalid_input');
+    assert.equal(feastMaxCount(npc, 0, S1), 0);
   });
 });
 

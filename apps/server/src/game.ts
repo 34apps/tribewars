@@ -65,7 +65,6 @@ import {
   applyFeast,
   collectDefenderRenown,
   defenderEligibleFrom,
-  feastAllowance,
   makeRenownInfo,
   applyReturn,
   applySend,
@@ -1934,7 +1933,7 @@ export class GameService {
   }
 
   private ownDto(v: VillageRecord, state: VillageState, t: number): OwnVillageDto {
-    const dto: OwnVillageDto = { id: v.id, name: v.name, x: v.x, y: v.y, state, feastAllowance: feastAllowance(state, t, this.settings) };
+    const dto: OwnVillageDto = { id: v.id, name: v.name, x: v.x, y: v.y, state };
     const h = state.hearth;
     if (h) {
       const pop = occupierPopulation(sumUnits(this.store.stationedAt(v.id).filter((c) => c.ownerPlayerId === h.claimBy).map((c) => c.units)));
@@ -2164,8 +2163,8 @@ export class GameService {
   }
 
   /**
-   * Hold `count` Feasts in the player's village (section 18.2): the engine checks Banner Hall, stock and the daily
-   * limit, the cost leaves the village and the Renown is added to the player's total, all in one transaction.
+   * Hold `count` Feasts in the player's village (section 18.2): the engine checks Banner Hall and stock (no daily
+   * limit), the cost leaves the village and the Renown is added to the player's total, all in one transaction.
    * A sandbox account may feast too (test mode has no other way to see the Feast work).
    */
   feast(player: PlayerRow, villageId: number, count: number, t: number): FeastResponse {

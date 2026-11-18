@@ -1,0 +1,112 @@
+
+> clanfire@0.1.0 sim
+> tsx scripts/sim/balance.ts --conquest --seeds 5 --days 90
+
+# Conquest simulation: 20 players, 90 days, speed 1, seed 20261105
+
+Rules in force: no pair cap; hold 8 h; 1 Chieftain per 12000 points (max 3); lock 24 h.
+
+## Per style (5 players each): villages and points per player (average) on day 7 / 14 / 21 / 30 / 90
+
+| style | day 7 villages | day 7 points | day 14 villages | day 14 points | day 21 villages | day 21 points | day 30 villages | day 30 points | day 90 villages | day 90 points |
+|---|---|---|---|---|---|---|---|---|---|---|
+| builder | 1.00 | 1832 | 1.00 | 1953 | 1.00 | 3975 | 1.00 | 4545 | 2.40 | 11809 |
+| raider | 1.00 | 1654 | 1.20 | 3947 | 1.20 | 5309 | 1.40 | 6338 | 2.00 | 5764 |
+| turtle | 1.00 | 308 | 1.00 | 399 | 1.00 | 608 | 1.00 | 758 | 1.00 | 2775 |
+| balanced | 1.00 | 1166 | 1.00 | 7246 | 1.80 | 14563 | 2.60 | 17903 | 5.20 | 24250 |
+| **all** | 1.00 | 1240 | 1.05 | 3386 | 1.25 | 6114 | 1.50 | 7386 | 2.65 | 11150 |
+
+## Conquest events per style (sum over the 5 players; day 1-90)
+
+| style | Chieftains trained / lost | strikes sent | strikes fought | holds started | villages taken | holds broken | villages lost | restarts | founded | counter-attacks | raids on players (won) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| builder | 8 / 0 | 4 | 4 | 4 | 4 | 0 | 2 | 1 | 4 | 0 | 0 (0) |
+| raider | 6 / 0 | 1 | 1 | 1 | 1 | 0 | 4 | 3 | 5 | 0 | 1794 (1791) |
+| turtle | 0 / 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 (0) |
+| balanced | 21 / 0 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 20 | 0 | 1825 (1822) |
+| **all** | 35 / 0 | 6 | 6 | 6 | 6 | 0 | 6 | 4 | 29 | 0 | 3619 (3613) |
+
+Strikes that did not start a hold, by reason: none.
+
+## Snowball check: biggest player vs second biggest (all villages together)
+
+| day | biggest points | second | ratio | biggest villages | second | ratio |
+|---|---|---|---|---|---|---|
+| 7 | 2398 | 2070 | 1.16 | 1 | 1 | 1.00 |
+| 14 | 10119 | 9237 | 1.10 | 2 | 1 | 2.00 |
+| 21 | 17450 | 16566 | 1.05 | 2 | 2 | 1.00 |
+| 30 | 19816 | 18004 | 1.10 | 3 | 3 | 1.00 |
+| 90 | 39222 | 26758 | 1.47 | 6 | 6 | 1.00 |
+
+Top 5 on day 90: #14 balanced 5 villages 39222 points; #17 raider 6 villages 26758 points; #10 balanced 6 villages 20747 points; #1 balanced 5 villages 20525 points; #4 balanced 5 villages 20402 points. Smallest: 303 points.
+Top 3 hold 39% of all points (an even split would be 15%).
+**Verdict: biggest has 1.47x the second's points and 1.00x its villages after 90 days; target (<= ~2x) MET.**
+
+## Other seeds (same rules)
+
+| seed | takes | holds started | restarts | biggest points / second | ratio | biggest villages / second | ratio |
+|---|---|---|---|---|---|---|---|
+| 20261105 | 6 | 6 | 4 | 39222 / 26758 | 1.47 | 6 / 6 | 1.00 |
+| 20261106 | 11 | 12 | 5 | 38655 / 37872 | 1.02 | 6 / 5 | 1.20 |
+| 20261107 | 5 | 5 | 2 | 37872 / 21753 | 1.74 | 6 / 6 | 1.00 |
+| 20261108 | 11 | 11 | 6 | 33947 / 24120 | 1.41 | 6 / 5 | 1.20 |
+| 20261109 | 10 | 10 | 5 | 39096 / 35167 | 1.11 | 6 / 6 | 1.00 |
+
+## Chieftain gold (chest; main seed, sum over the 5 players of a style)
+
+| style | Chieftains trained | gold paid for Chieftains (chest gold, net of refunds) | wait hours by bucket | binding limit per Chieftain trained | chest per player on day 30 / 60 / 90 |
+|---|---|---|---|---|---|
+| builder | 8 | 21520 | renown+gold 1909, renown 6677, gold 0, resources 85, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 8, none 0 | 2015 / 5535 / 8430 |
+| raider | 6 | 33619 | renown+gold 1395, renown 3309, gold 0, resources 1067, target 12, other 0 | renown+gold 0, renown 1, gold 0, resources 5, none 0 | 4153 / 11775 / 10234 |
+| turtle | 0 | 0 | renown+gold 0, renown 0, gold 0, resources 0, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 0, none 0 | 85 / 637 / 3517 |
+| balanced | 21 | 105667 | renown+gold 3931, renown 786, gold 2983, resources 1857, target 4, other 0 | renown+gold 0, renown 0, gold 0, resources 21, none 0 | 4784 / 6602 / 11241 |
+| **all** | 35 | 160806 | renown+gold 7236, renown 10772, gold 2983, resources 3009, target 16, other 0 | renown+gold 0, renown 1, gold 0, resources 34, none 0 | 2759 / 6137 / 8355 |
+
+## Summary over all seeds (5 seeds, 90 days)
+
+| style | players | 2nd village | 3rd village | 4th village | villages day 30 | villages day 60 | villages day 90 | gold per village day 90 | chest per player day 90 |
+|---|---|---|---|---|---|---|---|---|---|
+| builder | 25 | day 62.1 (17/25) | day 64.5 (8/25) | day 76.3 (6/25) | 1.00 | 1.44 | 2.32 | 63 | 9172 |
+| raider | 25 | day 28.5 (6/25) | day 28.0 (2/25) | day 38.5 (2/25) | 1.20 | 1.32 | 1.40 | 21 | 7854 |
+| turtle | 25 | never (0/25) | never (0/25) | never (0/25) | 1.00 | 1.00 | 1.00 | 19 | 3517 |
+| balanced | 25 | day 18.3 (24/25) | day 31.6 (23/25) | day 43.1 (22/25) | 2.32 | 4.12 | 4.88 | 0 | 13021 |
+
+| seed | takes | restarts | raids on players | biggest points / second | ratio |
+|---|---|---|---|---|---|
+| 20261105 | 6 | 4 | 3619 | 39222 / 26758 | 1.47 |
+| 20261106 | 11 | 5 | 4129 | 38655 / 37872 | 1.02 |
+| 20261107 | 5 | 2 | 3759 | 37872 / 21753 | 1.74 |
+| 20261108 | 11 | 6 | 3902 | 33947 / 24120 | 1.41 |
+| 20261109 | 10 | 5 | 3204 | 39096 / 35167 | 1.11 |
+| **total** | 43 | 22 | 18613 | | worst 1.74 |
+
+| style | wait hours by bucket (all seeds) | binding limit per Chieftain trained (all seeds) |
+|---|---|---|
+| builder | renown+gold 13013, renown 30356, gold 85, resources 1014, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 39, none 0 |
+| raider | renown+gold 7370, renown 19769, gold 327, resources 1571, target 82, other 0 | renown+gold 0, renown 2, gold 0, resources 12, none 0 |
+| turtle | renown+gold 0, renown 0, gold 0, resources 0, target 0, other 0 | renown+gold 0, renown 0, gold 0, resources 0, none 0 |
+| balanced | renown+gold 18134, renown 4934, gold 11357, resources 11524, target 122, other 5 | renown+gold 0, renown 0, gold 0, resources 111, none 0 |
+
+## Conquests (first 30)
+
+- day 12.7: #17 raider took a 3431-point village from #19 raider (their LAST village: restart)
+- day 52.0: #14 balanced took a 9696-point village from #12 raider (their LAST village: restart)
+- day 57.1: #0 builder took a 4965-point village from #5 builder (their LAST village: restart)
+- day 63.9: #11 builder took a 5985-point village from #15 raider (their LAST village: restart)
+- day 64.0: #13 builder took a 8652-point village from #18 raider
+- day 78.3: #13 builder took a 4989-point village from #11 builder
+
+## Flags
+
+None (no engine errors).
+
+## Model
+
+- 20 players on a grid (5 columns, 10 tiles apart, shuffled styles), one shared world, 10-minute decision steps, free-player queues. Real engine calls only; no server. Each player has its OWN ring of 8 abandoned villages (3-14 tiles) for raids and Renown (as in balance.ts); abandoned villages are not taken and not shared.
+- Style scripts are the ones in balance.ts (build list, army, research, raids). New behaviour: raids and Strikes also go to player villages within 22 tiles. No assumed enemy raids (players are the enemy now). Feast only to empty a full storehouse.
+- Raid on a player: preview with the target state at arrival (as if scouted), attack >= 1.25 x defence, net loot minus lost troops > 0, best net per travel time; target needs >= 30% of the attacker's average village points; neither side protected. Loot comes from the real stock (vault protects). Renown through battleRenown for both sides (pair windows, size factor).
+- Strike plan: once Renown >= price and a Banner Hall exists, a player picks the village with most points that its home army (all troops but Pathfinders + the needed Chieftains) beats by 1.25x, with >= 1 surviving Chieftain per `need` and >= HOLD_MIN_POPULATION survivors, on a village with >= 50% of its own best village's points, not protected / locked / cold (no pair cap since 2026-11-05; the Chieftain chain of separate attacks is not modelled: every Strike brings all its Chieftains at once). It reserves Renown for all needed Chieftains (villageRenownPrice, summed), saves and trains them as one batch (max 3), then strikes with all home troops. Found-style players (builder, turtle) found a village when no Strike target exists; take-style players (raider, balanced) stop raiding to build an escort and found after 72 h.
+- Strike, hold, take: checkStrike, applyStrike (hearth out, village frozen), updateHold (hold clock, as a due event), applyOwnerChange (all buildings, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison / queues gone, occupiers move in, STRIKE_LOCK_HOURS lock). The old owner's Chieftains in that village are lost (half the Renown back); armies it had stationed elsewhere are disbanded and their holds end.
+- Defence: the owner fights the Strike with whatever is at home (the real battle). During the hold it attacks the occupiers (they defend with the village's Wall) with the best army from any of its villages that arrives before the clock ends and beats them by 1.1x (one army at a time). Occupiers dead = hearth relit; under HOLD_MIN_POPULATION for HOLD_FAIL_HOURS = claim fails. Not modelled: tribe-mates' support, third players, scouting errors, Chieftain escorts arriving late (second wave), the owner recalling raids.
+- Restart: a player who loses the LAST village gets a fresh starting village on a ring far outside the grid, RESTART_PROTECTION_HOURS protection, a new ring of abandoned villages; Renown is kept, its Chieftains are gone.
+- Beginner protection: every starting village is protected (cannot be attacked, does not attack players) for 72 h; founded villages 24 h (FOUND_PROTECTION_HOURS).

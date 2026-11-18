@@ -65,7 +65,7 @@ import {
   createPlayerVillage,
   emptyResources,
   emptyUnits,
-  feastAllowance,
+  feastPrice,
   hashSeed,
   holdDueAt,
   isAttackBlocked,
@@ -82,7 +82,7 @@ import {
   updateHold,
   villagePoints,
   villageRenownPrice,
-  FEAST_COST,
+  FEAST_MAX_COUNT,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 import {
@@ -825,16 +825,15 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
 
   const tryFeast = (p: Player, vil: Vil, t: number): void => {
     if (vil.state.buildings.bannerhall < 1) return;
-    const left = feastAllowance(vil.state, t, s).left;
-    if (left < 1) return;
+    const price = feastPrice(vil.state.buildings.bannerhall); // no daily limit (2026-11-18): the price is the brake
     const cap = storageCap(vil.state);
-    const nearCap = RESOURCE_IDS.some((id) => FEAST_COST[id] > 0 && vil.state.resources[id] >= cap * 0.5);
+    const nearCap = RESOURCE_IDS.some((id) => price[id] > 0 && vil.state.resources[id] >= cap * 0.5);
     if (!nearCap) return; // a feast only to empty a full storehouse (the sim players have enough else to do)
     const reserve = nextBuildCost(p, vil);
     const chief = p.saving ? chiefNeed(p) : emptyResources();
-    let n = left;
+    let n = FEAST_MAX_COUNT;
     for (const id of RESOURCE_IDS) {
-      if (FEAST_COST[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * p.def.reserve, chief[id])) / FEAST_COST[id]));
+      if (price[id] > 0) n = Math.min(n, Math.floor((vil.state.resources[id] - Math.max(reserve[id] * p.def.reserve, chief[id])) / price[id]));
     }
     if (n < 1 || !checkFeast(vil.state, n, t, s).ok) return;
     const r = applyFeast(vil.state, n, t, s);

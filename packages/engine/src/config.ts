@@ -586,13 +586,16 @@ export const FOUND_PROTECTION_HOURS = 24;
 export const RESTART_PROTECTION_HOURS = 48;
 /** The restart spot lies within this many tiles inside the edge of the populated disc. */
 export const RESTART_EDGE_BAND = 2;
-/** One Feast (Banner Hall level 1+) costs this and gives FEAST_RENOWN. */
-export const FEAST_COST: Resources = res(600, 1500, 600, 0); // x1.5 with the economy (2026-11-11)
+/** One Feast (Banner Hall level 1+) costs this at Banner Hall level 1 (full price) and gives FEAST_RENOWN. */
+export const FEAST_COST: Resources = res(810, 2025, 810, 0); // was 600/1500/600 while a daily limit capped Feasts; x1.35 without it (BALANCE 17, 2026-11-18)
 export const FEAST_RENOWN = 10;
-/** Feasts per village per window, per Banner Hall level. */
-export const FEAST_DAILY_PER_LEVEL = 3;
-/** Feast window in hours (divided by world speed); it starts at the first Feast. */
-export const FEAST_WINDOW_HOURS = 24;
+/**
+ * No daily Feast limit any more (owner, 2026-11-18: the price is the brake). Every Banner Hall level after the first makes a
+ * Feast this much cheaper: price factor = 1 - FEAST_LEVEL_DISCOUNT * (level - 1), so levels 1-4 pay 100 / 90 / 80 / 70%.
+ */
+export const FEAST_LEVEL_DISCOUNT = 0.1;
+/** Most Feasts one request may hold (sanity bound, not a game limit). */
+export const FEAST_MAX_COUNT = 1000;
 /**
  * Defender Renown (GAME_DESIGN 18.2 source 4): a small daily trickle for keeping a real defence at home. Strength is the
  * defence of the village's own troops at home (support and troops away do not count). Renown per 24 h (divided by world

@@ -111,12 +111,13 @@ test('Banner Hall page: two plain cards, no stepper, no old boxes', async () => 
     renown: { balance: 0, reserved: 0, chieftains: 0 },
     settings: {},
     now: 0,
-    village: { id: 1, hearth: null, feastAllowance: { max: 3, used: 0, left: 3, windowEnd: null } },
+    village: { id: 1, hearth: null },
     live: { buildings: { bannerhall: 1 }, buildQueue: [], resources: { wood: 5000, food: 5000, iron: 5000, gold: 5000 } },
   } as unknown as Partial<GameApi>;
   const html = render(game, createElement(BannerHallPanel));
-  assert.ok(html.includes('<strong>3</strong> Feasts left today'));
-  assert.ok(html.includes('Feast all 5') === false && html.includes('Feast all 3'));
+  assert.ok(html.includes('Full Feast price') && html.includes('level 2: -10%'));
+  assert.ok(html.includes('id="bh-amount"') && /Max\s?\d/.test(html), 'amount field and Max button');
+  for (const gone of ['Feasts left today', 'No Feasts left', 'a day', 'Feast all']) assert.ok(!html.includes(gone), gone);
   assert.ok(html.includes('Pay in 1,700 gold'));
   assert.ok(html.includes('Train Chieftain'));
   assert.ok(/<button[^>]*disabled[^>]*>(<svg.*?<\/svg>|<img[^>]*>|<span.*?<\/span>)*\s*Train Chieftain/.test(html) || html.includes('disabled=""'));

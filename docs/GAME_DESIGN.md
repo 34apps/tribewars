@@ -41,7 +41,7 @@ When a rule changes, change it here in the same commit.
 - **Food has a real use (owner request, balance pass 2026-11-05).** Food piled up in every sim style once troops stopped eating, so unit costs
   and the Banner Hall moved toward food (total price roughly the same, but wood and iron are the scarce ones). Costs as wood/food/iron (since 2026-11-11, x0.55 of the
   old numbers, food about x0.5, so a maxed village can fill its 12,000 room in about 13 days of its own income): Pikeman 19/23/14,
-  Shieldbearer 17/30/28, Raider 25/35/25, Elk Rider 39/80/66, Ember Guard 50/90/110 (+14 gold), Pathfinder 11/20/14, Firecart 99/88/121 (+6 gold) (the A3 roster, §4). Chieftain 6,000/4,500/7,500 and one Feast 600/1,500/600 (x1.5, like buildings), Banner Hall level 1
+  Shieldbearer 17/30/28, Raider 25/35/25, Elk Rider 39/80/66, Ember Guard 50/90/110 (+14 gold), Pathfinder 11/20/14, Firecart 99/88/121 (+6 gold) (the A3 roster, §4). Chieftain 6,000/4,500/7,500 and one Feast 810/2,025/810 (600/1,500/600 until 2026-11-18, when the daily limit went), Banner Hall level 1
   2,100/3,450/2,100 (+100 gold; the food figure fits the Storehouse level 6 it requires). Numbers in `config.ts`.
 - **Population** (second limit next to food, owner 2026-11-03). Used = building population + troop
   population. Building at level L takes `ceil(POP_BUILDING_FIRST[b] * POP_BUILDING_GROWTH^(L-1))`
@@ -1114,10 +1114,15 @@ A builder or a defender who is never attacked still reaches the second village; 
    - **support** troops stationed in a village that help kill attackers: the defending side's credit is split between the
      village owner and each support owner by their share of the defence strength and goes to each owner;
    - never credited to computer-run (abandoned) villages, which have no owner.
-3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. One Feast costs `FEAST_COST` (a bundle of
-   wood, food, iron, gold) and gives `FEAST_RENOWN`; at most `FEAST_DAILY_PER_LEVEL x Banner Hall level` Feasts per village
-   per 24 h (÷ world speed). It is the sink for a builder's full storehouses, deliberately worse per resource than fighting
-   well and better than idling.
+3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. **No daily limit; the price is the brake**
+   (owner, 2026-11-18: "you can mint as much as you can pay for"). One Feast costs `FEAST_COST` (810/2,025/810 wood/food/iron at
+   Banner Hall level 1) and gives `FEAST_RENOWN` (10); every further Banner Hall level makes a Feast `FEAST_LEVEL_DISCOUNT`
+   (10%) cheaper: 100 / 90 / 80 / 70% at levels 1-4 (`feastPrice(level)`, rounded per resource). One request may hold `count`
+   Feasts (1 to `FEAST_MAX_COUNT` 1,000), all or nothing, cost = count x price, Renown = count x 10. The village needs no window
+   and keeps no counter (`VillageState.feast`, the old window, is deprecated: never written, ignored when an old save has it).
+   It is the sink for a builder's full storehouses, deliberately worse per resource than fighting well and better than idling.
+   What it costs against a maxed village (BALANCE §17): the 2nd village (1,300 Renown) is 130 Feasts, 4.6 days of ALL that
+   village's income at level 4 (9.1 days at level 1 by the scarcest resource); the 5th (5,325) is 533 Feasts, 18.8 days of all income.
 
 4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
    so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
@@ -1145,12 +1150,12 @@ and Renown is reduced:
 - **Hitting far smaller players.** The earner's Renown is multiplied by
   `clamp((opponent village points / own village points / RENOWN_SMALL_RATIO)^2, RENOWN_SMALL_FLOOR, 1)`: no reduction when
   the opponent has at least `RENOWN_SMALL_RATIO` (0.5) of your points, at most 95% off for tiny ones.
-Building and Feast Renown are never reduced by these rules (the Feast has its own daily limit).
+Building and Feast Renown are never reduced by these rules (the Feast is held back by its price only).
 
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
-Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
 36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
@@ -1681,10 +1686,15 @@ A builder or a defender who is never attacked still reaches the second village; 
    - **support** troops stationed in a village that help kill attackers: the defending side's credit is split between the
      village owner and each support owner by their share of the defence strength and goes to each owner;
    - never credited to computer-run (abandoned) villages, which have no owner.
-3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. One Feast costs `FEAST_COST` (a bundle of
-   wood, food, iron, gold) and gives `FEAST_RENOWN`; at most `FEAST_DAILY_PER_LEVEL x Banner Hall level` Feasts per village
-   per 24 h (÷ world speed). It is the sink for a builder's full storehouses, deliberately worse per resource than fighting
-   well and better than idling.
+3. **Feast** (Banner Hall level 1+): turns resources into Renown at a fair rate. **No daily limit; the price is the brake**
+   (owner, 2026-11-18: "you can mint as much as you can pay for"). One Feast costs `FEAST_COST` (810/2,025/810 wood/food/iron at
+   Banner Hall level 1) and gives `FEAST_RENOWN` (10); every further Banner Hall level makes a Feast `FEAST_LEVEL_DISCOUNT`
+   (10%) cheaper: 100 / 90 / 80 / 70% at levels 1-4 (`feastPrice(level)`, rounded per resource). One request may hold `count`
+   Feasts (1 to `FEAST_MAX_COUNT` 1,000), all or nothing, cost = count x price, Renown = count x 10. The village needs no window
+   and keeps no counter (`VillageState.feast`, the old window, is deprecated: never written, ignored when an old save has it).
+   It is the sink for a builder's full storehouses, deliberately worse per resource than fighting well and better than idling.
+   What it costs against a maxed village (BALANCE §17): the 2nd village (1,300 Renown) is 130 Feasts, 4.6 days of ALL that
+   village's income at level 4 (9.1 days at level 1 by the scarcest resource); the 5th (5,325) is 533 Feasts, 18.8 days of all income.
 
 4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
    so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
@@ -1712,12 +1722,12 @@ and Renown is reduced:
 - **Hitting far smaller players.** The earner's Renown is multiplied by
   `clamp((opponent village points / own village points / RENOWN_SMALL_RATIO)^2, RENOWN_SMALL_FLOOR, 1)`: no reduction when
   the opponent has at least `RENOWN_SMALL_RATIO` (0.5) of your points, at most 95% off for tiny ones.
-Building and Feast Renown are never reduced by these rules (the Feast has its own daily limit).
+Building and Feast Renown are never reduced by these rules (the Feast is held back by its price only).
 
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
-Banner Hall level per day; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
 36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
