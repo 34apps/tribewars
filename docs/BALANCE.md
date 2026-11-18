@@ -1037,3 +1037,106 @@ to build and train, so the realistic rate is far lower; a bigger realm with seve
 **Abuse check (resources pushed in from other accounts).** See `docs/SECURITY_ROADMAP.md` gate note "Feast without a limit": shipments are limited by Market level (300 + 200 x level per shipment), 5 on the road per village,
 30 requests a minute per account, same-connection refusal and the 200-marches cap, but there is NO per-day cap on what an account receives, so a few feeder accounts (different connections) can now turn into Renown
 about as fast as their production allows. Proposed guard, not built: a per-day cap on resources received from other players' villages.
+## 18. Hearthwarden: a fast support defender (2026-11-18, branch `support-rider`; no schema change)
+
+**Why.** Every defender walks (Pikeman 6, Shieldbearer 5), so help to a friend often arrives after the attack. The new Stables unit rides at 11 tiles an hour (Elk Rider 13) and is a
+defender: it pays for speed with a weaker defence per coin and per population than the foot defenders. Tool: `npm run sim:troops` (value = wood + food + iron + 10 x gold).
+
+**Line.** Cavalry; attack 18, defence 48 vs foot / 52 vs riders, speed 11, carry 20, pop 2, cost 60 / 90 / 110 (value 260), 700 s, Stables 4, Drillyard 4 (research 320 / 240 / 380 + 20 gold, 7,800 s).
+Not tuned after the first pass: no number needed changing.
+
+| unit | value | pop | def foot | def riders | foot per 100 v | riders per 100 v | foot per pop | riders per pop | speed | 30 tiles (h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Pikeman | 56 | 1 | 14 | 40 | 25 | **71.4** | 14 | **40** | 6 | 5.0 |
+| Shieldbearer | 75 | 1 | 42 | 22 | **56** | 29.3 | **42** | 22 | 5 | 6.0 |
+| Elk Rider | 185 | 2 | 18 | 16 | 9.7 | 8.6 | 9 | 8 | 13 | 2.31 |
+| **Hearthwarden** | 260 | 2 | 48 | 52 | 18.5 | 20 | 24 | 26 | 11 | 2.73 |
+| Ember Guard | 390 | 3 | 90 | 90 | 23.1 | 23.1 | 30 | 30 | 5 | 6.0 |
+
+The Hearthwarden's defence per coin is a third of the Shieldbearer's (vs foot) and 28% of the Pikeman's (vs riders); per population 57% and 65%. Its attack is 6.9 per 100 coins
+(Raider 42), carry 7.7 per 100 coins (Elk Rider 40): it is a defender, not a raider. For help that must arrive, it covers 30 tiles in 2.73 h against 5-6 h on foot.
+An engine test pins "below the best foot defender per resource and per population".
+
+**Sim styles.** Builder (7% of its army, researched, Stables 5 / Drillyard 6 already in its list) and turtle (Drillyard 4 and Stables 4 added; 7%) train Hearthwardens; the preview bots mirror this.
+The turtle's economy never gets that far in 30 days, so only the builder trains them (12 in 30 days).
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days (1.5-2x) | 1.82x (19,342 / 10,615; before the unit 1.82x) |
+| 2nd village day, builder / raider / balanced (21-28) | 26.7 / 25.8 / 20.3 (before 26.5 / 25.8 / 20.3; balanced was already under 21) |
+| 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526; 3rd village 40.2 / 50.5 / - / 37.0 |
+| conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x (seeds 1.37 / 1.40 / 1.00 / 1.77 / 1.72) |
+| takes 30-50 (sum over the seeds) | 45 (5 + 11 + 9 + 13 + 7) |
+| restarts <= 26 | 20 (3 + 5 + 5 + 4 + 3) |
+
+The sims do not model support sends, so they show the targets did not move; the case for the unit rests on the table above.
+
+## 19. Two siege units again: Log Ram (Wall) and Firecart (buildings) (2026-11-18, branch `support-rider`; no schema change)
+
+**Why.** Owner: "why don't we have a ram only for the wall, more powerful for wall demolishing". Two Wrightyard units: the **Log Ram** (`logram`) hits only the Wall, in the battle (half
+points, the lowered Wall counts) and again after a win; the **Firecart** now hits only other buildings after a win (the sender's pick, else a random building but the Wall) and needs Wrightyard 4.
+Tool: `npm run sim -- --siege` (section (a), real engine; value = wood + food + iron + 10 x gold).
+
+**Lines (our numbers).** Log Ram: attack 3, defence 5 / 4, speed 3, pop 3, cost 70 / 50 / 90 (value 210, no gold), 1,100 s, Wrightyard 1, Drillyard 2 (research 260 / 200 / 340, 7,200 s),
+power 6, 3 levels per step (about 3x the Firecart's old Wall power per unit, and 43% cheaper: 210 vs 368). Firecart: Wrightyard 4, Drillyard 3, 2 levels, 368; power 2 in the first pass, 4 after the follow-ups below.
+Not tuned after the first pass: the numbers above are the brief's starting numbers; no sim target moved.
+
+**Follow-up the same day: `SIEGE_POINTS_PER_LEVEL` 2 -> 7 (cost of one level = 6 + 7 x L points; the brief said "3", the file said 2).** With 2, a Wall-22 level cost the attacker 3,150 against a 16,430 rebuild (5.2x), so high Walls
+were not worth building. Tried 6 (Wall 22: 2.11x, just over the line), 7 (1.82x) and 8 (1.60x); 7 is the smallest under 2x at every Wall level. The Log Ram's power 6 is unchanged. 1.5x would need about 9 per level, and the
+Firecart (which shares the rule) is already near useless on ordinary buildings, so the Wall invariant is set at **2x for every Wall level** (was 1.5x; I could not hold 1.5x at Wall 22 without wrecking the Firecart).
+
+**Units to knock the Wall down (survivors / units sent after a decisive win; 63% of an army comes back; points per level at 10 / 15 / 22 = 76 / 111 / 160):**
+
+| Wall | levels | Log Rams (survivors / send) | Log Ram army value | Firecarts before (send, same Wall, old rule) | Defender rebuild | rebuild / army |
+|---|---|---|---|---|---|---|
+| 10 | 1 | 13 / 21 | 4,410 | 13 / 21 (7,728) | 1,668 | 0.38 |
+| 10 | 3 | 35 / 56 | 11,760 | n/a (cap 2 per step) | 4,187 | 0.36 |
+| 15 | 1 | 19 / 30 | 6,300 | 18 / 29 (10,672) | 4,326 | 0.69 |
+| 15 | 3 | 52 / 83 | 17,430 | n/a | 10,856 | 0.62 |
+| 22 | 1 | 27 / 43 | 9,030 | 25 / 40 (14,720) | 16,430 | 1.82 |
+| 22 | 3 | 77 / 123 | 25,830 | n/a | 41,229 | 1.60 |
+
+(Section (a) of the sim: Wall 5 0.26, 10 0.38, 15 0.69, 22 1.82.) So the Log Ram is about the same number of units as the old Firecart per Wall level but 43% cheaper each, and it now also fires during the battle.
+Wall levels cost more to break than they did in the first pass of this section (about 2.7x more units at the same level), the Wall is still the cheapest thing to chip per coin of rebuild, but never a bargain beyond 2x.
+
+**Firecart tuned afterwards: power 2 -> 4 (price 368 and 2 levels per step unchanged).** At 7 points per level and power 2 the Firecart was a poor trade almost everywhere (rebuild / army 0.06 to 0.4 on
+economy buildings). Rebuild / army grows in proportion to power, so a table over powers 2 / 4 / 6 / 8 / 10 (survivors / 0.63 sent, price 368) gave, for Barracks 20 / Stables 18 / Banner Hall 4 / Storehouse 25:
+2: 0.84 / 1.02 / 2.14 / 0.41; **4: 1.66 / 2.02 / 3.86 / 0.81**; 6: 2.45 / 3.06 / 5.78 / 1.19; 8: 3.16 / 3.96 / 7.23 / 1.61. **One power cannot satisfy the whole list**: the expensive military buildings (Barracks 20,
+Stables 18) and the gold-heavy Banner Hall cost the defender 4 to 15 times what a Lumber or Farm level of the same height costs, while a level of each takes the same siege points. Power 4 is the best compromise
+(every economy and training building at its top level 0.6 to 1.7x, Stables 18 just at 2.0x); the economy buildings at mid levels stay below the asked 0.5 and the Banner Hall is above 2x (see below).
+
+Firecart army (sent = survivors / 0.63, value 368 each) against one level, power 4:
+
+| building / level | survivors | army value | rebuild | rebuild / army |
+|---|---|---|---|---|
+| Town Hall 10 | 19 | 11,408 | 2,320 | 0.20 |
+| Town Hall 12 | 23 | 13,616 | 3,510 | 0.26 |
+| Barracks 15 | 28 | 16,560 | 12,789 | 0.77 |
+| Barracks 20 | 37 | 21,712 | 36,007 | 1.66 |
+| Storehouse 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 3,343 / 8,564 / 21,937 | 0.20 / 0.39 / 0.81 |
+| Longhouse, Lumber, Farm 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 2,508 / 6,423 / 16,453 | 0.15 / 0.30 / 0.60 |
+| Iron Mine 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 2,786 / 7,136 / 18,281 | 0.17 / 0.33 / 0.67 |
+| Stables 18 | 33 | 19,504 | 39,378 | 2.02 |
+| Drillyard 10 | 19 | 11,408 | 8,410 | 0.74 |
+| Banner Hall 4 (with `SIEGE_EXTRA_POINTS` 40) | 19 | 11,408 | 21,282 | 1.93 (was 3.86; levels 1 to 4: 1.02 / 1.59 / 1.93) |
+| Market 10 / Vault 8 | 19 / 16 | 11,408 / 9,568 | 1,847 / 744 | 0.16 / 0.08 (poor targets, cheap to rebuild: fine) |
+
+The Banner Hall is paid in gold, so it got **40 extra siege points per level** (`SIEGE_EXTRA_POINTS`, cost = 6 + 7 x L + 40): 1.02 to 1.93x at levels 1 to 4. Not met, on purpose or by necessity: economy buildings at levels
+15 and 20 (0.15 to 0.4, below 0.5), Stables 18 at 2.02x. Raise the power to 5 or 6 for 0.2 to 1.2 on the economy buildings and 2.1 to 3.1 on Barracks 20 and Stables 18; lower it to 2 for cheaper economy-building hits.
+Three or more levels are not offered by the Firecart (2 per step), so a single hit costs the defender at most about 2x this per attack.
+
+**Invariants (sim section (a) at Firecart power 4: Market 0.11 to 0.17, Drillyard 0.42 to 0.63, Banner Hall 3.4 to 3.9).** All 10 sim invariants hold with the Wall line at 2x for every Wall level; the per-attack cap (3 levels per step, 6 on the Wall in one won attack) is unchanged. Hard-chipping a Wall 15+ stays
+possible (0.6x to 1.8x of the army's price) but the garrison, not the Wall, still sets the army size ((d2): Wall 10 with 400 defenders needs about 25x the empty village's army).
+
+**Sims (the default sim has no siege units, so these moved only by noise from the extra seed draw, which does not change luck):**
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days (1.5-2x) | 1.82x (19,342 / 10,633) |
+| 2nd village day, builder / raider / balanced (21-28) | 26.7 / 25.8 / 20.3 (balanced was already under 21) |
+| 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526 |
+| conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x |
+| takes 30-50 / restarts <= 26 | 45 / 20 |
+| `--siege` computer players (Log Rams: balanced trains 29, 14 siege raids all won, 22 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 13,239 |
+
+The sim players use Log Rams only (Wall); the Firecart's tests are the section (a) building rows and the engine tests. Builder 10,633 vs 10,615 in section 18: not isolated (the default sim has no siege).

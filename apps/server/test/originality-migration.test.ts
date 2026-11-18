@@ -74,7 +74,7 @@ test('an old database: Longhouse = Farm, siege units become Firecarts, queued si
     assert.deepEqual(s.trainQueues.wrightyard, []);
     assert.equal(s.troops.firecart, Math.floor((3 * 7 + 2 * 4) / 3), 'home: floor((3 rams + 2 slings) / 3)');
     assert.equal(s.troops.pikeman, 5);
-    assert.equal((s.troops as Loose).logram, undefined);
+    assert.equal((s.troops as Loose).logram, 0, 'the old rams are gone: they became Firecarts (the Log Ram unit is new, 2026-11-18)');
     assert.equal((s.troops as Loose).boulder, undefined);
     // Away = what the marching troops became (3 rams-pop 6 + 1 sling-pop 2 -> 2), so `away` and the movement agree.
     const moves = app.ctx.store.movementsFrom(homeId).filter((m) => m.kind === 'attack');

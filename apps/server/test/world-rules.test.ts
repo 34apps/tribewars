@@ -264,21 +264,26 @@ test('protection.beginnerHours: a new village is protected in the default world 
 
 // ---- (6) siege -------------------------------------------------------------------------------------------------------------
 
-test('features.siege off: a Firecart can be neither researched nor trained; on by default', async () => {
+test('features.siege off: a Log Ram and a Firecart can be neither researched nor trained; on by default', async () => {
   const { def, cus } = await twin({ features: { siege: false } });
   for (const [w, on] of [[def, true], [cus, false]] as const) {
     const p = await newPlayer(w.app, 'smith');
-    const vid = rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 1 });
-    const research = await p.c.post(`/api/villages/${vid}/research`, { unit: 'firecart' });
-    if (on) ok(research);
-    else errorOf(research, 409, 'requirements_not_met');
-    // Researched at once (as if done) so the training gate is what is checked.
-    rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 1 }, ['firecart']);
-    const trained = await p.c.post(`/api/villages/${vid}/train`, { unit: 'firecart', count: 1 });
-    if (on) ok(trained);
-    else errorOf(trained, 409, 'requirements_not_met');
-    const v = (await p.c.village()) as OwnVillageDto;
-    assert.equal(v.state.trainQueues.wrightyard.length, on ? 1 : 0);
+    for (const unit of ['logram', 'firecart'] as const) {
+      const vid = rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 4 });
+      const research = await p.c.post(`/api/villages/${vid}/research`, { unit });
+      if (on) ok(research);
+      else errorOf(research, 409, 'requirements_not_met');
+      // Researched at once (as if done) so the training gate is what is checked.
+      rich(w.app, p, { barracks: 5, drillyard: 3, wrightyard: 4 }, [unit]);
+      const trained = await p.c.post(`/api/villages/${vid}/train`, { unit, count: 1 });
+      if (on) ok(trained);
+      else errorOf(trained, 409, 'requirements_not_met');
+      const v = (await p.c.village()) as OwnVillageDto;
+      assert.equal(v.state.trainQueues.wrightyard.length, on ? 1 : 0, unit);
+      const mine = w.app.ctx.store.villagesOfPlayer(p.id)[0]!; // empty the queue for the next unit
+      mine.state.trainQueues.wrightyard = [];
+      w.app.ctx.store.saveVillage(mine.id, mine.state, mine.points);
+    }
   }
   await def.app.close();
   await cus.app.close();

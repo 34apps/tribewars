@@ -75,7 +75,7 @@ function station(w: W, p: P, troops: Partial<Units>): void {
   w.app.ctx.store.saveVillage(home.id, home.state, home.points);
   w.app.ctx.store.sites.addGarrison(1, p.id, home.id, { ...emptyAll(), ...troops }, w.clock.now(), null);
 }
-const emptyAll = (): Units => ({ pikeman: 0, guard: 0, raider: 0, outrider: 0, knight: 0, pathfinder: 0, chieftain: 0, firecart: 0 });
+const emptyAll = (): Units => ({ pikeman: 0, guard: 0, raider: 0, outrider: 0, hearthwarden: 0, knight: 0, pathfinder: 0, chieftain: 0, logram: 0, firecart: 0 });
 
 const garrisonOf = (w: W): number => w.app.ctx.store.sites.garrisonAt(1).length;
 

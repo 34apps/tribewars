@@ -98,7 +98,7 @@ test('v18 database with old reports, groups and ranks: converted, new rows untou
     ok(await api.post('/api/auth/login', { username: 'alice', password: PASSWORD }));
     const served = await api.get(`/api/reports/${oldId}`);
     assert.equal(served.statusCode, 200, served.body);
-    assert.equal(served.body.includes('logram'), false);
+    assert.equal(/"logram":[1-9]/.test(served.body), false, 'no old Log Ram is left in the served report');
     await app.close();
 
     // A second start changes nothing.
@@ -117,7 +117,7 @@ test('v18 database with old reports, groups and ranks: converted, new rows untou
   }
 });
 
-test('the read path tolerates an old report body that was never migrated', async () => {
+test('the read path still converts a never-migrated Boulder Sling, but a Log Ram stays a Log Ram (the unit is real again)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-leftovers-read-'));
   try {
     const dbPath = join(dir, 'game.sqlite');
@@ -128,19 +128,28 @@ test('the read path tolerates an old report body that was never migrated', async
     await app.close();
     const raw = new DatabaseSync(dbPath);
     const pid = (raw.prepare('SELECT id FROM players LIMIT 1').get() as { id: number }).id;
-    const id = Number(
-      raw
-        .prepare("INSERT INTO reports (player_id, side, won, title, created_at, read, battle_json) VALUES (?, 'attack', 1, 'x', ?, 0, ?)")
-        .run(pid, clock.now(), JSON.stringify({ type: 'battle', attackerUnits: { logram: 3 }, attackerLosses: {}, siege: [{ unit: 'boulder', building: 'wall', from: 3, to: 2 }] })).lastInsertRowid,
-    );
-    raw.close(); // the v19 flag is already set: this row is never rewritten
+    const insert = (body: unknown): number =>
+      Number(
+        raw
+          .prepare("INSERT INTO reports (player_id, side, won, title, created_at, read, battle_json) VALUES (?, 'attack', 1, 'x', ?, 0, ?)")
+          .run(pid, clock.now(), JSON.stringify(body)).lastInsertRowid,
+      );
+    const old = insert({ type: 'battle', attackerUnits: { boulder: 3 }, attackerLosses: {}, siege: [{ unit: 'boulder', building: 'wall', from: 3, to: 2 }] });
+    const fresh = insert({ type: 'battle', attackerUnits: { logram: 3, firecart: 2 }, attackerLosses: { logram: 1 }, siege: [{ unit: 'logram', building: 'wall', from: 8, to: 5 }, { unit: 'firecart', building: 'market', from: 4, to: 2 }] });
+    raw.close(); // the v19 flag is already set: these rows are never rewritten
     app = await open();
     const c = new Client(app);
     ok(await c.post('/api/auth/login', { username: 'bob', password: PASSWORD }));
-    const res = await c.get(`/api/reports/${id}`);
+    const res = await c.get(`/api/reports/${old}`);
     assert.equal(res.statusCode, 200, res.body);
-    assert.equal(res.body.includes('logram') || res.body.includes('boulder'), false);
-    assert.match(res.body, /"firecart":3/);
+    assert.equal(res.body.includes('boulder'), false);
+    assert.match(res.body, /"firecart":2/, 'Boulder Slings: 2 pop each, 3 pop per Firecart: 3 slings -> 2 Firecarts');
+    assert.equal(/"logram":[1-9]/.test(res.body), false);
+    const kept = JSON.parse((await c.get(`/api/reports/${fresh}`)).body) as { report?: Record<string, any>; battle?: Record<string, any> } & Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const battle = (kept.battle ?? kept.report?.battle ?? kept) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    assert.equal(battle.attackerUnits.logram, 3, 'a Log Ram in a report is a real Log Ram');
+    assert.equal(battle.attackerUnits.firecart, 2);
+    assert.deepEqual(battle.siege.map((h: { unit: string }) => h.unit), ['logram', 'firecart']);
     await app.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

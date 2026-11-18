@@ -128,7 +128,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes about what a 20-level one did
 /** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 3, pathfinder: 1, chieftain: 8, firecart: 3 };
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, hearthwarden: 2, knight: 3, pathfinder: 1, chieftain: 8, logram: 3, firecart: 3 };
 /** Cap: Longhouse level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 720;
@@ -309,7 +309,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   wrightyard: {
     id: 'wrightyard',
     name: 'Wrightyard',
-    description: 'Wrights build and train the Firecart, the clan\'s siege cart. Higher levels train faster. It has its own training queue.',
+    description: 'Wrights build and train the siege units: the Log Ram (breaks the Wall) and the Firecart (burns buildings, from level 4). Higher levels train faster. It has its own training queue.',
     maxLevel: 12,
     startLevel: 0,
     requires: { barracks: 5 },
@@ -420,7 +420,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
   outrider: {
     id: 'outrider',
     name: 'Elk Rider',
-    description: 'Fast rider on a tame elk. The only mounted unit; carries the most loot.',
+    description: 'Fast rider on a tame elk. Carries the most loot.',
     unitClass: 'cavalry',
     attack: 65,
     defenseInfantry: 18,
@@ -432,6 +432,22 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'stables',
     requires: { stables: 1 },
     research: { drillyard: 3, cost: res(300, 220, 350, 20), timeSec: 7200 },
+  },
+  hearthwarden: {
+    id: 'hearthwarden',
+    name: 'Hearthwarden',
+    description: "A heavy rider who rides to stand before a friend's fire. Strong in defence against foot and riders, weak in attack, carries little: send it as support.",
+    unitClass: 'cavalry',
+    attack: 18,
+    defenseInfantry: 48,
+    defenseCavalry: 52,
+    speed: 11, // between foot (5-6) and the Elk Rider (13): support that arrives in time
+    carry: 20,
+    cost: res(60, 90, 110),
+    trainTimeSec: 700,
+    building: 'stables',
+    requires: { stables: 4 },
+    research: { drillyard: 4, cost: res(320, 240, 380, 20), timeSec: 7800 },
   },
   knight: {
     id: 'knight',
@@ -479,12 +495,29 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'bannerhall',
     requires: { bannerhall: 1 },
   },
-  // Siege unit (docs/GAME_DESIGN.md 18.9). Slow, weak fighter; trained at the Wrightyard and researched at the Drillyard first. It lowers
-  // the Wall during the battle and, after a won battle, the building the sender picked (SIEGE_* below).
+  // Siege units (docs/GAME_DESIGN.md 18.9), trained at the Wrightyard and researched at the Drillyard first. Slow, weak fighters.
+  // The Log Ram only breaks the Wall (during the battle and again after a win); the Firecart only burns other buildings after a win.
+  logram: {
+    id: 'logram',
+    name: 'Log Ram',
+    description: 'A heavy ram on wheels. It breaks only the Wall: in the battle it batters the Wall down, and after a won attack the surviving rams batter it again. Slow, and a poor fighter.',
+    unitClass: 'infantry',
+    attack: 3,
+    defenseInfantry: 5,
+    defenseCavalry: 4,
+    speed: 3,
+    carry: 0,
+    cost: res(70, 50, 90),
+    trainTimeSec: 1100,
+    building: 'wrightyard',
+    requires: { wrightyard: 1 },
+    research: { drillyard: 2, cost: res(260, 200, 340), timeSec: 7200 },
+    siege: { power: 6, maxLevels: 3, hits: 'wall' }, // about 3x the Firecart's old Wall power per unit, and cheaper (owner 2026-11-18)
+  },
   firecart: {
     id: 'firecart',
     name: 'Firecart',
-    description: 'A cart of burning pitch. In the battle it burns down part of the Wall; after a won attack the surviving carts burn the building you pick when sending (the Wall if you pick none). Slow, and a poor fighter.',
+    description: 'A cart of burning pitch. After a won attack the surviving carts burn the building you pick when sending (a random building other than the Wall if you pick none). They never touch the Wall: that is the Log Ram\'s job. Slow, and a poor fighter.',
     unitClass: 'infantry',
     attack: 5,
     defenseInfantry: 7,
@@ -494,25 +527,28 @@ export const UNITS: Record<UnitId, UnitDef> = {
     cost: res(99, 88, 121, 6), // 180 / 160 / 220 / 10 x 0.55, like the other troops on this branch
     trainTimeSec: 1400,
     building: 'wrightyard',
-    requires: { wrightyard: 1 },
+    requires: { wrightyard: 4 },
     research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
-    siege: { power: 2, maxLevels: 2 }, // power 1 -> 2 (BALANCE 14): two Wall-22 levels took 98 survivors (36k of value) against 30k of rebuild; now 49 (18k)
+    siege: { power: 4, maxLevels: 2, hits: 'buildings' }, // power 1 -> 2 (BALANCE 14) -> 4 (BALANCE 18, with 7 points per level)
   },
 };
 
 // ---- Siege (docs/GAME_DESIGN.md 18.9). Building levels only ever drop through siege. ----
 
 /**
- * The Firecart lowers buildings in two steps. It has `count * power` siege points; lowering a building from level L to L-1 costs
- * SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L points, so high levels are harder to knock down. Each step lowers at most `maxLevels`
- * levels (UnitDef.siege). Step 1, DURING the battle: all Firecarts that were sent fire at the Wall with SIEGE_DURING_SHARE of their
- * points (the lowered Wall counts in that battle). Step 2, after it: the survivors spend their full points on the building the sender picked
- * (the Wall if none). On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT * SIEGE_LOST_SHARE) Firecarts count as survivors for step 2.
+ * Siege units have `count * power` siege points; lowering a building from level L to L-1 costs SIEGE_BASE_POINTS + SIEGE_POINTS_PER_LEVEL * L
+ * points, so high levels are harder to knock down. Each step lowers at most `maxLevels` levels (UnitDef.siege). Two kinds (owner 2026-11-18):
+ * Log Rams (`hits: 'wall'`) lower only the Wall: step 1, DURING the battle, all Log Rams that were sent fire at the Wall with SIEGE_DURING_SHARE of
+ * their points (the lowered Wall counts in that battle); step 2, after it, the survivors spend their full points on the Wall again.
+ * Firecarts (`hits: 'buildings'`) have only step 2: the survivors spend their full points on the building the sender picked (a random building
+ * other than the Wall if none). On a LOST attack floor(count * (A/D)^BATTLE_LOSS_EXPONENT * SIEGE_LOST_SHARE) of each kind count as survivors for step 2.
  */
 export const SIEGE_BASE_POINTS = 6;
-export const SIEGE_POINTS_PER_LEVEL = 2;
+export const SIEGE_POINTS_PER_LEVEL = 7;
 export const SIEGE_DURING_SHARE = 0.5;
 export const SIEGE_LOST_SHARE = 0.5;
+/** Some buildings are sturdier: extra siege points added to the cost of lowering one level of that building (cost = base + per level x L + extra). Absent = 0. The Banner Hall is paid in gold, so it costs far more to rebuild than its level suggests (BALANCE 18). */
+export const SIEGE_EXTRA_POINTS: Partial<Record<BuildingId, number>> = { bannerhall: 40 };
 
 // ---- Notifications (docs/GAME_DESIGN.md 18.10) ----
 export const NOTIFICATIONS_KEEP = 100; // per player
@@ -617,8 +653,8 @@ export const DRILLYARD_POINTS_PER_LEVEL = 3;
 export const RANK_MAX = 5;
 /** Might: +attack, Bulwark: +both defences, per rank (max RANK_MAX * 5% = +25%). */
 export const RANK_BONUS = 0.05;
-/** Units that can be ranked (the Chieftain has no attack and the Firecart is a siege tool: ranks would do nothing, 2026-11-18). */
-export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder'];
+/** Units that can be ranked (the Chieftain has no attack and the siege units are tools: ranks would do nothing, 2026-11-18). */
+export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
 /** Keen (pathfinder only): +scout strength per rank. */
 export const KEEN_BONUS = 0.1;
 /** Resources paid for buying rank r (index r - 1) of one track. Points cost r. */
@@ -753,9 +789,11 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   guard: 'foot',
   raider: 'foot',
   outrider: 'mounted',
+  hearthwarden: 'mounted',
   knight: 'foot',
   pathfinder: 'pathfinder',
   chieftain: 'foot',
+  logram: 'carrier',
   firecart: 'carrier',
 };
 /** Length of one sample along the route, in tiles. */

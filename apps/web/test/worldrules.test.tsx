@@ -68,7 +68,7 @@ test('flags read On and Off, and the non-default numbers show', () => {
   c = setWorldConfigValue(c, 'queues.build', 4);
   c = setWorldConfigValue(c, 'tribe.maxMembers', 12);
   const html = page(response(c));
-  assert.ok(html.includes('Siege (Firecarts) Off'), html);
+  assert.ok(html.includes('Siege (Log Rams and Firecarts) Off'), html);
   assert.ok(html.includes('Fire Shrines and the Great Fire On'), html);
   assert.ok(html.includes('Build queue 4'));
   assert.ok(html.includes('Tribe size limit 12'));

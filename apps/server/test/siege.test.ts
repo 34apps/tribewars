@@ -1,4 +1,4 @@
-// The Firecart (docs/GAME_DESIGN.md 18.9): the sender's pick, validation without an oracle, what a won attack lowers, the reports,
+// The siege units, Log Ram (Wall) and Firecart (buildings) (docs/GAME_DESIGN.md 18.9): the sender's pick, validation without an oracle, what a won attack lowers, the reports,
 // training rules and the schema upgrade. Troops and village levels are put into the database directly; the rules themselves
 // have engine tests, these tests are about the server wiring.
 
@@ -63,11 +63,11 @@ interface Ctx {
   target: { id: number; x: number; y: number };
 }
 
-/** A sandbox player (fixed march times) with raiders and Firecarts, next to an empty abandoned village with plain levels. */
+/** A sandbox player (fixed march times) with raiders, Log Rams and Firecarts, next to an empty abandoned village with plain levels. */
 async function setup(troops: Partial<Units> = {}, extra: string[] = []): Promise<Ctx> {
   const { app, clock } = await makeApp({ sandboxUsers: ['sieger', ...extra], worldConfig: { npc: { selfBuild: false }, features: { morale: false } } }); // morale has its own tests
   const p = await player(app, 'sieger');
-  const homeId = strongHome(app, clock, p, { raider: 300, firecart: 100, ...troops });
+  const homeId = strongHome(app, clock, p, { raider: 300, logram: 100, firecart: 100, ...troops });
   const target = clearedTarget(app, homeOf(app, p));
   setBuildings(app, target.id, {});
   return { app, clock, p, homeId, target };
@@ -115,13 +115,13 @@ test('a send with a valid pick and Firecarts is accepted; the pick is stored for
   assert.ok(!('siegeTarget' in movement) && !('targetBuilding' in movement), 'the movement view carries no pick');
   assert.equal(c.app.ctx.store.getMovement(movement.id)?.siegeTarget, 'barracks');
 
-  // No pick: stored as none (the Firecarts then burn the Wall).
+  // No pick: stored as none (the Firecarts then burn a random building but the Wall).
   restock(c.app, c.p, { raider: 20, firecart: 10 });
   const plain = (await c.p.c.post(`/api/villages/${c.homeId}/send`, { x: c.target.x, y: c.target.y, units: { raider: 20, firecart: 10 }, mission: 'attack' })).json<SendResponse>();
   assert.equal(c.app.ctx.store.getMovement(plain.movement.id)?.siegeTarget, null);
 });
 
-test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a string, null, wrong mission, no Firecarts', async () => {
+test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a string, null, wrong mission, the Wall, no Firecarts', async () => {
   const c = await setup();
   const store = c.app.ctx.store;
   const post = (body: object) => c.p.c.post(`/api/villages/${c.homeId}/send`, { x: c.target.x, y: c.target.y, ...body });
@@ -141,6 +141,8 @@ test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a str
   errorOf(await post({ units: { raider: 5 }, mission: 'found', targetBuilding: 'hall' }), 400, 'invalid_input');
   errorOf(await post({ units: { raider: 5 }, mission: 'occupy', targetBuilding: 'hall' }), 400, 'invalid_input');
   errorOf(await post({ units: { raider: 5 }, mission: 'attack', targetBuilding: 'hall' }), 400, 'invalid_input'); // no Firecarts
+  errorOf(await post({ units: { raider: 5, logram: 5 }, mission: 'attack', targetBuilding: 'hall' }), 400, 'invalid_input'); // Log Rams need no pick: only Firecarts take one
+  errorOf(await post({ units: { raider: 5, firecart: 5 }, mission: 'attack', targetBuilding: 'wall' }), 400, 'invalid_input'); // Firecarts never burn the Wall
 
   assert.equal(JSON.stringify(store.getVillage(c.homeId)?.state.troops), before, 'no troops left');
   assert.equal(store.movementsFrom(c.homeId).length, movements, 'no movement was created');
@@ -175,14 +177,14 @@ test('another player cannot use my village id to send, with or without a pick; n
   const rival = await player(c.app, 'rival');
   strongHome(c.app, c.clock, rival, { raider: 50 });
   const before = c.app.ctx.store.movementsFrom(c.homeId).length;
-  const body = { x: c.target.x, y: c.target.y, units: { raider: 5, firecart: 5 }, mission: 'attack', targetBuilding: 'wall' };
+  const body = { x: c.target.x, y: c.target.y, units: { raider: 5, firecart: 5 }, mission: 'attack', targetBuilding: 'market' };
   errorOf(await rival.c.post(`/api/villages/${c.homeId}/send`, body), 403, 'forbidden');
   errorOf(await rival.c.post('/api/villages/999999/send', body), 404, 'not_found');
   assert.equal(c.app.ctx.store.movementsFrom(c.homeId).length, before);
   assert.equal(c.app.ctx.store.getVillage(c.homeId)?.state.troops.firecart, 100, 'my troops stay');
 });
 
-test('Firecarts cannot scout, support, found or occupy', async () => {
+test('siege units cannot scout, support, found or occupy', async () => {
   const c = await setup({ pathfinder: 5, chieftain: 2, pikeman: 50 });
   reserveFor(c.app, c.p, 2, 500);
   const store = c.app.ctx.store;
@@ -191,7 +193,7 @@ test('Firecarts cannot scout, support, found or occupy', async () => {
   const own = store.getVillage(second)!;
   const tile = freeTileNear(c.app, c.p);
 
-  for (const unit of ['firecart'] as const) {
+  for (const unit of ['firecart', 'logram'] as const) {
     const army = { [unit]: 1, pathfinder: 1 };
     await sendFails(c.p, c.target, 'scout', army, 400, 'invalid_input');
     await sendFails(c.p, own, 'support', { [unit]: 1, pikeman: 5 }, 400, 'invalid_input');
@@ -203,12 +205,14 @@ test('Firecarts cannot scout, support, found or occupy', async () => {
   runTo(c.app, c.clock, strike.arriveAt);
   assert.ok(store.getVillage(c.target.id)?.state.hearth, 'the hearth is out: a claim exists');
   await sendFails(c.p, c.target, 'occupy', { raider: 20, firecart: 1 }, 400, 'invalid_input');
+  await sendFails(c.p, c.target, 'occupy', { raider: 20, logram: 1 }, 400, 'invalid_input');
   assert.equal(store.getVillage(c.homeId)?.state.troops.firecart, 100, 'no Firecart left');
+  assert.equal(store.getVillage(c.homeId)?.state.troops.logram, 100, 'no Log Ram left');
 });
 
 // ---- battle: what a won attack lowers --------------------------------------------------------------
 
-test('a won attack with Firecarts lowers the Wall (during and after, no pick); both reports say so, the Wall counted in full, the return carries no pick', async () => {
+test('a won attack with Log Rams lowers the Wall (during and after, no pick needed); both reports say so, the Wall counted lowered, the return carries no pick', async () => {
   const c = await setup({}, ['victim']);
   const victim = await player(c.app, 'victim');
   const vid = strongHome(c.app, c.clock, victim, {});
@@ -216,7 +220,7 @@ test('a won attack with Firecarts lowers the Wall (during and after, no pick); b
   const store = c.app.ctx.store;
   const target = store.getVillage(vid)!;
 
-  const army = { raider: 300, firecart: 100 };
+  const army = { raider: 300, logram: 100 };
   restock(c.app, c.p, army);
   const m = await launch(c, target, army, undefined, 3600);
   // What the engine says about this exact battle, computed from the village as it stands before anything is processed.
@@ -233,8 +237,8 @@ test('a won attack with Firecarts lowers the Wall (during and after, no pick); b
   };
   const exp = resolveBattle(input);
   assert.equal(exp.attackerWon, true);
-  const wallHit = exp.siege?.find((h) => h.unit === 'firecart');
-  assert.ok(wallHit && wallHit.building === 'wall' && wallHit.to < wallHit.from, 'Firecarts lower the Wall');
+  const wallHit = exp.siege?.find((h) => h.unit === 'logram');
+  assert.ok(wallHit && wallHit.building === 'wall' && wallHit.to < wallHit.from, 'Log Rams lower the Wall');
   assert.equal(exp.siege?.length, 1, 'no pick: one Wall hit for both steps');
   assert.equal(wallHit.from, 10);
 
@@ -244,8 +248,8 @@ test('a won attack with Firecarts lowers the Wall (during and after, no pick); b
   assert.equal(buildingsOf(c.app, vid).wall, wallHit.to, 'the Wall is lower now');
   for (const b of [mine, theirs]) {
     assert.deepEqual(b.siege, exp.siege, 'the report lists the engine hits');
-    assert.equal(b.wallLevel, exp.wallDuring, 'wallLevel is the Wall as it counted in the battle (after the Firecarts fired)');
-    assert.ok(exp.wallDuring < 10, 'the Firecarts already lowered it during the battle');
+    assert.equal(b.wallLevel, exp.wallDuring, 'wallLevel is the Wall as it counted in the battle (after the Log Rams fired)');
+    assert.ok(exp.wallDuring < 10, 'the Log Rams already lowered it during the battle');
     assert.equal(b.attackerWon, true);
     // The same battle as the engine plays it, wall-hit and all.
     assert.equal(b.attackPower, exp.attackPower);
@@ -255,7 +259,7 @@ test('a won attack with Firecarts lowers the Wall (during and after, no pick); b
     assert.deepEqual(b.loot, exp.loot);
   }
   // The defence used the lowered Wall, not the full one.
-  const full = resolveBattle({ ...input, attackerUnits: { ...input.attackerUnits, firecart: 0 } });
+  const full = resolveBattle({ ...input, attackerUnits: { ...input.attackerUnits, logram: 0 } });
   assert.ok(theirs.defensePower < full.defensePower, 'a lower Wall defends less');
 
   // The units walking home carry no pick.
@@ -264,25 +268,38 @@ test('a won attack with Firecarts lowers the Wall (during and after, no pick); b
   for (const x of back) assert.equal(x.siegeTarget ?? null, null);
 });
 
-test('a Firecart burns the picked building after the battle; with no pick it burns the Wall again', async () => {
+test('Log Rams lower the Wall, a Firecart burns the picked building; with no pick a Firecart burns a random building but the Wall', async () => {
   const c = await setup();
-  setBuildings(c.app, c.target.id, { market: 5, stables: 2, wall: 6 });
+  setBuildings(c.app, c.target.id, { market: 5, stables: 2, wall: 12 });
 
-  await attack(c, { raider: 300, firecart: 100 }, 'market');
+  await attack(c, { raider: 300, logram: 100, firecart: 100 }, 'market');
   const hits = (await lastBattle(c.p)).siege ?? [];
   const wall = hits.find((h) => h.building === 'wall');
   const market = hits.find((h) => h.building === 'market');
-  assert.equal(hits.length, 2, 'the Wall during the battle, the pick after it');
-  assert.ok(wall && wall.unit === 'firecart' && wall.from === 6 && wall.to === 4, 'two levels off the Wall in the battle');
+  assert.equal(hits.length, 2, 'the Wall (Log Rams, both steps in one line) and the pick (Firecarts)');
+  assert.ok(wall && wall.unit === 'logram' && wall.from === 12 && wall.to === 6, 'three levels off the Wall in the battle, three more after it');
   assert.ok(market && market.unit === 'firecart' && market.from === 5 && market.to === 3, 'two levels off the pick');
-  assert.deepEqual([buildingsOf(c.app, c.target.id).wall, buildingsOf(c.app, c.target.id).market], [4, 3]);
+  assert.deepEqual([buildingsOf(c.app, c.target.id).wall, buildingsOf(c.app, c.target.id).market], [6, 3]);
 
-  // No pick: the Wall takes both steps (at most 2 + 2 levels), nothing else is touched.
+  // Firecarts alone, no pick: one random building (never the Wall); the Wall counts in full and stays.
   setBuildings(c.app, c.target.id, { market: 4, stables: 2, wall: 10 });
   await attack(c, { raider: 300, firecart: 100 });
   const b = await lastBattle(c.p);
   assert.equal(b.siege?.length, 1);
-  assert.deepEqual([b.siege?.[0]?.building, b.siege?.[0]?.from, b.siege?.[0]?.to], ['wall', 10, 6]);
+  const hit = b.siege![0]!;
+  assert.equal(hit.unit, 'firecart');
+  assert.ok(hit.building === 'market' || hit.building === 'stables', 'a building that was above its floor');
+  assert.ok(hit.to < hit.from);
+  assert.equal(b.wallLevel, 10, 'the Wall counted in full');
+  assert.equal(buildingsOf(c.app, c.target.id).wall, 10);
+  const lowered = Object.entries(buildingsOf(c.app, c.target.id)).filter(([k, v]) => v < ({ market: 4, stables: 2, wall: 10, hall: 1, storehouse: 1, farm: 1, longhouse: 1 } as Record<string, number>)[k]!);
+  assert.deepEqual(lowered.map(([k]) => k), [hit.building], 'only that building was touched');
+
+  // Log Rams alone, a pick is refused (400 above) and none is needed: the Wall takes both steps.
+  setBuildings(c.app, c.target.id, { market: 4, stables: 2, wall: 14 });
+  await attack(c, { raider: 300, logram: 100 });
+  const w = await lastBattle(c.p);
+  assert.deepEqual(w.siege?.map((h) => [h.unit, h.building, h.from, h.to]), [['logram', 'wall', 14, 8]]);
   assert.deepEqual([buildingsOf(c.app, c.target.id).market, buildingsOf(c.app, c.target.id).stables], [4, 2]);
 });
 
@@ -308,10 +325,11 @@ test('the Town Hall never drops below 1, every other building never below 0', as
   // Aimed at something that is not there at all: a miss, not an error.
   await attack(c, army, 'bannerhall');
   assert.deepEqual([(await last('bannerhall'))?.from, (await last('bannerhall'))?.to], [0, 0]);
-  // No pick on a Wall that is already gone.
+  // No pick and nothing but floor-level buildings left besides the Wall: the Firecarts find nothing, and never touch the Wall.
+  setBuildings(c.app, c.target.id, { wall: 4 });
   await attack(c, army);
-  assert.equal((await lastBattle(c.p)).siege?.[0]?.building, 'wall');
-  assert.equal(buildingsOf(c.app, c.target.id).wall, 0);
+  assert.deepEqual((await lastBattle(c.p)).siege, []);
+  assert.equal(buildingsOf(c.app, c.target.id).wall, 4);
 });
 
 test('the Farm, the Longhouse and the Storehouse never drop below 1 either, like the Town Hall', async () => {
@@ -345,29 +363,41 @@ test('a hopeless lost attack lowers nothing: the few Firecarts cannot lower a le
   assert.equal(mine.defenderUnits, null);
 });
 
-test('a LOST attack with many Firecarts still lowers the Wall (during hit); the defender sees the lowered Wall in the report, the wiped-out attacker only the Wall hit', async () => {
+test('a LOST attack with many Log Rams still lowers the Wall (during hit); the defender sees the lowered Wall in the report, the wiped-out attacker only the Wall hit', async () => {
   const c = await setup({}, ['victim']);
   const victim = await player(c.app, 'victim');
   const vid = strongHome(c.app, c.clock, victim, { pikeman: 4000 });
   setBuildings(c.app, vid, { wall: 10, market: 6, hall: 5, storehouse: 5, farm: 5 });
   const target = c.app.ctx.store.getVillage(vid)!;
 
-  await attack(c, { raider: 20, firecart: 100 }, 'market', target);
+  await attack(c, { raider: 20, logram: 100 }, undefined, target);
   const mine = await lastBattle(c.p);
   const theirs = await lastBattle(victim);
   assert.equal(mine.attackerWon, false);
-  // 100 Firecarts fire half their points during the battle: 50 points drop two Wall levels (26 + 24); the defence used Wall 8.
+  // 100 Log Rams fire half their points during the battle: 300 points drop three Wall levels (26 + 24 + 22); the defence used Wall 7.
   const after = buildingsOf(c.app, vid);
-  assert.equal(after.wall, 8, 'two levels gone although the attack was lost');
-  assert.equal(after.market, 6, 'nothing was burnt after the battle: no survivors counted at this ratio');
-  assert.equal(theirs.wallLevel, 8, 'wallLevel is the Wall as it counted in the battle');
-  const hit = (theirs.siege ?? []).find((h) => h.unit === 'firecart');
-  assert.deepEqual(hit && [hit.building, hit.from, hit.to], ['wall', 10, 8]);
+  assert.equal(after.wall, 7, 'three levels gone although the attack was lost');
+  assert.equal(after.market, 6, 'nothing else was touched');
+  assert.equal(theirs.wallLevel, 7, 'wallLevel is the Wall as it counted in the battle');
+  const hit = (theirs.siege ?? []).find((h) => h.unit === 'logram');
+  assert.deepEqual(hit && [hit.building, hit.from, hit.to], ['wall', 10, 7]);
   assert.deepEqual(mine.siege, [hit], 'the attacker sees the Wall hit and nothing else');
   assert.equal(mine.wallLevel, null, 'but not the defence');
   assert.equal(mine.defenderUnits, null);
   assert.equal(mine.defenderLosses, null);
   assert.deepEqual(mine.loot, { wood: 0, food: 0, iron: 0, gold: 0 });
+});
+
+test('a wiped-out attacker does not learn which building a Firecart burnt on a close loss', async () => {
+  const c = await setup({}, ['victim']);
+  const victim = await player(c.app, 'victim');
+  const vid = strongHome(c.app, c.clock, victim, { pikeman: 700 });
+  setBuildings(c.app, vid, { wall: 4, market: 6, hall: 5, storehouse: 5, farm: 5 });
+  const target = c.app.ctx.store.getVillage(vid)!;
+  await attack(c, { raider: 100, firecart: 100 }, 'market', target);
+  const mine = await lastBattle(c.p);
+  assert.equal(mine.attackerWon, false);
+  assert.ok((mine.siege ?? []).every((h) => h.building === 'wall'), 'only Wall hits are shown to a wiped-out attacker');
 });
 
 test('a queued upgrade of a lowered building is aimed lower too', async () => {
@@ -401,24 +431,36 @@ function prepare(app: App, p: P, level: { barracks: number; drillyard: number; w
   return v.id;
 }
 
-test('a Firecart needs research, a Wrightyard and Barracks 5 before it can be trained; it is queued at the Wrightyard, never the Barracks', async () => {
+test('a Log Ram needs research (Drillyard 2) and a Wrightyard; a Firecart needs Wrightyard 4 and Drillyard 3 research; both queue at the Wrightyard, never the Barracks', async () => {
   const { app, alice } = await world();
   const train = (id: number, unit: string) => alice.c.post(`/api/villages/${id}/train`, { unit, count: 2 });
   const queues = (id: number) => app.ctx.store.getVillage(id)!.state.trainQueues;
 
-  let id = prepare(app, alice, { barracks: 5, drillyard: 3, wrightyard: 1 });
-  const noResearch = await train(id, 'firecart');
+  // Log Ram: Wrightyard 1.
+  let id = prepare(app, alice, { barracks: 5, drillyard: 2, wrightyard: 1 });
+  const noResearch = await train(id, 'logram');
   errorOf(noResearch, 409, 'requirements_not_met');
   assert.match(noResearch.json<{ message: string }>().message, /researched/);
-
-  // A Barracks alone is not enough: the Wrightyard trains it.
-  id = prepare(app, alice, { barracks: 8, drillyard: 3 }, ['firecart']);
-  const noYard = await train(id, 'firecart');
+  id = prepare(app, alice, { barracks: 8, drillyard: 2 }, ['logram']);
+  const noYard = await train(id, 'logram');
   errorOf(noYard, 409, 'requirements_not_met');
   assert.match(noYard.json<{ message: string }>().message, /Wrightyard/);
   assert.deepEqual([queues(id).barracks.length, queues(id).wrightyard.length], [0, 0]);
+  id = prepare(app, alice, { barracks: 5, drillyard: 2, wrightyard: 1 }, ['logram']);
+  ok(await train(id, 'logram'), 200);
+  assert.deepEqual([queues(id).barracks.length, queues(id).wrightyard.length], [0, 1]);
+  assert.equal(queues(id).wrightyard[0]?.unit, 'logram');
 
-  id = prepare(app, alice, { barracks: 5, drillyard: 3, wrightyard: 1 }, ['firecart']);
+  // Firecart: researched and Wrightyard 4; level 3 is not enough.
+  id = prepare(app, alice, { barracks: 5, drillyard: 3, wrightyard: 4 });
+  const noFireResearch = await train(id, 'firecart');
+  errorOf(noFireResearch, 409, 'requirements_not_met');
+  assert.match(noFireResearch.json<{ message: string }>().message, /researched/);
+  id = prepare(app, alice, { barracks: 5, drillyard: 3, wrightyard: 3 }, ['firecart']);
+  const three = await train(id, 'firecart');
+  errorOf(three, 409, 'requirements_not_met');
+  assert.match(three.json<{ message: string }>().message, /Wrightyard level 4/);
+  id = prepare(app, alice, { barracks: 5, drillyard: 3, wrightyard: 4 }, ['firecart']);
   ok(await train(id, 'firecart'), 200);
   assert.deepEqual([queues(id).barracks.length, queues(id).wrightyard.length], [0, 1]);
   assert.equal(queues(id).wrightyard[0]?.unit, 'firecart');
@@ -435,13 +477,49 @@ test('a Firecart needs research, a Wrightyard and Barracks 5 before it can be tr
   ok(await alice.c.post(`/api/villages/${id}/build`, { building: 'wrightyard' }), 200);
 });
 
-test('researching a Firecart needs Drillyard 3', async () => {
+test('researching: a Log Ram needs Drillyard 2, a Firecart Drillyard 3', async () => {
   const { app, alice } = await world();
-  const research = (id: number) => alice.c.post(`/api/villages/${id}/research`, { unit: 'firecart' });
-  let id = prepare(app, alice, { barracks: 8, drillyard: 2 });
-  errorOf(await research(id), 409, 'requirements_not_met');
+  const research = (id: number, unit: string) => alice.c.post(`/api/villages/${id}/research`, { unit });
+  let id = prepare(app, alice, { barracks: 8, drillyard: 1 });
+  errorOf(await research(id, 'logram'), 409, 'requirements_not_met');
+  id = prepare(app, alice, { barracks: 8, drillyard: 2 });
+  ok(await research(id, 'logram'), 200);
+  id = prepare(app, alice, { barracks: 8, drillyard: 2 });
+  errorOf(await research(id, 'firecart'), 409, 'requirements_not_met');
   id = prepare(app, alice, { barracks: 8, drillyard: 3 });
-  ok(await research(id), 200);
+  ok(await research(id, 'firecart'), 200);
+});
+
+test('a new Log Ram is not turned into a Firecart: troops, a march and a restart keep it', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-logram-'));
+  try {
+    const dbPath = join(dir, 'game.sqlite');
+    const clock = new Clock();
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
+    let app = await open();
+    const c = new Client(app);
+    ok(await c.post('/api/auth/register', { username: 'alice', password: PASSWORD }), 201);
+    const state = await c.state();
+    const homeId = state.villages[0]!.id;
+    const p = { c, id: state.player.id, name: 'alice' };
+    giveTroops(app, p, { logram: 7, firecart: 2, raider: 5 });
+    const npc = app.ctx.store.getVillage(app.ctx.store.abandonedVillageIds()[0]!)!;
+    const sent = await c.post(`/api/villages/${homeId}/send`, { x: npc.x, y: npc.y, units: { logram: 3, raider: 5 }, mission: 'attack' });
+    ok(sent, 201);
+    const movementId = sent.json<SendResponse>().movement.id;
+    await app.close();
+
+    app = await open(); // a restart runs every one-time migration check again
+    const home = app.ctx.store.getVillage(homeId)!.state;
+    assert.equal(home.troops.logram, 4, 'home: 7 - 3 sent, still Log Rams');
+    assert.equal(home.troops.firecart, 2, 'the Firecarts are untouched');
+    assert.equal(home.away.logram, 3);
+    assert.equal(app.ctx.store.getMovement(movementId)?.units.logram, 3);
+    assert.equal(app.ctx.store.getMovement(movementId)?.units.firecart, 0);
+    await app.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---- an old database -------------------------------------------------------------------------------

@@ -543,7 +543,7 @@ export function FrameSimulator() {
                   <div>
                     <span className="fv-up">Wall after</span>
                     <b>{wallShown ? `${outcome.wallBefore} → ${outcome.wallAfter}` : '–'}</b>
-                    <small>{outcome.wallAfter !== outcome.wallBefore ? 'burned by Firecarts' : wallShown ? 'no change' : 'no Wall'}</small>
+                    <small>{outcome.wallAfter !== outcome.wallBefore ? 'battered by Log Rams' : wallShown ? 'no change' : 'no Wall'}</small>
                   </div>
                   <div>
                     <span className="fv-up">Survivors carry</span>

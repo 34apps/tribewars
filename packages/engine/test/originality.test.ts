@@ -88,34 +88,47 @@ describe('Wrightyard', () => {
     assert.ok(checkBuild(rich({ barracks: 5, hall: 10 }), 'wrightyard', 0, S1).ok);
   });
 
-  it('the Firecart trains there (needs Wrightyard 1 and the Drillyard research), never at the Barracks', () => {
+  it('the Log Ram trains there from Wrightyard 1 after Drillyard 2 research; the Firecart needs Wrightyard 4, never at the Barracks', () => {
+    assert.equal(UNITS.logram.building, 'wrightyard');
     assert.equal(UNITS.firecart.building, 'wrightyard');
-    const noYard = checkTrain(rich({ barracks: 10 }, ['firecart']), 'firecart', 1, 0, S1);
+    const noYard = checkTrain(rich({ barracks: 10 }, ['firecart', 'logram']), 'logram', 1, 0, S1);
     assert.ok(!noYard.ok && noYard.reason === 'requirements_not_met' && /Wrightyard/.test(noYard.message));
-    const notResearched = checkTrain(rich({ barracks: 10, wrightyard: 1 }), 'firecart', 1, 0, S1);
+    const notResearched = checkTrain(rich({ barracks: 10, wrightyard: 1 }), 'logram', 1, 0, S1);
     assert.ok(!notResearched.ok && /researched/.test(notResearched.message));
-    const v = applyTrain(rich({ barracks: 10, wrightyard: 1 }, ['firecart']), 'firecart', 3, 0, S1);
+    const ram = applyTrain(rich({ barracks: 10, wrightyard: 1 }, ['logram']), 'logram', 3, 0, S1);
+    assert.equal(ram.trainQueues.wrightyard.length, 1);
+    assert.equal(ram.trainQueues.barracks.length, 0);
+    assert.equal(ram.trainQueues.wrightyard[0]!.unit, 'logram');
+    // the Firecart: Wrightyard 4 even when researched
+    const three = checkTrain(rich({ barracks: 10, wrightyard: 3 }, ['firecart']), 'firecart', 1, 0, S1);
+    assert.ok(!three.ok && three.reason === 'requirements_not_met' && /Wrightyard level 4/.test(three.message));
+    const v = applyTrain(rich({ barracks: 10, wrightyard: 4 }, ['firecart']), 'firecart', 3, 0, S1);
     assert.equal(v.trainQueues.wrightyard.length, 1);
     assert.equal(v.trainQueues.barracks.length, 0);
     assert.equal(v.trainQueues.wrightyard[0]!.unit, 'firecart');
+    const unresearched = checkTrain(rich({ barracks: 10, wrightyard: 4 }), 'firecart', 1, 0, S1);
+    assert.ok(!unresearched.ok && /researched/.test(unresearched.message));
   });
 
   it('has its own queue: a full Barracks queue does not block it, and its time shrinks x0.94 per level', () => {
-    let v = rich({ barracks: 10, wrightyard: 1 }, ['firecart']);
+    let v = rich({ barracks: 10, wrightyard: 4 }, ['firecart', 'logram']);
     for (let i = 0; i < MAX_TRAIN_QUEUE; i++) v = applyTrain(v, 'pikeman', 1, 0, S1);
     assert.equal(v.trainQueues.barracks.length, MAX_TRAIN_QUEUE);
     assert.ok(checkTrain(v, 'firecart', 1, 0, S1).ok);
-    const l1 = trainTimeMs('firecart', rich({ wrightyard: 1 }), S1);
-    const l5 = trainTimeMs('firecart', rich({ wrightyard: 5 }), S1);
-    assert.equal(l5, Math.round(l1 * TRAIN_TIME_FACTOR ** 4));
-    assert.equal(l1, UNITS.firecart.trainTimeSec * 1000);
+    assert.ok(checkTrain(v, 'logram', 1, 0, S1).ok);
+    const l4 = trainTimeMs('firecart', rich({ wrightyard: 4 }), S1);
+    const l8 = trainTimeMs('firecart', rich({ wrightyard: 8 }), S1);
+    assert.equal(l8, Math.round(l4 * TRAIN_TIME_FACTOR ** 4));
+    assert.equal(trainTimeMs('logram', rich({ wrightyard: 1 }), S1), UNITS.logram.trainTimeSec * 1000);
   });
 
-  it('finished Firecarts arrive in the troops', () => {
-    const v = applyTrain(rich({ barracks: 10, wrightyard: 1 }, ['firecart']), 'firecart', 2, 0, S1);
+  it('finished siege units arrive in the troops', () => {
+    const v = applyTrain(rich({ barracks: 10, wrightyard: 4 }, ['firecart', 'logram']), 'firecart', 2, 0, S1);
     const done = settleVillage(v, 3 * UNITS.firecart.trainTimeSec * 1000, S1);
     assert.equal(done.troops.firecart, 2);
     assert.equal(done.trainQueues.wrightyard.length, 0);
+    const r = applyTrain(rich({ barracks: 10, wrightyard: 1 }, ['logram']), 'logram', 2, 0, S1);
+    assert.equal(settleVillage(r, 3 * UNITS.logram.trainTimeSec * 1000, S1).troops.logram, 2);
   });
 });
 

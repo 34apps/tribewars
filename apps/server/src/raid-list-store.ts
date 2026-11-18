@@ -1,7 +1,7 @@
 // SQL for the raid_lists and raid_list_rows tables (a paid extra; docs/GAME_DESIGN.md "Raid lists"): prepared statements, bound parameters only.
 // Every statement is keyed on the owner's player id, so another player's list or row can never be read or changed.
 
-import { UNIT_IDS, convertSiegeUnits, type Resources, type Units } from '@clanfire/engine';
+import { UNIT_IDS, READ_LEGACY, convertSiegeUnits, type Resources, type Units } from '@clanfire/engine';
 import { SqlBase, type Raw } from './sql.ts';
 
 export interface RaidListRow {
@@ -35,7 +35,7 @@ export const RAID_LAST_LOOKUP_REPORTS = 200;
 function parseUnits(text: string): Partial<Units> {
   const out: Partial<Units> = {};
   try {
-    const raw = convertSiegeUnits(JSON.parse(text) as Record<string, unknown>);
+    const raw = convertSiegeUnits(JSON.parse(text) as Record<string, unknown>, READ_LEGACY);
     for (const u of UNIT_IDS) {
       const n = raw[u];
       if (typeof n === 'number' && Number.isInteger(n) && n > 0) out[u] = n;

@@ -80,8 +80,13 @@ test('training row: a unit whose building level is missing is locked with its re
   const live = createPlayerVillage(now);
   live.buildings.barracks = 5;
   live.buildings.wrightyard = 0;
-  const row = trainRowState({ live, unit: 'firecart', building: 'wrightyard', text: '1', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false });
+  const row = trainRowState({ live, unit: 'logram', building: 'wrightyard', text: '1', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false });
   assert.equal(row.locked, true);
   assert.equal(row.max, 0);
   assert.match(row.reason ?? '', /^Needs Wrightyard 1/);
+  // The Firecart asks for Wrightyard 4: level 3 is not enough.
+  live.buildings.wrightyard = 3;
+  const cart = trainRowState({ live, unit: 'firecart', building: 'wrightyard', text: '1', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false });
+  assert.equal(cart.locked, true);
+  assert.match(cart.reason ?? '', /^Needs Wrightyard 4/);
 });

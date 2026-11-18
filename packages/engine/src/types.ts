@@ -28,7 +28,7 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain', 'firecart'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder', 'chieftain', 'logram', 'firecart'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
 /**
@@ -86,10 +86,11 @@ export interface UnitDef {
   /** If set, the unit must be researched once per village (Drillyard level needed to START the research). */
   research?: { drillyard: number; cost: Resources; timeSec: number };
   /**
-   * Siege units only (docs/GAME_DESIGN.md 18.9): the Firecart lowers the Wall during the battle and, after a won attack, the building the
-   * sender picked (the Wall if none). `power` = siege points per unit; `maxLevels` = most levels it lowers in EACH of the two steps.
+   * Siege units only (docs/GAME_DESIGN.md 18.9). `hits: 'wall'` (the Log Ram) lowers only the Wall: during the battle and again after a win.
+   * `hits: 'buildings'` (the Firecart) lowers, after a won attack, the building the sender picked (a random one other than the Wall if none).
+   * `power` = siege points per unit; `maxLevels` = most levels it lowers in EACH step.
    */
-  siege?: { power: number; maxLevels: number };
+  siege?: { power: number; maxLevels: number; hits: 'wall' | 'buildings' };
 }
 
 /** Training-point tracks (docs/GAME_DESIGN.md section 15). Keen is for the scout unit only. */
@@ -363,7 +364,7 @@ export interface BattleInput {
   /** True: nothing is looted even on a win (Strike attempts, relief attacks, map sites). Default false: loot is always full. */
   noLoot?: boolean;
   /**
-   * Building the Firecarts were told to burn after a won battle (a BuildingId, picked by the sender). Absent = the Wall. Never checked
+   * Building the Firecarts were told to burn after a won battle (a BuildingId, picked by the sender). Absent = a random building other than the Wall. Never checked
    * against the village: the server must not reveal what a village has.
    */
   siegeTarget?: BuildingId | null;
@@ -403,7 +404,7 @@ export interface BattleResult {
    * to the Wall after both steps (during + after); applies on a win and on a loss. Applied by applyBattleToDefender.
    */
   siege?: SiegeHit[];
-  /** The Wall level the defence used in this battle (after the Firecarts' during-the-battle hit). */
+  /** The Wall level the defence used in this battle (after the Log Rams' during-the-battle hit). */
   wallDuring: number;
 }
 

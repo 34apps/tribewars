@@ -84,16 +84,18 @@ test('an abandoned village has no Wall militia: an empty one loses nothing at an
   assert.ok(Math.abs(held / open - 1.45) < 0.01);
 });
 
-test('Wall: more levels raise the defence; Firecarts lower it (before -> after)', () => {
+test('Wall: more levels raise the defence; Log Rams lower it (before -> after), Firecarts do not touch it', () => {
   const low = simulate(setup({ wall: 0 }), 0).result.defensePower;
   const high = simulate(setup({ wall: 10 }), 0).result.defensePower;
   assert.ok(high > low);
-  const rams = simulate(setup({ attacker: units({ raider: 400, firecart: 80 }), defender: units({ pikeman: 10 }), wall: 10 }), 0);
+  const rams = simulate(setup({ attacker: units({ raider: 400, logram: 80 }), defender: units({ pikeman: 10 }), wall: 10 }), 0);
   assert.equal(rams.wallBefore, 10);
   assert.ok(rams.wallAfter < 10);
   assert.equal(rams.wallAfter, (rams.result.siege ?? []).filter((h) => h.building === 'wall').at(-1)!.to);
   const plain = simulate(setup({ wall: 10 }), 0);
   assert.equal(plain.wallAfter, 10);
+  const carts = simulate(setup({ attacker: units({ raider: 400, firecart: 80 }), defender: units({ pikeman: 10 }), wall: 10, siegeTarget: 'market', targetLevel: 5 }), 0);
+  assert.equal(carts.wallAfter, 10, 'Firecarts never lower the Wall');
 });
 
 test('Firecarts burn the picked building at the typed level', () => {
