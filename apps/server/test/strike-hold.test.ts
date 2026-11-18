@@ -58,7 +58,7 @@ async function setup(sandbox: string[] = ['claimer', 'rival']) {
   return { app, clock, p, homeId, target };
 }
 
-test('Strike, hold, change of owner: buildings kept, occupiers move in, the Chieftain is used up, the lock starts', async () => {
+test('Strike, hold, change of owner: buildings kept, occupiers stay as support, the Chieftain is used up, the lock starts', async () => {
   const { app, clock, p, homeId, target } = await setup();
   const store = app.ctx.store;
   const buildings = structuredClone(target.state.buildings);
@@ -105,17 +105,25 @@ test('Strike, hold, change of owner: buildings kept, occupiers move in, the Chie
   assert.equal(taken?.state.lockUntil, m.arriveAt + HOLD_MS + LOCK_MS, 'no new Strike for STRIKE_LOCK_HOURS');
   assert.equal(taken?.name, "claimer's village 2");
   assert.equal(villagesOf(app, p).length, 2);
-  assert.equal(store.stationedAt(target.id).length, 0, 'the occupier contingent is gone');
-
-  // Nobody is lost silently: moved in + walking home = the survivors, minus the Chieftain who was used up.
+  // The occupiers STAY as support from their home village (owner 2026-11-18): the village has no own troops, the contingent keeps its home
+  // and keeps counting in the home village's away troops; the used-up Chieftain is gone.
+  assert.equal(taken?.state.troops.raider, 0, 'the new village starts with no own troops');
+  const stay = store.stationedAt(target.id);
+  assert.equal(stay.length, 1, 'the occupier contingent stays');
+  assert.equal(stay[0]!.homeVillageId, homeId);
+  assert.equal(stay[0]!.ownerPlayerId, p.id);
+  assert.equal(stay[0]!.units.raider, stood.raider);
+  assert.equal(stay[0]!.units.chieftain, 0, 'the Chieftain was used up');
   const home = store.getVillage(homeId);
-  const back = store.movementsFrom(homeId).filter((x) => x.kind === 'return');
-  const walking = back.reduce((n, x) => n + x.units.raider, 0);
-  assert.equal((taken?.state.troops.raider ?? 0) + walking, stood.raider);
-  assert.equal(home?.state.away.raider, walking, 'only the overflow is still away');
+  assert.equal(store.movementsFrom(homeId).filter((x) => x.kind === 'return').length, 0, 'nobody walks home');
+  assert.equal(home?.state.away.raider, stood.raider, 'still counted in the home village');
   assert.equal(home?.state.away.chieftain, 0);
   assert.equal(home?.state.troops.chieftain, 1, 'the second Chieftain is still at home');
-  assert.equal(taken?.state.troops.chieftain, 0, 'Chieftains never move in');
+  assert.equal(taken?.state.troops.chieftain, 0);
+  const st = await p.c.state();
+  assert.equal(st.stationed.here.find((x) => x.host.villageId === target.id)?.units.raider, stood.raider, 'shows in the Support box');
+  const takenReport = (await villageReports(p)).find((r) => r.village.kind === 'taken');
+  assert.equal(takenReport?.village.stays?.raider, stood.raider);
 
   // Ledger: his reservation ended, the Renown stays spent.
   const l = ledger(app, p);
@@ -129,6 +137,67 @@ test('Strike, hold, change of owner: buildings kept, occupiers move in, the Chie
   assert.deepEqual(kinds.sort(), ['struck', 'taken']);
   const own = (await mapAt(p, target.x, target.y))?.kind;
   assert.equal(own, 'own');
+  await app.close();
+});
+
+test('after the takeover the owner recalls part of the support from the Support box; the rest stays and the home keeps counting it', async () => {
+  const { app, clock, p, homeId, target } = await setup();
+  const store = app.ctx.store;
+  const m = await go(p, homeId, target, 'attack', { raider: 300, chieftain: 1 });
+  runTo(app, clock, m.arriveAt + HOLD_MS);
+  assert.equal(store.getVillage(target.id)?.ownerId, p.id);
+  const row = store.stationedAt(target.id)[0]!;
+  const total = row.units.raider;
+  const res = await p.c.post(`/api/stationed/${row.id}/recall`, { units: { raider: 100 } });
+  ok(res, 201);
+  const mv = res.json<{ movement: { arriveAt: number } }>().movement;
+  assert.equal(store.stationedAt(target.id)[0]!.units.raider, total - 100, 'the rest stays');
+  assert.equal(store.getVillage(homeId)?.state.away.raider, total, 'all still away until the recalled part arrives');
+  runTo(app, clock, mv.arriveAt);
+  const home = store.getVillage(homeId);
+  assert.equal(home?.state.away.raider, total - 100);
+  // The rest can be recalled whole; the contingent is then gone and nothing is left away.
+  const rest = store.stationedAt(target.id)[0]!;
+  const all = await p.c.post(`/api/stationed/${rest.id}/recall`, {});
+  ok(all, 201);
+  runTo(app, clock, all.json<{ movement: { arriveAt: number } }>().movement.arriveAt);
+  assert.equal(store.stationedAt(target.id).length, 0);
+  assert.equal(store.getVillage(homeId)?.state.away.raider, 0);
+  await app.close();
+});
+
+test('two Chieftains among the occupiers: one is used up, the other walks home; the troops stay as support', async () => {
+  const { app, clock, p, homeId, target } = await setup();
+  const store = app.ctx.store;
+  const m = await go(p, homeId, target, 'attack', { raider: 300, chieftain: 2 });
+  runTo(app, clock, m.arriveAt + HOLD_MS);
+  assert.equal(store.getVillage(target.id)?.ownerId, p.id);
+  const back = store.movementsFrom(homeId).filter((x) => x.kind === 'return');
+  assert.equal(back.length, 1);
+  assert.equal(back[0]!.units.chieftain, 1, 'the spare Chieftain goes home');
+  assert.equal(back[0]!.units.raider, 0);
+  assert.equal(store.stationedAt(target.id)[0]!.units.chieftain, 0);
+  assert.ok(store.stationedAt(target.id)[0]!.units.raider > 250);
+  assert.equal(store.getVillage(homeId)?.state.away.chieftain, 1, 'the walking Chieftain is still away until he arrives');
+  runTo(app, clock, back[0]!.arriveAt);
+  assert.equal(store.getVillage(homeId)?.state.troops.chieftain, 1);
+  assert.equal(store.getVillage(homeId)?.state.away.chieftain, 0);
+  await app.close();
+});
+
+test('edge case: the home village is no longer the claimant\'s at the end of the hold: the troops move in as own troops (old rule)', async () => {
+  const { app, clock, p, homeId, target } = await setup(['claimer', 'rival']);
+  const store = app.ctx.store;
+  const rival = await player(app, 'rival');
+  const m = await go(p, homeId, target, 'attack', { raider: 300, chieftain: 1 });
+  runTo(app, clock, m.arriveAt);
+  const stood = store.stationedAt(target.id)[0]!.units.raider;
+  store.setVillageOwner(homeId, rival.id, 'Lost home');
+  runTo(app, clock, m.arriveAt + HOLD_MS);
+  const taken = store.getVillage(target.id);
+  assert.equal(taken?.ownerId, p.id);
+  assert.equal(store.stationedAt(target.id).length, 0, 'no support row for a home that is not the claimant\'s');
+  assert.ok((taken?.state.troops.raider ?? 0) > 0 && (taken?.state.troops.raider ?? 0) <= stood, 'moved in as own troops');
   await app.close();
 });
 

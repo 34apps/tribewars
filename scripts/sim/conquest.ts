@@ -567,14 +567,14 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     p.npcs = makeNpcs(pos);
   };
 
-  /** The hold clock ended: the village changes owner (all buildings kept, 24 h lock, occupiers move in). */
+  /** The hold clock ended: the village changes owner (all buildings kept, 24 h lock, occupiers stay as support and are recalled). */
   const changeOwner = (v: Vil, claim: Claim, at: number): void => {
     const att = P(claim.by);
     const old = P(v.owner);
     const home = world.get(claim.origin) as Vil;
     const nAtt = outstanding(att);
     const nOld = outstanding(old);
-    const oc = applyOwnerChange(v.state, { newOwnerOccupiers: claim.occupiers, now: at, settings: s });
+    const oc = applyOwnerChange(v.state, { occupiers: claim.occupiers, now: at, settings: s });
     if (opt.lockHours !== undefined) oc.state.lockUntil = at + Math.round((opt.lockHours * HOUR) / s.speed);
     const oldPoints = villagePoints(oc.state);
     // The old owner loses the village with everything in it: Chieftains at home, away and queued are gone (half the Renown comes back).
@@ -592,11 +592,12 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     }
     loseChiefs(old, lostChiefs, nOld);
     old.stats.lost++;
-    // The attacker's occupiers move in; the rest (and spare Chieftains) walk home. One Chieftain is used up.
-    const moved = subUnits(claim.occupiers, oc.overflow);
+    // The occupiers stay as support from their home village (rule since 2026-11-18); the sim's bots recall them at once, so they all walk
+    // home (their defence of the new village is not modelled; the taken village starts empty). One Chieftain is used up.
     if (home.alive) {
-      home.state = applyAttackerLosses(settleVillage(home.state, at, s), moved);
-      homeTrip(home, v.pos, at, oc.overflow);
+      const used = { ...emptyUnits(), chieftain: oc.chieftainUsed };
+      home.state = applyAttackerLosses(settleVillage(home.state, at, s), used);
+      homeTrip(home, v.pos, at, subUnits(claim.occupiers, used));
     }
     useChief(att, nAtt);
     spendClaim(att);
@@ -1410,7 +1411,7 @@ export function formatConquest(rep: ConquestReport, extraSeeds: Array<{ seed: nu
     '- Style scripts are the ones in balance.ts (build list, army, research, raids). New behaviour: raids and Strikes also go to player villages within ' + REACH + ' tiles. No assumed enemy raids (players are the enemy now). Feast only to empty a full storehouse.',
     '- Raid on a player: preview with the target state at arrival (as if scouted), attack >= 1.25 x defence, net loot minus lost troops > 0, best net per travel time; target needs >= 30% of the attacker\'s average village points; neither side protected. Loot comes from the real stock (vault protects). Renown through battleRenown for both sides (pair windows, size factor).',
     '- Strike plan: once Renown >= price and a Banner Hall exists, a player picks the village with most points that its home army (all troops but Pathfinders + the needed Chieftains) beats by 1.25x, with >= 1 surviving Chieftain per `need` and >= HOLD_MIN_POPULATION survivors, on a village with >= 50% of its own best village\'s points, not protected / locked / cold (no pair cap since 2026-11-05; the Chieftain chain of separate attacks is not modelled: every Strike brings all its Chieftains at once). It reserves Renown for all needed Chieftains (villageRenownPrice, summed), saves and trains them as one batch (max 3), then strikes with all home troops. Found-style players (builder, turtle) found a village when no Strike target exists; take-style players (raider, balanced) stop raiding to build an escort and found after 72 h.',
-    '- Strike, hold, take: checkStrike, applyStrike (hearth out, village frozen), updateHold (hold clock, as a due event), applyOwnerChange (all buildings, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison / queues gone, occupiers move in, STRIKE_LOCK_HOURS lock). The old owner\'s Chieftains in that village are lost (half the Renown back); armies it had stationed elsewhere are disbanded and their holds end.',
+    '- Strike, hold, take: checkStrike, applyStrike (hearth out, village frozen), updateHold (hold clock, as a due event), applyOwnerChange (all buildings, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison / queues gone, the new village starts with no own troops, STRIKE_LOCK_HOURS lock; the occupiers stay as support and the sim bots recall them at once). The old owner\'s Chieftains in that village are lost (half the Renown back); armies it had stationed elsewhere are disbanded and their holds end.',
     '- Defence: the owner fights the Strike with whatever is at home (the real battle). During the hold it attacks the occupiers (they defend with the village\'s Wall) with the best army from any of its villages that arrives before the clock ends and beats them by 1.1x (one army at a time). Occupiers dead = hearth relit; under HOLD_MIN_POPULATION for HOLD_FAIL_HOURS = claim fails. Not modelled: tribe-mates\' support, third players, scouting errors, Chieftain escorts arriving late (second wave), the owner recalling raids.',
     '- Restart: a player who loses the LAST village gets a fresh starting village on a ring far outside the grid, RESTART_PROTECTION_HOURS protection, a new ring of abandoned villages; Renown is kept, its Chieftains are gone.',
     ...(goldLevers

@@ -236,7 +236,7 @@ export function takingSteps(s: WorldSettings): string[] {
   return [
     `Train enough Chieftains: 1, plus 1 for every ${HEARTH_POINTS_PER_CHIEFTAIN.toLocaleString('en-US')} points of the village (most ${HEARTH_MAX_CHIEFTAINS}).`,
     `Send them with an army that wins the battle, all of them within ${t(c.chainWindowHours)}.`,
-    `Hold the village for ${t(c.holdHours)} (${t(c.holdHoursAbandoned)} for an abandoned one).`,
+    `Hold the village for ${t(c.holdHours)} (${t(c.holdHoursAbandoned)} for an abandoned one). Your troops there stay as support from the villages that sent them: call them home any time from the Support box.`,
   ];
 }
 
@@ -512,6 +512,7 @@ export function villageReportText(d: VillageReportData, now: number): VillageRep
   const hold = d.holdEndsAt != null ? `${d.holdEndsAt > now ? `Yours in ${formatLeft(d.holdEndsAt - now)}` : 'Yours now'}.` : 'Clock paused: too few occupiers.';
   const home = d.units && UNIT_IDS.some((u) => (d.units?.[u] ?? 0) > 0) ? 'Troops heading home.' : '';
   const overflow = d.overflow && UNIT_IDS.some((u) => (d.overflow?.[u] ?? 0) > 0) ? 'Extra troops went home.' : '';
+  const stays = d.stays && UNIT_IDS.some((u) => (d.stays?.[u] ?? 0) > 0) ? 'Your occupiers stay as support from their home villages; recall them from the Support box.' : '';
   switch (d.kind) {
     case 'struck':
       return { title: `Hearth put out at ${name}`, lines: [`Hearth of ${name} ${at} put out. Survivors hold it.`, hold] };
@@ -521,7 +522,7 @@ export function villageReportText(d: VillageReportData, now: number): VillageRep
         lines: [`${d.claimBy ?? 'Someone'} put out the hearth of ${name} ${at}. Break the hold.`],
       };
     case 'taken':
-      return { title: `${name} is yours`, lines: [`${name} ${at} is now yours.`, overflow].filter(Boolean) };
+      return { title: `${name} is yours`, lines: [`${name} ${at} is now yours.`, stays, overflow].filter(Boolean) };
     case 'lost':
       return { title: `${name} was lost`, lines: [`${name} ${at} changed owner. Troops away are lost.`] };
     case 'founded':

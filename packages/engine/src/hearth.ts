@@ -194,19 +194,23 @@ export function holdDueAt(hearth: HearthState, s: WorldSettings): number {
 // ---- Change of owner ----------------------------------------------------------------------------
 
 /**
- * The hold ended: the village changes owner at `now`. Returns the village as the new owner's and the troops that did not fit.
+ * The hold ended: the village changes owner at `now`. Returns the village as the new owner's.
  *  - Buildings keep ALL their levels (no level loss); stock is cut to TAKE_KEEP_RESOURCE_SHARE per resource.
  *  - The old owner's troops, units away, and build/training/research queues are gone (nothing refunded); researched units,
  *    ranks, Feast window and the hearth are reset; `npc` is removed (it is a player village now).
  *  - `renownPaid` is kept (raised to the current levels), so levels already paid for pay no Renown a second time.
  *  - `lockUntil` = now + STRIKE_LOCK_HOURS / speed: no Strike before it, raids stay possible.
- *  - The occupiers move in as the village's own troops up to its population cap. One Chieftain is used up (his ember lights the
- *    new hearth); further Chieftains and everyone who does not fit are returned as `overflow` (the server sends them home).
+ *  - The new village starts with NO own troops (owner 2026-11-18). The occupiers stay as support from the villages that sent them
+ *    (the server keeps their stationed rows; they count in their HOME village's population), so the population cap of the taken
+ *    village does not matter. One Chieftain is used up (`chieftainUsed`: 1 when `occupiers` holds at least one, his ember lights the
+ *    new hearth); the others go home (the server's job).
+ *  - Edge case: occupiers whose home village is no longer the claimant's cannot stay as support. The server passes them as `moveIn`
+ *    and they move in as the village's own troops up to its population cap (the old rule, Chieftains never); `overflow` is what did not fit.
  * The village is settled to `now` first (it was frozen while the hearth was out).
  */
 export function applyOwnerChange(
   state: VillageState,
-  args: { newOwnerOccupiers: Partial<Units>; now: number; settings: WorldSettings },
+  args: { occupiers: Partial<Units>; moveIn?: Partial<Units>; now: number; settings: WorldSettings },
 ): { state: VillageState; overflow: Units; chieftainUsed: number } {
   const { now, settings } = args;
   let v = settleVillage(state, now, settings);
@@ -229,10 +233,9 @@ export function applyOwnerChange(
   v.lastUpdate = now;
   v.lockUntil = now + hoursMs(worldRules(settings).conquest.lockHours, settings);
   v.defenceMark = { at: now, strength: 0 };
-  const moved = admitTroops(cloneVillage(v), args.newOwnerOccupiers);
+  const moved = admitTroops(cloneVillage(v), args.moveIn ?? emptyUnits());
   v = moved.state;
-  const chieftainUsed = moved.overflow.chieftain >= 1 ? 1 : 0;
-  moved.overflow.chieftain -= chieftainUsed;
+  const chieftainUsed = normalizeUnits(args.occupiers).chieftain >= 1 ? 1 : 0;
   return { state: v, overflow: moved.overflow, chieftainUsed };
 }
 

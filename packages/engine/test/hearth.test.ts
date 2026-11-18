@@ -203,7 +203,7 @@ describe('applyOwnerChange', () => {
     base.buildQueue = [{ building: 'lumber', targetLevel: 4, startAt: 0, finishAt: 10 * HOUR }];
     base.ranks = { raider: { might: 2, bulwark: 0, keen: 0 } };
     const hearthed = applyStrike(base, { claimBy: 7, now: T, settings: s, occupiers });
-    return applyOwnerChange(hearthed, { newOwnerOccupiers: occupiers, now: T + 6 * HOUR, settings: s });
+    return applyOwnerChange(hearthed, { occupiers, now: T + 6 * HOUR, settings: s });
   };
 
   it('keeps ALL buildings (no level loss), halves the stock, clears troops, queues, ranks and the hearth', () => {
@@ -222,19 +222,28 @@ describe('applyOwnerChange', () => {
     assert.equal(v.lastUpdate, T + 6 * HOUR);
   });
 
-  it('the occupiers become the garrison; one Chieftain is used up, the other goes home', () => {
+  it('the new village starts with NO own troops; one Chieftain is used up, nothing is cut by the population cap', () => {
     const r = taken();
-    assert.deepEqual([r.state.troops.pikeman, r.state.troops.raider, r.state.troops.chieftain], [20, 10, 0]);
+    assert.deepEqual(r.state.troops, units({}));
     assert.deepEqual(r.state.away, units({}));
     assert.equal(r.chieftainUsed, 1);
-    assert.equal(r.overflow.chieftain, 1);
-    assert.equal(r.overflow.pikeman, 0);
-  });
-
-  it('only up to the population cap; the rest is returned', () => {
+    assert.deepEqual(r.overflow, units({}), 'nothing moves in, so nothing overflows');
+    // Even a huge army (far over the cap of a small village) changes nothing: it stays as support from its home villages.
     const v = createNpcVillage(1, 0, 1);
     const hearthed = applyStrike(v, { claimBy: 1, now: T, settings: S1 });
-    const r = applyOwnerChange(hearthed, { newOwnerOccupiers: units({ pikeman: 2000 }), now: T, settings: S1 });
+    const big = applyOwnerChange(hearthed, { occupiers: units({ pikeman: 2000, chieftain: 1 }), now: T, settings: S1 });
+    assert.deepEqual(big.state.troops, units({}));
+    assert.equal(big.chieftainUsed, 1);
+  });
+
+  it('no Chieftain among the occupiers: none is used up', () => {
+    assert.equal(taken(units({ pikeman: 20 })).chieftainUsed, 0);
+  });
+
+  it('edge case: occupiers passed as moveIn (home village lost) move in up to the population cap, the rest is returned', () => {
+    const v = createNpcVillage(1, 0, 1);
+    const hearthed = applyStrike(v, { claimBy: 1, now: T, settings: S1 });
+    const r = applyOwnerChange(hearthed, { occupiers: units({ pikeman: 2000 }), moveIn: units({ pikeman: 2000 }), now: T, settings: S1 });
     const usage = populationUsage(r.state);
     assert.ok(usage.total <= populationCap(r.state));
     assert.ok(r.state.troops.pikeman > 0 && r.state.troops.pikeman < 2000);

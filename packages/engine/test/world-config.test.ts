@@ -343,7 +343,7 @@ describe('two configs behave differently', () => {
 
   it('lock after a change of owner', () => {
     const change = (s: WorldSettings): number | undefined =>
-      applyOwnerChange(createPlayerVillage(0), { newOwnerOccupiers: units({ pikeman: 1 }), now: T, settings: s }).state.lockUntil;
+      applyOwnerChange(createPlayerVillage(0), { occupiers: units({ pikeman: 1 }), now: T, settings: s }).state.lockUntil;
     assert.equal(change(cfg('conquest.lockHours', 2)), T + 2 * HOUR);
     assert.equal(change(cfg('conquest.lockHours', 30)), T + 30 * HOUR);
     assert.equal(change(S1), T + STRIKE_LOCK_HOURS * HOUR);
