@@ -44,17 +44,17 @@ export function overviewToWorld(ox: number, oy: number, radius: number, px: numb
 }
 
 /**
- * Square size in px, from the world scale (`scale` = overview px per tile): about one tile each, never under 2 px, so
- * neighbours stay apart. Own villages are 1.5x (thin white edge drawn by the caller), abandoned ones the smallest.
- * Readable at radius 30 (~5 px per tile, capped at 6) and radius 300 (~0.5 px per tile, floor of 2 px).
+ * Square size in px, from the world scale (`scale` = overview px per tile): about 0.55 of a tile, 2 to 4 px, so neighbours
+ * stay apart. Own villages are 1.5x (3 to 6 px, thin white edge drawn by the caller); abandoned ones the smallest
+ * (0.4 of a tile, at least 1.5 px). Readable at radius 30 (3-5 px per tile) and radius 300 (~0.5 px per tile).
  */
 export function squareSize(a: MapAllegiance, scale: number): number {
-  const base = Math.max(2, Math.min(6, scale));
+  const base = Math.max(2, Math.min(4, scale * 0.55));
   switch (a) {
     case 'own':
-      return Math.max(3, base * 1.5);
+      return Math.min(6, Math.max(3, base * 1.5));
     case 'abandoned':
-      return Math.max(2, base * 0.7);
+      return Math.min(base, Math.max(1.5, scale * 0.4));
     default:
       return base;
   }
@@ -66,20 +66,22 @@ export function siteHalf(scale: number): number {
 }
 
 /**
- * How to show the main view on the overview: a thin frame, or (when the view covers a big part of the world, so the
- * frame would be huge) only a small crosshair at the view centre.
+ * How to show the main view on the overview: the upright bounding box (overview px) of the tiles it shows, or (when that
+ * box covers a big part of the world) only a small crosshair at its centre.
  */
-export function frameShape(corners: ReadonlyArray<{ x: number; y: number }>, px: number): { kind: 'frame' | 'cross'; cx: number; cy: number } {
-  let area = 0;
-  let cx = 0;
-  let cy = 0;
-  corners.forEach((p, i) => {
-    const q = corners[(i + 1) % corners.length]!;
-    area += p.x * q.y - q.x * p.y;
-    cx += p.x / corners.length;
-    cy += p.y / corners.length;
-  });
-  return { kind: Math.abs(area) / 2 > px * px * 0.35 ? 'cross' : 'frame', cx, cy };
+export function frameShape(
+  corners: ReadonlyArray<{ x: number; y: number }>,
+  px: number,
+): { kind: 'frame' | 'cross'; x0: number; y0: number; x1: number; y1: number; cx: number; cy: number } {
+  const xs = corners.map((p) => p.x);
+  const ys = corners.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const x1 = Math.max(...xs);
+  const y0 = Math.min(...ys);
+  const y1 = Math.max(...ys);
+  const w = Math.min(px, x1) - Math.max(0, x0);
+  const h = Math.min(px, y1) - Math.max(0, y0);
+  return { kind: Math.max(0, w) * Math.max(0, h) > px * px * 0.35 ? 'cross' : 'frame', x0, y0, x1, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
 }
 
 /** Draw order: abandoned and plain players first, relations above them, own villages on top. */

@@ -195,18 +195,25 @@ test('overview: counts per relation, flat square mapping, click to world, own sq
   const sc = overview.overviewScale(R, px);
   assert.ok(overview.squareSize('own', sc) >= overview.squareSize('enemy', sc) * 1.4);
   assert.ok(overview.squareSize('abandoned', sc) < overview.squareSize('neutral', sc));
-  // Sizes follow the world: radius 30 ~ one tile (about 5 px), radius 300 stays at the 2 px floor (own 3 px).
-  for (const [r, px2] of [[30, 300], [300, 300]] as const) {
+  // Sizes follow the world: about 0.55 tile, 2-4 px (own 3-6, abandoned from 1.5), at radius 30 and radius 300.
+  for (const [r, px2] of [[30, 300], [30, 200], [300, 300]] as const) {
     const s2 = overview.overviewScale(r, px2);
-    for (const k of ['neutral', 'enemy', 'tribe', 'ally', 'nap'] as const) assert.ok(overview.squareSize(k, s2) >= 2 && overview.squareSize(k, s2) <= Math.max(2, s2) + 1e-9);
-    assert.ok(overview.squareSize('abandoned', s2) >= 2);
-    assert.ok(overview.squareSize('own', s2) >= 3 && overview.squareSize('own', s2) <= 9);
+    for (const k of ['neutral', 'enemy', 'tribe', 'ally', 'nap'] as const) {
+      const z = overview.squareSize(k, s2);
+      assert.ok(z >= 2 && z <= 4, `${k} ${r} ${z}`);
+    }
+    const ab = overview.squareSize('abandoned', s2);
+    assert.ok(ab >= 1.5 && ab <= overview.squareSize('neutral', s2));
+    const own = overview.squareSize('own', s2);
+    assert.ok(own >= 3 && own <= 6);
   }
   assert.equal(overview.squareSize('neutral', overview.overviewScale(300, 300)), 2);
-  assert.ok(overview.squareSize('neutral', overview.overviewScale(30, 300)) < 6.01);
-  // Frame vs crosshair: a small view is a frame, a view over most of the world is a crosshair at its centre.
+  assert.equal(overview.squareSize('abandoned', overview.overviewScale(300, 300)), 1.5);
+  // Frame vs crosshair: a small view is an upright rectangle (bounding box of the corners), a view over most of the world a crosshair.
   const sq = (c: number, hw: number) => [{ x: c, y: c - hw }, { x: c + hw, y: c }, { x: c, y: c + hw }, { x: c - hw, y: c }];
-  assert.equal(overview.frameShape(sq(100, 30), 300).kind, 'frame');
+  const small = overview.frameShape(sq(100, 30), 300);
+  assert.equal(small.kind, 'frame');
+  assert.deepEqual([small.x0, small.y0, small.x1, small.y1], [70, 70, 130, 130]);
   const big = overview.frameShape(sq(150, 140), 300);
   assert.equal(big.kind, 'cross');
   assert.ok(Math.abs(big.cx - 150) < 1e-9 && Math.abs(big.cy - 150) < 1e-9);

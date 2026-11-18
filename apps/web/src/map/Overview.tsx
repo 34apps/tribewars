@@ -113,18 +113,17 @@ export function Overview({ chunks, terrain, radius, sites, version, viewRef, siz
       for (const p of list) {
         const x = Math.round(p.x - z / 2);
         const y = Math.round(p.y - z / 2);
-        const zz = Math.max(2, Math.round(z));
         if (a === 'own') {
           g.fillStyle = DOT_INK;
-          g.fillRect(x - 2, y - 2, zz + 4, zz + 4);
+          g.fillRect(x - 2, y - 2, z + 4, z + 4);
           g.fillStyle = '#FFFFFF';
-          g.fillRect(x - 1, y - 1, zz + 2, zz + 2);
+          g.fillRect(x - 1, y - 1, z + 2, z + 2);
         } else if (a !== 'abandoned' && sc >= 3) {
           g.fillStyle = DOT_INK;
-          g.fillRect(x - 1, y - 1, zz + 2, zz + 2);
+          g.fillRect(x - 0.5, y - 0.5, z + 1, z + 1);
         }
         g.fillStyle = STRONG_COLOR[a];
-        g.fillRect(x, y, zz, zz);
+        g.fillRect(x, y, z, z);
       }
     }
     // Sites: tiny diamonds (utility sites tiny squares).
@@ -166,7 +165,8 @@ export function Overview({ chunks, terrain, radius, sites, version, viewRef, siz
     if (w <= 0 || h <= 0) return;
     const size: Size = { w, h };
     const pts = frameCorners(viewRef.current, size).map((c) => worldToOverview(c.x, c.y, radius, px));
-    // Thin light line with a dark hairline, clipped to the box; a small crosshair when the view covers most of the world.
+    // Upright thin rectangle (light line, dark hairline, faint fill) clipped to the box, with a small cross at its centre;
+    // only the cross when the view covers most of the world.
     const shape = frameShape(pts, px);
     g.save();
     g.beginPath();
@@ -176,17 +176,16 @@ export function Overview({ chunks, terrain, radius, sites, version, viewRef, siz
     g.lineCap = 'butt';
     g.beginPath();
     if (shape.kind === 'frame') {
-      pts.forEach((p, i) => (i === 0 ? g.moveTo(p.x, p.y) : g.lineTo(p.x, p.y)));
-      g.closePath();
+      g.rect(shape.x0, shape.y0, shape.x1 - shape.x0, shape.y1 - shape.y0);
       g.fillStyle = 'rgba(255,255,255,0.14)';
       g.fill();
-    } else {
-      const c = { x: Math.max(0, Math.min(px, shape.cx)), y: Math.max(0, Math.min(px, shape.cy)) };
-      g.moveTo(c.x - 6, c.y);
-      g.lineTo(c.x + 6, c.y);
-      g.moveTo(c.x, c.y - 6);
-      g.lineTo(c.x, c.y + 6);
     }
+    const c = { x: Math.max(0, Math.min(px, shape.cx)), y: Math.max(0, Math.min(px, shape.cy)) };
+    const arm = shape.kind === 'frame' ? 3 : 6;
+    g.moveTo(c.x - arm, c.y);
+    g.lineTo(c.x + arm, c.y);
+    g.moveTo(c.x, c.y - arm);
+    g.lineTo(c.x, c.y + arm);
     g.lineWidth = 3;
     g.strokeStyle = 'rgba(40,28,18,0.55)';
     g.stroke();
