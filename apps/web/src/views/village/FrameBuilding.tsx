@@ -41,7 +41,8 @@ import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import '../../components/war-chest.css';
-import { DrillyardPanel } from './Drillyard.tsx';
+import { DrillyardPanel, rankCardUnits } from './Drillyard.tsx';
+import { takeResearchFocus } from './drillFocus.ts';
 import { setResearchFocus } from './drillFocus.ts';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
 import { VillageScene } from './VillageScene.tsx';
@@ -628,14 +629,56 @@ function HallList({ busy, build }: { busy: boolean; build: (id: BuildingId) => v
   );
 }
 
-function PanelBox({ title, children, fit = false }: { title: string; children: ReactNode; fit?: boolean }) {
+function PanelBox({ title, children, fit = false, aside }: { title: string; children: ReactNode; fit?: boolean; aside?: ReactNode }) {
   return (
     <section className="fv-pn fv-boxed" aria-label={title}>
       <div className="fv-ph">
         <h2>{title}</h2>
+        {aside && (
+          <>
+            <span className="fv-sp" />
+            {aside}
+          </>
+        )}
       </div>
       <div className={`fv-boxin${fit ? ' is-fit' : ''}`}>{children}</div>
     </section>
+  );
+}
+
+/** More rank cards than fit two rows beside the research column: one wide panel with a Ranks / Research switch (so 7 cards still fit 1440x900 without scrolling). */
+const SIDE_BY_SIDE_RANK_CARDS = 6;
+
+function DrillyardFrame() {
+  const { live } = useGame();
+  const [tab, setTab] = useState<'ranks' | 'research'>(() => (takeResearchFocus() ? 'research' : 'ranks'));
+  if (rankCardUnits(live).length <= SIDE_BY_SIDE_RANK_CARDS) {
+    return (
+      <>
+        <PanelBox title="Training Points and ranks" fit>
+          <DrillyardPanel part="ranks" />
+        </PanelBox>
+        <div className="fv-rcol is-wide">
+          <PanelBox title="Research" fit>
+            <DrillyardPanel part="research" />
+          </PanelBox>
+        </div>
+      </>
+    );
+  }
+  const tabs = (
+    <span className="fa-seg" role="group" aria-label="Show">
+      {(['ranks', 'research'] as const).map((t) => (
+        <button key={t} type="button" className={`fa-sg${tab === t ? ' is-on' : ''}`} aria-pressed={tab === t} onClick={() => setTab(t)}>
+          {t === 'ranks' ? 'Ranks' : 'Research'}
+        </button>
+      ))}
+    </span>
+  );
+  return (
+    <PanelBox title={tab === 'ranks' ? 'Training Points and ranks' : 'Research'} fit aside={tabs}>
+      <DrillyardPanel part={tab} />
+    </PanelBox>
   );
 }
 
@@ -684,24 +727,16 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
               {id === 'hall' ? (
                 <HallList busy={busy} build={build} />
               ) : id === 'drillyard' ? (
-                <PanelBox title="Training Points and ranks" fit>
-                  <DrillyardPanel part="ranks" />
-                </PanelBox>
+                <DrillyardFrame />
               ) : id === 'bannerhall' ? (
                 <BannerHallPanel />
               ) : (
                 <NextLevels id={id} info={info} />
               )}
-              {id !== 'bannerhall' && (
-                <div className={`fv-rcol${id === 'drillyard' ? ' is-wide' : ''}`}>
-                  {id === 'drillyard' ? (
-                    <PanelBox title="Research" fit>
-                      <DrillyardPanel part="research" />
-                    </PanelBox>
-                  ) : (
-                    <WhatItDoes id={id} info={info} />
-                  )}
-                  {id !== 'drillyard' && <MagsTip id={id} />}
+              {id !== 'bannerhall' && id !== 'drillyard' && (
+                <div className="fv-rcol">
+                  <WhatItDoes id={id} info={info} />
+                  <MagsTip id={id} />
                 </div>
               )}
             </>

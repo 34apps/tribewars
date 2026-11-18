@@ -145,26 +145,33 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Shieldbearer (`guard`) | Barracks 3 | Drillyard 1 | 12 / 42 / 22 | 5 | 10 | 1 | 17 / 30 / 28 | 320 s | holds foot |
 | Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
 | Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
-| **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | **the only rider**, big carry |
+| **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
+| **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | 60 / 90 / 110 | 700 s | **fast support defender** (2026-11-18) |
 | **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
 | Firecart (`firecart`) | Wrightyard 1 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege (§18.9) |
 
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
-The **Elk Rider** is the only `cavalry` unit, so "riders" in the defence mix now means Elk Riders only; the **Ember Guard** is `infantry`, walks
+The **Elk Rider** and the **Hearthwarden** are the `cavalry` units, so "riders" in the defence mix means those two; the **Ember Guard** is `infantry`, walks
 the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
 originality proposal's numbers with the branch's troop cost cut (x0.55, food about x0.5, rounded). The Log Ram and the Boulder Sling no longer
 exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, away, marching, stationed) is an Ember Guard 1:1, Knight research
 counts as Ember Guard research, and Knight batches already queued at the Stables finish there as Ember Guards (no refund, no change of time);
 new Ember Guards are trained at the Barracks only.
 
+**Hearthwarden (2026-11-18, no schema change):** a second Stables unit made for **support**: every other defender walks (speed 5-6), so help to a friend often landed too late. It
+rides at speed 11 (the Elk Rider 13), defends 48 vs foot / 52 vs riders, hardly attacks (18) and carries 20. It pays for the speed: per resource and per population its defence
+stays far below the Pikeman (vs riders) and the Shieldbearer (vs foot) (BALANCE §17), so it never replaces them at home. Stables 4 and Drillyard 4 (research 320 / 240 / 380 + 20 gold, 7,800 s),
+ranks Might and Bulwark, terrain row "mounted". Old rows without the unit read as 0 (the units normalizer); no migration. The help-in-time line on the support form uses the real
+travel time, so it says "arrives in time" for a Hearthwarden where foot would be late.
+
 - Train batch of `count` (1 or more; no fixed limit, only resources, population room and the queue; `MAX_TRAIN_BATCH` = 100,000 is an input sanity bound) in the unit's building. Cost = unit cost × count, paid
   up front. Needs `requires` met. At most `MAX_TRAIN_QUEUE` batches per building.
 - Time per unit (ms): `round(trainTimeSec * TRAIN_TIME_FACTOR^(buildingLevel-1) / speed * 1000)`,
   fixed when queued. A batch starts at `max(now, end of previous batch in that building)`;
   end = startAt + count × perUnitMs. Units finish one by one; each finished unit moves to `troops`.
-- **Research gate (Drillyard, see §15):** Shieldbearer, Elk Rider and Ember Guard have `UnitDef.research`
+- **Research gate (Drillyard, see §15):** Shieldbearer, Elk Rider, Hearthwarden and Ember Guard have `UnitDef.research`
   (Drillyard level to start, cost, time; the Firecart too, Drillyard 3). They can only be trained after the research finished in that
   village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
   (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting), the same for everyone. Cost is paid when
@@ -221,7 +228,7 @@ Tests and the simulator pass their own seeds.
 1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`. The battle simulator in the web client uses the same battle rule (`resolveBattle`); there luck can be set from −10% to +10% (`BattleInput.fixedLuck`, clamped to ±BATTLE_LUCK; the server never sets it).
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
-   Since the troop roster pass (2026-11-11) only the Elk Rider is cavalry; the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
+   Since the troop roster pass (2026-11-11) only the Elk Rider was cavalry (the Hearthwarden joined it on 2026-11-18, but it hardly attacks); the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
    at home. `D = (D_units + M) × (1 + WALL_BONUS_PER_LEVEL × wall)` with the Wall's militia `M = WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall` **only in a village that has an owner** (villagers defend their home; an abandoned village has none, `M = 0`, owner 2026-11-17; the percentage bonus still counts for troops that stand there).
 5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
@@ -777,7 +784,7 @@ the server does not pass them yet), scout intel tiers. Earlier status: **engine 
 `VillageState.researched/researchQueue/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
 `KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
 Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. **Only `RANKABLE_UNITS` can be ranked (owner, 2026-11-18; schema v26):**
-Pikeman, Shieldbearer, Raider, Elk Rider, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Firecart (siege tool) have no rank tracks, `buyRank` refuses them
+Pikeman, Shieldbearer, Raider, Elk Rider, Hearthwarden, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Firecart (siege tool) have no rank tracks, `buyRank` refuses them
 (`invalid_input`), and the v26 migration removed any such ranks (points are derived from ranks, so they became free; resources paid were not refunded). 30 points
 (3 per level, 10 levels) stay. The page shows "Buy rank N", "Needs N points · M free", and "Researched" without a time for finished research. Respec resets one track to 0: points return in full,
 resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
@@ -1278,7 +1285,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |
@@ -1845,7 +1852,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |

@@ -148,10 +148,10 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
       ['wall', 10], ['vault', 8], ['market', 8], ['barracks', 8], ['drillyard', 9], ['stables', 8], ['bannerhall', 4],
     ],
     tail: ['lumber', 'farm', 'longhouse', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
-    army: [{ unit: 'pikeman', weight: 85 }, { unit: 'guard', weight: 10 }, { unit: 'knight', weight: 5 }],
+    army: [{ unit: 'pikeman', weight: 78 }, { unit: 'guard', weight: 10 }, { unit: 'hearthwarden', weight: 7 }, { unit: 'knight', weight: 5 }],
     reserve: 1,
     trainFromDay: 4,
-    research: ['guard', 'knight'],
+    research: ['guard', 'hearthwarden', 'knight'],
   },
   raider: {
     order: [
@@ -172,14 +172,14 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
       ['lumber', 3], ['farm', 4], ['longhouse', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
       ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['longhouse', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
       ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8],
-      ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 3],
+      ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 4], ['stables', 4],
       ['lumber', 11], ['farm', 12], ['longhouse', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['wall', 12], ['wall', 15], ['vault', 8],
     ],
     tail: ['wall', 'farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'hall'],
-    army: [{ unit: 'pikeman', weight: 55 }, { unit: 'guard', weight: 40 }, { unit: 'pathfinder', weight: 5 }],
+    army: [{ unit: 'pikeman', weight: 50 }, { unit: 'guard', weight: 38 }, { unit: 'hearthwarden', weight: 7 }, { unit: 'pathfinder', weight: 5 }],
     reserve: 0.9,
     trainFromDay: 2,
-    research: ['guard'],
+    research: ['guard', 'hearthwarden'],
   },
   balanced: {
     order: [
@@ -284,7 +284,7 @@ function startingStock(v: VillageState, scouts = 0): void {
     const ok = (Object.keys(def.requires) as BuildingId[]).every((b) => v.buildings[b] >= (def.requires[b] ?? 0));
     if (!ok) continue;
     want[u] =
-      u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : u === 'pathfinder' ? scouts : 0;
+      u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : u === 'hearthwarden' ? level : u === 'pathfinder' ? scouts : 0;
   }
   for (const u of UNIT_IDS) v.troops[u] = Math.max(v.troops[u], want[u] ?? 0);
   const cap = storageCapForLevel(v.buildings.storehouse);

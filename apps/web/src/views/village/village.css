@@ -2508,3 +2508,17 @@ th[scope='row'] {
     animation: none;
   }
 }
+
+/* Desktop side column (256 px): the cost line and the Research button wrap under each other instead of being cut off. */
+.drill-compact .drill-rc {
+  flex-wrap: wrap;
+}
+
+.drill-compact .drill-rc-main {
+  flex-basis: calc(100% - 60px);
+}
+
+.drill-compact .drill-rc .drill-btn {
+  width: 100%;
+  min-height: 36px;
+}

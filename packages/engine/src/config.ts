@@ -128,7 +128,7 @@ export const POP_BUILDING_FIRST: Record<BuildingId, number> = {
 };
 export const POP_BUILDING_GROWTH = 1.08; // 25 levels: a maxed building takes about what a 20-level one did
 /** Population per troop type. Troops eat no food (owner, 2026-11-05); population is the only limit on army size besides cost and time. */
-export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, knight: 3, pathfinder: 1, chieftain: 8, firecart: 3 };
+export const POP_PER_UNIT: Record<UnitId, number> = { pikeman: 1, guard: 1, raider: 1, outrider: 2, hearthwarden: 2, knight: 3, pathfinder: 1, chieftain: 8, firecart: 3 };
 /** Cap: Longhouse level 0 -> POP_CAP_LEVEL0, level L -> round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1)). */
 export const POP_CAP_LEVEL0 = 120;
 export const POP_CAP_BASE = 720;
@@ -415,7 +415,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
   outrider: {
     id: 'outrider',
     name: 'Elk Rider',
-    description: 'Fast rider on a tame elk. The only mounted unit; carries the most loot.',
+    description: 'Fast rider on a tame elk. Carries the most loot.',
     unitClass: 'cavalry',
     attack: 65,
     defenseInfantry: 18,
@@ -427,6 +427,22 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'stables',
     requires: { stables: 1 },
     research: { drillyard: 3, cost: res(300, 220, 350, 20), timeSec: 7200 },
+  },
+  hearthwarden: {
+    id: 'hearthwarden',
+    name: 'Hearthwarden',
+    description: "A heavy rider who rides to stand before a friend's fire. Strong in defence against foot and riders, weak in attack, carries little: send it as support.",
+    unitClass: 'cavalry',
+    attack: 18,
+    defenseInfantry: 48,
+    defenseCavalry: 52,
+    speed: 11, // between foot (5-6) and the Elk Rider (13): support that arrives in time
+    carry: 20,
+    cost: res(60, 90, 110),
+    trainTimeSec: 700,
+    building: 'stables',
+    requires: { stables: 4 },
+    research: { drillyard: 4, cost: res(320, 240, 380, 20), timeSec: 7800 },
   },
   knight: {
     id: 'knight',
@@ -610,7 +626,7 @@ export const RANK_MAX = 5;
 /** Might: +attack, Bulwark: +both defences, per rank (max RANK_MAX * 5% = +25%). */
 export const RANK_BONUS = 0.05;
 /** Units that can be ranked (the Chieftain has no attack and the Firecart is a siege tool: ranks would do nothing, 2026-11-18). */
-export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder'];
+export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
 /** Keen (pathfinder only): +scout strength per rank. */
 export const KEEN_BONUS = 0.1;
 /** Resources paid for buying rank r (index r - 1) of one track. Points cost r. */
@@ -745,6 +761,7 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   guard: 'foot',
   raider: 'foot',
   outrider: 'mounted',
+  hearthwarden: 'mounted',
   knight: 'foot',
   pathfinder: 'pathfinder',
   chieftain: 'foot',

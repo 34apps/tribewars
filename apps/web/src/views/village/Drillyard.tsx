@@ -46,6 +46,9 @@ const TRACKS: readonly { id: RankTrack; name: string; hint: string }[] = [
 const trackApplies = (unit: UnitId, track: RankTrack) =>
   track === 'keen' ? unit === SCOUT_UNIT : track === 'might' ? unit !== SCOUT_UNIT : true;
 
+/** Units that get a rank card on the Drillyard page (researched, or free, and rankable). */
+export const rankCardUnits = (live: Parameters<typeof isResearched>[0]): UnitId[] => UNIT_IDS.filter((u) => RANKABLE_UNITS.includes(u) && isResearched(live, u));
+
 /** `part` splits the panel for the desktop building page (research in the side column, ranks in the main area); omitted = everything. */
 export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const { live, now, settings, village, applyVillage, toast } = useGame();
@@ -89,7 +92,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const queue = live.researchQueue ?? [];
   const limit = useRules().queues.research;
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
-  const trained = UNIT_IDS.filter((u) => RANKABLE_UNITS.includes(u) && isResearched(live, u));
+  const trained = rankCardUnits(live);
 
   const focusRef = useRef<HTMLLIElement>(null);
   const [focusUnit] = useState(takeResearchFocus);

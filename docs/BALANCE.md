@@ -991,3 +991,37 @@ because a won raid now earns Renown from loot only, no kills); 0.5 gives 1.82x a
 
 **What would lift the 90-day ratio (not done, owner's word first).** Raiders hit the same 8 targets per player and their production caps the loot while builders compound;
 a higher global factor would break the 30-day target (0.6 gives 2.09x), so the late game needs its own lever: more or richer targets for big raiders.
+
+## 17. Hearthwarden: a fast support defender (2026-11-18, branch `support-rider`; no schema change)
+
+**Why.** Every defender walks (Pikeman 6, Shieldbearer 5), so help to a friend often arrives after the attack. The new Stables unit rides at 11 tiles an hour (Elk Rider 13) and is a
+defender: it pays for speed with a weaker defence per coin and per population than the foot defenders. Tool: `npm run sim:troops` (value = wood + food + iron + 10 x gold).
+
+**Line.** Cavalry; attack 18, defence 48 vs foot / 52 vs riders, speed 11, carry 20, pop 2, cost 60 / 90 / 110 (value 260), 700 s, Stables 4, Drillyard 4 (research 320 / 240 / 380 + 20 gold, 7,800 s).
+Not tuned after the first pass: no number needed changing.
+
+| unit | value | pop | def foot | def riders | foot per 100 v | riders per 100 v | foot per pop | riders per pop | speed | 30 tiles (h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Pikeman | 56 | 1 | 14 | 40 | 25 | **71.4** | 14 | **40** | 6 | 5.0 |
+| Shieldbearer | 75 | 1 | 42 | 22 | **56** | 29.3 | **42** | 22 | 5 | 6.0 |
+| Elk Rider | 185 | 2 | 18 | 16 | 9.7 | 8.6 | 9 | 8 | 13 | 2.31 |
+| **Hearthwarden** | 260 | 2 | 48 | 52 | 18.5 | 20 | 24 | 26 | 11 | 2.73 |
+| Ember Guard | 390 | 3 | 90 | 90 | 23.1 | 23.1 | 30 | 30 | 5 | 6.0 |
+
+The Hearthwarden's defence per coin is a third of the Shieldbearer's (vs foot) and 28% of the Pikeman's (vs riders); per population 57% and 65%. Its attack is 6.9 per 100 coins
+(Raider 42), carry 7.7 per 100 coins (Elk Rider 40): it is a defender, not a raider. For help that must arrive, it covers 30 tiles in 2.73 h against 5-6 h on foot.
+An engine test pins "below the best foot defender per resource and per population".
+
+**Sim styles.** Builder (7% of its army, researched, Stables 5 / Drillyard 6 already in its list) and turtle (Drillyard 4 and Stables 4 added; 7%) train Hearthwardens; the preview bots mirror this.
+The turtle's economy never gets that far in 30 days, so only the builder trains them (12 in 30 days).
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days (1.5-2x) | 1.82x (19,342 / 10,615; before the unit 1.82x) |
+| 2nd village day, builder / raider / balanced (21-28) | 26.7 / 25.8 / 20.3 (before 26.5 / 25.8 / 20.3; balanced was already under 21) |
+| 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526; 3rd village 40.2 / 50.5 / - / 37.0 |
+| conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x (seeds 1.37 / 1.40 / 1.00 / 1.77 / 1.72) |
+| takes 30-50 (sum over the seeds) | 45 (5 + 11 + 9 + 13 + 7) |
+| restarts <= 26 | 20 (3 + 5 + 5 + 4 + 3) |
+
+The sims do not model support sends, so they show the targets did not move; the case for the unit rests on the table above.

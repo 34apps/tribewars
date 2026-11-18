@@ -28,7 +28,7 @@ export type BuildingId = (typeof BUILDING_IDS)[number];
 /** Level per building; 0 = not built. */
 export type BuildingLevels = Record<BuildingId, number>;
 
-export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder', 'chieftain', 'firecart'] as const;
+export const UNIT_IDS = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder', 'chieftain', 'firecart'] as const;
 export type UnitId = (typeof UNIT_IDS)[number];
 export type UnitClass = 'infantry' | 'cavalry';
 /**
