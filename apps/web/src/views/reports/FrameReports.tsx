@@ -7,7 +7,7 @@ import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SiegeHit, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
+import type { BattleReportData, BattleScouting, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SiegeHit, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../../api.ts';
 import { BuildingArt } from '../../art/BuildingArt.tsx';
 import { Icon } from '../../art/Icon.tsx';
@@ -32,7 +32,8 @@ import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
 import { LOST_SEEN_LINE, destroyedLine, renownNoteLine, strikeLine } from '../../fighters.ts';
 import { reportIcon, reportTone } from '../ReportsView.tsx';
-import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, knownUnit, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
+import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, knownUnit, pageSlice, paging, rowOutcome, tableDensity, scoutResultText
+} from './frame-reports-logic.ts';
 import type { ReportFilter } from './frame-reports-logic.ts';
 import '../../frame-reports.css';
 
@@ -272,7 +273,7 @@ function SiegeRow({ h: hit, sent, compact }: { h: SiegeHit; sent: number; compac
 function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
   const sideName = useSideName();
   const { now } = useGame();
-  const [more, setMore] = useState<null | 'forces' | 'siege'>(null);
+  const [more, setMore] = useState<null | 'forces' | 'siege' | 'scouts'>(null);
   const attName = sideName(b.attacker);
   const defName = sideName(b.defender);
   const { main, support } = forceRows(b);
@@ -299,6 +300,16 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
             </button>
           )}
           {b.seenInLoss && report.side === 'attack' && <p className="frp-mut">{LOST_SEEN_LINE}</p>}
+          {b.scouting && (
+            <Box className="frp-scbox" title="Scouts" aside={<span className={`frp-ch ${b.scouting.success === (report.side === 'attack') ? 'ok' : 'warn'}`}>{scoutResultText(report.side === 'attack', { success: b.scouting.success, scoutsSent: b.scouting.sent })}</span>}>
+              <ScoutPart s={scoutingAsScout(b, b.scouting)} side={report.side} compact />
+              {b.scouting.intel && (
+                <button type="button" className="fv-lk" onClick={() => setMore('scouts')} aria-haspopup="dialog">
+                  What the scouts saw <Chev />
+                </button>
+              )}
+            </Box>
+          )}
           {b.defenderUnits === null && (
             <p className="frp-mut">{report.side === 'attack' ? 'Your army fell — their troops were not seen.' : 'The attacker fell — their troops were not seen.'}</p>
           )}
@@ -394,6 +405,13 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
           </Box>
         </div>
       </div>
+      {more === 'scouts' && b.scouting && (
+        <Dialog title="What the scouts saw" onClose={() => setMore(null)}>
+          <div className="frp-scdlg">
+            <ScoutPart s={scoutingAsScout(b, b.scouting)} side={report.side} />
+          </div>
+        </Dialog>
+      )}
       {more === 'forces' && (
         <Dialog title="Forces" onClose={() => setMore(null)}>
           <ForcesTable rows={main} supportRows={support} attName={attName} defName={defName} supportLabel={supportLabel} density="normal" limit={total} />
@@ -432,38 +450,48 @@ function Stat({ label, value, loss }: { label: string; value: number | null; los
 }
 
 function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] }) {
+  return (
+    <>
+      <Sides left={['Scouts from', s.scout]} right={['Target', s.target]} mid="→" />
+      <ScoutPart s={s} side={side} />
+    </>
+  );
+}
+
+/** The scouts of an attack, inside its battle report (one report per attack): the same view as a scout report, without the village header. */
+function scoutingAsScout(b: BattleReportData, sc: BattleScouting): ScoutReportData {
+  return { scout: b.attacker, target: b.defender, success: sc.success, scoutsSent: sc.sent, scoutsLost: sc.lost, defenderScouts: sc.defenderScouts, defenderScoutsLost: sc.defenderScoutsLost, intel: sc.intel };
+}
+
+function ScoutPart({ s, side, compact = false }: { s: ScoutReportData; side: ReportDto['side']; compact?: boolean }) {
   const sender = side === 'attack';
   const intel = s.intel;
   const troops = intel?.troops ? normalizeUnits(intel.troops) : null;
   const troopRows = [...UNIT_IDS];
   const levels = intel?.buildings ?? null;
   const buildingRows = levels ? BUILDING_IDS.filter((b) => typeof levels[b] === 'number' && levels[b] > 0) : [];
-  const result = sender
-    ? s.success
-      ? 'Scouting succeeded.'
-      : 'Scouting failed: all scouts caught.'
-    : s.success
-      ? `${formatInt(s.scoutsSent)} enemy scouts escaped.`
-      : `${formatInt(s.scoutsSent)} enemy scouts caught.`;
+  const result = scoutResultText(sender, s);
   const approx = intel?.troopsApprox ? '≈ ' : '';
+  const stats = (
+    <>
+      <Stat label="Sent" value={s.scoutsSent} />
+      <Stat label="Lost" value={s.scoutsLost} loss />
+      <Stat label="Defenders" value={s.defenderScouts} />
+      <Stat label="Defenders lost" value={s.defenderScoutsLost} loss />
+    </>
+  );
   return (
     <>
-      <Sides left={['Scouts from', s.scout]} right={['Target', s.target]} mid="→" />
-      <Note
-        tone={s.success === sender ? 'ok' : 'bad'}
-        icon={MISSION_ICON.scout}
-        aside={
-          <>
-            <Stat label="Sent" value={s.scoutsSent} />
-            <Stat label="Lost" value={s.scoutsLost} loss />
-            <Stat label="Defenders" value={s.defenderScouts} />
-            <Stat label="Defenders lost" value={s.defenderScoutsLost} loss />
-          </>
-        }
-      >
-        {result}
-      </Note>
+      {compact ? (
+        <div className="frp-scst">{stats}</div>
+      ) : (
+        <Note tone={s.success === sender ? 'ok' : 'bad'} icon={MISSION_ICON.scout} aside={stats}>
+          {result}
+        </Note>
+      )}
       {!intel && sender && <p className="frp-mut">The scouts brought nothing back.</p>}
+      {compact ? null : (
+        <>
       {intel?.resources && (
         <div className="frp-ig">
           <span className="fv-up">Resources</span>
@@ -533,6 +561,8 @@ function ScoutBody({ s, side }: { s: ScoutReportData; side: ReportDto['side'] })
         </div>
       )}
       {typeof intel?.keen === 'number' && intel.keen < 5 && <p className="frp-mut">Keen {intel.keen}: limited view.</p>}
+        </>
+      )}
     </>
   );
 }

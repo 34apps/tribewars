@@ -1902,12 +1902,15 @@ export class Store extends SqlBase {
    * caller's own reports (at most REPORTS_KEEP rows), so it never shows what another player scouted.
    */
   latestScoutBuildings(playerId: number, villageId: number): { createdAt: number; buildings: BuildingLevels } | null {
+    // A scout report, or a battle report whose Pathfinders scouted (`scouting`, since 2026-11-18).
     const r = this.get(
-      `SELECT created_at, json_extract(battle_json, '$.intel.buildings') AS buildings FROM reports
-       WHERE player_id = ? AND side = 'attack' AND json_extract(battle_json, '$.type') = 'scout'
-         AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel.buildings') IS NOT NULL
+      `SELECT created_at, COALESCE(json_extract(battle_json, '$.intel.buildings'), json_extract(battle_json, '$.scouting.intel.buildings')) AS buildings FROM reports
+       WHERE player_id = ? AND side = 'attack'
+         AND ((json_extract(battle_json, '$.type') = 'scout' AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel.buildings') IS NOT NULL)
+           OR (json_extract(battle_json, '$.type') = 'battle' AND json_extract(battle_json, '$.defender.villageId') = ? AND json_extract(battle_json, '$.scouting.intel.buildings') IS NOT NULL))
        ORDER BY created_at DESC, id DESC LIMIT 1`,
       playerId,
+      villageId,
       villageId,
     );
     if (!r || typeof r.buildings !== 'string') return null;
@@ -1924,14 +1927,17 @@ export class Store extends SqlBase {
    * (at most REPORTS_KEEP rows, three LIMIT 1 queries), so it never shows what another player scouted or fought.
    */
   latestIntel(playerId: number, villageId: number): VillageIntelDto {
+    // A scout report, or a battle report whose Pathfinders scouted (`scouting`): the same intel, read from either place.
     const scoutSql = (needTroops: boolean): string =>
-      `SELECT id, created_at, json_extract(battle_json, '$.intel.troops') AS troops, json_extract(battle_json, '$.intel.troopsApprox') AS approx,
-              json_extract(battle_json, '$.intel.wallLevel') AS wall FROM reports
-       WHERE player_id = ? AND side = 'attack' AND json_extract(battle_json, '$.type') = 'scout'
-         AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel') IS NOT NULL
-         ${needTroops ? "AND json_extract(battle_json, '$.intel.troops') IS NOT NULL" : ''}
+      `SELECT id, created_at, COALESCE(json_extract(battle_json, '$.intel.troops'), json_extract(battle_json, '$.scouting.intel.troops')) AS troops,
+              COALESCE(json_extract(battle_json, '$.intel.troopsApprox'), json_extract(battle_json, '$.scouting.intel.troopsApprox')) AS approx,
+              COALESCE(json_extract(battle_json, '$.intel.wallLevel'), json_extract(battle_json, '$.scouting.intel.wallLevel')) AS wall FROM reports
+       WHERE player_id = ? AND side = 'attack'
+         AND ((json_extract(battle_json, '$.type') = 'scout' AND json_extract(battle_json, '$.target.villageId') = ? AND json_extract(battle_json, '$.intel') IS NOT NULL)
+           OR (json_extract(battle_json, '$.type') = 'battle' AND json_extract(battle_json, '$.defender.villageId') = ? AND json_extract(battle_json, '$.scouting.intel') IS NOT NULL))
+         ${needTroops ? "AND COALESCE(json_extract(battle_json, '$.intel.troops'), json_extract(battle_json, '$.scouting.intel.troops')) IS NOT NULL" : ''}
        ORDER BY created_at DESC, id DESC LIMIT 1`;
-    const scout = this.get(scoutSql(true), playerId, villageId) ?? this.get(scoutSql(false), playerId, villageId);
+    const scout = this.get(scoutSql(true), playerId, villageId, villageId) ?? this.get(scoutSql(false), playerId, villageId, villageId);
     const battle = this.get(
       `SELECT id, created_at, json_extract(battle_json, '$.defenderUnits') AS du, json_extract(battle_json, '$.defenderLosses') AS dl,
               json_extract(battle_json, '$.supportUnits') AS su, json_extract(battle_json, '$.supportLosses') AS sl,
@@ -1946,7 +1952,9 @@ export class Store extends SqlBase {
     const newer = (a: Raw, b: Raw): boolean => (a.created_at as number) > (b.created_at as number) || (a.created_at === b.created_at && (a.id as number) > (b.id as number));
     const wall = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
     const units = (v: unknown): Units | null => (typeof v === 'string' ? normalizeUnits(JSON.parse(v) as Partial<Units>) : null);
-    if (scout && (!battle || newer(scout, battle))) {
+    // The same merged report is both candidates: the battle's survivors win, unless the battle showed no troops and the scouts did.
+    const sameReport = scout !== undefined && battle !== undefined && scout !== null && battle !== null && scout.id === battle.id;
+    if (scout && (!battle || newer(scout, battle) || (sameReport && battle.du === null && scout.troops !== null))) {
       return {
         at: scout.created_at as number,
         source: 'scout',

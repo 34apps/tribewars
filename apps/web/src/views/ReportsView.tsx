@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { draftFromReport } from '../simulator.ts';
 import { BUILDINGS, BUILDING_IDS, RESOURCE_IDS, UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
-import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
+import type { BattleReportData, BattleScouting, ReportDto, ReportSummaryDto, ScoutReportData, ShipmentReportData, SupportReportData, Units, VillageRefDto, VillageReportData } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useReportRead } from '../hooks/useReportRead.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
@@ -138,7 +138,7 @@ function LossCard({ who, lost }: { who: string; lost: Units | null }) {
   );
 }
 
-function BattleDetail({ b }: { b: BattleReportData }) {
+function BattleDetail({ b, side }: { b: BattleReportData; side: ReportDto['side'] }) {
   const { player, now } = useGame();
   const sideName = (v: VillageRefDto) => (v.ownerName !== null && v.ownerName === player.username ? 'You' : v.ownerName ?? 'Abandoned village');
   const defenderKnown = b.defenderUnits !== null;
@@ -313,12 +313,36 @@ function BattleDetail({ b }: { b: BattleReportData }) {
           </p>
         )}
       </section>
+      {b.scouting && (
+        <section className="subsection" aria-label="Scouts in the attack">
+          <h3 className="subtitle">Scouts</h3>
+          <ScoutPart s={scoutingAsScout(b, b.scouting)} side={side} />
+        </section>
+      )}
     </>
   );
 }
 
 /** Scouting: result, scout numbers and, for a successful sender, what the Pathfinders saw. */
 function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] }) {
+  return (
+    <>
+      <div className="sides">
+        <VillageCell role="Scouts from" v={s.scout} won={false} />
+        <span className="vs" aria-hidden="true">→</span>
+        <VillageCell role="Target" v={s.target} won={false} />
+      </div>
+      <ScoutPart s={s} side={side} />
+    </>
+  );
+}
+
+/** The scouts of an attack inside its battle report (one report per attack): the scout view without the village header. */
+function scoutingAsScout(b: BattleReportData, sc: BattleScouting): ScoutReportData {
+  return { scout: b.attacker, target: b.defender, success: sc.success, scoutsSent: sc.sent, scoutsLost: sc.lost, defenderScouts: sc.defenderScouts, defenderScoutsLost: sc.defenderScoutsLost, intel: sc.intel };
+}
+
+function ScoutPart({ s, side }: { s: ScoutReportData; side: ReportDto['side'] }) {
   const sender = side === 'attack';
   const intel = s.intel;
   const troops = intel?.troops ? normalizeUnits(intel.troops) : null;
@@ -339,11 +363,6 @@ function ScoutDetail({ s, side }: { s: ScoutReportData; side: ReportDto['side'] 
 
   return (
     <>
-      <div className="sides">
-        <VillageCell role="Scouts from" v={s.scout} won={false} />
-        <span className="vs" aria-hidden="true">→</span>
-        <VillageCell role="Target" v={s.target} won={false} />
-      </div>
       <p className={`notice called-off ${s.success === sender ? 'notice-ok' : 'notice-block'}`} role="note">
         <Icon name={MISSION_ICON.scout} size={20} className="inline-icon" /> <span>{result}</span>
       </p>
@@ -571,7 +590,7 @@ function ReportBody({ report }: { report: ReportDto }) {
     return report.battle.outcome === 'called_off' ? (
       <CalledOffDetail b={report.battle} />
     ) : (
-      <BattleDetail b={report.battle} />
+      <BattleDetail b={report.battle} side={report.side} />
     );
   }
   return <p className="muted">No details.</p>;

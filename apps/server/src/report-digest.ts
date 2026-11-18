@@ -37,11 +37,15 @@ function again(mission: 'attack' | 'scout', fromVillageId: unknown, to: { x?: un
 function battleDigest(side: ReportSide, b: BattleReportData): ReportDigest {
   const loot = sumResources(b.loot);
   if (side === 'attack') {
+    // Pathfinders that rode inside the attack (`scouting`) count as sent and lost, and go again with the army.
+    const scouts = count(b.scouting?.sent);
+    const units = fullUnits(b.attackerUnits);
+    units.pathfinder += scouts;
     return {
       loot: b.outcome === 'called_off' ? 0 : loot,
-      sent: sumUnits(b.attackerUnits),
-      lost: sumUnits(b.attackerLosses),
-      again: again('attack', b.attacker?.villageId, b.defender, fullUnits(b.attackerUnits)),
+      sent: sumUnits(b.attackerUnits) + scouts,
+      lost: sumUnits(b.attackerLosses) + count(b.scouting?.lost),
+      again: again('attack', b.attacker?.villageId, b.defender, units),
     };
   }
   // defense / support: the defending force is the owner's own troops plus the support that fought; hidden (null) when the report hides it.

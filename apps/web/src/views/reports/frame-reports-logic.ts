@@ -3,6 +3,7 @@
 
 import { UNITS, UNIT_IDS, normalizeUnits } from '@clanfire/engine';
 import type { BattleReportData, ReportSummaryDto, Units } from '@clanfire/engine';
+import { formatInt } from '../../format.ts';
 
 export type ReportFilter = 'all' | 'battles' | 'scouting' | 'support' | 'shipments';
 
@@ -124,3 +125,9 @@ export function rowOutcome(r: ReportSummaryDto): { label: string; tone: 'won' | 
 
 /** A report saved by an older build can name a unit that no longer exists (Log Ram, Boulder Sling): show it as the Firecart rather than crash the screen. */
 export const knownUnit = (id: string): (typeof UNIT_IDS)[number] => ((UNIT_IDS as readonly string[]).includes(id) ? (id as (typeof UNIT_IDS)[number]) : 'firecart');
+
+/** The one-line result of scouting (a scout report, or the scouts inside an attack's battle report), for the sender or the defender. */
+export function scoutResultText(sender: boolean, s: { success: boolean; scoutsSent: number }): string {
+  if (sender) return s.success ? 'Scouting succeeded.' : 'Scouting failed: all scouts caught.';
+  return s.success ? `${formatInt(s.scoutsSent)} enemy scouts escaped.` : `${formatInt(s.scoutsSent)} enemy scouts caught.`;
+}

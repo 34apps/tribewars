@@ -34,7 +34,7 @@ test('an attack with only Pathfinders scouts: a scout report with intel, no batt
   await app.close();
 });
 
-test('a mixed attack scouts first, then fights: a scout report with intel and a battle report; Pathfinders take no battle losses', async () => {
+test('a mixed attack scouts first, then fights: one battle report with the scouting and its intel; Pathfinders take no battle losses', async () => {
   const { app, clock, alice, bob } = await world();
   giveTroops(app, bob, { pikeman: 2 });
   giveTroops(app, alice, { pathfinder: 5, raider: 60 });
@@ -44,13 +44,13 @@ test('a mixed attack scouts first, then fights: a scout report with intel and a 
   assert.equal(movement.kind, 'attack');
   clock.set(movement.arriveAt);
 
-  const scout = (await reportOfType(alice, 'scout')).scout;
-  assert.ok(scout);
-  assert.deepEqual([scout.success, scout.scoutsSent, scout.scoutsLost], [true, 5, 0]);
-  assert.equal(scout.intel?.troops?.pikeman, 2, 'the intel is the village as it stood on arrival, before the battle');
-
+  assert.deepEqual((await reports(alice)).map((r) => r.type), ['battle'], 'one report per attack');
   const battle = (await reportOfType(alice, 'battle')).battle;
   assert.ok(battle);
+  const scout = battle.scouting;
+  assert.ok(scout);
+  assert.deepEqual([scout.success, scout.sent, scout.lost], [true, 5, 0]);
+  assert.equal(scout.intel?.troops?.pikeman, 2, 'the intel is the village as it stood on arrival, before the battle');
   assert.equal(battle.attackerWon, true);
   assert.equal(battle.attackerUnits.pathfinder, 0, 'Pathfinders are not part of the battle');
   assert.equal(battle.attackerUnits.raider, 60);
@@ -77,14 +77,15 @@ test('a mixed attack: duel losses use the Pathfinders sent, and the defending Pa
   assert.equal(expected.success, true);
   const { movement } = await sendOk(alice, bob, 'attack', { pathfinder: 7, raider: 60 });
   clock.set(movement.arriveAt);
-  const scout = (await reportOfType(alice, 'scout')).scout;
-  assert.deepEqual([scout?.scoutsSent, scout?.scoutsLost], [7, expected.scoutLosses]);
+  const scout = (await reportOfType(alice, 'battle')).battle?.scouting;
+  assert.deepEqual([scout?.sent, scout?.lost], [7, expected.scoutLosses]);
   const ret = (await movementsOf(alice))[0];
   assert.equal(ret?.units?.pathfinder, 7 - expected.scoutLosses);
-  // The defender had Pathfinders at home: spotted report and battle report, both.
+  // The defender had Pathfinders at home: still one report, with the scouts caught in it.
   const theirs = await reports(bob);
-  assert.deepEqual(theirs.map((r) => r.type).sort(), ['battle', 'scout']);
-  assert.equal((await reportOfType(bob, 'scout')).scout?.intel, null, 'the target gets no intel');
+  assert.deepEqual(theirs.map((r) => r.type), ['battle']);
+  const caught = (await reportOfType(bob, 'battle')).battle?.scouting;
+  assert.deepEqual([caught?.sent, caught?.lost, caught?.intel], [7, expected.scoutLosses, null], 'the target gets no intel');
   await app.close();
 });
 
@@ -99,8 +100,7 @@ test('the fighters are wiped out but the Pathfinders walk home alone', async () 
   assert.equal(battle.attackerWon, false);
   assert.equal(battle.attackerLosses.raider, 1);
   assert.equal(battle.attackerLosses.pathfinder, 0);
-  const scout = (await reportOfType(alice, 'scout')).scout;
-  assert.equal(scout?.success, true, 'the scouting came before the fight');
+  assert.equal(battle.scouting?.success, true, 'the scouting came before the fight');
   const moves = await movementsOf(alice);
   assert.equal(moves.length, 1);
   assert.deepEqual([moves[0]?.kind, moves[0]?.units?.pathfinder, moves[0]?.units?.raider], ['return', 4, 0]);
