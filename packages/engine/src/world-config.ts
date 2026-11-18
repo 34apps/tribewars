@@ -246,7 +246,7 @@ export const WORLD_CONFIG_FIELDS: readonly WorldConfigField[] = [
   dom('streakDays', 'Days to hold the share', 'days', 'Days the share must be kept.'),
   dom('activeDays', 'Activity window', 'days', 'Played within this many days.'),
   num('tribe.maxMembers', 'tribe', 'Tribe size limit', 'count', 1, 200, true, 'Most members in one tribe.'),
-  flag('features.siege', 'Siege (Firecarts)', 'Siege can lower Wall and buildings.'),
+  flag('features.siege', 'Siege (Log Rams and Firecarts)', 'Siege can lower Wall and buildings.'),
   flag('features.sites', 'Fire Shrines and the Great Fire', 'Bonus sites on the map.'),
   flag('features.morale', 'Morale', 'Attacking a player with under a third of your points: your army fights at 75% strength.'),
   flag('features.raidLists', 'Raid lists (paid extra)', 'Players with the extra can save abandoned villages and send them all with one press. Convenience only.'),

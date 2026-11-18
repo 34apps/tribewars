@@ -444,8 +444,8 @@ export interface SendRequest extends Coords {
   mission: Mission;
   /**
    * Firecarts only (docs/GAME_DESIGN.md 18.9): the building (a BuildingId; names are public, levels are not) they burn after a
-   * won attack. Optional: left out, the Firecarts burn the Wall after the battle. Only allowed on an `attack` that carries Firecarts
-   * (400 invalid_input otherwise, and for an unknown id). It is NOT checked against the target village (that would reveal what it
+   * won attack. Optional: left out, the Firecarts burn a random building other than the Wall (Log Rams need no pick: they only hit
+   * the Wall). Only allowed on an `attack` that carries Firecarts, and never the Wall (400 invalid_input otherwise, and for an unknown id). It is NOT checked against the target village (that would reveal what it
    * has): a building that is not there simply takes no damage, which the battle report shows.
    */
   targetBuilding?: string;
@@ -660,7 +660,7 @@ export interface BattleReportData {
   /** Totals of all stationed support that fought (null when none, or hidden like defenderUnits). */
   supportUnits: Units | null;
   supportLosses: Units | null;
-  /** The Wall as it counted in the battle (after the Firecarts' during-the-battle hit); null when hidden from a wiped-out attacker. */
+  /** The Wall as it counted in the battle (after the Log Rams' during-the-battle hit); null when hidden from a wiped-out attacker. */
   wallLevel: number | null;
   /** Morale: the attacker's attack strength factor (0.75) when it applied (GAME_DESIGN battle section). Null or absent when it did not. */
   morale?: number | null;

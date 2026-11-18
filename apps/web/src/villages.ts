@@ -11,6 +11,7 @@ import {
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
+  hasBuildingSiegeUnits,
   hasSiegeUnits,
   moraleFactor,
   normalizeUnits,
@@ -328,14 +329,14 @@ export function selectableUnits(mode: SendMode, atHome: Units, siegeOn = true): 
 
 // ---- Siege (docs/GAME_DESIGN.md 18.9) -------------------------------------------------------------------
 
-/** The building picker shows only on an attack that carries Firecarts (the units that burn a chosen building). */
+/** The building picker shows only on an attack that carries Firecarts (the units that burn a chosen building; Log Rams need no pick, they hit the Wall). */
 export function showsSiegePicker(mission: Mission, chosen: Partial<Units>, siegeOn = true): boolean {
-  return siegeOn && mission === 'attack' && hasSiegeUnits(chosen);
+  return siegeOn && mission === 'attack' && hasBuildingSiegeUnits(chosen);
 }
 
-/** Buildings a Firecart can be told to burn. Names only: levels are known from a scouting report, never here. */
+/** Buildings a Firecart can be told to burn (everything but the Wall: that is the Log Ram's). Names only: levels are known from a scouting report, never here. */
 export function siegeTargetOptions(): Array<{ id: BuildingId; name: string }> {
-  return BUILDING_IDS.map((id) => ({ id, name: BUILDINGS[id].name }));
+  return BUILDING_IDS.filter((id) => id !== 'wall').map((id) => ({ id, name: BUILDINGS[id].name }));
 }
 
 /** Level shown next to a building name in the picker: "Wall 7 · scouted 3h ago", or just the name without a scout report. */
@@ -364,13 +365,13 @@ export function abandonedStrength(defended: boolean | undefined): { band: Streng
     : { band: 'weak', tag: 'No defenders', note: 'only its Wall: scout for the level' };
 }
 
-/** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = the Wall = leave it out). */
+/** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = any building = leave it out). */
 export function siegeTargetFor(mission: Mission, chosen: Partial<Units>, picked: string): BuildingId | undefined {
   if (!showsSiegePicker(mission, chosen)) return undefined;
-  return (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
+  return picked !== 'wall' && (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
 }
 
-/** One report line per siege hit: "Firecart: Wall 8 -> 6", "Firecart: Market 4 -> 3", or why nothing happened. */
+/** One report line per siege hit: "Log Ram: Wall 8 -> 6", "Firecart: Market 4 -> 3", or why nothing happened. */
 export function siegeHitText(h: SiegeHit): string {
   const unit = UNITS[h.unit]?.name ?? h.unit;
   const building = BUILDINGS[h.building]?.name ?? h.building;

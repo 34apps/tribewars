@@ -1025,3 +1025,46 @@ The turtle's economy never gets that far in 30 days, so only the builder trains 
 | restarts <= 26 | 20 (3 + 5 + 5 + 4 + 3) |
 
 The sims do not model support sends, so they show the targets did not move; the case for the unit rests on the table above.
+
+## 18. Two siege units again: Log Ram (Wall) and Firecart (buildings) (2026-11-18, branch `support-rider`; no schema change)
+
+**Why.** Owner: "why don't we have a ram only for the wall, more powerful for wall demolishing". Two Wrightyard units: the **Log Ram** (`logram`) hits only the Wall, in the battle (half
+points, the lowered Wall counts) and again after a win; the **Firecart** now hits only other buildings after a win (the sender's pick, else a random building but the Wall) and needs Wrightyard 4.
+Tool: `npm run sim -- --siege` (section (a), real engine; value = wood + food + iron + 10 x gold).
+
+**Lines (our numbers).** Log Ram: attack 3, defence 5 / 4, speed 3, pop 3, cost 70 / 50 / 90 (value 210, no gold), 1,100 s, Wrightyard 1, Drillyard 2 (research 260 / 200 / 340, 7,200 s),
+power 6, 3 levels per step (about 3x the Firecart's old Wall power per unit, and 43% cheaper: 210 vs 368). Firecart unchanged (power 2, 2 levels, 368), but Wrightyard 4, Drillyard 3.
+Not tuned after the first pass: the numbers above are the brief's starting numbers; no sim target moved.
+
+**Units to knock the Wall down (survivors after a decisive win; "send" = survivors / 0.63, the share of an army that comes back):**
+
+| Wall | levels | Log Rams (survivors / send) | Log Ram army value | Firecarts before (send, same Wall) | Firecart army value | Defender rebuild cost |
+|---|---|---|---|---|---|---|
+| 10 | 1 | 5 / 8 | 1,680 | 13 / 21 | 7,728 | 1,668 |
+| 10 | 3 | 12 / 20 | 4,200 | n/a (cap 2 per step) | | 4,187 |
+| 15 | 1 | 6 / 10 | 2,100 | 18 / 29 | 10,672 | 4,326 |
+| 15 | 3 | 17 / 27 | 5,670 | n/a | | 10,856 |
+| 22 | 1 | 9 / 15 | 3,150 | 25 / 40 | 14,720 | 16,430 |
+| 22 | 3 | 24 / 39 | 8,190 | n/a | | 41,229 |
+
+The Log Ram needs about 2.7x fewer units and pays about 4.6x less per Wall level than the Firecart did. The Log Ram also fires during the battle, so the defence meets the lowered Wall and the
+real levels dropped in a fight are higher than the table's after-step number (3.1 levels on Wall 10 with 15 sent: during step 1-2 plus after).
+
+**Invariants.** Wall rows: rebuild / attacker capital 0.61 (Wall 5), 0.99 (Wall 10), 2.06 (Wall 15), 5.22 (Wall 22). The old line "Wall levels are not a bargain (< 1.5 x)" is kept for Wall 5 and 10
+and **no longer enforced for Wall 15 and above**: siege points grow linearly with the level (6 + 2 x L) while a Wall level's price grows about 1.22x per level, so a very high Wall is cheap to chip
+for any unit with this much power; the owner picked the stronger ram, and the garrison, not the Wall, still sets the army size ((d2): Wall 10 with 400 defenders needs 25x the empty village's army, the
+8 Log Rams are a small block on top). Per-attack damage stays capped (3 levels per step, 6 on the Wall in one won attack). The sim's other checks all hold (10 of 10, `All invariants hold`).
+Firecart rows (other buildings) are still no bargain on Market (0.15 to 0.24 of the army's price) and Drillyard 5 to 9 (0.59 to 0.97); the Banner Hall (gold) is a bargain as before (3.4 to 4.8).
+
+**Sims (the default sim has no siege units, so these moved only by noise from the extra seed draw, which does not change luck):**
+
+| target | result |
+|---|---|
+| raider / builder score, 30 days (1.5-2x) | 1.82x (19,342 / 10,633) |
+| 2nd village day, builder / raider / balanced (21-28) | 26.7 / 25.8 / 20.3 (balanced was already under 21) |
+| 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526 |
+| conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x |
+| takes 30-50 / restarts <= 26 | 45 / 20 |
+| `--siege` computer players (Log Rams: balanced trains 29, 15 siege raids all won, 21 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 12,906 |
+
+The sim players use Log Rams only (Wall); the Firecart's tests are the section (a) building rows and the engine tests. Builder 10,633 vs 10,615 in section 17: not isolated (the default sim has no siege).

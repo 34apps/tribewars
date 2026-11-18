@@ -10,6 +10,7 @@ export const UNIT_ROLE: Record<UnitId, { label: string; tone: 'def' | 'atk' | 's
   hearthwarden: { label: 'Support', tone: 'def' },
   knight: { label: 'Elite', tone: 'elite' },
   chieftain: { label: 'Leader', tone: 'elite' },
+  logram: { label: 'Siege', tone: 'siege' },
   firecart: { label: 'Siege', tone: 'siege' },
 };
 
@@ -23,6 +24,7 @@ export const UNIT_HINT: Record<UnitId, string> = {
   hearthwarden: 'rides to help',
   knight: 'attack and defence',
   chieftain: 'takes villages',
+  logram: 'breaks the Wall',
   firecart: 'burns buildings',
 };
 
@@ -36,5 +38,6 @@ export const UNIT_GOOD_FOR: Record<UnitId, string> = {
   hearthwarden: 'riding to a friend\'s village as support, faster than foot defenders. Weak in attack, carries little.',
   knight: 'both attacking and defending on foot. Slow and costly (it takes gold), so keep them alive.',
   chieftain: 'taking an abandoned village for your own. Needs an escort.',
-  firecart: 'burning the Wall in the battle and one chosen building after a win. Slow and fragile.',
+  logram: 'breaking the Wall, in the battle and again after a win. Slow and fragile.',
+  firecart: 'burning one chosen building after a win (never the Wall). Slow and fragile.',
 };

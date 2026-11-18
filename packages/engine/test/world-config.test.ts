@@ -476,8 +476,8 @@ describe('two configs behave differently', () => {
   it('siege off refuses to train and to research siege units, and skips siege in battle', () => {
     const off = cfg('features.siege', false);
     assert.equal(siegeEnabled(off), false);
-    const yard = { ...rich({ barracks: 8, wrightyard: 1, storehouse: 8, drillyard: 5 }), researched: ['firecart' as const] };
-    for (const u of ['firecart'] as const) {
+    const yard = { ...rich({ barracks: 8, wrightyard: 4, storehouse: 8, drillyard: 5 }), researched: ['firecart' as const, 'logram' as const] };
+    for (const u of ['firecart', 'logram'] as const) {
       const c = checkTrain(yard, u, 1, 0, off);
       assert.ok(!c.ok && c.reason === 'requirements_not_met' && c.message === SIEGE_OFF_MESSAGE, u);
       assert.throws(() => applyTrain(yard, u, 1, 0, off), { message: SIEGE_OFF_MESSAGE });
@@ -490,7 +490,7 @@ describe('two configs behave differently', () => {
     assert.ok(checkTrain(rich({ barracks: 1 }), 'pikeman', 1, 0, off).ok);
 
     const defender = village({ buildings: { wall: 6 }, resources: { wood: 100 } });
-    const input = { attackerUnits: units({ raider: 200, firecart: 60 }), defender, seed: 11 };
+    const input = { attackerUnits: units({ raider: 200, logram: 60 }), defender, seed: 11 };
     const on = resolveBattle(input);
     assert.ok(on.attackerWon);
     assert.ok(on.siege!.length > 0);
@@ -500,7 +500,7 @@ describe('two configs behave differently', () => {
     assert.equal(skipped.wallDuring, 6);
     assert.deepEqual(resolveBattle(input, S1), on);
     // the lost-attack share is skipped too
-    const weak = { attackerUnits: units({ firecart: 3 }), defender: village({ buildings: { wall: 6 }, troops: { pikeman: 200 } }), seed: 3 };
+    const weak = { attackerUnits: units({ logram: 3 }), defender: village({ buildings: { wall: 6 }, troops: { pikeman: 200 } }), seed: 3 };
     assert.ok(!resolveBattle(weak).attackerWon);
     assert.deepEqual(resolveBattle(weak, off).siege, []);
   });

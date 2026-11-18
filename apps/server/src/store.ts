@@ -10,6 +10,7 @@ import {
   convertReportBody,
   convertSiegeRanks,
   flatSettings,
+  READ_LEGACY,
   resolveWorldConfig,
   withLegacyPlacement,
   worldConfigFromSettings,
@@ -341,7 +342,7 @@ function parseRanks(raw: unknown): VillageRanks | null {
   if (typeof raw !== 'string') return null;
   try {
     const v: unknown = JSON.parse(raw);
-    return v && typeof v === 'object' && !Array.isArray(v) ? (convertSiegeRanks(v as Record<string, unknown>) as VillageRanks) : null; // old Log Ram / Boulder entries fold into the Firecart
+    return v && typeof v === 'object' && !Array.isArray(v) ? (convertSiegeRanks(v as Record<string, unknown>, READ_LEGACY) as VillageRanks) : null; // old Boulder entries fold into the Firecart (Log Rams are a real unit again)
   } catch {
     return null;
   }
@@ -456,9 +457,9 @@ const optionalUnits =(u: Partial<Units> | null | undefined): Units | null => (u 
 
 /** Parse stored report JSON; every unit map goes through normalizeUnits so reports saved before a unit existed still read. */
 function parseReportBody(json: string): ReportBody {
-  // A report saved before the Firecart change still names Log Rams / Boulder Slings: convert, never drop (the stored rows are rewritten by schema v19).
+  // A report saved before the Firecart change still names Boulder Slings (old Log Rams were converted once by schema v19; a Log Ram in a report is a real one now): convert, never drop (the stored rows are rewritten by schema v19).
   const parsed = JSON.parse(json) as Record<string, unknown>;
-  const { type: rawType, ...data } = json.includes('"logram"') || json.includes('"boulder"') ? convertReportBody(parsed) : parsed;
+  const { type: rawType, ...data } = json.includes('"boulder"') ? convertReportBody(parsed, READ_LEGACY) : parsed;
   const type = reportTypeOf(rawType);
   if (type === 'scout') {
     const d = data as unknown as ScoutReportData;

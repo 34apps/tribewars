@@ -129,7 +129,7 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   room like the Lumber Camp (`POP_BUILDING_FIRST.farm` 3). Siege floor 1 for both (`SIEGE_MIN_LEVEL`). Abandoned villages: Longhouse = Farm level (it follows the
   Farm when the Farm grows). First step `longhouse2` "Raise the Longhouse to 2" (§20). Old worlds: a one-time migration (schema v17, `migrate.ts`) sets
   Longhouse = the Farm level in every village; a queued Farm level still finishes as a Farm.
-- **Wrightyard** (`wrightyard`, originality piece 3): trains siege only (the Firecart), with its own training queue (it is in `TRAINING_BUILDING_IDS`, so `trainQueues.wrightyard`,
+- **Wrightyard** (`wrightyard`, originality piece 3): trains siege only (the Log Ram from level 1, the Firecart from level 4), with its own training queue (it is in `TRAINING_BUILDING_IDS`, so `trainQueues.wrightyard`,
   the cancel route takes `building: 'wrightyard'`). Needs Barracks 5, max 12, training `x0.94` per level like the other training buildings, cost like the Stables
   (390/300/450, no gold). The Barracks no longer trains siege. Migration: a village with Barracks 5 or more gets Wrightyard 1 free.
 - **Vault** is the shown name of `vault` (it was "Vault"; id and art unchanged).
@@ -149,7 +149,8 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | 60 / 90 / 110 | 700 s | **fast support defender** (2026-11-18) |
 | **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 5 | 0 | 8 | unchanged | 6 h | takes villages |
-| Firecart (`firecart`) | Wrightyard 1 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege (§18.9) |
+| Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
+| Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
 
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
@@ -242,9 +243,9 @@ Tests and the simulator pass their own seeds.
    equally over resources that still have lootable stock; repeat until capacity or stock runs out.
    Loot values are integers. A Strike attempt (an attack with a Chieftain), a relief attack and a map-site battle take no loot at all
    (`BattleInput.noLoot`, what `lootFactor: 0` did before).
-7. Siege (18.9): before step 4 the Firecarts that were sent fire half their points at the Wall (`resolveSiegeDuring`); the defence uses that
-   lowered Wall (`BattleResult.wallDuring`). After the battle `resolveSiege` lets the surviving Firecarts (full points) burn the building the sender
-   picked (the Wall if none), each step at most 2 levels; on a loss `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE)` Firecarts count as survivors.
+7. Siege (18.9): before step 4 the Log Rams that were sent fire half their points at the Wall (`resolveSiegeDuring`); the defence uses that
+   lowered Wall (`BattleResult.wallDuring`). After the battle `resolveSiege` lets the surviving Log Rams (full points) hit the Wall again and the surviving Firecarts
+   burn the picked building (a random one other than the Wall if none), each step at most `maxLevels` levels; on a loss `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE)` of each kind count as survivors.
 
 `applyBattleToDefender(defender, result)` removes defender losses and the loot and applies the siege hits (win or loss).
 
@@ -784,7 +785,7 @@ the server does not pass them yet), scout intel tiers. Earlier status: **engine 
 `VillageState.researched/researchQueue/ranks`, numbers in `config.ts` (`DRILLYARD_POINTS_PER_LEVEL` 3, `RANK_MAX` 5, `RANK_BONUS` 0.05,
 `KEEN_BONUS` 0.1, `RANK_COST`). Ranks are bought one at a time (instant; rank r costs r points plus `RANK_COST[r-1]`);
 Might not on Pathfinder, Keen only on Pathfinder, the unit must be researched or free. **Only `RANKABLE_UNITS` can be ranked (owner, 2026-11-18; schema v26):**
-Pikeman, Shieldbearer, Raider, Elk Rider, Hearthwarden, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Firecart (siege tool) have no rank tracks, `buyRank` refuses them
+Pikeman, Shieldbearer, Raider, Elk Rider, Hearthwarden, Ember Guard, Pathfinder; the Chieftain (attack 0) and the Log Ram and the Firecart (siege tools) have no rank tracks, `buyRank` refuses them
 (`invalid_input`), and the v26 migration removed any such ranks (points are derived from ranks, so they became free; resources paid were not refunded). 30 points
 (3 per level, 10 levels) stay. The page shows "Buy rank N", "Needs N points · M free", and "Researched" without a time for finished research. Respec resets one track to 0: points return in full,
 resources do not, no gold fee. `resolveBattle` takes optional `attackerRanks`, `defenderRanks`, `supportRanks` (Might on attackers; Bulwark
@@ -2149,49 +2150,55 @@ Terrain slowing an average trip by about 12% was not answered; it stays as propo
 
 13. **Owner 2026-11-07: tribe projects simple version** — store in a member village that can be raided (at most a fifth per won attack), Roads/Watchtower/Wards 3 levels, permanent, no Banner. Built the same day (§18.5).
 
-### 18.9 Siege: the Firecart, the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05; one unit since the originality pass, 2026-11-11)
+### 18.9 Siege: the Log Ram (Wall) and the Firecart (buildings), the only way buildings lose levels (owner, 2026-11-04; built 2026-11-05; Firecart only 2026-11-11; two units again 2026-11-18)
 
-Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.firecart`, `SIEGE_*`);
-the rules live in `packages/engine/src/siege.ts`. Until 2026-11-11 there were two siege units (Log Ram on the Wall, Boulder Sling on a chosen
-building, both trained at the Barracks); they are replaced by **one** unit, the Firecart, trained at the **Wrightyard**.
+Our own design (names, numbers and rules are ours; nothing is copied from another game). Numbers are in `config.ts` (`UNITS.logram`, `UNITS.firecart`, `SIEGE_*`);
+the rules live in `packages/engine/src/siege.ts`. Until 2026-11-11 there were two siege units (Log Ram on the Wall, Boulder Sling on a chosen building, both at the
+Barracks), then one (the Firecart, Wrightyard). On 2026-11-18 the owner asked for a ram "only for the wall, more powerful for wall demolishing": **two siege units at the
+Wrightyard**, each with its own job (`UnitDef.siege.hits`).
 
-**Rule.** A building level never drops by itself: not on capture, not with time. It drops only through Firecarts in an attack. The Firecart acts
-in **two steps**: **during the battle it burns the Wall** (the lowered Wall counts in that battle), and **after a won battle the surviving Firecarts burn the
-building the sender picked, or the Wall if none was picked**. A **lost attack can still do reduced damage** (below). A called-off attack and a scouting
-mission never lower anything.
+**Rule.** A building level never drops by itself: not on capture, not with time. It drops only through siege units in an attack. **Log Rams only hit the Wall**, in two steps:
+**during the battle** (the lowered Wall counts in that battle) and **again after a won battle with the survivors**. **Firecarts only hit other buildings, after a won battle**:
+the building the sender picked, or **a random building other than the Wall** when none was picked (chosen by the server from the buildings above their floor, from the battle
+seed; the Firecart never touches the Wall and the send form's list has no Wall). A **lost attack can still do reduced damage** (below). A called-off attack and a scouting
+mission never lower anything. Existing Firecarts stay Firecarts (no unit conversion).
 
-| Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost (x0.55 on this branch) | Pop | Time |
-|---|---|---|---|---|---|---|---|---|
-| **Firecart** | Wall in the battle, picked building (Wall) after it | Wrightyard 1 | Drillyard 3 | 3 (slowest unit) | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold (180/160/220/10 x 0.55) | 3 | 1,400 s |
+| Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost | Pop | Time | Max levels per step |
+|---|---|---|---|---|---|---|---|---|---|
+| **Log Ram** (`logram`) | Wall only: in the battle and after a win | Wrightyard 1 | Drillyard 2 | 3 (slowest unit) | 3 / 5 vs foot, 4 vs riders | 70 wood, 50 food, 90 iron, no gold | 3 | 1,100 s | 3 (power 6) |
+| **Firecart** (`firecart`) | Buildings only, after a win: the pick, else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 2) |
 
-It walks over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carries nothing and can only go on an **attack** (not scout, support,
-found or occupy; `checkMission` refuses it). It fights, but badly, and dies in the battle like everyone else (loss ratio is the same for every unit of
-the army).
+Both walk over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carry nothing and can only go on an **attack** (not scout, support,
+found or occupy; `checkMission` refuses them). They fight, but badly, and die in the battle like everyone else (loss ratio is the same for every unit of
+the army). Neither can be ranked (not in `RANKABLE_UNITS`).
 
-**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (power 2 since BALANCE 15, 2026-11-17; it was 1). Lowering a building from level L to L-1 costs
+**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (Firecart power 2 since BALANCE 15, 2026-11-17; Log Ram power 6, BALANCE 18). Lowering a building from level L to L-1 costs
 `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (2) x L` points, so high levels are harder to knock down (level 10: 26 points, level 5: 16). **Each step lowers
-at most `maxLevels` (2) levels** (so the Wall can lose up to 4 in one attack when it is both the during target and the picked building) and **stops at the floor**: a
+at most `maxLevels` levels** (Log Ram 3, so the Wall can lose up to 6 in one won attack; Firecart 2) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
 
 **Order of events.**
-1. **During the battle (all Firecarts that were sent, Wall).** Before the defence is added up, the Firecarts that were sent (all stand when the battle starts) fire with
+1. **During the battle (all Log Rams that were sent, Wall).** Before the defence is added up, the Log Rams that were sent (all stand when the battle starts) fire with
    `SIEGE_DURING_SHARE` (0.5) of their points at the Wall. The Wall level they leave is the Wall the defence **uses in this battle**.
-2. **After the battle (survivors).** The **surviving** Firecarts spend their full points on the picked building (the Wall if none). When that is the Wall the report shows ONE
-   Wall line from before the battle to after both steps. A Wall line of the during step is only listed when it lowered the Wall.
-3. **A lost attack** still does reduced damage: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` Firecarts count as the survivors for the
+2. **After the battle (survivors).** The **surviving** Log Rams spend their full points on the Wall again (the report shows ONE Wall line from before the battle to after both
+   steps; a Wall line of the during step is only listed when it lowered the Wall). The surviving Firecarts spend their full points on the picked building, or on a random
+   building other than the Wall (`randomSiegeCandidates`, drawn from the battle seed) when none was picked; no building above its floor: no hit.
+3. **A lost attack** still does reduced damage: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` of each siege kind count as the survivors for the
    **after** step (a hopeless attack does nothing).
 The drop applies together with the losses and the loot. A queued upgrade of the lowered building aims the same number of levels lower (its cost is not refunded);
 levels that already paid Renown stay paid. Population, storage and production simply follow the new levels.
 
-**Picking the building.** The send form lists the building **names** (public knowledge) without levels ("Firecarts hit:", "The Wall" is the no-pick choice). Levels are only known
-from a scouting report with Keen 4. The server **never checks the pick against the target village**: it only accepts a known building id on an attack that carries
-Firecarts, so the send cannot be used to find out what a village has. A pick that turns out to be level 0 (or at its floor) is a miss, and the report says so. There is no
-random pick any more (the engine's `random` flag on a hit is gone).
+**Picking the building.** Only Firecarts take a pick; Log Rams need none, so the picker shows only when Firecarts are in the army. The send form lists the building **names** (public knowledge) without levels, never the Wall ("Firecarts burn:", "Any building" is the no-pick choice). Levels are only known
+from a scouting report with Keen 4. The server **never checks the pick against the target village**: it only accepts a known building id (not the Wall) on an attack that carries
+Firecarts, so the send cannot be used to find out what a village has. A pick that turns out to be level 0 (or at its floor) is a miss, and the report says so. With no pick the random choice never lands on a
+level-0 or floor-level building, and the report shows which building burned (it only shows on a win; a wiped-out attacker sees only Wall hits).
 
 **Reports.** The battle report (both sides) lists each hit: unit, building, level before and after (`BattleReportData.siege`); `wallLevel` is the Wall **as it counted in
 the battle** (after the during-the-battle hit). An attacker whose army was wiped out still sees the Wall hit of a close loss, nothing else of the defence.
 
-**Old worlds (migration, schema v17).** Log Rams and Boulder Slings at home, away, stationed, at a site or marching become Firecarts **by population**:
+**Old worlds (migration, schema v17; flag-guarded, once per database).** The id `logram` is a real unit again, so the schema v17 / v19 converters run only once (their meta flags) and the
+read paths (reports, ranks, saved troop groups and raid lists) convert only the Boulder Sling (`READ_LEGACY`); a Log Ram you train now is never turned into a Firecart. No schema change for this.
+Log Rams and Boulder Slings at home, away, stationed, at a site or marching become Firecarts **by population**:
 `floor((3 x rams + 2 x slings) / 3)` (the server converts each marching or standing group the same way and sets the village's `away` to the sum, so the two always agree);
 queued siege batches at the Barracks and siege research are refunded in full (capped at the storehouse) and leave the queues; researched siege counts as the Firecart researched;
 villages with Barracks 5 or more get Wrightyard 1 for free. The refund uses the old prices (`LEGACY_SIEGE` in `migrate.ts`).

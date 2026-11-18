@@ -852,7 +852,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     for (const tv of world.values()) {
       if (!tv.alive || tv.owner === p.id || tv.state.hearth) continue;
       if (dist(vil.pos, tv.pos) > REACH) continue;
-      const base: Units = { ...vil.state.troops, pathfinder: 0, firecart: 0, chieftain: 0 };
+      const base: Units = { ...vil.state.troops, pathfinder: 0, logram: 0, firecart: 0, chieftain: 0 };
       // The first preview only needs a rough Chieftain count: points at "now"; the real need is re-checked with arrival points.
       const rough = needFor(villagePoints(tv.state));
       const k = chiefs === 'any' ? rough : Math.min(chiefs, rough);

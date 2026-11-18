@@ -94,6 +94,7 @@ import {
   emptyResources,
   emptyUnits,
   hashSeed,
+  hasBuildingSiegeUnits,
   hasSiegeUnits,
   isBuildingId,
   battleSeed,
@@ -2186,12 +2187,13 @@ export class GameService {
    */
   send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
     const s = this.settings;
-    // The Firecart pick is checked for form only, NEVER against the target's buildings: any difference in the answer would
+    // The Firecart pick (never the Wall) is checked for form only, NEVER against the target's buildings: any difference in the answer would
     // tell the sender what the village holds (docs/SECURITY_ROADMAP.md section 2).
     let siegeTarget: BuildingId | null = null;
     if (targetBuilding !== undefined && targetBuilding !== null) {
       if (!isBuildingId(targetBuilding)) throw new GameError('invalid_input', 'That is not a building.');
-      if (mission !== 'attack' || !hasSiegeUnits(units)) throw new GameError('invalid_input', 'Only an attack with Firecarts can aim at a building.');
+      if (mission !== 'attack' || !hasBuildingSiegeUnits(units)) throw new GameError('invalid_input', 'Only an attack with Firecarts can aim at a building.');
+      if (targetBuilding === 'wall') throw new GameError('invalid_input', 'Firecarts never burn the Wall: send Log Rams for that.');
       siegeTarget = targetBuilding;
     }
     const custom = timing.travelSeconds !== undefined || timing.returnSeconds !== undefined;

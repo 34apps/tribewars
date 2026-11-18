@@ -76,8 +76,8 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
         : 'Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
     case 'wrightyard':
       return level === 0
-        ? 'The Wrightyard builds Firecarts. They burn the Wall in the battle and, after a win, the building you pick. Research them at the Drillyard first.'
-        : 'Firecarts are slow and weak fighters: send them with an army that wins. They burn the Wall during the battle, then the building you picked.';
+        ? 'The Wrightyard builds siege. Log Rams break only the Wall. Firecarts (from Wrightyard 4) burn the building you pick. Research them at the Drillyard first.'
+        : 'Log Rams break only the Wall, in the battle and again after a win. Firecarts burn the building you pick (any but the Wall) after a win. Send both with an army that wins.';
     case 'wall':
       return `Every Wall level makes your defenders ${Math.round(WALL_BONUS_PER_LEVEL * 100)}% stronger and adds village militia.`;
     case 'drillyard':

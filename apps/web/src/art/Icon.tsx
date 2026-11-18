@@ -805,6 +805,22 @@ const ICONS = {
       </>
     ),
   },
+  // Log Ram: a thick log on two small wheels with an iron cap at the front.
+  logram: {
+    vb: '0 0 32 32',
+    draw: (u) => (
+      <>
+        <T u={u + 'a'} d="M3 12H25C27 12 28 14 28 16C28 18 27 20 25 20H3Z" l="#E4B67C" k="#714B29" m="#B07D46" s={1.3} x={-2} y={-2.5} w={2} />
+        <path d="M7 14.5H21M7 17.5H19" stroke="#714B29" strokeWidth="1.2" strokeLinecap="round" />
+        <T u={u + 'b'} d="M24 11H29C30.5 12 30.5 20 29 21H24Z" l="#E0DCD3" k="#665F57" m="#A39E94" s={1.1} x={-1.3} y={-1.8} w={1.6} />
+        <path d="M9 20V24M21 20V24" stroke={INK} strokeWidth="1.6" />
+        <circle cx="9" cy="25.5" r="3.6" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
+        <circle cx="21" cy="25.5" r="3.6" fill="#B07D46" stroke={INK} strokeWidth="1.6" />
+        <circle cx="9" cy="25.5" r="1" fill={INK} />
+        <circle cx="21" cy="25.5" r="1" fill={INK} />
+      </>
+    ),
+  },
   // Firecart: a small cart with a pitch fire in the bed and two wheels.
   firecart: {
     vb: '0 0 32 32',

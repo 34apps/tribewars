@@ -26,6 +26,7 @@ export const UNIT_ICON: Record<UnitId, IconName> = {
   knight: 'knight',
   pathfinder: 'pathfinder',
   chieftain: 'chieftain',
+  logram: 'logram',
   firecart: 'firecart',
 };
 

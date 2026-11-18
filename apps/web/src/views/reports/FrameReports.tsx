@@ -37,7 +37,7 @@ import '../../frame-reports.css';
 
 const SIEGE_SHOWN = 3;
 /** Short plural for the siege rows ("40 Firecarts"). */
-const SIEGE_PLURAL: Partial<Record<(typeof UNIT_IDS)[number], string>> = { firecart: 'Firecarts' };
+const SIEGE_PLURAL: Partial<Record<(typeof UNIT_IDS)[number], string>> = { logram: 'Log Rams', firecart: 'Firecarts' };
 
 // ---- Small shared bits -----------------------------------------------------------------------------------------------
 

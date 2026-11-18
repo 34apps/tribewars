@@ -13,6 +13,12 @@ export const LEGACY_SIEGE = {
 type LegacyId = keyof typeof LEGACY_SIEGE;
 const LEGACY_IDS = Object.keys(LEGACY_SIEGE) as LegacyId[];
 const isLegacy = (u: unknown): u is LegacyId => typeof u === 'string' && (LEGACY_IDS as string[]).includes(u);
+/**
+ * The Log Ram is a real unit again (2026-11-18), so the one-time schema migrations (v17, v19: both flag-guarded, run before any new Log Ram can
+ * exist) convert both old ids, but anything that runs on every read converts only the Boulder Sling. Pass READ_LEGACY there.
+ */
+export const READ_LEGACY: readonly LegacyId[] = ['boulder'];
+const idsOf = (ids?: readonly LegacyId[]): readonly LegacyId[] => ids ?? LEGACY_IDS;
 
 /** Barracks level from which a migrated village gets a free Wrightyard level 1. */
 export const MIGRATION_WRIGHTYARD_BARRACKS = 5;
@@ -25,24 +31,24 @@ export function firecartsFor(rams: number, slings: number): number {
 }
 
 /** A copy of a loose unit map with the Log Rams and Boulder Slings turned into Firecarts (other keys untouched). */
-export function convertSiegeUnits<T extends Record<string, unknown>>(units: T | undefined | null): Record<string, unknown> {
+export function convertSiegeUnits<T extends Record<string, unknown>>(units: T | undefined | null, ids?: readonly LegacyId[]): Record<string, unknown> {
   const out: Record<string, unknown> = { ...(units ?? {}) };
-  const fire = firecartsFor(out.logram as number, out.boulder as number);
-  delete out.logram;
-  delete out.boulder;
+  const which = idsOf(ids);
+  const fire = firecartsFor(which.includes('logram') ? (out.logram as number) : 0, which.includes('boulder') ? (out.boulder as number) : 0);
+  for (const id of which) delete out[id];
   out.firecart = count(out.firecart) + fire;
   return out;
 }
 
 /** True when a unit map still names a removed siege unit. */
-export const hasLegacySiege = (units: unknown): boolean => !!units && typeof units === 'object' && LEGACY_IDS.some((id) => id in (units as object));
+export const hasLegacySiege = (units: unknown, ids?: readonly LegacyId[]): boolean => !!units && typeof units === 'object' && idsOf(ids).some((id) => id in (units as object));
 
 /** Rank entries (`VillageRanks`-shaped, loose) with `logram` / `boulder` folded into `firecart` (the higher value per track when both exist); old keys removed. Returns a copy. */
-export function convertSiegeRanks<T extends Record<string, unknown>>(ranks: T | undefined | null): Record<string, unknown> {
+export function convertSiegeRanks<T extends Record<string, unknown>>(ranks: T | undefined | null, ids?: readonly LegacyId[]): Record<string, unknown> {
   const out: Record<string, unknown> = { ...(ranks ?? {}) };
-  const entries = [out.firecart, out.logram, out.boulder].filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && !Array.isArray(e));
-  delete out.logram;
-  delete out.boulder;
+  const which = idsOf(ids);
+  const entries = [out.firecart, ...which.map((id) => out[id])].filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && !Array.isArray(e));
+  for (const id of which) delete out[id];
   if (entries.length > 0) {
     const merged: Record<string, unknown> = {};
     for (const e of entries) {
@@ -61,14 +67,15 @@ export function convertSiegeRanks<T extends Record<string, unknown>>(ranks: T | 
  * units, scout intel troops) converted with `convertSiegeUnits`, and siege hits by a removed unit now credit the Firecart. Returns a copy;
  * a body with nothing old comes back equal, so running it twice changes nothing.
  */
-export function convertReportBody<T extends Record<string, any>>(body: T): T { // eslint-disable-line @typescript-eslint/no-explicit-any
+export function convertReportBody<T extends Record<string, any>>(body: T, ids?: readonly LegacyId[]): T { // eslint-disable-line @typescript-eslint/no-explicit-any
   const out: Record<string, any> = { ...body }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const which = idsOf(ids);
   for (const key of ['attackerUnits', 'attackerLosses', 'defenderUnits', 'defenderLosses', 'supportUnits', 'supportLosses', 'units']) {
-    if (hasLegacySiege(out[key])) out[key] = convertSiegeUnits(out[key]);
+    if (hasLegacySiege(out[key], which)) out[key] = convertSiegeUnits(out[key], which);
   }
-  if (out.intel && typeof out.intel === 'object' && hasLegacySiege(out.intel.troops)) out.intel = { ...out.intel, troops: convertSiegeUnits(out.intel.troops) };
+  if (out.intel && typeof out.intel === 'object' && hasLegacySiege(out.intel.troops, which)) out.intel = { ...out.intel, troops: convertSiegeUnits(out.intel.troops, which) };
   if (Array.isArray(out.siege)) {
-    out.siege = out.siege.map((h: Record<string, unknown>) => (isLegacy(h?.unit) ? { ...h, unit: 'firecart' } : h));
+    out.siege = out.siege.map((h: Record<string, unknown>) => (isLegacy(h?.unit) && which.includes(h.unit) ? { ...h, unit: 'firecart' } : h));
   }
   return out as T;
 }

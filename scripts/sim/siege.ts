@@ -1,4 +1,4 @@
-// Siege experiments (docs/GAME_DESIGN.md 18.9, docs/BALANCE.md section 8): focused questions about the Firecart,
+// Siege experiments (docs/GAME_DESIGN.md 18.9, docs/BALANCE.md section 8): focused questions about the Log Ram (the Wall) and the Firecart (other buildings),
 // answered with the REAL engine (resolveBattle, resolveSiege, applyBattleToDefender, buildingCost, buildTimeMs, travelPreview,
 // trainTimeMs). No formula is copied here; the only arithmetic is searching for a count that makes the engine say "yes".
 //
@@ -77,7 +77,7 @@ function raidersFor(def: VillageState, ratio: number, other: Partial<Units> = {}
 }
 
 /** Smallest number of SURVIVING siege units of `unit` that lowers `building` (from `level`) by `drop` levels, or undefined (cap or floor). */
-function survivorsNeeded(unit: 'firecart', building: BuildingId, level: number, drop: number): number | undefined {
+function survivorsNeeded(unit: 'logram' | 'firecart', building: BuildingId, level: number, drop: number): number | undefined {
   const levels = village({ [building]: level }).buildings;
   for (let n = 1; n <= 800; n++) {
     const hit = resolveSiege(army({ [unit]: n }), levels, building).find((h) => h.unit === unit);
@@ -113,7 +113,7 @@ function rebuild(b: BuildingId, lowTo: number, from: number): { value: number; h
 }
 
 /** Real battles of `units` against `def`: share won, average levels dropped on `building` by `unit`, average attacker loss value. */
-function averageFight(def: VillageState, units: Units, building: BuildingId, unit: 'firecart'): { won: number; dropped: number; lossValue: number; defenderUnitsLost: number } {
+function averageFight(def: VillageState, units: Units, building: BuildingId, unit: 'logram' | 'firecart'): { won: number; dropped: number; lossValue: number; defenderUnitsLost: number } {
   let won = 0;
   let dropped = 0;
   let loss = 0;
@@ -142,34 +142,38 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     checks.push({ name, ok });
   };
   const cart = UNITS.firecart;
-  const cap = cart.siege?.maxLevels ?? 0;
+  const ram = UNITS.logram;
+  const cap = ram.siege?.maxLevels ?? 0; // levels per step of the Log Ram (the Wall)
+  const capCart = cart.siege?.maxLevels ?? 0; // levels per step of the Firecart (other buildings)
   const fDecisive = survival(DECISIVE);
 
-  lines.push('# Firecart: balance experiments (real engine, fixed seeds)', '');
+  lines.push('# Siege: Log Ram (Wall) and Firecart (buildings), balance experiments (real engine, fixed seeds)', '');
   lines.push(
-    `Unit prices (valued wood + food + iron + 10 x gold): Firecart ${n0(unitValue('firecart'))} (pop ${POP_PER_UNIT.firecart}), Raider ${n0(unitValue('raider'))}, Pikeman ${n0(unitValue('pikeman'))}, Shieldbearer ${n0(unitValue('guard'))}. Points to lower a level: ${[1, 3, 6, 10, 15, 25].map((l) => `L${l} ${siegePointsNeeded(l)}`).join(', ')}. In a decisive win (attack = ${DECISIVE} x defence) ${(fDecisive * 100).toFixed(0)}% of an army comes back, so about ${(100 / fDecisive).toFixed(0)}% of the survivors must be sent.`,
+    `Unit prices (valued wood + food + iron + 10 x gold): Log Ram ${n0(unitValue('logram'))} (pop ${POP_PER_UNIT.logram}), Firecart ${n0(unitValue('firecart'))} (pop ${POP_PER_UNIT.firecart}), Raider ${n0(unitValue('raider'))}, Pikeman ${n0(unitValue('pikeman'))}, Shieldbearer ${n0(unitValue('guard'))}. Points to lower a level: ${[1, 3, 6, 10, 15, 25].map((l) => `L${l} ${siegePointsNeeded(l)}`).join(', ')}. In a decisive win (attack = ${DECISIVE} x defence) ${(fDecisive * 100).toFixed(0)}% of an army comes back, so about ${(100 / fDecisive).toFixed(0)}% of the survivors must be sent.`,
     '',
   );
 
-  // (b) How many Firecarts drop a level --------------------------------------------------------------
-  lines.push('## (b) Firecarts that must SURVIVE the battle to lower a building (after-the-battle step)', '');
-  lines.push(`| level | points / level | 1 level | 2 levels (cap ${cap}) |`);
-  lines.push('|---|---|---|---|');
+  // (b) How many siege units drop a level --------------------------------------------------------------
+  lines.push('## (b) Siege units that must SURVIVE the battle to lower a building (after-the-battle step)', '');
+  lines.push(`| level | points / level | Log Rams: Wall 1 level | ... ${cap} levels | Firecarts: 1 level | ... ${capCart} levels |`);
+  lines.push('|---|---|---|---|---|---|');
   for (const level of [3, 6, 10, 15, 22]) {
-    const f = (d: number): string => String(survivorsNeeded('firecart', 'wall', level, d) ?? 'n/a');
-    lines.push(`| ${level} | ${siegePointsNeeded(level)} | ${f(1)} | ${f(2)} |`);
+    const f = (u: 'logram' | 'firecart', b: BuildingId, d: number): string => String(survivorsNeeded(u, b, level, d) ?? 'n/a');
+    lines.push(`| ${level} | ${siegePointsNeeded(level)} | ${f('logram', 'wall', 1)} | ${f('logram', 'wall', cap)} | ${f('firecart', 'market', 1)} | ${f('firecart', 'market', capCart)} |`);
   }
   const huge = resolveSiege(army({ firecart: 5000 }), village({ wall: 20, market: 12 }).buildings, 'market').find((h) => h.unit === 'firecart');
-  const hugeBoth = resolveSiege(army({ firecart: 5000 }), village({ wall: 20 }).buildings, 'wall', army({ firecart: 5000 })).find((h) => h.unit === 'firecart');
-  lines.push('', `With 5,000 survivors one step still lowers a building by at most ${huge ? huge.from - huge.to : '?'} levels, and a Wall hit by both steps (during + after) by at most ${hugeBoth ? hugeBoth.from - hugeBoth.to : '?'}: the per-step cap works.`, '');
-  check(`per-step cap: at most ${cap} levels`, huge !== undefined && huge.from - huge.to === cap);
-  check(`the Wall takes at most 2 x ${cap} levels when it is hit in both steps`, hugeBoth !== undefined && hugeBoth.from - hugeBoth.to === 2 * cap);
-  check('no pick: the Wall is the target', resolveSiege(army({ firecart: 50 }), village({ wall: 10, market: 5 }).buildings, null)[0]?.building === 'wall');
+  const hugeBoth = resolveSiege(army({ logram: 5000 }), village({ wall: 20 }).buildings, 'wall', army({ logram: 5000 })).find((h) => h.unit === 'logram');
+  lines.push('', `With 5,000 survivors one step still lowers a building by at most ${huge ? huge.from - huge.to : '?'} levels (Firecart), and a Wall hit by both Log Ram steps (during + after) by at most ${hugeBoth ? hugeBoth.from - hugeBoth.to : '?'}: the per-step cap works.`, '');
+  check(`per-step cap: a Firecart lowers at most ${capCart} levels`, huge !== undefined && huge.from - huge.to === capCart);
+  check(`the Wall takes at most 2 x ${cap} levels when the Log Rams hit it in both steps`, hugeBoth !== undefined && hugeBoth.from - hugeBoth.to === 2 * cap);
+  const mixed = army({ logram: 5000, firecart: 5000 });
+  const mixedHits = resolveSiege(mixed, village({ wall: 20, market: 12, barracks: 9 }).buildings, null, mixed, 0.5);
+  check('Log Rams only ever hit the Wall; Firecarts never do (no pick: a random other building)', mixedHits.filter((h) => h.unit === 'logram').every((h) => h.building === 'wall') && mixedHits.some((h) => h.unit === 'firecart') && mixedHits.filter((h) => h.unit === 'firecart').every((h) => h.building !== 'wall'));
   check('the Farm and the Longhouse never drop below 1', ['farm', 'longhouse'].every((b) => resolveSiege(army({ firecart: 5000 }), village({ [b]: 2 }).buildings, b as BuildingId)[0]?.to === 1));
 
   // (a) Cost of the Firecart army vs cost of rebuilding ---------------------------------------------
-  lines.push('## (a) What siege costs the attacker vs what the defender pays to rebuild', '');
-  lines.push(`Siege army = the Firecarts that must be SENT so enough survive a decisive win (attack ${DECISIVE} x defence). "Loses" = the Firecarts that die in that win (value). Rebuild = resources of the lowered levels + build hours (Town Hall 10, speed 1). Check = real battles, average levels dropped over ${SEEDS.length} seeds.`, '');
+  lines.push('## (a) What siege costs the attacker vs what the defender pays to rebuild (Wall rows: Log Rams; other buildings: Firecarts)', '');
+  lines.push(`Siege army = the siege units (Log Rams for the Wall, Firecarts for the rest) that must be SENT so enough survive a decisive win (attack ${DECISIVE} x defence). "Loses" = the siege units that die in that win (value). Rebuild = resources of the lowered levels + build hours (Town Hall 10, speed 1). Check = real battles, average levels dropped over ${SEEDS.length} seeds.`, '');
   lines.push('| target | survivors | send | army value (capital) | loses (value) | defender rebuild cost | rebuild time | rebuild / loses | rebuild / capital | check: levels dropped |');
   lines.push('|---|---|---|---|---|---|---|---|---|---|');
   const rowsA: Array<[BuildingId, number, number]> = [
@@ -179,33 +183,38 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   ];
   const verdictRows: Array<{ label: string; ratioLoses: number; ratioCapital: number }> = [];
   for (const [b, level, drop] of rowsA) {
-    const need = survivorsNeeded('firecart', b, level, drop);
+    const unit = b === 'wall' ? 'logram' : 'firecart';
+    const need = survivorsNeeded(unit, b, level, drop);
     const label = `${BUILDINGS[b].name} ${level}->${level - drop}`;
     if (need === undefined) {
       lines.push(`| ${label} | n/a | | | | | | | | |`);
       continue;
     }
     const send = Math.ceil(need / fDecisive);
-    const capital = send * unitValue('firecart');
-    const loses = (send - need) * unitValue('firecart');
+    const capital = send * unitValue(unit);
+    const loses = (send - need) * unitValue(unit);
     const rb = rebuild(b, level - drop, level);
     const def = village({ [b]: level, ...(b === 'wall' ? {} : { wall: 10 }) }, { pikeman: 250, guard: 150 });
-    const raiders = raidersFor(def, DECISIVE, { firecart: send });
-    const real = averageFight(def, army({ raider: raiders, firecart: send }), b, 'firecart');
+    const raiders = raidersFor(def, DECISIVE, { [unit]: send });
+    const real = averageFight(def, army({ raider: raiders, [unit]: send }), b, unit);
     lines.push(
-      `| ${label} | ${need} | ${send} | ${n0(capital)} | ${n0(loses)} | ${n0(rb.value)} | ${rb.hours.toFixed(1)} h | ${(rb.value / loses).toFixed(2)} | ${(rb.value / capital).toFixed(2)} | ${real.dropped.toFixed(1)} (won ${(real.won * 100).toFixed(0)}%) |`,
+      `| ${label} (${unit === 'logram' ? 'Log Rams' : 'Firecarts'}) | ${need} | ${send} | ${n0(capital)} | ${n0(loses)} | ${n0(rb.value)} | ${rb.hours.toFixed(1)} h | ${(rb.value / loses).toFixed(2)} | ${(rb.value / capital).toFixed(2)} | ${real.dropped.toFixed(1)} (won ${(real.won * 100).toFixed(0)}%) |`,
     );
     verdictRows.push({ label, ratioLoses: rb.value / loses, ratioCapital: rb.value / capital });
   }
   lines.push('', 'rebuild / loses above 1 means the defender pays MORE than the attacker lost in the attack; rebuild / capital above 1 means even buying the whole siege army for one attack would be cheaper than the damage (siege is a bargain).', '');
   const wallRows = verdictRows.filter((r) => r.label.startsWith('Wall'));
-  // BALANCE 14 (2026-11-17): Firecart power 1 -> 2 made the top Wall level a fair trade (Wall 22: rebuild 1.1 x the carts' price), so the line moved from 1 to 1.5.
-  check('Wall levels are not a bargain to knock down (rebuild < 1.5 x attacker capital)', wallRows.every((r) => r.ratioCapital < 1.5));
+  // BALANCE 14 (2026-11-17): Firecart power 1 -> 2 made the top Wall level a fair trade, so the line moved from 1 to 1.5. BALANCE 17 (2026-11-18): the
+  // Log Ram took over the Wall (owner pick: about 3x the power, and cheaper). Siege points grow linearly with the level while a Wall level's price
+  // grows ~1.22x per level, so a very high Wall (15+) is now a bargain for the ram by design: the line is kept for the levels most villages hold (Wall 10 and
+  // below), and the high rows are reported, not checked (docs/BALANCE.md section 17).
+  check('Wall levels up to 10 are not a bargain to knock down with Log Rams (rebuild < 1.5 x attacker capital)', wallRows.filter((r) => /^Wall (5|10)->/.test(r.label)).every((r) => r.ratioCapital < 1.5));
+  check('one Log Ram costs less than one Firecart and does at least 3x its old Wall damage (power 2)', unitValue('logram') < unitValue('firecart') && (ram.siege?.power ?? 0) >= 3 * 2);
 
   // (c) Campaign against a fortified village -----------------------------------------------------------
-  lines.push('## (c) Attacks needed against a fortified village, with and without Firecarts', '');
+  lines.push('## (c) Attacks needed against a fortified village, with and without Log Rams', '');
   lines.push(
-    `Each wave: the attacker sends Raiders + Firecarts so that attack = ${DECISIVE} x the defence the engine reports (Wall as it stands before the battle, after the during-the-battle hit), wins, the garrison dies. Between waves the defender brings the garrison back to 50% of the original. Firecarts are sized to take ${cap} Wall levels after the battle from the starting level (survivors / ${fDecisive.toFixed(2)}). No siege = the same waves with no Firecarts (the Wall never drops).`,
+    `Each wave: the attacker sends Raiders + Log Rams so that attack = ${DECISIVE} x the defence the engine reports (Wall as it stands before the battle, after the during-the-battle hit), wins, the garrison dies. Between waves the defender brings the garrison back to 50% of the original. Log Rams are sized to take ${cap} Wall levels after the battle from the starting level (survivors / ${fDecisive.toFixed(2)}). No siege = the same waves with no Log Rams (the Wall never drops).`,
     '',
   );
   const scenarios: Array<{ label: string; wall: number; garrison: Partial<Units> }> = [
@@ -216,10 +225,10 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   const half = (g: Partial<Units>): Partial<Units> => ({ pikeman: Math.round((g.pikeman ?? 0) / 2), guard: Math.round((g.guard ?? 0) / 2) });
   let fortressSiegeSavings: number | undefined;
   for (const sc of scenarios) {
-    const cartsNeed = survivorsNeeded('firecart', 'wall', sc.wall, cap) ?? 0;
+    const cartsNeed = survivorsNeeded('logram', 'wall', sc.wall, cap) ?? 0;
     const carts = Math.ceil(cartsNeed / fDecisive);
-    lines.push(`### ${sc.label} (${carts} Firecarts, value ${n0(carts * unitValue('firecart'))})`, '');
-    lines.push('| wave | siege? | Wall before -> after | defence | Raiders sent | Firecarts sent | army sent (value) | army lost (value) |');
+    lines.push(`### ${sc.label} (${carts} Log Rams, value ${n0(carts * unitValue('logram'))})`, '');
+    lines.push('| wave | siege? | Wall before -> after | defence | Raiders sent | Log Rams sent | army sent (value) | army lost (value) |');
     lines.push('|---|---|---|---|---|---|---|---|');
     const totals: Record<string, { sent: number; lost: number; raiders: number }> = {};
     for (const withSiege of [false, true]) {
@@ -230,13 +239,13 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
       for (let wave = 1; wave <= 6; wave++) {
         if (def.buildings.wall === 0 && withSiege) break;
         const useCarts = withSiege && def.buildings.wall > 0 ? carts : 0;
-        const raiders = raidersFor(def, DECISIVE, { firecart: useCarts });
-        const sentUnits = army({ raider: raiders, firecart: useCarts });
+        const raiders = raidersFor(def, DECISIVE, { logram: useCarts });
+        const sentUnits = army({ raider: raiders, logram: useCarts });
         const r = fight(def, sentUnits, SEEDS[wave] as number, 'wall');
         const d = defenceOf(def);
         let lost = 0;
         for (const id of Object.keys(UNITS) as UnitId[]) lost += r.attackerLosses[id] * unitValue(id);
-        const sent = raiders * unitValue('raider') + useCarts * unitValue('firecart');
+        const sent = raiders * unitValue('raider') + useCarts * unitValue('logram');
         const after = applyBattleToDefender(def, r);
         lines.push(`| ${wave} | ${withSiege ? 'yes' : 'no'} | ${def.buildings.wall} -> ${after.buildings.wall} | ${n0(d)} | ${raiders} | ${useCarts} | ${n0(sent)} | ${n0(lost)} |`);
         t.sent += sent;
@@ -263,7 +272,7 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     if (sc.label.startsWith('Wall 10')) fortressSiegeSavings = (target - defenceOf(wave2Siege)) / target;
   }
   lines.push(
-    'Reading: against a village with a real garrison the Wall is only a part of the defence, so lowering it a few levels barely changes the attack the next wave needs. The Firecarts cost more than the Raiders they save, and the defender can undo it with a few Shieldbearers or a few cheap Wall levels. Only a village that is mostly Wall gains a lot from siege.',
+    'Reading: against a village with a real garrison the Wall is only a part of the defence, so lowering it a few levels barely changes the attack the next wave needs. The Log Rams cost more than the Raiders they save, and the defender can undo it with a few Shieldbearers or a few cheap Wall levels. Only a village that is mostly Wall gains a lot from siege.',
     '',
   );
   check("against a garrisoned village siege lowers the next wave's defence by under 40%", fortressSiegeSavings !== undefined && fortressSiegeSavings < 0.4);
@@ -272,15 +281,17 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
   lines.push('## (d) Does siege make defending pointless?', '');
   lines.push('### (d1) The same attack at different strengths: a hold still costs the attacker, a lost attack lowers little', '');
   const fort = village({ wall: 10, market: 5, bannerhall: 3 }, { pikeman: 250, guard: 150 });
-  const fortCarts = 60;
-  lines.push(`Attacker: ${fortCarts} Firecarts (picking the Banner Hall) + enough Raiders for the ratio. Defender: Wall 10, Banner Hall 3, Market 5, 250 Pikemen + 150 Shieldbearers. ${SEEDS.length} seeds per row (luck +-10%).`, '');
+  const fortRams = 25;
+  const fortCarts = 25;
+  const maxAll = 2 * cap + capCart;
+  lines.push(`Attacker: ${fortRams} Log Rams + ${fortCarts} Firecarts (picking the Banner Hall) + enough Raiders for the ratio. Defender: Wall 10, Banner Hall 3, Market 5, 250 Pikemen + 150 Shieldbearers. ${SEEDS.length} seeds per row (luck +-10%).`, '');
   lines.push('| attack / defence | battles won | buildings lowered when LOST | levels lowered when WON (avg) | attacker loses (value) | defender troops lost (avg) |');
   lines.push('|---|---|---|---|---|---|');
   let lostBattleChanged = 0;
   let lostBattles = 0;
   for (const ratio of [0.6, 0.9, 1.0, 1.1, 1.25, 1.5, 2, 3]) {
-    const raiders = raidersFor(fort, ratio, { firecart: fortCarts });
-    const units = army({ raider: raiders, firecart: fortCarts });
+    const raiders = raidersFor(fort, ratio, { logram: fortRams, firecart: fortCarts });
+    const units = army({ raider: raiders, logram: fortRams, firecart: fortCarts });
     let won = 0;
     let wonLevels = 0;
     let lossValue = 0;
@@ -295,9 +306,9 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
         wonLevels += changed;
       } else {
         lostBattles += 1;
-        // The during-the-battle Wall hit and a share of the Firecarts still count on a loss, but the total can never pass what the two steps may lower.
+        // The during-the-battle Wall hit and a share of the siege units still count on a loss, but the total can never pass what the steps may lower.
         if (changed > 0) changedWhenLost += 1;
-        if (changed > 2 * cap) lostBattleChanged += 1;
+        if (changed > maxAll) lostBattleChanged += 1;
       }
       for (const id of Object.keys(UNITS) as UnitId[]) {
         lossValue += r.attackerLosses[id] * unitValue(id);
@@ -307,12 +318,12 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     const nLost = SEEDS.length - won;
     lines.push(`| ${ratio.toFixed(2)} | ${won} / ${SEEDS.length} | ${nLost === 0 ? '-' : `${changedWhenLost} of ${nLost}`} | ${won === 0 ? '-' : (wonLevels / won).toFixed(1)} | ${n0(lossValue / SEEDS.length)} | ${n0(defLost / SEEDS.length)} |`);
   }
-  lines.push('', 'A defence that holds can still lose a Wall level or two: the Firecarts fire half their points during the battle, and a share of them counts as survivors on a loss. The attacker lost the whole army for it. A clear win lowers the most.', '');
+  lines.push('', 'A defence that holds can still lose a Wall level or two: the Log Rams fire half their points during the battle, and a share of the siege units counts as survivors on a loss. The attacker lost the whole army for it. A clear win lowers the most.', '');
   check('a lost battle never lowers more than the two steps may lower in one attack', lostBattles > 0 && lostBattleChanged === 0);
 
   lines.push('### (d2) The army needed to win AND take one Wall level, by how well the village is defended', '');
-  lines.push(`Each row: Firecarts sized so one level survives a decisive win (attack ${DECISIVE} x defence), Raiders sized for the ratio. Defence = the engine's number for the village as it stands.`, '');
-  lines.push('| village | defence | Raiders | Firecarts | army pop | army value | x the empty-village army |');
+  lines.push(`Each row: Log Rams sized so one Wall level survives a decisive win (attack ${DECISIVE} x defence), Raiders sized for the ratio. Defence = the engine's number for the village as it stands.`, '');
+  lines.push('| village | defence | Raiders | Log Rams | army pop | army value | x the empty-village army |');
   lines.push('|---|---|---|---|---|---|---|');
   const targets: Array<[string, VillageState]> = [
     ['Wall 10, no garrison', village({ wall: 10 })],
@@ -320,18 +331,18 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     ['Wall 10, 250 Pikemen + 150 Shieldbearers', village({ wall: 10 }, { pikeman: 250, guard: 150 })],
     ['Wall 15, 500 Pikemen + 300 Shieldbearers', village({ wall: 15 }, { pikeman: 500, guard: 300 })],
   ];
-  const needCarts = Math.ceil((survivorsNeeded('firecart', 'wall', 10, 1) ?? 0) / fDecisive);
+  const needCarts = Math.ceil((survivorsNeeded('logram', 'wall', 10, 1) ?? 0) / fDecisive);
   let baseValue = 0;
   const armyValues: number[] = [];
   for (const [label, v] of targets) {
-    const carts = Math.ceil((survivorsNeeded('firecart', 'wall', v.buildings.wall, 1) ?? needCarts) / fDecisive);
-    const raiders = raidersFor(v, DECISIVE, { firecart: carts });
-    const val = raiders * unitValue('raider') + carts * unitValue('firecart');
+    const carts = Math.ceil((survivorsNeeded('logram', 'wall', v.buildings.wall, 1) ?? needCarts) / fDecisive);
+    const raiders = raidersFor(v, DECISIVE, { logram: carts });
+    const val = raiders * unitValue('raider') + carts * unitValue('logram');
     if (baseValue === 0) baseValue = val;
     armyValues.push(val);
-    lines.push(`| ${label} | ${n0(defenceOf(v))} | ${raiders} | ${carts} | ${raiders + carts * POP_PER_UNIT.firecart} | ${n0(val)} | ${(val / baseValue).toFixed(1)}x |`);
+    lines.push(`| ${label} | ${n0(defenceOf(v))} | ${raiders} | ${carts} | ${raiders + carts * POP_PER_UNIT.logram} | ${n0(val)} | ${(val / baseValue).toFixed(1)}x |`);
   }
-  lines.push('', 'The garrison, not the Wall, decides how big the attack must be; siege adds a fixed Firecart block on top and does nothing to shrink the garrison part.', '');
+  lines.push('', 'The garrison, not the Wall, decides how big the attack must be; siege adds a fixed Log Ram block on top and does nothing to shrink the garrison part.', '');
   check('a real garrison + Wall needs a much bigger army even with siege (at least 5x the empty village)', armyValues.length === 4 && (armyValues[2] as number) >= 5 * (armyValues[0] as number));
 
   lines.push('### (d3) The siege army is slow: warning time for the defender (20 tiles, speed 1, terrain from the world seed)', '');
@@ -342,8 +353,9 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     ['Raiders only', army({ raider: 100 }), 'raider'],
     ['Elk-class riders (Elk Riders only)', army({ outrider: 100 }), 'outrider'],
     ['Pathfinder (scout)', army({ pathfinder: 5 }), 'pathfinder'],
+    ['Raiders + 20 Log Rams', army({ raider: 100, logram: 20 }), 'logram'],
+    ['Log Rams only', army({ logram: 20 }), 'logram'],
     ['Raiders + 20 Firecarts', army({ raider: 100, firecart: 20 }), 'firecart'],
-    ['Firecarts only', army({ firecart: 20 }), 'firecart'],
   ];
   const times: Record<string, number> = {};
   for (const [label, units, slow] of trips) {
@@ -352,12 +364,13 @@ export function runSiegeExperiments(home: { x: number; y: number } = { x: -30, y
     lines.push(`| ${label} | ${UNITS[slow].name} (speed ${UNITS[slow].speed}) | ${fmtH(p.flatMs)} | ${fmtH(p.ms)} |`);
   }
   const yard = village({ barracks: 8, wrightyard: 1 });
+  const yard4 = village({ barracks: 8, wrightyard: 4 });
   lines.push(
     '',
-    `Training: one Firecart takes ${fmtH(trainTimeMs('firecart', yard, world))} in a Wrightyard level 1, so 20 are ${fmtH(20 * trainTimeMs('firecart', yard, world))} of queue; the unit first needs a Drillyard research of ${fmtH(cart.research ? cart.research.timeSec * 1000 : 0)}. The defender sees the army on the map for the whole trip and can reinforce, recall support or strike the slow column first.`,
+    `Training: one Log Ram takes ${fmtH(trainTimeMs('logram', yard, world))} in a Wrightyard level 1, so 20 are ${fmtH(20 * trainTimeMs('logram', yard, world))} of queue (research ${fmtH(ram.research ? ram.research.timeSec * 1000 : 0)} at Drillyard ${ram.research?.drillyard}); one Firecart takes ${fmtH(trainTimeMs('firecart', yard4, world))} in a Wrightyard level 4 (research ${fmtH(cart.research ? cart.research.timeSec * 1000 : 0)} at Drillyard ${cart.research?.drillyard}). The defender sees the army on the map for the whole trip and can reinforce, recall support or strike the slow column first.`,
     '',
   );
-  check('a siege column is at least 1.8x slower than Raiders over 20 tiles', (times['Raiders + 20 Firecarts'] as number) >= 1.8 * (times['Raiders only'] as number));
+  check('a siege column is at least 1.8x slower than Raiders over 20 tiles', (times['Raiders + 20 Log Rams'] as number) >= 1.8 * (times['Raiders only'] as number));
   return { lines, checks };
 }
 

@@ -332,7 +332,7 @@ export interface SimOptions {
   targets?: number;
   /**
    * Siege units in play (`--siege`, default OFF so every older result stays valid): the attacking styles (raider, balanced) build
-   * what the Firecart needs (a Wrightyard, research), train a few, and send them with the raiders against fortified targets.
+   * what the Log Ram needs (a Wrightyard, research), train a few, and send them with the raiders against fortified targets.
    */
   siege?: boolean;
   /** How a Chieftain's gold is charged (`--chief-gold chest|flat|growth`, default chest = the rule since 2026-11-10; flat / growth use the historical 150 gold). */
@@ -346,7 +346,7 @@ export interface SimOptions {
 /** What siege did to one style's run (only present when `SimOptions.siege`). */
 export interface SiegeStats {
   /** Siege units trained (queued). */
-  trained: { firecart: number };
+  trained: { logram: number };
   /** Raids that carried siege units. */
   raids: number;
   /** ... of which won. */
@@ -362,7 +362,7 @@ export interface SiegeStats {
 }
 
 /** Siege caps for a computer player: units owned at once (home + away + queued) and units per training batch. */
-const SIEGE_OWN_CAP: { firecart: number } = { firecart: 28 };
+const SIEGE_OWN_CAP: { logram: number } = { logram: 28 };
 const SIEGE_BATCH = 6;
 /** A target with at least this Wall level can get a siege run (abandoned villages have Wall 0-4 by tier, so this is almost "any"). */
 const SIEGE_MIN_WALL = 1;
@@ -372,13 +372,13 @@ function withSiege(style: StyleName, def: Style): Style {
   if (style !== 'raider' && style !== 'balanced') return def;
   // Raider: right after its Barracks 8 (it already has Drillyard 2) it builds Drillyard 3 and a Wrightyard; balanced: at the end of its list.
   const order: Step[] = [...def.order];
-  if (style === 'raider') order.splice(order.findIndex(([b, l]) => b === 'barracks' && l === 8) + 1, 0, ['drillyard', 3], ['wrightyard', 1]);
-  else order.push(['drillyard', 3], ['wrightyard', 1]);
+  if (style === 'raider') order.splice(order.findIndex(([b, l]) => b === 'barracks' && l === 8) + 1, 0, ['drillyard', 2], ['wrightyard', 1]);
+  else order.push(['drillyard', 2], ['wrightyard', 1]);
   return {
     ...def,
     order,
-    army: [...def.army, { unit: 'firecart', weight: 10 }],
-    research: [...def.research, 'firecart'],
+    army: [...def.army, { unit: 'logram', weight: 10 }],
+    research: [...def.research, 'logram'],
   };
 }
 
@@ -635,7 +635,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const def = opt.knightBuilders ? withKnightBuilders(style, base) : base;
   const goldMode: ChiefGoldMode = opt.chiefGold ?? 'chest';
   const chestBase = opt.chestBase ?? CHEST_BASE_DEFAULT;
-  const siegeStats: SiegeStats = { trained: { firecart: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
+  const siegeStats: SiegeStats = { trained: { logram: 0 }, raids: 0, wins: 0, levelsLowered: 0, lossValue: 0, loweredValue: 0 };
   const s: WorldSettings = { ...DEFAULT_WORLD, speed: opt.speed };
   const styleSeed = hashSeed(opt.seed, STYLES.indexOf(style));
   const vils: Vil[] = [{ id: 0, state: createPlayerVillage(0), pos: opt.home, trainCursor: 0, how: 'home' }];
@@ -807,7 +807,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         return;
       }
       const def0 = targetAt(e.target, e.at);
-      const withSiege = e.units.firecart > 0;
+      const withSiege = e.units.logram > 0;
       const r = resolveBattle({ attackerUnits: e.units, defender: def0, seed: e.seed, ...(withSiege ? { siegeTarget: 'wall' as BuildingId } : {}) });
       tg.state = applyBattleToDefender(def0, r);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), r.attackerLosses);
@@ -819,7 +819,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (withSiege) {
         siegeStats.raids += 1;
         if (r.attackerWon) siegeStats.wins += 1;
-        siegeStats.lossValue += r.attackerLosses.firecart * value(UNITS.firecart.cost);
+        siegeStats.lossValue += r.attackerLosses.logram * value(UNITS.logram.cost);
         for (const h of r.siege ?? []) for (let lvl = h.from; lvl > h.to; lvl--) {
           siegeStats.levelsLowered += 1;
           siegeStats.loweredValue += value(buildingCost(h.building, lvl));
@@ -1007,7 +1007,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       if (UNITS[unit].siege) {
         // A player keeps only a few siege units: skip the wheel slot while enough are owned (home, away or queued).
         const owned = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state))[unit];
-        if (owned >= SIEGE_OWN_CAP[unit as 'firecart']) {
+        if (owned >= SIEGE_OWN_CAP[unit as 'logram']) {
           vil.trainCursor++;
           continue;
         }
@@ -1025,8 +1025,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         if (c.ok) {
           vil.state = applyTrain(vil.state, unit, n, t, s);
           trained[unit] += n;
-          if (unit === 'firecart') {
-            siegeStats.trained.firecart += n;
+          if (unit === 'logram') {
+            siegeStats.trained.logram += n;
             siegeStats.firstTrainedDay ??= t / (24 * HOUR);
           }
           vil.trainCursor++;
@@ -1056,8 +1056,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     if (totalUnits(send) < 5) return;
     // Siege units at home go along on fortified targets (wall >= SIEGE_MIN_WALL) as a second candidate army; the slow siege
     // units set the pace of the whole army (travelTimeMs takes the slowest unit).
-    const siegeHome = { firecart: vil.state.troops.firecart };
-    const haveSiege = opt.siege === true && siegeHome.firecart > 0;
+    const siegeHome = { logram: vil.state.troops.logram };
+    const haveSiege = opt.siege === true && siegeHome.logram > 0;
     let best = -1;
     let bestScore = 0;
     let bestSend = send;
@@ -1073,7 +1073,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         const travel = travelTimeMs(vil.pos, tg.pos, army, s);
         // Preview with a different seed: a player judges by scouting, not by knowing the luck.
         const arrival = settleVillage(st, t + travel, s);
-        const siegeArmy = army.firecart > 0;
+        const siegeArmy = army.logram > 0;
         const pre = resolveBattle({
           attackerUnits: army,
           defender: arrival,
@@ -1202,7 +1202,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     if (chiefWaitSince < 0) chiefWaitSince = t;
     if (def.expand === 'take') {
       // Siege units stay home on a strike: a taken village keeps all its buildings, so lowering them would only hurt the new owner.
-      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0, firecart: 0 };
+      const send = { ...holder.state.troops, chieftain: 1, pathfinder: 0, logram: 0, firecart: 0 };
       let best = -1;
       let bestPoints = -1;
       let bestTravel = 0;
@@ -1554,13 +1554,13 @@ function fmtDay(h: number | undefined): string {
 
 function formatSiegeStats(g: SiegeStats): string {
   if (g.firstTrainedDay === undefined) return 'Siege: switched on, but no siege unit was trained within the run.';
-  return `Siege: trained ${g.trained.firecart} Firecarts (first on day ${g.firstTrainedDay.toFixed(1)}); ${g.raids} raids carried siege (${g.wins} won), ${g.levelsLowered} levels lowered (rebuild value ${num(g.loweredValue)}), siege units lost worth ${num(g.lossValue)}.`;
+  return `Siege: trained ${g.trained.logram} Log Rams (first on day ${g.firstTrainedDay.toFixed(1)}); ${g.raids} raids carried siege (${g.wins} won), ${g.levelsLowered} levels lowered (rebuild value ${num(g.loweredValue)}), siege units lost worth ${num(g.lossValue)}.`;
 }
 
 /** Side-by-side of a run without and with siege units (same seed, same options): what siege costs and brings the sim players. */
 export function formatSiegeComparison(off: SimReport, on: SimReport): string {
   const out: string[] = ['## Computer players with and without siege units (same seed)', ''];
-  out.push('| style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Rams + Slings trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |');
+  out.push('| style | points day end (off / on) | villages (off / on) | raid loot - losses (off / on) | idle h (off / on) | Log Rams trained | first siege unit | siege raids (won) | levels lowered | siege units lost (value) |');
   out.push('|---|---|---|---|---|---|---|---|---|---|');
   off.results.forEach((a, i) => {
     const b = on.results[i] as StyleResult;
@@ -1569,7 +1569,7 @@ export function formatSiegeComparison(off: SimReport, on: SimReport): string {
     const net = (r: DayRow | undefined): number => (r ? r.raidLoot - r.raidLosses : 0);
     const g = b.siege;
     out.push(
-      `| ${a.style} | ${a.finalPoints} / ${b.finalPoints} | ${a.villages} / ${b.villages} | ${num(net(la))} / ${num(net(lb))} | ${a.longestIdleHours.toFixed(1)} / ${b.longestIdleHours.toFixed(1)} | ${g ? `${g.trained.firecart}` : '-'} | ${g?.firstTrainedDay !== undefined ? `day ${g.firstTrainedDay.toFixed(1)}` : 'never'} | ${g ? `${g.raids} (${g.wins})` : '-'} | ${g ? g.levelsLowered : '-'} | ${g ? num(g.lossValue) : '-'} |`,
+      `| ${a.style} | ${a.finalPoints} / ${b.finalPoints} | ${a.villages} / ${b.villages} | ${num(net(la))} / ${num(net(lb))} | ${a.longestIdleHours.toFixed(1)} / ${b.longestIdleHours.toFixed(1)} | ${g ? `${g.trained.logram}` : '-'} | ${g?.firstTrainedDay !== undefined ? `day ${g.firstTrainedDay.toFixed(1)}` : 'never'} | ${g ? `${g.raids} (${g.wins})` : '-'} | ${g ? g.levelsLowered : '-'} | ${g ? num(g.lossValue) : '-'} |`,
     );
   });
   out.push('');
@@ -1665,7 +1665,7 @@ export function formatReport(rep: SimReport, full = false): string {
   );
   if (rep.options.siege) {
     out.push(
-      `- SIEGE (switched on with --siege; GAME_DESIGN 18.9): raider adds Drillyard 3 and a Wrightyard to its build list right after Barracks 8, balanced appends them; both research the Firecart and train batches of ${SIEGE_BATCH} (wheel weight 10) while they own fewer than ${SIEGE_OWN_CAP.firecart} Firecarts. When a target's Wall is >= ${SIEGE_MIN_WALL} the siege units at home form a second candidate army next to the raiders alone (the slowest unit sets the travel time). That siege run is only chosen when the preview (other seed, attack >= 1.25 x defence) really lowers a Wall level; it then goes before the loot raids, valued at the build cost of the levels (siegeTarget 'wall', applyBattleToDefender; the Firecart also burns the Wall during the battle). Siege never goes on a Chieftain strike (a taken village keeps its buildings).`,
+      `- SIEGE (switched on with --siege; GAME_DESIGN 18.9): raider adds a Wrightyard (Drillyard 2 it has) to its build list right after Barracks 8, balanced appends them; both research the Log Ram (the Firecart is not played by the computer players: its test is the siege experiments, section b) and train batches of ${SIEGE_BATCH} (wheel weight 10) while they own fewer than ${SIEGE_OWN_CAP.logram} Log Rams. When a target's Wall is >= ${SIEGE_MIN_WALL} the siege units at home form a second candidate army next to the raiders alone (the slowest unit sets the travel time). That siege run is only chosen when the preview (other seed, attack >= 1.25 x defence) really lowers a Wall level; it then goes before the loot raids, valued at the build cost of the levels (applyBattleToDefender; the Log Ram also batters the Wall during the battle). Siege never goes on a Chieftain strike (a taken village keeps its buildings).`,
     );
   }
   return out.join('\n');

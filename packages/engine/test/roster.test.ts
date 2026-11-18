@@ -124,11 +124,13 @@ describe('troop roster', () => {
     assert.equal(b.ranks?.hearthwarden?.bulwark, 1);
   });
 
-  it('old saved rows without the Hearthwarden read as 0', () => {
+  it('old saved rows without the Hearthwarden or the Log Ram read as 0', () => {
     const old = { pikeman: 3, guard: 0, raider: 1, outrider: 2, knight: 0, pathfinder: 0, chieftain: 0, firecart: 0 };
     const v = normalizeVillage({ ...village({}), troops: old as never, away: old as never });
     assert.equal(v.troops.hearthwarden, 0);
     assert.equal(v.away.hearthwarden, 0);
+    assert.equal(v.troops.logram, 0);
+    assert.equal(v.away.logram, 0);
     assert.equal(v.troops.outrider, 2);
   });
 });

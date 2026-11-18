@@ -101,10 +101,10 @@ describe('ranks and training points', () => {
     if (last) expectGameError(() => applyRank(v, last[0], last[1], 0, S1), 'requirements_not_met');
   });
 
-  it('Chieftain and Firecart cannot be ranked at all', () => {
+  it('Chieftain and both siege units cannot be ranked at all', () => {
     const v = researched();
-    v.researched = [...(v.researched ?? []), 'chieftain', 'firecart'];
-    for (const u of ['chieftain', 'firecart'] as const) {
+    v.researched = [...(v.researched ?? []), 'chieftain', 'firecart', 'logram'];
+    for (const u of ['chieftain', 'firecart', 'logram'] as const) {
       for (const t of ['might', 'bulwark', 'keen'] as const) assert.equal(checkRank(v, u, t, 0, S1).ok, false, `${u} ${t}`);
       expectGameError(() => applyRank(v, u, 'bulwark', 0, S1), 'invalid_input');
     }

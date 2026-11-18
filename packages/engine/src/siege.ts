@@ -1,9 +1,10 @@
-// Siege: Firecarts burn the Wall during the battle (the lowered Wall counts), then the surviving Firecarts burn the building the sender
-// picked (the Wall if none) after it; a lost attack still counts a share of its Firecarts (docs/GAME_DESIGN.md 18.9).
+// Siege: Log Rams batter only the Wall, during the battle (the lowered Wall counts) and again after it with the survivors; Firecarts burn
+// only buildings after a won battle: the one the sender picked, or a random building other than the Wall. A lost attack still counts
+// a share of its siege units (docs/GAME_DESIGN.md 18.9).
 // Pure and deterministic: same army, same village, same result.
 
 import { SIEGE_BASE_POINTS, SIEGE_DURING_SHARE, SIEGE_LOST_SHARE, SIEGE_MIN_LEVEL, SIEGE_POINTS_PER_LEVEL, UNITS } from './config.ts';
-import { UNIT_IDS } from './types.ts';
+import { BUILDING_IDS, UNIT_IDS } from './types.ts';
 import type { BuildingId, BuildingLevels, SiegeHit, UnitId, Units, VillageState, WorldSettings } from './types.ts';
 import { isBuildingId, normalizeUnits } from './util.ts';
 import { worldRules } from './world-config.ts';
@@ -32,6 +33,12 @@ export function hasSiegeUnits(units: Partial<Units>): boolean {
   return UNIT_IDS.some((id) => UNITS[id].siege !== undefined && u[id] > 0);
 }
 
+/** Is any building-burning siege unit (the Firecart) in this army? Only those use the sender's pick of a building. */
+export function hasBuildingSiegeUnits(units: Partial<Units>): boolean {
+  const u = normalizeUnits(units);
+  return UNIT_IDS.some((id) => UNITS[id].siege?.hits === 'buildings' && u[id] > 0);
+}
+
 /** Lower `level` with `points` siege points, at most `maxLevels` levels, never below the building's floor. */
 function knockDown(building: BuildingId, level: number, points: number, maxLevels: number): { level: number; dropped: number } {
   let dropped = 0;
@@ -43,9 +50,14 @@ function knockDown(building: BuildingId, level: number, points: number, maxLevel
   return { level, dropped };
 }
 
+/** Buildings a Firecart with no pick can burn at random: every building but the Wall that stands above its floor. */
+export function randomSiegeCandidates(buildings: BuildingLevels): BuildingId[] {
+  return BUILDING_IDS.filter((b) => b !== 'wall' && buildings[b] > siegeFloor(b));
+}
+
 /**
- * The during-the-battle step: the Firecarts that were SENT (all of them stand when the battle starts) fire with SIEGE_DURING_SHARE
- * of their points at the Wall. Returns the Wall level the defence has to use in that battle and what each siege kind lowered
+ * The during-the-battle step: the Log Rams that were SENT (all of them stand when the battle starts) fire with SIEGE_DURING_SHARE
+ * of their points at the Wall (Firecarts have no such step). Returns the Wall level the defence has to use in that battle and what each siege kind lowered
  * (levels, at most its `maxLevels`). Pure; a siege kind that was not sent is absent.
  */
 export function resolveSiegeDuring(sent: Partial<Units>, wall: number): { wall: number; dropped: Partial<Record<UnitId, number>>; from: Partial<Record<UnitId, number>> } {
@@ -55,7 +67,7 @@ export function resolveSiegeDuring(sent: Partial<Units>, wall: number): { wall: 
   let level = wall;
   for (const unit of UNIT_IDS) {
     const rule = UNITS[unit].siege;
-    if (!rule || !(army[unit] > 0)) continue;
+    if (!rule || rule.hits !== 'wall' || !(army[unit] > 0)) continue;
     const r = knockDown('wall', level, army[unit] * rule.power * SIEGE_DURING_SHARE, rule.maxLevels);
     from[unit] = level;
     dropped[unit] = r.dropped;
@@ -76,11 +88,12 @@ export function siegeLostSurvivors(sent: Partial<Units>, lossRatio: number): Uni
 }
 
 /**
- * What the Firecarts do to a village with `buildings` (its levels BEFORE the battle). `sent` (optional) = the whole army that arrived:
- * its Firecarts first fire the during-the-battle step at the Wall (resolveSiegeDuring). Then the `survivors` spend their full
- * `power` points on the building the sender picked (`chosen`; the Wall if none or not a building id), at most `maxLevels` levels, never
- * below the building's floor. The two steps each get their own `maxLevels`. When both hit the Wall the result is ONE hit from the pre-battle
- * level to the level after both. A hit with `from === to` is a miss (too few survivors). A Wall hit of the during step is only listed when it lowered the Wall. Without `sent` there is no during step.
+ * What the siege units do to a village with `buildings` (its levels BEFORE the battle). `sent` (optional) = the whole army that arrived:
+ * its Log Rams first fire the during-the-battle step at the Wall (resolveSiegeDuring). Then the `survivors` spend their full `power` points,
+ * at most `maxLevels` levels, never below the building's floor: Log Rams on the Wall, Firecarts on the building the sender picked (`chosen`;
+ * when it is none, the Wall or not a building id, the building `random` (0..1) picks among `randomSiegeCandidates`; no hit when none qualifies).
+ * The two steps each get their own `maxLevels`. A Wall hit of the Log Rams is ONE hit from the pre-battle level to the level after both steps.
+ * A hit with `from === to` is a miss (too few survivors). A Wall hit of the during step is only listed when it lowered the Wall.
  * `chosen` is never checked against the village here: that would tell the sender what the village holds.
  */
 export function resolveSiege(
@@ -88,25 +101,39 @@ export function resolveSiege(
   buildings: BuildingLevels,
   chosen: BuildingId | null | undefined,
   sent?: Partial<Units>,
+  random = 0,
 ): SiegeHit[] {
   const alive = normalizeUnits(survivors);
   const levels = { ...buildings };
   const hits: SiegeHit[] = [];
   const during = sent ? resolveSiegeDuring(sent, buildings.wall) : null;
   if (during) levels.wall = during.wall;
-  const target: BuildingId = isBuildingId(chosen) ? chosen : 'wall';
+  let target: BuildingId | null | undefined = isBuildingId(chosen) && chosen !== 'wall' ? chosen : undefined;
+  if (target === undefined) {
+    const pool = randomSiegeCandidates(buildings);
+    const draw = Number.isFinite(random) ? Math.max(0, Math.min(0.999999, random)) : 0;
+    target = pool.length > 0 ? pool[Math.floor(draw * pool.length)] : null;
+  }
   for (const unit of UNIT_IDS) {
     const rule = UNITS[unit].siege;
     if (!rule) continue;
     const count = alive[unit];
-    // A Wall hit during the battle only shows when it lowered something (a pick elsewhere does not list a Wall miss).
-    const duringHit: SiegeHit | undefined = during !== null && (during.dropped[unit] ?? 0) > 0 ? { unit, building: 'wall', from: buildings.wall, to: levels.wall } : undefined;
-    if (duringHit) hits.push(duringHit);
-    if (!(count > 0)) continue;
-    const r = knockDown(target, levels[target], count * rule.power, rule.maxLevels);
-    if (duringHit && target === 'wall') duringHit.to = r.level;
-    else hits.push({ unit, building: target, from: levels[target], to: r.level });
-    levels[target] = r.level;
+    if (rule.hits === 'wall') {
+      // A Wall hit during the battle only shows when it lowered something.
+      const duringHit: SiegeHit | undefined = during !== null && (during.dropped[unit] ?? 0) > 0 ? { unit, building: 'wall', from: buildings.wall, to: levels.wall } : undefined;
+      if (duringHit) hits.push(duringHit);
+      if (!(count > 0)) continue;
+      const r = knockDown('wall', levels.wall, count * rule.power, rule.maxLevels);
+      if (duringHit) duringHit.to = r.level;
+      else hits.push({ unit, building: 'wall', from: levels.wall, to: r.level });
+      levels.wall = r.level;
+    } else {
+      if (!(count > 0) || !target) continue;
+      const building: BuildingId = target;
+      const r = knockDown(building, levels[building], count * rule.power, rule.maxLevels);
+      hits.push({ unit, building, from: levels[building], to: r.level });
+      levels[building] = r.level;
+    }
   }
   return hits;
 }

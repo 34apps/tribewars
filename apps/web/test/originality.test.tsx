@@ -37,16 +37,18 @@ test('the Longhouse and the Wrightyard have all four looks and a place in the vi
   assert.deepEqual(art.STAGE_TOPS.wrightyard, art.STAGE_TOPS.vault, 'like the 12-level buildings');
 });
 
-test('the Firecart has all four poses and an icon; the Log Ram and Boulder Sling are gone from the lists', () => {
-  for (const pose of ['idle', 'march', 'victory', 'defeated', 'icon'] as const) assert.ok(figures.hasUnitFigure('firecart', pose), pose);
-  assert.deepEqual([...UNIT_IDS].filter((u) => UNIT_ROLE[u].tone === 'siege'), ['firecart']);
-  assert.ok(!('logram' in UNIT_ROLE) && !('boulder' in UNIT_ROLE));
+test('the Log Ram and the Firecart have all four poses and an icon; the Boulder Sling is gone from the lists', () => {
+  for (const unit of ['logram', 'firecart'] as const) {
+    for (const pose of ['idle', 'march', 'victory', 'defeated', 'icon'] as const) assert.ok(figures.hasUnitFigure(unit, pose), `${unit} ${pose}`);
+  }
+  assert.deepEqual([...UNIT_IDS].filter((u) => UNIT_ROLE[u].tone === 'siege'), ['logram', 'firecart']);
+  assert.ok(!('boulder' in UNIT_ROLE));
 });
 
-test('the Recruit lists: the Barracks shows no siege, the Wrightyard shows the Firecart', () => {
+test('the Recruit lists: the Barracks shows no siege, the Wrightyard shows the Log Ram and the Firecart', () => {
   const at = (b: string) => UNIT_IDS.filter((u) => UNITS[u].building === b);
   assert.ok(at('barracks').length > 0 && at('barracks').every((u) => !UNITS[u].siege));
-  assert.deepEqual(at('wrightyard'), ['firecart']);
+  assert.deepEqual(at('wrightyard'), ['logram', 'firecart']);
 });
 
 test('names and texts: Vault, Longhouse (room), Farm (food), Wrightyard (Firecarts)', () => {

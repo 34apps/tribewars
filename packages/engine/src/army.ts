@@ -136,7 +136,7 @@ export function checkMission(mission: Mission, units: Units): CheckResult<{}> {
   }
   // Siege units only ever go on an attack: they cannot scout, found, occupy or be stationed.
   if (mission !== 'attack' && hasSiegeUnits(army)) {
-    return fail('invalid_input', 'Firecarts can only join an attack.');
+    return fail('invalid_input', 'Siege units can only join an attack.');
   }
   const chieftains = army.chieftain;
   if (mission === 'found') {
@@ -243,7 +243,7 @@ export function moraleFactor(attackerPoints: number, defenderPoints: number, ena
 
 /**
  * Deterministic battle for a seed. Does not change any village; see applyBattleToDefender.
- * Firecarts fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
+ * Log Rams fire first (docs/GAME_DESIGN.md 18.9): the Wall they leave is the Wall the defence uses (`wallDuring`).
  * With `s` of a world that has siege off (`features.siege` false) no siege step runs at all: the Wall stays as it is and
  * `siege` is []. Without `s` siege is on.
  */
@@ -256,6 +256,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
   const rng = mulberry32(input.seed);
   // Always draw, so the later draws (random siege target) see the same rng position with or without `fixedLuck`.
   const drawnLuck = rng() * 2 * BATTLE_LUCK - BATTLE_LUCK;
+  const siegeDraw = rng(); // the random building a Firecart attack with no pick burns
   const luck = typeof input.fixedLuck === 'number' && Number.isFinite(input.fixedLuck) ? Math.max(-BATTLE_LUCK, Math.min(BATTLE_LUCK, input.fixedLuck)) : drawnLuck;
 
   let attackInfantry = 0;
@@ -283,7 +284,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
     });
     defenseUnits += count * (UNITS[u].defenseInfantry * infantryShare + UNITS[u].defenseCavalry * cavalryShare);
   }
-  // Firecarts sent fire first; the lowered Wall is what the defence uses in this battle.
+  // Log Rams sent fire first; the lowered Wall is what the defence uses in this battle.
   const wall = siegeOn ? resolveSiegeDuring(attackerUnits, defender.buildings.wall).wall : defender.buildings.wall;
   // The Wall's militia is the villagers defending their home: an abandoned village (`npc`, map-born or left by a player) has none (owner 2026-11-17).
   // Its percentage bonus still counts for troops that stand there.
@@ -318,8 +319,8 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       for (const r of RESOURCE_IDS) lootable[r] = Math.max(0, Math.floor(defender.resources[r]) - hidden) + Math.max(0, Math.floor(input.extraLootable?.[r] ?? 0));
       loot = waterFillLoot(Math.floor(capacity), lootable);
     }
-    // The survivors shoot after the battle (Firecarts: full points on the picked building, the Wall if none).
-    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits);
+    // The survivors shoot after the battle (Log Rams: the Wall again; Firecarts: the picked building, a random one but the Wall if none).
+    if (siegeOn) siege = resolveSiege(attackerSurvivors, defender.buildings, input.siegeTarget, attackerUnits, siegeDraw);
   } else {
     const ratio = defensePower > 0 ? Math.pow(attackPower / defensePower, BATTLE_LOSS_EXPONENT) : 0; // nothing defends and nothing attacks: no losses
     for (const u of UNIT_IDS) {
@@ -330,7 +331,7 @@ export function resolveBattle(input: BattleInput, s?: Pick<WorldSettings, 'confi
       });
     }
     // A lost attack still does reduced damage: a share of each siege kind counts as a survivor for the after step.
-    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, attackerUnits);
+    if (siegeOn) siege = resolveSiege(siegeLostSurvivors(attackerUnits, ratio), defender.buildings, input.siegeTarget, attackerUnits, siegeDraw);
   }
 
   return {
