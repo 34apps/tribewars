@@ -372,9 +372,9 @@ export function showsSiegePicker(mission: Mission, chosen: Partial<Units>, siege
   return siegeOn && mission === 'attack' && hasBuildingSiegeUnits(chosen);
 }
 
-/** Buildings a Firecart can be told to burn (everything but the Wall: that is the Log Ram's). Names only: levels are known from a scouting report, never here. */
+/** What a Firecart can be told to burn: every building, the Wall too (listed right after "Any building" by the picker). Names only: levels are known from a scouting report, never here. */
 export function siegeTargetOptions(): Array<{ id: BuildingId; name: string }> {
-  return BUILDING_IDS.filter((id) => id !== 'wall').map((id) => ({ id, name: BUILDINGS[id].name }));
+  return BUILDING_IDS.map((id) => ({ id, name: BUILDINGS[id].name }));
 }
 
 /** Level shown next to a building name in the picker: "Wall 7 · scouted 3h ago", or just the name without a scout report. */
@@ -406,7 +406,7 @@ export function abandonedStrength(defended: boolean | undefined): { band: Streng
 /** The `targetBuilding` to send: only with the picker showing and a real building picked ('' = any building = leave it out). */
 export function siegeTargetFor(mission: Mission, chosen: Partial<Units>, picked: string): BuildingId | undefined {
   if (!showsSiegePicker(mission, chosen)) return undefined;
-  return picked !== 'wall' && (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
+  return (BUILDING_IDS as readonly string[]).includes(picked) ? (picked as BuildingId) : undefined;
 }
 
 /** One report line per siege hit: "Log Ram: Wall 8 -> 6", "Firecart: Market 4 -> 3", or why nothing happened. */

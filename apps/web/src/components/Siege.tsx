@@ -7,9 +7,9 @@ import { formatAgo } from '../format.ts';
 import { siegeHitText, siegeOptionLabel, siegeTargetOptions } from '../villages.ts';
 
 /**
- * Send form, attack with Firecarts: which building they burn after a won battle (Log Rams need no pick: they hit the Wall). Names are public; levels come only from the
+ * Send form, attack with Firecarts: which building they burn after a won battle (Log Rams need no pick: they hit the Wall; Firecarts may pick it too). Names are public; levels come only from the
  * player's OWN latest scout report on this village (GET /api/scouted/:id, shown with its age), never from the village itself.
- * '' = any building but the Wall, chosen by the server (the request then carries no `targetBuilding`).
+ * '' = any building but the Wall (the Wall is its own pick), chosen by the server (the request then carries no `targetBuilding`).
  */
 export function SiegePicker({ value, onChange, targetId, now }: { value: string; onChange: (id: string) => void; targetId?: number; now?: number }) {
   const [scouted, setScouted] = useState<ScoutedResponse | null>(null);
@@ -33,7 +33,8 @@ export function SiegePicker({ value, onChange, targetId, now }: { value: string;
       <label htmlFor="send-siege-target">Firecarts burn:</label>
       <select id="send-siege-target" className="wm-select" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Any building</option>
-        {siegeTargetOptions().map((b) => (
+        <option value="wall">{siegeOptionLabel('The Wall', scouted?.buildings?.wall, ageText)}</option>
+        {siegeTargetOptions().filter((b) => b.id !== 'wall').map((b) => (
           <option key={b.id} value={b.id}>
             {siegeOptionLabel(b.name, scouted?.buildings?.[b.id], ageText)}
           </option>

@@ -1,5 +1,5 @@
 // Siege: Log Rams batter only the Wall, during the battle (the lowered Wall counts) and again after it with the survivors; Firecarts burn
-// only buildings after a won battle: the one the sender picked, or a random building other than the Wall. A lost attack still counts
+// buildings after a battle: the one the sender picked (the Wall too, after the rams), or a random building other than the Wall. A lost attack still counts
 // a share of its siege units (docs/GAME_DESIGN.md 18.9).
 // Pure and deterministic: same army, same village, same result.
 
@@ -90,8 +90,8 @@ export function siegeLostSurvivors(sent: Partial<Units>, lossRatio: number): Uni
 /**
  * What the siege units do to a village with `buildings` (its levels BEFORE the battle). `sent` (optional) = the whole army that arrived:
  * its Log Rams first fire the during-the-battle step at the Wall (resolveSiegeDuring). Then the `survivors` spend their full `power` points,
- * at most `maxLevels` levels, never below the building's floor: Log Rams on the Wall, Firecarts on the building the sender picked (`chosen`;
- * when it is none, the Wall or not a building id, the building `random` (0..1) picks among `randomSiegeCandidates`; no hit when none qualifies).
+ * at most `maxLevels` levels, never below the building's floor: Log Rams on the Wall (first), Firecarts on the building the sender picked (`chosen`;
+ * when it is none or not a building id, the building `random` (0..1) picks among `randomSiegeCandidates`; no hit when none qualifies).
  * The two steps each get their own `maxLevels`. A Wall hit of the Log Rams is ONE hit from the pre-battle level to the level after both steps.
  * A hit with `from === to` is a miss (too few survivors). A Wall hit of the during step is only listed when it lowered the Wall.
  * `chosen` is never checked against the village here: that would tell the sender what the village holds.
@@ -108,7 +108,7 @@ export function resolveSiege(
   const hits: SiegeHit[] = [];
   const during = sent ? resolveSiegeDuring(sent, buildings.wall) : null;
   if (during) levels.wall = during.wall;
-  let target: BuildingId | null | undefined = isBuildingId(chosen) && chosen !== 'wall' ? chosen : undefined;
+  let target: BuildingId | null | undefined = isBuildingId(chosen) ? chosen : undefined;
   if (target === undefined) {
     const pool = randomSiegeCandidates(buildings);
     const draw = Number.isFinite(random) ? Math.max(0, Math.min(0.999999, random)) : 0;
@@ -129,6 +129,7 @@ export function resolveSiege(
       levels.wall = r.level;
     } else {
       if (!(count > 0) || !target) continue;
+      // Firecarts on the Wall (picked): after the Log Rams' steps, from the level they left, with their own cap; no during-the-battle step.
       const building: BuildingId = target;
       const r = knockDown(building, levels[building], count * rule.power, rule.maxLevels);
       hits.push({ unit, building, from: levels[building], to: r.level });

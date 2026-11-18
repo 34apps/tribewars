@@ -125,7 +125,7 @@ function OutcomeColumn({ label, o, setup }: { label: string; o: SimOutcome; setu
             <dt>Wall</dt>
             <dd>
               {o.wallBefore} → {o.wallAfter}
-              {o.wallAfter !== o.wallBefore && <span className="muted small"> (Log Rams)</span>}
+              {o.wallAfter !== o.wallBefore && <span className="muted small"> (siege)</span>}
             </dd>
           </div>
         )}

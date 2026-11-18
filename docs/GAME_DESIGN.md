@@ -2207,15 +2207,15 @@ Barracks), then one (the Firecart, Wrightyard). On 2026-11-18 the owner asked fo
 Wrightyard**, each with its own job (`UnitDef.siege.hits`).
 
 **Rule.** A building level never drops by itself: not on capture, not with time. It drops only through siege units in an attack. **Log Rams only hit the Wall**, in two steps:
-**during the battle** (the lowered Wall counts in that battle) and **again after a won battle with the survivors**. **Firecarts only hit other buildings, after a won battle**:
-the building the sender picked, or **a random building other than the Wall** when none was picked (chosen by the server from the buildings above their floor, from the battle
-seed; the Firecart never touches the Wall and the send form's list has no Wall). A **lost attack can still do reduced damage** (below). A called-off attack and a scouting
+**during the battle** (the lowered Wall counts in that battle) and **again after a won battle with the survivors**. **Firecarts burn buildings after the battle only (no during-the-battle step)**:
+the building the sender picked, **the Wall included** (owner, 2026-11-18), or **a random building other than the Wall** when none was picked ("Any building"; chosen by the server from the buildings above their floor, from the
+battle seed). When Log Rams and Firecarts both hit the Wall in one attack, the rams go first (during and after), then the Firecarts spend their points on the level the rams left, each with its own cap (the report shows two Wall lines). A **lost attack can still do reduced damage** (below). A called-off attack and a scouting
 mission never lower anything. Existing Firecarts stay Firecarts (no unit conversion).
 
 | Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost | Pop | Time | Max levels per step |
 |---|---|---|---|---|---|---|---|---|---|
 | **Log Ram** (`logram`) | Wall only: in the battle and after a win | Wrightyard 1 | Drillyard 2 | 3 (slowest unit) | 3 / 5 vs foot, 4 vs riders | 70 wood, 50 food, 90 iron, no gold | 3 | 1,100 s | 3 (power 6) |
-| **Firecart** (`firecart`) | Buildings only, after a win: the pick, else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 4) |
+| **Firecart** (`firecart`) | Buildings after the battle: the pick (the Wall too), else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 4) |
 
 Both walk over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carry nothing and can only go on an **attack** (not scout, support,
 found or occupy; `checkMission` refuses them). They fight, but badly, and die in the battle like everyone else (loss ratio is the same for every unit of
@@ -2230,15 +2230,15 @@ building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehou
 1. **During the battle (all Log Rams that were sent, Wall).** Before the defence is added up, the Log Rams that were sent (all stand when the battle starts) fire with
    `SIEGE_DURING_SHARE` (0.5) of their points at the Wall. The Wall level they leave is the Wall the defence **uses in this battle**.
 2. **After the battle (survivors).** The **surviving** Log Rams spend their full points on the Wall again (the report shows ONE Wall line from before the battle to after both
-   steps; a Wall line of the during step is only listed when it lowered the Wall). The surviving Firecarts spend their full points on the picked building, or on a random
+   steps; a Wall line of the during step is only listed when it lowered the Wall). The surviving Firecarts (after the rams) spend their full points on the picked building (the Wall too), or on a random
    building other than the Wall (`randomSiegeCandidates`, drawn from the battle seed) when none was picked; no building above its floor: no hit.
 3. **A lost attack** still does reduced damage: `floor(count x (A/D)^BATTLE_LOSS_EXPONENT x SIEGE_LOST_SHARE (0.5))` of each siege kind count as the survivors for the
    **after** step (a hopeless attack does nothing).
 The drop applies together with the losses and the loot. A queued upgrade of the lowered building aims the same number of levels lower (its cost is not refunded);
 levels that already paid Renown stay paid. Population, storage and production simply follow the new levels.
 
-**Picking the building.** Only Firecarts take a pick; Log Rams need none, so the picker shows only when Firecarts are in the army. The send form lists the building **names** (public knowledge) without levels, never the Wall ("Firecarts burn:", "Any building" is the no-pick choice). Levels are only known
-from a scouting report with Keen 4. The server **never checks the pick against the target village**: it only accepts a known building id (not the Wall) on an attack that carries
+**Picking the building.** Only Firecarts take a pick; Log Rams need none, so the picker shows only when Firecarts are in the army. The send form lists "Any building" (the no-pick choice), "The Wall", then the building **names** (public knowledge) without levels ("Firecarts burn:"). Levels are only known
+from a scouting report with Keen 4. The server **never checks the pick against the target village**: it only accepts a known building id (the Wall included) on an attack that carries
 Firecarts, so the send cannot be used to find out what a village has. A pick that turns out to be level 0 (or at its floor) is a miss, and the report says so. With no pick the random choice never lands on a
 level-0 or floor-level building, and the report shows which building burned (it only shows on a win; a wiped-out attacker sees only Wall hits).
 

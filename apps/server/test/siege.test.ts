@@ -115,13 +115,19 @@ test('a send with a valid pick and Firecarts is accepted; the pick is stored for
   assert.ok(!('siegeTarget' in movement) && !('targetBuilding' in movement), 'the movement view carries no pick');
   assert.equal(c.app.ctx.store.getMovement(movement.id)?.siegeTarget, 'barracks');
 
+  // The Wall is a valid pick for Firecarts.
+  restock(c.app, c.p, { raider: 20, firecart: 10 });
+  const wallPick = await c.p.c.post(`/api/villages/${c.homeId}/send`, { x: c.target.x, y: c.target.y, units: { raider: 20, firecart: 10 }, mission: 'attack', targetBuilding: 'wall' });
+  ok(wallPick, 201);
+  assert.equal(c.app.ctx.store.getMovement(wallPick.json<SendResponse>().movement.id)?.siegeTarget, 'wall');
+
   // No pick: stored as none (the Firecarts then burn a random building but the Wall).
   restock(c.app, c.p, { raider: 20, firecart: 10 });
   const plain = (await c.p.c.post(`/api/villages/${c.homeId}/send`, { x: c.target.x, y: c.target.y, units: { raider: 20, firecart: 10 }, mission: 'attack' })).json<SendResponse>();
   assert.equal(c.app.ctx.store.getMovement(plain.movement.id)?.siegeTarget, null);
 });
 
-test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a string, null, wrong mission, the Wall, no Firecarts', async () => {
+test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a string, null, wrong mission, no Firecarts', async () => {
   const c = await setup();
   const store = c.app.ctx.store;
   const post = (body: object) => c.p.c.post(`/api/villages/${c.homeId}/send`, { x: c.target.x, y: c.target.y, ...body });
@@ -142,7 +148,6 @@ test('a bad pick is 400 invalid_input and changes nothing: unknown id, not a str
   errorOf(await post({ units: { raider: 5 }, mission: 'occupy', targetBuilding: 'hall' }), 400, 'invalid_input');
   errorOf(await post({ units: { raider: 5 }, mission: 'attack', targetBuilding: 'hall' }), 400, 'invalid_input'); // no Firecarts
   errorOf(await post({ units: { raider: 5, logram: 5 }, mission: 'attack', targetBuilding: 'hall' }), 400, 'invalid_input'); // Log Rams need no pick: only Firecarts take one
-  errorOf(await post({ units: { raider: 5, firecart: 5 }, mission: 'attack', targetBuilding: 'wall' }), 400, 'invalid_input'); // Firecarts never burn the Wall
 
   assert.equal(JSON.stringify(store.getVillage(c.homeId)?.state.troops), before, 'no troops left');
   assert.equal(store.movementsFrom(c.homeId).length, movements, 'no movement was created');

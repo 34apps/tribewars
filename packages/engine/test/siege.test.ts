@@ -1,5 +1,5 @@
 // Siege (docs/GAME_DESIGN.md 18.9): the Log Ram hits only the Wall (during the battle and again after a win, max 3 levels per step); the
-// Firecart hits only buildings after a win: the one the sender picked, else a random one but the Wall (max 2 levels). Pure and deterministic.
+// Firecart burns buildings after the battle: the one the sender picked (the Wall too, after the rams, no during step), else a random one but the Wall (max 2 levels). Pure and deterministic.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -192,9 +192,9 @@ describe('Firecarts: buildings only', () => {
     assert.deepEqual(hits, [{ unit: 'firecart', building: 'barracks', from: 6, to: 5 }]);
   });
 
-  it('never touch the Wall: a Wall pick, no pick or a non-building is a random building', () => {
+  it('"any building" (no pick or a non-building) never lands on the Wall', () => {
     const b = levels({ wall: 10, barracks: 6, market: 5 });
-    for (const pick of [null, undefined, 'wall' as const, 'moat' as never]) {
+    for (const pick of [null, undefined, 'moat' as never]) {
       for (const draw of [0, 0.4, 0.99]) {
         const hits = resolveSiege(units({ firecart: 200 }), b, pick, undefined, draw);
         assert.equal(hits.length, 1);
@@ -206,6 +206,29 @@ describe('Firecarts: buildings only', () => {
     // the draw picks among the candidates in building order
     assert.equal(resolveSiege(units({ firecart: 200 }), b, null, undefined, 0)[0]!.building, 'barracks');
     assert.equal(resolveSiege(units({ firecart: 200 }), b, null, undefined, 0.99)[0]!.building, 'market');
+  });
+
+  it('a Wall pick lowers the Wall with their own power and cap, and is not part of the during-the-battle step', () => {
+    const b = levels({ wall: 12, barracks: 6 });
+    const hits = resolveSiege(units({ firecart: 100_000 }), b, 'wall', units({ firecart: 100_000 }));
+    assert.deepEqual(hits, [{ unit: 'firecart', building: 'wall', from: 12, to: 12 - CART.maxLevels }]);
+    assert.deepEqual(resolveSiegeDuring(units({ firecart: 100_000 }), 12), { wall: 12, dropped: {}, from: {} });
+    // exact points: one level of the Wall needs siegePointsNeeded(12)
+    const need = siegePointsNeeded(12);
+    assert.deepEqual(resolveSiege(units({ firecart: Math.ceil(need / CART.power) }), b, 'wall'), [{ unit: 'firecart', building: 'wall', from: 12, to: 11 }]);
+    assert.deepEqual(resolveSiege(units({ firecart: Math.ceil(need / CART.power) - 1 }), b, 'wall'), [{ unit: 'firecart', building: 'wall', from: 12, to: 12 }]);
+  });
+
+  it('Log Rams and Firecarts on the Wall: the rams first (during and after), then the carts from the level the rams left, each with its own cap', () => {
+    const sent = units({ logram: 100_000, firecart: 100_000 });
+    const hits = resolveSiege(sent, levels({ wall: 14 }), 'wall', sent);
+    assert.deepEqual(hits, [
+      { unit: 'logram', building: 'wall', from: 14, to: 14 - 2 * RAM.maxLevels },
+      { unit: 'firecart', building: 'wall', from: 14 - 2 * RAM.maxLevels, to: 14 - 2 * RAM.maxLevels - CART.maxLevels },
+    ]);
+    // the floor of the Wall is 0
+    const low = resolveSiege(sent, levels({ wall: 7 }), 'wall', sent);
+    assert.equal(low.at(-1)!.to, 0);
   });
 
   it('no building above its floor besides the Wall: no hit', () => {
@@ -303,6 +326,15 @@ describe('resolveBattle with siege units', () => {
     const after = applyBattleToDefender(frozen, won);
     assert.equal(after.buildings.wall, wall.to);
     assert.equal(after.buildings.market, 2);
+  });
+
+  it('Firecarts picking the Wall after a win: the Wall counted in full in the battle, then drops after it', () => {
+    const d = target();
+    const won = resolveBattle({ attackerUnits: units({ raider: 400, firecart: 300 }), defender: d, seed: 5, siegeTarget: 'wall' });
+    assert.equal(won.attackerWon, true);
+    assert.equal(won.wallDuring, 10, 'no during-the-battle step for Firecarts');
+    assert.deepEqual(won.siege, [{ unit: 'firecart', building: 'wall', from: 10, to: 10 - CART.maxLevels }]);
+    assert.equal(applyBattleToDefender(d, won).buildings.wall, 10 - CART.maxLevels);
   });
 
   it('Firecarts alone: the Wall counts in full, and a random building burns when nothing was picked', () => {

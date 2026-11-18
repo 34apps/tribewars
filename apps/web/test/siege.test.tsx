@@ -1,5 +1,5 @@
 // Siege in the web client (docs/GAME_DESIGN.md 18.9): which units an attack form offers, the Firecart building picker
-// (names only, no levels, never the Wall), the request field and the report lines.
+// (names only, no levels, the Wall included), the request field and the report lines.
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -44,17 +44,18 @@ test('the building picker shows only for an attack with Firecarts (Log Rams need
   for (const m of ['scout', 'support', 'found', 'occupy'] as const) assert.equal(showsSiegePicker(m, carts), false, m);
 });
 
-test('the picker lists building names (Any building first, never the Wall), no levels', () => {
+test('the picker lists building names (Any building first, then The Wall), no levels', () => {
   const html = renderToString(createElement(SiegePicker, { value: '', onChange: () => {} }));
   const plain = text(html);
   assert.match(plain, /Firecarts burn:/);
   assert.match(plain, /Any building/);
   assert.match(plain, /Building levels unknown/);
   assert.ok(html.indexOf('Any building') < html.indexOf(BUILDINGS.hall.name));
-  for (const id of BUILDING_IDS) assert.equal(html.includes(`value="${id}"`), id !== 'wall', `${id}: the Wall is the Log Ram's, not in the Firecart's list`);
+  for (const id of BUILDING_IDS) assert.ok(html.includes(`value="${id}"`), `${id} is in the list`);
+  assert.match(plain, /The Wall/);
+  assert.ok(html.indexOf('Any building') < html.indexOf('The Wall') && html.indexOf('The Wall') < html.indexOf(BUILDINGS.hall.name));
   for (const o of siegeTargetOptions()) assert.ok(plain.includes(o.name), o.name);
-  assert.equal(siegeTargetOptions().length, BUILDING_IDS.length - 1);
-  assert.ok(!siegeTargetOptions().some((o) => o.id === 'wall'));
+  assert.equal(siegeTargetOptions().length, BUILDING_IDS.length);
   assert.ok(plain.includes('Longhouse') && plain.includes('Wrightyard') && plain.includes('Vault') && !plain.includes('Hidden Vault'));
   // Names only: no digit anywhere in the option texts.
   assert.ok(!/<option[^>]*>[^<]*\d[^<]*<\/option>/.test(html), 'no level numbers in the options');
@@ -64,7 +65,7 @@ test('targetBuilding is sent only for a picked building on an attack with Fireca
   const carts = units({ firecart: 1 });
   assert.equal(siegeTargetFor('attack', carts, 'market'), 'market');
   assert.equal(siegeTargetFor('attack', carts, ''), undefined, 'no pick: the field is left out (any building)');
-  assert.equal(siegeTargetFor('attack', carts, 'wall'), undefined, 'the Wall is never sent as a pick');
+  assert.equal(siegeTargetFor('attack', carts, 'wall'), 'wall', 'the Wall is a valid Firecart pick');
   assert.equal(siegeTargetFor('attack', units({ logram: 3 }), 'market'), undefined, 'Log Rams only: nothing to pick');
   assert.equal(siegeTargetFor('attack', carts, 'not-a-building'), undefined);
   assert.equal(siegeTargetFor('attack', units({ pikeman: 4 }), 'market'), undefined, 'Firecarts deselected');

@@ -95,7 +95,10 @@ test('Wall: more levels raise the defence; Log Rams lower it (before -> after), 
   const plain = simulate(setup({ wall: 10 }), 0);
   assert.equal(plain.wallAfter, 10);
   const carts = simulate(setup({ attacker: units({ raider: 400, firecart: 80 }), defender: units({ pikeman: 10 }), wall: 10, siegeTarget: 'market', targetLevel: 5 }), 0);
-  assert.equal(carts.wallAfter, 10, 'Firecarts never lower the Wall');
+  assert.equal(carts.wallAfter, 10, 'Firecarts only lower the Wall when it is picked');
+  const wallCarts = simulate(setup({ attacker: units({ raider: 400, firecart: 80 }), defender: units({ pikeman: 10 }), wall: 10, siegeTarget: 'wall' }), 0);
+  assert.equal(wallCarts.result.wallDuring, 10);
+  assert.ok(wallCarts.wallAfter < 10, 'a picked Wall is lowered after the win');
 });
 
 test('Firecarts burn the picked building at the typed level', () => {
