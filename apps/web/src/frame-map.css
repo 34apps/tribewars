@@ -159,9 +159,11 @@ html.layout-desktop .wm-panel {
   align-self: stretch;
   width: 432px;
   max-height: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto; /* safety net only: the foot below stays pinned; no scrollbar track is drawn */
+  scrollbar-width: none;
   gap: 6px;
-  padding: 12px 16px 14px;
+  padding: 12px 16px 0;
   border: 0;
   border-left: 2.5px solid var(--c-ink);
   border-radius: 0;
@@ -452,8 +454,12 @@ html.layout-desktop .wm-contingent .wm-btn {
 }
 
 /* ---- Send form ---- */
+html.layout-desktop .wm-panel::-webkit-scrollbar {
+  display: none;
+}
+
 html.layout-desktop .wm-send-panel {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 0;
   gap: 8px;
   margin-bottom: 0;
@@ -686,9 +692,12 @@ html.layout-desktop .wm-send-foot {
   flex-direction: column;
   gap: 6px;
   margin: 2px 0 0;
-  padding: 0;
+  padding: 6px 0 16px; /* breathing room under Send, as wide as the panel's side padding */
   border: 0;
-  background: none;
+  background: var(--surface);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 html.layout-desktop .wm-send-foot .wm-sum {
@@ -734,6 +743,10 @@ html.layout-desktop .wm-sum dd {
   color: var(--heading);
   font: 700 16px/1.2 var(--font);
   overflow-wrap: anywhere; /* a long value wraps inside its tile instead of being cut */
+}
+
+html.layout-desktop .wm-sum-arrive {
+  min-height: calc(1.2em + 16px); /* time + day line always reserved: the tile never grows when "tomorrow" shows */
 }
 
 html.layout-desktop .wm-sum-day {

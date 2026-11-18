@@ -39,7 +39,7 @@ export function SiegePicker({ value, onChange, targetId, now }: { value: string;
           </option>
         ))}
       </select>
-      <p className="wm-muted">{ageText ? `Scouted ${ageText}` : 'No scout report'}</p>
+      <p className="wm-muted">{ageText ? `Scouted ${ageText}` : 'Building levels unknown: a detailed scout shows them'}</p>
     </div>
   );
 }
