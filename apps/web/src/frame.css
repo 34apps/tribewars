@@ -124,8 +124,25 @@ html.layout-desktop .toasts {
   flex-shrink: 0;
 }
 
-.frame .fr-top > .fr-vwrap {
+.frame .fr-top > .fr-vwrap,
+.frame .fr-top > .fr-vrow {
   flex-shrink: 1;
+}
+
+.fr-vrow {
+  gap: 10px;
+  min-width: 0;
+}
+
+.fr-vrow .fr-vwrap {
+  flex: 0 1 auto;
+}
+
+.fr-vrow .vb-rename-pop {
+  top: calc(100% + 14px);
+  border-width: 2.5px;
+  border-radius: 18px;
+  box-shadow: 0 4px 0 var(--c-ink), 0 14px 28px rgba(43, 33, 28, 0.25);
 }
 
 .fr-vbtn {

@@ -1052,6 +1052,7 @@ village has a grey ring and a thin line of smoke). Orders already in the queues 
   the reports do not agree are skipped.
 - The old owner's troops and the support of others that were still inside are sent home.
 - Points move to the new owner at once (the ranking already adds up all of a player's villages).
+- **The village keeps its name** (owner 2026-11-18): a taken village is not renamed; it keeps the name it had (the former owner's, or the abandoned village's) until the new owner renames it. Villages already renamed by the old rule stay as they are (no migration). A new village founded on empty land still gets "<name>'s village N".
 
 **Abandoned villages**: the same two steps but the hold is only 2 hours (was 6) and needs 1 Chieftain at any tier. This
 is the safest way to get a second village and gives the abandoned villages a new purpose. (They start at the

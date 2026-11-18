@@ -103,7 +103,9 @@ test('Strike, hold, change of owner: buildings kept, occupiers stay as support, 
   assert.equal(taken?.state.hearth, undefined);
   assert.equal(taken?.state.npc, undefined, 'a player village now');
   assert.equal(taken?.state.lockUntil, m.arriveAt + HOLD_MS + LOCK_MS, 'no new Strike for STRIKE_LOCK_HOURS');
-  assert.equal(taken?.name, "claimer's village 2");
+  assert.equal(taken?.name, cold.name, 'the village keeps its old name until the new owner renames it (owner 2026-11-18)');
+  assert.equal(taken?.name, target.name);
+  assert.ok(!/village 2/.test(taken?.name ?? ''), 'no automatic rename');
   assert.equal(villagesOf(app, p).length, 2);
   // The occupiers STAY as support from their home village (owner 2026-11-18): the village has no own troops, the contingent keeps its home
   // and keeps counting in the home village's away troops; the used-up Chieftain is gone.

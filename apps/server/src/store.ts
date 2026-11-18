@@ -954,7 +954,7 @@ export class Store extends SqlBase {
     this.run('UPDATE villages SET owner_id = NULL, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', name, id);
   }
 
-  /** The village changes owner (taken by a hold): new owner, new name, the hold clock is gone, the bot starts fresh. */
+  /** The village changes owner (taken by a hold): new owner, the name is kept, the hold clock is gone, the bot starts fresh. */
   setVillageOwner(id: number, ownerId: number, name: string): void {
     this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = ?, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', ownerId, name, id);

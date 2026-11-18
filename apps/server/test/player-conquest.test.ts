@@ -57,6 +57,8 @@ test('no pair cap: three villages are taken from the same victim in a row, three
   // The clocks end in order: all three villages are taken, there is no limit per victim any more.
   runTo(app, clock, m3.arriveAt + HOLD_MS + MINUTE);
   for (const v of [a, b, c]) assert.equal(store.getVillage(v.id)?.ownerId, claimer.id, 'taken');
+  // The names stay as the victim had them until the new owner renames them (owner 2026-11-18).
+  for (const v of [a, b, c]) assert.equal(store.getVillage(v.id)?.name, v.name, 'name kept after a take');
   assert.deepEqual((await villageReports(claimer)).filter((r) => r.village.kind === 'claim_failed'), []);
   // The victim lost their last village; a fresh one is made at their next request (rule from step 2).
   await victim.c.state();
