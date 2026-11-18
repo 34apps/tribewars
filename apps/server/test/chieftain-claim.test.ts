@@ -285,3 +285,16 @@ test('two sends to the same village before either arrives share one claim', asyn
   assertLedgerSane(app, p);
   await app.close();
 });
+
+test('cancel: calling a Strike back within two minutes gives the rest of the price back at once', async () => {
+  const { app, p, homeId, target } = await abandonedSetup();
+  const start = ledger(app, p);
+  const m = await goOk(p, homeId, target, { raider: 300, chieftain: 1 });
+  assert.equal(app.ctx.store.claimsHeld(p.id).renown, REST);
+  ok(await p.c.post(`/api/movements/${m.id}/cancel`, {}), 201);
+  assert.equal(app.ctx.store.claimsHeld(p.id).renown, 0);
+  assert.deepEqual(ledger(app, p), start);
+  assert.equal(chestOf(app, p).gold, 10_000);
+  assertLedgerSane(app, p);
+  await app.close();
+});

@@ -2732,6 +2732,7 @@ export class GameService {
       this.store.deleteMovement(m.id);
       if (m.kind === 'shipment') this.projects.forgetSend(m.id); // a cancelled funding shipment no longer counts towards the daily cap
       this.store.cancelNotifications(m.id); // the target's "incoming" notification goes with the order
+      this.sweepClaims(player.id, t); // a called-back Strike gives the rest of the village price back
       const view = this.store.getMovementView(id);
       if (!view) throw new Error('movement vanished after insert');
       return { movement: movementDto(view, player.id, t) };

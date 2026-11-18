@@ -615,7 +615,7 @@ export const HOLD_FAIL_HOURS = 2;
 export const STRIKE_LOCK_HOURS = 24;
 /** Chieftains needed to Strike a player village: 1 + floor(points / this), at most HEARTH_MAX_CHIEFTAINS (abandoned: always 1). */
 // was 4000: with 25 levels villages are about 3x bigger (2026-11-11), so 4000 asked for the maximum 3 Chieftains almost everywhere (BALANCE 13.3)
-export const HEARTH_POINTS_PER_CHIEFTAIN = 12000;
+export const HEARTH_POINTS_PER_CHIEFTAIN = 6000; // 2026-11-18: was 12000; a village now costs the same Renown however many Chieftains it needs, so more Chieftains (logistics) keep takes at 45 per 5 seeds (BALANCE 21)
 export const HEARTH_MAX_CHIEFTAINS = 3;
 /** Striking player villages (switched on in step 4, 2026-11-05). */
 export const HEARTH_PLAYERS_ENABLED = true;

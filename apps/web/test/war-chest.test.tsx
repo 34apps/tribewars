@@ -132,7 +132,7 @@ test('Banner Hall page: Feast, the 3 steps, and ALL Chieftain things in one card
   for (const gone of ['Feasts left today', 'No Feasts left', 'a day', 'Feast all', 'Need 1,600 Renown', 'Each one costs more']) assert.ok(!html.includes(gone), gone);
   assert.ok(html.includes('How taking a village works'));
   assert.equal((html.match(/<li>(Train enough|Send them|Hold the village)/g) ?? []).length, 3);
-  assert.ok(html.includes('How many?') && html.includes('A village needs 1, plus 1 for every 12,000 points it has (most 3).'));
+  assert.ok(html.includes('How many?') && html.includes('A village needs 1, plus 1 for every 6,000 points it has (most 3).'));
   // Header chips, a plain 1 / 2 / 3 control (no prices inside), the bars, the tooltip hint.
   assert.ok(html.includes('At home 0') && html.includes('On the way 0') && html.includes('Training 0'));
   for (const n of [1, 2, 3]) assert.ok(new RegExp(`aria-pressed="${n === 1}"[^>]*>${n}</button>`).test(html), `count ${n}`);

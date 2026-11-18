@@ -204,7 +204,7 @@ export function chieftainsAffordable(r: RenownInfo, limit = CHIEFTAIN_MAX_BATCH,
   return n;
 }
 
-/** How many Chieftains a village of `points` needs (abandoned: 1): "1, plus 1 for every 12,000 points (most 3)". */
+/** How many Chieftains a village of `points` needs (abandoned: 1): "1, plus 1 for every 6,000 points (most 3)". */
 export const CHIEFTAIN_COUNT_RULE = `A village needs 1, plus 1 for every ${HEARTH_POINTS_PER_CHIEFTAIN.toLocaleString('en-US')} points it has (most ${HEARTH_MAX_CHIEFTAINS}).`;
 
 /** The label above the 1 / 2 / 3 buttons. With a target in mind ("Sable's village needs 3"), the target's own count is added. */

@@ -373,7 +373,7 @@ test('siege option label: level and age only with a scout report', () => {
 });
 
 test('Chieftain count label: the rule, and the target when known', () => {
-  assert.equal(chieftainCountLabel(), 'How many Chieftains? A village needs 1, plus 1 for every 12,000 points it has (most 3).');
+  assert.equal(chieftainCountLabel(), 'How many Chieftains? A village needs 1, plus 1 for every 6,000 points it has (most 3).');
   assert.match(chieftainCountLabel({ name: "Sable's village", points: 24169 }), /Sable's village needs 3\.$/);
 });
 

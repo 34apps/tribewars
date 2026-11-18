@@ -1190,3 +1190,20 @@ whole map needs 30 players with 3,000 population standing at each of nine sites,
   village; what differs is the defence they must first beat (keepers or the tribe's stationed troops with +99%, but no flat village militia).
 - **Pace**: the Wall heals 2 levels a day, so even a full 6-level assault is healed in 3 days; a tribe that wants a soft shrine must attack again within a day
   or two. That is slow enough to matter and fast enough that a site is never left broken for weeks, so the 12 hour step was kept at 22 levels.
+
+
+## 21. Pay for the village, not for each Chieftain (owner 2026-11-18, branch `chieftain-price`; schema v31)
+
+Rule: a Chieftain reserves a deposit (`CHIEFTAIN_DEPOSIT_SHARE` 0.25 of the next village's Renown and chest price); the rest of the village price is reserved when the Strike/Found order is sent and spent when the village is gained (GAME_DESIGN 18.2). Sims: `scripts/sim/balance.ts` and `conquest.ts` model deposit, claim at sending, release on failure.
+
+| run (5 seeds, 90 days, conquest sim) | takes | restarts | worst biggest/second |
+|---|---|---|---|
+| before (one village price per Chieftain held) | 49 | 21 | 1.75 |
+| new rule, 12,000 points per Chieftain | **93** (too many) | 24 | 1.69 |
+| new rule, deposit share 0.5 | 50 | 21 | 1.73 |
+| new rule, 8,000 points per Chieftain | 45 | 20 | **2.78** (over 2x) |
+| **built: 0.25 deposit, `HEARTH_POINTS_PER_CHIEFTAIN` 6,000** | **45** | **19** | **1.23** |
+
+- Why takes doubled: a village that needs 2-3 Chieftains used to cost 2-3 villages' Renown, a brake; now it costs one. The lever is how many Chieftains a village needs (training, escort, survival), not the price: 6,000 points per Chieftain (need 2 from 6,000, 3 from 12,000).
+- Single-Chieftain sim (`npm run sim`, 30 days, and `--days 90`) is unchanged by the rule (one Chieftain, need 1, price paid once either way): 2nd village day 26.7 builder / 27.5 raider / not within run turtle / 20.7 balanced (balanced was 20.7 before too, just under the 21 line); score raider 19,139 vs builder 10,591 = 1.81x (target 1.5-2x met).
+- Conquest 2nd village (all seeds, 90 days): raider day 20.3, balanced 17.6 (as before: 20.0 / 17.7).
