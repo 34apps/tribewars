@@ -21,7 +21,7 @@ import {
   UNIT_IDS,
   buildingCost,
   canAfford,
-  chestChieftainPrice,
+  chestVillageCost,
   checkBuild,
   checkFeast,
   checkFoundTarget,
@@ -39,7 +39,7 @@ import {
   storageCapForLevel,
   travelTimeMs,
   villagePoints,
-  villageRenownPrice,
+  villageRenownCost,
   worldRules,
 } from '@clanfire/engine';
 import type { BuildingId, ChieftainId, Mission, Recruitment, Resources, UnitId, Units, VillageState } from '@clanfire/engine';
@@ -708,8 +708,8 @@ function growBot(ctx: AppContext, bot: Bot, t: number): Milestones & { hall: num
   let hold: Resources | null = null;
   if (trainerId !== undefined && chieftainsOutstanding(states()) === 0) {
     const p = player();
-    const renownOk = p.renownTotal - p.renownSpent >= villageRenownPrice(owned, 0, ctx.settings);
-    const chestOk = p.chestGold >= chestChieftainPrice(owned, 0, ctx.settings);
+    const renownOk = p.renownTotal - p.renownSpent >= villageRenownCost(owned, ctx.settings);
+    const chestOk = p.chestGold >= chestVillageCost(owned, ctx.settings);
     if (renownOk && chestOk) {
       hold = { ...UNITS.chieftain.cost }; // save up: only builds that leave his cost untouched, no training, no Feast
       const s = settledState(ctx, trainerId, t);

@@ -468,12 +468,18 @@
 
 .bh-count-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
+}
+
+.bh-count-row .bh-home {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .bh-count-row .bh-count {
-  flex: 1 1 auto;
+  flex: 1 1 140px;
   gap: 6px;
 }
 

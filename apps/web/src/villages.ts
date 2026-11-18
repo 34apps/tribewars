@@ -19,11 +19,14 @@ import {
   occupierPopulation,
   totalUnits,
   villagePoints,
-  villageRenownPrice,
+  chieftainDepositChest,
+  chieftainDepositRenown,
+  strikeRemainder,
   worldRules,
 } from '@clanfire/engine';
 import type {
   BuildingId,
+  ChestInfo,
   HearthInfoDto,
   MapVillageDto,
   Mission,
@@ -133,17 +136,65 @@ export function renameProblem(raw: string): string | null {
 
 // ---- Chieftain ------------------------------------------------------------------------------------------
 
-/** Renown the next Chieftain reserves: the server's number, or the engine rule when an older server did not send it. */
+/**
+ * Renown the next Chieftain reserves as a DEPOSIT (CHIEFTAIN_DEPOSIT_SHARE of the village price; owner 2026-11-18): the server's number,
+ * or the engine rule when an older server did not send it. It does not grow with the Chieftains held.
+ */
 export function nextChieftainPrice(r: RenownInfo, s?: Pick<WorldSettings, 'config'>): number {
-  return r.chieftainPrice ?? villageRenownPrice(r.villages, r.chieftains ?? 0, s);
+  return r.chieftainPrice ?? chieftainDepositRenown(r.villages, s);
 }
 
-/** Renown a batch of `count` Chieftains reserves (each one is priced as a village after those before it). `s`: this world's rules. */
+/** Renown a batch of `count` Chieftains reserves when it is trained: `count` deposits. `s`: this world's rules. */
 export function chieftainBatchPrice(r: RenownInfo, count: number, s?: Pick<WorldSettings, 'config'>): number {
-  const n = Math.max(0, Math.floor(count));
-  let sum = 0;
-  for (let i = 0; i < n; i++) sum += villageRenownPrice(r.villages, (r.chieftains ?? 0) + i, s);
-  return sum;
+  return Math.max(0, Math.floor(count)) * nextChieftainPrice(r, s);
+}
+
+/** What sending an order that can gain a village reserves: the rest of the village price (Renown, War Chest gold). */
+export function sendReserve(
+  r: Pick<RenownInfo, 'villages' | 'chieftainPrice'>,
+  chest: Pick<ChestInfo, 'chieftainPrice'> | undefined,
+  s?: Pick<WorldSettings, 'config'>,
+): { renown: number; gold: number } {
+  return strikeRemainder(r.villages, s, { renown: r.chieftainPrice ?? chieftainDepositRenown(r.villages, s), gold: chest?.chieftainPrice ?? chieftainDepositChest(r.villages, s) });
+}
+
+/** "Each Chieftain: 250 Renown + 500 gold now. The rest of the village price (750 Renown, 1,500 gold) is paid when you send them." */
+export function chieftainDepositLine(
+  r: Pick<RenownInfo, 'villages' | 'chieftainPrice'>,
+  chest: Pick<ChestInfo, 'chieftainPrice'> | undefined,
+  s?: Pick<WorldSettings, 'config'>,
+): string {
+  const n = (v: number) => v.toLocaleString('en-US');
+  const rest = sendReserve(r, chest, s);
+  const deposit = r.chieftainPrice ?? chieftainDepositRenown(r.villages, s);
+  if (!chest) return `Each Chieftain: ${n(deposit)} Renown now. The rest of the village price (${n(rest.renown)} Renown) is paid when you send them.`;
+  return `Each Chieftain: ${n(deposit)} Renown + ${n(chest.chieftainPrice)} gold now. The rest of the village price (${n(rest.renown)} Renown, ${n(rest.gold)} gold) is paid when you send them.`;
+}
+
+/** "750 Renown + 1,500 War Chest gold" reserved at sending; null (a chain already covers the village) reads "Already covered". */
+export function reserveText(due: { renown: number; gold: number } | null, hasChest = true): string {
+  if (!due) return 'Already covered';
+  const n = (v: number) => v.toLocaleString('en-US');
+  return hasChest ? `${n(due.renown)} Renown + ${n(due.gold)} War Chest gold` : `${n(due.renown)} Renown`;
+}
+
+/**
+ * Why a Strike or Found order cannot be sent for lack of Renown or War Chest gold (the server says the same), or null. `claimed`: the player
+ * already has a chain or claim on this village, so nothing more is reserved.
+ */
+export function sendReserveProblem(
+  r: Pick<RenownInfo, 'villages' | 'chieftainPrice' | 'balance'>,
+  chest: Pick<ChestInfo, 'chieftainPrice' | 'gold'> | undefined,
+  what: 'Strike' | 'Found order',
+  claimed: boolean,
+  s?: Pick<WorldSettings, 'config'>,
+): string | null {
+  if (claimed) return null;
+  const due = sendReserve(r, chest, s);
+  const n = (v: number) => v.toLocaleString('en-US');
+  if (due.renown > r.balance) return `You need ${n(Math.ceil(due.renown - r.balance))} more Renown to send this ${what}.`;
+  if (chest && due.gold > chest.gold) return `You need ${n(Math.ceil(due.gold - chest.gold))} more War Chest gold to send this ${what}.`;
+  return null;
 }
 
 /** Most Chieftains the Renown balance can reserve, at most `limit`. */
@@ -192,7 +243,7 @@ export function takingSteps(s: WorldSettings): string[] {
 /** The rule in words, with the real numbers. */
 export function chieftainRenownNote(): string {
   const pct = Math.round(CHIEFTAIN_RENOWN_REFUND_SHARE * 100);
-  return `Renown is reserved when training starts. ${pct}% comes back if he dies; all of it if you cancel the batch. It is used up when he founds or takes a village.`;
+  return `A deposit is reserved when training starts (${pct}% of it comes back if he dies; all of it if you cancel the batch). The rest of the village price is reserved when you send the order and spent when the village is yours. A village costs the same however many Chieftains it needs.`;
 }
 
 // ---- Missions on the map --------------------------------------------------------------------------------

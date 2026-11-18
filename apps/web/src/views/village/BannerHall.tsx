@@ -45,6 +45,7 @@ import {
   CHIEFTAIN_COUNT_RULE,
   HEARTH_OUT_REASON,
   chieftainBatchPrice,
+  chieftainDepositLine,
   chieftainRenownNote,
   takingSteps,
 } from "../../villages.ts";
@@ -272,17 +273,19 @@ function ChieftainCard() {
   const queue = live.trainQueues.bannerhall;
   const def = UNITS.chieftain;
   const owned = renown.villages;
-  const out = renown.chieftains ?? 0;
+  const home = live.troops.chieftain ?? 0;
+  const inTraining = queue.reduce((n, j) => n + j.count - j.done, 0);
 
-  // An open chain preselects what that village still needs; the player's own pick wins.
+  // A known target preselects what it still needs (an open chain's missing Chieftains, minus those already at home or in training);
+  // the player's own pick wins.
   const open = chains.find((c) => c.need > c.have);
   const wanted = open
-    ? Math.min(CHIEFTAIN_MAX_BATCH, open.need - open.have)
+    ? Math.max(1, Math.min(CHIEFTAIN_MAX_BATCH, open.need - open.have - home - inTraining))
     : 1;
   const count = picked ?? wanted;
 
   const batchRenown = chieftainBatchPrice(renown, count, settings);
-  const batchChest = chest ? chestBatchPrice(owned, out, count, settings) : 0;
+  const batchChest = chest ? chestBatchPrice(owned, count, settings) : 0;
   const batchCost = Object.fromEntries(
     RESOURCE_IDS.map((r) => [r, def.cost[r] * count]),
   ) as Resources;
@@ -306,7 +309,7 @@ function ChieftainCard() {
     try {
       applyVillage(await api.train(village.id, "chieftain", count));
       toast(
-        `${formatInt(count)} × ${def.name}: ${formatInt(batchRenown)} Renown reserved`,
+        `${formatInt(count)} × ${def.name}: ${formatInt(batchRenown)} Renown deposit reserved`,
       );
       setPicked(null);
     } catch (e) {
@@ -317,9 +320,7 @@ function ChieftainCard() {
     }
   }
 
-  const home = live.troops.chieftain ?? 0;
   const away = live.away.chieftain ?? 0;
-  const inTraining = queue.reduce((n, j) => n + j.count - j.done, 0);
   const rules = worldRules(settings).conquest;
   const hourMs = 3_600_000 / Math.max(1e-6, settings.speed);
   const windowMs = rules.chainWindowHours * hourMs;
@@ -343,6 +344,9 @@ function ChieftainCard() {
         <div className="bh-train">
           <div className="bh-count-row">
             <b id="bh-count-label">How many?</b>
+            <span className="muted bh-home">
+              You have {formatInt(home)} at home
+            </span>
             <div
               className="bh-count"
               role="group"
@@ -364,6 +368,9 @@ function ChieftainCard() {
               )}
             </div>
           </div>
+          <p className="muted bh-fine">
+            {chieftainDepositLine(renown, chest, settings)}
+          </p>
           <p className="muted bh-fine">
             {open ? `${open.name} needs ${open.need - open.have} more. ` : ""}
             {CHIEFTAIN_COUNT_RULE}
@@ -419,7 +426,7 @@ function ChieftainCard() {
         <button
           type="button"
           className="btn btn-primary bh-go bh-train-btn"
-          title={`Each extra Chieftain costs more. ${chieftainRenownNote()}`}
+          title={chieftainRenownNote()}
           disabled={!!reason || busy}
           onClick={() => void train()}
         >

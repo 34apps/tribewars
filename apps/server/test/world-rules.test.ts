@@ -154,7 +154,7 @@ test('pace.unitSpeed: attacks and shipments take half the walking time at unit s
 
 const train = (c: Client, vid: number, count: number) => c.post(`/api/villages/${vid}/train`, { unit: 'chieftain', count });
 
-test('conquest.renownBase: the price of the 2nd village, the Chieftain reservation and the next price follow the world', async () => {
+test('conquest.renownBase: the price of the 2nd village, the Chieftain deposit and the next price follow the world', async () => {
   const { def, cus } = await twin({ conquest: { renownBase: 200 } });
   const seen: Array<{ next: number; price: number; reserved: number; priceAfter: number }> = [];
   for (const w of [def, cus]) {
@@ -167,8 +167,9 @@ test('conquest.renownBase: the price of the 2nd village, the Chieftain reservati
     const after = (await p.c.state()).renown;
     seen.push({ next: before.nextVillageCost, price: before.chieftainPrice ?? -1, reserved: after.reserved ?? -1, priceAfter: after.chieftainPrice ?? -1 });
   }
-  assert.deepEqual(seen[0], { next: RENOWN_VILLAGE_BASE, price: RENOWN_VILLAGE_BASE, reserved: RENOWN_VILLAGE_BASE, priceAfter: Math.round(RENOWN_VILLAGE_BASE * DEFAULT_WORLD_CONFIG.conquest.renownGrowth) });
-  assert.deepEqual(seen[1], { next: 200, price: 200, reserved: 200, priceAfter: Math.round(200 * DEFAULT_WORLD_CONFIG.conquest.renownGrowth) });
+  // The deposit is a quarter of the village price and stays the same for the next Chieftain.
+  assert.deepEqual(seen[0], { next: RENOWN_VILLAGE_BASE, price: RENOWN_VILLAGE_BASE / 4, reserved: RENOWN_VILLAGE_BASE / 4, priceAfter: RENOWN_VILLAGE_BASE / 4 });
+  assert.deepEqual(seen[1], { next: 200, price: 50, reserved: 50, priceAfter: 50 });
   await def.app.close();
   await cus.app.close();
 });

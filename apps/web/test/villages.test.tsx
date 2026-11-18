@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CHIEFTAIN_MAX_BATCH, HOLD_HOURS, HOLD_HOURS_ABANDONED, HOLD_MIN_POPULATION, STRIKE_CHAIN_WINDOW_HOURS, emptyUnits, villageRenownCost, villageRenownPrice } from '@clanfire/engine';
+import { CHIEFTAIN_MAX_BATCH, HOLD_HOURS, HOLD_HOURS_ABANDONED, HOLD_MIN_POPULATION, STRIKE_CHAIN_WINDOW_HOURS, chieftainDepositRenown, emptyUnits, villageRenownCost } from '@clanfire/engine';
 import type { HearthInfoDto, MapVillageDto, RenownInfo, Units, VillageListItemDto, VillageReportData } from '@clanfire/engine';
 import {
   abandonedStrength,
@@ -17,7 +17,11 @@ import {
   alertCount,
   canStrike,
   chieftainBatchPrice,
+  chieftainDepositLine,
   chieftainRenownNote,
+  reserveText,
+  sendReserve,
+  sendReserveProblem,
   chieftainsAffordable,
   foundProblem,
   hearthBuildReason,
@@ -94,7 +98,7 @@ function mapVillage(over: Partial<MapVillageDto> & { id: number }): MapVillageDt
 }
 
 function renown(over: Partial<RenownInfo> = {}): RenownInfo {
-  return { total: 2000, spent: 500, balance: 1500, nextVillageCost: villageRenownCost(2), villages: 2, reserved: 0, chieftains: 0, chieftainPrice: villageRenownPrice(2, 0), ...over };
+  return { total: 2000, spent: 500, balance: 1500, nextVillageCost: villageRenownCost(2), villages: 2, reserved: 0, chieftains: 0, chieftainPrice: chieftainDepositRenown(2), ...over };
 }
 
 test('holdView counts down while running and shows what is left while paused', () => {
@@ -168,26 +172,50 @@ test('renameProblem follows the server rule: 1 to 30 characters of letters, digi
   assert.ok(renameProblem('<b>hi</b>'));
 });
 
-test('Chieftain price: the next one, a batch and what the balance affords', () => {
+test('Chieftain price: the deposit of the next one, a batch of deposits and what the balance affords', () => {
   const r = renown();
-  assert.equal(nextChieftainPrice(r), villageRenownPrice(2, 0));
+  assert.equal(nextChieftainPrice(r), 520, 'a quarter of the 3rd village price (2,080)');
+  assert.equal(nextChieftainPrice(r), chieftainDepositRenown(2));
   // Without the server's number the engine rule gives the same.
-  assert.equal(nextChieftainPrice(renown({ chieftainPrice: undefined, chieftains: 1 })), villageRenownPrice(2, 1));
+  assert.equal(nextChieftainPrice(renown({ chieftainPrice: undefined, chieftains: 1 })), chieftainDepositRenown(2));
   assert.equal(chieftainBatchPrice(r, 0), 0);
-  assert.equal(chieftainBatchPrice(r, 1), villageRenownPrice(2, 0));
-  assert.equal(chieftainBatchPrice(r, 3), villageRenownPrice(2, 0) + villageRenownPrice(2, 1) + villageRenownPrice(2, 2));
-  // Each Chieftain I already have makes the next one dearer.
-  assert.ok(chieftainBatchPrice(renown({ chieftains: 2 }), 1) > chieftainBatchPrice(r, 1));
+  assert.equal(chieftainBatchPrice(r, 1), 520);
+  assert.equal(chieftainBatchPrice(r, 3), 3 * 520, 'every Chieftain pays the same deposit');
+  // The Chieftains I already have do NOT make the next one dearer (owner 2026-11-18).
+  assert.equal(chieftainBatchPrice(renown({ chieftains: 2 }), 1), chieftainBatchPrice(r, 1));
   assert.equal(chieftainsAffordable(renown({ balance: 0 })), 0);
-  assert.equal(chieftainsAffordable(renown({ balance: villageRenownPrice(2, 0) })), 1);
+  assert.equal(chieftainsAffordable(renown({ balance: 520 })), 1);
   assert.equal(chieftainsAffordable(renown({ balance: 1e9 })), CHIEFTAIN_MAX_BATCH);
   assert.equal(chieftainsAffordable(renown({ balance: 1e9 }), 2), 2);
 });
 
+test('the deposit line and the rest of the village price', () => {
+  const r = renown({ villages: 1, chieftainPrice: undefined, nextVillageCost: 1300 });
+  assert.equal(
+    chieftainDepositLine(r, { chieftainPrice: 500 }),
+    'Each Chieftain: 325 Renown + 500 gold now. The rest of the village price (975 Renown, 1,500 gold) is paid when you send them.',
+  );
+  assert.equal(chieftainDepositLine(r, undefined), 'Each Chieftain: 325 Renown now. The rest of the village price (975 Renown) is paid when you send them.');
+  assert.deepEqual(sendReserve(r, { chieftainPrice: 500 }), { renown: 975, gold: 1500 });
+  assert.equal(reserveText({ renown: 975, gold: 1500 }), '975 Renown + 1,500 War Chest gold');
+  assert.equal(reserveText(null), 'Already covered');
+});
+
+test('send form: short of Renown or gold says how much is missing, in the same words as the server; a chain on the village needs nothing more', () => {
+  const r = renown({ villages: 1, chieftainPrice: undefined, nextVillageCost: 1300, balance: 925 });
+  const chest = { chieftainPrice: 500, gold: 1500 };
+  assert.equal(sendReserveProblem(r, chest, 'Strike', false), 'You need 50 more Renown to send this Strike.');
+  assert.equal(sendReserveProblem({ ...r, balance: 975 }, { ...chest, gold: 1200 }, 'Strike', false), 'You need 300 more War Chest gold to send this Strike.');
+  assert.equal(sendReserveProblem({ ...r, balance: 975 }, { ...chest, gold: 1500 }, 'Found order', false), null);
+  assert.equal(sendReserveProblem(r, chest, 'Strike', true), null, 'already covered by an open chain');
+  assert.equal(sendReserveProblem({ ...r, balance: 0 }, { ...chest, gold: 0 }, 'Found order', true), null);
+});
+
 test('the Renown note carries the real refund share', () => {
   const t = chieftainRenownNote();
-  assert.match(t, /reserved when training starts/);
-  assert.match(t, /50% comes back if he dies/);
+  assert.match(t, /deposit is reserved when training starts/);
+  assert.match(t, /same however many Chieftains it needs/);
+  assert.match(t, /50% of it comes back if he dies/);
 });
 
 test('missionsFor: free tile founds, own villages support, my claim occupies, others follow the relation', () => {
