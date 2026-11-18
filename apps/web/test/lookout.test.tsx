@@ -60,5 +60,5 @@ test('Waymark and Lookout: kind line, no Renown line, name from the server, rang
   const w = { id: 12, kind: 'waymark', name: 'Waymark 3', bonus: 0 } as SiteDto;
   assert.equal(siteName(w), 'Waymark 3');
   // The panel prints siteKindLine for these two kinds and never calls siteBonusText for them.
-  assert.ok(siteBonusText({ bonus: 0.01, holder: null }).includes('Renown'));
+  assert.ok(siteBonusText({ kind: 'fire_shrine', awake: false, renownPerDayDormant: 15, renownPerDayAwake: 30 }).includes('Renown'));
 });

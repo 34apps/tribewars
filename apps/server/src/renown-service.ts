@@ -160,7 +160,7 @@ export class RenownService {
         notes.set(w.playerId, open < 0.5 * a.counted ? 'daily_cap' : size < 0.5 ? 'small_target' : 'tiny');
       }
       store.addRenownPair(w.playerId, w.key, a.counted, at, windowMs);
-      const credited = store.addRenown(w.playerId, renown); // includes the Fire Shrine bonus, so the report shows what was really paid
+      const credited = store.addRenown(w.playerId, renown);
       gains.set(w.playerId, (gains.get(w.playerId) ?? 0) + credited);
     }
     const out = new Map<number, BattleOutcome>();

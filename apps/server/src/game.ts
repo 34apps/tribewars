@@ -490,6 +490,7 @@ export class GameService {
     if (!this.store.isWorldEnded()) {
       try {
         this.sites.reconcileIfDue(now);
+        this.sites.settleHolders(now);
       } catch (err) {
         this.log.error({ err }, 'site upkeep failed');
       }
@@ -1734,6 +1735,7 @@ export class GameService {
   getState(player: PlayerRow, t: number): GameStateResponse {
     // Defender Renown (source 4) that is earned but not saved yet: a read never writes it (the next save pays exactly this),
     // it only shows it, so the number on screen is current.
+    this.sites.settleMember(player.id, t); // daily site Renown earned so far is credited, so the total shown is current
     let pending = 0;
     let chieftains = 0;
     const fresh0 = this.store.getPlayer(player.id) ?? player;
@@ -1763,8 +1765,8 @@ export class GameService {
       villages,
       chest: this.chestInfo(fresh, villages.length, chieftains),
       renown: {
-        // The pending trickle shows with the Fire Shrine bonus the save will add (Store.addRenown), so the number on screen matches.
-        ...makeRenownInfo(fresh.renownTotal + pending * (1 + (pending > 0 ? this.sites.renownBonusOf(player.id, t) : 0)), fresh.renownSpent, villages.length, this.settings),
+        // The pending defender trickle shows too; the site Renown was settled into the total above.
+        ...makeRenownInfo(fresh.renownTotal + pending, fresh.renownSpent, villages.length, this.settings),
         reserved: Math.floor(fresh.renownReserved + 1e-9),
         chieftainPrice: villageRenownPrice(Math.max(1, villages.length), chieftains, this.settings),
         chieftains,
@@ -2167,6 +2169,7 @@ export class GameService {
   train(player: PlayerRow, villageId: number, unit: string, count: number, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
+      if (unit === 'chieftain') this.sites.settleMember(player.id, t); // site Renown earned so far counts toward the price
       const others = unit === 'chieftain' ? this.outstandingChieftains(player.id, t) : 0;
       const next = applyTrain(v.state, unit, count, t, this.settings);
       this.store.saveVillage(v.id, next, villagePoints(next)); // also pays Renown that finished building levels earned
@@ -2295,7 +2298,7 @@ export class GameService {
       const v = this.ownedVillage(player, villageId);
       const { state, renown } = applyFeast(v.state, count, t, this.settings);
       this.store.saveVillage(v.id, state, villagePoints(state));
-      const gained = this.store.addRenown(player.id, renown); // includes the Fire Shrine bonus of the player's tribe, if any
+      const gained = this.store.addRenown(player.id, renown);
       const fresh = this.store.getPlayer(player.id) ?? player;
       const owned = this.store.villagesOfPlayer(player.id).length;
       return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned, this.settings), gained };
@@ -2703,7 +2706,7 @@ export class GameService {
         for (let i = 0; i < 3; i++) need += villageRenownCost(owned + i, this.settings);
         const p = this.store.getPlayer(player.id) ?? player;
         const short = need - (p.renownTotal - p.renownSpent);
-        if (short > 0) this.store.addRenown(player.id, short, true); // a top-up, not an earning: no site bonus
+        if (short > 0) this.store.addRenown(player.id, short); // a top-up
         // The same for War Chest gold (Chieftains reserve it): enough for the next 3 Chieftains, topped up only when short.
         let chestNeed = 0;
         for (let i = 0; i < 3; i++) chestNeed += chestChieftainPrice(owned, i, this.settings);

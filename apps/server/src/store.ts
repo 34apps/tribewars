@@ -532,10 +532,8 @@ export class Store extends SqlBase {
   readonly sites: SiteStore;
   /**
    * Set by the SiteService: the name of the site standing on a tile, or null. Movements to a tile show it as their target.
-   * Also the Renown bonus (0.04 = +4%) the player's tribe earns from the sites it holds; 0 when there is none.
    */
   siteNameAt: ((x: number, y: number) => string | null) | null = null;
-  renownBonusOf: ((playerId: number) => number) | null = null;
   /** Mail table. Shares this connection, so it takes part in `tx`. */
   readonly mail: MailStore;
   readonly notifications: NotificationStore;
@@ -578,11 +576,14 @@ export class Store extends SqlBase {
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
+    this.tribes.beforeMembersLeave = (ids) => this.settleSiteRenown?.(ids);
     for (const s of [this.tribes, this.projects, this.domination, this.notifications, this.mail, this.forum, this.staff, this.support, this.msgReports]) s.emit = this.emit;
   }
 
   /** Set by every write the site upkeep reacts to; the SiteService clears it after a pass (see SiteService.reconcileIfDue). Starts true so the first request checks. */
   siteUpkeepDirty = true;
+  /** Set by the SiteService: credits the site Renown the given members earned so far (called right before they leave a tribe). */
+  settleSiteRenown: ((playerIds: number[]) => void) | null = null;
 
   markSiteUpkeepDirty(): void {
     this.siteUpkeepDirty = true;
@@ -1311,17 +1312,11 @@ export class Store extends SqlBase {
 
   // ---- Renown (docs/GAME_DESIGN.md section 18.2) --------------------------------------------------
 
-  /**
-   * Add earned Renown to a player's total and return what was really credited. Never negative: Renown is never taken away.
-   * Every earning path ends here, so the Fire Shrine bonus (docs/GAME_DESIGN.md 18.4b: +x% for every member of a tribe that holds
-   * sites) is applied in exactly this one place and can never count twice. `plain` skips it (test-mode top-ups are not earnings).
-   */
-  addRenown(playerId: number, amount: number, plain = false): number {
+  /** Add earned Renown to a player's total and return what was credited. Never negative: Renown is never taken away. Every earning path ends here. */
+  addRenown(playerId: number, amount: number): number {
     if (!(amount > 0)) return 0;
-    const bonus = plain ? 0 : (this.renownBonusOf?.(playerId) ?? 0);
-    const credited = bonus > 0 ? amount * (1 + bonus) : amount;
-    this.run('UPDATE players SET renown_total = renown_total + ? WHERE id = ?', credited, playerId);
-    return credited;
+    this.run('UPDATE players SET renown_total = renown_total + ? WHERE id = ?', amount, playerId);
+    return amount;
   }
 
   /** Raw Renown already counted for (earner, opponent) in the window that is open at `at`; 0 when there is none. */

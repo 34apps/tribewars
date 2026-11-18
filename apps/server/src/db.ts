@@ -370,7 +370,9 @@ CREATE TABLE IF NOT EXISTS tribe_members (
   role      TEXT    NOT NULL CHECK (role IN ('leader', 'officer', 'member')),
   joined_at INTEGER NOT NULL,
   -- Individual rights the leader granted on top of the role: a JSON array of TRIBE_GRANTABLE names.
-  grants    TEXT    NOT NULL DEFAULT '[]'
+  grants    TEXT    NOT NULL DEFAULT '[]',
+  -- Time (ms) up to which the member's daily site Renown is credited (schema v30); null = since joined_at.
+  site_renown_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_tribe_members_tribe ON tribe_members(tribe_id);
 -- At most one leader per tribe.
@@ -638,7 +640,13 @@ BEGIN SELECT RAISE(ABORT, 'the world end is final'); END;
 CREATE TABLE IF NOT EXISTS sites (
   id              INTEGER PRIMARY KEY,
   holder_tribe_id INTEGER REFERENCES tribes(id) ON DELETE SET NULL,
-  calm_until      INTEGER NOT NULL DEFAULT 0
+  calm_until      INTEGER NOT NULL DEFAULT 0,
+  -- The site Wall (builds itself: level wall_level as of wall_at, null = level 0 since the world began) and the keepers' regrowth
+  -- (share keepers_base as of keepers_since; the defaults mean full keepers). Schema v30.
+  wall_level      INTEGER NOT NULL DEFAULT 0,
+  wall_at         INTEGER,
+  keepers_base    REAL    NOT NULL DEFAULT 1,
+  keepers_since   INTEGER NOT NULL DEFAULT 0
 );
 -- Troops standing at a site: one contingent per (site, home village). Like 'stationed', the units stay in the home village's "away" count.
 CREATE TABLE IF NOT EXISTS site_garrison (
@@ -726,9 +734,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 29; // 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 30; // 30: sites.wall_level/wall_at (self-building site Wall) + keepers_base/keepers_since (keepers regrow) and tribe_members.site_renown_at (daily Renown per member from held sites; added by addMissingColumns, null = since joined_at, no data step) (2026-11-18); 29: audit_log trigger replaced: the only allowed update is blanking actor_ip (the caretaker does it after 30 days; entries stay) (2026-11-18); 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '87704f137687a164';
+export const SCHEMA_FINGERPRINT = 'd096b74f4a231609';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {
@@ -1140,6 +1148,12 @@ function addMissingColumnsInner(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_villages_npc_refresh ON villages(npc_refresh_at) WHERE owner_id IS NULL');
   const members = db.prepare('PRAGMA table_info(tribe_members)').all() as Array<{ name: string }>;
   if (!members.some((c) => c.name === 'grants')) db.exec("ALTER TABLE tribe_members ADD COLUMN grants TEXT NOT NULL DEFAULT '[]'");
+  const siteCols = db.prepare('PRAGMA table_info(sites)').all() as Array<{ name: string }>;
+  if (!siteCols.some((c) => c.name === 'wall_level')) db.exec('ALTER TABLE sites ADD COLUMN wall_level INTEGER NOT NULL DEFAULT 0');
+  if (!siteCols.some((c) => c.name === 'wall_at')) db.exec('ALTER TABLE sites ADD COLUMN wall_at INTEGER');
+  if (!siteCols.some((c) => c.name === 'keepers_base')) db.exec('ALTER TABLE sites ADD COLUMN keepers_base REAL NOT NULL DEFAULT 1');
+  if (!siteCols.some((c) => c.name === 'keepers_since')) db.exec('ALTER TABLE sites ADD COLUMN keepers_since INTEGER NOT NULL DEFAULT 0');
+  if (!members.some((c) => c.name === 'site_renown_at')) db.exec('ALTER TABLE tribe_members ADD COLUMN site_renown_at INTEGER');
   // Home-village unit ranks stamped when troops leave (section 15). Null = no ranks (older rows).
   // Test mode only: fixed travel seconds for the way home, chosen when sending.
   const moveCols = db.prepare('PRAGMA table_info(movements)').all() as Array<{ name: string }>;

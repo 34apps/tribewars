@@ -1,7 +1,8 @@
-// Map sites: the Great Fire, eight Fire Shrines, six Waymarks and six Lookouts (docs/GAME_DESIGN.md 18.4b "Step 5"). Placement, militia, wake-up, Renown
-// bonus and the battle shape. Pure and deterministic from the world seed; ownership and garrisons live on the server.
+// Map sites: the Great Fire, eight Fire Shrines, six Waymarks and six Lookouts (docs/GAME_DESIGN.md 18.4b "Step 5"). Placement, militia, wake-up, daily Renown
+// per member and the battle shape. Pure and deterministic from the world seed; ownership and garrisons live on the server.
 
 import {
+  BUILDINGS,
   LOOKOUT_RADIUS,
   LOOKOUT_SIZE_BANDS,
   POP_PER_UNIT,
@@ -12,12 +13,13 @@ import {
   SHRINE_RING_RADII,
   SHRINE_WAKE_DAYS,
   SITE_CALM_HOURS,
+  SITE_KEEPERS_REGROW_HOURS,
+  SITE_WALL_STEP_HOURS,
   SITE_MAX_POPULATION,
   SITE_MILITIA,
   SITE_MIN_SPACING,
   SITE_NO_VILLAGE_RADIUS,
-  SITE_RENOWN_BONUS,
-  SITE_RENOWN_BONUS_CAP,
+  SITE_RENOWN_PER_DAY,
 } from './config.ts';
 import type { SiteKind } from './config.ts';
 import { hashSeed, mulberry32 } from './random.ts';
@@ -155,20 +157,60 @@ export function isShrineAwake(worldCreatedAt: number, now: number, s: Speed): bo
 
 // ---- Militia, cap, bonus ------------------------------------------------------------------------
 
-/** Population of the militia of an unheld site (doubled while awake). */
-export function siteMilitiaPopulation(kind: SiteKind, awake: boolean): number {
+/** Population of the militia (the keepers) of an unheld site at full strength (doubled while awake); `fraction` (0..1) is how much of them stands now. */
+export function siteMilitiaPopulation(kind: SiteKind, awake: boolean, fraction = 1): number {
   // Waymarks and Lookouts never wake.
   const wakes = kind === 'fire_shrine' || kind === 'great_fire';
-  return SITE_MILITIA[kind] * (awake && wakes ? SHRINE_AWAKE_MILITIA_FACTOR : 1);
+  return SITE_MILITIA[kind] * (awake && wakes ? SHRINE_AWAKE_MILITIA_FACTOR : 1) * Math.max(0, Math.min(1, fraction));
 }
 
-/** Militia of an unheld site: half the population as pikemen, the rest as shieldbearers (POP_PER_UNIT sizes the counts). */
-export function siteMilitia(kind: SiteKind, awake: boolean): Units {
-  const pop = siteMilitiaPopulation(kind, awake);
+/** Militia of an unheld site: half the population as pikemen, the rest as shieldbearers (POP_PER_UNIT sizes the counts). `fraction` as above. */
+export function siteMilitia(kind: SiteKind, awake: boolean, fraction = 1): Units {
+  const pop = siteMilitiaPopulation(kind, awake, fraction);
   const u = emptyUnits();
   u.pikeman = Math.floor(pop / 2 / POP_PER_UNIT.pikeman);
   u.guard = Math.floor((pop - u.pikeman * POP_PER_UNIT.pikeman) / POP_PER_UNIT.guard);
   return u;
+}
+
+// ---- Keepers that grow back, the site Wall that builds itself -----------------------------------
+
+/** Length of the keepers' regrowth in ms: SITE_KEEPERS_REGROW_HOURS divided by world speed. */
+export function keepersRegrowMs(s: Speed): number {
+  return Math.round((SITE_KEEPERS_REGROW_HOURS * MS_PER_HOUR) / s.speed);
+}
+
+/**
+ * Share (0..1) of the keepers standing at time `now`, given the stored `base` share at `since` (set to 0 when the holding tribe's last troops leave
+ * and after a fight that killed keepers). Rises linearly to 1 over keepersRegrowMs. A site never held and never fought is `{ base: 1, since: 0 }`.
+ * A held site has no keepers; the caller does not ask then. A clock before `since` gives `base`.
+ */
+export function keepersFraction(state: { base: number; since: number }, now: number, s: Speed): number {
+  const grown = now > state.since ? (now - state.since) / keepersRegrowMs(s) : 0;
+  return Math.max(0, Math.min(1, state.base + grown));
+}
+
+/** Length of one site Wall step in ms: SITE_WALL_STEP_HOURS divided by world speed. */
+export function siteWallStepMs(s: Speed): number {
+  return Math.round((SITE_WALL_STEP_HOURS * MS_PER_HOUR) / s.speed);
+}
+
+/** The top Wall level of a site: the top Wall level of the game. */
+export function siteWallMax(): number {
+  return BUILDINGS.wall.maxLevel;
+}
+
+/** Wall level of a site at `now`, given its stored `level` as of `at` (a clock before `at` gives `level`). Rises one level per step, up to siteWallMax. */
+export function siteWallLevel(state: { level: number; at: number }, now: number, s: Speed): number {
+  const steps = now > state.at ? Math.floor((now - state.at) / siteWallStepMs(s)) : 0;
+  return Math.min(siteWallMax(), Math.max(0, state.level) + steps);
+}
+
+/** Ms until the next Wall level at `now`, or null at the top level. */
+export function siteWallNextMs(state: { level: number; at: number }, now: number, s: Speed): number | null {
+  if (siteWallLevel(state, now, s) >= siteWallMax()) return null;
+  const step = siteWallStepMs(s);
+  return step - (now > state.at ? (now - state.at) % step : 0);
 }
 
 /** Most population that can be stationed at a site. */
@@ -176,16 +218,28 @@ export function siteMaxPopulation(kind: SiteKind): number {
   return SITE_MAX_POPULATION[kind];
 }
 
-/** Renown bonus (0.04 = +4%) one held site gives every member of the holding tribe. Waymarks and Lookouts give none. */
-export function siteBonus(kind: SiteKind, awake: boolean): number {
-  return SITE_RENOWN_BONUS[awake ? 'awake' : 'dormant'][kind];
+/** Renown per 24 game hours (before world speed) each member of the holding tribe earns from one held site. Waymarks and Lookouts give none. */
+export function siteRenownPerDay(kind: SiteKind, awake: boolean): number {
+  return SITE_RENOWN_PER_DAY[awake ? 'awake' : 'dormant'][kind];
 }
 
-/** Sum of the held sites' bonuses, capped at SITE_RENOWN_BONUS_CAP: add it to 1 for the Renown multiplier. */
-export function tribeRenownBonus(heldSites: ReadonlyArray<{ kind: SiteKind; awake: boolean }>): number {
+/** Sum of siteRenownPerDay over the sites a tribe holds, at one moment (before world speed). No cap: holding more is worth more. */
+export function tribeRenownPerDay(heldKinds: readonly SiteKind[], awake: boolean): number {
   let sum = 0;
-  for (const h of heldSites) sum += siteBonus(h.kind, h.awake);
-  return Math.min(SITE_RENOWN_BONUS_CAP, sum);
+  for (const k of heldKinds) sum += siteRenownPerDay(k, awake);
+  return sum;
+}
+
+/**
+ * Renown one member earns from `from` to `to` (ms) while their tribe holds `heldKinds` the whole time: the daily rate scaled by world speed,
+ * split at `wakesAt` where the sites wake and the rate changes. 0 for an empty or backwards span (a clock that moved back never pays).
+ */
+export function siteRenownAccrued(heldKinds: readonly SiteKind[], from: number, to: number, wakesAt: number, s: Speed): number {
+  if (!(to > from) || heldKinds.length === 0) return 0;
+  const dormantMs = Math.max(0, Math.min(to, wakesAt) - from);
+  const awakeMs = Math.max(0, to - Math.max(from, wakesAt));
+  const perMs = (awake: boolean): number => (tribeRenownPerDay(heldKinds, awake) * s.speed) / (24 * MS_PER_HOUR);
+  return perMs(false) * dormantMs + perMs(true) * awakeMs;
 }
 
 // ---- Waymarks and Lookouts ----------------------------------------------------------------------
@@ -233,17 +287,20 @@ export interface SiteBattleInput {
   seed: number;
   /** Defence factor for the defending side (Wards of the holding tribe, GAME_DESIGN 18.5). Default 1. */
   defenceMultiplier?: number;
+  /** The site's Wall level now (default 0): Log Rams lower it, and whatever is left adds its percentage bonus for everyone standing at the site. */
+  wall?: number;
 }
 
 /**
  * A battle at a site: resolveBattle against a defender with no buildings (wall 0), no resources and no loot, the militia as its own
- * troops and no Bulwark on it. No siege damage. Note resolveBattle still adds the small flat WALL_BASE_DEFENSE every defender has.
+ * troops and no Bulwark on it. Only Log Rams do damage, to the site's Wall (`wall`). The village Wall militia does not apply (the keepers are the militia).
  * The result is the usual BattleResult: `defenderLosses` is the militia's, `supportLosses[i]` the contingents'. Apply the losses to
  * the site's stored garrison yourself (the engine keeps no site state).
  */
 export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
   const buildings = {} as BuildingLevels;
   for (const b of BUILDING_IDS) buildings[b] = 0;
+  buildings.wall = Math.max(0, Math.floor(input.wall ?? 0));
   const defender: VillageState = {
     resources: emptyResources(),
     lastUpdate: 0,
@@ -252,6 +309,8 @@ export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
     away: emptyUnits(),
     buildQueue: [],
     trainQueues: { barracks: [], stables: [], wrightyard: [], bannerhall: [] },
+    // The keepers are the militia: the Wall's own village militia does not apply (resolveBattle gives `npc` villages none), only its percentage bonus.
+    npc: { tier: 1, growthSteps: 0, createdAt: 0 },
   };
   const result = resolveBattle({
     attackerUnits: input.attackerUnits,
@@ -264,5 +323,6 @@ export function resolveSiteBattle(input: SiteBattleInput): BattleResult {
     siegeTarget: null,
     defenceMultiplier: input.defenceMultiplier,
   });
-  return { ...result, siege: [] };
+  // Only the Wall can be hit (a Firecart finds no building to burn).
+  return { ...result, siege: (result.siege ?? []).filter((h) => h.building === 'wall') };
 }

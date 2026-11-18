@@ -7,7 +7,7 @@ import { useLiveConnected, useLiveTopic } from './useLive.tsx';
 
 const POLL_MS = 30_000; // 60 s while live updates are connected
 
-const NONE: SitesResponse = { sites: [], wakesAt: 0, myBonus: 0 };
+const NONE: SitesResponse = { sites: [], wakesAt: 0, myBonus: 0, myRenownPerDay: 0 };
 
 export interface SitesStore extends SitesResponse {
   /** The first answer (or failure) has arrived. */
@@ -34,7 +34,7 @@ export function useSites(enabled = true): SitesStore {
       applied.current = my;
       const list = Array.isArray(res.sites) ? (res.sites as SiteDto[]) : [];
       publishSites(list);
-      setData({ sites: list, wakesAt: res.wakesAt ?? 0, myBonus: res.myBonus ?? 0 });
+      setData({ sites: list, wakesAt: res.wakesAt ?? 0, myBonus: 0, myRenownPerDay: res.myRenownPerDay ?? 0 });
     } catch {
       // No sites route yet, or a hiccup: keep what we have (nothing at first).
     } finally {

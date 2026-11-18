@@ -11,6 +11,27 @@ export interface SiteRow {
   holderTribeId: number | null;
   /** No attack may arrive before this time (ms); 0 = never calm. */
   calmUntil: number;
+  /** Site Wall: this level as of `wallAt` (null = level 0 since the world began); the engine's siteWallLevel gives the level now. */
+  wallLevel: number;
+  wallAt: number | null;
+  /** Keepers: this share (0..1) as of `keepersSince`; the engine's keepersFraction gives the share now. */
+  keepersBase: number;
+  keepersSince: number;
+}
+
+const SITE_COLS = 'id, holder_tribe_id, calm_until, wall_level, wall_at, keepers_base, keepers_since';
+const NEW_SITE: Omit<SiteRow, 'id'> = { holderTribeId: null, calmUntil: 0, wallLevel: 0, wallAt: null, keepersBase: 1, keepersSince: 0 };
+
+function toSite(r: Raw): SiteRow {
+  return {
+    id: r.id as number,
+    holderTribeId: (r.holder_tribe_id as number | null) ?? null,
+    calmUntil: r.calm_until as number,
+    wallLevel: (r.wall_level as number | null) ?? 0,
+    wallAt: (r.wall_at as number | null) ?? null,
+    keepersBase: (r.keepers_base as number | null) ?? 1,
+    keepersSince: (r.keepers_since as number | null) ?? 0,
+  };
 }
 
 /** A contingent of one home village standing at a site. The units also stay in the owner's home village `away` count. */
@@ -49,16 +70,12 @@ function toGarrison(r: Raw): GarrisonRow {
 export class SiteStore extends SqlBase {
   /** A site that has never been held reads as neutral with no calm time (no row yet). */
   getSite(id: number): SiteRow {
-    const r = this.get('SELECT id, holder_tribe_id, calm_until FROM sites WHERE id = ?', id);
-    return r ? { id, holderTribeId: (r.holder_tribe_id as number | null) ?? null, calmUntil: r.calm_until as number } : { id, holderTribeId: null, calmUntil: 0 };
+    const r = this.get(`SELECT ${SITE_COLS} FROM sites WHERE id = ?`, id);
+    return r ? toSite(r) : { id, ...NEW_SITE };
   }
 
   allSites(): SiteRow[] {
-    return this.all('SELECT id, holder_tribe_id, calm_until FROM sites ORDER BY id').map((r) => ({
-      id: r.id as number,
-      holderTribeId: (r.holder_tribe_id as number | null) ?? null,
-      calmUntil: r.calm_until as number,
-    }));
+    return this.all(`SELECT ${SITE_COLS} FROM sites ORDER BY id`).map(toSite);
   }
 
   /** Ids of every site that has a holder or troops standing (the only ones that can need tidying up). */
@@ -69,6 +86,16 @@ export class SiteStore extends SqlBase {
   setHolder(id: number, tribeId: number | null): void {
     this.siteUpkeepTouch();
     this.run('INSERT INTO sites (id, holder_tribe_id, calm_until) VALUES (?, ?, 0) ON CONFLICT(id) DO UPDATE SET holder_tribe_id = excluded.holder_tribe_id', id, tribeId);
+  }
+
+  /** Store the Wall: `level` as of `at`. Called after a hit (the Wall then rises again from the new level). */
+  setWall(id: number, level: number, at: number): void {
+    this.run('INSERT INTO sites (id, wall_level, wall_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET wall_level = excluded.wall_level, wall_at = excluded.wall_at', id, level, at);
+  }
+
+  /** Store the keepers' share `base` as of `since` (0 when the holding tribe's last troops leave; the survivors' share after a fight). */
+  setKeepers(id: number, base: number, since: number): void {
+    this.run('INSERT INTO sites (id, keepers_base, keepers_since) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET keepers_base = excluded.keepers_base, keepers_since = excluded.keepers_since', id, base, since);
   }
 
   setCalmUntil(id: number, calmUntil: number): void {

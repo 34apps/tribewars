@@ -2,8 +2,8 @@
 // my troops there, and the normal send form aimed at the site's tile (attack to take it, support to hold it).
 
 import { useRef, useState } from 'react';
-import { UNITS, UNIT_IDS, distance } from '@clanfire/engine';
-import type { Coords, Mission, SiteDto } from '@clanfire/engine';
+import { UNITS, UNIT_IDS, distance, keepersRegrowMs } from '@clanfire/engine';
+import type { Coords, Mission, SiteDto, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
@@ -11,8 +11,11 @@ import {
   calmLeftMs,
   garrisonText,
   holderText,
+  keepersText,
+  siteWallText,
   isUtilitySite,
   siteBonusText,
+  siteEarnLines,
   siteKindLine,
   SITE_KIND_NAME,
   siteMissions,
@@ -21,6 +24,7 @@ import {
 } from '../sites.ts';
 import { SiteGlyph } from './SiteGlyph.tsx';
 import { SendForm, useFitPanel } from './TilePanel.tsx';
+import { RecallSome } from '../components/RecallSome.tsx';
 import { TERRAIN_NAME } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -41,7 +45,7 @@ const SITE_HINTS: Partial<Record<Mission, string>> = {
 };
 
 export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClose }: Props) {
-  const { village: mine, player, now, viewTribe, navigate, refresh, toast, worldEnd } = useGame();
+  const { village: mine, player, settings, now, viewTribe, navigate, refresh, toast, worldEnd } = useGame();
   const panelRef = useRef<HTMLElement>(null);
   useFitPanel(panelRef);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -55,14 +59,16 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
   const dist = distance(mine, tile);
   const holder = site.holder;
   const contingents = site.myContingents ?? [];
+  const mineHeld = holder !== null && holder.tribeId === (player.tribe?.id ?? null);
+  const earn = siteEarnLines(site, mineHeld, settings.speed);
 
   /** Bring one village's troops home from this site (the server checks ownership and re-computes the way back). */
-  async function callBack(villageId: number) {
+  async function callBack(villageId: number, units?: Partial<Units>) {
     if (busyId !== null) return;
     setBusyId(villageId);
     setError(null);
     try {
-      const res = await api.siteRecall(site.id, villageId);
+      const res = await api.siteRecall(site.id, villageId, units);
       toast(`Called back from ${siteName(site)} · ${formatDuration(res.movement.arriveAt - now)}`);
     } catch (e) {
       setError(errorMessage(e));
@@ -104,8 +110,9 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
         </span>
         <div>
           <div className="wm-stagecard-kicker">{utility ? SITE_KIND_NAME[site.kind] : site.kind === 'great_fire' ? 'Centre' : 'Fire site'}</div>
-          <div className="wm-stagecard-name">{utility ? kindLine : siteBonusText(site)}</div>
+          <div className="wm-stagecard-name">{utility ? kindLine : siteBonusText(site, settings.speed)}</div>
           {!utility && <div className="wm-stagecard-al">{stateText(site, wakesAt, now)}</div>}
+          {!utility && earn.map((l) => <div key={l} className="wm-stagecard-al">{l}</div>)}
         </div>
       </div>
 
@@ -131,6 +138,16 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
           <dd>{garrisonText(site)}</dd>
         </div>
         <div className="wm-fact-wide">
+          <dt>Wall</dt>
+          <dd>{siteWallText(site)}</dd>
+        </div>
+        {keepersText(site, keepersRegrowMs(settings)) && (
+          <div className="wm-fact-wide">
+            <dt>Keepers</dt>
+            <dd>{keepersText(site, keepersRegrowMs(settings))}</dd>
+          </div>
+        )}
+        <div className="wm-fact-wide">
           <dt>Calm</dt>
           <dd>{calm > 0 ? formatDuration(calm) : 'None'}</dd>
         </div>
@@ -152,9 +169,17 @@ export function SitePanel({ site, wakesAt, terrain, preferred, onChanged, onClos
                     .join(', ')}
                 </span>
               </div>
-              <button type="button" className="wm-btn" disabled={busyId !== null || worldEnd !== null} onClick={() => void callBack(c.villageId)}>
-                {busyId === c.villageId ? '…' : 'Call back'}
-              </button>
+              <RecallSome
+                s={{ id: `site-${site.id}-${c.villageId}`, units: c.units }}
+                busy={busyId !== null || worldEnd !== null}
+                label="Call back"
+                onRecall={(units) => void callBack(c.villageId, units)}
+                warning={
+                  mineHeld && contingents.length === 1
+                    ? 'This takes all your troops from here. If no other member of your tribe has troops here, the site turns neutral again and allied troops go home too.'
+                    : undefined
+                }
+              />
             </li>
           ))}
         </ul>

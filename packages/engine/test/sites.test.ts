@@ -13,7 +13,18 @@ import {
   SITE_MILITIA,
   SITE_MIN_SPACING,
   SITE_NO_VILLAGE_RADIUS,
-  SITE_RENOWN_BONUS_CAP,
+  SITE_RENOWN_PER_DAY,
+  SITE_WALL_STEP_HOURS,
+  BUILDINGS,
+  keepersFraction,
+  keepersRegrowMs,
+  siteRenownAccrued,
+  siteRenownPerDay,
+  siteWallLevel,
+  siteWallMax,
+  siteWallNextMs,
+  siteWallStepMs,
+  tribeRenownPerDay,
   generateSites,
   isNearSite,
   LOOKOUT_LIST_LIMIT,
@@ -26,12 +37,10 @@ import {
   occupierPopulation,
   resolveSiteBattle,
   shrineWakeMs,
-  siteBonus,
   siteCalmMs,
   siteMaxPopulation,
   siteMilitia,
   terrainAt,
-  tribeRenownBonus,
 } from '../src/index.ts';
 import { HOUR, units } from './helpers.ts';
 
@@ -186,25 +195,105 @@ describe('militia, cap, timing', () => {
   });
 });
 
-describe('bonus', () => {
-  it('awake gives more than dormant, per kind', () => {
-    for (const kind of ['fire_shrine', 'great_fire'] as const) assert.ok(siteBonus(kind, true) > siteBonus(kind, false));
-    assert.equal(siteBonus('fire_shrine', false), 0.01);
-    assert.equal(siteBonus('fire_shrine', true), 0.04);
-    assert.equal(siteBonus('great_fire', false), 0.03);
-    assert.equal(siteBonus('great_fire', true), 0.1);
+describe('daily Renown per member', () => {
+  it('awake gives more than dormant for shrines and the Great Fire; Waymarks and Lookouts give 0', () => {
+    for (const kind of ['fire_shrine', 'great_fire'] as const) assert.ok(siteRenownPerDay(kind, true) > siteRenownPerDay(kind, false));
+    for (const kind of ['waymark', 'lookout'] as const) {
+      assert.equal(siteRenownPerDay(kind, false), 0);
+      assert.equal(siteRenownPerDay(kind, true), 0);
+    }
+    assert.equal(siteRenownPerDay('fire_shrine', false), SITE_RENOWN_PER_DAY.dormant.fire_shrine);
   });
 
-  it('sums held sites and caps at SITE_RENOWN_BONUS_CAP', () => {
-    assert.equal(tribeRenownBonus([]), 0);
-    assert.ok(Math.abs(tribeRenownBonus([{ kind: 'fire_shrine', awake: true }, { kind: 'great_fire', awake: false }]) - 0.07) < 1e-12);
-    const all = [
-      { kind: 'great_fire' as const, awake: true },
-      ...Array.from({ length: 8 }, () => ({ kind: 'fire_shrine' as const, awake: true })),
-    ];
-    // 0.10 + 8 * 0.04 = 0.42 > cap.
-    assert.equal(tribeRenownBonus(all), SITE_RENOWN_BONUS_CAP);
-    assert.ok(tribeRenownBonus(all.slice(0, 3)) < SITE_RENOWN_BONUS_CAP);
+  it('sums held sites with no cap', () => {
+    assert.equal(tribeRenownPerDay([], true), 0);
+    const all = ['great_fire', ...Array.from({ length: 8 }, () => 'fire_shrine')] as Array<'great_fire' | 'fire_shrine'>;
+    assert.equal(tribeRenownPerDay(all, true), SITE_RENOWN_PER_DAY.awake.great_fire + 8 * SITE_RENOWN_PER_DAY.awake.fire_shrine);
+    assert.equal(tribeRenownPerDay(['waymark', 'lookout', 'fire_shrine'], false), SITE_RENOWN_PER_DAY.dormant.fire_shrine);
+  });
+
+  it('accrues linearly, scales with world speed and splits at the wake time', () => {
+    const rate = SITE_RENOWN_PER_DAY.dormant.fire_shrine;
+    const wakes = 100 * DAY;
+    assert.ok(Math.abs(siteRenownAccrued(['fire_shrine'], 0, DAY, wakes, { speed: 1 }) - rate) < 1e-9, 'one day = the daily rate');
+    assert.ok(Math.abs(siteRenownAccrued(['fire_shrine'], 0, DAY / 2, wakes, { speed: 1 }) - rate / 2) < 1e-9);
+    assert.ok(Math.abs(siteRenownAccrued(['fire_shrine'], 0, DAY, wakes, { speed: 10 }) - rate * 10) < 1e-9);
+    const awake = SITE_RENOWN_PER_DAY.awake.fire_shrine;
+    // A day that straddles the wake: half dormant, half awake.
+    const across = siteRenownAccrued(['fire_shrine'], wakes - DAY / 2, wakes + DAY / 2, wakes, { speed: 1 });
+    assert.ok(Math.abs(across - (rate / 2 + awake / 2)) < 1e-9);
+    // Nothing for an empty, backwards or unheld span.
+    assert.equal(siteRenownAccrued(['fire_shrine'], DAY, DAY, wakes, { speed: 1 }), 0);
+    assert.equal(siteRenownAccrued(['fire_shrine'], DAY, 0, wakes, { speed: 1 }), 0);
+    assert.equal(siteRenownAccrued([], 0, DAY, wakes, { speed: 1 }), 0);
+    assert.equal(siteRenownAccrued(['waymark', 'lookout'], 0, DAY, wakes, { speed: 1 }), 0);
+  });
+});
+
+describe('keepers that grow back', () => {
+  it('rise linearly from the stored share to full over 24 game hours, scaled by speed', () => {
+    const s1 = { speed: 1 };
+    assert.equal(keepersRegrowMs(s1), 24 * HOUR);
+    assert.equal(keepersRegrowMs({ speed: 4 }), 6 * HOUR);
+    assert.equal(keepersFraction({ base: 0, since: 100 }, 100, s1), 0);
+    assert.ok(Math.abs(keepersFraction({ base: 0, since: 100 }, 100 + 6 * HOUR, s1) - 0.25) < 1e-12);
+    assert.ok(Math.abs(keepersFraction({ base: 0.5, since: 0 }, 6 * HOUR, s1) - 0.75) < 1e-12);
+    assert.equal(keepersFraction({ base: 0, since: 0 }, 24 * HOUR, s1), 1);
+    assert.equal(keepersFraction({ base: 0, since: 0 }, 100 * DAY, s1), 1, 'never above full');
+    assert.equal(keepersFraction({ base: 0.3, since: 500 }, 100, s1), 0.3, 'a clock before the mark gives the stored share');
+    assert.equal(keepersFraction({ base: 1, since: 0 }, 0, s1), 1, 'a never-fought site is full');
+  });
+
+  it('a partial militia is scaled down, and a full one is unchanged', () => {
+    assert.deepEqual(siteMilitia('fire_shrine', false, 1), siteMilitia('fire_shrine', false));
+    assert.equal(occupierPopulation(siteMilitia('fire_shrine', false, 0)), 0);
+    const half = occupierPopulation(siteMilitia('fire_shrine', false, 0.5));
+    assert.ok(Math.abs(half - occupierPopulation(siteMilitia('fire_shrine', false)) / 2) <= 5);
+  });
+});
+
+describe('the site Wall that builds itself', () => {
+  const s1 = { speed: 1 };
+  it('rises one level per step up to the game top Wall level, read from the building', () => {
+    assert.equal(SITE_WALL_STEP_HOURS, 12);
+    assert.equal(siteWallMax(), BUILDINGS.wall.maxLevel);
+    assert.equal(siteWallStepMs(s1), 12 * HOUR);
+    assert.equal(siteWallStepMs({ speed: 12 }), HOUR);
+    const st = { level: 0, at: 1000 };
+    assert.equal(siteWallLevel(st, 1000, s1), 0);
+    assert.equal(siteWallLevel(st, 1000 + 12 * HOUR - 1, s1), 0);
+    assert.equal(siteWallLevel(st, 1000 + 12 * HOUR, s1), 1);
+    assert.equal(siteWallLevel(st, 1000 + 36 * HOUR, s1), 3);
+    assert.equal(siteWallLevel(st, 1000 + 1000 * DAY, s1), siteWallMax(), 'capped');
+    assert.equal(siteWallLevel(st, 0, s1), 0, 'a clock before the mark gives the stored level');
+    assert.equal(siteWallLevel({ level: 5, at: 0 }, 12 * HOUR, s1), 6, 'it rises again from a lowered level');
+  });
+
+  it('says when the next level comes, null at the top', () => {
+    const st = { level: 3, at: 0 };
+    assert.equal(siteWallNextMs(st, 0, s1), 12 * HOUR);
+    assert.equal(siteWallNextMs(st, 5 * HOUR, s1), 7 * HOUR);
+    assert.equal(siteWallNextMs(st, 12 * HOUR, s1), 12 * HOUR);
+    assert.equal(siteWallNextMs({ level: siteWallMax(), at: 0 }, DAY, s1), null);
+  });
+
+  it('protects the defenders (percentage bonus) and Log Rams lower it; no village Wall militia', () => {
+    const militia = siteMilitia('fire_shrine', false);
+    const attackers = units({ raider: 600, logram: 200 });
+    const bare = resolveSiteBattle({ attackerUnits: attackers, militia, seed: 3, wall: 0 });
+    const walled = resolveSiteBattle({ attackerUnits: units({ raider: 600 }), militia, seed: 3, wall: siteWallMax() });
+    const flat = resolveSiteBattle({ attackerUnits: units({ raider: 600 }), militia, seed: 3, wall: 0 });
+    assert.ok(walled.defensePower > flat.defensePower * 1.5, 'a high Wall makes the same keepers much harder');
+    const rammed = resolveSiteBattle({ attackerUnits: attackers, militia, seed: 3, wall: siteWallMax() });
+    const wallHits = (rammed.siege ?? []).filter((h) => h.building === 'wall');
+    assert.ok(wallHits.length > 0 && wallHits.every((h) => h.to < h.from), 'Log Rams lowered the Wall');
+    assert.ok(rammed.wallDuring < siteWallMax(), 'the lowered Wall counts in the battle');
+    assert.equal(bare.wallDuring, 0);
+  });
+
+  it('Firecarts find no building to burn at a site', () => {
+    const r = resolveSiteBattle({ attackerUnits: units({ raider: 2000, firecart: 30 }), militia: siteMilitia('fire_shrine', false), seed: 11 });
+    assert.ok((r.siege ?? []).every((h) => h.building === 'wall'));
   });
 });
 
@@ -217,7 +306,7 @@ describe('resolveSiteBattle', () => {
     assert.equal(r.attackerWon, true);
     assert.deepEqual(r.defenderLosses, militia);
     assert.deepEqual(r.loot, { wood: 0, food: 0, iron: 0, gold: 0 });
-    assert.deepEqual(r.siege, []);
+    assert.deepEqual(r.siege ?? [], []);
     assert.deepEqual(militia, snapshot);
     assert.deepEqual(resolveSiteBattle({ attackerUnits: attackers, militia, seed: 77 }), r, 'deterministic');
   });
@@ -241,16 +330,15 @@ describe('resolveSiteBattle', () => {
 });
 
 describe('Waymarks and Lookouts', () => {
-  it('have a 300 militia, a 3000 cap, never wake and give no Renown bonus', () => {
+  it('have a 300 militia, a 3000 cap, never wake and give no Renown', () => {
     for (const kind of ['waymark', 'lookout'] as const) {
       assert.equal(occupierPopulation(siteMilitia(kind, false)), 300);
       assert.equal(occupierPopulation(siteMilitia(kind, true)), 300, 'never awake');
       assert.equal(siteMaxPopulation(kind), 3000);
-      assert.equal(siteBonus(kind, false), 0);
-      assert.equal(siteBonus(kind, true), 0);
+      assert.equal(siteRenownPerDay(kind, false), 0);
+      assert.equal(siteRenownPerDay(kind, true), 0);
     }
-    assert.equal(tribeRenownBonus([{ kind: 'waymark', awake: true }, { kind: 'lookout', awake: true }]), 0);
-    assert.equal(tribeRenownBonus([{ kind: 'fire_shrine', awake: false }, { kind: 'waymark', awake: true }, { kind: 'lookout', awake: false }]), siteBonus('fire_shrine', false));
+    assert.equal(tribeRenownPerDay(['waymark', 'lookout'], true), 0);
   });
 
   it('tribeWaymarks lists only Waymarks held by that tribe', () => {
