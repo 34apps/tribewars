@@ -945,3 +945,54 @@
   color: var(--on-surface);
   font: 500 14.5px/1.4 var(--font);
 }
+
+/* -- Fighters page: the switch row above the table -- */
+.frk-fbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 2px solid var(--edge);
+  background: var(--surface-2);
+}
+
+.frk-fsg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-3);
+}
+
+.frk-fsg button {
+  height: 30px;
+  padding: 0 14px 1px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--on-surface);
+  font: 700 13px/1.2 var(--font);
+  cursor: pointer;
+}
+
+.frk-fsg button.on {
+  background: var(--surface);
+  border-color: var(--c-ink);
+  box-shadow: 0 2px 0 var(--c-ink);
+}
+
+.frk-fsg button:focus-visible {
+  outline: 3px solid var(--c-ink);
+  outline-offset: 2px;
+}
+
+.frk-fnote {
+  font-size: 13px;
+}
+
+.frk-t th.frk-cur,
+.frk-t td.frk-cur {
+  background: color-mix(in srgb, var(--c-sun) 22%, transparent);
+}

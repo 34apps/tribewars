@@ -73,6 +73,9 @@ import type {
   PlayerProfileDto,
   PlayerRankingResponse,
   RenownRankingResponse,
+  FighterKind,
+  FighterRankingResponse,
+  FighterScope,
   ChestDepositRequest,
   ChestDepositResponse,
   FeastRequest,
@@ -378,6 +381,7 @@ export const api = {
   tribes: (q: string) => request<TribeListResponse>('GET', `/api/tribes${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   playerRanking: () => request<PlayerRankingResponse>('GET', '/api/rankings/players'),
   renownRanking: () => request<RenownRankingResponse>('GET', '/api/rankings/renown'),
+  fighterRanking: (scope: FighterScope, kind: FighterKind) => request<FighterRankingResponse>('GET', `/api/rankings/fighters?scope=${scope}&kind=${kind}`),
   feast: (villageId: number, count: number) =>
     request<FeastResponse>('POST', `/api/villages/${villageId}/feast`, { count } satisfies FeastRequest),
   chestDeposit: (villageId: number, gold: number) =>

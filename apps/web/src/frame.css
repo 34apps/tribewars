@@ -417,6 +417,16 @@ html.layout-desktop .toasts {
   padding: 0;
 }
 
+/* The raised (active) tab is 8 px taller, so its badge sits 8 px higher; pull it down by the same amount so it stays level with the
+   other tabs' badges and clear of the top bar (Army dot, Reports / Tribe / Mail counts). */
+.fr-ft.is-on .fr-bd {
+  top: 0;
+}
+
+.fr-ft.is-on .fr-bd.is-dot {
+  top: 3px;
+}
+
 .fr-tabs > .fr-ft {
   flex: none;
 }

@@ -262,6 +262,56 @@ export interface RenownRankingResponse {
   total: number;
 }
 
+// ---- Fighter rankings (docs/GAME_DESIGN.md, "Fighter rankings") ----
+// GET /api/rankings/fighters?scope=players|tribes&kind=attacker|defender|total -> 200 FighterRankingResponse (signed in; rate-limited with the
+//   other rankings; top 100 by the chosen value, ties share a rank, the caller's own row (or own tribe's row) is always included).
+//   Values are the troop value (`troopValue`, the scale Renown uses) of enemy troops destroyed since the feature began (no back-fill):
+//   attacker = in battles the player attacked; defender = in battles the player's village defended, plus the player's share of the defence
+//   when their troops stood there as support; total = attacker + defender. Tribe values are the sum of the CURRENT members' values.
+export type FighterKind = 'attacker' | 'defender' | 'total';
+export type FighterScope = 'players' | 'tribes';
+
+export interface FighterRankDto {
+  /** 1-based, by the chosen kind's whole number; equal values share the rank (1, 2, 2, 4). */
+  rank: number;
+  /** Player id (scope players) or tribe id (scope tribes). */
+  id: number;
+  /** Player name or tribe name. */
+  name: string;
+  /** Players: their tribe's tag (null without a tribe). Tribes: the tribe's own tag. */
+  tag: string | null;
+  /** Tribe id to open: players' tribe (null without one), tribes' own id. */
+  tribeId: number | null;
+  /** Players: villages owned. Tribes: members. */
+  size: number;
+  /** The three values, whole numbers (floored). */
+  attacker: number;
+  defender: number;
+  total: number;
+  /** The value of the chosen kind (what the rank is by). */
+  value: number;
+  /** Players: main village, for "show on map". Tribes: null. */
+  villageX: number | null;
+  villageY: number | null;
+}
+
+export interface FighterRankingResponse {
+  scope: FighterScope;
+  kind: FighterKind;
+  rows: FighterRankDto[];
+  /** The caller's own row (scope players), or their tribe's row (scope tribes; null without a tribe), also outside the top 100. */
+  me: FighterRankDto | null;
+  /** Everyone ranked in this scope. */
+  total: number;
+}
+
+/** The player's own fighter values, on the public profile (whole numbers). */
+export interface FightingDto {
+  attacker: number;
+  defender: number;
+  total: number;
+}
+
 export interface VillageRefDto extends Coords {
   villageId: number;
   name: string;
@@ -673,6 +723,21 @@ export interface BattleReportData {
    * pair, under RENOWN_MIN_BATTLE_VALUE, or nothing left in the daily pair window). Floored for display.
    */
   renownGained?: number;
+  /** True in a lost attacker's report that still shows the defence because the fight was close (attack power >= LOST_ATTACK_SEEN_SHARE of the defence); the Wall level stays hidden. */
+  seenInLoss?: boolean;
+  /**
+   * Value (`troopValue`, the scale of the fighter rankings) of the enemy troops the report owner's side destroyed, as the fighter rankings
+   * counted it for them (attacker: all defender and support losses; defender or support owner: their share of the attacker's losses).
+   * Absent on older reports, when it was 0, and when the attacker's army was wiped out (it sees nothing of the defence). Floored.
+   */
+  destroyedValue?: number;
+  /**
+   * Why the report owner earned no Renown from this battle, when the server knew (written with the report; absent on older reports and
+   * when Renown was paid): 'not_allowed' (this opponent never pays: same tribe or ally, shared connection, test account), 'too_small'
+   * (the battle was under RENOWN_MIN_BATTLE_VALUE), 'daily_cap' (this opponent already paid the most for the 24 h window), 'small_target'
+   * (the opponent is far smaller than you), 'tiny' (under 1 Renown).
+   */
+  renownNote?: 'not_allowed' | 'too_small' | 'daily_cap' | 'small_target' | 'tiny';
   /**
    * Buildings the attacker's siege units lowered (docs/GAME_DESIGN.md 18.9), the Wall hit first; on a win and on a (close) loss. Absent on
    * reports saved before siege and when no siege unit was sent. The Wall line runs from the level BEFORE the battle to the level after
@@ -828,6 +893,8 @@ export interface PlayerProfileDto {
   /** Renown earned in total, floored (public, like points) and the rank by it (ties share a rank). */
   renown: number;
   renownRank: number;
+  /** Fighter values since the feature began (section "Fighter rankings"); absent on older servers. */
+  fighting?: FightingDto;
   tribe: { id: number; name: string; tag: string; role: TribeRole } | null;
   /** When the account was created (server clock, ms). */
   joinedAt: number;

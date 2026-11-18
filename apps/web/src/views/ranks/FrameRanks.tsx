@@ -5,7 +5,7 @@
 import { useExtraRows } from '../../hooks/useExtraRows.ts';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankDto, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
+import type { FighterKind, FighterScope, PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankDto, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../../api.ts';
 import { ChieftainAvatar } from '../../art/Chieftain.tsx';
 import { Icon } from '../../art/Icon.tsx';
@@ -20,6 +20,7 @@ import { PlayerNoteSection } from '../../components/Notes.tsx';
 import { makeSample } from '../rankingsSample.ts';
 import { paging, pageSlice } from '../reports/frame-reports-logic.ts';
 import { Chev } from '../village/FrameParts.tsx';
+import { FIGHTER_KINDS, FIGHTER_SCOPES, fighterKindLabel, fighterRows, searchFighters, useFighterRanking } from '../../fighters.ts';
 import { RANKS_PER_PAGE, RANK_SECTIONS, averagePoints, pageItems, pageOfIndex, playerRows, renownRows, searchPlayers, searchTribes, tribeRows } from './frame-ranks-logic.ts';
 import type { RankSection } from './frame-ranks-logic.ts';
 import { TopThree } from './TopThree.tsx';
@@ -29,6 +30,8 @@ import '../../frame-ranks.css';
 /** Remembered while the player moves between tabs (like the phone page). */
 let lastSection: RankSection = 'players';
 let lastSample: boolean | null = null;
+let lastFScope: FighterScope = 'players';
+let lastFKind: FighterKind = 'total';
 
 /** Other pages (the Tribe page's Domination tile) open Ranks on the Domination tab. */
 export function openRanksDomination(): void {
@@ -163,12 +166,15 @@ export function FrameRanks() {
   const [renownError, setRenownError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sampleOn, setSampleOn] = useState<boolean | null>(lastSample);
+  const [fScope, setFScope] = useState<FighterScope>(lastFScope);
+  const [fKind, setFKind] = useState<FighterKind>(lastFKind);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [picked, setPicked] = useState<{ kind: 'player' | 'tribe'; id: number } | null>(null);
   const [me, setMe] = useState<PlayerProfileDto | null>(null);
   const sample = useMemo(makeSample, []);
   const dom = useDomination();
+  const fighters = useFighterRanking(section === 'fighters', fScope, fKind);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,15 +257,18 @@ export function FrameRanks() {
   const pRows = useMemo(() => searchPlayers(playerAll, query), [playerAll, query]);
   const tRows = useMemo(() => searchTribes(tribeAll, query), [tribeAll, query]);
   const rRows = useMemo(() => searchPlayers(renownAll, query), [renownAll, query]);
-  const rows: Array<PlayerRankDto | TribeSummaryDto | RenownRankDto> = section === 'players' ? pRows : section === 'tribes' ? tRows : rRows;
-  const perPage = RANKS_PER_PAGE + useExtraRows(29);
+  const fAll = useMemo(() => (fighters.data ? fighterRows(fighters.data) : []), [fighters.data]);
+  const fRows = useMemo(() => searchFighters(fAll, query), [fAll, query]);
+  const rows: Array<unknown> = section === 'players' ? pRows : section === 'tribes' ? tRows : section === 'fighters' ? fRows : rRows;
+  // The Fighters page carries a switch row above its table (about one row high).
+  const perPage = RANKS_PER_PAGE + useExtraRows(29) - (section === 'fighters' ? 1 : 0);
   const pg = paging(rows.length, page, perPage);
 
   const myTribeId = player.tribe?.id ?? null;
   const myRow = playerAll.find((p) => p.playerId === meId) ?? null;
   const myRenownRow = renownAll.find((p) => p.playerId === meId) ?? null;
-  const pageLoading = section === 'domination' ? false : section === 'renown' ? !renown && !renownError : !players || !tribes;
-  const failure = section === 'renown' ? renownError : error;
+  const pageLoading = section === 'domination' ? false : section === 'renown' ? !renown && !renownError : section === 'fighters' ? !fighters.data && !fighters.error : !players || !tribes;
+  const failure = section === 'renown' ? renownError : section === 'fighters' ? fighters.error : error;
 
   const switchSection = (s: RankSection) => {
     lastSection = s;
@@ -271,11 +280,13 @@ export function FrameRanks() {
   /** Show the page with my own row (clears a search that would hide it). */
   const jumpToMe = () => {
     setQuery('');
-    const list = section === 'players' ? playerAll : section === 'tribes' ? tribeAll : renownAll;
-    const idx = list.findIndex((r) => ('playerId' in r ? r.playerId === meId : r.id === myTribeId));
+    const idx =
+      section === 'fighters'
+        ? fAll.findIndex((r) => r.id === (fScope === 'players' ? meId : myTribeId))
+        : (section === 'players' ? playerAll : section === 'tribes' ? tribeAll : renownAll).findIndex((r) => ('playerId' in r ? r.playerId === meId : r.id === myTribeId));
     if (idx >= 0) setPage(pageOfIndex(idx, perPage));
   };
-  const canJump = section === 'tribes' ? tribeAll.some((t) => t.id === myTribeId) : section === 'players' ? myRow !== null : myRenownRow !== null;
+  const canJump = section === 'fighters' ? fAll.some((r) => r.id === (fScope === 'players' ? meId : myTribeId)) : section === 'tribes' ? tribeAll.some((t) => t.id === myTribeId) : section === 'players' ? myRow !== null : myRenownRow !== null;
 
   // ---- pop-up ----
   let pop: PopData | null = null;
@@ -295,6 +306,7 @@ export function FrameRanks() {
           ...(prof
             ? ([
                 ['Renown', `${formatInt(prof.renown)} · #${prof.renownRank}`],
+                ...(prof.fighting ? FIGHTER_KINDS.map((k): [string, string] => [k.label, formatInt(prof.fighting![k.id])]) : []),
                 ['Joined', new Date(prof.joinedAt).toLocaleDateString()],
                 ['Protection', prof.protectedNow ? 'Beginner protection' : 'None'],
               ] as Array<[string, string]>)
@@ -392,6 +404,51 @@ export function FrameRanks() {
         })}
       </Table>
     );
+  } else if (section === 'fighters') {
+    const slice = pageSlice(fRows, page, perPage);
+    const tribesScope = fScope === 'tribes';
+    summary = sumText(pg.from, pg.to, fRows.length, tribesScope ? 'tribes' : 'players');
+    const mineRow = (r: { id: number }) => r.id === (tribesScope ? myTribeId : meId);
+    table = (
+      <Table
+        cols={[
+          { label: 'Rank', cls: 'c-r' },
+          { label: tribesScope ? 'Tribe' : 'Player' },
+          ...(tribesScope ? [{ label: 'Members', cls: 'n' }] : [{ label: 'Tribe' }, { label: 'Villages', cls: 'n' }]),
+          ...FIGHTER_KINDS.map((k) => ({ label: k.label, cls: `n${k.id === fKind ? ' frk-cur' : ''}` })),
+        ]}
+        empty={fRows.length === 0 ? (query.trim() ? 'Nobody matches that search.' : 'Nobody to list yet.') : null}
+      >
+        {slice.map((r) => (
+          <tr key={r.id} className={mineRow(r) ? 'me' : undefined} aria-current={mineRow(r) ? 'true' : undefined}>
+            <td className="c-r"><Medal rank={r.rank} /></td>
+            <td>
+              <button
+                type="button"
+                className="frk-who"
+                onClick={() => (tribesScope ? viewTribe({ id: r.id }) : r.villageX !== null && r.villageY !== null && showOnMap(r.villageX, r.villageY))}
+                aria-label={tribesScope ? `${r.name}, open the tribe page` : `${r.name}, show on the map`}
+              >
+                {r.name}
+              </button>
+              {tribesScope && <span className="frk-ttl frk-tg">[{r.tag}]</span>}
+              {mineRow(r) && <span className="frk-you">{tribesScope ? 'your tribe' : 'you'}</span>}
+            </td>
+            {tribesScope ? (
+              <td className="n">{r.size}<span className="fv-mut">/{maxMembers}</span></td>
+            ) : (
+              <>
+                <td><TribeTag tribe={r.tag && r.tribeId ? { id: r.tribeId, tag: r.tag } : null} onOpen={(id) => viewTribe({ id })} /></td>
+                <td className="n">{r.size}</td>
+              </>
+            )}
+            {FIGHTER_KINDS.map((k) => (
+              <td key={k.id} className={`n${k.id === fKind ? ' frk-cur' : ''}`}>{k.id === fKind ? <b>{formatInt(r[k.id])}</b> : formatInt(r[k.id])}</td>
+            ))}
+          </tr>
+        ))}
+      </Table>
+    );
   } else {
     const slice = pageSlice(rRows, page, perPage);
     summary = sumText(pg.from, pg.to, rRows.length, 'players');
@@ -422,11 +479,17 @@ export function FrameRanks() {
       ? playerAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, tag: p.tribe?.tag ?? null, value: formatInt(p.points), chieftain: p.playerId === meId ? player.chieftain : null }))
       : section === 'tribes'
         ? tribeAll.slice(0, 3).map((t) => ({ key: t.id, rank: t.rank, name: t.name, tag: t.tag, value: formatInt(t.points), tribe: true }))
-        : renownAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, tag: p.tribe?.tag ?? null, value: formatInt(p.renown), chieftain: p.playerId === meId ? player.chieftain : null }));
+        : section === 'fighters'
+          ? fAll.slice(0, 3).map((r) => ({ key: r.id, rank: r.rank, name: r.name, tag: r.tag, value: formatInt(r.value), ...(fScope === 'tribes' ? { tribe: true } : { chieftain: r.id === meId ? player.chieftain : null }) }))
+          : renownAll.slice(0, 3).map((p) => ({ key: p.playerId, rank: p.rank, name: p.username, tag: p.tribe?.tag ?? null, value: formatInt(p.renown), chieftain: p.playerId === meId ? player.chieftain : null }));
   const pickTop = (key: number) => {
     if (section === 'players') setPicked({ kind: 'player', id: key });
     else if (section === 'tribes') setPicked({ kind: 'tribe', id: key });
-    else {
+    else if (section === 'fighters') {
+      const r = fAll.find((x) => x.id === key);
+      if (r && fScope === 'tribes') viewTribe({ id: r.id });
+      else if (r && r.villageX !== null && r.villageY !== null) showOnMap(r.villageX, r.villageY);
+    } else {
       const r = renownAll.find((p) => p.playerId === key);
       if (r) showOnMap(r.villageX, r.villageY);
     }
@@ -435,10 +498,16 @@ export function FrameRanks() {
   // ---- You card ----
   const total = showSample ? playerAll.length : (players?.total ?? 0);
   const tribeLine = me?.tribe ? `${me.tribe.name} [${me.tribe.tag}]` : player.tribe ? `[${player.tribe.tag}]` : 'No tribe';
+  const fight = (k: FighterKind): string => (me?.fighting ? formatInt(me.fighting[k]) : '—');
+  // On the Fighters page the card shows the three fighter values in place of Points, Villages and Renown (same size).
   const you: Array<[string, string]> = [
-    ['Points', myRow ? formatInt(myRow.points) : '—'],
-    ['Villages', myRow ? String(myRow.villages) : '—'],
-    ['Renown', me ? `${formatInt(me.renown)} · #${me.renownRank}` : '—'],
+    ...(section === 'fighters'
+      ? FIGHTER_KINDS.map((k): [string, string] => [k.label, fight(k.id)])
+      : ([
+          ['Points', myRow ? formatInt(myRow.points) : '—'],
+          ['Villages', myRow ? String(myRow.villages) : '—'],
+          ['Renown', me ? `${formatInt(me.renown)} · #${me.renownRank}` : '—'],
+        ] as Array<[string, string]>)),
     ['Tribe', me?.tribe ? `[${me.tribe.tag}] · ${me.tribe.role}` : player.tribe ? `[${player.tribe.tag}]` : 'None'],
     ['Joined', me ? new Date(me.joinedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'],
     ['Protection', me ? (me.protectedNow ? 'Beginner' : 'None') : '—'],
@@ -498,6 +567,28 @@ export function FrameRanks() {
       ) : (
       <div className="frk-body">
         <section className="fv-pn frk-list" id="rank-panel" role="tabpanel" aria-label={RANK_SECTIONS.find((s) => s.id === section)?.label}>
+          {section === 'fighters' && (
+            <div className="frk-fbar">
+              <span className="fv-up">Show</span>
+              <div className="frk-fsg" role="group" aria-label="Who">
+                {FIGHTER_SCOPES.map((o) => (
+                  <button key={o.id} type="button" className={fScope === o.id ? 'on' : undefined} aria-pressed={fScope === o.id} onClick={() => { lastFScope = o.id; setFScope(o.id); setPage(0); }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <span className="fv-up">Ranked by</span>
+              <div className="frk-fsg" role="group" aria-label="Ranked by">
+                {FIGHTER_KINDS.map((o) => (
+                  <button key={o.id} type="button" className={fKind === o.id ? 'on' : undefined} aria-pressed={fKind === o.id} onClick={() => { lastFKind = o.id; setFKind(o.id); setPage(0); }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <span className="fv-sp" />
+              <span className="fv-mut frk-fnote" title="Value of the enemy troops destroyed in battle since this list began">Troops destroyed, by value</span>
+            </div>
+          )}
           {failure ? (
             <p className="form-error frk-pad" role="alert">{failure}</p>
           ) : pageLoading ? (
@@ -552,7 +643,7 @@ export function FrameRanks() {
               </div>
             </div>
           </section>
-          <TopThree items={top} valueLabel={section === 'renown' ? 'Renown' : 'Points'} onPick={pickTop} />
+          <TopThree items={top} valueLabel={section === 'renown' ? 'Renown' : section === 'fighters' ? fighterKindLabel(fKind) : 'Points'} onPick={pickTop} />
           <section className="fv-pn frk-dom" aria-label="Domination">
             <div className="fv-ph">
               <h2>Domination</h2>

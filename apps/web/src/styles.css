@@ -2368,6 +2368,37 @@ a.btn {
   gap: 8px;
 }
 
+.rk-fsw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rk-seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-3);
+}
+
+.rk-seg button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--on-surface);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rk-seg button.on {
+  background: var(--surface);
+  border-color: var(--c-ink);
+}
+
 .rk-search {
   flex: 1 1 200px;
   min-width: 0;

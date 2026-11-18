@@ -52,6 +52,7 @@ import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import { NoteStore } from './notes-store.ts';
 import { TroopGroupStore } from './troop-group-store.ts';
+import { FighterStore } from './fighter-store.ts';
 import { RaidListStore } from './raid-list-store.ts';
 import { reportDigest } from './report-digest.ts';
 import { FirstStepsStore } from './first-steps-store.ts';
@@ -539,6 +540,8 @@ export class Store extends SqlBase {
   readonly troopGroups: TroopGroupStore;
   readonly notes: NoteStore;
   readonly raidLists: RaidListStore;
+  /** Fighter rankings: value of enemy troops destroyed per player (schema v26). */
+  readonly fighters: FighterStore;
   readonly firstSteps: FirstStepsStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
@@ -566,6 +569,7 @@ export class Store extends SqlBase {
     this.troopGroups = new TroopGroupStore(db);
     this.notes = new NoteStore(db);
     this.raidLists = new RaidListStore(db);
+    this.fighters = new FighterStore(db);
     this.firstSteps = new FirstStepsStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();

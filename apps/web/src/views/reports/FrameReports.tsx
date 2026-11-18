@@ -30,6 +30,7 @@ import { draftFromReport } from '../../simulator.ts';
 import { moraleLabel, siegeHitText, villageReportText } from '../../villages.ts';
 import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
+import { LOST_SEEN_LINE, destroyedLine, renownNoteLine } from '../../fighters.ts';
 import { reportIcon, reportTone } from '../ReportsView.tsx';
 import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, knownUnit, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
 import type { ReportFilter } from './frame-reports-logic.ts';
@@ -296,6 +297,7 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
               +{total - dens.shown} more <Chev />
             </button>
           )}
+          {b.seenInLoss && report.side === 'attack' && <p className="frp-mut">{LOST_SEEN_LINE}</p>}
           {b.defenderUnits === null && (
             <p className="frp-mut">{report.side === 'attack' ? 'Your army fell — their troops were not seen.' : 'The attacker fell — their troops were not seen.'}</p>
           )}
@@ -327,10 +329,22 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
                   Wall {b.wallLevel} in battle
                 </span>
               )}
+              {destroyedLine(b) && (
+                <span className="frp-ch ok">
+                  <Icon name="army" size={16} />
+                  {destroyedLine(b)}
+                </span>
+              )}
               {b.renownGained !== undefined && b.renownGained > 0 && (
                 <span className="frp-ch ok">
                   <Icon name="renown" size={16} />
                   Your Renown +{formatInt(b.renownGained)}
+                </span>
+              )}
+              {renownNoteLine(b) && (
+                <span className="frp-ch">
+                  <Icon name="renown" size={16} />
+                  {renownNoteLine(b)}
                 </span>
               )}
             </div>

@@ -153,6 +153,11 @@ export const BATTLE_LUCK = 0.1;
  */
 export const MORALE_SMALL_SHARE = 1 / 3;
 export const MORALE_ATTACK_FACTOR = 0.75;
+/**
+ * A wiped-out attacker normally sees nothing of the defence. When its attack power was at least this share of the defence power
+ * (a close fight), its report still shows the defender's units had and lost (home troops and support). The Wall level and buildings stay hidden.
+ */
+export const LOST_ATTACK_SEEN_SHARE = 0.5;
 
 /**
  * Abandoned villages produce this share of what the same levels would (their stock is the loot raiders live on; the 25-level economy with

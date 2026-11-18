@@ -4,22 +4,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/PageHeader.tsx';
 import type { ReactNode } from 'react';
-import type { PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
+import type { FighterKind, FighterScope, PlayerProfileDto, PlayerRankDto, PlayerRankingResponse, RenownRankingResponse, TribeSummaryDto } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { DominationCard } from '../components/DominationBar.tsx';
 import { formatInt } from '../format.ts';
+import { FIGHTER_KINDS, FIGHTER_SCOPES, fighterRows, otherFighterValues, useFighterRanking } from '../fighters.ts';
 import { useGame, useRules } from '../game.ts';
 import { ProfileExtras } from './ProfileExtras.tsx';
 import { PlayerNoteSection } from '../components/Notes.tsx';
 import { makeSample } from './rankingsSample.ts';
 
-type Section = 'players' | 'tribes' | 'renown';
-const SECTION_LABEL: Record<Section, string> = { players: 'Players', tribes: 'Tribes', renown: 'Renown' };
+type Section = 'players' | 'tribes' | 'renown' | 'fighters';
+const SECTION_LABEL: Record<Section, string> = { players: 'Players', tribes: 'Tribes', renown: 'Renown', fighters: 'Fighters' };
 const PAGE_SIZE = 20;
 
 /** Remembered while the player moves between tabs. */
 let lastSection: Section = 'players';
 let lastSample: boolean | null = null;
+let lastFScope: FighterScope = 'players';
+let lastFKind: FighterKind = 'total';
 
 /** Sort by points (high first) and give ties the same rank (1, 2, 2, 4). */
 function rerank<T extends { rank: number; points: number }>(rows: T[]): T[] {
@@ -277,6 +280,7 @@ function Players({ real, sample, meId }: { real: PlayerRankingResponse; sample: 
       ...(prof
         ? ([
             ['Renown', typeof prof.renown === 'number' ? `${formatInt(prof.renown)} · #${prof.renownRank}` : '—'],
+            ...(prof.fighting ? FIGHTER_KINDS.map((k): [string, string] => [k.label, formatInt(prof.fighting![k.id])]) : []),
             ['Joined', new Date(prof.joinedAt).toLocaleDateString()],
             ['Protection', prof.protectedNow ? 'Beginner protection' : 'None'],
           ] as [string, string][])
@@ -618,6 +622,121 @@ function RenownRanking({ data, sample }: { data: RenownRankingResponse; sample: 
   );
 }
 
+/** Fighters: value of enemy troops destroyed (attacker, defender, total), for players and for tribes. Counted from the day the lists began. */
+function FighterRanking() {
+  const { viewTribe, showOnMap, player } = useGame();
+  const [scope, setScope] = useState<FighterScope>(lastFScope);
+  const [kind, setKind] = useState<FighterKind>(lastFKind);
+  const [page, setPage] = useState(1);
+  const { data, error } = useFighterRanking(true, scope, kind);
+  const rows = useMemo(() => (data ? fighterRows(data) : []), [data]);
+  const tribes = scope === 'tribes';
+  const mineId = tribes ? (player.tribe?.id ?? null) : player.id;
+  const myIndex = rows.findIndex((r) => r.id === mineId);
+  const me = myIndex >= 0 ? rows[myIndex]! : null;
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const cur = Math.min(page, pages);
+  const slice = rows.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE);
+  const top = rows[0];
+  const kindLabel = FIGHTER_KINDS.find((k) => k.id === kind)?.label ?? '';
+
+  return (
+    <>
+      <p className="rk-note muted small">
+        Fighters ranks the value of enemy troops destroyed in battle: Attacker when you attacked, Defender when you defended (or your troops stood in a defence), Total
+        both. Counted from the day this list began. A tribe counts what its members have destroyed.
+      </p>
+      <div className="rk-fsw">
+        <div className="rk-seg" role="group" aria-label="Who">
+          {FIGHTER_SCOPES.map((o) => (
+            <button key={o.id} type="button" className={scope === o.id ? 'on' : undefined} aria-pressed={scope === o.id} onClick={() => { lastFScope = o.id; setScope(o.id); setPage(1); }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="rk-seg" role="group" aria-label="Ranked by">
+          {FIGHTER_KINDS.map((o) => (
+            <button key={o.id} type="button" className={kind === o.id ? 'on' : undefined} aria-pressed={kind === o.id} onClick={() => { lastFKind = o.id; setKind(o.id); setPage(1); }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {error ? (
+        <p className="form-error" role="alert">{error}</p>
+      ) : !data ? (
+        <p className="muted">Loading…</p>
+      ) : (
+        <>
+          <Tiles
+            items={[
+              { label: tribes ? 'Tribes' : 'Players', value: formatInt(data.total) },
+              { label: 'Top', value: top ? top.name : '—', sub: top ? `${formatInt(top.value)} · ${kindLabel}` : undefined },
+              { label: tribes ? 'Your tribe' : 'You', value: me ? `#${me.rank}` : '—', sub: me ? `${formatInt(me.value)} · ${kindLabel}` : undefined },
+            ]}
+          />
+          {myIndex >= 0 && (
+            <div className="rk-toolbar">
+              <button className="btn btn-small" onClick={() => setPage(Math.floor(myIndex / PAGE_SIZE) + 1)}>
+                {tribes ? 'Jump to my tribe' : 'Jump to me'}
+              </button>
+            </div>
+          )}
+          <div className="rk-scroll">
+            <table className="rk-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="rk-c-rank">Rank</th>
+                  <th scope="col">{tribes ? 'Tribe' : 'Player'}</th>
+                  {FIGHTER_KINDS.filter((k) => k.id !== kind).map((k) => (
+                    <th key={k.id} scope="col" className="rk-c-vill num">{k.label}</th>
+                  ))}
+                  <th scope="col" className="num">{kindLabel}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slice.map((r) => {
+                  const mine = r.id === mineId;
+                  return (
+                    <tr key={r.id} className={mine ? 'rk-me' : undefined} aria-current={mine ? 'true' : undefined}>
+                      <td className="rk-c-rank"><Medal rank={r.rank} /></td>
+                      <td className="rk-name">
+                        <button
+                          type="button"
+                          className="rk-who"
+                          onClick={() => (tribes ? viewTribe({ id: r.id }) : r.villageX !== null && r.villageY !== null && showOnMap(r.villageX, r.villageY))}
+                          aria-label={tribes ? `${r.name}, open the tribe page` : `${r.name}, show on the map`}
+                        >
+                          {r.name}
+                        </button>
+                        {mine && <span className="rk-you">{tribes ? 'your tribe' : 'you'}</span>}
+                        <span className="rk-sub muted small">
+                          {r.tag ? `[${r.tag}] · ` : ''}
+                          {otherFighterValues(r, kind)}
+                        </span>
+                      </td>
+                      {FIGHTER_KINDS.filter((k) => k.id !== kind).map((k) => (
+                        <td key={k.id} className="rk-c-vill num">{formatInt(r[k.id])}</td>
+                      ))}
+                      <td className="num rk-pts">{formatInt(r.value)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="rk-foot">
+            <span className="muted small">
+              {rows.length === 0 ? '0' : `${(cur - 1) * PAGE_SIZE + 1}–${(cur - 1) * PAGE_SIZE + slice.length}`} of {formatInt(rows.length)}
+            </span>
+            <Pager page={cur} pages={pages} onPage={setPage} />
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 export function RankingsView() {
   const [section, setSection] = useState<Section>(lastSection);
   const [players, setPlayers] = useState<PlayerRankingResponse | null>(null);
@@ -664,7 +783,7 @@ export function RankingsView() {
 
   // Default: sample data on while the world is still small, so there is something to browse.
   const showSample = sampleOn ?? (players !== null && players.total < 15);
-  const sections: Section[] = ['players', 'tribes', 'renown'];
+  const sections: Section[] = ['players', 'tribes', 'renown', 'fighters'];
 
   return (
     <div className="page rk-stage">
@@ -696,7 +815,9 @@ export function RankingsView() {
       />
       <section className="card rk-card" id="rank-panel" role="tabpanel">
         {showSample && <p className="rk-note muted small">Made-up players and tribes are mixed in so you can try the page out. Switch “Sample data” off to see only real ones.</p>}
-        {section === 'renown' ? (
+        {section === 'fighters' ? (
+          <FighterRanking />
+        ) : section === 'renown' ? (
           renownError ? (
             <p className="form-error" role="alert">{renownError}</p>
           ) : !renown ? (
