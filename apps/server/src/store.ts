@@ -60,6 +60,7 @@ import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
 import { NotificationStore } from './notification-store.ts';
 import { ReportStore } from './report-store.ts';
+import { MultiStore } from './multi-store.ts';
 import { StaffStore, type NewAudit } from './staff-store.ts';
 import { DominationStore } from './domination-store.ts';
 import { SiteStore } from './site-store.ts';
@@ -546,6 +547,8 @@ export class Store extends SqlBase {
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
   readonly staff: StaffStore;
+  /** Multi-account tooling data (device hashes, activity slots, pair events, reviews); staff-only. */
+  readonly multi: MultiStore;
   readonly support: SupportStore;
   readonly msgReports: ReportStore;
 
@@ -563,6 +566,7 @@ export class Store extends SqlBase {
     this.mail = new MailStore(db);
     this.forum = new ForumStore(db);
     this.staff = new StaffStore(db);
+    this.multi = new MultiStore(db);
     this.support = new SupportStore(db);
     this.msgReports = new ReportStore(db);
     this.notifications = new NotificationStore(db);

@@ -865,6 +865,40 @@ export const MUTE_MAX_MINUTES = 30 * 24 * 60;
 export const MOD_REASON_MAX = 300;
 export const PLAYER_SEARCH_MAX = 20;
 
+// ---- Multi-account tooling for staff (docs/SECURITY_ROADMAP.md "Multi-account tooling"). Staff SEE and JUDGE; nothing here bans anyone.
+/** IPs, device hashes, activity slots and pair events are kept this long, then deleted (privacy: personal data). */
+export const MULTI_RETENTION_MS = 30 * 24 * 3_600_000;
+/** An IP or device seen on more accounts than this (a mobile gateway, a school, a cafe) links nobody: it would join strangers into one group. */
+export const MULTI_LINK_MAX_ACCOUNTS = 12;
+/** Activity is remembered in slots this long (one row per account and slot). */
+export const MULTI_ACTIVITY_SLOT_MS = 10 * 60_000;
+/** Feeding: one account attacks the other (no defence) at least this often, carries off at least this much, and at least this share of all loot between the two goes one way. */
+export const MULTI_FEED_MIN_ATTACKS = 3;
+export const MULTI_FEED_MIN_LOOT = 1000;
+export const MULTI_FEED_SHARE = 0.8;
+/** "No defence": at most this many defending troops stood in the village when the attack arrived. */
+export const MULTI_FEED_MAX_DEFENDERS = 2;
+/** One-way flow: A shipped to B at least this many times, on this many different days, at least this much in total, B got at least this share of everything A shipped, and B sent back at most MULTI_FLOW_RETURN_MAX of it. */
+export const MULTI_FLOW_MIN_SHIPMENTS = 3;
+export const MULTI_FLOW_MIN_DAYS = 3;
+export const MULTI_FLOW_MIN_RESOURCES = 1000;
+export const MULTI_FLOW_SHARE = 0.7;
+export const MULTI_FLOW_RETURN_MAX = 0.1;
+/** Relay: A ships to C and C ships on to B within this time (A and B linked, C anyone). */
+export const MULTI_RELAY_WINDOW_MS = 48 * 3_600_000;
+/** Alternating play: both accounts were active in at least this many slots, shared at most this share of the smaller one's slots, and one followed the other within MULTI_ALT_GAP_SLOTS slots at least MULTI_ALT_MIN_HANDOFFS times. */
+export const MULTI_ALT_MIN_SLOTS = 12;
+export const MULTI_ALT_MAX_OVERLAP = 0.05;
+export const MULTI_ALT_GAP_SLOTS = 2;
+export const MULTI_ALT_MIN_HANDOFFS = 8;
+/** Refused same-connection attempts (ship, support, attack, scout) between two accounts from which they count as a finding. */
+export const MULTI_BLOCKED_MIN = 2;
+/** Risk score (one point per finding, device-on-different-connections counts double) at which a group turns medium / high. */
+export const MULTI_RISK_MEDIUM = 1;
+export const MULTI_RISK_HIGH = 3;
+/** Most groups one page lists. */
+export const MULTI_GROUPS_MAX = 100;
+
 export const TEMPLATE_TITLE_MAX = 80;
 export const TEMPLATE_BODY_MAX = 3000;
 export const TEMPLATE_KEY_PATTERN = '^[a-z0-9][a-z0-9_-]{1,39}$';

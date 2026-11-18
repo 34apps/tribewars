@@ -6,13 +6,23 @@ import type { AppContext } from '../context.ts';
 import type { PlayerRow } from '../store.ts';
 import { sessionCookiePath } from '../world-path.ts';
 
+/** Remember this browser's device hashes and that the account was active now (multi-account tooling; staff-only data, kept 30 days). */
+export function noteSeen(ctx: AppContext, req: FastifyRequest, playerId: number): void {
+  ctx.store.multi.recordActivity(playerId, req.nowMs);
+  const hashes = req.deviceHashes ?? [];
+  if (hashes.length > 0) ctx.store.multi.recordDevices(playerId, hashes, req.nowMs);
+}
+
 /** Route-level hook: attach the signed-in player or answer 401. Runs before body validation. */
 export function requireAuth(ctx: AppContext) {
   return async (req: FastifyRequest): Promise<void> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     if (!player) throw new GameError('unauthorized', 'Please sign in.');
     // Activity stamp for the caretaker bot: the row we already loaded tells us when a write is due (at most every few minutes).
-    if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) ctx.store.touchActive(player.id, req.nowMs, 0);
+    if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) {
+      ctx.store.touchActive(player.id, req.nowMs, 0);
+      noteSeen(ctx, req, player.id);
+    }
     // No village (abandoned after a long absence, or the last one was taken): start again at once with a new village.
     ctx.auth.ensureStartingVillage(player);
     req.player = player;
@@ -110,6 +120,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (!lobby) throw new GameError('not_found', 'Not found.');
       const { grant, created } = ctx.auth.enterWithPass(req.body.pass, lobby.keys, ctx.worldId, req.ip);
       setSession(req, reply, grant);
+      noteSeen(ctx, req, grant.player.id);
       void reply.code(created ? 201 : 200);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -122,6 +133,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (req.body.chieftain !== undefined) checkChieftain(req.body.chieftain);
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
       setSession(req, reply, grant);
+      noteSeen(ctx, req, grant.player.id);
       void reply.code(201);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -133,6 +145,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     async (req, reply): Promise<MeResponse> => {
       const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
       setSession(req, reply, grant);
+      noteSeen(ctx, req, grant.player.id);
       return { player: ctx.auth.toDto(grant.player) };
     },
   );

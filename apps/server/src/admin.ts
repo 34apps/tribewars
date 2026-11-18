@@ -1,5 +1,6 @@
 // Operator tool (run on the server machine, not exposed over HTTP):
-//   npm run admin -w @clanfire/server -- shared-ips
+//   npm run admin -w @clanfire/server -- shared-ips                         (accounts sharing an IP, then the groups by IP + device with a risk line)
+//   npm run admin -w @clanfire/server -- multi <username>                    (one player's links: IPs, devices, groups, what happened between the members)
 //   npm run admin -w @clanfire/server -- ban <username> [reason...]
 //   npm run admin -w @clanfire/server -- unban <username>
 //   npm run admin -w @clanfire/server -- grant <username> <support|moderator|admin>
@@ -26,6 +27,7 @@ import { EXTRA_RAID_LISTS, MUTE_MAX_MINUTES, STAFF_ROLES, hasRaidListsExtra, isS
 import { loadDotEnv, loadEnv } from './env.ts';
 import { openDatabase } from './db.ts';
 import { DOMINATION_USAGE, isDominationCommand, runDominationCommand } from './domination-admin.ts';
+import { MultiService } from './multi-service.ts';
 import { Store } from './store.ts';
 import { WORLD_CONFIG_USAGE, isWorldConfigCommand, runWorldConfigCommand } from './world-config-admin.ts';
 
@@ -34,6 +36,7 @@ const env = loadEnv();
 const [cmd, name, ...rest] = process.argv.slice(2);
 const db = openDatabase(env.databasePath);
 const store = new Store(db);
+const multi = new MultiService(store);
 
 function player(username: string | undefined) {
   const p = username ? store.getPlayerByLowerName(username.toLowerCase()) : null;
@@ -46,12 +49,31 @@ function player(username: string | undefined) {
 
 const log = (action: string, targetPlayer: number, detail = ''): void => store.audit({ at: Date.now(), actorId: null, actorIp: 'cli', action, targetPlayer, detail });
 
+const stamp = (t: number): string => new Date(t).toISOString().slice(0, 16).replace('T', ' ');
+function printGroup(g: ReturnType<MultiService['groups']>['groups'][number]): void {
+  console.log(`[${g.risk.level.toUpperCase()}${g.reviewed ? ', reviewed' : ''}] ${g.members.map((m) => `${m.username}${m.householdShared ? ' (household declared)' : ''}${m.bannedAt ? ' (banned)' : ''}`).join(', ')}`);
+  console.log(`  ${g.risk.text}`);
+  for (const l of g.links) console.log(`  ${l.label}: ${l.seen.map((r) => `${g.members.find((m) => m.id === r.playerId)?.username ?? r.playerId} ${stamp(r.firstSeen)}..${stamp(r.lastSeen)}`).join(' | ')}`);
+}
+
 if (cmd === 'shared-ips') {
   const groups = store.sharedIpGroups();
   if (groups.length === 0) console.log('No IP is shared by two or more accounts.');
   for (const g of groups) {
     console.log(`${g.ip}: ${g.players.map((p) => `${p.username}${p.householdShared ? ' (reported household)' : ''}${p.bannedAt ? ' (banned)' : ''}`).join(', ')}`);
   }
+  // Groups by IP and by device (last 30 days), with the risk line the staff page shows.
+  const all = multi.groups(Date.now(), true).groups;
+  console.log(all.length === 0 ? '\nNo group by IP or device in the last 30 days.' : '\nGroups (IP and device, last 30 days):');
+  for (const g of all) printGroup(g);
+} else if (cmd === 'multi') {
+  const p = player(name);
+  console.log(`${p.username}: ${p.householdShared ? 'declared a shared household' : 'no household declared'}${p.bannedAt ? ', banned' : ''}`);
+  for (const ip of store.staff.ipsOf(p.id)) console.log(`  IP ${ip.ip}: first ${stamp(ip.firstSeen)}, last ${stamp(ip.lastSeen)}`);
+  for (const d of store.multi.devicesOf(p.id)) console.log(`  device ${d.hash.slice(0, 8)}: first ${stamp(d.firstSeen)}, last ${stamp(d.lastSeen)}`);
+  const groups = multi.groupsOf(p.id, Date.now());
+  if (groups.length === 0) console.log('  Not in any group.');
+  for (const g of groups) printGroup(g);
 } else if (cmd === 'ban') {
   const p = player(name);
   const reason = rest.join(' ') || 'multi-account';
@@ -120,7 +142,7 @@ if (cmd === 'shared-ips') {
   if (!result.ok) process.exitCode = 1;
 } else {
   console.error(
-    `Usage: admin shared-ips | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | extra <username> raidlists on|off | ${DOMINATION_USAGE} | ${WORLD_CONFIG_USAGE}`,
+    `Usage: admin shared-ips | multi <username> | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | extra <username> raidlists on|off | ${DOMINATION_USAGE} | ${WORLD_CONFIG_USAGE}`,
   );
   process.exitCode = 1;
 }

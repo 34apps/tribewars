@@ -144,6 +144,7 @@ import {
   type WorldSettings,
   seesLeadershipBoards,
   worldRules,
+  MULTI_RETENTION_MS,
 } from '@clanfire/engine';
 import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
@@ -270,6 +271,17 @@ function hearthDto(h: HearthState, t: number, s: WorldSettings, claimName: strin
   };
 }
 
+/** The same-connection check refused a send between two accounts; the wrapper logs the attempt for staff after the transaction rolled back. */
+class HouseholdRefusal extends GameError {
+  constructor(
+    readonly senderId: number,
+    readonly ownerId: number,
+    message: string,
+  ) {
+    super('invalid_target', message);
+  }
+}
+
 export class GameService {
   /** Secret battle salt, read from the database on first battle. */
   private salt: number[] | null = null;
@@ -325,6 +337,7 @@ export class GameService {
     // Budgeted like the tick: with a backlog this pass is skipped (the tick drains it; the next pass looks again).
     this.processDue(now, DUE_BUDGET);
     if (this.dueBacklog) return 0;
+    this.cleanMultiData(now);
     // The world has ended: it is frozen. Movements in flight still resolve (above), but nobody builds or loses a village any more.
     if (this.store.isWorldEnded()) return 0;
     this.abandonIdleVillages(now);
@@ -339,6 +352,14 @@ export class GameService {
       }
     }
     return queued;
+  }
+
+  /** Privacy: IPs, device hashes, activity slots and the pair log are deleted after MULTI_RETENTION_MS. Checked at most hourly (also in a frozen world). */
+  private multiCleanedAt = 0;
+  private cleanMultiData(now: number): void {
+    if (now - this.multiCleanedAt < 3_600_000) return;
+    this.multiCleanedAt = now;
+    this.store.multi.cleanup(now - MULTI_RETENTION_MS);
   }
 
   /**
@@ -707,6 +728,19 @@ export class GameService {
     // First steps: a WON raid on an abandoned village is the "raid" step (a lost one does not count; recorded here, at the event).
     if (result.attackerWon && !strikeTry && target.ownerId === null && origin.ownerId !== null) this.store.firstSteps.markDone(origin.ownerId, 'raid', at);
     this.countBattleStats(origin, target, contingents, result, supportLosses);
+    // Staff tooling: a fight between two players goes into the pair log (loot, losses, how many defenders stood there).
+    if (origin.ownerId !== null && target.ownerId !== null && origin.ownerId !== target.ownerId) {
+      this.store.multi.logEvent({
+        at,
+        kind: 'attack',
+        a: origin.ownerId,
+        b: target.ownerId,
+        amount: RESOURCE_IDS.reduce((n, r) => n + result.loot[r], 0),
+        lostA: totalUnits(result.attackerLosses),
+        lostB: totalUnits(result.defenderLosses) + supportLosses.reduce((n, l) => n + totalUnits(l), 0),
+        defenders: totalUnits(result.defenderUnits) + contingents.reduce((n, c) => n + totalUnits(c.units), 0),
+      });
+    }
     // Combat Renown (bonus source, section 18.2): states are the settled, pre-battle ones; who earns is decided in the service.
     const outcomes = this.renown.awardBattle({
       at,
@@ -1027,6 +1061,7 @@ export class GameService {
       village: { kind: 'struck', village: ref, holdEndsAt },
     });
     if (target.ownerId !== null) {
+      this.store.multi.logEvent({ at, kind: 'strike', a: claimant, b: target.ownerId });
       this.store.insertReport({
         playerId: target.ownerId,
         side: 'defense',
@@ -1169,6 +1204,7 @@ export class GameService {
       village: { kind: 'taken', village: ref, ...(totalUnits(overflowTotal) > 0 ? { overflow: overflowTotal } : {}) },
     });
     if (oldOwnerId !== null) {
+      this.store.multi.logEvent({ at, kind: 'conquest', a: claimant.id, b: oldOwnerId });
       this.store.insertReport({
         playerId: oldOwnerId,
         side: 'defense',
@@ -2198,6 +2234,16 @@ export class GameService {
    * relation and beginner protection allow the mission, the army suits the mission, the troops are at home.
    */
   send(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
+    try {
+      return this.sendInner(player, villageId, x, y, units, mission, t, timing, targetBuilding);
+    } catch (err) {
+      // Staff tooling: a refused try between two accounts on one connection is worth knowing (written after the rollback).
+      if (err instanceof HouseholdRefusal) this.store.multi.logEvent({ at: t, kind: mission === 'support' ? 'support_blocked' : 'attack_blocked', a: err.senderId, b: err.ownerId });
+      throw err;
+    }
+  }
+
+  private sendInner(player: PlayerRow, villageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, timing: { travelSeconds?: number; returnSeconds?: number } = {}, targetBuilding?: unknown): SendResponse {
     const s = this.settings;
     // The Firecart pick is checked for form only, NEVER against the target's buildings: any difference in the answer would
     // tell the sender what the village holds (docs/SECURITY_ROADMAP.md section 2).
@@ -2290,6 +2336,10 @@ export class GameService {
         ...(siegeTarget ? { siegeTarget } : {}),
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
+      // Staff tooling: support from one player to another (the pair log, kept 30 days).
+      if (mission === 'support' && target && target.ownerId !== null && target.ownerId !== player.id) {
+        this.store.multi.logEvent({ at: t, kind: 'support', a: player.id, b: target.ownerId, amount: totalUnits(check.units) });
+      }
       // Raiding abandoned villages keeps beginner protection; attacking or scouting a player ends it. Support, found and occupy never do.
       if ((mission === 'attack' || mission === 'scout') && target && target.ownerId !== null && !relief) this.store.setProtectedUntil(player.id, 0);
 
@@ -2311,6 +2361,15 @@ export class GameService {
    * (after catch-up) and is credited on arrival. Section 13 of GAME_DESIGN.
    */
   sendShipment(player: PlayerRow, villageId: number, x: number, y: number, cargo: unknown, t: number, toTribeStore = false): SendShipmentResponse {
+    try {
+      return this.sendShipmentInner(player, villageId, x, y, cargo, t, toTribeStore);
+    } catch (err) {
+      if (err instanceof HouseholdRefusal) this.store.multi.logEvent({ at: t, kind: 'ship_blocked', a: err.senderId, b: err.ownerId });
+      throw err;
+    }
+  }
+
+  private sendShipmentInner(player: PlayerRow, villageId: number, x: number, y: number, cargo: unknown, t: number, toTribeStore = false): SendShipmentResponse {
     const s = this.settings;
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
@@ -2351,6 +2410,10 @@ export class GameService {
         ...(toTribeStore ? { toTribeStore: true } : {}),
       });
       if (storeTribe !== null) this.projects.recordSend(movementId, storeTribe, player.id, check.total, t);
+      // Staff tooling: resources from one player to another (not the Tribe Store, which is a tribe feature).
+      if (!toTribeStore && target.ownerId !== null && target.ownerId !== player.id) {
+        this.store.multi.logEvent({ at: t, kind: 'ship', a: player.id, b: target.ownerId, amount: check.total });
+      }
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, {
         shipmentsSent: 1,
@@ -2654,7 +2717,7 @@ export class GameService {
   private refuseHousehold(senderId: number, ownerId: number, what = 'troops'): void {
     if (this.store.shareAnIp(senderId, ownerId)) {
       const tail = what === 'troops' ? ' Abandoned villages are still fine.' : '';
-      throw new GameError('invalid_target', `You share a connection with that player, so you cannot send ${what} to their villages.${tail}`);
+      throw new HouseholdRefusal(senderId, ownerId, `You share a connection with that player, so you cannot send ${what} to their villages.${tail}`);
     }
   }
 

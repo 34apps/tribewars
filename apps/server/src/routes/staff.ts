@@ -19,6 +19,8 @@ import {
   type MessageReportStatus,
   type MessageTemplateDto,
   type ModerationNoteRequest,
+  type MultiGroupsResponse,
+  type MultiReviewRequest,
   type MuteRequest,
   type ResolveReportRequest,
   type StaffMeResponse,
@@ -108,6 +110,14 @@ const templateBody = {
   properties: { key: { type: 'string', pattern: TEMPLATE_KEY_PATTERN }, ...templateProps },
 } as const;
 const templateUpdateBody = { type: 'object', additionalProperties: false, properties: templateProps } as const;
+
+const multiQuery = { type: 'object', additionalProperties: false, properties: { all: { type: 'string', enum: ['1', 'true'] } } } as const;
+const multiReviewBody = {
+  type: 'object',
+  required: ['key'],
+  additionalProperties: false,
+  properties: { key: { type: 'string', pattern: '^[0-9]{1,15}(,[0-9]{1,15}){1,99}$' } },
+} as const;
 
 const playerQuery = {
   type: 'object',
@@ -216,6 +226,30 @@ export function staffRoutes(app: FastifyInstance, ctx: AppContext): void {
         },
         q.limit === undefined ? 50 : Number(q.limit),
       );
+    },
+  );
+
+  // ---- shared connections (multi-account tooling; moderator+) -------------------------------------
+  app.get<{ Querystring: { all?: string } }>(
+    '/api/staff/multi',
+    { ...mod, schema: { querystring: multiQuery } },
+    async (req): Promise<MultiGroupsResponse> => {
+      const res = ctx.multi.groups(req.nowMs, req.query.all !== undefined);
+      // IPs and device links are personal data: opening the page is audited, like opening a profile.
+      ctx.store.audit({ at: req.nowMs, actorId: playerOf(req).id, actorIp: req.ip, action: 'staff_view_multi', detail: `${res.groups.length} groups` });
+      return res;
+    },
+  );
+  app.post<{ Body: MultiReviewRequest }>(
+    '/api/staff/multi/review',
+    { ...mod, schema: { body: multiReviewBody } },
+    async (req): Promise<MultiGroupsResponse> => {
+      const staff = playerOf(req);
+      ctx.store.tx(() => {
+        ctx.multi.review(req.body.key, req.nowMs, staff.id);
+        ctx.store.audit({ at: req.nowMs, actorId: staff.id, actorIp: req.ip, action: 'multi_reviewed', detail: `group ${req.body.key}` });
+      });
+      return ctx.multi.groups(req.nowMs, false);
     },
   );
 

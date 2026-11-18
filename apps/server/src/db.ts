@@ -124,6 +124,50 @@ CREATE TABLE IF NOT EXISTS player_ips (
 );
 CREATE INDEX IF NOT EXISTS idx_player_ips_ip ON player_ips(ip);
 
+-- Multi-account tooling for staff (schema v28; docs/SECURITY_ROADMAP.md "Multi-account tooling"). All of it is personal data or derived from it:
+-- staff-only, never sent to players, deleted after MULTI_RETENTION_MS (30 days) by the caretaker, and listed in the data export/delete plan.
+-- A browser's random device id, SHA-256 hashed on arrival (the raw id is never stored). No other fingerprinting.
+CREATE TABLE IF NOT EXISTS player_devices (
+  player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  device_hash TEXT    NOT NULL,
+  first_seen  INTEGER NOT NULL,
+  last_seen   INTEGER NOT NULL,
+  PRIMARY KEY (player_id, device_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_player_devices_hash ON player_devices(device_hash);
+CREATE INDEX IF NOT EXISTS idx_player_devices_seen ON player_devices(last_seen);
+-- One row per account and 10-minute slot in which it made a request (for the alternating-play rule).
+CREATE TABLE IF NOT EXISTS player_activity (
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  slot      INTEGER NOT NULL,
+  PRIMARY KEY (player_id, slot)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_player_activity_slot ON player_activity(slot);
+-- What happened between two player accounts (kind: ship, ship_blocked, support, support_blocked, attack, attack_blocked, strike, conquest).
+-- a is the acting side (sender, attacker, claimant), b the other. amount = resources shipped / looted; lost_* = troops lost; defenders = troops
+-- that stood in the defending village. The same-connection checks refuse some actions: those attempts are logged as *_blocked.
+CREATE TABLE IF NOT EXISTS pair_events (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  at        INTEGER NOT NULL,
+  kind      TEXT    NOT NULL,
+  a_player  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  b_player  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  amount    REAL    NOT NULL DEFAULT 0,
+  lost_a    INTEGER NOT NULL DEFAULT 0,
+  lost_b    INTEGER NOT NULL DEFAULT 0,
+  defenders INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_pair_events_kind ON pair_events(kind, at);
+CREATE INDEX IF NOT EXISTS idx_pair_events_a ON pair_events(a_player, at);
+CREATE INDEX IF NOT EXISTS idx_pair_events_b ON pair_events(b_player, at);
+-- A staff member looked at a group and judged it fine: it stays hidden until a newer pair event involves its members.
+CREATE TABLE IF NOT EXISTS multi_reviews (
+  group_key     TEXT    PRIMARY KEY,
+  reviewed_at   INTEGER NOT NULL,
+  reviewer_id   INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  last_event_id INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT    PRIMARY KEY,
   player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -673,9 +717,9 @@ export function applySchema(db: DatabaseSync): void {
  * index, rebuilt CHECK, data fix-up in applySchema), then update SCHEMA_FINGERPRINT (the test in restart.test.ts tells
  * you the new value). A deploy that finds an older version on disk first writes a backup (see openDatabase).
  */
-export const SCHEMA_VERSION = 27; // 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
+export const SCHEMA_VERSION = 28; // 28: staff multi-account tooling: player_devices, player_activity, pair_events, multi_reviews tables (created by the schema SQL with CREATE TABLE IF NOT EXISTS, no data step) (2026-11-18); 27: fighter_totals table (fighter rankings: value of enemy troops destroyed per player, attacker and defender side; created by the schema SQL, no data step, no back-fill) (2026-11-18); 26: rank tracks removed from Chieftain and Firecart (ranks did nothing for them; points become free, resources not refunded) (2026-11-18); 25: raid_lists + raid_list_rows tables (raid lists, a paid extra; created by the schema SQL, no data step; players.premium already exists) (2026-11-17); 24: notes table (private notes and tags, 2026-11-17); 23: abandoned villages born on the map lose their garrison (no defenders, only the Wall) + villages.has_troops for the map label; villages a player left keep theirs (2026-11-17); 22: indexes only: strike_chain(player_id, at) for the map and search, villages(name, x, y, owner_id) for village-name search (2026-11-17); 21: villages.protected_until (copy of state.protectedUntil, the map reads it instead of the JSON) + villages.npc_refresh_at (abandoned villages are settled and saved at most hourly by the caretaker) (2026-11-17); 20: queued builds, training batches and research carry the cost paid (cancel refunds from it); old jobs get today's price as an estimate (2026-11-17); 19: leftovers of the Firecart change: old reports, saved troop groups and stamped ranks convert Log Ram / Boulder Sling to Firecart (2026-11-11); 18: troop roster (originality piece 5): Knights are Ember Guards 1:1 and train at the Barracks, queued Knight batches finish at the Stables (2026-11-11); 17: Longhouse = Farm level, Log Rams + Boulder Slings become Firecarts, free Wrightyard (originality pass, 2026-11-11); 16: players.chest_gold + chest_reserved (War Chest, 2026-11-10); 15: first_steps + first_steps_card tables (first steps card, 2026-11-08); 14: world_end_badges table + players.badges_json (badges, 2026-11-08); 13: tribe projects tables + movements.to_tribe_store (2026-11-07); 12: troop_groups table (saved send-form groups, 2026-11-06); 11: strike_chain table (Chieftain chain), conquests dropped from the schema (rule changes 2026-11-05); 10: notifications table, npc_raids dropped from the schema (rule changes 2026-11-05); 9: sites + site_garrison tables (Fire Shrines, step 5); 8: world_end table (domination win, world end); 7: conquests table (pair cap, step 4)
 /** Hash of everything applySchema derives the schema from; guards against changing it without bumping SCHEMA_VERSION. */
-export const SCHEMA_FINGERPRINT = '2a2748896342c7cf';
+export const SCHEMA_FINGERPRINT = '51980f0272db26ca';
 
 /** The text the fingerprint is computed over (schema SQL, rebuild definitions, migration code). Used by tests only. */
 export function schemaFingerprintInput(): string {

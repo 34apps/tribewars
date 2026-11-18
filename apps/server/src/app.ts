@@ -48,6 +48,8 @@ import { supportRoutes } from './routes/support.ts';
 import { tribeRoutes } from './routes/tribes.ts';
 import { ReportService } from './report-service.ts';
 import { StaffService } from './staff-service.ts';
+import { MultiService } from './multi-service.ts';
+import { readDeviceHashes } from './device.ts';
 import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, originAllowed, routeBucket, type RouteBucket } from './security.ts';
 import { Store } from './store.ts';
 import { SupportService } from './support-service.ts';
@@ -209,11 +211,13 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     forum,
     support,
     staff: new StaffService(store, support),
+    multi: new MultiService(store),
     msgReports: new ReportService(store, forum),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
   app.decorateRequest('player', null);
+  app.decorateRequest('deviceHashes', undefined as unknown as string[]);
 
   // ---- request pipeline --------------------------------------------------------------------------
   // JSON bodies only (no text/plain or form posts); an empty body counts as "no body".
@@ -306,6 +310,11 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   // ---- routes ------------------------------------------------------------------------------------
   await app.register(cookie);
+
+  // Device id (multi-account tooling): hash what the browser sent; routes record it when they know the player.
+  app.addHook('onRequest', async (req, reply) => {
+    req.deviceHashes = isApiPath(req.url) ? readDeviceHashes(req, reply, ctx.secureCookies) : [];
+  });
 
   // Global rate limits (registered after the cookie plugin so the session cookie is parsed).
   // Per IP on every API call, per IP on writes, and per signed-in session on writes. Generous for

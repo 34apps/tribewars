@@ -1440,6 +1440,8 @@ export interface UpdateThreadRequest {
 //   GET  /api/staff/players?query=                      support+  -> StaffPlayerListResponse (max PLAYER_SEARCH_MAX)
 //   GET  /api/staff/players/:id                         support+  -> StaffPlayerDetailDto (IPs for moderator+ only; audited)
 //   POST /api/staff/players/:id/mute|unmute|ban|unban|warn  moderator+  bodies MuteRequest / ModerationNoteRequest / BanRequest / WarnRequest -> StaffPlayerDetailDto
+//   GET  /api/staff/multi?all=1                         moderator+  -> MultiGroupsResponse (groups of accounts that share an IP or a device in the last MULTI_RETENTION_MS; audited; `all` also lists reviewed groups)
+//   POST /api/staff/multi/review                        moderator+  body MultiReviewRequest -> MultiGroupsResponse (hides the group until something new happens; audited). Banning uses POST /api/staff/players/:id/ban.
 //   GET  /api/staff/audit?player=&action=&before=&limit=  moderator+  -> AuditListResponse
 //   GET  /api/staff/reports?status=&category=&before=     moderator+  -> StaffReportListResponse
 //   GET  /api/staff/reports/:id                         moderator+  -> StaffReportDto
@@ -1544,6 +1546,110 @@ export interface AuditEntryDto {
 export interface AuditListResponse {
   entries: AuditEntryDto[];
   nextBefore: number | null;
+}
+
+// ---- Shared connections (multi-account tooling, staff only) ----
+
+export type MultiRiskLevel = 'low' | 'medium' | 'high';
+
+export type MultiFlagCode = 'undeclared' | 'device_hidden' | 'feeding' | 'one_way_flow' | 'relay' | 'alternating' | 'blocked_attempts' | 'village_taken';
+
+export interface MultiMemberDto {
+  id: number;
+  username: string;
+  householdShared: boolean;
+  bannedAt: number | null;
+  villages: number;
+  points: number;
+  tribeTag: string | null;
+  lastActive: number;
+}
+
+/** One shared IP or device: which accounts used it, and when. A device is shown as a short label of its hash, never the id. */
+export interface MultiLinkDto {
+  kind: 'ip' | 'device';
+  label: string;
+  seen: Array<{ playerId: number; firstSeen: number; lastSeen: number }>;
+}
+
+export interface MultiFlowDto {
+  /** Shipments, and the resources in them, from the first account to the second (or the other way, second slot). */
+  count: number;
+  resources: number;
+  /** Different days the shipments went out on. */
+  days: number;
+}
+
+export interface MultiAttackDto {
+  count: number;
+  /** Attacks that met at most MULTI_FEED_MAX_DEFENDERS defending troops. */
+  noDefence: number;
+  loot: number;
+  /** Troops the attacker / the defender lost, summed. */
+  lostAttacker: number;
+  lostDefender: number;
+}
+
+/** What happened between two accounts of a group in the last MULTI_RETENTION_MS. Slot 0 = a to b, slot 1 = b to a. */
+export interface MultiPairDto {
+  a: number;
+  b: number;
+  ship: [MultiFlowDto, MultiFlowDto];
+  /** Shipment attempts the same-connection check refused (counted both ways). */
+  shipBlocked: number;
+  support: [number, number];
+  supportBlocked: number;
+  attacks: [MultiAttackDto, MultiAttackDto];
+  attackBlocked: number;
+  /** Villages taken from the other account. */
+  conquests: [number, number];
+  /** Chieftain strikes (hearth put out) on the other account. */
+  strikes: [number, number];
+  /** Set when the two were active at different times, always within minutes of each other. */
+  alternating: { handoffs: number; slotsA: number; slotsB: number; overlap: number } | null;
+}
+
+/** Resources moved A to C to B within MULTI_RELAY_WINDOW_MS, A and B being in the group. */
+export interface MultiRelayDto {
+  from: number;
+  via: number;
+  viaName: string;
+  to: number;
+  at: number;
+  resources: number;
+}
+
+export interface MultiFlagDto {
+  code: MultiFlagCode;
+  /** Plain words, names included. */
+  text: string;
+}
+
+export interface MultiGroupDto {
+  /** Sorted member ids joined by commas; the handle for review. */
+  key: string;
+  /** ip/device: the accounts share a connection or a device; behaviour: no shared connection, caught by what they did. */
+  kind: 'connection' | 'behaviour';
+  members: MultiMemberDto[];
+  links: MultiLinkDto[];
+  pairs: MultiPairDto[];
+  relays: MultiRelayDto[];
+  flags: MultiFlagDto[];
+  risk: { level: MultiRiskLevel; score: number; text: string };
+  /** The newest thing that happened between the members (ms), for sorting. */
+  lastEventAt: number | null;
+  /** True when listed with `all=1` and a staff member marked it reviewed with nothing new since. */
+  reviewed: boolean;
+}
+
+export interface MultiGroupsResponse {
+  groups: MultiGroupDto[];
+  /** Groups left out because they are reviewed (0 with `all=1`). */
+  reviewedHidden: number;
+}
+
+export interface MultiReviewRequest {
+  key: string;
 }
 
 export interface StaffPlayerDetailDto extends StaffPlayerSummaryDto {
