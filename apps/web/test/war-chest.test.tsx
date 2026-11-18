@@ -6,7 +6,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ChestInfo } from '@clanfire/engine';
 import { ApiRequestError, api } from '../src/api.ts';
-import { chestErrorText, chestMissing, chestPayInAmount, chestShort, chieftainTrainReason, chieftainPriceText } from '../src/chest.ts';
+import { chestErrorText, chestFillAmount, chestMissing, chestWholePrice, chestPayInAmount, chestShort, chieftainTrainReason, chieftainPriceText } from '../src/chest.ts';
 import { WarChestPayIn, WarChestProgress } from '../src/components/WarChest.tsx';
 import { DEFAULT_WORLD, createPlayerVillage } from '@clanfire/engine';
 import { GameContext } from '../src/game.ts';
@@ -46,38 +46,56 @@ test('price text adds the chest gold only when the server sent a chest', () => {
   assert.equal(chieftainPriceText(1200, undefined), '1,200 Renown');
 });
 
-const villageWith = (gold: number, hearth: unknown = null) =>
-  ({ chest, village: { id: 1, hearth }, live: { resources: { wood: 0, food: 0, iron: 0, gold } } }) as unknown as Partial<GameApi>;
+const wholeChest: ChestInfo = { gold: 2400, reserved: 0, chieftainPrice: 800, villagePrice: 3200 };
+const villageWith = (gold: number, hearth: unknown = null, c: ChestInfo = wholeChest) =>
+  ({ chest: c, village: { id: 1, hearth }, live: { resources: { wood: 0, food: 0, iron: 0, gold } } }) as unknown as Partial<GameApi>;
 
-test('the progress row shows chest gold over the next price, no ledger labels', () => {
-  const html = render({ chest }, createElement(WarChestProgress));
-  assert.ok(html.includes('War Chest'));
-  assert.ok(html.includes('1,500 / 3,200 gold'));
-  assert.ok(!html.includes('Ready'));
+test('the whole price is the village price (the deposit on an older server); fill is price minus chest, capped by village gold', () => {
+  assert.equal(chestWholePrice(wholeChest), 3200);
+  assert.equal(chestWholePrice(chest), 3200);
+  assert.equal(chestWholePrice({ chieftainPrice: 500 }), 500);
+  assert.equal(chestFillAmount(wholeChest, 5000), 800);
+  assert.equal(chestFillAmount(wholeChest, 300.9), 300);
+  assert.equal(chestFillAmount({ ...wholeChest, gold: 3200 }, 5000), 0);
+  assert.equal(chestFillAmount({ ...wholeChest, gold: 9000 }, 5000), 0);
+});
+
+test('the progress row shows chest gold over the WHOLE village price, Ready once covered', () => {
+  const html = render({ chest: wholeChest }, createElement(WarChestProgress));
+  assert.ok(html.includes('War Chest') && html.includes('2,400 / 3,200 gold') && !html.includes('Ready'));
+  assert.ok(html.includes('aria-valuemax="3200"'));
   for (const gone of ['Held', 'Missing', 'Still missing']) assert.ok(!html.includes(gone), gone);
-  const full = render({ chest: { gold: 5000, reserved: 0, chieftainPrice: 3200 } }, createElement(WarChestProgress));
-  assert.ok(full.includes('5,000 / 3,200 gold'));
-  assert.ok(full.includes('wc-ready">Ready<'));
+  const full = render({ chest: { ...wholeChest, gold: 3300 } }, createElement(WarChestProgress));
+  assert.ok(full.includes('3,300 / 3,200 gold') && full.includes('wc-ready">Ready<'));
 });
 
 test('without state.chest the row and the pay-in render nothing', () => {
   assert.equal(render({ chest: undefined }, createElement(WarChestProgress)), '');
-  assert.equal(render({ chest: undefined }, createElement(WarChestPayIn)), ''); 
+  assert.equal(render({ chest: undefined }, createElement(WarChestPayIn)), '');
 });
 
-test('the pay-in is one button: missing gold when the village has enough, else all its gold', () => {
-  assert.ok(render(villageWith(5000), createElement(WarChestPayIn)).includes('Pay in 1,700 gold'));
-  assert.ok(render(villageWith(120.7), createElement(WarChestPayIn)).includes('Pay in 120 gold'));
+test('the pay-in is always there: amount field, Fill to next village, All gold here, Pay in', () => {
   const html = render(villageWith(5000), createElement(WarChestPayIn));
-  assert.ok(!html.includes('<input') && !html.includes('>All<'));
+  assert.ok(html.includes('<input') && html.includes('inputMode="numeric"'));
+  assert.ok(html.includes('Fill to next village (800)') && html.includes('All gold here (5,000)'));
+  assert.ok(/<button[^>]*disabled[^>]*>Pay in</.test(html), 'Pay in waits for an amount');
+  assert.ok(html.includes('taken back out'));
+  assert.ok(render(villageWith(120.7), createElement(WarChestPayIn)).includes('Fill to next village (120)'));
 });
 
-test('the pay-in is hidden when nothing is missing and disabled at 0 gold', () => {
-  const enough = { ...villageWith(500), chest: { gold: 3200, reserved: 0, chieftainPrice: 3200 } };
-  assert.equal(render(enough, createElement(WarChestPayIn)), '');
+test('the pay-in stays when the chest already covers the village; Fill is hidden then', () => {
+  const html = render(villageWith(500, null, { ...wholeChest, gold: 3200 }), createElement(WarChestPayIn));
+  assert.ok(html.includes('<input') && html.includes('All gold here (500)'));
+  assert.ok(!html.includes('Fill to next village'));
+});
+
+test('hearth out and no gold give the plain reason and switch the controls off', () => {
   const none = render(villageWith(0), createElement(WarChestPayIn));
   assert.ok(none.includes('No gold in this village'));
-  assert.ok(/<button[^>]*disabled/.test(none));
+  assert.ok(/<input[^>]*disabled/.test(none) && /<button[^>]*disabled[^>]*>Pay in</.test(none));
+  const cold = render(villageWith(900, { until: 1 }), createElement(WarChestPayIn));
+  assert.ok(cold.includes('The hearth is out'));
+  assert.ok(/<input[^>]*disabled/.test(cold) && /<button[^>]*disabled[^>]*>All gold here/.test(cold));
 });
 
 test('Train is off with a one-line hint when Renown or the chest is short', () => {
@@ -138,7 +156,7 @@ test('Banner Hall page: Feast, the 3 steps, and ALL Chieftain things in one card
   for (const n of [1, 2, 3]) assert.ok(new RegExp(`aria-pressed="${n === 1}"[^>]*>${n}</button>`).test(html), `count ${n}`);
   assert.ok(!/\d Renown ·/.test(html), 'no prices in the count buttons');
   assert.ok(html.includes('role="progressbar"') && html.includes('From Feasts and battles'));
-  assert.ok(html.includes('War Chest gold') && html.includes('Pay in'), 'War Chest bar with a compact Pay in');
+  assert.ok(html.includes('Deposit for training') && html.includes('100 / 2,000 gold') && html.includes('Fill to next village (1,900)') && html.includes('All gold here (5,000)'), 'deposit bar plus the War Chest row against the whole price, always with the pay-in');
   assert.ok(html.includes('A deposit is reserved when training starts') && !html.includes('Each extra Chieftain costs more.'), 'tooltip hint only');
   const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   assert.ok(text.includes('At home 0') && !text.includes('You have 0 at home'), 'what is at home is the header chip only (no wrapped second line)');
@@ -152,7 +170,7 @@ test('Train button: ready shows the time; missing Renown and missing gold say th
   const { BannerHallPanel } = await import('../src/views/village/BannerHall.tsx');
   const ready = render(bannerGame({ chest: { gold: 5000, reserved: 0, chieftainPrice: 500, villagePrice: 2000 } }), createElement(BannerHallPanel));
   assert.ok(/Train 1 Chieftain · [\dm: ]+s?\b/.test(ready.replace(/<[^>]+>/g, '')) && !/<button[^>]*disabled=""[^>]*bh-train-btn/.test(ready), 'ready');
-  assert.ok(!ready.includes('Pay in'), 'no pay-in when the chest is full');
+  assert.ok(ready.includes('Ready') && !ready.includes('Fill to next village') && ready.includes('All gold here'), 'chest covers the village: Ready, no Fill, pay-in stays');
   const noRenown = render(bannerGame({ renown: { total: 100, spent: 0, balance: 100, nextVillageCost: 1300, villages: 1, reserved: 0, chieftains: 0 } }), createElement(BannerHallPanel));
   assert.ok(/[\d,]+ more Renown needed/.test(noRenown), 'missing Renown');
   assert.ok(/<button[^>]*(bh-train-btn[^>]*disabled|disabled[^>]*bh-train-btn)/.test(noRenown));

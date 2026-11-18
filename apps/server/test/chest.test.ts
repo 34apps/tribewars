@@ -36,6 +36,17 @@ test('deposit: the village loses the gold, the chest gains it, the answer and th
   await app.close();
 });
 
+test('deposit: any amount is accepted while the chest already covers a deposit, even past the whole village price', async () => {
+  const { app, p, vid } = await rich(9000);
+  const price = chestVillageCost(1);
+  ok(await deposit(p.c, vid, { gold: chieftainDepositChest(1) }));
+  ok(await deposit(p.c, vid, { gold: 1 }));
+  ok(await deposit(p.c, vid, { gold: price }));
+  assert.equal(chestOf(app, p).gold, chieftainDepositChest(1) + 1 + price);
+  assert.ok(chestOf(app, p).gold > price, 'more than the whole village price is fine');
+  await app.close();
+});
+
 test('deposit: another player\'s village is 403, an unknown one 404, bad bodies are 400 and nothing moves', async () => {
   const { app, p, vid } = await rich();
   const bob = await newPlayer(app, 'bob');

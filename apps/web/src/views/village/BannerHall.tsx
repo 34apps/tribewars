@@ -22,7 +22,7 @@ import { Icon } from "../../art/Icon.tsx";
 import { Cost, ProgressBar } from "../../components/ui.tsx";
 import { RESOURCE_ICON, RESOURCE_NAME } from "../../icons.ts";
 import { useSites } from "../../hooks/useSites.ts";
-import { WarChestPayIn } from "../../components/WarChest.tsx";
+import { WarChestPayIn, WarChestProgress } from "../../components/WarChest.tsx";
 import { formatDuration, formatInt, formatLeft } from "../../format.ts";
 import { useGame, useRules } from "../../game.ts";
 import { useLock } from "../../hooks/useLock.ts";
@@ -382,12 +382,13 @@ function ChieftainCard() {
             hint={`From Feasts and battles${myRenownPerDay > 0 ? ` · +${formatInt(myRenownPerDay)} a day from shrines your tribe holds` : ""}`}
           />
           {chest && (
-            <NeedBar
-              label="War Chest gold"
-              have={chest.gold}
-              need={batchChest}
-              action={missingGold > 0 ? <WarChestPayIn compact /> : undefined}
-            />
+            <NeedBar label="Deposit for training" have={chest.gold} need={batchChest} />
+          )}
+          {chest && (
+            <li className="bh-chest">
+              <WarChestProgress />
+              <WarChestPayIn />
+            </li>
           )}
           <li className="bh-need">
             <div className="bh-need-top">

@@ -26,6 +26,16 @@ export function chestPayInReason(text: string, villageGold: number, hearthOut: b
   return null;
 }
 
+/** Chest gold the next village costs in all (the deposits plus the rest paid at sending); an older server without it: the deposit. */
+export function chestWholePrice(chest: Pick<ChestInfo, 'chieftainPrice' | 'villagePrice'>): number {
+  return Math.max(1, chest.villagePrice ?? chest.chieftainPrice);
+}
+
+/** What "Fill to next village" pays: the whole village price minus the chest gold, capped by this village's gold (0 = nothing to fill). */
+export function chestFillAmount(chest: Pick<ChestInfo, 'gold' | 'chieftainPrice' | 'villagePrice'>, villageGold: number): number {
+  return chestPayInAmount(chestWholePrice(chest) - chest.gold, villageGold);
+}
+
 /** What the one-tap pay-in sends: the missing gold, capped by the gold this village holds (0 = nothing to pay). */
 export function chestPayInAmount(missing: number, villageGold: number): number {
   return Math.max(0, Math.min(Math.floor(missing), Math.floor(villageGold)));
