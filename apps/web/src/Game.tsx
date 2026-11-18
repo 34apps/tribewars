@@ -34,6 +34,7 @@ import { FrameReports } from './views/reports/FrameReports.tsx';
 import { FrameMail } from './views/mail/FrameMail.tsx';
 import { FrameIncoming } from './views/incoming/FrameIncoming.tsx';
 import './frame-incoming.css';
+import './components/war-chest.css';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';
@@ -261,6 +262,8 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       player: data.player,
       renown: data.renown ?? makeRenownInfo(0, 0, data.villages.length, settings),
       chest: data.chest,
+      chains: data.chains ?? [],
+      holds: data.holds ?? [],
       village,
       villages: data.villages,
       selectVillage,

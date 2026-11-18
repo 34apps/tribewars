@@ -30,7 +30,7 @@ import { draftFromReport } from '../../simulator.ts';
 import { moraleLabel, siegeHitText, villageReportText } from '../../villages.ts';
 import { Dialog } from '../army/FrameArmy.tsx';
 import { Chev, pluralUnit } from '../village/FrameParts.tsx';
-import { LOST_SEEN_LINE, destroyedLine, renownNoteLine } from '../../fighters.ts';
+import { LOST_SEEN_LINE, destroyedLine, renownNoteLine, strikeLine } from '../../fighters.ts';
 import { reportIcon, reportTone } from '../ReportsView.tsx';
 import { REPORTS_PER_PAGE, REPORT_FILTERS, attackShare, carriedLine, filterCounts, filterReports, knownUnit, pageSlice, paging, rowOutcome, tableDensity } from './frame-reports-logic.ts';
 import type { ReportFilter } from './frame-reports-logic.ts';
@@ -271,6 +271,7 @@ function SiegeRow({ h: hit, sent, compact }: { h: SiegeHit; sent: number; compac
 
 function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
   const sideName = useSideName();
+  const { now } = useGame();
   const [more, setMore] = useState<null | 'forces' | 'siege'>(null);
   const attName = sideName(b.attacker);
   const defName = sideName(b.defender);
@@ -345,6 +346,12 @@ function BattleBody({ report, b }: { report: ReportDto; b: BattleReportData }) {
                 <span className="frp-ch">
                   <Icon name="renown" size={16} />
                   {renownNoteLine(b)}
+                </span>
+              )}
+              {strikeLine(b.strike, now) && (
+                <span className="frp-ch ok frp-strike">
+                  <Icon name="chieftain" size={16} />
+                  {strikeLine(b.strike, now)}
                 </span>
               )}
             </div>

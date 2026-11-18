@@ -373,6 +373,21 @@ test('sandbox accounts earn nothing from fighting; their opponent does', async (
   await app.close();
 });
 
+test('a sandbox account earns Renown from a computer player (the preview bots) but still not from a real player', async () => {
+  const { app, clock } = await makeApp({ sandboxUsers: ['sandy'] });
+  const sandy = await newPlayer(app, 'sandy');
+  const bot = await newPlayer(app, 'botty');
+  const real = await newPlayer(app, 'norma');
+  unprotect(app, sandy, bot, real);
+  app.ctx.store.isComputerPlayer = (id) => id === bot.id;
+  const [vsBot] = paidTo(award(app, clock, sandy, bot), sandy, bot);
+  assert.ok((vsBot as number) > 0, 'the computer player pays');
+  assert.ok(pairRows(app, sandy.id).length > 0);
+  const [vsReal] = paidTo(award(app, clock, sandy, real), sandy, real);
+  assert.equal(vsReal, 0, 'a real player still does not');
+  await app.close();
+});
+
 test('the pair window: many small battles pay what one big one does; a second one pays less; after the window it starts again', async () => {
   const { app, clock, bob, bea, lou } = await world();
   const store = app.ctx.store;

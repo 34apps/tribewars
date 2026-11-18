@@ -602,6 +602,12 @@ export class Store extends SqlBase {
     return this.sandboxUsers.has(username.toLowerCase());
   }
 
+  /**
+   * Is this player run by the computer (the preview's bots)? A real world has none. The preview backend replaces this; test (sandbox)
+   * accounts earn combat Renown only against such players, never against real ones (renown-service.ts, mayEarn).
+   */
+  isComputerPlayer: (playerId: number) => boolean = () => false;
+
   /** Sandbox reset: drop every movement sent from this village and the support it has standing elsewhere. */
   clearVillageActivity(villageId: number): void {
     this.run('DELETE FROM movements WHERE origin_village_id = ?', villageId);

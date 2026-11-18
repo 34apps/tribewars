@@ -1,7 +1,8 @@
 // War Chest helpers (docs/GAME_DESIGN.md 18.2): pay-in validation, error texts and the shortfall numbers. No React.
 // The server decides everything; these only keep the controls honest.
 
-import type { ChestInfo } from '@clanfire/engine';
+import { chestChieftainPrice } from '@clanfire/engine';
+import type { ChestInfo, WorldSettings } from '@clanfire/engine';
 import { HEARTH_OUT_REASON } from './villages.ts';
 
 export const CHEST_WARNING = "Gold paid in can't be taken back out. Only Chieftains use it. Raids can't touch it.";
@@ -62,4 +63,11 @@ export function chieftainTrainReason(
 ): string | null {
   if (renownBalance < renownPrice) return `Need ${renownPrice.toLocaleString('en-US')} Renown`;
   return chestShort(chest) ? 'Needs War Chest gold' : null;
+}
+
+/** War Chest gold a batch of `count` Chieftains reserves (each is priced after those before it, like the Renown). */
+export function chestBatchPrice(villages: number, chieftains: number, count: number, s?: Pick<WorldSettings, 'config'>): number {
+  let sum = 0;
+  for (let i = 0; i < count; i++) sum += chestChieftainPrice(Math.max(1, villages), chieftains + i, s);
+  return sum;
 }

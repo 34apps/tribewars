@@ -1,9 +1,9 @@
 // Fighter rankings (docs/GAME_DESIGN.md, "Fighter rankings"): labels, rows and the battle report lines shared by the desktop and phone pages.
 
 import { useEffect, useState } from 'react';
-import type { BattleReportData, FighterKind, FighterRankDto, FighterRankingResponse, FighterScope } from '@clanfire/engine';
+import type { BattleReportData, FighterKind, FighterRankDto, FighterRankingResponse, FighterScope, StrikeOutcome } from '@clanfire/engine';
 import { api, errorMessage } from './api.ts';
-import { formatInt } from './format.ts';
+import { formatInt, formatLeft } from './format.ts';
 
 export const FIGHTER_KINDS: Array<{ id: FighterKind; label: string }> = [
   { id: 'attacker', label: 'Attacker' },
@@ -78,3 +78,34 @@ export function renownNoteLine(b: Pick<BattleReportData, 'renownGained' | 'renow
 
 /** Under a lost attack's table when the fight was close and the defence was shown after all (BattleReportData.seenInLoss). */
 export const LOST_SEEN_LINE = 'Your army fell, but saw what held the village.';
+
+const STRIKE_REFUSED: Record<NonNullable<StrikeOutcome['reason']>, string> = {
+  lost: 'the battle was not won',
+  players_disabled: 'villages of players cannot be taken in this world',
+  protected: 'the village is under protection',
+  locked: 'the village was taken a short while ago and is locked',
+  household: 'you share a connection with its owner',
+};
+
+/** Hold time as the report says it: "8 h" or "1 h 30 min" (never a clock). */
+function holdText(ms: number): string {
+  const min = Math.max(1, Math.round(ms / 60_000));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? (m > 0 ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
+}
+
+/** What the attacker's Chieftains did (BattleReportData.strike), in plain words; null for reports without one. */
+export function strikeLine(strike: StrikeOutcome | undefined, now: number): string | null {
+  if (!strike) return null;
+  if (strike.result === 'struck') return `Hearth put out: hold the village for ${holdText(strike.holdMs ?? 0)}.`;
+  if (strike.result === 'fell') return 'The Chieftain fell; nothing banked.';
+  if (strike.result === 'refused') return `Not allowed: ${STRIKE_REFUSED[strike.reason ?? 'lost'] ?? 'this village cannot be struck'}.`;
+  const have = strike.have ?? 0;
+  const arrived = `Your ${have === 1 ? 'Chieftain' : 'Chieftains'} arrived: ${have} of ${strike.need} needed.`;
+  const more = Math.max(1, strike.need - have);
+  const left = (strike.endsAt ?? 0) - now;
+  return left > 0
+    ? `${arrived} Send ${more} more within ${formatLeft(left)} to put this village's hearth out.`
+    : `${arrived} The time to send the rest has run out.`;
+}

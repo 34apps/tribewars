@@ -8,6 +8,7 @@ import {
   CHIEFTAIN_MAX_BATCH,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
+  HEARTH_POINTS_PER_CHIEFTAIN,
   UNITS,
   UNIT_IDS,
   chieftainsNeeded,
@@ -28,13 +29,14 @@ import type {
   Mission,
   RenownInfo,
   SiegeHit,
+  TrainJob,
   UnitId,
   Units,
   VillageListItemDto,
   VillageReportData,
   WorldSettings,
 } from '@clanfire/engine';
-import { formatInt, formatLeft } from './format.ts';
+import { formatDuration, formatInt, formatLeft } from './format.ts';
 import { allowedMissions } from './rules.ts';
 
 // ---- Hold clock -----------------------------------------------------------------------------------------
@@ -149,6 +151,42 @@ export function chieftainsAffordable(r: RenownInfo, limit = CHIEFTAIN_MAX_BATCH,
   let n = 0;
   while (n < limit && chieftainBatchPrice(r, n + 1, s) <= r.balance) n += 1;
   return n;
+}
+
+/** How many Chieftains a village of `points` needs (abandoned: 1): "1, plus 1 for every 12,000 points (most 3)". */
+export const CHIEFTAIN_COUNT_RULE = `A village needs 1, plus 1 for every ${HEARTH_POINTS_PER_CHIEFTAIN.toLocaleString('en-US')} points it has (most ${HEARTH_MAX_CHIEFTAINS}).`;
+
+/** The label above the 1 / 2 / 3 buttons. With a target in mind ("Sable's village needs 3"), the target's own count is added. */
+export function chieftainCountLabel(target?: { name: string; points: number; abandoned?: boolean }): string {
+  const base = `How many Chieftains? ${CHIEFTAIN_COUNT_RULE}`;
+  if (!target) return base;
+  const need = chieftainsNeeded(!!target.abandoned, target.points);
+  return `${base} ${target.name} needs ${need}.`;
+}
+
+/** "1 Chieftain in training, ready in 4:59:01" from the Banner Hall queue (null when nothing is queued). The first batch's clock is the next to finish. */
+export function chieftainTrainingLine(queue: ReadonlyArray<TrainJob>, now: number): string | null {
+  const count = queue.reduce((n, j) => n + (j.count - j.done), 0);
+  if (count < 1) return null;
+  const first = queue[0];
+  if (!first) return null;
+  const endAt = first.startAt + first.count * first.perUnitMs;
+  const when = now >= first.startAt ? `ready in ${formatDuration(endAt - now)}` : `starts in ${formatDuration(first.startAt - now)}`;
+  return `${count} ${count === 1 ? 'Chieftain' : 'Chieftains'} in training, ${when}`;
+}
+
+/** The three steps of taking a village, with this world's times (chain window and hold, already divided by the world speed). */
+export function takingSteps(s: WorldSettings): string[] {
+  const c = worldRules(s).conquest;
+  const t = (hours: number) => {
+    const h = hours / Math.max(1e-6, s.speed);
+    return Number.isInteger(h) ? `${h} h` : formatLeft(h * 3_600_000);
+  };
+  return [
+    `Train enough Chieftains: 1, plus 1 for every ${HEARTH_POINTS_PER_CHIEFTAIN.toLocaleString('en-US')} points of the village (most ${HEARTH_MAX_CHIEFTAINS}).`,
+    `Send them with an army that wins the battle, all of them within ${t(c.chainWindowHours)}.`,
+    `Hold the village for ${t(c.holdHours)} (${t(c.holdHoursAbandoned)} for an abandoned one).`,
+  ];
 }
 
 /** The rule in words, with the real numbers. */
@@ -349,7 +387,7 @@ export function chainText(chain: MapVillageDto['chain'], now: number): string | 
   if (!chain || chain.have < 1) return null;
   const left = chain.endsAt - now;
   if (left <= 0) return null;
-  return `${chain.have} of ${chain.need} Chieftains (counts ${formatLeft(left)} more)`;
+  return `${chain.have} of ${chain.need} Chieftains banked, ${formatLeft(left)} left`;
 }
 
 export type StrengthBand = 'weak' | 'strong';

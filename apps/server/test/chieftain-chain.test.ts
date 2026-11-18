@@ -26,6 +26,7 @@ import {
   type P,
 } from './village-helpers.ts';
 import type { Clock } from './helpers.ts';
+import { report, reports } from './warfare-helpers.ts';
 import type { MapResponse } from '@clanfire/engine';
 
 const SPEED = 10;
@@ -261,5 +262,82 @@ test('map: the attacker sees chain progress "have of need" on the village while 
   assert.equal((await mapOf(victim))?.chain, undefined, "the defender never sees the attacker's chain");
   runTo(app, clock, m1.arriveAt + WINDOW_S * 1000 + 1);
   assert.equal((await mapOf(claimer))?.chain, undefined, 'out of the window it no longer counts');
+  await app.close();
+});
+
+/** The player's newest BATTLE report in full (a strike also writes other kinds of report). */
+async function latestReport(p: P) {
+  const first = (await reports(p)).find((r) => r.type === 'battle');
+  assert.ok(first, 'a battle report');
+  return report(p, first.id);
+}
+
+// ---- What the attacker's report says about the Chieftains (BattleReportData.strike, written with the report) ----
+
+test('the attacker report says what the Chieftain did: banked, struck, fell, refused (and the defender sees no strike line)', async () => {
+  const { app, clock, claimer, victim, target, home } = await setup(2);
+  const store = app.ctx.store;
+  const m1 = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  runTo(app, clock, m1.arriveAt);
+  const banked = (await latestReport(claimer)).battle;
+  assert.deepEqual(banked?.strike, { result: 'banked', need: 2, have: 1, endsAt: m1.arriveAt + WINDOW_S * 1000 });
+  assert.equal((await latestReport(victim)).battle?.strike, undefined, 'the defender is told nothing about the chain');
+
+  // A raid with no Chieftain has no strike line.
+  const raid = await go(claimer, home, target, { raider: ARMY }, 30, 20);
+  runTo(app, clock, raid.arriveAt);
+  assert.equal((await latestReport(claimer)).battle?.strike, undefined);
+
+  // A lost attack: the Chieftain fell, nothing banked.
+  const st = structuredClone(store.getVillage(target.id)!.state);
+  st.troops = { ...st.troops, guard: 3000 };
+  store.saveVillage(target.id, st, villagePoints(st));
+  const lost = await go(claimer, home, target, { raider: 20, chieftain: 1 }, 60);
+  runTo(app, clock, lost.arriveAt);
+  assert.equal((await latestReport(claimer)).battle?.strike?.result, 'fell');
+  st.troops = { ...st.troops, guard: 0 };
+  store.saveVillage(target.id, st, villagePoints(st));
+
+  const m2 = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  runTo(app, clock, m2.arriveAt);
+  const struck = (await latestReport(claimer)).battle?.strike;
+  assert.equal(struck?.result, 'struck');
+  assert.equal(struck?.need, 2);
+  assert.ok((struck?.holdMs ?? 0) > 0);
+
+  await app.close();
+});
+
+test('the report says why a won attack with a Chieftain was not allowed to strike (locked village)', async () => {
+  const { app, clock, claimer, target, home } = await setup(1);
+  const store = app.ctx.store;
+  const st = structuredClone(store.getVillage(target.id)!.state);
+  st.lockUntil = clock.now() + 10 * HOUR;
+  store.saveVillage(target.id, st, villagePoints(st));
+  const m = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  runTo(app, clock, m.arriveAt);
+  assert.deepEqual((await latestReport(claimer)).battle?.strike, { result: 'refused', need: 1, reason: 'locked' });
+  await app.close();
+});
+
+test('GET /api/state lists the viewer\'s own chain progress (and nothing for others)', async () => {
+  const { app, clock, claimer, victim, target, home } = await setup(2);
+  const m1 = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  runTo(app, clock, m1.arriveAt);
+  const mine = (await claimer.c.get('/api/state')).json<{ chains?: Array<{ villageId: number; have: number; need: number; endsAt: number }> }>();
+  assert.deepEqual(mine.chains?.map((c) => [c.villageId, c.have, c.need, c.endsAt]), [[target.id, 1, 2, m1.arriveAt + WINDOW_S * 1000]]);
+  const theirs = (await victim.c.get('/api/state')).json<{ chains?: unknown[] }>();
+  assert.deepEqual(theirs.chains, []);
+  await app.close();
+});
+
+test('GET /api/state lists the villages the viewer holds, with the clock', async () => {
+  const { app, clock, claimer, target, home } = await setup(1);
+  const m = await go(claimer, home, target, { raider: ARMY, chieftain: 1 }, 60);
+  runTo(app, clock, m.arriveAt);
+  const s = (await claimer.c.get('/api/state')).json<{ holds?: Array<{ villageId: number; running: boolean; holdMsLeft: number }> }>();
+  assert.equal(s.holds?.length, 1);
+  assert.equal(s.holds?.[0]?.villageId, target.id);
+  assert.ok((s.holds?.[0]?.holdMsLeft ?? 0) > 0);
   await app.close();
 });

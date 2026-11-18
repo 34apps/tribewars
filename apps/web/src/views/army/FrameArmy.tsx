@@ -27,7 +27,6 @@ import { AttackHint } from '../../components/AttackHint.tsx';
 import { SupportTimingView, hintTarget } from '../../components/hintViews.tsx';
 import { SiegePicker } from '../../components/Siege.tsx';
 import { TroopGroupBar } from '../../components/TroopGroups.tsx';
-import { ChieftainPanel } from '../../components/ChieftainPanel.tsx';
 import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { takePendingSend } from '../../simulator.ts';
 import { formatAgo, formatCoords, formatDuration, formatInt } from '../../format.ts';
@@ -124,11 +123,10 @@ const where = (v: { name: string; x: number; y: number }) => `${v.name} (${forma
 // ---- At home ---------------------------------------------------------------------------------------------------------
 
 function MusterPanel() {
-  const { live, navigate } = useGame();
+  const { live, navigate, openBuilding } = useGame();
   const raidAccess = useRaidListsAccess();
   const rules = useRules();
   const info = useUnitInfo();
-  const [chief, setChief] = useState(false);
   const training = emptyUnits();
   for (const j of allTrainJobs(live)) training[j.unit] += j.count - j.done;
   const inTraining = UNIT_IDS.reduce((n, u) => n + training[u], 0);
@@ -140,11 +138,6 @@ function MusterPanel() {
   return (
     <section className="fv-pn fa-muster" aria-label="Troops at home">
       {info.dialog}
-      {chief && (
-        <Dialog title="Chieftains" onClose={() => setChief(false)}>
-          <ChieftainPanel heading={false} />
-        </Dialog>
-      )}
       <div className="fv-ph">
         <h2>At home</h2>
         <span className="fa-pchip" aria-label={`Population ${formatInt(pop)} of ${formatInt(popCap)}`}>
@@ -163,18 +156,18 @@ function MusterPanel() {
             Raid lists (paid extra)
           </button>
         )}
-        <button type="button" className="fa-chs" onClick={() => setChief(true)} aria-haspopup="dialog">
+        <button type="button" className="fa-chs" onClick={() => openBuilding('bannerhall')}>
           <UnitFigure unit="chieftain" pose="icon" size={26} />
           {chiefs > 0 ? (
             <span>
               <b>
                 {chiefs} {chiefs === 1 ? 'Chieftain' : 'Chieftains'} ready
               </b>{' '}
-              · can take an abandoned village
+              · they are in the Banner Hall
             </span>
           ) : (
             <span>
-              <b>Chieftains</b> · train and manage
+              <b>Chieftains are in the Banner Hall</b>
             </span>
           )}
           <Chev />

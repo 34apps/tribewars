@@ -2,7 +2,9 @@ import { createContext, useContext } from 'react';
 import type {
   Resources,
   BuildingId,
+  ChainListItemDto,
   ChestInfo,
+  HoldListItemDto,
   FirstStepsDto,
   Mission,
   MovementDto,
@@ -80,6 +82,9 @@ export interface GameApi {
   renown: RenownInfo;
   /** The player's War Chest (undefined against an older server: hide the chest UI). */
   chest: ChestInfo | undefined;
+  /** My Chieftain chains in progress and the villages I am holding (absent from an older server). */
+  chains: ChainListItemDto[];
+  holds: HoldListItemDto[];
   /** The current village: every screen (build, train, send, map) acts on this one. */
   village: OwnVillageDto;
   /** All my villages (the state response), in server order. */

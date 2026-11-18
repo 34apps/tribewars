@@ -54,6 +54,12 @@ export type StrikeCheck =
   | { ok: true; need: number; chieftains: number; banked: number }
   | { ok: false; reason: StrikeFailReason; need: number; chieftains: number; banked: number };
 
+/** How long the hold clock starts at for a village struck now (abandoned villages hold shorter); ÷ world speed. */
+export function holdDurationMs(abandoned: boolean, s: WorldSettings): number {
+  const conquest = worldRules(s).conquest;
+  return hoursMs(abandoned ? conquest.holdHoursAbandoned : conquest.holdHours, s);
+}
+
 /** Length of the Chieftain-chain window in ms (the world's `conquest.chainWindowHours` divided by world speed). */
 export function strikeChainWindowMs(s: WorldSettings): number {
   return hoursMs(worldRules(s).conquest.chainWindowHours, s);

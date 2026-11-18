@@ -365,6 +365,34 @@ export interface GameStateResponse {
   chest?: ChestInfo;
   /** First steps card: done/claimed state of the starter tasks. */
   firstSteps: FirstStepsDto;
+  /** The player's own Chieftain chains in progress (Chieftains banked on a village, still inside the window). Absent in older responses. */
+  chains?: ChainListItemDto[];
+  /** Villages whose hearth the player put out and is holding now (the hold clock), soonest first. Absent in older responses. */
+  holds?: HoldListItemDto[];
+}
+
+/** One village the player is holding (their claim, GAME_DESIGN 18.2): the viewer's own claims only. */
+export interface HoldListItemDto {
+  villageId: number;
+  name: string;
+  x: number;
+  y: number;
+  /** True while the occupiers are strong enough and the clock runs. */
+  running: boolean;
+  /** Hold time left at serverTime (ms); while paused, what is left once it runs again. */
+  holdMsLeft: number;
+}
+
+/** One village the player has banked Chieftains on (GAME_DESIGN 18.2, Chieftain chain): the viewer's own data only. */
+export interface ChainListItemDto {
+  villageId: number;
+  name: string;
+  x: number;
+  y: number;
+  have: number;
+  need: number;
+  /** When the oldest counted Chieftain stops counting (server clock, ms). */
+  endsAt: number;
 }
 
 /** A support contingent standing in someone else's village. */
@@ -728,12 +756,28 @@ export interface BattleReportData {
    */
   renownNote?: 'not_allowed' | 'too_small' | 'daily_cap' | 'small_target' | 'tiny';
   /**
+   * What an attack that carried Chieftains did about the hearth (docs/GAME_DESIGN.md 18.2), written with the attacker's own report only;
+   * absent on older reports and when no Chieftain went along. 'struck' = hearth put out (hold clock `holdMs`); 'banked' = won, but fewer
+   * Chieftains than the village needs: `have` of `need` are banked in the strike chain until `endsAt` (server clock, ms); 'fell' = no Chieftain
+   * survived, nothing banked; 'refused' = the strike was not allowed, `reason` says why.
+   */
+  strike?: StrikeOutcome;
+  /**
    * Buildings the attacker's siege units lowered (docs/GAME_DESIGN.md 18.9), the Wall hit first; on a win and on a (close) loss. Absent on
    * reports saved before siege and when no siege unit was sent. The Wall line runs from the level BEFORE the battle to the level after
    * the during-the-battle and after-the-battle steps; `wallLevel` above is the Wall as it counted in the battle (after the during hit).
    * An attacker whose army was wiped out only sees the Wall hits (nothing else of the defence).
    */
   siege?: SiegeHit[];
+}
+
+export interface StrikeOutcome {
+  result: 'struck' | 'banked' | 'fell' | 'refused';
+  need: number;
+  have?: number;
+  endsAt?: number;
+  holdMs?: number;
+  reason?: 'lost' | 'players_disabled' | 'protected' | 'locked' | 'household';
 }
 
 export interface ScoutReportData {

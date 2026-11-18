@@ -32,6 +32,9 @@ import {
   occupierPopulation,
   chainedChieftains,
   chieftainsNeeded,
+  holdDurationMs,
+  type StrikeCheck,
+  type StrikeOutcome,
   strikeChainWindowMs,
   underVillageLimit,
   updateHold,
@@ -119,6 +122,8 @@ import {
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
+  type ChainListItemDto,
+  type HoldListItemDto,
   type ChainProgressDto,
   type ScoutedResponse,
   type VillageIntelDto,
@@ -767,6 +772,47 @@ export class GameService {
     };
 
     const survived = totalUnits(result.attackerSurvivors) > 0;
+    // Strike decision, made before the reports are written so the attacker's report can say what the Chieftains did. It only reads:
+    // the strike itself, the chain entry and the hold follow below.
+    let check: StrikeCheck | null = null;
+    let household = false;
+    let strikeInfo: StrikeOutcome | undefined;
+    if (strikeTry && origin.ownerId !== null) {
+      if (survived) {
+        // Same connection as the owner: no Strike and nothing is banked (the battle itself stands).
+        household = target.ownerId !== null && this.store.shareAnIp(origin.ownerId, target.ownerId);
+        // Chieftain chain: Chieftains of this attacker's earlier attacks on this village that are still inside the window and
+        // still on their way home count with the survivors. Entries are written in arrival order (movements resolve by
+        // arrival time, then id), so this sum depends only on stored times and ids.
+        const entries = household ? [] : this.store.strikeChainOf(target.id, origin.ownerId);
+        const banked = chainedChieftains(entries, at, s);
+        check = checkStrike(
+          result,
+          result.attackerSurvivors,
+          {
+            abandoned: target.ownerId === null,
+            points: villagePoints(targetState),
+            now: at,
+            lockUntil: targetState.lockUntil,
+            // The village's own protection and the owner's beginner / restart protection both stop a Strike.
+            protectedUntil: Math.max(targetState.protectedUntil ?? 0, target.ownerId !== null ? target.ownerProtectedUntil : 0),
+          },
+          { playersEnabled: this.playersConquerable() },
+          banked,
+          s,
+        );
+        const need = check.need;
+        if (household) strikeInfo = { result: 'refused', need, reason: 'household' };
+        else if (check.ok) strikeInfo = { result: 'struck', need, holdMs: holdDurationMs(target.ownerId === null, s) };
+        else if (check.reason === 'too_few_chieftains' && check.chieftains >= 1) {
+          const counted = entries.filter((e) => e.at <= at && at - e.at <= strikeChainWindowMs(s)).map((e) => e.at);
+          strikeInfo = { result: 'banked', need, have: check.chieftains + check.banked, endsAt: Math.min(at, ...counted) + strikeChainWindowMs(s) };
+        } else if (check.reason === 'too_few_chieftains') strikeInfo = { result: 'fell', need };
+        else strikeInfo = { result: 'refused', need, reason: check.reason };
+      } else {
+        strikeInfo = { result: 'fell', need: chieftainsNeeded(target.ownerId === null, villagePoints(targetState)) };
+      }
+    }
     const full: BattleReportData = {
       outcome: 'battle',
       attacker: refOf(origin),
@@ -814,7 +860,7 @@ export class GameService {
         title: `Raid on ${target.name} ${coords(target)}`,
         createdAt: at,
         type: 'battle',
-        battle: { ...battle, ...gained(origin.ownerId, !seen) },
+        battle: { ...battle, ...(strikeInfo ? { strike: strikeInfo } : {}), ...gained(origin.ownerId, !seen) },
       });
     }
     if (target.ownerId !== null) {
@@ -844,33 +890,12 @@ export class GameService {
     // Strike: a won battle with enough surviving Chieftains puts the hearth out; the survivors stay as the first occupiers.
     let struck = false;
     let bankChieftains = 0;
-    if (strikeTry && survived && origin.ownerId !== null) {
-      // Same connection as the owner: no Strike and nothing is banked (the battle itself stands).
-      const household = target.ownerId !== null && this.store.shareAnIp(origin.ownerId, target.ownerId);
-      // Chieftain chain: Chieftains of this attacker's earlier attacks on this village that are still inside the window and
-      // still on their way home count with the survivors. Entries are written in arrival order (movements resolve by
-      // arrival time, then id), so this sum depends only on stored times and ids.
-      const banked = household ? 0 : chainedChieftains(this.store.strikeChainOf(target.id, origin.ownerId), at, s);
-      const check = checkStrike(
-        result,
-        result.attackerSurvivors,
-        {
-          abandoned: target.ownerId === null,
-          points: villagePoints(targetState),
-          now: at,
-          lockUntil: targetState.lockUntil,
-          // The village's own protection and the owner's beginner / restart protection both stop a Strike.
-          protectedUntil: Math.max(targetState.protectedUntil ?? 0, target.ownerId !== null ? target.ownerProtectedUntil : 0),
-        },
-        { playersEnabled: this.playersConquerable() },
-        banked,
-        s,
-      );
-      if (check.ok && !household) {
+    if (check && origin.ownerId !== null && !household) {
+      if (check.ok) {
         this.strike(origin, target, newTarget, targetState.hearth, result.attackerSurvivors, m, at);
         this.store.clearStrikeChain(target.id, origin.ownerId); // the chain is used up
         struck = true;
-      } else if (!check.ok && !household && check.reason === 'too_few_chieftains' && check.chieftains >= 1) {
+      } else if (check.reason === 'too_few_chieftains' && check.chieftains >= 1) {
         bankChieftains = check.chieftains; // only the Chieftain count was missing: write a chain entry below
       }
     }
@@ -1758,7 +1783,54 @@ export class GameService {
       },
       // Newly done starter tasks are stored here (sticky); a read of this card is the only place they are detected.
       firstSteps: this.store.tx(() => firstStepsDto(this.store, player.id, settledStates, t)),
+      chains: this.chainList(player.id, t),
+      holds: this.holdList(player.id, t),
     };
+  }
+
+  /** Villages the player holds now (their claim on a cold village): the hold clock for the Banner Hall page. */
+  private holdList(playerId: number, t: number): HoldListItemDto[] {
+    const out: HoldListItemDto[] = [];
+    const seen = new Set<number>();
+    for (const st of this.store.stationedAbroad(playerId)) {
+      if (seen.has(st.host.villageId)) continue;
+      seen.add(st.host.villageId);
+      const v = this.store.getVillage(st.host.villageId);
+      const h = v?.state.hearth;
+      if (!v || !h || h.claimBy !== playerId) continue;
+      const d = hearthDto(h, t, this.settings, '');
+      out.push({ villageId: v.id, name: v.name, x: v.x, y: v.y, running: d.running, holdMsLeft: d.holdMsLeft });
+    }
+    return out.sort((a, b) => a.holdMsLeft - b.holdMsLeft);
+  }
+
+  /** The player's own Chieftain chains (villages with banked Chieftains inside the window), soonest to run out first. */
+  private chainList(playerId: number, t: number): ChainListItemDto[] {
+    const windowMs = strikeChainWindowMs(this.settings);
+    const byVillage = new Map<number, Array<{ chieftains: number; at: number }>>();
+    for (const e of this.store.strikeChainsOfPlayer(playerId)) {
+      if (t - e.at < 0 || t - e.at > windowMs) continue;
+      const list = byVillage.get(e.villageId);
+      if (list) list.push(e);
+      else byVillage.set(e.villageId, [e]);
+    }
+    const out: ChainListItemDto[] = [];
+    for (const [villageId, entries] of byVillage) {
+      const v = this.store.getVillage(villageId);
+      if (!v) continue;
+      const have = chainedChieftains(entries, t, this.settings);
+      if (have < 1) continue;
+      out.push({
+        villageId,
+        name: v.name,
+        x: v.x,
+        y: v.y,
+        have,
+        need: chieftainsNeeded(v.ownerId === null, villagePoints(v.state)),
+        endsAt: Math.min(...entries.map((e) => e.at)) + windowMs,
+      });
+    }
+    return out.sort((a, b) => a.endsAt - b.endsAt);
   }
 
   /** Take a done step's reward into one of the player's villages (capped at its storage). One transaction; a second claim changes nothing. */

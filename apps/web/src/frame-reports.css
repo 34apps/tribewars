@@ -942,3 +942,11 @@
   margin: 0 6px;
   background: var(--edge);
 }
+
+/* The strike line is a sentence: let it wrap in a rounded block instead of a one-line pill. */
+.frp-ch.frp-strike {
+  height: auto;
+  min-height: 30px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 14px;
+}

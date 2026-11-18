@@ -8,6 +8,7 @@ import type { ChestInfo } from '@clanfire/engine';
 import { ApiRequestError, api } from '../src/api.ts';
 import { chestErrorText, chestMissing, chestPayInAmount, chestShort, chieftainTrainReason, chieftainPriceText } from '../src/chest.ts';
 import { WarChestPayIn, WarChestProgress } from '../src/components/WarChest.tsx';
+import { DEFAULT_WORLD, createPlayerVillage } from '@clanfire/engine';
 import { GameContext } from '../src/game.ts';
 import type { GameApi } from '../src/game.ts';
 import { NEEDS_CHEST_TEXT } from '../src/shortfall.ts';
@@ -104,22 +105,54 @@ test('api.chestDeposit posts {gold} to the village chest route', async () => {
   assert.ok(ApiRequestError);
 });
 
-test('Banner Hall page: two plain cards, no stepper, no old boxes', async () => {
-  const { BannerHallPanel } = await import('../src/views/village/BannerHall.tsx');
-  const game = {
+const bannerGame = (over: Record<string, unknown> = {}, queue: unknown[] = []) => {
+  const live = { ...createPlayerVillage(0), buildings: { ...createPlayerVillage(0).buildings, bannerhall: 1 }, resources: { wood: 50000, food: 50000, iron: 50000, gold: 5000 } };
+  live.trainQueues = { ...live.trainQueues, bannerhall: queue as never };
+  return {
     chest,
-    renown: { balance: 0, reserved: 0, chieftains: 0 },
-    settings: {},
+    renown: { total: 9000, spent: 0, balance: 9000, nextVillageCost: 900, villages: 1, reserved: 0, chieftains: 0 },
+    settings: DEFAULT_WORLD,
     now: 0,
+    chains: [],
+    holds: [],
     village: { id: 1, hearth: null },
-    live: { buildings: { bannerhall: 1 }, buildQueue: [], resources: { wood: 5000, food: 5000, iron: 5000, gold: 5000 } },
+    live,
+    ...over,
   } as unknown as Partial<GameApi>;
-  const html = render(game, createElement(BannerHallPanel));
+};
+
+test('Banner Hall page: Feast, the 3 steps, and ALL Chieftain things in one card (train here, no Army link)', async () => {
+  const { BannerHallPanel } = await import('../src/views/village/BannerHall.tsx');
+  const html = render(bannerGame(), createElement(BannerHallPanel));
   assert.ok(html.includes('Full Feast price') && html.includes('level 2: -10%'));
   assert.ok(html.includes('id="bh-amount"') && /Max\s?\d/.test(html), 'amount field and Max button');
   for (const gone of ['Feasts left today', 'No Feasts left', 'a day', 'Feast all']) assert.ok(!html.includes(gone), gone);
-  assert.ok(html.includes('Pay in 1,700 gold'));
-  assert.ok(html.includes('Train Chieftain'));
-  assert.ok(/<button[^>]*disabled[^>]*>(<svg.*?<\/svg>|<img[^>]*>|<span.*?<\/span>)*\s*Train Chieftain/.test(html) || html.includes('disabled=""'));
-  for (const gone of ['24 h window', 'Level 2', 'What it does', 'Mags', 'aria-label="One Feast']) assert.ok(!html.includes(gone), gone);
+  assert.ok(html.includes('How taking a village works'));
+  assert.equal((html.match(/<li>(Train enough|Send them|Hold the village)/g) ?? []).length, 3);
+  assert.ok(html.includes('How many Chieftains? A village needs 1, plus 1 for every 12,000 points it has (most 3).'));
+  // The count buttons say the price of each choice; Train happens right here.
+  for (const n of [1, 2, 3]) assert.ok(new RegExp(`<b>${n}</b><span>[\\d,]+ Renown · [\\d,]+ gold`).test(html), `count ${n} with its price`);
+  assert.ok(html.includes('Train 1 Chieftain'));
+  assert.ok(html.includes('Pay in 1,700 gold') || html.includes('Pay in'), 'War Chest pay-in here');
+  assert.ok(html.includes('0 at home · 0 away · 0 in training'));
+});
+
+test('Banner Hall shows the training status, open strike chains and villages being held', async () => {
+  const { BannerHallPanel } = await import('../src/views/village/BannerHall.tsx');
+  const queue = [{ unit: 'chieftain', count: 1, done: 0, startAt: 0, perUnitMs: 5 * 3600_000 - 1000 }];
+  const html = render(
+    bannerGame(
+      {
+        now: 1000,
+        chains: [{ villageId: 85, name: "Sable's village", x: 3, y: 4, have: 1, need: 3, endsAt: 1000 + 118 * 60_000 }],
+        holds: [{ villageId: 9, name: 'Old Fort', x: 1, y: 1, running: true, holdMsLeft: 5 * 3600_000 + 12 * 60_000 }],
+      },
+      queue,
+    ),
+    createElement(BannerHallPanel),
+  );
+  assert.ok(html.includes('1 Chieftain in training, ready in 4:59:'), html.match(/in training[^<]*/)?.[0] ?? 'none');
+  assert.ok(html.includes("Sable&#x27;s village") && html.includes('1 of 3 Chieftains banked, 1h 58m left') && html.includes('send 2 more'));
+  assert.ok(html.includes('Holding') && html.includes('Old Fort') && html.includes('5h 12m left'));
+  assert.ok(html.includes('Cancel'));
 });

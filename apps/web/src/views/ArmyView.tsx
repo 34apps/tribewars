@@ -18,7 +18,6 @@ import {
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { errorToast } from '../components/toastKind.ts';
-import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
 import { useRaidListsAccess } from '../hooks/useRaidListsOn.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { Cost, ProgressBar } from '../components/ui.tsx';
@@ -679,7 +678,7 @@ function scrollToId(id: string) {
 }
 
 export function ArmyView() {
-  const { openSimulator, live, navigate } = useGame();
+  const { openSimulator, live, navigate, openBuilding } = useGame();
   const raidAccess = useRaidListsAccess();
   const used = populationUsage(live).total;
   const cap = populationCap(live);
@@ -724,7 +723,11 @@ export function ArmyView() {
         <TrainingPanel building="stables" />
         <TrainingPanel building="wrightyard" />
       </div>
-      <ChieftainPanel />
+      <section className="card" aria-label="Chieftains">
+        <button type="button" className="btn" onClick={() => openBuilding('bannerhall')}>
+          Chieftains are in the Banner Hall ›
+        </button>
+      </section>
     </div>
   );
 }

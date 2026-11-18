@@ -190,7 +190,7 @@ export function BuildingPanel({
           {!reason && <Icon name="upgrade" size={20} />}
           {cta}
         </button>
-        {trains.length > 0 && (
+        {trains.length > 0 && id !== 'bannerhall' && (
           <button className="btn btn-teal btn-cta-side" onClick={() => navigate('army')} disabled={level === 0}>
             <Icon name="train" size={22} />
             Train
@@ -204,7 +204,7 @@ export function BuildingPanel({
           {affordHint}
         </div>
       ) : null}
-      {trains.length > 0 && <div className="bpanel-note">Trains {trains.map((u) => UNITS[u].name).join(' · ')}</div>}
+      {trains.length > 0 && id !== 'bannerhall' && <div className="bpanel-note">Trains {trains.map((u) => UNITS[u].name).join(' · ')}</div>}
       {id === 'drillyard' && <DrillyardPanel />}
       {id === 'bannerhall' && <BannerHallPanel />}
       {id === 'hall' && <HallBuildings busy={busy} onBuild={onBuild} onPick={onPick} />}

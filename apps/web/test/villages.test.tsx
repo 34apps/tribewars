@@ -7,6 +7,8 @@ import type { HearthInfoDto, MapVillageDto, RenownInfo, Units, VillageListItemDt
 import {
   abandonedStrength,
   chainText,
+  chieftainCountLabel,
+  chieftainTrainingLine,
   siegeOptionLabel,
   HEARTH_OUT_BUILD_REASON,
   HEARTH_OUT_REASON,
@@ -333,11 +335,22 @@ test('abandoned strength: no troops means "No defenders" (only the Wall); troops
 test('chain text: "1 of 2 Chieftains" with the time left; nothing without a chain or after it ends', () => {
   assert.equal(chainText(undefined, 1000), null);
   assert.equal(chainText({ have: 1, need: 2, endsAt: 500 }, 1000), null);
-  assert.match(chainText({ have: 1, need: 2, endsAt: 1000 + 5 * 60_000 }, 1000)!, /^1 of 2 Chieftains \(counts 5m/);
+  assert.match(chainText({ have: 1, need: 2, endsAt: 1000 + 5 * 60_000 }, 1000)!, /^1 of 2 Chieftains banked, 5m left/);
 });
 
 test('siege option label: level and age only with a scout report', () => {
   assert.equal(siegeOptionLabel('Wall', undefined, null), 'Wall');
   assert.equal(siegeOptionLabel('Wall', 7, null), 'Wall');
   assert.equal(siegeOptionLabel('Wall', 7, '3h ago'), 'Wall 7 · scouted 3h ago');
+});
+
+test('Chieftain count label: the rule, and the target when known', () => {
+  assert.equal(chieftainCountLabel(), 'How many Chieftains? A village needs 1, plus 1 for every 12,000 points it has (most 3).');
+  assert.match(chieftainCountLabel({ name: "Sable's village", points: 24169 }), /Sable's village needs 3\.$/);
+});
+
+test('training line: count and time left, nothing when the queue is empty', () => {
+  assert.equal(chieftainTrainingLine([], 0), null);
+  const job = { unit: 'chieftain', count: 1, done: 0, startAt: 0, perUnitMs: 5 * 3600_000 } as never;
+  assert.equal(chieftainTrainingLine([job], 1000), '1 Chieftain in training, ready in 4:59:59');
 });

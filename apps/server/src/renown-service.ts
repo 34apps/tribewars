@@ -175,16 +175,17 @@ export class RenownService {
 
   /**
    * May `earner` be paid Renown for a battle against `opponent` (null = abandoned village, always fine)? No when the
-   * earner is a sandbox account, the two share an IP group (the same guard that stops them attacking each other) or are
+   * earner is a sandbox account and the opponent is a real player (a computer player is fine), the two share an IP group (the same guard that stops them attacking each other) or are
    * in the same tribe or in allied tribes. NAP partners, neutrals and enemies are fine.
    * `ipOnly`: the attacker against a support owner only needs the IP rule (support owners are tribe or ally of the village owner by design).
    */
   private mayEarn(earner: number, opponent: number | null, at: number, ipOnly = false): boolean {
     const p = this.store.getPlayer(earner);
     if (!p) return false;
-    // Test-mode accounts earn from abandoned villages (no one is hurt), but never from fights against real players.
+    // Test-mode accounts earn from abandoned villages (no one is hurt) and from computer players (the preview's bots), never from
+    // fights against real players.
     if (opponent === null) return true;
-    if (this.store.isSandboxUser(p.username)) return false;
+    if (this.store.isSandboxUser(p.username)) return this.store.isComputerPlayer(opponent) && opponent !== earner;
     if (opponent === earner || this.store.shareAnIp(earner, opponent)) return false;
     if (ipOnly) return true;
     const rel = relationBetweenPlayers(this.store.tribes, earner, opponent, at).relation;

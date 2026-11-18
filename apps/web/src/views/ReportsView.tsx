@@ -5,7 +5,7 @@ import type { BattleReportData, ReportDto, ReportSummaryDto, ScoutReportData, Sh
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useReportRead } from '../hooks/useReportRead.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
-import { LOST_SEEN_LINE, destroyedLine, renownNoteLine } from '../fighters.ts';
+import { LOST_SEEN_LINE, destroyedLine, renownNoteLine, strikeLine } from '../fighters.ts';
 import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
@@ -139,7 +139,7 @@ function LossCard({ who, lost }: { who: string; lost: Units | null }) {
 }
 
 function BattleDetail({ b }: { b: BattleReportData }) {
-  const { player } = useGame();
+  const { player, now } = useGame();
   const sideName = (v: VillageRefDto) => (v.ownerName !== null && v.ownerName === player.username ? 'You' : v.ownerName ?? 'Abandoned village');
   const defenderKnown = b.defenderUnits !== null;
   const att = normalizeUnits(b.attackerUnits);
@@ -301,6 +301,11 @@ function BattleDetail({ b }: { b: BattleReportData }) {
           </p>
         )}
         {renownNoteLine(b) && <p className="muted">{renownNoteLine(b)}</p>}
+        {strikeLine(b.strike, now) && (
+          <p className="report-renown report-strike">
+            <strong>{strikeLine(b.strike, now)}</strong>
+          </p>
+        )}
       </section>
     </>
   );

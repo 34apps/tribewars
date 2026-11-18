@@ -205,3 +205,140 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Banner Hall as the one home for Chieftains (owner 2026-11-18): left column Feast + steps, right column the Chieftain card. */
+.bh-cards {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+}
+
+.bh-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bh-steps {
+  list-style: decimal;
+  margin: 0;
+  padding: 10px 14px 14px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bh-chief .bh-body {
+  gap: 8px;
+  padding: 8px 14px 12px;
+}
+
+.bh-counts {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.bh-training {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--info-bg);
+  font-weight: 800;
+}
+
+.bh-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bh-queue li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bh-train {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bh-count {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bh-count-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 4px;
+}
+
+.bh-count-btn b {
+  font-size: 1.25rem;
+}
+
+.bh-count-btn span {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.bh-count-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent, var(--surface));
+}
+
+.bh-fine {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.bh-live {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.bh-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  color: var(--link, var(--heading));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bh-train-btn {
+  min-height: 48px;
+}
+
+.bh-chief .fv-ph {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .bh-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bh-counts {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
