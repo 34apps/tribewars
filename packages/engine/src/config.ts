@@ -181,15 +181,15 @@ export const NPC_GROWTH_ORDER: readonly BuildingId[] = ['lumber', 'farm', 'mine'
 /**
  * Growth personalities of abandoned villages (owner 2026-11-18: "half meaningfully random"). A village with a `growthSeed` gets one
  * personality from its seed (`share` = chance, sums to 1) and picks every next build by weighted random from `weights`
- * (higher = likelier; a building's weight shrinks as its level rises, so levels spread). Military buildings are for looks and points only:
+ * (higher = likelier; a building's weight shrinks as its level rises, so levels spread). Army buildings (Barracks, Stables, Wrightyard, Drillyard) are rare (weights x0.3, owner 2026-11-18) and are for looks only:
  * an abandoned village never trains or researches. Villages without a seed keep the fixed NPC_GROWTH_ORDER. The names are ours; players see only the result.
  */
 export type NpcPersonality = 'farmstead' | 'stronghold' | 'market' | 'mixed';
 export const NPC_PERSONALITIES: Record<NpcPersonality, { share: number; weights: Partial<Record<BuildingId, number>> }> = {
   farmstead: { share: 0.3, weights: { lumber: 3, farm: 3, mine: 3, storehouse: 2, hall: 1, wall: 0.6, vault: 0.4, market: 0.3 } },
-  stronghold: { share: 0.25, weights: { lumber: 1.5, farm: 1.5, mine: 1.5, storehouse: 1, hall: 1.5, wall: 3, vault: 0.5, barracks: 2, stables: 1.5, wrightyard: 1, drillyard: 1 } },
+  stronghold: { share: 0.25, weights: { lumber: 1.5, farm: 1.5, mine: 1.5, storehouse: 1, hall: 1.5, wall: 3, vault: 0.5, barracks: 0.6, stables: 0.45, wrightyard: 0.3, drillyard: 0.3 } },
   market: { share: 0.2, weights: { lumber: 2, farm: 2, mine: 2, storehouse: 2.5, vault: 2, market: 3, hall: 1, wall: 0.6 } },
-  mixed: { share: 0.25, weights: { lumber: 2, farm: 2, mine: 2, storehouse: 1.5, hall: 1, wall: 1.2, vault: 1, market: 1, barracks: 0.7, stables: 0.5, wrightyard: 0.4, drillyard: 0.4 } },
+  mixed: { share: 0.25, weights: { lumber: 2, farm: 2, mine: 2, storehouse: 1.5, hall: 1, wall: 1.2, vault: 1, market: 1, barracks: 0.21, stables: 0.15, wrightyard: 0.12, drillyard: 0.12 } },
 };
 /** A pick's weight is divided by 1 + this x its current level (spreads the levels over the buildings). */
 export const NPC_LEVEL_DAMPING = 0.3;

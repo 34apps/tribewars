@@ -1303,3 +1303,20 @@ Personality growth plus Drillyard ranks plus 12,000-point Chieftains, seed 20261
 | Siege (`--siege`) | all invariants hold | met |
 
 Takes fell from 133 to 70 with the merge; the 47-take level of section 21 had no ranks. Seed 4 (35 takes) carries half; the other seeds are quiet. Not tuned: reported to the lead.
+
+### 24.2 Army buildings rare in abandoned villages (owner 2026-11-18, branch `originality-tiers`; no schema change)
+
+Weights of Barracks, Stables, Wrightyard and Drillyard multiplied by 0.3 in every personality (`NPC_PERSONALITIES`; stronghold 0.6 / 0.45 / 0.3 / 0.3, mixed 0.21 / 0.15 / 0.12 / 0.12; Wall and all other weights unchanged, every personality can still build a Wall). Seed 20261104, nothing else tuned.
+
+| | result | target |
+|---|---|---|
+| Score raider / builder, 30 days | 19389 / 10315 = 1.88 | 1.5-2 : met |
+| Score raider / builder, 90 days | 71435 / 68125 = 1.05 | - |
+| 2nd village day, builder / raider / balanced | 27.7 / 27.1 / 21.2 | 21-28 : met (builder and raider) |
+| Conquest worst biggest/second, 5 seeds / 12 seeds | 1.35 / 1.83 | <= 2 : met |
+| Conquest takes, 5 seeds | 70 | 110-150 : MISSED (expected; was 70 before this change too) |
+| Conquest takes, 12 seeds | 230 | - |
+| Conquest restarts, 5 seeds / 12 seeds | 28 / 68 | <= 26 on 5 seeds : MISSED (HEAD 24 on 5 seeds, 65 on 12; parent 70 on 12) |
+| Siege (`--siege`) | all invariants hold | met |
+
+Reading: the numbers match the diagnosis. Takes did not move (70 / 230), raider/builder is 1.88, restarts rose slightly (24 to 28 on 5 seeds, 65 to 68 on 12). Two misses (takes, restarts); not tuned, reported to the lead.

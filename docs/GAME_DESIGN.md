@@ -306,7 +306,7 @@ Computer-run villages for players to raid. They have `npc` info and no owner.
   - **Personalities (owner 2026-11-18: "half meaningfully random").** A village **with a `growthSeed`** (every village of an expanding world and every village a
     player left) no longer follows the fixed list: its seed gives it one of four personalities (`npcPersonality`, `NPC_PERSONALITIES` in config.ts; names are ours,
     players see only the result): **farmstead** (30%: mostly Lumber / Farm / Mine and Storehouse), **stronghold** (25%: most Wall, then Hall and the military buildings
-    Barracks, Stables, Wrightyard, Drillyard, which only add looks and points: it never trains or researches), **market town** (20%: Market, Storehouse, Vault, resources)
+    Barracks, Stables, Wrightyard, Drillyard, picked rarely: their weights are 0.3 times the others, owner 2026-11-18; they are for looks only, it never trains or researches), **market town** (20%: Market, Storehouse, Vault, resources)
     and **mixed** (25%). Each next build is a **weighted random pick** from the personality's weights (a building's weight is divided by `1 + 0.3 x level`), fixed by
     the seed and the build pointer (`growthSteps`, now +1 per build), so server and clients agree and a village behaves the same however it is settled. Sanity rules:
     below the top level (7); Lumber, Farm and Mine stay within `NPC_RESOURCE_SPREAD` (2) levels of each other; never a building it can never pay for (a missing
