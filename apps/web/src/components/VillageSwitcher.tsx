@@ -9,67 +9,26 @@ import { Icon } from '../art/Icon.tsx';
 import { formatCompact, formatCoords, formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
-import { orderVillages, renameProblem, villageBadges, villageLabel } from '../villages.ts';
+import { orderVillages, villageBadges, villageLabel } from '../villages.ts';
+import { RenameButton, RenameVillage } from './RenameVillage.tsx';
 import '../villages.css';
+
+export { RenameVillage };
 
 const BADGE_TAG = { attack: 'tag-bad', cold: 'tag-muted', protected: 'tag-info' } as const;
 
-/** Rename the current village: one text field, the same name rules as the server. */
-export function RenameVillage({ onDone }: { onDone?: () => void }) {
-  const { village, applyVillage, refresh, toast } = useGame();
-  const [name, setName] = useState(village.name);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const problem = renameProblem(name);
-  const unchanged = name.trim() === village.name;
-
-  async function save() {
-    if (busy || problem || unchanged) return;
-    setBusy(true);
-    setError(null);
-    try {
-      applyVillage(await api.renameVillage(village.id, name.trim()));
-      toast(`Renamed to ${name.trim()}`);
-      onDone?.();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-      void refresh();
-    }
-  }
-
+/** The village name with its list (several villages) plus the pencil "Rename village" right next to it, whatever the village count. */
+export function VillageBar({ frame = false }: { frame?: boolean }) {
   return (
-    <form
-      className="vsw-rename"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
-      <label htmlFor="vsw-name" className="vsw-rename-label">
-        Village name
-      </label>
-      <div className="vsw-rename-row">
-        <input id="vsw-name" className="input" type="text" maxLength={30} autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
-        <button type="submit" className="btn btn-primary" disabled={busy || !!problem || unchanged}>
-          Save
-        </button>
-      </div>
-      {error ? (
-        <p className="vsw-error" role="alert">
-          {error}
-        </p>
-      ) : (
-        problem &&
-        name.length > 0 && <p className="vsw-error">{problem}</p>
-      )}
-    </form>
+    <div className={`vb-row${frame ? ' fr-vrow' : ''}`}>
+      <VillageSwitch frame={frame} />
+      <RenameButton frame={frame} />
+    </div>
   );
 }
 
 /** `frame`: the desktop top bar's look (name over coordinates and points, a chevron button); same list, same actions. */
-export function VillageBar({ frame = false }: { frame?: boolean }) {
+function VillageSwitch({ frame = false }: { frame?: boolean }) {
   const { village, villages, villageList, selectVillage, now, navigate, tab, live } = useGame();
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -114,11 +73,6 @@ export function VillageBar({ frame = false }: { frame?: boolean }) {
             onClick={() => setOpen((o) => !o)}
           >
             {nameBlock}
-            <span className="fr-sw" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 13.5l.8-3.2 7.9-7.9a1.4 1.4 0 012 2l-7.9 7.9z" />
-              </svg>
-            </span>
           </button>
           {open && (
             <div className="vsw-pop fr-rename-pop" role="group" aria-label="Rename village">

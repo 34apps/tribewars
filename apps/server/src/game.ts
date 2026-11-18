@@ -1205,7 +1205,7 @@ export class GameService {
     const moveIn = sumUnits(fallbackRows.map((c) => c.units));
     moveIn.chieftain = 0;
     const change = applyOwnerChange(v.state, { occupiers: occTotal, moveIn, now: at, settings: s });
-    const name = foundedVillageName(claimant.username, owned + 1);
+    const name = v.name; // a taken village keeps its name until the new owner renames it (owner 2026-11-18)
     this.store.setVillageOwner(v.id, claimant.id, name);
     this.store.saveVillage(v.id, change.state, villagePoints(change.state));
 
