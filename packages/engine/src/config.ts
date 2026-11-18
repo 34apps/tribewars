@@ -1163,13 +1163,24 @@ export const SITE_MAX_POPULATION: Record<SiteKind, number> = { fire_shrine: 3000
 export const SITE_CALM_HOURS = 2;
 /** Fire Shrines sleep for this many days from world creation (divided by world speed), then wake with a stronger bonus. */
 export const SHRINE_WAKE_DAYS = 120;
-/** Extra Renown share for every member of the holding tribe, per held site (0.01 = +1%). The Great Fire wakes on the same clock as the shrines. */
-export const SITE_RENOWN_BONUS: { dormant: Record<SiteKind, number>; awake: Record<SiteKind, number> } = {
-  dormant: { fire_shrine: 0.01, great_fire: 0.03, waymark: 0, lookout: 0 },
-  awake: { fire_shrine: 0.04, great_fire: 0.1, waymark: 0, lookout: 0 },
+/**
+ * Renown per 24 game hours (before world speed) that EVERY member of a tribe earns while the tribe holds one site (owner decision 2026-11-18,
+ * replacing the old percentage bonus). Fire Shrines and the Great Fire wake together on day SHRINE_WAKE_DAYS; Waymarks and Lookouts give none.
+ * Reasoning and the worst case: docs/BALANCE.md section 20.
+ */
+export const SITE_RENOWN_PER_DAY: { dormant: Record<SiteKind, number>; awake: Record<SiteKind, number> } = {
+  dormant: { fire_shrine: 12, great_fire: 30, waymark: 0, lookout: 0 },
+  awake: { fire_shrine: 20, great_fire: 50, waymark: 0, lookout: 0 },
 };
-/** The sum of the Renown bonuses of all held sites never exceeds this (+30%). */
-export const SITE_RENOWN_BONUS_CAP = 0.3;
+/** The keepers (militia) of an unheld site return from 0 to full over this many game hours (divided by world speed), linear (owner 2026-11-18). */
+export const SITE_KEEPERS_REGROW_HOURS = 24;
+/**
+ * Every site has a Wall that builds itself: +1 level per this many game hours (divided by world speed), no resources, up to the top Wall
+ * level (BUILDINGS.wall.maxLevel). Log Rams lower it like a village Wall; it keeps its level when the site changes hands.
+ */
+export const SITE_WALL_STEP_HOURS = 12;
+/** How often (game-clock ms) the server credits the site Renown of members whose tribe holds a site, when nothing else settled it. */
+export const SITE_RENOWN_SETTLE_MS = 5 * 60_000;
 
 // ---- Waymarks and Lookouts (docs/GAME_DESIGN.md 18.4b "Neutral sites tribes can hold") ----------------
 /** Ground within this distance (Euclidean tiles) of a Waymark held by the mover's tribe has its terrain penalty reduced. */

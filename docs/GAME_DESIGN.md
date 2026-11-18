@@ -1364,7 +1364,7 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
 - **Built:** the Great Fire, eight Fire Shrines (kinds `great_fire`, `fire_shrine`), and (owner-approved 2026-11-07) six Waymarks and six Lookouts (kinds `waymark`, `lookout`).
 
 **Waymarks and Lookouts: built (2026-11-07).** They are captured, held, supported, calmed, capped (3,000 population) and recalled exactly like Fire Shrines; the militia of
-an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown bonus** (bonus 0, ignored by the tribe total).
+an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown** (0 a day) and have no doubled keepers; like every site they have a self-building Wall and keepers that grow back (below).
 - **Placement:** appended after the shrines, so the first nine sites and their ids never move. One ring of `SIDE_SITE_RING_RADIUS` (60) with `SIDE_SITE_COUNT` (12) spots,
   30 degrees apart from a seeded rotation (own salt), alternating Waymark, Lookout, Waymark... (ids 10-21, Waymark first). Each spot goes through the same legal-tile search
   (no mountain or lake, `SITE_MIN_SPACING` 15 from every earlier site); a spot with no legal tile is dropped (small worlds). Under the `features.sites` flag. Existing worlds
@@ -1391,14 +1391,23 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
   the garrison); after a capture it cannot be attacked for `SITE_CALM_HOURS` (2, ÷ speed). Support to a held site only from the holding tribe's
   members and its allies; at most `SITE_MAX_POPULATION` stationed (3,000; Great Fire 5,000). The holder is the tribe of the troops that took it; it
   stays the holder while at least one of its members has troops there; when the last leaves or dies, allies' troops there go home and the site is
-  neutral again (militia restored). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
+  neutral again (the keepers come back gradually, see "Keepers and Wall" below). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
   have no resources, no loot, no points, and cannot be struck.
 - **Wake-up:** shrines are **dormant** for the first `SHRINE_WAKE_DAYS` (120 = about four months, ÷ speed) of the world and then **awake** with a stronger
   bonus and a doubled militia.
-- **Bonus** (our own number, one effect so it is easy to read and to test): every member of the holding tribe earns **extra Renown**
-  (§18.2, the currency for more villages): dormant shrine +1%, awake shrine +4%, dormant Great Fire +3%, awake Great Fire +10%; the sum is capped at
-  `SITE_RENOWN_BONUS_CAP` (+30%). It speeds up settling and taking, never a battle, and no site gives resources. `npm run sim -- --sites` checks it is
-  real but not decisive (`BALANCE.md` §7.7).
+- **Daily Renown per member (owner, 2026-11-18; replaces the old +1% to +10% bonus and its +30% cap):** while a tribe holds a site, **each member** earns a fixed
+  Renown per 24 game hours (x world speed): `SITE_RENOWN_PER_DAY` Fire Shrine 12 (20 once awake), Great Fire 30 (50 awake), Waymark and Lookout 0. It is credited per
+  member from the moment the tribe holds the site or the member joins until the tribe loses it or the member leaves (a member in several tribes earns only
+  for the time they were members; a site nobody holds pays nobody), through `Store.addRenown` like the defender trickle: settled on requests and on the
+  tick (`SiteService.settleHolders`, every `SITE_RENOWN_SETTLE_MS`), exactly at every change (capture, loss, leaving, a Chieftain order), counted in `renown_total`, so it shows on
+  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel says "While your tribe holds this shrine, every member earns 12 Renown a
+  day (20 once it wakes on day 120)" and, for a holder, "You earn 12 a day from it". Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
+- **Keepers and Wall (owner, 2026-11-18).** The keepers (militia, `SITE_MILITIA`, x2 awake) of a site nobody holds return **linearly from 0 to full over 24 game hours**
+  (`SITE_KEEPERS_REGROW_HOURS`, / speed) from the moment the holding tribe's last troops leave; a tribe that takes a site finds none; keepers killed in a lost attack come
+  back from what stands. Every site has a **Wall** that rises by 1 every `SITE_WALL_STEP_HOURS` (12, / speed) with no resources, from level 0 when the world begins up to
+  `BUILDINGS.wall.maxLevel` (22). It protects whoever stands there (keepers when unheld, the holding tribe's troops when held) with the Wall's percentage bonus; the
+  village Wall militia does not apply (the keepers are the militia). Log Rams lower it like a village Wall (same points and steps); it then rises again from the new level, and it
+  keeps its level when the site changes hands. The panel shows "Wall 14 of 22, next level in 7h 12m" and the keepers' share; battle reports show the Wall after the fight.
 - **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
   size, calm time and the send buttons; `GET /api/sites`.
 - **Server as built (2026-11-05), where it differs from or adds to the text above:**
@@ -1414,13 +1423,17 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
     what fits stays and the rest walks home (nothing fits = the whole army turns back and is told).
   - **Holder housekeeping runs with every request and the 1 s tick**, not at the very instant a player leaves or is banned: troops of players who left the
     tribe, were banned, lost their village, or belong to a tribe that is no longer the holder or an ally walk home from the site; with no troop of the holding
-    tribe left the site turns neutral (militia back) and the allies go home. A deleted holder tribe frees the site the same way.
+    tribe left the site turns neutral (keepers start to grow back) and the allies go home. A deleted holder tribe frees the site the same way.
   - An arrival at a site whose conditions changed while marching (calm time, a relation, a shared connection, the world has ended) turns back and the sender
     gets a "called off" / "turned back" report with the reason in its title. Reports reuse the battle and support report kinds; battles at sites pay **no combat
     Renown** and count no battle statistics.
   - A frozen (ended) world keeps its sites as they were: no new orders, arrivals at a site turn back, no housekeeping.
-  - The Renown bonus is applied in one place (`Store.addRenown`), so it covers building Renown, the defender trickle, battle Renown and Feasts exactly once;
-    test-mode top-ups are not earnings and get no bonus. The GET state shows the pending trickle with the bonus.
+  - Site Renown is paid through `Store.addRenown` (a plain add; the percentage bonus is gone). Schema v30: `tribe_members.site_renown_at` (the member's mark),
+    `sites.wall_level`/`wall_at`, `sites.keepers_base`/`keepers_since`. The contract keeps `SiteDto.bonus` and `SitesResponse.myBonus` (always 0) and adds
+    `renownPerDay`, `renownPerDayDormant/Awake`, `myRenownPerDay`, `wallLevel`, `wallMax`, `wallNextMs`, `keepers`, and `BattleReportData.siteWall`.
+  - **Partial recall** works everywhere: `POST /api/sites/:id/recall` and `POST /api/stationed/:id/recall` take `units` (whole numbers, at most what stands there, at least one unit;
+    otherwise 409 `not_enough_troops` / 400 `no_troops`; another player's contingent is a 404). The site panel and the Army page show an amount field per unit type with "all". When the
+    tribe's last troops would leave, the form says the site turns neutral and allied troops go home.
   - Existing worlds: a village that already stands near a site stays (the no-village rule only applies to new placements); a village standing exactly on a
     site's tile hides that site from attacks.
 
@@ -1936,7 +1949,7 @@ stored `arrive_at`, so nothing in flight changes when the rule ships. Web: previ
 - **Built:** the Great Fire, eight Fire Shrines (kinds `great_fire`, `fire_shrine`), and (owner-approved 2026-11-07) six Waymarks and six Lookouts (kinds `waymark`, `lookout`).
 
 **Waymarks and Lookouts: built (2026-11-07).** They are captured, held, supported, calmed, capped (3,000 population) and recalled exactly like Fire Shrines; the militia of
-an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown bonus** (bonus 0, ignored by the tribe total).
+an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no doubled militia) and give **no Renown** (0 a day) and have no doubled keepers; like every site they have a self-building Wall and keepers that grow back (below).
 - **Placement:** appended after the shrines, so the first nine sites and their ids never move. One ring of `SIDE_SITE_RING_RADIUS` (60) with `SIDE_SITE_COUNT` (12) spots,
   30 degrees apart from a seeded rotation (own salt), alternating Waymark, Lookout, Waymark... (ids 10-21, Waymark first). Each spot goes through the same legal-tile search
   (no mountain or lake, `SITE_MIN_SPACING` 15 from every earlier site); a spot with no legal tile is dropped (small worlds). Under the `features.sites` flag. Existing worlds
@@ -1963,14 +1976,23 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
   the garrison); after a capture it cannot be attacked for `SITE_CALM_HOURS` (2, ÷ speed). Support to a held site only from the holding tribe's
   members and its allies; at most `SITE_MAX_POPULATION` stationed (3,000; Great Fire 5,000). The holder is the tribe of the troops that took it; it
   stays the holder while at least one of its members has troops there; when the last leaves or dies, allies' troops there go home and the site is
-  neutral again (militia restored). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
+  neutral again (the keepers come back gradually, see "Keepers and Wall" below). Players who leave the tribe or are banned send their troops home. The same-connection guard applies. Sites
   have no resources, no loot, no points, and cannot be struck.
 - **Wake-up:** shrines are **dormant** for the first `SHRINE_WAKE_DAYS` (120 = about four months, ÷ speed) of the world and then **awake** with a stronger
   bonus and a doubled militia.
-- **Bonus** (our own number, one effect so it is easy to read and to test): every member of the holding tribe earns **extra Renown**
-  (§18.2, the currency for more villages): dormant shrine +1%, awake shrine +4%, dormant Great Fire +3%, awake Great Fire +10%; the sum is capped at
-  `SITE_RENOWN_BONUS_CAP` (+30%). It speeds up settling and taking, never a battle, and no site gives resources. `npm run sim -- --sites` checks it is
-  real but not decisive (`BALANCE.md` §7.7).
+- **Daily Renown per member (owner, 2026-11-18; replaces the old +1% to +10% bonus and its +30% cap):** while a tribe holds a site, **each member** earns a fixed
+  Renown per 24 game hours (x world speed): `SITE_RENOWN_PER_DAY` Fire Shrine 12 (20 once awake), Great Fire 30 (50 awake), Waymark and Lookout 0. It is credited per
+  member from the moment the tribe holds the site or the member joins until the tribe loses it or the member leaves (a member in several tribes earns only
+  for the time they were members; a site nobody holds pays nobody), through `Store.addRenown` like the defender trickle: settled on requests and on the
+  tick (`SiteService.settleHolders`, every `SITE_RENOWN_SETTLE_MS`), exactly at every change (capture, loss, leaving, a Chieftain order), counted in `renown_total`, so it shows on
+  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel says "While your tribe holds this shrine, every member earns 12 Renown a
+  day (20 once it wakes on day 120)" and, for a holder, "You earn 12 a day from it". Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
+- **Keepers and Wall (owner, 2026-11-18).** The keepers (militia, `SITE_MILITIA`, x2 awake) of a site nobody holds return **linearly from 0 to full over 24 game hours**
+  (`SITE_KEEPERS_REGROW_HOURS`, / speed) from the moment the holding tribe's last troops leave; a tribe that takes a site finds none; keepers killed in a lost attack come
+  back from what stands. Every site has a **Wall** that rises by 1 every `SITE_WALL_STEP_HOURS` (12, / speed) with no resources, from level 0 when the world begins up to
+  `BUILDINGS.wall.maxLevel` (22). It protects whoever stands there (keepers when unheld, the holding tribe's troops when held) with the Wall's percentage bonus; the
+  village Wall militia does not apply (the keepers are the militia). Log Rams lower it like a village Wall (same points and steps); it then rises again from the new level, and it
+  keeps its level when the site changes hands. The panel shows "Wall 14 of 22, next level in 7h 12m" and the keepers' share; battle reports show the Wall after the fight.
 - **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
   size, calm time and the send buttons; `GET /api/sites`.
 - **Server as built (2026-11-05), where it differs from or adds to the text above:**
@@ -1986,13 +2008,17 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
     what fits stays and the rest walks home (nothing fits = the whole army turns back and is told).
   - **Holder housekeeping runs with every request and the 1 s tick**, not at the very instant a player leaves or is banned: troops of players who left the
     tribe, were banned, lost their village, or belong to a tribe that is no longer the holder or an ally walk home from the site; with no troop of the holding
-    tribe left the site turns neutral (militia back) and the allies go home. A deleted holder tribe frees the site the same way.
+    tribe left the site turns neutral (keepers start to grow back) and the allies go home. A deleted holder tribe frees the site the same way.
   - An arrival at a site whose conditions changed while marching (calm time, a relation, a shared connection, the world has ended) turns back and the sender
     gets a "called off" / "turned back" report with the reason in its title. Reports reuse the battle and support report kinds; battles at sites pay **no combat
     Renown** and count no battle statistics.
   - A frozen (ended) world keeps its sites as they were: no new orders, arrivals at a site turn back, no housekeeping.
-  - The Renown bonus is applied in one place (`Store.addRenown`), so it covers building Renown, the defender trickle, battle Renown and Feasts exactly once;
-    test-mode top-ups are not earnings and get no bonus. The GET state shows the pending trickle with the bonus.
+  - Site Renown is paid through `Store.addRenown` (a plain add; the percentage bonus is gone). Schema v30: `tribe_members.site_renown_at` (the member's mark),
+    `sites.wall_level`/`wall_at`, `sites.keepers_base`/`keepers_since`. The contract keeps `SiteDto.bonus` and `SitesResponse.myBonus` (always 0) and adds
+    `renownPerDay`, `renownPerDayDormant/Awake`, `myRenownPerDay`, `wallLevel`, `wallMax`, `wallNextMs`, `keepers`, and `BattleReportData.siteWall`.
+  - **Partial recall** works everywhere: `POST /api/sites/:id/recall` and `POST /api/stationed/:id/recall` take `units` (whole numbers, at most what stands there, at least one unit;
+    otherwise 409 `not_enough_troops` / 400 `no_troops`; another player's contingent is a 404). The site panel and the Army page show an amount field per unit type with "all". When the
+    tribe's last troops would leave, the form says the site turns neutral and allied troops go home.
   - Existing worlds: a village that already stands near a site stays (the no-village rule only applies to new placements); a village standing exactly on a
     site's tile hides that site from attacks.
 

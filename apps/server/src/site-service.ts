@@ -8,6 +8,7 @@ import {
   GameError,
   LOOKOUT_LIST_LIMIT,
   LOOKOUT_RADIUS,
+  SITE_RENOWN_SETTLE_MS,
   SITE_UPKEEP_INTERVAL_MS,
   POP_PER_UNIT,
   UNIT_IDS,
@@ -23,14 +24,19 @@ import {
   settleVillage,
   shrineWakeMs,
   sightingSize,
-  siteBonus,
+  siteRenownAccrued,
+  siteRenownPerDay,
+  tribeRenownPerDay,
   siteCalmMs,
   siteMaxPopulation,
   siteMilitia,
   siteMilitiaPopulation,
+  siteWallLevel,
+  siteWallMax,
+  siteWallNextMs,
+  keepersFraction,
   totalUnits,
   travelTimeMs,
-  tribeRenownBonus,
   tribeWaymarks,
   villagePoints,
   type BattleReportData,
@@ -39,6 +45,7 @@ import {
   type LookoutSightingsResponse,
   type Mission,
   type SiteDef,
+  type SiteKind,
   type SiteDto,
   type SitesResponse,
   type Units,
@@ -100,7 +107,7 @@ export class SiteService {
       const s = this.at(x, y);
       return s ? siteName(s) : null;
     };
-    store.renownBonusOf = (playerId) => this.renownBonusOf(playerId, this.now());
+    store.settleSiteRenown = (ids) => this.settleMembers(ids, this.now());
   }
 
   // ---- the map ---------------------------------------------------------------------------------------------
@@ -247,7 +254,7 @@ export class SiteService {
     const holder = row.holderTribeId;
     const garrison = ss.garrisonAt(siteId);
     if (garrison.length === 0) {
-      if (holder !== null) ss.setHolder(siteId, null);
+      if (holder !== null) this.setHolder(siteId, null, t);
       return;
     }
     const keep: GarrisonRow[] = [];
@@ -276,7 +283,7 @@ export class SiteService {
         if (home) this.sendHome(c, home, site, t);
         else ss.deleteGarrison(c.id);
       }
-      if (holder !== null) ss.setHolder(siteId, null);
+      if (holder !== null) this.setHolder(siteId, null, t);
     }
   }
 
@@ -340,7 +347,9 @@ export class SiteService {
       return this.callOff(m, origin, site, 'you share a connection with a player whose troops stand there');
     }
 
-    const militia = holder === null ? siteMilitia(site.kind, this.awake(at)) : emptyUnits();
+    const keepers = holder === null ? this.keepersAt(row, at) : 0;
+    const militia = holder === null ? siteMilitia(site.kind, this.awake(at), keepers) : emptyUnits();
+    const wallBefore = siteWallLevel(this.wallState(row), at, s);
     const originState = settleVillage(origin.state, at, s);
     const result = resolveSiteBattle({
       attackerUnits: m.units,
@@ -349,11 +358,21 @@ export class SiteService {
       attackerRanks: m.ranks ?? undefined,
       supportRanks: garrison.map((c) => c.ranks ?? undefined),
       seed: battleSeed(this.store.battleSalt(), m.id, at),
+      wall: wallBefore,
       // Wards: the holding tribe's defenders fight a little harder at the site it holds (not at villages).
       defenceMultiplier: holder !== null && this.projects ? this.projects.wardFactor(holder, at) : 1,
     });
     const survivors = result.attackerSurvivors;
     const survived = totalUnits(survivors) > 0;
+    // Log Rams lowered the Wall: it rises again from the new level (a Wall they did not touch keeps its own clock).
+    const wallAfter = Math.min(wallBefore, ...(result.siege ?? []).map((h) => h.to));
+    if (wallAfter < wallBefore) ss.setWall(site.id, wallAfter, at);
+    // Keepers killed in the fight do not come back at once: what stands afterwards regrows from there.
+    if (holder === null) {
+      const full = siteMilitiaPopulation(site.kind, this.awake(at));
+      const left = result.attackerWon ? 0 : full > 0 ? Math.max(0, population(subtractUnits(militia, result.defenderLosses))) / full : 0;
+      ss.setKeepers(site.id, left, at);
+    }
 
     const newOrigin = applyAttackerLosses(originState, result.attackerLosses);
     this.store.saveVillage(origin.id, newOrigin, villagePoints(newOrigin));
@@ -366,17 +385,22 @@ export class SiteService {
     let back: number | null = null;
     if (captured) {
       const { fit, rest } = fitUnits(survivors, siteMaxPopulation(site.kind));
-      ss.setHolder(site.id, mine.tribeId);
+      this.setHolder(site.id, mine.tribeId, at);
       ss.setCalmUntil(site.id, at + siteCalmMs(s));
       ss.addGarrison(site.id, ownerId, origin.id, fit, at, m.ranks ?? null);
       if (totalUnits(rest) > 0) back = this.returnFromTile(origin, site, rest, at).arriveAt;
     } else {
       if (survived) back = this.returnFromTile(origin, site, survivors, at).arriveAt;
-      if (result.attackerWon) ss.setHolder(site.id, null); // everything fell and nobody is left to hold it
+      if (result.attackerWon) this.setHolder(site.id, null, at); // everything fell and nobody is left to hold it
     }
     this.reconcileSite(site.id, at); // a lost attack may have wiped out the holder's own troops
 
-    this.reportBattle(m, origin, site, row.holderTribeId, garrison, garrisonLosses, result, survived, captured, at);
+    const wallNow = { level: wallAfter < wallBefore ? wallAfter : wallBefore, at: wallAfter < wallBefore ? at : this.wallState(row).at };
+    this.reportBattle(m, origin, site, row.holderTribeId, garrison, garrisonLosses, result, survived, captured, at, {
+      level: siteWallLevel(wallNow, at, s),
+      max: siteWallMax(),
+      nextInMs: siteWallNextMs(wallNow, at, s),
+    });
     this.store.deleteMovement(m.id);
     return back;
   }
@@ -407,6 +431,7 @@ export class SiteService {
     survived: boolean,
     captured: boolean,
     at: number,
+    siteWall: { level: number; max: number; nextInMs: number | null },
   ): void {
     const siteRef = this.ref(site, this.tagOf(holderTribeId));
     const full: BattleReportData = {
@@ -423,7 +448,9 @@ export class SiteService {
       defenderLosses: result.defenderLosses,
       supportUnits: garrison.length > 0 ? sumUnits(garrison.map((c) => c.units)) : null,
       supportLosses: garrison.length > 0 ? sumUnits([...garrisonLosses]) : null,
-      wallLevel: null,
+      wallLevel: result.wallDuring,
+      siteWall,
+      ...((result.siege ?? []).length > 0 ? { siege: result.siege } : {}),
       loot: emptyResources(),
     };
     // An army wiped out sees nothing of the defence.
@@ -561,18 +588,96 @@ export class SiteService {
 
   // ---- reads -----------------------------------------------------------------------------------------------
 
-  /** Renown bonus (0.1 = +10%) the player's tribe earns from the sites it holds at `t`; 0 without a tribe or a held site. */
-  renownBonusOf(playerId: number, t: number): number {
+  /** Change who holds a site. Everyone whose daily Renown depends on it (members of the old and the new holder) is credited up to `t` first. */
+  private setHolder(siteId: number, tribeId: number | null, t: number): void {
+    const old = this.store.sites.getSite(siteId).holderTribeId;
+    if (old === tribeId) return;
+    this.settleTribes([old, tribeId], t);
+    this.store.sites.setHolder(siteId, tribeId);
+    // Nobody holds it any more: the keepers return from nothing, gradually (they were killed or never there while it was held).
+    if (tribeId === null) this.store.sites.setKeepers(siteId, 0, t);
+  }
+
+  /** Kinds of the sites a tribe holds now. */
+  private heldKinds(tribeId: number): SiteKind[] {
+    return this.store.sites.heldBy(tribeId).flatMap((id) => {
+      const d = this.byId(id);
+      return d ? [d.kind] : [];
+    });
+  }
+
+  /** The site Wall's stored state (null `wallAt` = level 0 since the world began). */
+  private wallState(row: { wallLevel: number; wallAt: number | null }): { level: number; at: number } {
+    return { level: row.wallLevel, at: row.wallAt ?? this.createdAt() };
+  }
+
+  /** Share of the keepers standing at `t` (meaningful while nobody holds the site). */
+  private keepersAt(row: { keepersBase: number; keepersSince: number }, t: number): number {
+    return keepersFraction({ base: row.keepersBase, since: row.keepersSince }, t, this.settings);
+  }
+
+  private wakesAt(): number {
+    return this.createdAt() + shrineWakeMs(this.settings);
+  }
+
+  /**
+   * Credit the daily site Renown of every member of the given tribes up to `t`: for each, rate(held sites) x world speed from their mark
+   * (join time or last settlement) to `t`, split where the shrines wake. The amount goes into renown_total through Store.addRenown, the same
+   * place the defender trickle ends. The mark then moves to `t`, so nothing is ever paid twice, and a member only earns for the time
+   * they were members. A mark in the future (clock moved back) pays nothing and is left alone. Sandbox accounts earn nothing.
+   */
+  private settleTribes(tribeIds: Array<number | null>, t: number): void {
+    const ids = [...new Set(tribeIds.filter((x): x is number => x !== null))];
+    if (ids.length === 0) return;
+    const kinds = new Map<number, SiteKind[]>(ids.map((id) => [id, this.heldKinds(id)]));
+    const wakes = this.wakesAt();
+    for (const m of this.store.tribes.siteRenownMarks(ids)) {
+      if (!(t > m.mark)) continue;
+      const held = kinds.get(m.tribeId) ?? [];
+      const player = this.store.getPlayer(m.playerId);
+      if (held.length > 0 && player && !this.store.isSandboxUser(player.username)) {
+        this.store.addRenown(m.playerId, siteRenownAccrued(held, m.mark, t, wakes, this.settings));
+      }
+      this.store.tribes.setSiteRenownMark(m.playerId, t);
+    }
+  }
+
+  /** Settle the given players (by their current tribe) up to `t`. */
+  settleMembers(playerIds: readonly number[], t: number): void {
+    this.settleTribes(playerIds.map((id) => this.store.tribes.membership(id)?.tribeId ?? null), t);
+  }
+
+  /** Settle one player now (before their Renown is read for a purchase or shown). Cheap without a tribe or a held site. */
+  settleMember(playerId: number, t: number): void {
+    const m = this.store.tribes.membership(playerId);
+    if (!m || this.store.sites.heldBy(m.tribeId).length === 0) return;
+    this.store.tx(() => {
+      const kinds = this.heldKinds(m.tribeId);
+      const player = this.store.getPlayer(playerId);
+      const mark = this.store.tribes.siteRenownMarks([m.tribeId]).find((r) => r.playerId === playerId)?.mark;
+      if (mark === undefined || !(t > mark)) return;
+      if (player && !this.store.isSandboxUser(player.username)) this.store.addRenown(playerId, siteRenownAccrued(kinds, mark, t, this.wakesAt(), this.settings));
+      this.store.tribes.setSiteRenownMark(playerId, t);
+    });
+  }
+
+  private lastSettleAt: number | null = null;
+
+  /** Throttled (SITE_RENOWN_SETTLE_MS) pass over every tribe that holds a site, so the rankings follow without anyone asking. Called with the upkeep. */
+  settleHolders(t: number): void {
+    const last = this.lastSettleAt;
+    if (last !== null && t >= last && t - last < SITE_RENOWN_SETTLE_MS) return;
+    this.lastSettleAt = t;
+    const holders = this.store.sites.allSites().flatMap((r) => (r.holderTribeId !== null ? [r.holderTribeId] : []));
+    if (holders.length === 0) return;
+    this.store.tx(() => this.settleTribes(holders, t));
+  }
+
+  /** Renown per 24 game hours (before world speed) the player earns from the sites their tribe holds at `t`; 0 without a tribe or a held site. */
+  renownPerDayOf(playerId: number, t: number): number {
     const m = this.store.tribes.membership(playerId);
     if (!m) return 0;
-    const held = this.store.sites.heldBy(m.tribeId);
-    if (held.length === 0) return 0;
-    const awake = this.awake(t);
-    const kinds = held.flatMap((id) => {
-      const d = this.byId(id);
-      return d ? [{ kind: d.kind, awake }] : [];
-    });
-    return tribeRenownBonus(kinds);
+    return tribeRenownPerDay(this.heldKinds(m.tribeId), this.awake(t));
   }
 
   /**
@@ -636,7 +741,7 @@ export class SiteService {
     const rows = new Map(this.store.sites.allSites().map((r) => [r.id, r]));
     const garrison = this.store.sites.allGarrison();
     const sites: SiteDto[] = this.defs.map((d) => {
-      const row = rows.get(d.id) ?? { id: d.id, holderTribeId: null, calmUntil: 0 };
+      const row = rows.get(d.id) ?? this.store.sites.getSite(d.id);
       const tribe = row.holderTribeId !== null ? this.store.tribes.getTribe(row.holderTribeId) : null;
       const here = garrison.filter((c) => c.siteId === d.id);
       const mineHere = here.filter((c) => c.ownerPlayerId === player.id);
@@ -649,10 +754,17 @@ export class SiteService {
         y: d.y,
         awake,
         holder: tribe ? { tribeId: tribe.id, name: tribe.name, tag: tribe.tag } : null,
-        garrison: held ? here.reduce((n, c) => n + population(c.units), 0) : siteMilitiaPopulation(d.kind, awake),
+        garrison: held ? here.reduce((n, c) => n + population(c.units), 0) : Math.floor(siteMilitiaPopulation(d.kind, awake, this.keepersAt(row, t))),
         maxPopulation: siteMaxPopulation(d.kind),
         calmUntil: row.calmUntil > t ? row.calmUntil : null,
-        bonus: held ? siteBonus(d.kind, awake) : 0,
+        bonus: 0,
+        wallLevel: siteWallLevel(this.wallState(row), t, this.settings),
+        wallMax: siteWallMax(),
+        wallNextMs: siteWallNextMs(this.wallState(row), t, this.settings),
+        keepers: held ? 0 : this.keepersAt(row, t),
+        renownPerDay: held ? siteRenownPerDay(d.kind, awake) : 0,
+        renownPerDayDormant: siteRenownPerDay(d.kind, false),
+        renownPerDayAwake: siteRenownPerDay(d.kind, true),
         mine: mineHere.reduce((n, c) => n + population(c.units), 0),
         ...(mineHere.length > 0
           ? {
@@ -666,6 +778,6 @@ export class SiteService {
           : {}),
       };
     });
-    return { sites, wakesAt: this.createdAt() + shrineWakeMs(this.settings), myBonus: this.renownBonusOf(player.id, t) };
+    return { sites, wakesAt: this.createdAt() + shrineWakeMs(this.settings), myBonus: 0, myRenownPerDay: this.renownPerDayOf(player.id, t) };
   }
 }

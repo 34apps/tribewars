@@ -55,7 +55,7 @@ import {
   siegeTargetFor,
   strikeWarning,
 } from '../../villages.ts';
-import { RecallSome } from '../ArmyView.tsx';
+import { RecallSome } from '../../components/RecallSome.tsx';
 import { Chev, LeftColumn, clockShort, pluralUnit } from '../village/FrameParts.tsx';
 import { MiniVillage } from '../village/FrameBuilding.tsx';
 import { SEARCH_MAX, lookupWindow, parseCoords, resultRows, searchHint, searchText, villageAt } from './command-post-logic.ts';

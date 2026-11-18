@@ -5,6 +5,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   SITE_NO_VILLAGE_RADIUS,
+  SITE_RENOWN_PER_DAY,
+  keepersRegrowMs,
+  siteRenownAccrued,
+  siteWallLevel,
+  siteWallMax,
+  siteWallStepMs,
   generateSites,
   isNearSite,
   shrineWakeMs,
@@ -174,16 +180,17 @@ test('an attack on a neutral site fights the militia; the winners stay, their tr
   assert.equal(gf.garrison, survivors, 'garrison = population of the survivors');
   assert.equal(gf.mine, survivors);
   assert.equal(homeOf(w.app, w.alice).state.away.raider, survivors, 'survivors stay in the home village away count; the dead are gone');
-  assert.equal(gf.bonus, 0.03, 'dormant Great Fire: +3% Renown');
-  assert.equal((await sitesOf(w.amy)).myBonus, 0.03, 'every member of the tribe gets it');
-  assert.equal((await sitesOf(w.lou)).myBonus, 0, 'a player without a tribe does not');
-  assert.equal((await sitesOf(w.bob)).myBonus, 0);
+  assert.equal(gf.renownPerDay, SITE_RENOWN_PER_DAY.dormant.great_fire, 'dormant Great Fire: its daily Renown per member');
+  assert.equal((await sitesOf(w.amy)).myRenownPerDay, SITE_RENOWN_PER_DAY.dormant.great_fire, 'every member of the tribe gets it');
+  assert.equal((await sitesOf(w.lou)).myRenownPerDay, 0, 'a player without a tribe does not');
+  assert.equal((await sitesOf(w.bob)).myRenownPerDay, 0);
 
   const rep = await latestReport(w.alice);
   assert.equal(rep.title, `Your tribe took Great Fire (${w.site.x}|${w.site.y})`);
   assert.equal(rep.battle?.attackerWon, true);
   assert.equal(rep.battle?.defender.name, 'Great Fire');
-  assert.equal(rep.battle?.wallLevel, null);
+  assert.equal(typeof rep.battle?.wallLevel, 'number', 'a site battle shows the Wall that counted');
+  assert.equal(typeof rep.battle?.siteWall?.max, 'number');
   assert.equal(rep.battle?.loot.wood, 0);
 });
 
@@ -237,8 +244,8 @@ test('after the calm time an enemy attack fights the garrison: a win kills it al
   assert.equal(garrisonOf(w), 1);
   assert.equal(w.app.ctx.store.sites.garrisonAt(1)[0]?.ownerPlayerId, w.bob.id);
   assert.equal(homeOf(w.app, w.alice).state.away.raider, 0, 'every defender died');
-  assert.equal((await sitesOf(w.alice)).myBonus, 0, 'the bonus moved with the site');
-  assert.equal((await sitesOf(w.bob)).myBonus, 0.03);
+  assert.equal((await sitesOf(w.alice)).myRenownPerDay, 0, 'the daily Renown moved with the site');
+  assert.equal((await sitesOf(w.bob)).myRenownPerDay, SITE_RENOWN_PER_DAY.dormant.great_fire);
   // Alice, whose troops stood there, got the full picture.
   const rep = await latestReport(w.alice);
   assert.equal(rep.side, 'support');
@@ -362,12 +369,16 @@ test('recall: the owner brings troops home; when the last troop of the holding t
   ok(rest, 201);
   const gf = await greatFire(w.alice);
   assert.equal(gf.holder, null, 'neutral again');
-  assert.equal(gf.garrison, siteMilitiaPopulation('great_fire', false), 'the militia is back');
+  assert.equal(gf.garrison, 0, 'the keepers start from nothing');
   assert.equal(garrisonOf(w), 0, "the ally's troops went home too");
   const returns = (await w.bob.c.state()).movements.filter((x) => x.kind === 'return');
   assert.equal(returns.length, 1);
   assert.equal(returns[0]?.units?.pikeman, 40);
-  assert.equal((await sitesOf(w.alice)).myBonus, 0);
+  runTo(w.app, w.clock, w.clock.now() + keepersRegrowMs(w.app.ctx.settings) / 2);
+  assert.equal((await greatFire(w.alice)).garrison, siteMilitiaPopulation('great_fire', false) / 2, 'half back after half a day');
+  runTo(w.app, w.clock, w.clock.now() + keepersRegrowMs(w.app.ctx.settings));
+  assert.equal((await greatFire(w.alice)).garrison, siteMilitiaPopulation('great_fire', false), 'full after a day');
+  assert.equal((await sitesOf(w.alice)).myRenownPerDay, 0);
 });
 
 test('recall refuses strangers, unknown villages and bad input, and changes nothing', async () => {
@@ -445,46 +456,242 @@ test('a village that changed hands disbands the troops it sent to a site', async
   assert.equal(w.app.ctx.store.sites.getSite(1).holderTribeId, null);
 });
 
-// ---- the Renown bonus ------------------------------------------------------------------------------------------------------
+// ---- daily Renown per member ---------------------------------------------------------------------------------------------
 
-test('Renown bonus: every member of the holding tribe earns more, once; others and tribeless players earn the same as before', async () => {
+test('daily Renown: every member of the holding tribe is credited once, in renown_total and the ranking; nobody else; it stops with the site', async () => {
   const w = await world(['nobody']);
-  await capture(w, w.alice);
   const store = w.app.ctx.store;
-  const gain = (id: number, raw: number): number => {
-    const before = store.getPlayer(id)?.renownTotal ?? 0;
-    const credited = store.addRenown(id, raw);
-    return Math.round(((store.getPlayer(id)?.renownTotal ?? 0) - before) * 1e6) / 1e6 === Math.round(credited * 1e6) / 1e6 ? credited : -1;
-  };
-  assert.equal(gain(w.alice.id, 100), 103, 'dormant Great Fire: +3%, applied once');
-  assert.equal(gain(w.amy.id, 100), 103);
-  assert.equal(gain(w.bob.id, 100), 100);
-  assert.equal(gain(w.lou.id, 100), 100);
-  // A test-mode top-up is not an earning.
   const sites = w.app.ctx.game.sites;
+  const speed = w.app.ctx.settings.speed;
+  const rate = SITE_RENOWN_PER_DAY.dormant.great_fire;
+  const DAY = 24 * 3600_000;
+  const total = (id: number): number => store.getPlayer(id)?.renownTotal ?? 0;
+  await capture(w, w.alice);
+  const t0 = w.clock.now();
+  // Settle everyone at t0 so the next numbers are exact.
+  sites.settleMembers([w.alice.id, w.amy.id, w.bob.id, w.lou.id], t0);
+  const base = [w.alice, w.amy, w.bob, w.lou].map((p) => total(p.id));
+  sites.settleMembers([w.alice.id, w.amy.id, w.bob.id, w.lou.id], t0 + DAY / 2);
+  const half = (rate * speed) / 2;
+  assert.ok(Math.abs(total(w.alice.id) - (base[0] ?? 0) - half) < 1e-6, 'a leader earns half a day of it');
+  assert.ok(Math.abs(total(w.amy.id) - (base[1] ?? 0) - half) < 1e-6, 'so does every member');
+  assert.equal(total(w.bob.id), base[2], 'another tribe earns nothing');
+  assert.equal(total(w.lou.id), base[3], 'a player without a tribe earns nothing');
+  // The same instant again pays nothing more.
+  sites.settleMembers([w.alice.id, w.amy.id], t0 + DAY / 2);
+  assert.ok(Math.abs(total(w.alice.id) - (base[0] ?? 0) - half) < 1e-6, 'counted once');
+  // The ranking and the state both show it.
+  const ranked = store.renownRanking().find((r) => r.id === w.alice.id);
+  assert.ok(ranked && Math.abs(ranked.renown - total(w.alice.id)) < 1e-6, 'the Renown ranking reads renown_total');
+
+  // A member who leaves keeps what was earned up to then and earns nothing afterwards.
+  w.clock.set(t0 + DAY);
+  const amyBefore = total(w.amy.id);
+  store.tribes.deleteMember(w.amy.id);
+  const amyAtLeave = total(w.amy.id);
+  assert.ok(Math.abs(amyAtLeave - amyBefore - half) < 1e-6, 'credited up to the moment of leaving');
+  sites.settleMembers([w.amy.id], t0 + 3 * DAY);
+  assert.equal(total(w.amy.id), amyAtLeave, 'nothing after leaving');
+  // A member who joins later earns only from joining.
+  const joinAt = t0 + 3 * DAY;
+  w.clock.set(joinAt);
+  const cara = await addMember(w.app, w.alice, 'cara');
+  const join = store.tribes.membership(cara.id);
+  assert.ok(join);
+  sites.settleMembers([cara.id], joinAt + DAY / 4);
+  assert.ok(Math.abs(total(cara.id) - (store.getPlayer(cara.id)?.renownTotal ?? 0)) < 1e-9);
+  assert.ok(Math.abs(total(cara.id) - (rate * speed) / 4) < 1e-6, 'a quarter day since she joined, not since the capture');
+});
+
+test('daily Renown: it follows the site when another tribe takes it, and a site nobody holds pays nobody', async () => {
+  const w = await world(['nobody']);
+  const store = w.app.ctx.store;
+  const sites = w.app.ctx.game.sites;
+  const total = (id: number): number => store.getPlayer(id)?.renownTotal ?? 0;
+  await capture(w, w.alice, { raider: 3000 });
+  const m = await march(w, w.bob, 'attack', { raider: 5000 });
+  runTo(w.app, w.clock, m.arriveAt);
+  assert.equal(store.sites.getSite(1).holderTribeId, w.bob.tribeId);
+  const t = w.clock.now();
+  sites.settleMembers([w.alice.id, w.amy.id, w.bob.id, w.bea.id], t);
+  const before = [w.alice, w.amy, w.bob, w.bea].map((p) => total(p.id));
+  sites.settleMembers([w.alice.id, w.amy.id, w.bob.id, w.bea.id], t + 24 * 3600_000);
+  const after = [w.alice, w.amy, w.bob, w.bea].map((p) => total(p.id));
+  assert.equal(after[0], before[0], 'the old holder earns nothing any more');
+  assert.equal(after[1], before[1]);
+  assert.ok((after[2] ?? 0) > (before[2] ?? 0), 'the new holder earns');
+  assert.ok((after[3] ?? 0) > (before[3] ?? 0));
+  // Nobody holds it: no Renown for anyone.
+  w.app.ctx.store.sites.setHolder(1, null);
+  sites.settleMembers([w.bob.id], t + 24 * 3600_000);
+  const bobNow = total(w.bob.id);
+  sites.settleMembers([w.bob.id], t + 48 * 3600_000);
+  assert.equal(total(w.bob.id), bobNow, 'a site held by nobody pays nobody');
+});
+
+test('daily Renown: the amount doubles in step with the wake time, and the state reads it', async () => {
+  const w = await world(['nobody']);
+  const store = w.app.ctx.store;
+  const sites = w.app.ctx.game.sites;
+  await capture(w, w.alice);
   const created = Number(store.getMeta('world_created_at'));
-  const awakeAt = created + shrineWakeMs(w.app.ctx.settings);
-  assert.equal(sites.renownBonusOf(w.alice.id, awakeAt - 1), 0.03);
-  assert.equal(sites.renownBonusOf(w.alice.id, awakeAt), 0.1, 'awake: +10%');
-  assert.equal(sites.renownBonusOf(w.lou.id, awakeAt), 0);
+  const wakes = created + shrineWakeMs(w.app.ctx.settings);
+  const t0 = w.clock.now();
+  sites.settleMembers([w.alice.id], t0);
+  const base = store.getPlayer(w.alice.id)?.renownTotal ?? 0;
+  const until = wakes + 3600_000;
+  sites.settleMembers([w.alice.id], until);
+  const got = (store.getPlayer(w.alice.id)?.renownTotal ?? 0) - base;
+  assert.ok(Math.abs(got - siteRenownAccrued(['great_fire'], t0, until, wakes, w.app.ctx.settings)) < 1e-6, 'dormant part, then the awake rate');
   const alicePlayer = store.getPlayer(w.alice.id);
   assert.ok(alicePlayer);
-  const list = sites.list(alicePlayer, awakeAt);
-  assert.equal(list.myBonus, 0.1);
+  const list = sites.list(alicePlayer, wakes);
+  assert.equal(list.myRenownPerDay, SITE_RENOWN_PER_DAY.awake.great_fire);
   assert.equal(list.sites[0]?.awake, true);
-  assert.equal(list.sites[0]?.bonus, 0.1);
-  // A building level paid through a village save carries the bonus the same way.
-  const paid = (p: P): number => {
-    const v = homeOf(w.app, p);
-    const state = structuredClone(v.state);
-    state.buildings.farm += 1;
-    const before = store.getPlayer(p.id)?.renownTotal ?? 0;
-    store.saveVillage(v.id, state, v.points);
-    return (store.getPlayer(p.id)?.renownTotal ?? 0) - before;
-  };
-  const raw = paid(w.lou);
-  assert.ok(raw > 0, 'a new building level pays Renown');
-  assert.ok(Math.abs(paid(w.amy) - raw * 1.03) < 1e-9, `${raw} becomes ${raw * 1.03} for a member`);
+  assert.equal(list.sites[0]?.renownPerDay, SITE_RENOWN_PER_DAY.awake.great_fire);
+  assert.equal(list.sites[0]?.renownPerDayDormant, SITE_RENOWN_PER_DAY.dormant.great_fire);
+  assert.equal(list.sites[0]?.bonus, 0, 'the old percentage field reads 0');
+});
+
+// ---- partial recall -------------------------------------------------------------------------------------------------------
+
+test('partial recall at a site: valid amounts leave the rest standing; too many, zero, negative and other players contingents are refused', async () => {
+  const w = await world();
+  await capture(w, w.alice);
+  const home = homeOf(w.app, w.alice);
+  const have = w.app.ctx.store.sites.garrisonAt(1)[0]?.units.raider ?? 0;
+  assert.ok(have > 10);
+  errorOf(await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: have + 1 } }), 409, 'not_enough_troops');
+  errorOf(await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: 0 } }), 400, 'no_troops');
+  errorOf(await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: {} }), 400, 'no_troops');
+  const bad = await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: -3 } });
+  assert.ok(bad.statusCode >= 400 && bad.statusCode < 500, 'a negative count is refused');
+  const frac = await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: 2.5 } });
+  assert.ok(frac.statusCode >= 400 && frac.statusCode < 500, 'a fractional count is refused');
+  assert.equal(w.app.ctx.store.sites.garrisonAt(1)[0]?.units.raider, have, 'the refusals changed nothing');
+  // Amy has no troops there: her call is a 404 and cannot touch alice's contingent.
+  errorOf(await w.amy.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: 1 } }), 404, 'not_found');
+  errorOf(await w.amy.c.post('/api/sites/1/recall', { villageId: homeOf(w.app, w.amy).id, units: { raider: 1 } }), 404, 'not_found');
+  // A valid part: exactly that many leave, the rest stay, the tribe still holds the site.
+  const ok1 = await w.alice.c.post('/api/sites/1/recall', { villageId: home.id, units: { raider: 7 } });
+  ok(ok1, 201);
+  assert.equal(ok1.json<MovementResponse>().movement.units?.raider, 7);
+  assert.equal(w.app.ctx.store.sites.garrisonAt(1)[0]?.units.raider, have - 7);
+  assert.equal((await greatFire(w.alice)).holder?.tag, 'ALPHA');
+});
+
+test('partial recall of support stationed in another player village: valid part, too many, zero and a stranger (404)', async () => {
+  const w = await world();
+  strongHome(w.app, w.clock, w.amy, { pikeman: 60 });
+  const sent = await sendOk(w.amy, w.alice, 'support', { pikeman: 60 });
+  runTo(w.app, w.clock, sent.movement.arriveAt);
+  const entry = (await w.alice.c.state()).stationed.here.find((x) => x.home.ownerName === 'amy');
+  assert.ok(entry, 'amy support stands at alice');
+  const url = `/api/stationed/${entry.id}/recall`;
+  errorOf(await w.amy.c.post(url, { units: { pikeman: 61 } }), 409, 'not_enough_troops');
+  errorOf(await w.amy.c.post(url, { units: { pikeman: 0 } }), 400, 'no_troops');
+  errorOf(await w.bob.c.post(url, { units: { pikeman: 5 } }), 404, 'not_found');
+  const part = await w.amy.c.post(url, { units: { pikeman: 25 } });
+  ok(part, 201);
+  assert.equal(part.json<MovementResponse>().movement.units?.pikeman, 25);
+  const left = (await w.alice.c.state()).stationed.here.find((x) => x.id === entry.id);
+  assert.equal(left?.units.pikeman, 35, 'the rest keeps defending');
+});
+
+// ---- keepers and the Wall ---------------------------------------------------------------------------------------------------
+
+test('the site Wall builds itself, caps at the top Wall level and is read from the list', async () => {
+  const w = await world();
+  const settings = w.app.ctx.settings;
+  const created = Number(w.app.ctx.store.getMeta('world_created_at'));
+  const step = siteWallStepMs(settings);
+  runTo(w.app, w.clock, created + 5 * step + 1000);
+  const g = await greatFire(w.lou);
+  assert.equal(g.wallLevel, 5);
+  assert.equal(g.wallMax, siteWallMax());
+  assert.equal(g.wallNextMs, step - 1000);
+  // Near the top: stored level 20 as of now, two steps later it is capped at the top level, with no "next level".
+  w.app.ctx.store.sites.setWall(1, siteWallMax() - 1, w.clock.now());
+  runTo(w.app, w.clock, w.clock.now() + 3 * step);
+  const top = await greatFire(w.lou);
+  assert.equal(top.wallLevel, siteWallMax());
+  assert.equal(top.wallNextMs, null);
+  assert.equal(siteWallLevel({ level: 0, at: created }, created, settings), 0);
+});
+
+test('Log Rams lower the site Wall, which then rises again from the new level; the report shows the Wall after and when it rises', async () => {
+  const w = await world();
+  const settings = w.app.ctx.settings;
+  const created = Number(w.app.ctx.store.getMeta('world_created_at'));
+  const step = siteWallStepMs(settings);
+  runTo(w.app, w.clock, created + 4 * step + 1000);
+  w.app.ctx.store.sites.setWall(1, 20, w.clock.now());
+  const before = (await greatFire(w.lou)).wallLevel;
+  assert.equal(before, 20);
+  const m = await march(w, w.alice, 'attack', { raider: 3000, logram: 300 });
+  runTo(w.app, w.clock, m.arriveAt);
+  const row = w.app.ctx.store.sites.getSite(1);
+  assert.ok(row.wallAt !== null && row.wallLevel < before, 'the rams lowered it');
+  const rep = await latestReport(w.alice);
+  assert.equal(rep.battle?.siteWall?.max, siteWallMax());
+  assert.equal(rep.battle?.siteWall?.level, row.wallLevel);
+  assert.ok((rep.battle?.siteWall?.nextInMs ?? 0) > 0);
+  assert.ok((rep.battle?.siege ?? []).some((h) => h.building === 'wall' && h.to < h.from));
+  // It rises again from the new level, one per step.
+  runTo(w.app, w.clock, m.arriveAt + 2 * step);
+  assert.equal((await greatFire(w.lou)).wallLevel, Math.min(siteWallMax(), row.wallLevel + 2));
+});
+
+test('the site Wall keeps its level when the site changes hands', async () => {
+  const w = await world();
+  const created = Number(w.app.ctx.store.getMeta('world_created_at'));
+  runTo(w.app, w.clock, created + 8 * siteWallStepMs(w.app.ctx.settings) + 1000);
+  await capture(w, w.alice, { raider: 3000 });
+  const lvl = (await greatFire(w.lou)).wallLevel;
+  const m = await march(w, w.bob, 'attack', { raider: 6000 });
+  runTo(w.app, w.clock, m.arriveAt);
+  assert.equal(w.app.ctx.store.sites.getSite(1).holderTribeId, w.bob.tribeId);
+  assert.ok((await greatFire(w.lou)).wallLevel >= lvl, 'never reset by a capture');
+  const t = w.clock.now();
+  runTo(w.app, w.clock, t + 3 * siteWallStepMs(w.app.ctx.settings));
+  assert.ok((await greatFire(w.lou)).wallLevel >= lvl + 3, 'and it keeps rising while held');
+});
+
+test('a site Wall protects the keepers: the same army that beats a young Wall loses against a high one', async () => {
+  const young = await world();
+  const old = await world();
+  const created = Number(old.app.ctx.store.getMeta('world_created_at'));
+  runTo(old.app, old.clock, created + 2 * siteWallStepMs(old.app.ctx.settings));
+  runTo(young.app, young.clock, created + 2 * siteWallStepMs(old.app.ctx.settings));
+  old.app.ctx.store.sites.setWall(1, siteWallMax(), old.clock.now() - 1);
+  const army = { raider: 1200 };
+  const a = await march(young, young.alice, 'attack', army);
+  runTo(young.app, young.clock, a.arriveAt);
+  const b = await march(old, old.alice, 'attack', army);
+  runTo(old.app, old.clock, b.arriveAt);
+  const ra = await latestReport(young.alice);
+  const rb = await latestReport(old.alice);
+  assert.ok((rb.battle?.defensePower ?? 0) > (ra.battle?.defensePower ?? 0) * 1.4, 'the top Wall adds its bonus to the keepers');
+});
+
+test('keepers: a neutral site that was never fought is full; after a lost attack the dead keepers come back linearly', async () => {
+  const w = await world();
+  const settings = w.app.ctx.settings;
+  const full = siteMilitiaPopulation('great_fire', false);
+  assert.equal((await greatFire(w.lou)).garrison, full);
+  const m = await march(w, w.alice, 'attack', { raider: 400 });
+  runTo(w.app, w.clock, m.arriveAt);
+  const row = w.app.ctx.store.sites.getSite(1);
+  assert.equal(row.holderTribeId, null, 'a small army does not take it');
+  assert.ok(row.keepersBase < 1 && row.keepersBase > 0, 'some keepers died, some did not');
+  const g0 = (await greatFire(w.lou)).garrison;
+  assert.equal(g0, Math.floor(full * row.keepersBase));
+  runTo(w.app, w.clock, m.arriveAt + keepersRegrowMs(settings) / 2);
+  const g1 = (await greatFire(w.lou)).garrison;
+  assert.ok(g1 > g0, 'growing back');
+  assert.equal(g1, Math.floor(siteMilitiaPopulation('great_fire', false, Math.min(1, row.keepersBase + 0.5))), 'linear');
+  runTo(w.app, w.clock, m.arriveAt + keepersRegrowMs(settings));
+  assert.equal((await greatFire(w.lou)).garrison, full, 'full after a day');
 });
 
 // ---- frozen world -----------------------------------------------------------------------------------------------------------

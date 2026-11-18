@@ -242,6 +242,9 @@ FROM tribe_members m JOIN tribes t ON t.id = m.tribe_id`;
 const ACTIVE = '(r.ends_at IS NULL OR r.ends_at > ?)';
 
 export class TribeStore extends SqlBase {
+  /** Called with the player ids right before they leave a tribe or the tribe is deleted: the Store wires it to the site Renown settlement. */
+  beforeMembersLeave: (playerIds: number[]) => void = () => {};
+
   // ---- tribes ----------------------------------------------------------------------------------
 
   insertTribe(name: string, tag: string, description: string, recruitment: Recruitment, createdAt: number): number {
@@ -277,6 +280,7 @@ export class TribeStore extends SqlBase {
 
   /** Cascades to members, invites, applications, proposals, relations, events and chat. */
   deleteTribe(id: number): void {
+    this.beforeMembersLeave(this.all('SELECT player_id FROM tribe_members WHERE tribe_id = ?', id).map((r) => r.player_id as number));
     this.siteUpkeepTouch();
     this.run('DELETE FROM tribes WHERE id = ?', id);
   }
@@ -317,8 +321,21 @@ export class TribeStore extends SqlBase {
   }
 
   insertMember(playerId: number, tribeId: number, role: TribeRole, joinedAt: number): void {
-    this.run('INSERT INTO tribe_members (player_id, tribe_id, role, joined_at) VALUES (?, ?, ?, ?)', playerId, tribeId, role, joinedAt);
+    this.run('INSERT INTO tribe_members (player_id, tribe_id, role, joined_at, site_renown_at) VALUES (?, ?, ?, ?, ?)', playerId, tribeId, role, joinedAt, joinedAt);
     this.memberChanged(playerId);
+  }
+
+  /** Ids and site-Renown marks (ms up to which the member's site Renown is credited; the join time when never settled) of every member of the given tribes. */
+  siteRenownMarks(tribeIds: readonly number[]): Array<{ playerId: number; tribeId: number; mark: number }> {
+    if (tribeIds.length === 0) return [];
+    return this.all(
+      `SELECT player_id, tribe_id, COALESCE(site_renown_at, joined_at) AS mark FROM tribe_members WHERE tribe_id IN (${tribeIds.map(() => '?').join(',')})`,
+      ...tribeIds,
+    ).map((r) => ({ playerId: r.player_id as number, tribeId: r.tribe_id as number, mark: r.mark as number }));
+  }
+
+  setSiteRenownMark(playerId: number, at: number): void {
+    this.run('UPDATE tribe_members SET site_renown_at = ? WHERE player_id = ?', at, playerId);
   }
 
   setMemberRole(playerId: number, role: TribeRole): void {
@@ -334,6 +351,7 @@ export class TribeStore extends SqlBase {
 
   /** Leaving or being removed clears the grants (they live on the row) and the forum read markers. */
   deleteMember(playerId: number): void {
+    this.beforeMembersLeave([playerId]);
     this.siteUpkeepTouch();
     this.run('DELETE FROM tribe_members WHERE player_id = ?', playerId);
     this.run('DELETE FROM forum_reads WHERE player_id = ?', playerId);

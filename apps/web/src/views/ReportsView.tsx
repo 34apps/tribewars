@@ -6,7 +6,7 @@ import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { useReportRead } from '../hooks/useReportRead.ts';
 import { useLiveTopic } from '../hooks/useLive.tsx';
 import { LOST_SEEN_LINE, destroyedLine, renownNoteLine } from '../fighters.ts';
-import { formatAgo, formatClock, formatCoords, formatInt, formatSignedPercent } from '../format.ts';
+import { formatAgo, formatClock, formatCoords, formatInt, formatLeft, formatSignedPercent } from '../format.ts';
 import { useGame } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
@@ -259,6 +259,12 @@ function BattleDetail({ b }: { b: BattleReportData }) {
             <dt>Wall</dt>
             <dd>{b.wallLevel === null ? <span className="muted">Unknown</span> : b.wallLevel}</dd>
           </div>
+          {b.siteWall && (
+            <div>
+              <dt>Site Wall after</dt>
+              <dd>{`${b.siteWall.level} of ${b.siteWall.max}${b.siteWall.nextInMs === null ? '' : `, next level in ${formatLeft(b.siteWall.nextInMs)}`}`}</dd>
+            </div>
+          )}
           <div>
             <dt>Result</dt>
             <dd>{b.attackerWon ? 'Attacker won' : 'Defender held'}</dd>

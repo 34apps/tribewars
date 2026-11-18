@@ -45,8 +45,8 @@ const SECTION_LABEL: Record<Section, string> = {
 
 /** For everyone: the public Domination bar (compact) and, when the tribe holds Fire sites, the Renown bonus they give. */
 function WorldGoal() {
-  const { myBonus } = useSites(useRules().features.sites);
-  const line = tribeBonusLine(myBonus);
+  const { myRenownPerDay } = useSites(useRules().features.sites);
+  const line = tribeBonusLine(myRenownPerDay, useGame().settings.speed);
   return (
     <>
       <DominationCard compact />

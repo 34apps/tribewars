@@ -734,6 +734,8 @@ export interface BattleReportData {
    * An attacker whose army was wiped out only sees the Wall hits (nothing else of the defence).
    */
   siege?: SiegeHit[];
+  /** Battles at a map site only: the site's Wall after the battle (`wallLevel` above is the one that counted in it) and when it next rises. */
+  siteWall?: { level: number; max: number; nextInMs: number | null };
 }
 
 export interface ScoutReportData {
@@ -1958,8 +1960,20 @@ export interface SiteDto {
   maxPopulation: number;
   /** The site cannot be attacked before this time (server clock, ms) after a capture, else null. */
   calmUntil: number | null;
-  /** Renown bonus (0.04 = +4%) this site gives every member of its holder now. */
+  /** The site's Wall now (it builds itself, +1 per SITE_WALL_STEP_HOURS up to `wallMax`; Log Rams lower it). */
+  wallLevel: number;
+  wallMax: number;
+  /** Ms until the next Wall level; null at the top level. */
+  wallNextMs: number | null;
+  /** Share (0..1) of the keepers standing now (they grow back from 0 over 24 game hours after the holding tribe's last troops leave); 1 while held is meaningless: see `holder`. */
+  keepers: number;
+  /** Retired (the percentage bonus ended 2026-11-18): always 0. Kept so old clients still parse. */
   bonus: number;
+  /** Renown per 24 game hours (before world speed) EVERY member of the holding tribe earns from this site now; 0 for an unheld site, Waymarks and Lookouts. */
+  renownPerDay: number;
+  /** Same, but at the other stage of the shrine (dormant before day 120, awake after), so the panel can say "15 a day, 30 once it wakes". */
+  renownPerDayDormant: number;
+  renownPerDayAwake: number;
   /** The signed-in player's own population stationed there. */
   mine: number;
   /** The signed-in player's contingents standing there, one per home village (for the recall buttons). Absent = none. */
@@ -1984,8 +1998,10 @@ export interface SitesResponse {
   sites: SiteDto[];
   /** When the dormant shrines wake (server clock, ms); in the past when they already did. */
   wakesAt: number;
-  /** The Renown bonus (0.1 = +10%, capped) the signed-in player's tribe gets from all sites it holds; 0 without a tribe. */
+  /** Retired: always 0. */
   myBonus: number;
+  /** Renown per 24 game hours (before world speed) the signed-in player earns from the sites their tribe holds now; 0 without a tribe or a held site. */
+  myRenownPerDay: number;
 }
 
 // ---- Lookout sightings (docs/GAME_DESIGN.md 18.4b) -----------------------------------------------------------------

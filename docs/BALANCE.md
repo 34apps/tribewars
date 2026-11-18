@@ -1140,3 +1140,53 @@ possible (0.6x to 1.8x of the army's price) but the garrison, not the Wall, stil
 | `--siege` computer players (Log Rams: balanced trains 29, 14 siege raids all won, 22 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 13,239 |
 
 The sim players use Log Rams only (Wall); the Firecart's tests are the section (a) building rows and the engine tests. Builder 10,633 vs 10,615 in section 18: not isolated (the default sim has no siege).
+
+## 20. Sites: daily Renown per member, keepers that grow back, the Wall that builds itself (2026-11-18, branch `shrine-renown`; schema v30)
+
+Owner decisions, 2026-11-18. Sites are still **not in the sim**; everything below is arithmetic on the real numbers.
+
+### 20.1 Daily Renown per member replaces the percentage bonus
+
+A tribe that holds a site pays **every member** a fixed Renown per 24 game hours (x world speed), for as long as they are both held and a member
+(`SITE_RENOWN_PER_DAY`). The old +1%/+4%/+3%/+10% bonus and its cap are gone (the +30% was invisible next to a busy player's own income).
+
+| Source (Renown per day, speed 1) | Amount |
+| --- | --- |
+| Feast, one maxed village, all income spent on Feasts | about 143 to 204 |
+| Defender trickle (`DEFENDER_RENOWN_DAILY_CAP`) | up to 36 per village |
+| Battle Renown, pair cap | at most 60 per opponent per day |
+| A busy player, mixed (reference used here) | about 150 |
+
+| Held (per member, per day) | Dormant (days 0-119) | Awake (day 120 on) | Share of a busy 150/day |
+| --- | --- | --- | --- |
+| 1 Fire Shrine | 12 | 20 | 8% / 13% |
+| Great Fire alone | 30 | 50 | 20% / 33% |
+| 3 Fire Shrines + Great Fire | 66 | 110 | 44% / 73% |
+| 4 Fire Shrines + Great Fire | 78 | 130 | 52% / 87% |
+| Everything (8 shrines + Great Fire) | 126 | 210 | 84% / 140% |
+
+The brief's starting numbers (15/30 and 40/100) put "three shrines + Great Fire, awake" at 190 a day, more than the whole busy income, so the Great Fire
+and the awake stage were cut to 50 and the shrine awake step to 20 (not exactly doubled): one shrine is worth about a tenth to a fifth of a busy
+player's day, several plus the Great Fire about half while dormant and most of it only once awake. Waymarks and Lookouts give 0 (they pay in travel
+time and sight). It is meaningful for a tribe and never a substitute for playing: nobody earns Renown without a village to spend it in.
+
+**Worst case**, a 30-member tribe that holds the whole map and every member is paid: 210 a day awake = 6,300 extra Renown per member per month
+(dormant 126 = 3,780). Village prices: 2nd 1,300, then x1.6 (2,080, 3,328, 5,325, 8,520), cumulative 1,300 / 3,380 / 6,708 / 12,033. So the bonus alone is
+about **2 extra villages per member per month** (almost 3 awake), on top of what they earn by playing (about 4,500 a month at 150 a day). Holding the
+whole map needs 30 players with 3,000 population standing at each of nine sites, and each site falls to one big attack; the number is sane.
+
+### 20.2 Keepers grow back; Wall builds itself
+
+- Keepers (the militia, `SITE_MILITIA`, x2 when awake) of an unheld site return **linearly from 0 to full over 24 game hours** (`SITE_KEEPERS_REGROW_HOURS`,
+  /speed) from the moment the holding tribe's last troops leave; a tribe that takes it finds none standing. Keepers killed in a lost attack come back from
+  what is left. A site nobody ever held is full. Stored: `sites.keepers_base` and `keepers_since` (schema v30).
+- Every site has a **Wall** that rises +1 level per **12 game hours** (`SITE_WALL_STEP_HOURS`, /speed), no resources, up to the top Wall level
+  (`BUILDINGS.wall.maxLevel`, 22), for all four site kinds. It starts at 0 when the world begins, so every site reaches 22 on day 11 at speed 1. It keeps its
+  level when the site changes hands and protects whoever stands there (keepers while unheld, the holding tribe's troops while held) with the Wall's
+  percentage bonus (+4.5% per level, +99% at 22); the village Wall militia does not apply (the keepers are the militia). Stored: `wall_level` and `wall_at`.
+- **Log Rams**, unchanged (6 siege power, 3 levels per step, 7 points per level + 6 base, during step 50%): to lower a Wall of level 22 by one level it
+  takes **27** surviving rams (160 points), by 3 levels **54**, and about **150** for the most one attack can do (6 levels: 3 during, 3 after). A village
+  Wall 22 needs exactly the same (the points depend only on the level; for level 15, 19 / 37 rams). So against a site the rams are just as good as against a
+  village; what differs is the defence they must first beat (keepers or the tribe's stationed troops with +99%, but no flat village militia).
+- **Pace**: the Wall heals 2 levels a day, so even a full 6-level assault is healed in 3 days; a tribe that wants a soft shrine must attack again within a day
+  or two. That is slow enough to matter and fast enough that a site is never left broken for weeks, so the 12 hour step was kept at 22 levels.

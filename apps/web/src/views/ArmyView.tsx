@@ -18,6 +18,7 @@ import {
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { errorToast } from '../components/toastKind.ts';
+import { RecallSome } from '../components/RecallSome.tsx';
 import { ChieftainPanel } from '../components/ChieftainPanel.tsx';
 import { useRaidListsAccess } from '../hooks/useRaidListsOn.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -271,60 +272,6 @@ function TrainingSummary() {
 }
 
 // ---- Support (stationed troops) -----------------------------------------------------------------------
-
-export function RecallSome({ s, busy, onRecall }: { s: StationedDto; busy: boolean; onRecall: (units: Partial<Units>) => void }) {
-  const have = normalizeUnits(s.units);
-  const [counts, setCounts] = useState<Partial<Record<UnitId, string>>>({});
-  const present = UNIT_IDS.filter((u) => have[u] > 0);
-  const chosen: Partial<Units> = {};
-  let total = 0;
-  for (const u of present) {
-    const n = Number(counts[u] ?? '');
-    const v = Number.isInteger(n) ? Math.max(0, Math.min(have[u], n)) : 0;
-    if (v > 0) {
-      chosen[u] = v;
-      total += v;
-    }
-  }
-  return (
-    <form
-      className="recall-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (total > 0 && !busy) onRecall(chosen);
-      }}
-    >
-      <ul className="send-units">
-        {present.map((u) => (
-          <li key={u}>
-            <label htmlFor={`recall-${s.id}-${u}`} className="send-label">
-              <UnitFigure unit={u} pose="icon" size={20} className="inline-icon" /> {UNITS[u].name}
-              <span className="muted"> / {formatInt(have[u])}</span>
-            </label>
-            <input
-              id={`recall-${s.id}-${u}`}
-              className="input"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={have[u]}
-              step={1}
-              placeholder="0"
-              value={counts[u] ?? ''}
-              onChange={(e) => setCounts((c) => ({ ...c, [u]: e.target.value }))}
-            />
-            <button type="button" className="btn" onClick={() => setCounts((c) => ({ ...c, [u]: String(have[u]) }))}>
-              all
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button className="btn btn-primary btn-block" type="submit" disabled={total < 1 || busy}>
-        {total > 0 ? `Recall ${formatInt(total)}` : 'Recall'}
-      </button>
-    </form>
-  );
-}
 
 function SupportPanel() {
   const { stationed, now, refresh, toast } = useGame();

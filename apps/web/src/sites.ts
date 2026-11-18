@@ -1,7 +1,7 @@
 // Pure helpers for map sites (Great Fire, Fire Shrines): names, state lines, which missions the panel offers.
 // Data comes from GET /api/sites; rules are in packages/engine/src/sites.ts and docs/GAME_DESIGN.md 18.4b.
 
-import { LOOKOUT_RADIUS, WAYMARK_RADIUS } from '@clanfire/engine';
+import { LOOKOUT_RADIUS, SHRINE_WAKE_DAYS, WAYMARK_RADIUS } from '@clanfire/engine';
 import type { Mission, SiteDto } from '@clanfire/engine';
 import { formatInt, formatLeft } from './format.ts';
 
@@ -62,20 +62,40 @@ export function calmLeftMs(s: Pick<SiteDto, 'calmUntil'>, now: number): number {
   return s.calmUntil !== null && s.calmUntil > now ? s.calmUntil - now : 0;
 }
 
-/** "+4%" / "+10%" / "+2.5%" from a fraction. */
-export function bonusPercent(fraction: number): string {
-  const p = Math.round((Number.isFinite(fraction) ? fraction : 0) * 1000) / 10;
-  return `+${Number.isInteger(p) ? p : p.toFixed(1)}%`;
+/** Renown per day shown to a player: the daily rate times the world speed (the server credits it that way). */
+const perDay = (rate: number, speed: number): number => Math.round(rate * (Number.isFinite(speed) && speed > 0 ? speed : 1));
+
+/** The Renown a site gives, for the panel: what every member of the holding tribe earns a day (and what it becomes once the site wakes). */
+export function siteBonusText(
+  s: Pick<SiteDto, 'kind' | 'renownPerDayDormant' | 'renownPerDayAwake' | 'awake'>,
+  speed = 1,
+): string {
+  const what = s.kind === 'great_fire' ? 'the Great Fire' : 'this shrine';
+  const now = perDay(s.awake ? s.renownPerDayAwake : s.renownPerDayDormant, speed);
+  const wake = !s.awake && s.renownPerDayAwake > s.renownPerDayDormant ? ` (${perDay(s.renownPerDayAwake, speed)} once it wakes on day ${SHRINE_WAKE_DAYS})` : '';
+  return `While your tribe holds ${what}, every member earns ${now} Renown a day${wake}`;
 }
 
-/** The Renown a site gives, for the panel. */
-export function siteBonusText(s: Pick<SiteDto, 'bonus' | 'holder'>): string {
-  return `${bonusPercent(s.bonus)} Renown for every member of ${s.holder ? 'the holding tribe' : 'whoever holds it'}`;
+/** Extra panel line for a member of the holding tribe: what they earn from it. Empty otherwise and for sites that give nothing. */
+export function siteEarnLines(s: Pick<SiteDto, 'renownPerDay'>, mineHeld: boolean, speed = 1): string[] {
+  return mineHeld && s.renownPerDay > 0 ? [`You earn ${perDay(s.renownPerDay, speed)} a day from it`] : [];
 }
 
-/** The tribe bonus line in the Tribe area, or null when it is 0. */
-export function tribeBonusLine(myBonus: number): string | null {
-  return myBonus > 0 ? `Fire sites your tribe holds: ${bonusPercent(myBonus)} Renown for every member` : null;
+/** The site Wall line: "Wall 14 of 22 · next level in 7h 12m" (or "top level"). */
+export function siteWallText(s: Pick<SiteDto, 'wallLevel' | 'wallMax' | 'wallNextMs'>): string {
+  return `Wall ${s.wallLevel} of ${s.wallMax} · ${s.wallNextMs === null ? 'top level' : `next level in ${formatLeft(s.wallNextMs)}`}`;
+}
+
+/** The keepers line for a site nobody holds: "Keepers: 40% back, full in 14h" (empty for held sites and Waymarks and Lookouts too: they have keepers as well, so only held sites give ''). */
+export function keepersText(s: Pick<SiteDto, 'holder' | 'keepers'>, regrowMs: number): string {
+  if (s.holder) return '';
+  if (s.keepers >= 1) return 'Keepers at full strength';
+  return `Keepers ${Math.round(s.keepers * 100)}% back, full in ${formatLeft(Math.ceil((1 - s.keepers) * regrowMs))}`;
+}
+
+/** The tribe line in the Tribe area, or null when it is 0. */
+export function tribeBonusLine(myRenownPerDay: number, speed = 1): string | null {
+  return myRenownPerDay > 0 ? `Fire sites your tribe holds: you earn ${perDay(myRenownPerDay, speed)} Renown a day from them` : null;
 }
 
 export interface SiteMissions {
