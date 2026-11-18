@@ -2,7 +2,8 @@
 // works". Right: the Chieftain card (train with a 1 / 2 / 3 choice, queue, War Chest, strike chains, villages being held).
 // The server re-checks everything.
 
-import { useState } from 'react';
+import { useState } from "react";
+import type { ReactNode } from "react";
 import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
@@ -12,27 +13,50 @@ import {
   RESOURCE_IDS,
   UNITS,
   checkTrain,
+  worldRules,
   trainTimeMs,
-} from '@clanfire/engine';
-import type { Resources } from '@clanfire/engine';
-import { api, errorMessage } from '../../api.ts';
-import { Icon } from '../../art/Icon.tsx';
-import { Cost } from '../../components/ui.tsx';
-import { WarChestPayIn } from '../../components/WarChest.tsx';
-import { formatDuration, formatInt, formatLeft } from '../../format.ts';
-import { useGame } from '../../game.ts';
-import { useLock } from '../../hooks/useLock.ts';
-import { clampFeastCount, feastDiscountPercent, feastMaxCount, feastPrice, feastTotal, nextFeastDiscountPercent } from '../../renown.ts';
-import { maxTrainable, reasonText, requirementText, unmetRequirements } from '../../rules.ts';
-import { chestBatchPrice, chestMissing } from '../../chest.ts';
-import { NEEDS_CHEST_TEXT } from '../../shortfall.ts';
-import { HEARTH_OUT_REASON, chieftainBatchPrice, chieftainCountLabel, chieftainRenownNote, chieftainTrainingLine, chainText, takingSteps } from '../../villages.ts';
-import { useCancelJob } from '../cancelJob.tsx';
+} from "@clanfire/engine";
+import type { ResourceId, Resources } from "@clanfire/engine";
+import { api, errorMessage } from "../../api.ts";
+import { Icon } from "../../art/Icon.tsx";
+import { Cost, ProgressBar } from "../../components/ui.tsx";
+import { RESOURCE_ICON, RESOURCE_NAME } from "../../icons.ts";
+import { useSites } from "../../hooks/useSites.ts";
+import { WarChestPayIn } from "../../components/WarChest.tsx";
+import { formatDuration, formatInt, formatLeft } from "../../format.ts";
+import { useGame, useRules } from "../../game.ts";
+import { useLock } from "../../hooks/useLock.ts";
+import {
+  clampFeastCount,
+  feastDiscountPercent,
+  feastMaxCount,
+  feastPrice,
+  feastTotal,
+  nextFeastDiscountPercent,
+} from "../../renown.ts";
+import {
+  maxTrainable,
+  reasonText,
+  requirementText,
+  unmetRequirements,
+} from "../../rules.ts";
+import { chestBatchPrice } from "../../chest.ts";
+import {
+  CHIEFTAIN_COUNT_RULE,
+  HEARTH_OUT_REASON,
+  chieftainBatchPrice,
+  chieftainRenownNote,
+  takingSteps,
+} from "../../villages.ts";
+import { useCancelJob } from "../cancelJob.tsx";
 
 function Tick({ ok }: { ok: boolean }) {
   return (
-    <span className={`bh-tick ${ok ? 'is-ok' : 'is-no'}`} aria-label={ok ? 'Done' : 'Missing'}>
-      {ok ? '✓' : '✗'}
+    <span
+      className={`bh-tick ${ok ? "is-ok" : "is-no"}`}
+      aria-label={ok ? "Done" : "Missing"}
+    >
+      {ok ? "✓" : "✗"}
     </span>
   );
 }
@@ -41,11 +65,14 @@ export function BannerHallPanel() {
   const { live, village, settings, applyVillage, refresh, toast } = useGame();
   const { busy, begin, end } = useLock();
   const level = live.buildings.bannerhall;
-  const [amount, setAmount] = useState('1');
+  const [amount, setAmount] = useState("1");
 
   if (level < 1) {
-    const unmet = unmetRequirements(live.buildings, BUILDINGS.bannerhall.requires);
-    const building = live.buildQueue.some((j) => j.building === 'bannerhall');
+    const unmet = unmetRequirements(
+      live.buildings,
+      BUILDINGS.bannerhall.requires,
+    );
+    const building = live.buildQueue.some((j) => j.building === "bannerhall");
     return (
       <div className="bh-cards">
         <section className="fv-pn bh-card" aria-label="Feast">
@@ -53,15 +80,23 @@ export function BannerHallPanel() {
             <h2>Feast</h2>
           </div>
           <div className="bh-body">
-            <p className="why bh-why">Throw a party: spend resources, earn Renown. Renown buys new villages.</p>
+            <p className="why bh-why">
+              Throw a party: spend resources, earn Renown. Renown buys new
+              villages.
+            </p>
             <div className="bh-cost">
               <Cost cost={feastPrice(1)} />
               <span className="bh-gain">
-                <Icon name="renown" size={18} className="inline-icon" /> +{FEAST_RENOWN} Renown
+                <Icon name="renown" size={18} className="inline-icon" /> +
+                {FEAST_RENOWN} Renown
               </span>
             </div>
             <p className="why bh-why">
-              {building ? 'Being built' : unmet.length > 0 ? `Needs ${requirementText(unmet)}` : 'Build it above'}
+              {building
+                ? "Being built"
+                : unmet.length > 0
+                  ? `Needs ${requirementText(unmet)}`
+                  : "Build it above"}
             </p>
           </div>
         </section>
@@ -74,7 +109,7 @@ export function BannerHallPanel() {
   const typed = Number.parseInt(amount, 10);
   const count = clampFeastCount(Number.isFinite(typed) ? typed : 1, max);
   const total = feastTotal(Math.max(1, count), unit);
-  const reason = max < 1 ? 'Need more resources' : null;
+  const reason = max < 1 ? "Need more resources" : null;
   const discount = feastDiscountPercent(level);
   const nextDiscount = nextFeastDiscountPercent(level);
 
@@ -83,10 +118,10 @@ export function BannerHallPanel() {
     try {
       const res = await api.feast(village.id, count);
       applyVillage(res.village);
-      setAmount('1');
+      setAmount("1");
       toast(`+${formatInt(res.gained)} Renown`);
     } catch (e) {
-      toast(errorMessage(e), { kind: 'error' });
+      toast(errorMessage(e), { kind: "error" });
     } finally {
       end();
       // Renown is part of the state, not of the village response: this one stays a full refresh.
@@ -103,13 +138,20 @@ export function BannerHallPanel() {
           </div>
           <div className="bh-body">
             <p className="bh-left">
-              {discount > 0 ? <strong>Feast price -{discount}%</strong> : <strong>Full Feast price</strong>}
-              {nextDiscount !== null ? ` (level ${level + 1}: -${nextDiscount}%)` : ' (highest level)'}
+              {discount > 0 ? (
+                <strong>Feast price -{discount}%</strong>
+              ) : (
+                <strong>Full Feast price</strong>
+              )}
+              {nextDiscount !== null
+                ? ` (level ${level + 1}: -${nextDiscount}%)`
+                : " (highest level)"}
             </p>
             <div className="bh-cost">
               <Cost cost={total} have={live.resources} />
               <span className="bh-gain">
-                <Icon name="renown" size={18} className="inline-icon" /> +{formatInt(FEAST_RENOWN * Math.max(1, count))} Renown
+                <Icon name="renown" size={18} className="inline-icon" /> +
+                {formatInt(FEAST_RENOWN * Math.max(1, count))} Renown
               </span>
             </div>
             <div className="bh-btns">
@@ -129,18 +171,32 @@ export function BannerHallPanel() {
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={() => setAmount(String(Math.max(1, count)))}
               />
-              <button type="button" className="btn bh-max-btn" disabled={max < 1 || busy} onClick={() => setAmount(String(Math.max(1, max)))}>
-                Max{max > 0 ? ` ${formatInt(max)}` : ''}
+              <button
+                type="button"
+                className="btn bh-max-btn"
+                disabled={max < 1 || busy}
+                onClick={() => setAmount(String(Math.max(1, max)))}
+              >
+                Max{max > 0 ? ` ${formatInt(max)}` : ""}
               </button>
-              <button type="button" className="btn btn-primary bh-go bh-feast" disabled={!!reason || busy} onClick={() => void feast(count)}>
-                <Icon name="renown" size={22} /> Feast{count > 1 ? ` ×${formatInt(count)}` : ''}
+              <button
+                type="button"
+                className="btn btn-primary bh-go bh-feast"
+                disabled={!!reason || busy}
+                onClick={() => void feast(count)}
+              >
+                <Icon name="renown" size={22} /> Feast
+                {count > 1 ? ` ×${formatInt(count)}` : ""}
               </button>
             </div>
             {reason && <p className="why bh-why">{reason}</p>}
           </div>
         </section>
 
-        <section className="fv-pn bh-card" aria-label="How taking a village works">
+        <section
+          className="fv-pn bh-card"
+          aria-label="How taking a village works"
+        >
           <div className="fv-ph">
             <h2>How taking a village works</h2>
           </div>
@@ -157,43 +213,104 @@ export function BannerHallPanel() {
   );
 }
 
-/** The Chieftain card: everything about Chieftains in one place. */
+/** One need as a bar: label, "have / need", a filled bar (green when complete) and an optional hint or button. */
+function NeedBar({
+  label,
+  have,
+  need,
+  hint,
+  action,
+}: {
+  label: string;
+  have: number;
+  need: number;
+  hint?: string;
+  action?: ReactNode;
+}) {
+  const done = have >= need;
+  return (
+    <li className="bh-need">
+      <div className="bh-need-top">
+        <span className="bh-name">{label}</span>
+        <span className="bh-num">
+          {formatInt(have)} / {formatInt(need)}
+        </span>
+      </div>
+      <div className="bh-need-bar">
+        <ProgressBar
+          value={need > 0 ? have / need : 1}
+          label={label}
+          tone={done ? "ok" : "brand"}
+        />
+        {action}
+      </div>
+      {hint && <span className="bh-hint">{hint}</span>}
+    </li>
+  );
+}
+
+/** The Chieftain card: everything about Chieftains in one place. Top to bottom: count, what you need (bars), one Train button, villages, batches. */
 function ChieftainCard() {
-  const { live, now, village, renown, chest, chains, holds, settings, applyVillage, refresh, toast, showOnMap } = useGame();
+  const {
+    live,
+    now,
+    village,
+    renown,
+    chest,
+    chains,
+    holds,
+    settings,
+    applyVillage,
+    refresh,
+    toast,
+    showOnMap,
+  } = useGame();
+  const { myRenownPerDay } = useSites(useRules().features.sites);
   const cancel = useCancelJob();
-  const [count, setCount] = useState(1);
+  const [picked, setPicked] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const queue = live.trainQueues.bannerhall;
   const def = UNITS.chieftain;
   const owned = renown.villages;
   const out = renown.chieftains ?? 0;
 
+  // An open chain preselects what that village still needs; the player's own pick wins.
+  const open = chains.find((c) => c.need > c.have);
+  const wanted = open
+    ? Math.min(CHIEFTAIN_MAX_BATCH, open.need - open.have)
+    : 1;
+  const count = picked ?? wanted;
+
   const batchRenown = chieftainBatchPrice(renown, count, settings);
   const batchChest = chest ? chestBatchPrice(owned, out, count, settings) : 0;
-  const renownOk = renown.balance >= batchRenown;
-  const chestOk = !chest || chest.gold >= batchChest;
-  const batchCost = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * count])) as Resources;
-  const lacking = RESOURCE_IDS.filter((r) => batchCost[r] > 0 && Math.floor(live.resources[r] + 1e-9) < batchCost[r]);
-  const check = checkTrain(live, 'chieftain', count, now, settings);
-  const perUnit = trainTimeMs('chieftain', live, settings);
-  const cap = Math.min(CHIEFTAIN_MAX_BATCH, maxTrainable(live, 'chieftain', now, settings));
+  const batchCost = Object.fromEntries(
+    RESOURCE_IDS.map((r) => [r, def.cost[r] * count]),
+  ) as Resources;
+  const check = checkTrain(live, "chieftain", count, now, settings);
+  const perUnit = trainTimeMs("chieftain", live, settings);
+  const missingRenown = Math.max(0, batchRenown - renown.balance);
+  const missingGold = chest ? Math.max(0, batchChest - chest.gold) : 0;
 
   let reason: string | null = null;
   if (village.hearth) reason = HEARTH_OUT_REASON;
-  else if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = 'Queue full';
+  else if (queue.length >= CHIEFTAIN_MAX_QUEUED_BATCHES) reason = "Queue full";
+  else if (missingRenown > 0)
+    reason = `${formatInt(missingRenown)} more Renown needed`;
+  else if (missingGold > 0)
+    reason = `${formatInt(missingGold)} more War Chest gold needed`;
   else if (!check.ok) reason = reasonText(check);
-  else if (!renownOk) reason = `Need ${formatInt(batchRenown)} Renown`;
-  else if (!chestOk) reason = NEEDS_CHEST_TEXT;
 
   async function train() {
     if (busy || reason) return;
     setBusy(true);
     try {
-      applyVillage(await api.train(village.id, 'chieftain', count));
-      toast(`${formatInt(count)} × ${def.name}: ${formatInt(batchRenown)} Renown reserved`);
-      setCount(1);
+      applyVillage(await api.train(village.id, "chieftain", count));
+      toast(
+        `${formatInt(count)} × ${def.name}: ${formatInt(batchRenown)} Renown reserved`,
+      );
+      setPicked(null);
     } catch (e) {
-      toast(errorMessage(e), { kind: 'error' });
+      toast(errorMessage(e), { kind: "error" });
     } finally {
       setBusy(false);
       void refresh();
@@ -203,123 +320,243 @@ function ChieftainCard() {
   const home = live.troops.chieftain ?? 0;
   const away = live.away.chieftain ?? 0;
   const inTraining = queue.reduce((n, j) => n + j.count - j.done, 0);
-  const trainingLine = chieftainTrainingLine(queue, now);
-  const chestPct = chest ? Math.min(100, Math.round((chest.gold / Math.max(1, batchChest)) * 100)) : 0;
+  const rules = worldRules(settings).conquest;
+  const hourMs = 3_600_000 / Math.max(1e-6, settings.speed);
+  const windowMs = rules.chainWindowHours * hourMs;
+  const holdMs = Math.max(rules.holdHours, rules.holdHoursAbandoned) * hourMs;
+  const have = (r: ResourceId) => Math.floor(live.resources[r] + 1e-9);
 
   return (
     <section className="fv-pn bh-card bh-chief" aria-label="Chieftain">
       {cancel.dialog}
       <div className="fv-ph">
         <h2>Chieftains</h2>
-        <span className="fv-mut bh-counts">
-          {formatInt(home)} at home · {formatInt(away)} away · {formatInt(inTraining)} in training
+        <span className="bh-chips">
+          <span className="bh-chip" title="Chieftains at home">
+            <Icon name="chieftain" size={16} /> At home {formatInt(home)}
+          </span>
+          <span className="bh-chip">On the way {formatInt(away)}</span>
+          <span className="bh-chip">Training {formatInt(inTraining)}</span>
         </span>
       </div>
       <div className="bh-body">
-        {trainingLine && <p className="bh-training">{trainingLine}</p>}
-        {queue.length > 0 && (
-          <ul className="bh-queue">
-            {queue.map((job, i) => {
-              const left = job.count - job.done;
-              const endAt = job.startAt + job.count * job.perUnitMs;
-              return (
-                <li key={`${job.startAt}-${i}`}>
-                  <span>
-                    {formatInt(job.count)} × {def.name} · {now >= job.startAt ? formatDuration(endAt - now) : `in ${formatDuration(job.startAt - now)}`}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-small"
-                    disabled={cancel.busy}
-                    title={`${CANCEL_REFUND_PERCENT}% back, Renown in full`}
-                    onClick={() => {
-                      const paid = Object.fromEntries(RESOURCE_IDS.map((r) => [r, def.cost[r] * left])) as Resources;
-                      void cancel.cancelTrain(`${formatInt(left)} × ${def.name}`, paid, 'bannerhall', i);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
         <div className="bh-train">
-          <p className="bh-why" id="bh-count-label">
-            {chieftainCountLabel()}
-          </p>
-          <div className="bh-count" role="group" aria-labelledby="bh-count-label">
-            {Array.from({ length: CHIEFTAIN_MAX_BATCH }, (_, i) => i + 1).map((n) => (
-              <button key={n} type="button" className="btn bh-count-btn" aria-pressed={count === n} disabled={busy} onClick={() => setCount(n)}>
-                <b>{n}</b>
-                <span>
-                  {formatInt(chieftainBatchPrice(renown, n, settings))} Renown
-                  {chest ? ` · ${formatInt(chestBatchPrice(owned, out, n, settings))} gold` : ''}
-                </span>
-              </button>
-            ))}
+          <div className="bh-count-row">
+            <b id="bh-count-label">How many?</b>
+            <div
+              className="bh-count"
+              role="group"
+              aria-labelledby="bh-count-label"
+            >
+              {Array.from({ length: CHIEFTAIN_MAX_BATCH }, (_, i) => i + 1).map(
+                (n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="btn bh-count-btn"
+                    aria-pressed={count === n}
+                    disabled={busy}
+                    onClick={() => setPicked(n)}
+                  >
+                    {n}
+                  </button>
+                ),
+              )}
+            </div>
           </div>
-          <p className="muted bh-fine" title={chieftainRenownNote()}>
-            Each one costs more than the last. {formatDuration(perUnit * count)} to train{cap > 0 && cap < count ? ` · you can afford ${cap}` : ''}.
+          <p className="muted bh-fine">
+            {open ? `${open.name} needs ${open.need - open.have} more. ` : ""}
+            {CHIEFTAIN_COUNT_RULE}
           </p>
         </div>
 
         <ul className="bh-list">
-          <li className="bh-row">
-            <Tick ok={renownOk} />
-            <span className="bh-name">Renown (from Feasts and battles)</span>
-            <span className="bh-num">
-              {formatInt(renown.balance)} / {formatInt(batchRenown)}
-            </span>
-          </li>
+          <NeedBar
+            label="Renown"
+            have={renown.balance}
+            need={batchRenown}
+            hint={`From Feasts and battles${myRenownPerDay > 0 ? ` · +${formatInt(myRenownPerDay)} a day from shrines your tribe holds` : ""}`}
+          />
           {chest && (
-            <li className="bh-row">
-              <Tick ok={chestOk} />
-              <span className="bh-name">War Chest gold</span>
-              <span className="bh-num">
-                {formatInt(chest.gold)} / {formatInt(batchChest)}
-              </span>
-              <span className="bh-bar" role="progressbar" aria-label="War Chest gold" aria-valuemin={0} aria-valuemax={batchChest} aria-valuenow={Math.min(chest.gold, batchChest)}>
-                <span className="bh-fill" style={{ width: `${chestPct}%` }} />
-              </span>
-            </li>
+            <NeedBar
+              label="War Chest gold"
+              have={chest.gold}
+              need={batchChest}
+              action={missingGold > 0 ? <WarChestPayIn compact /> : undefined}
+            />
           )}
-          {lacking.length > 0 && (
-            <li className="bh-row">
-              <Tick ok={false} />
+          <li className="bh-need">
+            <div className="bh-need-top">
               <span className="bh-name">Resources</span>
-              <span className="bh-num">{lacking.map((r) => `${formatInt(batchCost[r])} ${r}`).join(' · ')}</span>
-            </li>
-          )}
+            </div>
+            <div className="bh-res">
+              {RESOURCE_IDS.filter((r) => batchCost[r] > 0).map((r) => {
+                const short = have(r) < batchCost[r];
+                return (
+                  <span
+                    key={r}
+                    className={`bh-res-item${short ? " is-short" : ""}`}
+                    title={RESOURCE_NAME[r]}
+                  >
+                    <Icon
+                      name={RESOURCE_ICON[r]}
+                      size={18}
+                      className="inline-icon"
+                    />
+                    <b>{formatInt(batchCost[r])}</b>
+                    {short ? (
+                      <span>{formatInt(batchCost[r] - have(r))} short</span>
+                    ) : (
+                      <Tick ok />
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          </li>
         </ul>
-        <WarChestPayIn />
-        <button type="button" className="btn btn-primary bh-go bh-train-btn" disabled={!!reason || busy} onClick={() => void train()}>
-          <Icon name="chieftain" size={22} /> Train {count} {count === 1 ? 'Chieftain' : 'Chieftains'}
-        </button>
-        {reason && <p className="why bh-why">{reason}</p>}
 
-        {(chains.length > 0 || holds.length > 0) && (
-          <ul className="bh-live" aria-label="Taking villages">
-            {chains.map((c) => (
-              <li key={`c${c.villageId}`}>
-                <button type="button" className="bh-link" onClick={() => showOnMap(c.x, c.y)}>
-                  {c.name}
-                </button>
-                : {chainText({ have: c.have, need: c.need, endsAt: c.endsAt }, now) ?? `${c.have} of ${c.need} Chieftains banked`}
-                {c.need > c.have ? ` · send ${c.need - c.have} more` : ''}
-              </li>
-            ))}
-            {holds.map((h) => (
-              <li key={`h${h.villageId}`}>
-                Holding{' '}
-                <button type="button" className="bh-link" onClick={() => showOnMap(h.x, h.y)}>
-                  {h.name}
-                </button>
-                : {h.running ? `${formatLeft(h.holdMsLeft)} left` : 'paused, needs more occupiers'}
-              </li>
-            ))}
-          </ul>
+        <button
+          type="button"
+          className="btn btn-primary bh-go bh-train-btn"
+          title={`Each extra Chieftain costs more. ${chieftainRenownNote()}`}
+          disabled={!!reason || busy}
+          onClick={() => void train()}
+        >
+          <Icon name="chieftain" size={22} />{" "}
+          {reason ??
+            `Train ${count} ${count === 1 ? "Chieftain" : "Chieftains"} · ${formatDuration(perUnit * count)}`}
+        </button>
+
+        {chains.length > 0 && (
+          <>
+            <div className="bh-sub">Taking a village</div>
+            <ul className="bh-live" aria-label="Taking villages">
+              {chains.map((c) => {
+                const left = c.endsAt - now;
+                return (
+                  <li key={`c${c.villageId}`} className="bh-vrow">
+                    <div className="bh-vtop">
+                      <button
+                        type="button"
+                        className="bh-link"
+                        onClick={() => showOnMap(c.x, c.y)}
+                      >
+                        {c.name}
+                      </button>
+                      <span
+                        className="bh-dots"
+                        aria-label={`${c.have} of ${c.need} Chieftains banked`}
+                      >
+                        {Array.from({ length: c.need }, (_, i) =>
+                          i < c.have ? "●" : "○",
+                        ).join("")}
+                      </span>
+                      {c.need > c.have && (
+                        <button
+                          type="button"
+                          className="btn btn-small"
+                          onClick={() => showOnMap(c.x, c.y)}
+                        >
+                          Send {c.need - c.have} more
+                        </button>
+                      )}
+                    </div>
+                    <ProgressBar
+                      value={left / windowMs}
+                      label="Time left to bank the rest"
+                    />
+                    <span className="bh-hint">
+                      {left > 0 ? `${formatLeft(left)} left` : "Window over"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        {holds.length > 0 && (
+          <>
+            <div className="bh-sub">Holding</div>
+            <ul className="bh-live" aria-label="Villages being held">
+              {holds.map((h) => (
+                <li key={`h${h.villageId}`} className="bh-vrow">
+                  <div className="bh-vtop">
+                    <button
+                      type="button"
+                      className="bh-link"
+                      onClick={() => showOnMap(h.x, h.y)}
+                    >
+                      {h.name}
+                    </button>
+                  </div>
+                  <ProgressBar
+                    value={h.holdMsLeft / holdMs}
+                    label="Hold time left"
+                  />
+                  <span className="bh-hint">
+                    {h.running
+                      ? `Hold ${formatLeft(h.holdMsLeft)} left`
+                      : "Paused, needs more occupiers"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {queue.length > 0 && (
+          <>
+            <div className="bh-sub">In training</div>
+            <ul className="bh-live">
+              {queue.map((job, i) => {
+                const left = job.count - job.done;
+                const endAt = job.startAt + job.count * job.perUnitMs;
+                const started = now >= job.startAt;
+                return (
+                  <li key={`${job.startAt}-${i}`} className="bh-vrow">
+                    <div className="bh-vtop">
+                      <span>
+                        {formatInt(job.count)} × {def.name} ·{" "}
+                        {started
+                          ? `ready in ${formatDuration(endAt - now)}`
+                          : `starts in ${formatDuration(job.startAt - now)}`}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={cancel.busy}
+                        title={`${CANCEL_REFUND_PERCENT}% back, Renown in full`}
+                        onClick={() => {
+                          const paid = Object.fromEntries(
+                            RESOURCE_IDS.map((r) => [r, def.cost[r] * left]),
+                          ) as Resources;
+                          void cancel.cancelTrain(
+                            `${formatInt(left)} × ${def.name}`,
+                            paid,
+                            "bannerhall",
+                            i,
+                          );
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <ProgressBar
+                      value={
+                        started
+                          ? 1 -
+                            (endAt - now) /
+                              Math.max(1, job.count * job.perUnitMs)
+                          : 0
+                      }
+                      label="Training progress"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
     </section>

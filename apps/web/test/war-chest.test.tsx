@@ -126,15 +126,29 @@ test('Banner Hall page: Feast, the 3 steps, and ALL Chieftain things in one card
   const html = render(bannerGame(), createElement(BannerHallPanel));
   assert.ok(html.includes('Full Feast price') && html.includes('level 2: -10%'));
   assert.ok(html.includes('id="bh-amount"') && /Max\s?\d/.test(html), 'amount field and Max button');
-  for (const gone of ['Feasts left today', 'No Feasts left', 'a day', 'Feast all']) assert.ok(!html.includes(gone), gone);
+  for (const gone of ['Feasts left today', 'No Feasts left', 'a day', 'Feast all', 'Need 1,600 Renown', 'Each one costs more']) assert.ok(!html.includes(gone), gone);
   assert.ok(html.includes('How taking a village works'));
   assert.equal((html.match(/<li>(Train enough|Send them|Hold the village)/g) ?? []).length, 3);
-  assert.ok(html.includes('How many Chieftains? A village needs 1, plus 1 for every 12,000 points it has (most 3).'));
-  // The count buttons say the price of each choice; Train happens right here.
-  for (const n of [1, 2, 3]) assert.ok(new RegExp(`<b>${n}</b><span>[\\d,]+ Renown · [\\d,]+ gold`).test(html), `count ${n} with its price`);
-  assert.ok(html.includes('Train 1 Chieftain'));
-  assert.ok(html.includes('Pay in 1,700 gold') || html.includes('Pay in'), 'War Chest pay-in here');
-  assert.ok(html.includes('0 at home · 0 away · 0 in training'));
+  assert.ok(html.includes('How many?') && html.includes('A village needs 1, plus 1 for every 12,000 points it has (most 3).'));
+  // Header chips, a plain 1 / 2 / 3 control (no prices inside), the bars, the tooltip hint.
+  assert.ok(html.includes('At home 0') && html.includes('On the way 0') && html.includes('Training 0'));
+  for (const n of [1, 2, 3]) assert.ok(new RegExp(`aria-pressed="${n === 1}"[^>]*>${n}</button>`).test(html), `count ${n}`);
+  assert.ok(!/\d Renown ·/.test(html), 'no prices in the count buttons');
+  assert.ok(html.includes('role="progressbar"') && html.includes('From Feasts and battles'));
+  assert.ok(html.includes('War Chest gold') && html.includes('Pay in'), 'War Chest bar with a compact Pay in');
+  assert.ok(html.includes('Each extra Chieftain costs more.'), 'tooltip hint only');
+});
+
+test('Train button: ready shows the time; missing Renown and missing gold say the first thing missing', async () => {
+  const { BannerHallPanel } = await import('../src/views/village/BannerHall.tsx');
+  const ready = render(bannerGame({ chest: { gold: 5000, reserved: 0, chieftainPrice: 3200 } }), createElement(BannerHallPanel));
+  assert.ok(/Train 1 Chieftain · [\dm: ]+s?\b/.test(ready.replace(/<[^>]+>/g, '')) && !/<button[^>]*disabled=""[^>]*bh-train-btn/.test(ready), 'ready');
+  assert.ok(!ready.includes('Pay in'), 'no pay-in when the chest is full');
+  const noRenown = render(bannerGame({ renown: { total: 100, spent: 0, balance: 100, nextVillageCost: 900, villages: 1, reserved: 0, chieftains: 0 } }), createElement(BannerHallPanel));
+  assert.ok(/[\d,]+ more Renown needed/.test(noRenown), 'missing Renown');
+  assert.ok(/<button[^>]*(bh-train-btn[^>]*disabled|disabled[^>]*bh-train-btn)/.test(noRenown));
+  const noGold = render(bannerGame(), createElement(BannerHallPanel));
+  assert.ok(/[\d,]+ more War Chest gold needed/.test(noGold), 'missing gold');
 });
 
 test('Banner Hall shows the training status, open strike chains and villages being held', async () => {
@@ -144,15 +158,20 @@ test('Banner Hall shows the training status, open strike chains and villages bei
     bannerGame(
       {
         now: 1000,
-        chains: [{ villageId: 85, name: "Sable's village", x: 3, y: 4, have: 1, need: 3, endsAt: 1000 + 118 * 60_000 }],
+        chains: [{ villageId: 85, name: "Sable's village", x: 3, y: 4, have: 1, need: 3, endsAt: 1000 + 114 * 60_000 }],
         holds: [{ villageId: 9, name: 'Old Fort', x: 1, y: 1, running: true, holdMsLeft: 5 * 3600_000 + 12 * 60_000 }],
       },
       queue,
     ),
     createElement(BannerHallPanel),
   );
-  assert.ok(html.includes('1 Chieftain in training, ready in 4:59:'), html.match(/in training[^<]*/)?.[0] ?? 'none');
-  assert.ok(html.includes("Sable&#x27;s village") && html.includes('1 of 3 Chieftains banked, 1h 58m left') && html.includes('send 2 more'));
-  assert.ok(html.includes('Holding') && html.includes('Old Fort') && html.includes('5h 12m left'));
-  assert.ok(html.includes('Cancel'));
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  assert.ok(text.includes('Training 1'), 'chip');
+  assert.ok(text.includes('1 × Chieftain · ready in 4:59:'), 'batch row with its clock');
+  assert.ok(text.includes("Sable's village") || text.includes('Sable&#x27;s village'));
+  assert.ok(html.includes('●○○') && text.includes('1h 54m left') && text.includes('Send 2 more'), 'chain row');
+  assert.ok(text.includes('needs 2 more'), 'chain preselects the missing count');
+  assert.ok(html.includes('aria-pressed="true"') && /aria-pressed="true"[^>]*>2</.test(html), 'count 2 preselected');
+  assert.ok(text.includes('Old Fort') && text.includes('Hold 5h 12m left'), 'hold row');
+  assert.ok(text.includes('Cancel'));
 });

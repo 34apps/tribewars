@@ -30,7 +30,8 @@ export function WarChestProgress() {
 }
 
 /** One button: pays exactly what the next Chieftain still lacks (capped by this village's gold), after a confirm step. */
-export function WarChestPayIn() {
+/** `compact`: a small inline button ("Pay in 3,200" / "Pay in all I have (N)") for the Chieftain card's War Chest row. */
+export function WarChestPayIn({ compact = false }: { compact?: boolean } = {}) {
   const { chest, village, live, applyChest, refresh, toast } = useGame();
   const { confirm, dialog } = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -62,6 +63,17 @@ export function WarChestPayIn() {
       setBusy(false);
       void refresh();
     }
+  }
+
+  if (compact) {
+    return (
+      <>
+        {dialog}
+        <button type="button" className="btn btn-small bh-payin" disabled={busy || !!reason} title={reason ?? undefined} onClick={() => void payIn()}>
+          {amount < missing && amount > 0 ? `Pay in all I have (${formatInt(amount)})` : `Pay in${amount > 0 ? ` ${formatInt(amount)}` : ''}`}
+        </button>
+      </>
+    );
   }
 
   return (

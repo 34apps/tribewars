@@ -1230,7 +1230,8 @@
 
 .wm-contingent {
   display: flex;
-  align-items: center;
+  flex-direction: column; /* the Call back form (amount per unit) needs the full width */
+  align-items: stretch;
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;

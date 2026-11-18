@@ -342,3 +342,162 @@
     flex-basis: 100%;
   }
 }
+
+/* Chieftain card v2 (owner 2026-11-18): bars first, one Train button, villages with countdown bars. Tokens only. */
+.bh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bh-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--heading);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bh-count-btn {
+  min-height: 44px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.bh-sub {
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.bh-need {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bh-need-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bh-need-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bh-need-bar .progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bh-payin {
+  flex: none;
+  white-space: nowrap;
+}
+
+.bh-hint {
+  font-size: 0.8rem;
+  color: var(--on-surface-muted);
+}
+
+.bh-res {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.bh-res-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-res-item.is-short {
+  color: var(--danger, var(--c-terra));
+}
+
+.bh-res-item .bh-tick {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+
+.bh-train-btn {
+  width: 100%;
+  white-space: normal;
+}
+
+.bh-vrow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bh-vrow .progress {
+  height: 6px;
+}
+
+.bh-vtop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.bh-vtop .btn {
+  margin-left: auto;
+}
+
+.bh-dots {
+  letter-spacing: 2px;
+  color: var(--heading);
+}
+
+.bh-live {
+  gap: 10px;
+}
+
+.bh-count-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bh-count-row .bh-count {
+  flex: 1 1 auto;
+  gap: 6px;
+}
+
+.bh-count-btn {
+  min-height: 36px;
+  padding: 2px 4px;
+}
+
+.bh-chief .bh-body {
+  gap: 6px;
+}
+
+.bh-chief .bh-list {
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .bh-chief .fv-ph {
+    height: auto;
+    padding: 8px 14px;
+  }
+
+  .bh-chips {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
