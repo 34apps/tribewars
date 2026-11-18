@@ -2,9 +2,11 @@
 
 import {
   CANCEL_REFUND_PERCENT,
+  DRILLYARD_POINTS_PER_LEVEL,
   KEEN_BONUS,
   RANK_BONUS,
   RANK_MAX,
+  RANKABLE_UNITS,
   SCOUT_UNIT,
   UNITS,
   UNIT_IDS,
@@ -87,7 +89,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const queue = live.researchQueue ?? [];
   const limit = useRules().queues.research;
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
-  const trained = UNIT_IDS.filter((u) => isResearched(live, u));
+  const trained = UNIT_IDS.filter((u) => RANKABLE_UNITS.includes(u) && isResearched(live, u));
 
   const focusRef = useRef<HTMLLIElement>(null);
   const [focusUnit] = useState(takeResearchFocus);
@@ -134,9 +136,11 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                   <div className="drill-rc-main">
                     <div className="drill-rc-head">
                       <span className="drill-name">{def.name}</span>
-                      <span className="drill-time">
-                        <Icon name="time" size={16} className="inline-icon" /> {formatDuration(check.ok ? check.timeMs : (rule.timeSec / settings.speed) * 1000)}
-                      </span>
+                      {!done && (
+                        <span className="drill-time">
+                          <Icon name="time" size={16} className="inline-icon" /> {formatDuration(check.ok ? check.timeMs : (rule.timeSec / settings.speed) * 1000)}
+                        </span>
+                      )}
                     </div>
                     {!done && !active && (
                       <div className="drill-cost">
@@ -189,8 +193,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
             </span>
           </div>
           <p className="drill-howto">
-            Make a unit stronger: each rank adds +{Math.round(RANK_BONUS * 100)}% attack or defence (scouting +{Math.round(KEEN_BONUS * 100)}%). Rank 2 costs 2
-            points, rank 3 costs 3, and so on. Reset gives the points back.
+            Each level of the Drillyard gives {DRILLYARD_POINTS_PER_LEVEL} points. Rank 1 costs 1 point, rank 2 costs 2, … Reset gives the points back.
           </p>
           <ul className="drill-units">
             {trained.map((u) => {
@@ -199,10 +202,11 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                 <li key={u} className="drill-uc">
                   <div className="drill-unit-head">
                     <span className="drill-icon" aria-hidden="true">
-                      <UnitFigure unit={u} pose="icon" size={28} />
+                      <UnitFigure unit={u} pose="icon" size={32} />
                     </span>
                     <span className="drill-name">{def.name}</span>
                   </div>
+                  <div className="drill-trs">
                   {TRACKS.filter((t) => trackApplies(u, t.id)).map((t) => {
                     const rank = rankOf(live.ranks, u, t.id);
                     const per = t.id === 'keen' ? KEEN_BONUS : RANK_BONUS;
@@ -210,45 +214,13 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                     const respec = rank > 0 ? checkRespec(live, u, t.id, now, settings) : null;
                     const atMax = rank >= RANK_MAX;
                     const full = atMax ? null : !check.ok ? reasonText(check) : null;
-                    const short = !full ? null : rank + 1 > free ? `${rank + 1} pts · ${free} left` : check.ok === false && check.reason === 'not_enough_resources' ? 'Low on resources' : full;
+                    const short = !full ? null : rank + 1 > free ? `Needs ${rank + 1} ${rank === 0 ? 'point' : 'points'} · ${free} free` : check.ok === false && check.reason === 'not_enough_resources' ? 'Low on resources' : full;
                     return (
                       <div key={t.id} className="drill-tr">
                         <span className="drill-tname" title={t.hint}>
                           {t.name}
                         </span>
-                        <span className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
-                          {Array.from({ length: RANK_MAX }, (_, i) => (
-                            <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
-                          ))}
-                        </span>
                         <span className="drill-bonus">+{Math.round(per * rank * 100)}%</span>
-                        <span className="drill-tbtns">
-                          {!atMax && (
-                            <button
-                              type="button"
-                              className="btn btn-primary drill-buy"
-                              disabled={!!full || busy}
-                              title={full ?? undefined}
-                              aria-label={`Buy ${def.name} ${t.name} rank ${rank + 1}`}
-                              onClick={() => void run(() => api.rank(village.id, u, t.id), `${def.name} ${t.name} rank ${rank + 1}`)}
-                            >
-                              Rank {rank + 1}
-                            </button>
-                          )}
-                          {atMax && <span className="drill-max">Max</span>}
-                        </span>
-                        {/* Second line: what the next rank costs (or why not), and Reset on the right. Kept off the first line so
-                            the Rank button never gets pushed out of a narrow card. */}
-                        <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
-                          {atMax
-                            ? null
-                            : (short ??
-                              (check.ok ? (
-                                <>
-                                  {check.points} pt <Cost cost={check.cost} have={live.resources} />
-                                </>
-                              ) : null))}
-                        </span>
                         {rank > 0 && (
                           <button
                             type="button"
@@ -261,9 +233,41 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                             Reset{respec?.ok ? ` +${respec.refund}` : ''}
                           </button>
                         )}
+                        <span className="drill-pips" role="img" aria-label={`${t.name} rank ${rank} of ${RANK_MAX}`}>
+                          {Array.from({ length: RANK_MAX }, (_, i) => (
+                            <span key={i} className={`drill-pip${i < rank ? ' is-on' : ''}`} />
+                          ))}
+                        </span>
+                        <span className="drill-tbtns">
+                          {!atMax && (
+                            <button
+                              type="button"
+                              className="btn btn-primary drill-buy"
+                              disabled={!!full || busy}
+                              title={full ?? undefined}
+                              aria-label={`Buy ${def.name} ${t.name} rank ${rank + 1}`}
+                              onClick={() => void run(() => api.rank(village.id, u, t.id), `${def.name} ${t.name} rank ${rank + 1}`)}
+                            >
+                              Buy rank {rank + 1}
+                            </button>
+                          )}
+                          {atMax && <span className="drill-max">Max</span>}
+                        </span>
+                        {/* Third line: what the next rank costs (or why not). */}
+                        <span className={`drill-tinfo${short ? ' is-warn' : ''}`} title={full ?? undefined}>
+                          {atMax
+                            ? null
+                            : (short ??
+                              (check.ok ? (
+                                <>
+                                  {check.points} pt <Cost cost={check.cost} have={live.resources} />
+                                </>
+                              ) : null))}
+                        </span>
                       </div>
                     );
                   })}
+                  </div>
                 </li>
               );
             })}

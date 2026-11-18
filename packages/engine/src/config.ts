@@ -71,8 +71,11 @@ export const MAX_RESEARCH_QUEUE = 2;
 export const MAX_TRAIN_QUEUE = 5;
 /** Share (percent) of the paid cost that comes back when a queued build or training batch is cancelled. The rest is lost. */
 export const CANCEL_REFUND_PERCENT = 80;
-/** Largest single training batch. */
-export const MAX_TRAIN_BATCH = 1000;
+/**
+ * Input sanity bound for one training order, far above anything reachable (owner, 2026-11-18: no fixed limit on an order).
+ * The real limits are resources, population room and MAX_TRAIN_QUEUE.
+ */
+export const MAX_TRAIN_BATCH = 100_000;
 
 /** Production per hour at level 1 (speed 1). Level L gives base * PRODUCTION_GROWTH^(L-1). */
 export const PRODUCTION_BASE: Record<'lumber' | 'farm' | 'mine' | 'goldmine', number> = {
@@ -606,6 +609,8 @@ export const DRILLYARD_POINTS_PER_LEVEL = 3;
 export const RANK_MAX = 5;
 /** Might: +attack, Bulwark: +both defences, per rank (max RANK_MAX * 5% = +25%). */
 export const RANK_BONUS = 0.05;
+/** Units that can be ranked (the Chieftain has no attack and the Firecart is a siege tool: ranks would do nothing, 2026-11-18). */
+export const RANKABLE_UNITS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'knight', 'pathfinder'];
 /** Keen (pathfinder only): +scout strength per rank. */
 export const KEEN_BONUS = 0.1;
 /** Resources paid for buying rank r (index r - 1) of one track. Points cost r. */

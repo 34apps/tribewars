@@ -363,7 +363,7 @@ interface TrainPlan {
 function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings): CheckResult<TrainPlan> {
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > MAX_TRAIN_BATCH) {
-    return fail('invalid_input', `Count must be a whole number from 1 to ${MAX_TRAIN_BATCH}.`);
+    return fail('invalid_input', 'Count must be a whole number of 1 or more.');
   }
   const def = UNITS[u];
   if (def.siege !== undefined && !siegeEnabled(s)) return fail('requirements_not_met', SIEGE_OFF_MESSAGE);

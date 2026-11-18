@@ -1117,8 +1117,8 @@ th[scope='row'] {
   grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 4px 12px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
+  margin-bottom: 8px;
+  padding: 6px 12px;
   border-radius: 12px;
   background: var(--surface-2);
 }
@@ -1133,7 +1133,7 @@ th[scope='row'] {
 }
 
 .drill-howto {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 0.92rem;
   color: var(--on-surface-muted);
 }
@@ -1147,15 +1147,15 @@ th[scope='row'] {
 .drill-units {
   display: grid;
   /* 2 cards across in the 1440 frame, more when the window is wide; a line needs ~236 px (see .drill-tr). */
-  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(224px, 100%), 1fr));
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .drill-uc {
-  padding: 10px 8px;
+  padding: 6px 8px;
   border-radius: 12px;
   background: var(--surface-2);
 }
@@ -1164,89 +1164,51 @@ th[scope='row'] {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 6px;
+  padding-bottom: 3px;
+}
+
+.drill-trs {
+  min-width: 0;
+}
+
+.drill-trs .drill-tr:first-child {
+  border-top: 0;
 }
 
 .drill-tr {
   display: grid;
-  grid-template-columns: auto auto 38px 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 4px 6px;
-  padding: 6px 0;
+  gap: 0 8px;
+  padding: 3px 0;
   border-top: 1px solid var(--edge);
 }
 
 .drill-tname {
-  font-weight: 600;
-}
-
-.drill-pips {
-  display: flex;
-  gap: 2px;
-}
-
-.drill-pip {
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--c-dust);
-  border-radius: 50%;
-}
-
-.drill-pip.is-on {
-  border-color: var(--c-sun);
-  background: var(--c-sun);
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 700;
 }
 
 .drill-bonus {
+  grid-column: 2;
+  grid-row: 1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-.drill-tbtns {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.drill-tbtns .btn {
-  min-height: 38px;
-  padding-left: 12px;
-  padding-right: 12px;
-  padding-top: 0;
-  padding-bottom: 2px;
-  white-space: nowrap;
-}
-
-.drill-max {
-  font-weight: 700;
   color: var(--on-surface-muted);
 }
 
-.drill-tinfo {
-  grid-column: 1 / 4;
-  min-height: 24px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 10px;
-  font-size: 0.86rem;
-  color: var(--on-surface-muted);
-}
-
-.drill-tinfo.is-warn {
-  color: var(--warn);
-}
-
-/* Reset sits on the second line, right-aligned under the Rank button: a small text button. */
+/* Reset: a small text button at the right end of the first line. */
 .drill-reset {
-  grid-column: 4;
+  grid-column: 3;
+  grid-row: 1;
   justify-self: end;
-  padding: 2px 8px;
+  padding: 0 4px;
   border: 0;
   border-radius: 8px;
   background: none;
   color: var(--link, var(--c-teal-lo));
-  font: 700 0.86rem/1.3 var(--font);
+  font: 700 0.84rem/1.3 var(--font);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -1259,6 +1221,67 @@ th[scope='row'] {
   color: var(--on-surface-muted);
   text-decoration: none;
   cursor: default;
+}
+
+.drill-pips {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  display: flex;
+  gap: 3px;
+}
+
+.drill-pip {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--c-dust);
+  border-radius: 50%;
+}
+
+.drill-pip.is-on {
+  border-color: var(--c-sun);
+  background: var(--c-sun);
+}
+
+.drill-tbtns {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.drill-tbtns .btn {
+  min-height: 32px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 0;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+.drill-max {
+  font-weight: 700;
+  color: var(--on-surface-muted);
+}
+
+.drill-tinfo {
+  grid-column: 1 / 4;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  font-size: 0.84rem;
+  line-height: 1.25;
+  color: var(--on-surface-muted);
+}
+
+.drill-tinfo:empty {
+  display: none;
+}
+
+.drill-tinfo.is-warn {
+  color: var(--warn);
 }
 
 /* Research cards: wide enough that nothing is cut off */

@@ -6,6 +6,7 @@ import {
   RANK_BONUS,
   RANK_COST,
   RANK_MAX,
+  RANKABLE_UNITS,
   SCOUT_APPROX_STEP,
   SCOUT_INTEL_KEEN,
   SCOUT_UNIT,
@@ -238,6 +239,7 @@ function planRank(v: VillageState, u: unknown, track: unknown): CheckResult<Rank
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   if (!isTrack(track)) return fail('invalid_input', 'Unknown rank track.');
   const name = UNITS[u].name;
+  if (!RANKABLE_UNITS.includes(u)) return fail('invalid_input', `${name}s cannot be trained to ranks.`);
   if (track === 'keen' && u !== SCOUT_UNIT) return fail('invalid_input', `Keen is only for ${UNITS[SCOUT_UNIT].name}s.`);
   if (track === 'might' && u === SCOUT_UNIT) return fail('invalid_input', `${name}s do not fight, so Might does not apply.`);
   if (!isResearched(v, u)) return fail('requirements_not_met', `Research ${name} first.`);
