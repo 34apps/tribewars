@@ -9,25 +9,26 @@ import { assertLedgerSane, clearedTarget, fillChest, homeOf, ledger, player, res
 
 const train = (c: Client, vid: number, count: number) => c.post(`/api/villages/${vid}/train`, { unit: 'chieftain', count });
 
-test('training a Chieftain reserves Renown together with the resources, and the price rises with each Chieftain', async () => {
+test('training a Chieftain reserves a deposit of the village price together with the resources, and the deposit stays the same for every Chieftain', async () => {
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 8000);
   fillChest(app, p, 100_000);
   const before = await p.c.state();
-  assert.equal(before.renown.chieftainPrice, 1300, 'first Chieftain costs the base village price');
+  assert.equal(before.renown.chieftainPrice, 325, 'the first Chieftain reserves a quarter of the base village price (1,300)');
+  assert.equal(before.renown.nextVillageCost, 1300);
   assert.equal(before.renown.chieftains, 0);
   assert.equal(before.renown.reserved, 0);
 
   ok(await train(p.c, vid, 1));
   const after = await p.c.state();
-  assert.equal(after.renown.reserved, 1300);
-  assert.equal(after.renown.spent, before.renown.spent + 1300, 'the reservation is part of spent');
-  assert.equal(after.renown.balance, before.renown.balance - 1300);
+  assert.equal(after.renown.reserved, 325);
+  assert.equal(after.renown.spent, before.renown.spent + 325, 'the reservation is part of spent');
+  assert.equal(after.renown.balance, before.renown.balance - 325);
   assert.equal(after.renown.total, before.renown.total, 'nothing earned or lost');
   assert.equal(after.renown.chieftains, 1);
-  assert.equal(after.renown.chieftainPrice, 2080, 'the next one costs what the village after this one would');
+  assert.equal(after.renown.chieftainPrice, 325, 'the next one reserves the same: the deposit does not grow with the Chieftains held');
   const wood0 = before.villages[0]?.state.resources.wood ?? 0;
   assert.ok((after.villages[0]?.state.resources.wood ?? 0) <= wood0 - UNITS.chieftain.cost.wood + 1, 'the resources were paid too');
   assert.equal(after.villages[0]?.state.trainQueues.bannerhall.length, 1);
@@ -35,11 +36,11 @@ test('training a Chieftain reserves Renown together with the resources, and the 
   await app.close();
 });
 
-test('a batch of two prices each Chieftain separately; a short balance refuses the whole order and pays nothing', async () => {
+test('a batch of two reserves two deposits; a short balance refuses the whole order and pays nothing', async () => {
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
-  app.ctx.store.addRenown(p.id, 3379); // one short of 1300 + 2080
+  app.ctx.store.addRenown(p.id, 649); // one short of 2 x 325
   fillChest(app, p, 100_000);
   const state0 = await p.c.state();
   const res = await train(p.c, vid, 2);
@@ -53,9 +54,9 @@ test('a batch of two prices each Chieftain separately; a short balance refuses t
   app.ctx.store.addRenown(p.id, 1);
   ok(await train(p.c, vid, 2));
   const after = await p.c.state();
-  assert.equal(after.renown.reserved, 3380);
+  assert.equal(after.renown.reserved, 650);
   assert.equal(after.renown.chieftains, 2);
-  assert.equal(after.renown.chieftainPrice, 3328, 'the third village price');
+  assert.equal(after.renown.chieftainPrice, 325, 'the third Chieftain would pay the same deposit');
   // One batch at a time per village.
   errorOf(await train(p.c, vid, 1),409, 'queue_full');
   await app.close();
@@ -76,7 +77,7 @@ test('training needs the Banner Hall, and only the owner can train or cancel in 
   ok(await train(alice.c, vid, 1));
   errorOf(await bob.c.post(`/api/villages/${vid}/cancel-train`, { building: 'bannerhall', index: 0 }), 403, 'forbidden');
   errorOf(await alice.c.post(`/api/villages/${vid}/cancel-train`, { building: 'castle', index: 0 }), 400, 'invalid_input');
-  assert.equal(ledger(app, alice).reserved, 1300, 'a stranger cannot touch the reservation');
+  assert.equal(ledger(app, alice).reserved, 325, 'a stranger cannot touch the reservation');
   await app.close();
 });
 
@@ -88,12 +89,12 @@ test('cancelling a queued Chieftain batch gives the resources (80%) and the Reno
   fillChest(app, p, 100_000);
   const base = ledger(app, p);
   ok(await train(p.c, vid, 2));
-  assert.equal(ledger(app, p).reserved, 3380);
+  assert.equal(ledger(app, p).reserved, 650);
 
   const res = await p.c.post(`/api/villages/${vid}/cancel-train`, { building: 'bannerhall', index: 0 });
   ok(res);
   const body = res.json<CancelResponse>();
-  assert.equal(body.renownRefund, 3380);
+  assert.equal(body.renownRefund, 650);
   assert.equal(body.refund.wood, Math.floor((UNITS.chieftain.cost.wood * 2 * 80) / 100));
   assert.equal(body.village.state.trainQueues.bannerhall.length, 0);
   const l = ledger(app, p);
@@ -116,13 +117,16 @@ test('a Chieftain who dies in battle gives back half his average reservation; sp
   garrisonAbandoned(app, target.id, { pikeman: 50 }); // a village a player left, with troops: a Chieftain with one raider cannot win
   const { movement } = await sendOk(p, target, 'attack', { chieftain: 1, raider: 1 });
   const base = ledger(app, p);
+  const claim = app.ctx.store.claimsHeld(p.id).renown;
+  assert.equal(claim, 1300 - 500, 'sending reserved the rest of the village price (the average deposit is 500)');
   clock.set(movement.arriveAt);
   await p.c.state(); // the arrival is processed by the request
 
   const l = ledger(app, p);
   const share = base.reserved / 2;
   assert.equal(l.reserved, base.reserved - share, 'his share left the reservation');
-  assert.equal(l.spent, base.spent - Math.floor(share * CHIEFTAIN_RENOWN_REFUND_SHARE), 'half of it came back');
+  assert.equal(l.spent, base.spent - Math.floor(share * CHIEFTAIN_RENOWN_REFUND_SHARE) - claim, 'half of his deposit came back and the rest of the price in full');
+  assert.equal(app.ctx.store.claimsHeld(p.id).renown, 0);
   assertLedgerSane(app, p);
   const st = await p.c.state();
   assert.equal(st.renown.chieftains, 1, 'one Chieftain is left at home');

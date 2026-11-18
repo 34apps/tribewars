@@ -1,7 +1,7 @@
 // War Chest helpers (docs/GAME_DESIGN.md 18.2): pay-in validation, error texts and the shortfall numbers. No React.
 // The server decides everything; these only keep the controls honest.
 
-import { chestChieftainPrice } from '@clanfire/engine';
+import { chieftainDepositChest } from '@clanfire/engine';
 import type { ChestInfo, WorldSettings } from '@clanfire/engine';
 import { HEARTH_OUT_REASON } from './villages.ts';
 
@@ -65,9 +65,7 @@ export function chieftainTrainReason(
   return chestShort(chest) ? 'Needs War Chest gold' : null;
 }
 
-/** War Chest gold a batch of `count` Chieftains reserves (each is priced after those before it, like the Renown). */
-export function chestBatchPrice(villages: number, chieftains: number, count: number, s?: Pick<WorldSettings, 'config'>): number {
-  let sum = 0;
-  for (let i = 0; i < count; i++) sum += chestChieftainPrice(Math.max(1, villages), chieftains + i, s);
-  return sum;
+/** War Chest gold a batch of `count` Chieftains reserves when it is trained: `count` deposits (they do not grow with the Chieftains held). */
+export function chestBatchPrice(villages: number, count: number, s?: Pick<WorldSettings, 'config'>): number {
+  return Math.max(0, Math.floor(count)) * chieftainDepositChest(Math.max(1, villages), s);
 }

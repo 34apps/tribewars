@@ -449,6 +449,9 @@ async function alertsFor(w: W, level: number, army: Partial<Units>) {
   const tribeId = tribeIdOf(w.app, w.alice);
   setLevel(w.app, tribeId, 'watchtower', level);
   giveTroops(w.app, w.bob, army);
+  // A Strike reserves the rest of the village price when it is sent: give bob the Renown and chest gold for it.
+  w.app.ctx.store.addRenown(w.bob.id, 100_000);
+  w.app.ctx.store.depositChest(w.bob.id, 100_000);
   await sendOk(w.bob, w.amy, 'attack', army);
   const r = await w.alice.c.get('/api/tribe/alerts');
   ok(r);

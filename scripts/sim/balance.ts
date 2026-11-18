@@ -77,7 +77,9 @@ import {
   updateHold,
   villagePoints,
   villageRenownCost,
-  villageRenownPrice,
+  CHIEFTAIN_DEPOSIT_SHARE,
+  chieftainDepositRenown,
+  strikeRemainder,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 import { formatSiegeExperiments, runSiegeExperiments } from './siege.ts';
@@ -679,6 +681,9 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   // War Chest (chest mode): spare gold of all villages, and the part reserved for the Chieftain now outstanding.
   let chest = 0;
   let chestReserved = 0;
+  /** The rest of the village price, reserved when the order that can gain it is sent (owner 2026-11-18: pay for the village, not each Chieftain). */
+  let claimRenown = 0;
+  let claimGold = 0;
   let chiefGoldPaid = 0;
   const waits = new WaitTracker();
   /** Since when a Chieftain has been waiting at home for a target (ms), or -1. */
@@ -730,7 +735,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   /** The state the engine checks / trains a Chieftain on (the engine's Chieftain costs no gold; flat / growth charge theirs in the sim). */
   const chiefState = (vil: Vil, _t: number): VillageState => vil.state;
   /** The village is the one that must now save up for the next Chieftain (Renown is there, nothing outstanding). */
-  const chiefWanted = (vil: Vil): boolean => trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownPrice(vils.length, 0) && chestOk();
+  const chiefWanted = (vil: Vil): boolean => trainer() === vil && outstanding() === 0 && renownBalance() >= villageRenownCost(vils.length) && chestOk();
   const armyPop = (vil: Vil): number => {
     const all = addUnits(addUnits(vil.state.troops, vil.state.away), queuedUnits(vil.state));
     let pop = 0;
@@ -746,7 +751,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     def.expand === 'take' &&
     vil === trainer() &&
     outstanding() === 0 &&
-    renownBalance() >= villageRenownPrice(vils.length, 0) &&
+    renownBalance() >= villageRenownCost(vils.length) &&
     chestOk() &&
     armyPop(vil) < OCCUPIER_NEED;
   const chiefSaving = (vil: Vil): boolean => chiefWanted(vil) && !takePrep(vil);
@@ -764,7 +769,26 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     events.push({ at: at + travelTimeMs(from, to.pos, units, s), kind: 'return', to: to.id, survivors: units, loot });
     sortEvents();
   };
+  /** An order that can gain a village is sent: the rest of its price (the village price minus the one deposit) leaves the balance and the chest. */
+  const reserveClaim = (): void => {
+    claimRenown = strikeRemainder(vils.length, s, { renown: chiefReserved, gold: 0 }).renown;
+    renownSpent += claimRenown;
+    if (goldMode === 'chest') {
+      claimGold = Math.max(0, chestPrice() - chestReserved);
+      chest -= claimGold;
+      chiefGoldPaid += claimGold;
+    }
+  };
+  /** Nothing keeps the claim alive (order failed, hold failed): it comes back in full. */
+  const releaseClaim = (): void => {
+    renownSpent -= claimRenown;
+    chest += claimGold;
+    chiefGoldPaid -= claimGold;
+    claimRenown = 0;
+    claimGold = 0;
+  };
   const refundLostChieftain = (): void => {
+    releaseClaim();
     renownSpent -= chieftainRefund(chiefReserved);
     chiefReserved = 0;
     const back = chieftainRefund(chestReserved);
@@ -845,6 +869,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       const o = origin(e.from);
       const tg = targets[e.target] as Target;
       if (!tg.alive || tg.state.hearth) {
+        releaseClaim();
         homeTrip(o, tg.pos, e.at, e.units);
         return;
       }
@@ -867,6 +892,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       });
       if (!chk.ok) {
         if (r.attackerSurvivors.chieftain < 1) refundLostChieftain();
+        else releaseClaim();
         homeTrip(o, tg.pos, e.at, r.attackerSurvivors);
         return;
       }
@@ -888,14 +914,17 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         tg.alive = false;
         // The occupiers that moved in (and the used-up Chieftain) are no longer "away"; the rest walks home.
         o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.occupiers, oc.overflow));
-        chiefReserved = 0; // the reserved Renown paid for this village
+        chiefReserved = 0; // the deposit and the claim paid for this village (spent)
         chestReserved = 0;
+        claimRenown = 0;
+        claimGold = 0;
         addVillage(oc.state, tg.pos, 'taken', e.at, tg.tier);
         homeTrip(o, tg.pos, e.at, oc.overflow);
       } else {
         // The claim failed (occupiers under the minimum for too long): the hearth relights and everybody goes home.
         expansion.holdFails += 1;
         delete tg.state.hearth;
+        releaseClaim();
         homeTrip(o, tg.pos, e.at, e.occupiers);
       }
       return;
@@ -905,6 +934,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const occupied = new Set([...vils.map((x) => `${x.pos.x},${x.pos.y}`), ...targets.map((x) => `${x.pos.x},${x.pos.y}`)]);
     const ok = checkFoundTarget(e.pos, s, (x, y) => occupied.has(`${x},${y}`)).ok;
     if (!ok) {
+      releaseClaim();
       homeTrip(o, e.pos, e.at, e.units);
       return;
     }
@@ -912,6 +942,8 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.units, made.overflow));
     chiefReserved = 0;
     chestReserved = 0;
+    claimRenown = 0;
+    claimGold = 0;
     expansion.founds += 1;
     addVillage(made.state, e.pos, 'founded', e.at);
     homeTrip(o, e.pos, e.at, made.overflow);
@@ -1153,13 +1185,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   /** Can the next Chieftain be trained in this village now? Renown, gold (village or chest, by mode) and the engine's own checks. */
   const canTrainChief = (vil: Vil, t: number): boolean => {
     if (trainer() !== vil || outstanding() > 0) return false;
-    if (renownBalance() < villageRenownPrice(vils.length, 0) || !chestOk()) return false;
+    if (renownBalance() < villageRenownCost(vils.length) || !chestOk()) return false;
     if (goldMode !== 'chest' && settleVillage(vil.state, t, s).resources.gold < chiefGoldPrice()) return false;
     return checkTrain(chiefState(vil, t), 'chieftain', 1, t, s).ok;
   };
   const tryChieftain = (vil: Vil, t: number): void => {
     if (!canTrainChief(vil, t)) return;
-    const price = villageRenownPrice(vils.length, 0);
+    const price = chieftainDepositRenown(vils.length);
     waits.trained(1);
     const trained = applyTrain(chiefState(vil, t), 'chieftain', 1, t, s);
     if (goldMode !== 'chest') {
@@ -1167,7 +1199,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       trained.resources.gold = Math.max(0, trained.resources.gold - gold); // the engine takes no gold: the village pays the historical price
       chiefGoldPaid += gold;
     } else if (goldMode === 'chest') {
-      const gold = chestPrice();
+      const gold = Math.round(chiefGoldSum(chestBase, vils.length, 1) * CHIEFTAIN_DEPOSIT_SHARE);
       chest -= gold;
       chestReserved += gold;
       chiefGoldPaid += gold;
@@ -1228,6 +1260,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       }
       if (best >= 0) {
         holder.state = applySend(holder.state, send, t, s);
+        reserveClaim();
         events.push({ at: t + bestTravel, kind: 'strike', from: holder.id, target: best, units: send, seed: hashSeed(styleSeed, 556, strikeSeq++), travel: bestTravel });
         sortEvents();
         chiefWaitSince = -1;
@@ -1249,6 +1282,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
     const travel = travelTimeMs(holder.pos, pos, send, s);
     holder.state = applySend(holder.state, send, t, s);
+    reserveClaim();
     events.push({ at: t + travel, kind: 'found', from: holder.id, pos, units: send, travel });
     sortEvents();
     chiefWaitSince = -1;
@@ -1366,7 +1400,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
           const res = tr.state.resources;
           const goldShort = goldMode === 'chest' ? chest < chestPrice() : res.gold < chiefGoldPrice();
           waits.step(t, {
-            r: renownBalance() < villageRenownPrice(vils.length, 0),
+            r: renownBalance() < villageRenownCost(vils.length),
             g: goldShort,
             o: (['wood', 'food', 'iron'] as const).some((id) => res[id] < CHIEF_COST[id]),
             plan: chiefSaving(tr),

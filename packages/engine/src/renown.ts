@@ -3,6 +3,7 @@
 // is the server's job; the order of the combat rules is documented at `battleRenown`.
 
 import {
+  CHIEFTAIN_DEPOSIT_SHARE,
   CHIEFTAIN_RENOWN_REFUND_SHARE,
   DEFENDER_RENOWN_DAILY_CAP,
   DEFENDER_RENOWN_PER_DEFENCE,
@@ -96,26 +97,43 @@ export function villageRenownCost(villagesOwned: number, s?: Pick<WorldSettings,
   return Math.round(rules.renownBase * ipow(rules.renownGrowth, owned - 1));
 }
 
-/**
- * Renown to reserve for the next Chieftain: every living or queued Chieftain is a future village, so it costs what the
- * village after those would cost = villageRenownCost(villagesOwned + outstandingChieftains). `outstandingChieftains` counts
- * the player's other Chieftains (at home, away, queued), not the one being bought. Owned 1, none outstanding = the base price.
- */
-export function villageRenownPrice(villagesOwned: number, outstandingChieftains: number, s?: Pick<WorldSettings, 'config'>): number {
-  const out = Number.isFinite(outstandingChieftains) ? Math.max(0, Math.floor(outstandingChieftains)) : 0;
+/** War Chest gold the next village costs for a player who owns `villagesOwned` (>= 1): round(chestBase x renownGrowth^(owned - 1)). */
+export function chestVillageCost(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
   const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
-  return villageRenownCost(owned + out, s);
+  const rules = worldRules(s).conquest;
+  return Math.round(rules.chestBase * ipow(rules.renownGrowth, owned - 1));
 }
 
 /**
- * War Chest gold to reserve for the next Chieftain (BALANCE 12.3): round(chestBase x renownGrowth^(owned + outstanding - 1)).
- * Same inputs and guards as villageRenownPrice; `outstandingChieftains` counts the player's other Chieftains, not the one bought.
+ * Renown a Chieftain reserves when he is trained (owner 2026-11-18, "pay for the village, not for each Chieftain"):
+ * CHIEFTAIN_DEPOSIT_SHARE of the next village's price. Every Chieftain pays the same; it does not grow with the Chieftains held.
  */
-export function chestChieftainPrice(villagesOwned: number, outstandingChieftains: number, s?: Pick<WorldSettings, 'config'>): number {
-  const out = Number.isFinite(outstandingChieftains) ? Math.max(0, Math.floor(outstandingChieftains)) : 0;
-  const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
-  const rules = worldRules(s).conquest;
-  return Math.round(rules.chestBase * ipow(rules.renownGrowth, owned + out - 1));
+export function chieftainDepositRenown(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
+  return Math.round(villageRenownCost(villagesOwned, s) * CHIEFTAIN_DEPOSIT_SHARE);
+}
+
+/** War Chest gold a Chieftain reserves when he is trained: CHIEFTAIN_DEPOSIT_SHARE of the next village's chest price. */
+export function chieftainDepositChest(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
+  return Math.round(chestVillageCost(villagesOwned, s) * CHIEFTAIN_DEPOSIT_SHARE);
+}
+
+/**
+ * What is still due when an order that can gain a village is sent: the village price minus the deposit of the ONE Chieftain the
+ * take uses up (a village costs the same however many Chieftains it needs; the others walk home with their deposits). Never below 0.
+ * Paid once per village: a follow-up Strike of an open chain reserves nothing more. `deposit` is the average deposit the player's
+ * Chieftains really hold (default: today's chieftainDeposit*, which they equal unless villages were gained since they were trained).
+ */
+export function strikeRemainder(
+  villagesOwned: number,
+  s?: Pick<WorldSettings, 'config'>,
+  deposit?: { renown: number; gold: number },
+): { renown: number; gold: number } {
+  const dr = deposit ? deposit.renown : chieftainDepositRenown(villagesOwned, s);
+  const dg = deposit ? deposit.gold : chieftainDepositChest(villagesOwned, s);
+  return {
+    renown: Math.max(0, Math.ceil(villageRenownCost(villagesOwned, s) - dr - 1e-9)),
+    gold: Math.max(0, Math.ceil(chestVillageCost(villagesOwned, s) - dg - 1e-9)),
+  };
 }
 
 /** Renown that comes back when a Chieftain who reserved `cost` dies on the way (rounded down). */

@@ -71,7 +71,8 @@ test('found: the Chieftain walks to a free tile and a protected village appears;
   assert.equal(home.state.away.pikeman, walking);
   const l = ledger(app, p);
   assert.equal(l.reserved, 0, 'his reservation ended');
-  assert.equal(l.spent, 500, 'the Renown stays spent');
+  assert.equal(l.spent, 1300, 'the whole village price stays spent: his deposit (500) and the rest reserved at sending (800)');
+  assert.equal(store.claimsHeld(p.id).renown, 0, 'the claim was spent with the village');
   assertLedgerSane(app, p);
   const report = (await villageReports(p)).find((r) => r.village.kind === 'founded');
   assert.ok(report);
@@ -159,6 +160,8 @@ test('the village limit: refused at send, and re-checked on arrival', async () =
   const filler = (i: number) => store.insertVillage(p.id, `Filler ${i}`, 1000 + i * 10, 0, 0, createPlayerVillage(clock.now()));
   for (let i = 0; i < MAX_VILLAGES_PER_PLAYER - 2; i++) filler(i); // 1 + 18 = 19 villages: one more fits
   assert.equal(villagesOf(app, p).length, MAX_VILLAGES_PER_PLAYER - 1);
+  store.addRenown(p.id, 1e9); // the 20th village costs millions of Renown (x1.6 per village owned)
+  store.depositChest(p.id, 1e9);
   const { movement } = (await found(p, homeId, tile, { chieftain: 1 })).json<SendResponse>();
   filler(99); // 20 villages by the time he arrives
   runTo(app, clock, movement.arriveAt);

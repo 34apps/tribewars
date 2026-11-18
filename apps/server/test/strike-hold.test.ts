@@ -119,8 +119,10 @@ test('Strike, hold, change of owner: buildings kept, occupiers move in, the Chie
 
   // Ledger: his reservation ended, the Renown stays spent.
   const l = ledger(app, p);
-  assert.equal(l.reserved, 500);
-  assert.equal(l.spent, 1000);
+  assert.equal(l.reserved, 500, 'the second Chieftain keeps his deposit');
+  // The village was paid once: the used-up Chieftain's deposit (500) and the rest reserved at sending (1,300 - 500); plus the other deposit (500).
+  assert.equal(l.spent, 500 + 500 + 800);
+  assert.equal(store.claimsHeld(p.id).renown, 0, 'the claim was spent with the village');
   assertLedgerSane(app, p);
 
   const kinds = (await villageReports(p)).map((r) => r.village.kind);

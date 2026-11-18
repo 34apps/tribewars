@@ -81,7 +81,9 @@ import {
   travelTimeMs,
   updateHold,
   villagePoints,
-  villageRenownPrice,
+  CHIEFTAIN_DEPOSIT_SHARE,
+  chieftainDepositRenown,
+  villageRenownCost,
   FEAST_MAX_COUNT,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
@@ -208,6 +210,9 @@ interface Player {
   renownTotal: number;
   renownSpent: number;
   reserved: number;
+  /** The rest of a village price, reserved when an order that can gain it is sent (2026-11-18); spent when gained, released when the order ends without a village. */
+  claimRenown: number;
+  claimGold: number;
   pairs: Map<string, { start: number; raw: number }>;
   plan: Plan | null;
   saving: Plan | null;
@@ -354,6 +359,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       renownTotal: 0,
       renownSpent: 0,
       reserved: 0,
+      claimRenown: 0,
+      claimGold: 0,
       pairs: new Map(),
       plan: null,
       saving: null,
@@ -390,14 +397,15 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     for (const x of p.vils) if (!x.state.hearth && x.state.troops.chieftain >= 1 && (!best || x.state.troops.chieftain > best.state.troops.chieftain)) best = x;
     return best;
   };
-  const chiefPrice = (p: Player, k: number): number => {
-    let sum = 0;
-    for (let i = 0; i < k; i++) sum += villageRenownPrice(p.vils.length, i);
-    return sum;
-  };
+  /** Renown a batch of k Chieftains needs in all before it is worth training: the village price once, plus the deposits of the k - 1 that walk home. */
+  const chiefPrice = (p: Player, k: number): number => villageRenownCost(p.vils.length) + Math.max(0, k - 1) * chieftainDepositRenown(p.vils.length);
+  /** Renown reserved when a batch of k is trained: k deposits (they do not grow with the Chieftains held). */
+  const chiefDeposit = (p: Player, k: number): number => k * chieftainDepositRenown(p.vils.length);
   /** Gold price of `k` Chieftains for the training village (flat: 150 each; growth: g(150, owned, k); chest: the village pays none). */
   const chiefGoldPrice = (p: Player, k: number): number => (goldMode === 'growth' ? chiefGoldSum(CHIEF_COST.gold, p.vils.length, k) : goldMode === 'chest' ? 0 : CHIEF_COST.gold * k);
-  const chestPrice = (p: Player, k: number): number => chiefGoldSum(chestBase, p.vils.length, k);
+  const chestDepositOne = (p: Player): number => Math.round(chiefGoldSum(chestBase, p.vils.length, 1) * CHIEFTAIN_DEPOSIT_SHARE);
+  /** Chest gold a batch of k needs in all (the village's chest price once plus the other k - 1 deposits) and what training it reserves (k deposits). */
+  const chestPrice = (p: Player, k: number): number => chiefGoldSum(chestBase, p.vils.length, 1) + Math.max(0, k - 1) * chestDepositOne(p);
   const chestOk = (p: Player, k: number): boolean => goldMode !== 'chest' || p.chest >= chestPrice(p, k);
   /** The state the engine checks / trains Chieftains on (the engine's Chieftain costs no gold; flat / growth charge theirs in the sim). */
   const chiefState = (vil: Vil, _k: number, _t: number): VillageState => vil.state;
@@ -432,6 +440,41 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     if (before <= 0) return;
     p.reserved = Math.max(0, p.reserved - p.reserved / before);
     p.chestReserved = Math.max(0, p.chestReserved - p.chestReserved / before);
+  };
+
+  // ---- Claim: the rest of a village price (owner 2026-11-18) ----
+  /** An order that can gain a village is sent: the village price minus the average deposit leaves the balance (and the chest). False = cannot pay. */
+  const reserveClaim = (p: Player): boolean => {
+    if (p.claimRenown > 0 || p.claimGold > 0) return true; // the open claim already covers a village
+    const n = outstanding(p);
+    const rr = Math.max(0, Math.ceil(villageRenownCost(p.vils.length) - (n > 0 ? p.reserved / n : 0) - 1e-9));
+    const gg = goldMode === 'chest' ? Math.max(0, Math.ceil(chiefGoldSum(chestBase, p.vils.length, 1) - (n > 0 ? p.chestReserved / n : 0) - 1e-9)) : 0;
+    if (bal(p) + 1e-9 < rr || (goldMode === 'chest' && p.chest + 1e-9 < gg)) return false;
+    p.claimRenown = rr;
+    p.renownSpent += rr;
+    p.claimGold = gg;
+    p.chest -= gg;
+    p.goldPaid += gg;
+    return true;
+  };
+  /** The village was gained: the claim stays spent. */
+  const spendClaim = (p: Player): void => {
+    p.claimRenown = 0;
+    p.claimGold = 0;
+  };
+  /** Nothing keeps the claim alive (no Strike or Found on the way, no hold): it comes back in full. */
+  const sweepClaims = (): void => {
+    for (const p of players) {
+      if (p.claimRenown <= 0 && p.claimGold <= 0) continue;
+      const alive =
+        events.some((e) => (e.kind === 'strike' || e.kind === 'found') && P((world.get(e.from) as Vil).owner) === p) || [...claims.values()].some((c) => c.by === p.id);
+      if (alive) continue;
+      p.renownSpent -= p.claimRenown;
+      p.chest += p.claimGold;
+      p.goldPaid -= p.claimGold;
+      p.claimRenown = 0;
+      p.claimGold = 0;
+    }
   };
 
   // ---- Renown from battles (pair windows, size factor) ----
@@ -538,6 +581,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       homeTrip(home, v.pos, at, oc.overflow);
     }
     useChief(att, nAtt);
+    spendClaim(att);
     const nv = newVil(att.id, oc.state, v.pos);
     att.vils.push(nv);
     att.stats.taken++;
@@ -598,6 +642,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       const n0 = outstanding(p);
       o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.units, made.overflow));
       useChief(p, n0);
+      spendClaim(p);
       p.stats.founds++;
       p.vils.push(newVil(p.id, made.state, e.pos));
       homeTrip(o, e.pos, e.at, made.overflow);
@@ -716,7 +761,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   };
   const chiefSaving = (p: Player, vil: Vil): boolean => p.saving !== null && trainer(p) === vil;
   const takePrep = (p: Player, vil: Vil): boolean =>
-    p.def.expand === 'take' && vil === trainer(p) && outstanding(p) === 0 && bal(p) >= villageRenownPrice(p.vils.length, 0) && chestOk(p, 1) && p.saving === null && armyPop(vil) < OCCUPIER_NEED;
+    p.def.expand === 'take' && vil === trainer(p) && outstanding(p) === 0 && bal(p) >= villageRenownCost(p.vils.length) && chestOk(p, 1) && p.saving === null && armyPop(vil) < OCCUPIER_NEED;
 
   const chiefBlock = (p: Player, vil: Vil, t: number): BuildingId | undefined => {
     const cap = storageCap(vil.state);
@@ -883,7 +928,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       p.readySince = -1;
       return null;
     }
-    if (bal(p) < villageRenownPrice(p.vils.length, 0) || !chestOk(p, 1)) {
+    if (bal(p) < villageRenownCost(p.vils.length) || !chestOk(p, 1)) {
       p.readySince = -1;
       return null;
     }
@@ -897,8 +942,8 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   const tryChieftain = (p: Player, vil: Vil, t: number): void => {
     if (!p.saving || trainer(p) !== vil || outstanding(p) > 0) return;
     const { k } = p.saving;
-    const price = chiefPrice(p, k);
-    if (bal(p) < price || !chestOk(p, k)) return;
+    if (bal(p) < chiefPrice(p, k) || !chestOk(p, k)) return;
+    const price = chiefDeposit(p, k);
     const gold = chiefGoldPrice(p, k);
     if (goldMode !== 'chest' && settleVillage(vil.state, t, s).resources.gold < gold) return;
     if (!checkTrain(chiefState(vil, k, t), 'chieftain', k, t, s).ok) return;
@@ -908,7 +953,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       trained.resources.gold = Math.max(0, trained.resources.gold - gold); // the engine takes no gold: the village pays the historical price
       p.goldPaid += gold;
     } else if (goldMode === 'chest') {
-      const cp = chestPrice(p, k);
+      const cp = k * chestDepositOne(p);
       p.chest -= cp;
       p.chestReserved += cp;
       p.goldPaid += cp;
@@ -1027,7 +1072,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
     }
     if (p.waitSince < 0) p.waitSince = t;
     const strike = bestStrike(p, holder, t, holder.state.troops.chieftain);
-    if (strike) {
+    if (strike && reserveClaim(p)) {
       holder.state = applySend(holder.state, strike.send, t, s);
       p.stats.strikesSent++;
       events.push({ at: t + strike.travel, kind: 'strike', from: holder.id, target: strike.target.id, targetOwner: strike.target.owner, units: strike.send, seed: hashSeed(p.seed, 556, p.strikeSeq++) });
@@ -1048,6 +1093,7 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
       room -= n;
     }
     const travel = travelTimeMs(holder.pos, pos, send, s);
+    if (!reserveClaim(p)) return;
     holder.state = applySend(holder.state, send, t, s);
     events.push({ at: t + travel, kind: 'found', from: holder.id, pos, units: send });
     sortEvents();
@@ -1085,7 +1131,10 @@ export function runConquest(options: Partial<ConquestOptions> = {}): ConquestRep
   let nextDay = 1;
   for (let t = 0; t <= end; t += STEP_MS) {
     try {
-      while (events.length > 0 && (events[0] as Event).at <= t) resolveEvent(events.shift() as Event);
+      while (events.length > 0 && (events[0] as Event).at <= t) {
+        resolveEvent(events.shift() as Event);
+        sweepClaims();
+      }
       for (const p of players) {
         for (const vil of p.vils) {
           vil.state = settleVillage(vil.state, t, s);

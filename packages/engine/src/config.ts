@@ -590,6 +590,12 @@ export const RENOWN_VILLAGE_GROWTH = 1.6;
 export const WAR_CHEST_BASE = 2000;
 /** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
 export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
+/**
+ * Pay for the village, not for each Chieftain (owner 2026-11-18): training a Chieftain reserves only this share of the next village's
+ * Renown price (and of its War Chest gold price), a deposit that does not grow with the Chieftains held. The rest of the village price
+ * is reserved when an order that can gain the village is SENT (once per village, however many Chieftains it takes) and spent when it is gained.
+ */
+export const CHIEFTAIN_DEPOSIT_SHARE = 0.25;
 /** Chieftains per village in the Banner Hall queue: one batch of at most this many (each living or queued one is a future village). */
 export const CHIEFTAIN_MAX_QUEUED_BATCHES = 1;
 export const CHIEFTAIN_MAX_BATCH = 3;
@@ -609,7 +615,7 @@ export const HOLD_FAIL_HOURS = 2;
 export const STRIKE_LOCK_HOURS = 24;
 /** Chieftains needed to Strike a player village: 1 + floor(points / this), at most HEARTH_MAX_CHIEFTAINS (abandoned: always 1). */
 // was 4000: with 25 levels villages are about 3x bigger (2026-11-11), so 4000 asked for the maximum 3 Chieftains almost everywhere (BALANCE 13.3)
-export const HEARTH_POINTS_PER_CHIEFTAIN = 12000;
+export const HEARTH_POINTS_PER_CHIEFTAIN = 12000; // 2026-11-18: owner kept the 12,000 (2 Chieftains from 12,000 points, 3 from 24,000) with the 25% deposit: livelier takes than the old 49 per 5 seeds, closer to Tribal Wars world statistics (BALANCE 21)
 export const HEARTH_MAX_CHIEFTAINS = 3;
 /** Striking player villages (switched on in step 4, 2026-11-05). */
 export const HEARTH_PLAYERS_ENABLED = true;

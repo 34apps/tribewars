@@ -183,8 +183,14 @@ export interface RenownInfo {
    * its Renown back in full. Sent by GET /api/state; absent in older responses.
    */
   reserved?: number;
-  /** Renown the next Chieftain reserves: villageRenownPrice(villages, chieftains). Needs balance >= this to train one. */
+  /**
+   * Renown the next Chieftain reserves as a deposit (chieftainDepositRenown: CHIEFTAIN_DEPOSIT_SHARE of nextVillageCost, the same for
+   * every Chieftain). Needs balance >= count x this to train a batch. The rest of the village price (strikeRemainder: nextVillageCost
+   * minus one deposit) is reserved when an order that can gain a village is sent. Since 2026-11-18; before, it grew with every Chieftain held.
+   */
   chieftainPrice?: number;
+  /** Renown held by sent Strike / Found orders (the village price minus the deposits), spent when the village is gained, released otherwise. Also part of `spent`. */
+  held?: number;
   /** Chieftains the player has now: queued + at home + away + standing as occupiers, in all villages. */
   chieftains?: number;
 }
@@ -207,9 +213,13 @@ export interface FeastResponse {
 //   stock and add it to players.chest_gold. 400 invalid_input for a bad body (gold must be a whole number >= 1, no extra fields);
 //   409 not_enough_resources if the village holds less; 409 requirements_not_met while the village's hearth is out (cold, under a hold).
 // Chieftains pay no gold any more: training a batch of `count` also reserves War Chest gold, sum of
-//   chestChieftainPrice(villages owned, the player's other Chieftains + i), from chest_gold into chest_reserved in the same transaction
-//   as the Renown (409 not_enough_resources if the chest is short; nothing is paid). A Chieftain who dies gives half his share back
-//   to chest_gold (chieftainRefund); one used up founding/taking a village releases his share; cancelling a queued batch gives it back in full.
+//   chieftainDepositChest(villages owned) each (a deposit, CHIEFTAIN_DEPOSIT_SHARE of the village's chest price, the same for every Chieftain),
+//   from chest_gold into chest_reserved in the same transaction as the Renown (409 not_enough_resources if the chest is short; nothing is paid).
+//   A Chieftain who dies gives half his share back to chest_gold (chieftainRefund); one used up founding/taking a village releases his share;
+//   cancelling a queued batch gives it back in full. The rest of the village price (strikeRemainder) is reserved when a Strike or Found order
+//   is SENT (POST /api/villages/:id/send, 409 not_enough_resources "You need N more Renown to send this Strike" when short); a follow-up
+//   Strike of the sender's own open chain on the same village reserves nothing; the remainder is spent when the village is gained and given
+//   back in full when the order fails, the chain runs out or the claim ends. (2026-11-18; the response shapes did not change.)
 
 export interface ChestDepositRequest {
   /** Gold to pay in: whole number, 1 or more, at most what the village holds. */
@@ -222,8 +232,12 @@ export interface ChestInfo {
   gold: number;
   /** Gold held by the player's Chieftains (queued, at home, away, occupying): half comes back if one dies. */
   reserved: number;
-  /** Chest gold the next Chieftain reserves: chestChieftainPrice(villages, chieftains). Needs gold >= this to train one. */
+  /** Chest gold the next Chieftain reserves as a deposit (chieftainDepositChest). Needs gold >= count x this to train a batch. */
   chieftainPrice: number;
+  /** Chest gold the next village costs in all (chestVillageCost): the deposits plus what is reserved when the order is sent. */
+  villagePrice?: number;
+  /** Chest gold held by sent Strike / Found orders (spent when the village is gained, released otherwise). */
+  held?: number;
 }
 
 export interface ChestDepositResponse {
@@ -477,7 +491,7 @@ export interface VillageListResponse {
 }
 
 // Training a Chieftain (unit 'chieftain', Banner Hall level 1): the same train route. On top of the resources the server reserves
-// Renown (sum of villageRenownPrice(villages, others + i) per Chieftain) in the same transaction: 409 not_enough_resources
+// Renown (count x chieftainDepositRenown(villages), a deposit) in the same transaction: 409 not_enough_resources
 // ("Not enough Renown") when `renown.balance` is short. See RenownInfo for the ledger.
 export interface TrainRequest {
   unit: string; // UnitId; validated server-side

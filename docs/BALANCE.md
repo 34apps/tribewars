@@ -1136,7 +1136,7 @@ possible (0.6x to 1.8x of the army's price) but the garrison, not the Wall, stil
 | 2nd village day, builder / raider / balanced (21-28) | 26.7 / 25.8 / 20.3 (balanced was already under 21) |
 | 90 days, one per style | builder 69,411, raider 61,577, turtle 14,021, balanced 91,526 |
 | conquest, 5 seeds, 90 days: worst biggest / second (<= 2x) | 1.77x |
-| takes 30-50 / restarts <= 26 | 45 / 20 |
+| takes 30-50 (until 2026-11-18, now 70-110) / restarts <= 26 | 45 / 20 |
 | `--siege` computer players (Log Rams: balanced trains 29, 14 siege raids all won, 22 levels lowered) | raider 5,562 -> 5,779 points, balanced 12,449 -> 13,239 |
 
 The sim players use Log Rams only (Wall); the Firecart's tests are the section (a) building rows and the engine tests. Builder 10,633 vs 10,615 in section 18: not isolated (the default sim has no siege).
@@ -1190,3 +1190,32 @@ whole map needs 30 players with 3,000 population standing at each of nine sites,
   village; what differs is the defence they must first beat (keepers or the tribe's stationed troops with +99%, but no flat village militia).
 - **Pace**: the Wall heals 2 levels a day, so even a full 6-level assault is healed in 3 days; a tribe that wants a soft shrine must attack again within a day
   or two. That is slow enough to matter and fast enough that a site is never left broken for weeks, so the 12 hour step was kept at 22 levels.
+
+
+## 21. Pay for the village, not for each Chieftain (owner 2026-11-18, branch `chieftain-price`; schema v31)
+
+Rule: a Chieftain reserves a deposit (`CHIEFTAIN_DEPOSIT_SHARE` 0.25 of the next village's Renown and chest price); the rest of the village price is reserved when the Strike/Found order is sent and spent when the village is gained (GAME_DESIGN 18.2). Sims: `scripts/sim/balance.ts` and `conquest.ts` model deposit, claim at sending, release on failure.
+
+| run (5 seeds, 90 days, conquest sim) | takes | restarts | worst biggest/second |
+|---|---|---|---|
+| before (one village price per Chieftain held) | 49 | 21 | 1.75 |
+| new rule, deposit share 0.5 | 50 | 21 | 1.73 |
+| new rule, 8,000 points per Chieftain | 45 | 20 | **2.78** (over 2x) |
+| 0.25 deposit, `HEARTH_POINTS_PER_CHIEFTAIN` 6,000 (tried, dropped) | 45 | 19 | 1.23 |
+| **built (owner 2026-11-18): 0.25 deposit, `HEARTH_POINTS_PER_CHIEFTAIN` 12,000** | **93** | **24** | **1.69** |
+
+- Why takes doubled: a village that needs 2-3 Chieftains used to cost 2-3 villages' Renown, a brake; now it costs one. The lever is how many Chieftains a village needs (training, escort, survival), not the price. First built at 6,000 points per Chieftain (45 takes); the owner then compared with Tribal Wars world statistics and chose the livelier 12,000 (need 2 from 12,000, 3 from 24,000): see the new target below.
+- Single-Chieftain sim (`npm run sim`, 30 days, and `--days 90`) is unchanged by the rule (one Chieftain, need 1, price paid once either way): 2nd village day 26.7 builder / 27.5 raider / not within run turtle / 20.7 balanced (balanced was 20.7 before too, just under the 21 line); score raider 19,139 vs builder 10,591 = 1.81x (target 1.5-2x met).
+- Conquest 2nd village (all seeds, 90 days): raider day 20.3, balanced 17.6 (as before: 20.0 / 17.7).
+
+### 21.1 New conquest target: takes 70-110 (owner 2026-11-18)
+
+After comparing with Tribal Wars world statistics the owner wants a livelier world, so the documented target for player-village takes (conquest sim, 20 players, 5 seeds x 90 days) moves from "30-50" to **70-110** (restarts still <= 26, worst biggest/second still <= 2x). Result at 12,000 points per Chieftain: 93 takes, 24 restarts, worst 1.69 (all three inside).
+
+| comparison figure (lead, 2026-11-18) | Tribal Wars | Clanfire |
+|---|---|---|
+| Hits needed per village | about 4 noble hits whatever the size, only one noble is used up | 1 Chieftain per 12,000 points (1-3), all used up |
+| Conquests per player per week | about 0.9-2.6 in public world stats (barbarian villages included, world ages unknown) | about 0.17 before, about 0.36 player-village takes now |
+| Points of #1 / #2 | 1.26-1.67 | worst 1.69 (sim) |
+
+Single-Chieftain sims are unchanged by the point step (one Chieftain either way): `npm run sim` 30 days: 2nd village day 26.7 builder, 27.5 raider, none within the run for the turtle, 20.7 balanced; score raider 19,139 vs builder 10,591 = 1.81x.
