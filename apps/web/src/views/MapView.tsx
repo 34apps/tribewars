@@ -345,6 +345,18 @@ export function MapView({ active }: { active: boolean }) {
     [radius, schedule],
   );
 
+  // Opening the map always starts on the current village (owner 2026-11-18). Declared before the focus effect below, so a tile
+  // another tab asked for in the same open still wins. While the map is hidden its size is 0, so only the centre is set here;
+  // the resize that follows the map being shown clamps the view.
+  useEffect(() => {
+    if (!active) return;
+    viewRef.current.cx = own.x;
+    viewRef.current.cy = own.y;
+    if (sizeRef.current.w > 0) clampView(viewRef.current, radius, size());
+    schedule();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
   // Another tab asked to show a tile (movement target, report village).
   const focusNonce = mapFocus?.nonce;
   useEffect(() => {
