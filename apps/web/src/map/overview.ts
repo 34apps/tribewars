@@ -43,19 +43,43 @@ export function overviewToWorld(ox: number, oy: number, radius: number, px: numb
   return { x: clamp(ox), y: clamp(oy) };
 }
 
-/** Square size in px: own villages clearly the biggest, relation colours next, plain others, abandoned small. */
+/**
+ * Square size in px, from the world scale (`scale` = overview px per tile): about one tile each, never under 2 px, so
+ * neighbours stay apart. Own villages are 1.5x (thin white edge drawn by the caller), abandoned ones the smallest.
+ * Readable at radius 30 (~5 px per tile, capped at 6) and radius 300 (~0.5 px per tile, floor of 2 px).
+ */
 export function squareSize(a: MapAllegiance, scale: number): number {
-  const base = Math.max(3, Math.min(5, scale * 1.4));
+  const base = Math.max(2, Math.min(6, scale));
   switch (a) {
     case 'own':
-      return base + 4;
+      return Math.max(3, base * 1.5);
     case 'abandoned':
-      return Math.max(2, base * 0.6);
-    case 'neutral':
-      return base;
+      return Math.max(2, base * 0.7);
     default:
-      return base + 1;
+      return base;
   }
+}
+
+/** Fire-site marker half-size in px: tiny, and smaller still on huge worlds. */
+export function siteHalf(scale: number): number {
+  return Math.max(1.5, Math.min(3, scale * 0.6));
+}
+
+/**
+ * How to show the main view on the overview: a thin frame, or (when the view covers a big part of the world, so the
+ * frame would be huge) only a small crosshair at the view centre.
+ */
+export function frameShape(corners: ReadonlyArray<{ x: number; y: number }>, px: number): { kind: 'frame' | 'cross'; cx: number; cy: number } {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  corners.forEach((p, i) => {
+    const q = corners[(i + 1) % corners.length]!;
+    area += p.x * q.y - q.x * p.y;
+    cx += p.x / corners.length;
+    cy += p.y / corners.length;
+  });
+  return { kind: Math.abs(area) / 2 > px * px * 0.35 ? 'cross' : 'frame', cx, cy };
 }
 
 /** Draw order: abandoned and plain players first, relations above them, own villages on top. */

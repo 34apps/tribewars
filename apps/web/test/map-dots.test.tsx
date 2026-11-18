@@ -193,8 +193,23 @@ test('overview: counts per relation, flat square mapping, click to world, own sq
   }
   assert.deepEqual(overview.overviewToWorld(-50, 9999, R, px), { x: -30, y: 30 });
   const sc = overview.overviewScale(R, px);
-  assert.ok(overview.squareSize('own', sc) >= overview.squareSize('enemy', sc) + 3);
+  assert.ok(overview.squareSize('own', sc) >= overview.squareSize('enemy', sc) * 1.4);
   assert.ok(overview.squareSize('abandoned', sc) < overview.squareSize('neutral', sc));
+  // Sizes follow the world: radius 30 ~ one tile (about 5 px), radius 300 stays at the 2 px floor (own 3 px).
+  for (const [r, px2] of [[30, 300], [300, 300]] as const) {
+    const s2 = overview.overviewScale(r, px2);
+    for (const k of ['neutral', 'enemy', 'tribe', 'ally', 'nap'] as const) assert.ok(overview.squareSize(k, s2) >= 2 && overview.squareSize(k, s2) <= Math.max(2, s2) + 1e-9);
+    assert.ok(overview.squareSize('abandoned', s2) >= 2);
+    assert.ok(overview.squareSize('own', s2) >= 3 && overview.squareSize('own', s2) <= 9);
+  }
+  assert.equal(overview.squareSize('neutral', overview.overviewScale(300, 300)), 2);
+  assert.ok(overview.squareSize('neutral', overview.overviewScale(30, 300)) < 6.01);
+  // Frame vs crosshair: a small view is a frame, a view over most of the world is a crosshair at its centre.
+  const sq = (c: number, hw: number) => [{ x: c, y: c - hw }, { x: c + hw, y: c }, { x: c, y: c + hw }, { x: c - hw, y: c }];
+  assert.equal(overview.frameShape(sq(100, 30), 300).kind, 'frame');
+  const big = overview.frameShape(sq(150, 140), 300);
+  assert.equal(big.kind, 'cross');
+  assert.ok(Math.abs(big.cx - 150) < 1e-9 && Math.abs(big.cy - 150) < 1e-9);
   // The main view's frame: a screen of 800x600 at tile 40 sees a diamond around the centre.
   const f = overview.frameCorners({ cx: 5, cy: 5, tile: 40 }, { w: 800, h: 600 });
   assert.equal(f.length, 4);

@@ -11,7 +11,7 @@ import { CHUNK } from './chunks.ts';
 import type { MapChunks } from './chunks.ts';
 import { DOT_INK, STRONG_COLOR } from './dots.ts';
 import type { Size, View } from './iso.ts';
-import { OVERVIEW_ORDER, OVERVIEW_ROWS, countVillages, frameCorners, overviewScale, overviewToWorld, squareSize, worldToOverview } from './overview.ts';
+import { OVERVIEW_ORDER, OVERVIEW_ROWS, countVillages, frameCorners, frameShape, overviewScale, overviewToWorld, siteHalf, squareSize, worldToOverview } from './overview.ts';
 import { FOREST, GRASS, HILLS, LAKE, MOUNTAIN } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -113,34 +113,36 @@ export function Overview({ chunks, terrain, radius, sites, version, viewRef, siz
       for (const p of list) {
         const x = Math.round(p.x - z / 2);
         const y = Math.round(p.y - z / 2);
+        const zz = Math.max(2, Math.round(z));
         if (a === 'own') {
           g.fillStyle = DOT_INK;
-          g.fillRect(x - 2, y - 2, z + 4, z + 4);
+          g.fillRect(x - 2, y - 2, zz + 4, zz + 4);
           g.fillStyle = '#FFFFFF';
-          g.fillRect(x - 1, y - 1, z + 2, z + 2);
-        } else if (a !== 'abandoned') {
+          g.fillRect(x - 1, y - 1, zz + 2, zz + 2);
+        } else if (a !== 'abandoned' && sc >= 3) {
           g.fillStyle = DOT_INK;
-          g.fillRect(x - 1, y - 1, z + 2, z + 2);
+          g.fillRect(x - 1, y - 1, zz + 2, zz + 2);
         }
         g.fillStyle = STRONG_COLOR[a];
-        g.fillRect(x, y, z, z);
+        g.fillRect(x, y, zz, zz);
       }
     }
     // Sites: tiny diamonds (utility sites tiny squares).
     for (const st of sites) {
       const p = worldToOverview(st.x, st.y, radius, px);
+      const h = siteHalf(sc);
       g.beginPath();
-      if (isUtilitySite(st.kind)) g.rect(p.x - 2, p.y - 2, 4, 4);
+      if (isUtilitySite(st.kind)) g.rect(p.x - h, p.y - h, h * 2, h * 2);
       else {
-        g.moveTo(p.x, p.y - 4);
-        g.lineTo(p.x + 3.5, p.y);
-        g.lineTo(p.x, p.y + 4);
-        g.lineTo(p.x - 3.5, p.y);
+        g.moveTo(p.x, p.y - h * 1.3);
+        g.lineTo(p.x + h, p.y);
+        g.lineTo(p.x, p.y + h * 1.3);
+        g.lineTo(p.x - h, p.y);
         g.closePath();
       }
       g.fillStyle = st.awake && !isUtilitySite(st.kind) ? '#FFF2B8' : '#F4F1EA';
       g.fill();
-      g.lineWidth = 1.2;
+      g.lineWidth = 1;
       g.strokeStyle = DOT_INK;
       g.stroke();
     }
@@ -164,16 +166,34 @@ export function Overview({ chunks, terrain, radius, sites, version, viewRef, siz
     if (w <= 0 || h <= 0) return;
     const size: Size = { w, h };
     const pts = frameCorners(viewRef.current, size).map((c) => worldToOverview(c.x, c.y, radius, px));
+    // Thin light line with a dark hairline, clipped to the box; a small crosshair when the view covers most of the world.
+    const shape = frameShape(pts, px);
+    g.save();
     g.beginPath();
-    pts.forEach((p, i) => (i === 0 ? g.moveTo(p.x, p.y) : g.lineTo(p.x, p.y)));
-    g.closePath();
-    g.lineJoin = 'round';
-    g.lineWidth = 4;
-    g.strokeStyle = DOT_INK;
+    g.rect(0, 0, px, px);
+    g.clip();
+    g.lineJoin = 'miter';
+    g.lineCap = 'butt';
+    g.beginPath();
+    if (shape.kind === 'frame') {
+      pts.forEach((p, i) => (i === 0 ? g.moveTo(p.x, p.y) : g.lineTo(p.x, p.y)));
+      g.closePath();
+      g.fillStyle = 'rgba(255,255,255,0.14)';
+      g.fill();
+    } else {
+      const c = { x: Math.max(0, Math.min(px, shape.cx)), y: Math.max(0, Math.min(px, shape.cy)) };
+      g.moveTo(c.x - 6, c.y);
+      g.lineTo(c.x + 6, c.y);
+      g.moveTo(c.x, c.y - 6);
+      g.lineTo(c.x, c.y + 6);
+    }
+    g.lineWidth = 3;
+    g.strokeStyle = 'rgba(40,28,18,0.55)';
     g.stroke();
-    g.lineWidth = 2;
+    g.lineWidth = 1.5;
     g.strokeStyle = '#FFFFFF';
     g.stroke();
+    g.restore();
   }, [px, dpr, radius, viewRef, sizeRef]);
 
   useEffect(() => {
