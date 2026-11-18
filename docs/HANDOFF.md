@@ -64,7 +64,7 @@ Written 2026-11-17 (originality pass + health check). Read this first, then `doc
 
 - Owner picked (2026-11-11): new roster and buildings as above; keeps the Wall, Vault, Gold Mine and Stables ART; Longhouse without
   dragon heads or knobs; levels decided by balance (25 core). "Balance like Tribal Wars" = same feel, never their numbers.
-- Targets: raider/builder 1.5–2x, 2nd village day 21–28, conquest worst ratio ≤ 2x, takes 70–110 (owner 2026-11-18: livelier, after comparing with Tribal Wars world statistics; sim 90 d x 5 seeds).
+- Targets: raider/builder 1.5–2x, 2nd village day 21–28, conquest worst ratio ≤ 2x, takes 110–150 (owner 2026-11-18: livelier after comparing with Tribal Wars world statistics; accepted 133 once Drillyard ranks made armies stronger; sim 90 d x 5 seeds).
 - Preview Reset world: computer players start from zero with the new player. War Chest: Chieftain gold from an account chest.
 - Gold = elite + conquest resource. Scrolling only inside conversation panes. One same-size button family.
 

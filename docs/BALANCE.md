@@ -1262,3 +1262,8 @@ Owner picks applied on top of the merge: Drillyard option 1 (50 points, every ra
 
 - Takes are above the target. Cause split (same seeds): Chieftain speed 5 gives 117 takes / 23 restarts / worst 1.69; speed 2.5 gives 133 / 25 / 1.36. So most of the rise over the earlier 93 is the Drillyard ranks that the sims now spend (Might and Breach make attackers stronger); the slower Chieftain does not cut takes (the sim's strikes mostly move with siege units at speed 3 anyway). Nothing else was changed; the owner decides whether to raise `HEARTH_POINTS_PER_CHIEFTAIN` or the Renown price.
 - Chieftain travel time (flat ground, world speed 1, the Chieftain alone or an army led by it): 10 / 20 / 30 tiles took 2 / 4 / 6 h, now 4 / 8 / 12 h. Strikes with Log Rams or Firecarts (speed 3, 3.3 / 6.7 / 10 h) are 20% slower; strikes with Raiders only (6 speed) are 2.4x slower. Three Chieftains sent as separate orders from one village still arrive inside the 2 h chain window, because the window runs on send time and all travel at the same speed. The send form's "arrives" line comes from the same travel function and reads the new time.
+
+
+### 23.1 Takes target raised to 110-150 (owner 2026-11-18)
+
+With Drillyard ranks spent by the sim players, the conquest sim gives 133 takes (5 seeds x 90 days), 25 restarts, worst biggest/second 1.36. The owner accepted it: still calmer than real Tribal Wars worlds, and the leader does not run away. The documented target is now **110-150 takes**, restarts <= 26, worst <= 2x.
