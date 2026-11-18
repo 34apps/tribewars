@@ -128,6 +128,10 @@ function worldMirror(): Plugin {
         const done = (status: number): void => {
           res.statusCode = status;
           res.end();
+          // One line per mirror request in the server log, so a refused or failing save is visible without the browser console.
+          if (status !== 204 || process.env.CLANFIRE_MIRROR_LOG === '1') {
+            warn(`preview world mirror: ${req.method} ${status} from ${req.socket.remoteAddress ?? '?'} origin=${req.headers.origin ?? '-'} player=${String(req.headers['x-clanfire-player'] ?? '-')} bytes=${req.headers['content-length'] ?? '?'}`);
+          }
         };
         let originOk = true;
         try {
