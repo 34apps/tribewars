@@ -130,6 +130,81 @@ export function frameRect(
   return { kind: area > (l.width * l.width * 0.35) / 4 ? 'cross' : 'frame', x0: c.x - hw, y0: c.y - hh, x1: c.x + hw, y1: c.y + hh, cx: c.x, cy: c.y };
 }
 
+/** Smallest visible part of the view (px^2 on the board) worth drawing as a frame; below it only the centre cross is shown. */
+export const MIN_FRAME_AREA = 140;
+
+export interface ViewShape {
+  kind: 'frame' | 'cross';
+  /** The view clipped to the board diamond (convex polygon, px); empty for a cross. */
+  poly: Array<{ x: number; y: number }>;
+  /** Centre of the view, kept on the board (clamped in from the edge when the view centre lies outside the world). */
+  cx: number;
+  cy: number;
+}
+
+/** Keep a point on the diamond (scaled in towards its centre when outside, with a small margin). */
+export function clampToDiamond(l: DiamondLayout, x: number, y: number, margin = 4): { x: number; y: number } {
+  const hw = l.width / 2 - margin * 2;
+  const hh = l.width / 4 - margin;
+  const dx = x - l.ox;
+  const dy = y - l.oy;
+  const q = Math.abs(dx) / hw + Math.abs(dy) / hh;
+  return q <= 1 ? { x, y } : { x: l.ox + dx / q, y: l.oy + dy / q };
+}
+
+/**
+ * The main view on the board: its upright rectangle CLIPPED to the board diamond (Sutherland-Hodgman, so nothing outside the world
+ * is ever drawn), or only a centre cross (clamped onto the board) when the view covers most of the board or hardly any of it is inside.
+ */
+export function viewShape(l: DiamondLayout, region: Region, view: View, size: Size): ViewShape {
+  const f = frameRect(l, region, view, size);
+  const c = clampToDiamond(l, f.cx, f.cy);
+  if (f.kind === 'cross') return { kind: 'cross', poly: [], cx: c.x, cy: c.y };
+  let poly: Array<{ x: number; y: number }> = [
+    { x: f.x0, y: f.y0 },
+    { x: f.x1, y: f.y0 },
+    { x: f.x1, y: f.y1 },
+    { x: f.x0, y: f.y1 },
+  ];
+  // Four half-planes of the diamond: |dx| / (w/2) + |dy| / (w/4) <= 1.
+  const hw = l.width / 2;
+  const hh = l.width / 4;
+  const planes: Array<[number, number]> = [
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ];
+  for (const [sx, sy] of planes) {
+    const inside = (p: { x: number; y: number }) => (sx * (p.x - l.ox)) / hw + (sy * (p.y - l.oy)) / hh <= 1;
+    const out: typeof poly = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i]!;
+      const b = poly[(i + 1) % poly.length]!;
+      const ia = inside(a);
+      const ib = inside(b);
+      if (ia) out.push(a);
+      if (ia !== ib) {
+        const da = (sx * (a.x - l.ox)) / hw + (sy * (a.y - l.oy)) / hh - 1;
+        const db = (sx * (b.x - l.ox)) / hw + (sy * (b.y - l.oy)) / hh - 1;
+        const t = da / (da - db);
+        out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      }
+    }
+    poly = out;
+    if (poly.length === 0) break;
+  }
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    area += a.x * b.y - b.x * a.y;
+  }
+  area = Math.abs(area) / 2;
+  if (poly.length < 3 || area < MIN_FRAME_AREA) return { kind: 'cross', poly: [], cx: c.x, cy: c.y };
+  return { kind: 'frame', poly, cx: c.x, cy: c.y };
+}
+
 /** Token radius in px from the px-per-field scale: small and clear on a 3 px field, never a blob on a 0.4 px one. */
 export function tokenRadius(a: MapAllegiance, tile: number): number {
   const base = Math.max(1, Math.min(4.2, tile * 0.62));

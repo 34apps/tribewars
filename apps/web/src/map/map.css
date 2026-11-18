@@ -1420,7 +1420,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   min-width: 0;
 }
 .wm-ov-head .wm-side-title {
@@ -1576,6 +1577,7 @@
 }
 /* Premium Expand: compact pills in the card header (100 / 200 / World); locked and greyed for everybody else. */
 .wm-ov-expand {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 5px;

@@ -128,3 +128,25 @@ test('edge notches: four, one per diamond edge, a touch area of at least 40 px, 
   }
   assert.equal(overview.OVERVIEW_HINT, 'Drag to move · tap to jump');
 });
+
+test('view shape: clipped to the board diamond, a cross clamped onto the board when almost nothing is inside', () => {
+  const region = overview.regionOf(0, R, 0, 0);
+  const l = overview.diamondLayout(region, 400, 20);
+  const size = { w: 800, h: 500 };
+  const inDiamond = (p: { x: number; y: number }) => Math.abs(p.x - l.ox) / (l.width / 2) + Math.abs(p.y - l.oy) / (l.width / 4) <= 1 + 1e-9;
+  // View at the top corner of the world: the frame is cut by the diamond edges, every vertex lies on the board.
+  const top = overview.viewShape(l, region, { cx: -R, cy: -R, tile: 400 / 601 / 0.05 }, size);
+  assert.equal(top.kind, 'frame');
+  assert.ok(top.poly.length >= 3 && top.poly.every(inDiamond), 'no point outside the diamond');
+  // A view well inside keeps its four corners.
+  const mid = overview.viewShape(l, region, { cx: 0, cy: 0, tile: 400 / 601 / 0.05 }, size);
+  assert.equal(mid.kind, 'frame');
+  assert.equal(mid.poly.length, 4);
+  // A view centred far outside the world (only a sliver inside): cross only, centre pulled onto the board.
+  const out = overview.viewShape(l, region, { cx: -R - 400, cy: -R - 400, tile: 400 / 601 / 0.05 }, size);
+  assert.equal(out.kind, 'cross');
+  assert.equal(out.poly.length, 0);
+  assert.ok(inDiamond({ x: out.cx, y: out.cy }));
+  // A view bigger than the board is a cross at its (on-board) centre.
+  assert.equal(overview.viewShape(l, region, { cx: 0, cy: 0, tile: 400 / 601 / 5 }, size).kind, 'cross');
+});

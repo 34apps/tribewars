@@ -28,7 +28,7 @@ import {
   countPoints,
   diamondLayout,
   diamondToWorld,
-  frameRect,
+  viewShape,
   notchSpots,
   patchSize,
   regionOf,
@@ -560,14 +560,14 @@ export function Overview({ chunks, terrain, radius, sites, version, active, prem
     if (w <= 0 || h <= 0) return;
     const size: Size = { w, h };
     const r = regionRef.current;
-    const shape = frameRect(layout, r, v, size);
-    // The view is an upright rectangle on the diamond (light line over a dark hairline), or just a cross when it covers most of it.
+    const shape = viewShape(layout, r, v, size);
+    // The view: its footprint clipped to the board diamond (so nothing outside the world is drawn), a thin light line over a dark
+    // hairline; only a centre cross (kept on the board) when the view covers most of the board or hardly any of it is inside.
     const P = (x: number, y: number) => worldToDiamond(layout, r, x, y);
-    const e = 0.5;
-    const t0 = P(r.x0 - e, r.y0 - e);
-    const t1 = P(r.x1 + e, r.y0 - e);
-    const t2 = P(r.x1 + e, r.y1 + e);
-    const t3 = P(r.x0 - e, r.y1 + e);
+    const t0 = P(r.x0 - 0.5, r.y0 - 0.5);
+    const t1 = P(r.x1 + 0.5, r.y0 - 0.5);
+    const t2 = P(r.x1 + 0.5, r.y1 + 0.5);
+    const t3 = P(r.x0 - 0.5, r.y1 + 0.5);
     g.save();
     g.beginPath();
     g.moveTo(t0.x, t0.y);
@@ -577,15 +577,16 @@ export function Overview({ chunks, terrain, radius, sites, version, active, prem
     g.closePath();
     g.clip();
     g.lineJoin = 'miter';
-    g.beginPath();
     if (shape.kind === 'frame') {
-      g.rect(shape.x0, shape.y0, shape.x1 - shape.x0, shape.y1 - shape.y0);
-      g.fillStyle = 'rgba(255,255,255,0.16)';
+      g.beginPath();
+      shape.poly.forEach((q, i) => (i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y)));
+      g.closePath();
+      g.fillStyle = 'rgba(255,255,255,0.14)';
       g.fill();
-      g.lineWidth = 3;
-      g.strokeStyle = 'rgba(40,28,18,0.55)';
+      g.lineWidth = 2.4;
+      g.strokeStyle = 'rgba(40,28,18,0.6)';
       g.stroke();
-      g.lineWidth = 1.5;
+      g.lineWidth = 1.2;
       g.strokeStyle = '#FFFFFF';
       g.stroke();
     }
@@ -595,10 +596,10 @@ export function Overview({ chunks, terrain, radius, sites, version, active, prem
     g.lineTo(shape.cx + arm, shape.cy);
     g.moveTo(shape.cx, shape.cy - arm);
     g.lineTo(shape.cx, shape.cy + arm);
-    g.lineWidth = 3;
-    g.strokeStyle = 'rgba(40,28,18,0.55)';
+    g.lineWidth = 2.4;
+    g.strokeStyle = 'rgba(40,28,18,0.6)';
     g.stroke();
-    g.lineWidth = 1.5;
+    g.lineWidth = 1.2;
     g.strokeStyle = '#FFFFFF';
     g.stroke();
     g.restore();
@@ -635,7 +636,7 @@ export function Overview({ chunks, terrain, radius, sites, version, active, prem
     <aside className={`wm-side${large ? ' wm-side-large' : useRows ? ' wm-side-wide' : ''}`} aria-label="Region overview">
       <div className="wm-ov-card">
         <div className="wm-ov-head">
-          <h2 className="wm-side-title">{region.whole ? 'World overview' : 'Overview'}</h2>
+          <h2 className="wm-side-title">Overview</h2>
           <div className={`wm-ov-expand${premium ? '' : ' is-locked'}`}>
             <span className="wm-ov-expand-label">Expand</span>
             <div className="wm-ov-sizes" role="radiogroup" aria-label="Area shown">
