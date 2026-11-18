@@ -2166,13 +2166,13 @@ mission never lower anything. Existing Firecarts stay Firecarts (no unit convers
 | Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost | Pop | Time | Max levels per step |
 |---|---|---|---|---|---|---|---|---|---|
 | **Log Ram** (`logram`) | Wall only: in the battle and after a win | Wrightyard 1 | Drillyard 2 | 3 (slowest unit) | 3 / 5 vs foot, 4 vs riders | 70 wood, 50 food, 90 iron, no gold | 3 | 1,100 s | 3 (power 6) |
-| **Firecart** (`firecart`) | Buildings only, after a win: the pick, else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 2) |
+| **Firecart** (`firecart`) | Buildings only, after a win: the pick, else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 4) |
 
 Both walk over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carry nothing and can only go on an **attack** (not scout, support,
 found or occupy; `checkMission` refuses them). They fight, but badly, and die in the battle like everyone else (loss ratio is the same for every unit of
 the army). Neither can be ranked (not in `RANKABLE_UNITS`).
 
-**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (Firecart power 2 since BALANCE 15, 2026-11-17; Log Ram power 6, BALANCE 18). Lowering a building from level L to L-1 costs
+**Damage (deterministic, `resolveSiege`).** `count x power` **siege points** (Firecart power 4, Log Ram power 6, BALANCE 18; the Firecart was 1, then 2). Lowering a building from level L to L-1 costs
 `SIEGE_BASE_POINTS (6) + SIEGE_POINTS_PER_LEVEL (7) x L` points (BALANCE 18: it was 2), so high levels are much harder to knock down (level 10: 76 points, level 22: 160, level 5: 41). **Each step lowers
 at most `maxLevels` levels** (Log Ram 3, so the Wall can lose up to 6 in one won attack; Firecart 2) and **stops at the floor**: a
 building never goes below level 0; the **Town Hall, Farm, Longhouse and Storehouse never go below 1** (`SIEGE_MIN_LEVEL`). Points that are not used up are lost.
@@ -2204,7 +2204,7 @@ queued siege batches at the Barracks and siege research are refunded in full (ca
 villages with Barracks 5 or more get Wrightyard 1 for free. The refund uses the old prices (`LEGACY_SIEGE` in `migrate.ts`).
 
 **Balance (`BALANCE.md` sections 8 and 13).** Firecarts help win the battle (the Wall is lower) and a close loss is not a total waste, but they are slow, so the defender sees
-them coming and can rebuild. With power 2 the siege army (Wall 5 to 15) still costs more than rebuilding the level it lowers, and a deep Wall (about level 22) is about break-even (rebuild 1.1 x the army's price, `npm run sim -- --siege`, section (a); the invariant line is 1.5 x); it is the slowest thing on the map and capped per step. So siege makes the
+them coming and can rebuild. With the first power 2 the siege army (Wall 5 to 15) still costs more than rebuilding the level it lowers, and a deep Wall (about level 22) is about break-even (rebuild 1.1 x the army's price, `npm run sim -- --siege`, section (a); the invariant line is 1.5 x); it is the slowest thing on the map and capped per step. So siege makes the
 next attack easier; it does not make defending pointless.
 
 ### 18.10 Incoming warnings and notifications (owner, 2026-11-05)

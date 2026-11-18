@@ -524,7 +524,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     building: 'wrightyard',
     requires: { wrightyard: 4 },
     research: { drillyard: 3, cost: res(400, 300, 500, 10), timeSec: 10800 },
-    siege: { power: 2, maxLevels: 2, hits: 'buildings' }, // power 1 -> 2 (BALANCE 14)
+    siege: { power: 4, maxLevels: 2, hits: 'buildings' }, // power 1 -> 2 (BALANCE 14) -> 4 (BALANCE 18, with 7 points per level)
   },
 };
 

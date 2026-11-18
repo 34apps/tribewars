@@ -1033,7 +1033,7 @@ points, the lowered Wall counts) and again after a win; the **Firecart** now hit
 Tool: `npm run sim -- --siege` (section (a), real engine; value = wood + food + iron + 10 x gold).
 
 **Lines (our numbers).** Log Ram: attack 3, defence 5 / 4, speed 3, pop 3, cost 70 / 50 / 90 (value 210, no gold), 1,100 s, Wrightyard 1, Drillyard 2 (research 260 / 200 / 340, 7,200 s),
-power 6, 3 levels per step (about 3x the Firecart's old Wall power per unit, and 43% cheaper: 210 vs 368). Firecart unchanged (power 2, 2 levels, 368), but Wrightyard 4, Drillyard 3.
+power 6, 3 levels per step (about 3x the Firecart's old Wall power per unit, and 43% cheaper: 210 vs 368). Firecart: Wrightyard 4, Drillyard 3, 2 levels, 368; power 2 in the first pass, 4 after the follow-ups below.
 Not tuned after the first pass: the numbers above are the brief's starting numbers; no sim target moved.
 
 **Follow-up the same day: `SIEGE_POINTS_PER_LEVEL` 2 -> 7 (cost of one level = 6 + 7 x L points; the brief said "3", the file said 2).** With 2, a Wall-22 level cost the attacker 3,150 against a 16,430 rebuild (5.2x), so high Walls
@@ -1054,12 +1054,33 @@ Firecart (which shares the rule) is already near useless on ordinary buildings, 
 (Section (a) of the sim: Wall 5 0.26, 10 0.38, 15 0.69, 22 1.82.) So the Log Ram is about the same number of units as the old Firecart per Wall level but 43% cheaper each, and it now also fires during the battle.
 Wall levels cost more to break than they did in the first pass of this section (about 2.7x more units at the same level), the Wall is still the cheapest thing to chip per coin of rebuild, but never a bargain beyond 2x.
 
-**Effect on the Firecart (buildings; same rule).** Survivors for one level: Market 5 8 -> 21, Market 10 13 -> 38, Drillyard 9 12 -> 35, Banner Hall 4 7 -> 17 (with 2 -> 7 points per level). Rebuild / army: Market 0.06 to 0.08,
-Drillyard 0.22 to 0.33, Banner Hall (gold) 1.86 to 2.14. So the Firecart is a poor trade on Market, Drillyard and the rest and only pays against gold-heavy buildings (Banner Hall, about 2x): a niche tool for
-the building the owner picks, not a way to wear a village down. The no-bargain line was never enforced on those rows. If the owner wants the Firecart more useful, lower its price or raise its power in `config.ts`
-(a separate call).
+**Firecart tuned afterwards: power 2 -> 4 (price 368 and 2 levels per step unchanged).** At 7 points per level and power 2 the Firecart was a poor trade almost everywhere (rebuild / army 0.06 to 0.4 on
+economy buildings). Rebuild / army grows in proportion to power, so a table over powers 2 / 4 / 6 / 8 / 10 (survivors / 0.63 sent, price 368) gave, for Barracks 20 / Stables 18 / Banner Hall 4 / Storehouse 25:
+2: 0.84 / 1.02 / 2.14 / 0.41; **4: 1.66 / 2.02 / 3.86 / 0.81**; 6: 2.45 / 3.06 / 5.78 / 1.19; 8: 3.16 / 3.96 / 7.23 / 1.61. **One power cannot satisfy the whole list**: the expensive military buildings (Barracks 20,
+Stables 18) and the gold-heavy Banner Hall cost the defender 4 to 15 times what a Lumber or Farm level of the same height costs, while a level of each takes the same siege points. Power 4 is the best compromise
+(every economy and training building at its top level 0.6 to 1.7x, Stables 18 just at 2.0x); the economy buildings at mid levels stay below the asked 0.5 and the Banner Hall is above 2x (see below).
 
-**Invariants.** All 10 sim invariants hold with the Wall line at 2x for every Wall level; the per-attack cap (3 levels per step, 6 on the Wall in one won attack) is unchanged. Hard-chipping a Wall 15+ stays
+Firecart army (sent = survivors / 0.63, value 368 each) against one level, power 4:
+
+| building / level | survivors | army value | rebuild | rebuild / army |
+|---|---|---|---|---|
+| Town Hall 10 | 19 | 11,408 | 2,320 | 0.20 |
+| Town Hall 12 | 23 | 13,616 | 3,510 | 0.26 |
+| Barracks 15 | 28 | 16,560 | 12,789 | 0.77 |
+| Barracks 20 | 37 | 21,712 | 36,007 | 1.66 |
+| Storehouse 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 3,343 / 8,564 / 21,937 | 0.20 / 0.39 / 0.81 |
+| Longhouse, Lumber, Farm 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 2,508 / 6,423 / 16,453 | 0.15 / 0.30 / 0.60 |
+| Iron Mine 15 / 20 / 25 | 28 / 37 / 46 | 16,560 / 21,712 / 27,232 | 2,786 / 7,136 / 18,281 | 0.17 / 0.33 / 0.67 |
+| Stables 18 | 33 | 19,504 | 39,378 | 2.02 |
+| Drillyard 10 | 19 | 11,408 | 8,410 | 0.74 |
+| Banner Hall 4 | 9 | 5,520 | 21,282 | 3.86 |
+| Market 10 / Vault 8 | 19 / 16 | 11,408 / 9,568 | 1,847 / 744 | 0.16 / 0.08 (poor targets, cheap to rebuild: fine) |
+
+Not met, on purpose or by necessity: Banner Hall 3.9x (limit 2x; it is priced in gold, valued 10 each, and only power 2 holds 2x, which would leave the rest of the table below 0.4), economy buildings at levels
+15 and 20 (0.15 to 0.4, below 0.5), Stables 18 at 2.02x. Raise the power to 5 or 6 for 0.2 to 1.2 on the economy buildings and 2.1 to 3.1 on Barracks 20 and Stables 18; lower it to 2 to hold the Banner Hall at 2x.
+Three or more levels are not offered by the Firecart (2 per step), so a single hit costs the defender at most about 2x this per attack.
+
+**Invariants (sim section (a) at Firecart power 4: Market 0.11 to 0.17, Drillyard 0.42 to 0.63, Banner Hall 3.4 to 3.9).** All 10 sim invariants hold with the Wall line at 2x for every Wall level; the per-attack cap (3 levels per step, 6 on the Wall in one won attack) is unchanged. Hard-chipping a Wall 15+ stays
 possible (0.6x to 1.8x of the army's price) but the garrison, not the Wall, still sets the army size ((d2): Wall 10 with 400 defenders needs about 25x the empty village's army).
 
 **Sims (the default sim has no siege units, so these moved only by noise from the extra seed draw, which does not change luck):**
