@@ -118,6 +118,7 @@ export function SendForm({
   missions,
   preferred,
   hints,
+  titles,
   targetLabel,
   layout = 'panel',
 }: {
@@ -127,6 +128,8 @@ export function SendForm({
   preferred: Mission | null;
   /** Site panel: wording per mission that replaces the generic hint (a site is a tile, not a village). */
   hints?: Partial<Record<Mission, string>>;
+  /** Site panel: heading per mission ("Attack to take it") instead of "Send attack". */
+  titles?: Partial<Record<Mission, string>>;
   /** Name for the toast after sending (a site's name); defaults to the village name or the coordinates. */
   targetLabel?: string;
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
@@ -286,7 +289,8 @@ export function SendForm({
     }
   }
 
-  const title = mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : mode === 'relieve' ? RELIEF_LABEL : missions.length > 1 ? 'Send troops' : `Send ${MISSION_NAME[mission].toLowerCase()}`;
+  const title =
+    mode === 'found' ? 'Found a village here' : mode === 'strike' ? 'Strike' : mode === 'relieve' ? RELIEF_LABEL : missions.length > 1 ? 'Send troops' : (titles?.[mission] ?? `Send ${MISSION_NAME[mission].toLowerCase()}`);
   const reliefTarget = isReliefTarget(target, { playerId: player.id, currentVillageId: village.id });
   const compact = layout === 'panel';
   // The map panel lists only the units that are at home (the Command post keeps its columns).

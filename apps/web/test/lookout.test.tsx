@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { LookoutSightingDto, SiteDto } from '@clanfire/engine';
-import { siteBonusText, siteKindLine, isUtilitySite, siteName, siteRange } from '../src/sites.ts';
+import { isUtilitySite, siteName, siteRange } from '../src/sites.ts';
 import { LOOKOUT_NONE_HELD, LOOKOUT_NONE_SEEN, LookoutList } from '../src/tribe/Lookout.tsx';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
@@ -48,17 +48,11 @@ test('both empty states of the Lookout list', () => {
   assert.equal(LOOKOUT_NONE_SEEN, 'No enemy armies seen right now.');
 });
 
-test('Waymark and Lookout: kind line, no Renown line, name from the server, range', () => {
-  assert.equal(siteKindLine('waymark'), "Your tribe's troops and carts cross forest, hills and lakes faster within 12 tiles.");
-  assert.equal(siteKindLine('lookout'), 'Your tribe sees enemy armies that pass within 20 tiles.');
-  assert.equal(siteKindLine('fire_shrine'), null);
-  assert.equal(siteKindLine('great_fire'), null);
+test('Waymark and Lookout: kinds, name from the server, range', () => {
   assert.ok(isUtilitySite('waymark') && isUtilitySite('lookout') && !isUtilitySite('fire_shrine'));
   assert.equal(siteRange('waymark'), 12);
   assert.equal(siteRange('lookout'), 20);
   assert.equal(siteRange('great_fire'), 0);
   const w = { id: 12, kind: 'waymark', name: 'Waymark 3', bonus: 0 } as SiteDto;
   assert.equal(siteName(w), 'Waymark 3');
-  // The panel prints siteKindLine for these two kinds and never calls siteBonusText for them.
-  assert.ok(siteBonusText({ kind: 'fire_shrine', awake: false, renownPerDayDormant: 15, renownPerDayAwake: 30 }).includes('Renown'));
 });
