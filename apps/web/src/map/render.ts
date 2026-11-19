@@ -15,7 +15,7 @@ import { tileArt } from './blocks.ts';
 import type { TerrainBlocks } from './blocks.ts';
 import { ArtPainter, BANNER_BASE, CLEARED_TILE, RUIN_TOP, STAGE_TOP, TILE_LIFT, allTilesReady, hitSprite } from './sprites.ts';
 import type { Allegiance } from './sprites.ts';
-import { DOT_HALO, villageDot } from './dots.ts';
+import { badgesVisible, clusterGroups, drawBadge, drawFlag, farDrawOrder, flagAllegiance, flagHit, flagMetrics } from './farLook.ts';
 import { LABEL_PRIORITY, SHIELD_SPOT, placeLabels } from './markers.ts';
 import type { LabelRequest, Rect } from './markers.ts';
 import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
@@ -804,7 +804,7 @@ function drawBanner(ctx: CanvasRenderingContext2D, al: Allegiance, x: number, y:
   return { x0: x + (Math.min(c.x0, 0) - 3) * k, y0: y - (POLE_H + 4) * k, x1: x + (c.x1 + 2) * k, y1: y };
 }
 
-// ---- Far zoom: villages as dots, sites as small diamonds ----
+// ---- Far zoom: villages as tiny flags (farLook.ts), sites as small diamonds ----
 
 const SITE_DOT_STONE = '#BDB5A6';
 
@@ -869,47 +869,34 @@ function drawDotLayer(
     drawnSites.push({ site: st, x: p.x, y: p.y + 9, scale: 0.21 });
   }
 
-  // Villages: others first, own on top.
-  const list = [...villages.values()].sort((a, b) => Number(a.kind === 'own') - Number(b.kind === 'own') || a.x + a.y - (b.x + b.y));
+  // Villages as tiny flags, back to front: abandoned first, then players, own last (farLook.ts).
   let pointerAt: { x: number; y: number } | null = null;
   const sel = sc.selected;
-  for (const v of list) {
+  const badgePts: { x: number; y: number }[] = [];
+  const showBadges = badgesVisible(t);
+  let badgesDone = !showBadges;
+  const flushBadges = () => {
+    if (badgesDone) return;
+    badgesDone = true;
+    for (const g of clusterGroups(badgePts)) drawBadge(ctx, g, FONT);
+  };
+  for (const v of farDrawOrder(villages.values())) {
     const p = pos(v.x, v.y);
-    if (!onScreen(p, 12)) continue;
-    const d = villageDot(v, t);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, d.radius, 0, Math.PI * 2);
-    // Pale halo, then the ink ring, so every colour stays clear of the grass.
-    ctx.lineWidth = d.edgeWidth + 3.4;
-    ctx.strokeStyle = DOT_HALO;
-    ctx.stroke();
-    if (!d.hollow) {
-      ctx.lineWidth = d.edgeWidth + 1.6;
-      ctx.strokeStyle = INK;
-      ctx.stroke();
-    }
-    if (d.hollow) {
-      // Abandoned: a hollow ring, the ground shows through.
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = d.fill;
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = d.fill;
-      ctx.fill();
-      if (d.own) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, d.radius - d.edgeWidth / 2, 0, Math.PI * 2);
-        ctx.lineWidth = d.edgeWidth;
-        ctx.strokeStyle = d.edge;
-        ctx.stroke();
-      }
-    }
-    drawn.push({ village: v, sprite: '', x: p.x, y: p.y, scale: 1, dot: d.radius });
+    if (!onScreen(p, 24)) continue;
+    // Badges sit above the other flags and below the own village's flag.
+    if (showBadges && v.kind !== 'abandoned') badgePts.push(p);
+    if (v.kind === 'own') flushBadges();
+    const al = flagAllegiance(v);
+    drawFlag(ctx, p.x, p.y, t, al);
+    const hit = flagHit(flagMetrics(t, al));
+    drawn.push({ village: v, sprite: '', x: p.x, y: p.y - hit.dy, scale: 1, dot: hit.radius });
   }
+  flushBadges();
 
   // Hover and selection rings.
-  const ring = (c: Coords, r: number, color: string, w: number) => {
-    const p = pos(c.x, c.y);
+  const ring = (c: Coords, r: number, color: string, w: number, dy: number) => {
+    const p0 = pos(c.x, c.y);
+    const p = { x: p0.x, y: p0.y - dy };
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.lineWidth = w + 2;
@@ -920,14 +907,22 @@ function drawDotLayer(
     ctx.stroke();
     return p;
   };
-  const radiusAt = (c: Coords) => {
+  const ringAt = (c: Coords) => {
     const v = villages.get(vkey(c.x, c.y));
-    return v ? villageDot(v, t).radius + 3.5 : siteTiles.has(vkey(c.x, c.y)) ? 10 : 5;
+    if (v) {
+      const hit = flagHit(flagMetrics(t, flagAllegiance(v)));
+      return { r: hit.radius + 3.5, dy: hit.dy };
+    }
+    return { r: siteTiles.has(vkey(c.x, c.y)) ? 10 : 5, dy: 0 };
   };
-  if (sc.hover && !(sel && sel.x === sc.hover.x && sel.y === sc.hover.y)) ring(sc.hover, radiusAt(sc.hover), BONE, 1.6);
+  if (sc.hover && !(sel && sel.x === sc.hover.x && sel.y === sc.hover.y)) {
+    const g = ringAt(sc.hover);
+    ring(sc.hover, g.r, BONE, 1.6, g.dy);
+  }
   if (sel) {
-    const r = radiusAt(sel);
-    const p = ring(sel, r, SUN, 2.2);
+    const g = ringAt(sel);
+    const r = g.r;
+    const p = ring(sel, r, SUN, 2.2, g.dy);
     pointerAt = { x: p.x, y: p.y - r - 2 };
   }
   ctx.restore();

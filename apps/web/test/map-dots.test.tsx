@@ -9,7 +9,7 @@ import type { MapVillageDto } from '@clanfire/engine';
 
 let server: ViteDevServer;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let zoom: any, markers: any, overview: any, dots: any, revision: any, chunksMod: any, apiMod: any, iso: any, allegiance: any;
+let zoom: any, markers: any, overview: any, dots: any, revision: any, chunksMod: any, apiMod: any, iso: any, allegiance: any, farLook: any;
 
 before(async () => {
   server = await createServer({
@@ -29,6 +29,7 @@ before(async () => {
   apiMod = await server.ssrLoadModule('/src/api.ts');
   iso = await server.ssrLoadModule('/src/map/iso.ts');
   allegiance = await server.ssrLoadModule('/src/map/allegiance.ts');
+  farLook = await server.ssrLoadModule('/src/map/farLook.ts');
 });
 
 after(async () => {
@@ -42,7 +43,7 @@ test('dot mode starts below DOT_TILE and the map zooms out far enough for it', (
   assert.equal(zoom.isDotMode(zoom.DOT_TILE - 0.1), true);
   assert.equal(zoom.isDotMode(zoom.DOT_TILE), false);
   assert.ok(iso.MIN_TILE < zoom.DOT_TILE, 'the zoom range reaches dot mode');
-  const v = { cx: 0, cy: 0, tile: 1 };
+  const v = { cx: 0, cy: 0, tile: 0.1 };
   iso.clampView(v, 100);
   assert.equal(v.tile, iso.MIN_TILE, 'without a map size only the absolute floor applies');
 });
@@ -299,4 +300,77 @@ test('overview region: only the chunks of the region are asked for (never the wh
   assert.ok(calls.length - n <= 3, 'only what was already in flight');
   assert.equal(typeof chunks.ensureAll, 'undefined', 'the whole-world fetch is gone');
   chunks.detach();
+});
+
+test('far-zoom flags: size grows with the zoom, own is biggest, abandoned clearly smaller and quieter', () => {
+  const h = (tile: number) => farLook.flagPoleHeight(tile);
+  assert.ok(h(0.5) < h(3) && h(3) < h(15) && h(15) < h(29), 'grows with the zoom');
+  assert.ok(Math.abs(h(0.5) - 2.75) < 1e-9, 'fully out: half of the 5.5 px floor');
+  assert.equal(farLook.flagZoomFactor(farLook.BIG_TILE), 1);
+  assert.equal(farLook.flagZoomFactor(1), 0.5);
+  assert.ok(farLook.flagZoomFactor(5) > 0.5 && farLook.flagZoomFactor(5) < 1, 'smooth in between');
+  assert.ok(h(29) <= 17, 'never bigger than 17 px');
+  for (const tile of [6, 10, 20, 29]) {
+    const p = farLook.flagMetrics(tile, 'neutral');
+    const own = farLook.flagMetrics(tile, 'own');
+    const ab = farLook.flagMetrics(tile, 'abandoned');
+    assert.ok(own.poleH >= p.poleH * 1.4, 'own villages are clearly bigger');
+    assert.ok(ab.poleH <= p.poleH * 0.65, 'abandoned villages are clearly smaller');
+    assert.ok(ab.clothW < p.clothW * 0.6 && ab.edgeW < p.edgeW && ab.poleW < p.poleW, 'abandoned: smaller rag, thinner lines');
+    assert.ok(ab.abandoned && !p.abandoned && own.own);
+    assert.ok(farLook.flagHit(ab).radius >= 3, 'still tappable');
+  }
+});
+
+test('far-zoom draw order: abandoned first, players next, own last; by screen y inside a layer', () => {
+  const vs = [
+    village({ id: 1, kind: 'own', x: 0, y: 0 }),
+    village({ id: 2, kind: 'player', x: 9, y: 9 }),
+    village({ id: 3, kind: 'abandoned', x: 20, y: 20, ownerId: null }),
+    village({ id: 4, kind: 'player', x: 1, y: 2 }),
+    village({ id: 5, kind: 'abandoned', x: 2, y: 2, ownerId: null }),
+  ];
+  const order = farLook.farDrawOrder(vs).map((v: MapVillageDto) => v.id);
+  assert.deepEqual(order, [5, 3, 4, 2, 1]);
+  assert.equal(vs[0]!.id, 1, 'the input is not reordered');
+});
+
+test('abandoned villages are bare specks only while fully zoomed out', () => {
+  assert.equal(farLook.abandonedIsSpeck(0.7), true);
+  assert.equal(farLook.abandonedIsSpeck(farLook.SPECK_TILE - 0.1), true);
+  assert.equal(farLook.abandonedIsSpeck(farLook.SPECK_TILE), false);
+  assert.equal(farLook.flagMetrics(2, 'abandoned').speck, true);
+  assert.equal(farLook.flagMetrics(2, 'neutral').speck, false, 'players never become specks');
+  assert.equal(farLook.flagMetrics(10, 'abandoned').speck, false);
+  assert.ok(farLook.speckRadius(0.7) <= 1.5 && farLook.speckRadius(4) <= 1.5);
+});
+
+test('count badges: only fully zoomed out, small groups get none, groups are counted once', () => {
+  assert.equal(farLook.badgesVisible(0.7), true);
+  assert.equal(farLook.badgesVisible(farLook.BADGE_TILE), false);
+  const pts = (n: number, x0: number, y0: number, spread: number) => Array.from({ length: n }, (_, i) => ({ x: x0 + (i % 5) * spread, y: y0 + Math.floor(i / 5) * spread }));
+  assert.deepEqual(farLook.clusterGroups(pts(5, 100, 100, 2)), [], 'under 8 villages: no badge');
+  const big = pts(40, 100, 100, 2);
+  const small = pts(10, 400, 300, 2);
+  const lone = [{ x: 700, y: 50 }, { x: 900, y: 700 }];
+  const groups = farLook.clusterGroups([...big, ...small, ...lone]);
+  assert.deepEqual(groups.map((g: { count: number }) => g.count).sort((a: number, b: number) => a - b), [10, 40]);
+  const g40 = groups.find((g: { count: number }) => g.count === 40);
+  assert.equal(g40.y, 100, 'the badge anchor is the topmost flag of the group');
+  // two touching crowded cells are one group
+  const touching = [...pts(10, 10, 10, 1), ...pts(10, 26, 10, 1)];
+  assert.equal(farLook.clusterGroups(touching).length, 1);
+  assert.ok(farLook.badgeRadius(148) > farLook.badgeRadius(12));
+});
+
+test('the minimum zoom follows the whole world on a phone and on a desktop, 500x500 included', () => {
+  for (const size of [{ w: 360, h: 780 }, { w: 1108, h: 764 }]) {
+    const t = iso.fitTile(250, size);
+    assert.ok(t > iso.MIN_TILE, 'above the floor');
+    assert.ok(501 * t <= size.w, 'the whole 500-field board fits across');
+    assert.ok((501 * t) / 2 <= size.h, 'and down');
+    const v = { cx: 5, cy: 5, tile: 0.1 };
+    iso.clampView(v, 250, size);
+    assert.equal(v.tile, t);
+  }
 });
