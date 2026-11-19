@@ -9,7 +9,7 @@ import type { MapVillageDto } from '@clanfire/engine';
 
 let server: ViteDevServer;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let zoom: any, markers: any, overview: any, dots: any, revision: any, chunksMod: any, apiMod: any, iso: any, allegiance: any;
+let zoom: any, markers: any, overview: any, dots: any, revision: any, chunksMod: any, apiMod: any, iso: any, allegiance: any, farLook: any;
 
 before(async () => {
   server = await createServer({
@@ -29,6 +29,7 @@ before(async () => {
   apiMod = await server.ssrLoadModule('/src/api.ts');
   iso = await server.ssrLoadModule('/src/map/iso.ts');
   allegiance = await server.ssrLoadModule('/src/map/allegiance.ts');
+  farLook = await server.ssrLoadModule('/src/map/farLook.ts');
 });
 
 after(async () => {
@@ -299,4 +300,33 @@ test('overview region: only the chunks of the region are asked for (never the wh
   assert.ok(calls.length - n <= 3, 'only what was already in flight');
   assert.equal(typeof chunks.ensureAll, 'undefined', 'the whole-world fetch is gone');
   chunks.detach();
+});
+
+test('far-zoom flags: size grows with the zoom, own is biggest, abandoned clearly smaller and quieter', () => {
+  const h = (tile: number) => farLook.flagPoleHeight(tile);
+  assert.ok(h(1) >= 5.5 && h(3) < h(15) && h(15) < h(29), 'grows with the zoom');
+  assert.ok(h(29) <= 17, 'never bigger than 17 px');
+  for (const tile of [3, 10, 20, 29]) {
+    const p = farLook.flagMetrics(tile, 'neutral');
+    const own = farLook.flagMetrics(tile, 'own');
+    const ab = farLook.flagMetrics(tile, 'abandoned');
+    assert.ok(own.poleH >= p.poleH * 1.4, 'own villages are clearly bigger');
+    assert.ok(ab.poleH <= p.poleH * 0.65, 'abandoned villages are clearly smaller');
+    assert.ok(ab.clothW < p.clothW * 0.6 && ab.edgeW < p.edgeW && ab.poleW < p.poleW, 'abandoned: smaller rag, thinner lines');
+    assert.ok(ab.abandoned && !p.abandoned && own.own);
+    assert.ok(farLook.flagHit(ab).radius >= 4, 'still tappable');
+  }
+});
+
+test('far-zoom draw order: abandoned first, players next, own last; by screen y inside a layer', () => {
+  const vs = [
+    village({ id: 1, kind: 'own', x: 0, y: 0 }),
+    village({ id: 2, kind: 'player', x: 9, y: 9 }),
+    village({ id: 3, kind: 'abandoned', x: 20, y: 20, ownerId: null }),
+    village({ id: 4, kind: 'player', x: 1, y: 2 }),
+    village({ id: 5, kind: 'abandoned', x: 2, y: 2, ownerId: null }),
+  ];
+  const order = farLook.farDrawOrder(vs).map((v: MapVillageDto) => v.id);
+  assert.deepEqual(order, [5, 3, 4, 2, 1]);
+  assert.equal(vs[0]!.id, 1, 'the input is not reordered');
 });

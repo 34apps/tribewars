@@ -1349,25 +1349,10 @@
   border-radius: 12px;
 }
 
-/* Legend samples for the far-zoom dots (toy ink outline, own villages with a white edge). */
-.wm-dot-sample {
-  display: inline-block;
+/* Legend samples for the far-zoom flags (inline SVG; the site diamond sample below). */
+.wm-flag-sample {
   flex: none;
-  width: 14px;
-  height: 14px;
-  margin: 0 5px;
-  border: 1.5px solid #2b211c;
-  border-radius: 50%;
-}
-.wm-dot-sample.wm-dot-own {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #2b211c;
-}
-.wm-dot-sample.wm-dot-hollow {
-  width: 10px;
-  height: 10px;
-  margin: 0 7px;
-  border-width: 2px;
-  background: transparent;
+  margin: 0 3px;
 }
 .wm-dot-site {
   display: inline-block;
