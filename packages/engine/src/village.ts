@@ -370,7 +370,8 @@ function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: numb
   if (v.buildQueue.length >= maxQueue) return fail('queue_full', 'The build queue is full.');
   if (!v.npc) {
     const extra = buildingPop(b, targetLevel) - buildingPop(b, targetLevel - 1);
-    if (populationUsage(v).total + extra > populationCap(v)) {
+    // A level that takes no room (the Longhouse) is never refused, even when troops already fill or overfill the village: it is the way out.
+    if (extra > 0 && populationUsage(v).total + extra > populationCap(v)) {
       return fail('population_full', 'Not enough population room. Upgrade the Longhouse or spend troops first.');
     }
   }

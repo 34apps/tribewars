@@ -48,6 +48,13 @@ describe('population', () => {
     const f = checkBuild(full, 'farm', 0, S1);
     assert.ok(!f.ok && f.reason === 'population_full', 'the Farm uses room like the Lumber Camp');
 
+    // Troops beyond the cap (an old world, or heavy losses of buildings' room): the Longhouse still goes up, nothing else does.
+    const over0 = village({ buildings: LEVELS, troops: { pikeman: room + 50 }, resources: RICH });
+    assert.ok(populationUsage(over0).total > populationCap(over0));
+    assert.ok(checkBuild(over0, 'longhouse', 0, S1).ok, 'an overfull village can still raise its Longhouse');
+    const lumberOver = checkBuild(over0, 'lumber', 0, S1);
+    assert.ok(!lumberOver.ok && lumberOver.reason === 'population_full');
+
     const almost = village({ buildings: LEVELS, troops: { pikeman: room - 1 }, resources: RICH });
     const fits = checkTrain(almost, 'pikeman', 1, 0, S1);
     assert.ok(fits.ok || fits.reason !== 'population_full');
