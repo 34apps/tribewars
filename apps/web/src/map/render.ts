@@ -15,7 +15,7 @@ import { tileArt } from './blocks.ts';
 import type { TerrainBlocks } from './blocks.ts';
 import { ArtPainter, BANNER_BASE, CLEARED_TILE, RUIN_TOP, STAGE_TOP, TILE_LIFT, allTilesReady, hitSprite } from './sprites.ts';
 import type { Allegiance } from './sprites.ts';
-import { drawFlag, farDrawOrder, flagAllegiance, flagHit, flagMetrics } from './farLook.ts';
+import { badgesVisible, clusterGroups, drawBadge, drawFlag, farDrawOrder, flagAllegiance, flagHit, flagMetrics } from './farLook.ts';
 import { LABEL_PRIORITY, SHIELD_SPOT, placeLabels } from './markers.ts';
 import type { LabelRequest, Rect } from './markers.ts';
 import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
@@ -872,14 +872,26 @@ function drawDotLayer(
   // Villages as tiny flags, back to front: abandoned first, then players, own last (farLook.ts).
   let pointerAt: { x: number; y: number } | null = null;
   const sel = sc.selected;
+  const badgePts: { x: number; y: number }[] = [];
+  const showBadges = badgesVisible(t);
+  let badgesDone = !showBadges;
+  const flushBadges = () => {
+    if (badgesDone) return;
+    badgesDone = true;
+    for (const g of clusterGroups(badgePts)) drawBadge(ctx, g, FONT);
+  };
   for (const v of farDrawOrder(villages.values())) {
     const p = pos(v.x, v.y);
     if (!onScreen(p, 24)) continue;
+    // Badges sit above the other flags and below the own village's flag.
+    if (showBadges && v.kind !== 'abandoned') badgePts.push(p);
+    if (v.kind === 'own') flushBadges();
     const al = flagAllegiance(v);
     drawFlag(ctx, p.x, p.y, t, al);
     const hit = flagHit(flagMetrics(t, al));
     drawn.push({ village: v, sprite: '', x: p.x, y: p.y - hit.dy, scale: 1, dot: hit.radius });
   }
+  flushBadges();
 
   // Hover and selection rings.
   const ring = (c: Coords, r: number, color: string, w: number, dy: number) => {

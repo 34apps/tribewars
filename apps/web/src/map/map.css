@@ -1354,6 +1354,21 @@
   flex: none;
   margin: 0 3px;
 }
+.wm-badge-sample {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 3px;
+  box-sizing: border-box;
+  background: #fff8e8;
+  border: 1.6px solid #2b211c;
+  border-radius: 50%;
+  color: #2b211c;
+  font: 700 9px/1 system-ui, sans-serif;
+}
 .wm-dot-site {
   display: inline-block;
   flex: none;

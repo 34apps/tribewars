@@ -9,7 +9,7 @@ import type { Coords } from '@clanfire/engine';
  * Tile width in CSS px (the diamond is half as tall). The real minimum is `fitTile` (whole world fits the map area); MIN_TILE is
  * only the floor before the map area has a size. Below DOT_TILE (zoomMode.ts) villages are drawn as dots.
  */
-export const MIN_TILE = 1;
+export const MIN_TILE = 0.25;
 export const MAX_TILE = 160;
 export const DEFAULT_TILE = 84;
 

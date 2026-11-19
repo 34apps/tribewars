@@ -149,7 +149,7 @@ export function MapView({ active }: { active: boolean }) {
     if (!ctx) return;
     // Draw with whole device pixels per tile so cached bitmaps blit 1:1 without resampling;
     // the precise zoom stays in viewRef so small wheel steps still add up.
-    const view = { ...viewRef.current, tile: Math.round(viewRef.current.tile * dpr) / dpr };
+    const view = { ...viewRef.current, tile: viewRef.current.tile * dpr < 2 ? viewRef.current.tile : Math.round(viewRef.current.tile * dpr) / dpr };
     drawnViewRef.current = view;
     ensureChunks(false);
     const t0 = performance.now();

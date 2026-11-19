@@ -109,6 +109,12 @@ export function Legend({ sites = true }: { sites?: boolean }) {
             </li>
           ))}
           <li className="wm-legend-wide">
+            <span className="wm-badge-sample" aria-hidden="true">
+              48
+            </span>
+            Crowd count (whole world in view): player villages in a group
+          </li>
+          <li className="wm-legend-wide">
             <span className="wm-dot-site" aria-hidden="true" />
             Fire site (diamond)
           </li>
