@@ -48,7 +48,7 @@ When a rule changes, change it here in the same commit.
   (queued levels are reserved when queued; the Longhouse takes 0, the Farm takes 3 at level 1 like a Lumber Camp). Each troop takes `POP_PER_UNIT[u]`
   whether at home, away or queued for training. Cap = `popCapForLevel(Longhouse level)` (level 0:
   `POP_CAP_LEVEL0`, else `round(POP_CAP_BASE * POP_CAP_GROWTH^(L-1))`). A build or training order
-  that would push used above the cap is refused (`population_full`); losses free population. Checked
+  that would push used above the cap is refused (`population_full`); a level that takes no room (the Longhouse) is never refused, even when troops already fill or overfill the village, so there is always a way out (2026-11-19). Losses free population. Checked
   server-side in `planBuild`/`planTrain`. Abandoned villages are exempt. Numbers in `config.ts`.
   Tuning (2026-11-17, economy pass): the cap grows `720 x 1.1244^(L-1)` (level 0 = 120), the same factor as production, so the room is about
   1,150 at level 5, 2,070 at 10, 3,720 at 15, 6,680 at 20 and 12,000 at 25 (was 313 / 779 / 1,939 / 4,824 / 12,004) and a village needs about 12-13 days of its

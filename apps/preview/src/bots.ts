@@ -9,16 +9,20 @@
 //  - botTick(): reacts to the human with the real services (accept applications, answer diplomacy proposals, welcome
 //    newcomers, invite a tribeless human) and keeps the map moving: raids and scouting missions on abandoned villages, an
 //    attack by a rival tribe's bot on a bot village of the human's tribe every so often (so tribe alerts and "Send support"
-//    can be tried), and a rare, weak raid on the human's own village once protection is over.
+//    can be tried), and a rare raid on the human's own village once protection is over, sized to the human's strength (a challenge,
+//    never a wipe). Armies are sized with the real battle rules (a preview with the worst luck), so they grow with the bot.
 // World-activity timers were tuned for a speed-25 world; they scale with the world speed (value * 25 / speed), reactions to
 // the human stay short. Reactions are driven by timestamps already in the database, so they survive a page reload.
 
 import {
+  BATTLE_LUCK,
   BUILDINGS,
+  BUILDING_IDS,
   FEAST_MAX_COUNT,
   RESOURCE_IDS,
   UNITS,
   UNIT_IDS,
+  POP_PER_UNIT,
   buildingCost,
   canAfford,
   chestVillageCost,
@@ -33,7 +37,10 @@ import {
   feastPrice,
   findSpawnLocation,
   mulberry32,
+  populationCap,
+  populationUsage,
   protectionEndsAt,
+  resolveBattle,
   settleVillage,
   storageCap,
   storageCapForLevel,
@@ -215,19 +222,43 @@ const FIRST_SCOUT_MS = 40_000;
 const SCOUT_EVERY_MS = 110_000;
 /** First rival-tribe attack on the human's tribe-mates comes this long after the human joins a tribe with bot members. */
 const FIRST_TRIBE_ATTACK_MS = 50_000;
-const TRIBE_ATTACK_EVERY_MS = 4 * MINUTE;
-/** A bot raid on the human's own village: only after protection, never more often than this, and small. */
+// Attacks are real now (sized to win), so they come rarely: about every 8 game hours at speed 1, and the tribe's bots take turns being the target.
+const TRIBE_ATTACK_EVERY_MS = 20 * MINUTE;
+/** A bot raid on the human's own village: only after protection, never more often than this, sized to the human (humanRaidSize). */
 const HUMAN_RAID_AFTER_PROTECTION_MS = 5 * MINUTE;
-const HUMAN_RAID_EVERY_MS = 10 * MINUTE;
-const HUMAN_RAID_RAIDERS = 6;
+const HUMAN_RAID_EVERY_MS = 30 * MINUTE; // about every 12 game hours at speed 1
+/** Raid on the human: at least this many raiders; otherwise points / HUMAN_RAID_POINTS_PER_RAIDER_FLOOR, never above points / ..._CAP and never above RAID_STRENGTH_SHARE of his defence. */
+const HUMAN_RAID_MIN_RAIDERS = 6;
+const HUMAN_RAID_POINTS_PER_RAIDER_FLOOR = 60;
+const HUMAN_RAID_POINTS_PER_RAIDER_CAP = 20;
+const HUMAN_RAID_DEFENCE_SHARE = 0.6;
+/** Armies on abandoned villages: attack must beat the garrison by this factor in the worst luck, using at most this share of the units at home. */
+const RAID_MARGIN = 2.2;
+const RAID_MAX_SHARE = 0.7;
+const RAID_MIN_UNITS = 5;
+/** Tribe attacks on a bot village: a real fight (the attacker must still win by this factor), up to this share of its offence. */
+const TRIBE_ATTACK_MARGIN = 1.4;
+const TRIBE_ATTACK_MAX_SHARE = 0.85;
+const TRIBE_ATTACK_MIN_UNITS = 10;
+/** Units a bot attacks with. */
+const OFFENCE_UNITS: readonly UnitId[] = ['outrider', 'raider'];
+/** Troops may take at most this share of a village's population room (the rest stays free for buildings): while the style's build order still has steps / after it. */
+const POP_TROOP_SHARE_BUILDING = 0.8;
+const POP_TROOP_SHARE_DONE = 0.92;
+/** A Feast only empties a storehouse that is filling up: it starts at this share of the cap and never takes a resource below the floor (troops need food, iron and wood). */
+const FEAST_TRIGGER_SHARE = 0.6;
+const FEAST_FLOOR_SHARE = 0.15;
+/** One training batch: up to this many units per level of the training building (plus the base). */
+const TRAIN_BATCH_BASE = 40;
+const TRAIN_BATCH_PER_LEVEL = 12;
 const MIN_WARNING_MS = 90_000;
 const IDEAL_TRAVEL_MS = 5 * MINUTE;
 /** Each bot plays one growth step this often (game time, not scaled: the villages themselves run at the world's speed). */
 const GROW_EVERY_MS = 20 * MINUTE;
 /** A bot says at most one thing in tribe chat per this long. */
 const CHAT_COOLDOWN_MS = 3 * HOUR;
-/** Bump when bots change in a way that existing saved worlds need to catch up with (see upgradeBots). 3 = growing bots, five EMBR bots, styles. */
-const BOT_VERSION = 3;
+/** Bump when bots change in a way that existing saved worlds need to catch up with (see upgradeBots). 3 = growing bots, five EMBR bots, styles; 4 = no dead ends (population reserve, gold, endless build list), real-sized armies. */
+const BOT_VERSION = 4;
 
 /** A world-activity duration for this world's speed. */
 const scaled = (ctx: AppContext, ms: number): number => (ms * TUNED_FOR_SPEED) / Math.max(1e-6, ctx.settings.speed);
@@ -365,6 +396,8 @@ let nextReportPruneAt = 0;
 const nextTribeAttackAt = new Map<number, number>();
 /** Human player id -> do not try a raid on them before this (after a failed try). */
 const nextHumanRaidTry = new Map<number, number>();
+/** Bot player id -> when a rival last attacked it (the next target is the one hit longest ago). */
+const lastTribeHit = new Map<number, number>();
 /** Bot player id -> when its next growth step is due. Advanced by whole periods, so a skip never makes the bots fire together. */
 const nextGrowAt = new Map<number, number>();
 
@@ -385,6 +418,7 @@ export function resetBotState(): void {
   nextReportPruneAt = 0;
   nextTribeAttackAt.clear();
   nextHumanRaidTry.clear();
+  lastTribeHit.clear();
   nextGrowAt.clear();
   memory.clear();
 }
@@ -392,6 +426,8 @@ export function resetBotState(): void {
 interface Bot {
   player: PlayerRow;
   home: VillageRecord;
+  /** All villages of the player (home first): armies leave from the one with the most offence. */
+  villages: VillageRecord[];
   plan: BotPlan | undefined;
 }
 
@@ -401,8 +437,9 @@ function loadBots(ctx: AppContext, meta: BotMeta): Bot[] {
   const out: Bot[] = [];
   for (const id of Object.keys(meta.bots).map(Number)) {
     const player = ctx.store.getPlayer(id);
-    const home = ctx.store.villagesOfPlayer(id)[0];
-    if (player && home) out.push({ player, home, plan: BOTS.find((b) => b.name === player.username) });
+    const villages = ctx.store.villagesOfPlayer(id);
+    const home = villages[0];
+    if (player && home) out.push({ player, home, villages, plan: BOTS.find((b) => b.name === player.username) });
   }
   return out;
 }
@@ -443,11 +480,17 @@ const levelWithQueue = (s: VillageState, b: BuildingId): number => s.buildings[b
 
 /** The next level the style wants: the first entry of the order below its target, then the lowest of the tail. */
 function wanted(def: StyleDef, s: VillageState): { building: BuildingId; level: number } | undefined {
-  for (const [b, lvl] of def.order) if (levelWithQueue(s, b) < lvl) return { building: b, level: levelWithQueue(s, b) + 1 };
-  const open = def.tail.filter((b) => levelWithQueue(s, b) < BUILDINGS[b].maxLevel);
-  const b = open.sort((x, y) => levelWithQueue(s, x) - levelWithQueue(s, y))[0];
+  // An entry whose target is beyond the building's maximum is skipped (it would block the whole list for ever).
+  for (const [b, lvl] of def.order) if (levelWithQueue(s, b) < Math.min(lvl, BUILDINGS[b].maxLevel)) return { building: b, level: levelWithQueue(s, b) + 1 };
+  // After the list: the style's own buildings first, then every other building, always the one furthest from its maximum (no dead end).
+  const open = BUILDING_IDS.filter((b) => levelWithQueue(s, b) < BUILDINGS[b].maxLevel);
+  const rank = (b: BuildingId): number => (levelWithQueue(s, b) / BUILDINGS[b].maxLevel) * (def.tail.includes(b) ? 0.85 : 1);
+  const b = open.sort((x, y) => rank(x) - rank(y))[0];
   return b ? { building: b, level: levelWithQueue(s, b) + 1 } : undefined;
 }
+
+/** Is the village still working through the style's build order (not yet in the open-ended part)? */
+const inOrder = (def: StyleDef, s: VillageState): boolean => def.order.some(([b, lvl]) => levelWithQueue(s, b) < Math.min(lvl, BUILDINGS[b].maxLevel));
 
 const nextBuildCost = (def: StyleDef, s: VillageState): Resources => {
   const w = wanted(def, s);
@@ -517,7 +560,7 @@ function buildSteps(ctx: AppContext, player: PlayerRow, vid: number, def: StyleD
     }
     cur ??= wanted(def, s)?.building;
     let queued = false;
-    for (let guard = 0; cur && guard < 4; guard++) {
+    for (let guard = 0; cur && guard < 5; guard++) {
       const c = checkBuild(s, cur, t, ctx.settings);
       if (c.ok) {
         if (hold && !forced) {
@@ -539,6 +582,10 @@ function buildSteps(ctx: AppContext, player: PlayerRow, vid: number, def: StyleD
         forced = true;
       } else if (c.reason === 'population_full' && cur !== 'longhouse') {
         cur = 'longhouse';
+        forced = true;
+      } else if (c.reason === 'not_enough_resources' && cur !== 'goldmine' && s.buildings.goldmine < 1 && buildingCost(cur, levelWithQueue(s, cur) + 1).gold > s.resources.gold) {
+        // Waiting for gold in a village that makes none would last for ever (a founded village has no Gold Mine yet): build the mine.
+        cur = 'goldmine';
         forced = true;
       } else if (c.reason === 'requirements_not_met') {
         const reqs: Partial<Record<BuildingId, number>> = BUILDINGS[cur].requires;
@@ -567,23 +614,33 @@ function researchStep(ctx: AppContext, player: PlayerRow, vid: number, def: Styl
   }
 }
 
+/** Population room troops may still take: a share of the cap minus what buildings use (the rest stays free for building). Negative = over. */
+function troopRoom(def: StyleDef, s: VillageState): number {
+  const share = inOrder(def, s) ? POP_TROOP_SHARE_BUILDING : POP_TROOP_SHARE_DONE;
+  const use = populationUsage(s);
+  return Math.floor(populationCap(s) * share - use.buildings - use.troops);
+}
+
 /** Train the unit of the mix that is furthest behind its weight, from what the next building does not need. */
 function trainStep(ctx: AppContext, player: PlayerRow, vid: number, def: StyleDef, t: number, days: number): void {
   const s = settledState(ctx, vid, t);
   if (!s || s.hearth) return;
   if (days < def.trainFromDay && s.buildings.hall < 5) return;
+  const room = troopRoom(def, s);
+  if (room < 1) return; // keep room for buildings (and, in an old world that is over its cap, wait for the Longhouse)
   const total = def.army.reduce((a, x) => a + x.weight, 0);
   const owned = (u: UnitId): number => s.troops[u] + s.away[u] + queuedOf(s, u);
   const wheel = [...def.army].sort((a, b) => (owned(a.unit) + 1) / (a.weight / total) - (owned(b.unit) + 1) / (b.weight / total));
   for (const { unit } of wheel) {
     const c1 = checkTrain(s, unit, 1, t, ctx.settings);
     if (!c1.ok && c1.reason === 'requirements_not_met') continue; // not trainable yet (building or research missing)
+    if (POP_PER_UNIT[unit] > room) continue;
     const reserve = nextBuildCost(def, s);
     const factor = reserveFactor(def, s);
     const spare = emptyResources();
     for (const id of RESOURCE_IDS) spare[id] = Math.max(0, s.resources[id] - reserve[id] * factor);
     spare.food = Math.max(0, spare.food - storageCap(s) * 0.25); // never let troops eat the food stock down to nothing
-    let n = 40;
+    let n = Math.min(TRAIN_BATCH_BASE + TRAIN_BATCH_PER_LEVEL * s.buildings[UNITS[unit].building], Math.floor(room / POP_PER_UNIT[unit]));
     for (const id of RESOURCE_IDS) if (UNITS[unit].cost[id] > 0) n = Math.min(n, Math.floor(spare[id] / UNITS[unit].cost[id]));
     while (n >= 1) {
       const c = checkTrain(s, unit, n, t, ctx.settings);
@@ -607,15 +664,16 @@ function feastStep(ctx: AppContext, player: PlayerRow, vid: number, def: StyleDe
   const s = settledState(ctx, vid, t);
   if (!s || s.hearth || s.buildings.bannerhall < 1) return 0;
   // No daily limit any more (2026-11-18): the price is the brake. Like the sim players, a bot feasts only to empty a storehouse
-  // that is filling up, and never touches what the next building (or a Chieftain he saves for) needs, so it keeps building.
+  // that is filling up, and never touches what the next building (or a Chieftain he saves for) needs, so it keeps building. It also leaves a floor of every priced
+  // resource for the army: before, a bot at its last building feasted its food away each step and could never train again.
   const cap = storageCap(s);
   const price = feastPrice(s.buildings.bannerhall);
-  if (!RESOURCE_IDS.some((id) => price[id] > 0 && s.resources[id] >= cap * 0.5)) return 0;
+  if (!RESOURCE_IDS.some((id) => price[id] > 0 && s.resources[id] >= cap * FEAST_TRIGGER_SHARE)) return 0;
   const reserve = nextBuildCost(def, s);
   const factor = reserveFactor(def, s);
   let n = FEAST_MAX_COUNT;
   for (const id of RESOURCE_IDS) {
-    if (price[id] > 0) n = Math.min(n, Math.floor((s.resources[id] - Math.max(reserve[id] * factor, hold?.[id] ?? 0)) / price[id]));
+    if (price[id] > 0) n = Math.min(n, Math.floor((s.resources[id] - Math.max(reserve[id] * factor, hold?.[id] ?? 0, cap * FEAST_FLOOR_SHARE)) / price[id]));
   }
   if (n < 1 || !checkFeast(s, n, t, ctx.settings).ok) return 0;
   try {
@@ -819,7 +877,7 @@ function growthTick(ctx: AppContext, meta: BotMeta, t: number, budgetMs: number)
     const player = ctx.store.getPlayer(id);
     const home = ctx.store.villagesOfPlayer(id)[0];
     if (!player || !home) continue;
-    const bot: Bot = { player, home, plan: BOTS.find((b) => b.name === player.username) };
+    const bot: Bot = { player, home, villages: [home], plan: BOTS.find((b) => b.name === player.username) };
     try {
       const res = ctx.store.tx(() => growBot(ctx, bot, t));
       chatMilestone(ctx, bot, res, t);
@@ -839,10 +897,10 @@ const isBusy = (ctx: AppContext, playerId: number): boolean => ctx.store.movemen
 const underAttack = (ctx: AppContext, playerId: number): boolean =>
   ctx.store.movementViewsForPlayer(playerId).some((m) => m.kind === 'attack' && m.target.ownerId === playerId);
 
-/** Send on a mission; false when the real rules refuse (pact, protection, troops away...). */
-function trySend(ctx: AppContext, bot: Bot, x: number, y: number, units: Partial<Units>, mission: Mission, t: number): boolean {
+/** Send on a mission from a village of the bot; false when the real rules refuse (pact, protection, troops away...). */
+function trySend(ctx: AppContext, bot: Bot, fromVillageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number): boolean {
   try {
-    ctx.game.send(bot.player, bot.home.id, x, y, units, mission, t);
+    ctx.game.send(bot.player, fromVillageId, x, y, units, mission, t);
     return true;
   } catch {
     return false;
@@ -850,7 +908,7 @@ function trySend(ctx: AppContext, bot: Bot, x: number, y: number, units: Partial
 }
 
 /** A few abandoned villages near a bot, nearest first. Bots leave the ones a player left with troops inside alone (they raid the Wall-only ones). */
-function nearbyAbandoned(ctx: AppContext, home: VillageRecord, take: number) {
+function nearbyAbandoned(ctx: AppContext, home: { x: number; y: number }, take: number) {
   const R = 14;
   return ctx.store
     .mapVillages(home.x - R, home.x + R, home.y - R, home.y + R)
@@ -861,15 +919,111 @@ function nearbyAbandoned(ctx: AppContext, home: VillageRecord, take: number) {
 
 const pick = <T>(list: readonly T[]): T | undefined => list[Math.floor(Math.random() * list.length)];
 
-/** Pick a bot that has raiders at home and send them at a nearby abandoned village. */
+/** The offensive units a village has at home (Elk Riders and Raiders). */
+function offencePool(state: VillageState): Units {
+  const pool = emptyUnits();
+  for (const u of OFFENCE_UNITS) pool[u] = state.troops[u];
+  return pool;
+}
+const poolSize = (pool: Partial<Units>): number => OFFENCE_UNITS.reduce((n, u) => n + (pool[u] ?? 0), 0);
+const poolAttack = (pool: Partial<Units>): number => OFFENCE_UNITS.reduce((n, u) => n + (pool[u] ?? 0) * UNITS[u].attack, 0);
+
+/** The village of this bot with the most offence at home (settled), and that offence. */
+function strongestStriker(ctx: AppContext, bot: Bot, t: number): { village: VillageRecord; state: VillageState; pool: Units } | undefined {
+  let best: { village: VillageRecord; state: VillageState; pool: Units } | undefined;
+  for (const village of bot.villages) {
+    const state = settleVillage(village.state, t, ctx.settings);
+    if (state.hearth) continue;
+    const pool = offencePool(state);
+    if (!best || poolAttack(pool) > poolAttack(best.pool)) best = { village, state, pool };
+  }
+  return best && poolSize(best.pool) > 0 ? best : undefined;
+}
+
+interface ArmyPlan {
+  units: Partial<Units>;
+  travelMs: number;
+  /** Loot the army can carry home. */
+  carry: number;
+  /** Preview with the worst luck. */
+  attackPower: number;
+  defencePower: number;
+}
+
+interface PlanOptions {
+  /** The attack must beat the defence by this factor (worst luck). */
+  margin: number;
+  /** At most this share of the pool leaves home. */
+  maxShare: number;
+  min: number;
+  /** Loot to carry: the army grows (up to maxShare) until it can carry this much. */
+  carryWanted?: number;
+}
+
+/**
+ * The smallest army out of `pool` that beats `target` by the margin in the worst luck (the real battle rules, a preview) and can carry
+ * the wanted loot; if the loot is more than the allowed share can carry, the largest allowed army that still wins. Null when no
+ * allowed army wins. Sized this way an army grows with the bot, and a bot never sends a handful against a rich village.
+ */
+function planArmy(ctx: AppContext, from: { x: number; y: number }, pool: Units, target: { pos: { x: number; y: number }; state: VillageState }, t: number, o: PlanOptions): ArmyPlan | null {
+  const STEPS = 16;
+  let fallback: ArmyPlan | null = null;
+  for (let k = 1; k <= STEPS; k++) {
+    const f = (k / STEPS) * o.maxShare;
+    const units: Partial<Units> = {};
+    let count = 0;
+    for (const u of OFFENCE_UNITS) {
+      const n = Math.floor(pool[u] * f);
+      if (n > 0) {
+        units[u] = n;
+        count += n;
+      }
+    }
+    if (count < o.min) continue;
+    const travelMs = travelTimeMs(from, target.pos, { ...emptyUnits(), ...units }, ctx.settings);
+    const arrival = settleVillage(target.state, t + travelMs, ctx.settings);
+    const r = resolveBattle({ attackerUnits: { ...emptyUnits(), ...units }, defender: arrival, seed: 1, fixedLuck: -BATTLE_LUCK }, ctx.settings);
+    if (!(r.attackPower > r.defensePower * o.margin)) continue;
+    const carry = OFFENCE_UNITS.reduce((n, u) => n + (units[u] ?? 0) * UNITS[u].carry, 0);
+    const plan: ArmyPlan = { units, travelMs, carry, attackPower: r.attackPower, defencePower: r.defensePower };
+    if (carry >= (o.carryWanted ?? 0)) return plan;
+    fallback = plan;
+  }
+  return fallback;
+}
+
+/** What a raid on this abandoned village can take at most: everything it holds (the Vault share is small next to what a big army carries). */
+const lootableOf = (state: VillageState): number => RESOURCE_IDS.reduce((n, id) => n + Math.max(0, state.resources[id]), 0);
+
+/**
+ * Some bots send their offence at a nearby abandoned village. The army is sized by the real battle rules to win with a wide margin
+ * and to carry what the village holds (never more than 70% of what the strongest village has at home), so raids grow with the army.
+ */
 function botRaid(ctx: AppContext, bots: Bot[], t: number): boolean {
-  const bot = pick(bots.filter((b) => homeNow(ctx, b, t).troops.raider >= 5 && !isBusy(ctx, b.player.id)));
-  if (!bot) return false;
-  const state = homeNow(ctx, bot, t);
-  const target = pick(nearbyAbandoned(ctx, bot.home, 4));
-  if (!target) return false;
-  const raiders = Math.min(state.troops.raider, 40 + state.buildings.hall * 4);
-  return trySend(ctx, bot, target.x, target.y, { raider: raiders }, 'attack', t);
+  const idle = bots.filter((b) => !isBusy(ctx, b.player.id));
+  let sent = 0;
+  for (let tries = 0; tries < 4 && sent < 1 && idle.length > 0; tries++) {
+    const bot = idle.splice(Math.floor(Math.random() * idle.length), 1)[0] as Bot;
+    const striker = strongestStriker(ctx, bot, t);
+    if (!striker || poolSize(striker.pool) < RAID_MIN_UNITS) continue;
+    let best: { x: number; y: number; plan: ArmyPlan; score: number } | undefined;
+    for (const target of nearbyAbandoned(ctx, striker.village, 5)) {
+      const row = ctx.store.getVillage(target.id);
+      if (!row) continue;
+      const loot = lootableOf(settleVillage(row.state, t, ctx.settings));
+      const plan = planArmy(ctx, striker.village, striker.pool, { pos: target, state: row.state }, t, {
+        margin: RAID_MARGIN,
+        maxShare: RAID_MAX_SHARE,
+        min: RAID_MIN_UNITS,
+        carryWanted: loot,
+      });
+      if (!plan) continue;
+      const score = Math.min(plan.carry, loot) / Math.max(1, plan.travelMs); // loot per travel time
+      if (!best || score > best.score) best = { x: target.x, y: target.y, plan, score };
+    }
+    if (best && trySend(ctx, bot, striker.village.id, best.x, best.y, best.plan.units, 'attack', t)) sent++;
+  }
+  return sent > 0;
 }
 
 /** A bot with Pathfinders scouts a nearby abandoned village (the report goes to the bot; this keeps the machinery busy). */
@@ -879,7 +1033,7 @@ function botScout(ctx: AppContext, bots: Bot[], t: number): boolean {
   const state = homeNow(ctx, bot, t);
   const target = pick(nearbyAbandoned(ctx, bot.home, 4));
   if (!target) return false;
-  return trySend(ctx, bot, target.x, target.y, { pathfinder: Math.min(state.troops.pathfinder, 2) }, 'attack', t); // an attack of Pathfinders only scouts
+  return trySend(ctx, bot, bot.home.id, target.x, target.y, { pathfinder: Math.min(state.troops.pathfinder, 2) }, 'attack', t); // an attack of Pathfinders only scouts
 }
 
 /** Every human player (anyone who is not a bot). */
@@ -890,25 +1044,29 @@ function humanPlayers(ctx: AppContext, meta: BotMeta): PlayerRow[] {
 
 interface Attack {
   bot: Bot;
+  fromVillageId: number;
   units: Partial<Units>;
   travelMs: number;
 }
 
 /**
- * Idle bots outside `exclude` as possible attackers of `target`, best first. A bot with stables sends Elk Riders (fast) and the
+ * Idle bots outside `exclude` as possible attackers of `target`, best first. Each sends the smallest army of its strongest village's
+ * Elk Riders and Raiders that beats the target by TRIBE_ATTACK_MARGIN in the worst luck (bots that cannot win stay at home). The
  * candidates are ranked by how close their travel time is to the ideal (~5 min at speed 25, scaled with the world speed; never
  * under ~90 s there, so the target's tribe has time to see the alert).
  */
-function attacksOn(ctx: AppContext, bots: Bot[], exclude: Set<Bot>, target: { x: number; y: number }, t: number, raiders: (hall: number) => number): Attack[] {
+function attacksOn(ctx: AppContext, bots: Bot[], exclude: Set<Bot>, target: { x: number; y: number; state: VillageState }, t: number): Attack[] {
   const out: Attack[] = [];
   for (const bot of bots) {
     if (exclude.has(bot) || isBusy(ctx, bot.player.id)) continue;
-    const state = homeNow(ctx, bot, t);
-    const cap = raiders(state.buildings.hall);
-    const units: Partial<Units> = state.troops.outrider >= 6 ? { outrider: Math.min(state.troops.outrider, cap) } : { raider: Math.min(state.troops.raider, cap) };
-    if (Object.values(units).every((n) => n === 0)) continue;
-    const travelMs = travelTimeMs(bot.home, target, { ...emptyUnits(), ...units }, ctx.settings);
-    out.push({ bot, units, travelMs });
+    const striker = strongestStriker(ctx, bot, t);
+    if (!striker || poolSize(striker.pool) < TRIBE_ATTACK_MIN_UNITS) continue;
+    const plan = planArmy(ctx, striker.village, striker.pool, { pos: target, state: target.state }, t, {
+      margin: TRIBE_ATTACK_MARGIN,
+      maxShare: TRIBE_ATTACK_MAX_SHARE,
+      min: TRIBE_ATTACK_MIN_UNITS,
+    });
+    if (plan) out.push({ bot, fromVillageId: striker.village.id, units: plan.units, travelMs: plan.travelMs });
   }
   const ideal = scaled(ctx, IDEAL_TRAVEL_MS);
   const minWarning = scaled(ctx, MIN_WARNING_MS);
@@ -918,8 +1076,8 @@ function attacksOn(ctx: AppContext, bots: Bot[], exclude: Set<Bot>, target: { x:
 
 /**
  * Tribe warfare for the human to watch: when the human is in a tribe that has bot members, a bot from another tribe
- * attacks the bot village of that tribe nearest to the human, every so often (tribe alerts appear; "Send support"
- * can be tried). The real rules apply: tribe-mates and allies of the attacker's tribe are refused and skipped, and so
+ * attacks a bot village of that tribe (the one hit longest ago, then the nearest to the human, that some rival can beat), every so often (tribe alerts appear;
+ * "Send support" can be tried). The real rules apply: tribe-mates and allies of the attacker's tribe are refused and skipped, and so
  * are mates still under beginner protection.
  */
 function tribeAttacks(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number): boolean {
@@ -944,23 +1102,43 @@ function tribeAttacks(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: numb
 
     const hv = ctx.store.villagesOfPlayer(human.id)[0];
     if (!hv) continue;
-    const target = mates
+    const targets = mates
       .filter((m) => !underAttack(ctx, m.player.id) && !(m.home.ownerProtectedUntil > t))
-      .sort((a, b) => dist(a.home, hv) - dist(b.home, hv))[0];
-    if (!target) continue;
-    for (const a of attacksOn(ctx, bots, new Set(mates), target.home, t, (hall) => 20 + 3 * hall).slice(0, 4)) {
-      if (trySend(ctx, a.bot, target.home.x, target.home.y, a.units, 'attack', t)) {
-        changed = true;
-        break;
+      .sort((a, b) => (lastTribeHit.get(a.player.id) ?? 0) - (lastTribeHit.get(b.player.id) ?? 0) || dist(a.home, hv) - dist(b.home, hv));
+    let done = false;
+    for (const target of targets) {
+      const row = ctx.store.getVillage(target.home.id);
+      if (!row) continue;
+      for (const a of attacksOn(ctx, bots, new Set(mates), { x: target.home.x, y: target.home.y, state: row.state }, t).slice(0, 4)) {
+        if (trySend(ctx, a.bot, a.fromVillageId, target.home.x, target.home.y, a.units, 'attack', t)) {
+          lastTribeHit.set(target.player.id, t);
+          changed = true;
+          done = true;
+          break;
+        }
       }
+      if (done) break;
     }
   }
   return changed;
 }
 
 /**
- * A rare, weak raid on a human village: only once beginner protection is over (and a while after it), then rarely, six
- * raiders. Never while protected; the server refuses that too.
+ * How many raiders a raid on a human village sends: a challenge, never a wipe. At least HUMAN_RAID_MIN_RAIDERS and about
+ * points / 60 (a 700-point village sees 12), more only to stay near 60% of what his village defends with (so a defended village
+ * beats it with room to spare), and never more than points / 20.
+ */
+export function humanRaidSize(humanPoints: number, defencePower: number): number {
+  const floor = Math.max(HUMAN_RAID_MIN_RAIDERS, Math.ceil(humanPoints / HUMAN_RAID_POINTS_PER_RAIDER_FLOOR));
+  const ceiling = Math.max(HUMAN_RAID_MIN_RAIDERS, Math.floor(humanPoints / HUMAN_RAID_POINTS_PER_RAIDER_CAP));
+  const toDefence = Math.ceil((HUMAN_RAID_DEFENCE_SHARE * defencePower) / UNITS.raider.attack);
+  return Math.min(ceiling, Math.max(floor, toDefence));
+}
+
+/**
+ * A raid on a human village, rarely: only once beginner protection is over (and a while after it), then not more often than every
+ * ~12 game hours at speed 1. Sized by humanRaidSize, from the nearest idle bot outside the human's tribe (at most 70% of its raiders, at least 6).
+ * Never while protected; the server refuses that too.
  */
 function humanRaids(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number): boolean {
   let changed = false;
@@ -977,15 +1155,24 @@ function humanRaids(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number
 
     const own = ctx.store.tribes.membership(human.id)?.tribeId;
     const friends = new Set(bots.filter((b) => own !== undefined && ctx.store.tribes.membership(b.player.id)?.tribeId === own));
+    // What his village defends with (a one-raider preview gives the defence power), and his points.
+    const humanState = settleVillage(hv.state, t, ctx.settings);
+    const points = ctx.store.villagesOfPlayer(human.id).reduce((n, v) => n + villagePoints(v.state), 0);
+    const probe = resolveBattle({ attackerUnits: { ...emptyUnits(), raider: 1 }, defender: humanState, seed: 1, fixedLuck: 0 }, ctx.settings);
+    const want = humanRaidSize(points, probe.defensePower);
     let sent = false;
-    // Small and slow: six raiders, from the nearest idle bot outside the human's tribe.
     const nearest = bots
       .filter((b) => !friends.has(b) && !isBusy(ctx, b.player.id))
       .sort((a, b) => dist(a.home, hv) - dist(b.home, hv))
       .slice(0, 4);
     for (const attacker of nearest) {
-      if (homeNow(ctx, attacker, t).troops.raider < HUMAN_RAID_RAIDERS) continue;
-      if (trySend(ctx, attacker, hv.x, hv.y, { raider: HUMAN_RAID_RAIDERS }, 'attack', t)) {
+      const from = attacker.villages
+        .map((v) => ({ v, raiders: settleVillage(v.state, t, ctx.settings).troops.raider }))
+        .sort((a, b) => b.raiders - a.raiders)[0];
+      // The raid is at most `want`, and never more than RAID_MAX_SHARE of the raiders the bot's strongest village has at home.
+      const n = Math.min(want, Math.floor((from?.raiders ?? 0) * RAID_MAX_SHARE));
+      if (!from || n < HUMAN_RAID_MIN_RAIDERS) continue;
+      if (trySend(ctx, attacker, from.v.id, hv.x, hv.y, { raider: n }, 'attack', t)) {
         sent = true;
         break;
       }
@@ -994,7 +1181,7 @@ function humanRaids(ctx: AppContext, bots: Bot[], humans: PlayerRow[], t: number
       ctx.store.setMeta(key, String(t));
       changed = true;
     } else {
-      nextHumanRaidTry.set(human.id, t + 30_000); // pacts or busy bots: look again in a bit
+      nextHumanRaidTry.set(human.id, t + 30_000); // pacts, busy bots or no army big enough: look again in a bit
     }
   }
   return changed;
