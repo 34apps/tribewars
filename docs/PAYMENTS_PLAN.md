@@ -10,11 +10,19 @@ terms, refund policy and privacy policy before the first paid purchase.
 |---|---|
 | What we sell | One in-game currency ("points", name to pick) in packs. No subscriptions. |
 | Premium | Bought with points for 30 days at a time, **never renews by itself**. Covers today's premium tools (5 build slots, auto mode, raid lists, wide map). |
-| Seller | **Xsolla as merchant of record** (they sell to the player in their name). Paddle as second choice. Stripe direct only later. |
+| Seller | **Stripe direct** (owner pick 2026-11-20). We are the seller: we handle refunds, disputes and EU VAT (OSS) ourselves. Xsolla/Paddle stay the fallback if disputes grow. |
 | Refunds | Unspent points: refunded on request within 14 days, one button. Spent points: never. |
 | Disputes | Points removed, balance may go negative, paid features locked until settled; repeat = ban. |
 
-## 2. Why a merchant of record (MoR) first
+## 2. Stripe direct: what we must set up (owner pick)
+
+- **EU VAT:** register for the One-Stop-Shop (OSS) in Estonia; Stripe Tax calculates the VAT per buyer country; prices shown to players include VAT.
+- **3-D Secure on every card payment** (fraud disputes then fall on the bank), **Radar** rules (block mismatched country/IP, cap new accounts), statement name **CLANFIRE**.
+- **Disputes:** webhook `charge.dispute.created` removes the points at once; the lobby submits the evidence pack (section 5) through the Stripe API automatically.
+- **Watch the dispute rate:** alert the owner above 0.5% of payments in a month (card schemes act around 1%).
+- **Terms:** like Tribal Wars' terms, a chargeback without reason costs the player the provider's fee plus a handling fee before the account is unlocked.
+
+## 2b. Fallback: a merchant of record (MoR)
 
 - **Disputes count against their account, not ours.** A wave of "refund for no reason" bank disputes cannot freeze our money or close our account.
 - They handle **EU VAT for every country** (otherwise we register for the EU One-Stop-Shop in Estonia and file VAT for each buyer country ourselves), receipts, refund requests and the dispute paperwork.
@@ -70,4 +78,10 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
 
 1. Name of the currency, pack sizes and prices (suggest 5 / 10 / 25 / 50 EUR packs, premium 30 days = about 5 EUR).
 2. What else points buy besides premium (cosmetics from 18.6?).
-3. Xsolla first, or Paddle first?
+3. ~~Seller~~: Stripe direct (decided 2026-11-20).
+
+## 8. Tribal Wars reference (research 2026-11-20, mobile store prices; browser table not found)
+
+- Points packs (App Store, USD): 80 = 2.99, 200 = 5.99, 600 = 9.99, 1,500 = 19.99, 8,000 = 79.99 (per point drops from 3.7 to 1.0 cent).
+- Premium Account 30 days about 4.99 USD; a second paid tier (Account Manager: automates building and recruiting) on top; a points-to-resources exchange (we will NOT copy this: it sells resources).
+- Terms (InnoGames GTC): 14-day withdrawal ends once the service starts with the player's consent; points are not money and are only paid back if the game closes; chargeback costs the player provider fees + 4 EUR.
