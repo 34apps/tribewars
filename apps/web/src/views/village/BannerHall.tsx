@@ -53,6 +53,8 @@ import {
   takingSteps,
 } from "../../villages.ts";
 import { useCancelJob } from "../cancelJob.tsx";
+import { useAutoTab } from "../../hooks/useAutoTab.ts";
+import { FeastAll } from "./FeastAll.tsx";
 
 function Tick({ ok }: { ok: boolean }) {
   return (
@@ -65,7 +67,32 @@ function Tick({ ok }: { ok: boolean }) {
   );
 }
 
+/** Banner Hall page: with the premium tools in the world a switch picks "This village" (the page below) or "All villages" (FeastAll). */
 export function BannerHallPanel() {
+  const premium = useAutoTab();
+  const [scope, setScope] = useState<"one" | "all">("one");
+  if (!premium) return <BannerHallVillage />;
+  return (
+    <div className="bh-wrap">
+      <div className="bh-switch" role="group" aria-label="Feast scope">
+        {(["one", "all"] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            className="bh-switch-btn"
+            aria-pressed={scope === k}
+            onClick={() => setScope(k)}
+          >
+            {k === "one" ? "This village" : "All villages"}
+          </button>
+        ))}
+      </div>
+      {scope === "all" ? <FeastAll /> : <BannerHallVillage />}
+    </div>
+  );
+}
+
+function BannerHallVillage() {
   const { live, village, settings, applyVillage, refresh, toast } = useGame();
   const { busy, begin, end } = useLock();
   const level = live.buildings.bannerhall;

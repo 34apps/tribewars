@@ -76,7 +76,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'train', test: /^\/api\/villages\/:id\/(train|cancel-train)$/ },
   { bucket: 'research', test: /^\/api\/villages\/:id\/(research|cancel-research)$/ },
   { bucket: 'market', test: /^\/api\/villages\/:id\/ship$/ },
-  { bucket: 'feast', test: /^\/api\/villages\/:id\/feast$/ },
+  { bucket: 'feast', test: /^\/api\/(villages\/:id\/feast|feasts)$/ },
   { bucket: 'chest', test: /^\/api\/villages\/:id\/chest$/ },
   { bucket: 'village', test: /^\/api\/villages(\/:id\/rename)?$/ },
   { bucket: 'mail', test: /^\/api\/mail(\/|$)/ },

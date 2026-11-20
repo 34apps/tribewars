@@ -81,6 +81,15 @@ import {
   applyCancelTrain,
   type CancelResponse,
   applyFeast,
+  checkFeast,
+  feastMaxCount,
+  feastPrice,
+  FEAST_ALL_MAX_VILLAGES,
+  type FeastAllRequest,
+  type FeastAllResponse,
+  type FeastAllResult,
+  type FeastOverviewResponse,
+  type FeastVillageDto,
   collectDefenderRenown,
   defenderEligibleFrom,
   makeRenownInfo,
@@ -2411,6 +2420,60 @@ export class GameService {
       const fresh = this.store.getPlayer(player.id) ?? player;
       const owned = this.store.villagesOfPlayer(player.id).length;
       return { village: this.ownDto(v, state, t), renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned, this.settings), gained };
+    });
+  }
+
+  /** Every owned village on the "Feast in all villages" list, settled to `t`, with Feast price and how many it can pay for. */
+  private feastOverviewOf(player: PlayerRow, t: number): FeastOverviewResponse {
+    const fresh = this.store.getPlayer(player.id) ?? player;
+    const owned = this.store.villagesOfPlayer(player.id);
+    const villages: FeastVillageDto[] = owned.map((v0) => {
+      const v = this.withEntitlement(fresh, v0); // auto mode only settles for an entitled owner (same as GET /api/auto)
+      const state = settleVillage(v.state, t, this.settings);
+      return { id: v.id, name: v.name, x: v.x, y: v.y, bannerhall: state.buildings.bannerhall, price: feastPrice(state.buildings.bannerhall), resources: state.resources, max: feastMaxCount(state, t, this.settings) };
+    });
+    return {
+      serverTime: t,
+      feature: worldRules(this.settings).features.premium,
+      entitled: this.premiumTools(fresh),
+      renown: makeRenownInfo(fresh.renownTotal, fresh.renownSpent, owned.length, this.settings),
+      villages,
+    };
+  }
+
+  /** GET /api/feasts: the caller's villages with Feast price and maximum. Anyone may read it; without the tools it is shown greyed. */
+  feastOverview(player: PlayerRow, t: number): FeastOverviewResponse {
+    return this.feastOverviewOf(player, t);
+  }
+
+  /**
+   * POST /api/feasts: hold Feasts in several villages at once (premium tools). All ids are checked as owned first (nothing held otherwise);
+   * a village that cannot Feast now (no Banner Hall, stock too low) is skipped with its reason. One transaction, Renown added once.
+   */
+  feastAll(player: PlayerRow, body: FeastAllRequest, t: number): FeastAllResponse {
+    return this.store.tx(() => {
+      const fresh = this.store.getPlayer(player.id) ?? player;
+      if (!this.premiumTools(fresh)) throw new GameError('forbidden', 'Feasting in all villages is part of the premium tools, and this account does not have them.');
+      const wanted = body.villages;
+      if (!Array.isArray(wanted) || wanted.length < 1 || wanted.length > FEAST_ALL_MAX_VILLAGES) throw new GameError('invalid_input', 'Pick between 1 and ' + FEAST_ALL_MAX_VILLAGES + ' villages.');
+      if (new Set(wanted.map((w) => w.id)).size !== wanted.length) throw new GameError('invalid_input', 'Each village may be listed once.');
+      const records = wanted.map((w) => this.ownedVillage(fresh, w.id));
+      const results: FeastAllResult[] = [];
+      let total = 0;
+      wanted.forEach((w, i) => {
+        const v = records[i]!;
+        const check = checkFeast(v.state, w.count, t, this.settings);
+        if (!check.ok) {
+          results.push({ id: v.id, held: 0, gained: 0, skipped: { reason: check.reason, message: check.message } });
+          return;
+        }
+        const { state, renown } = applyFeast(v.state, w.count, t, this.settings);
+        this.store.saveVillage(v.id, state, villagePoints(state));
+        total += renown;
+        results.push({ id: v.id, held: w.count, gained: renown });
+      });
+      const gained = total > 0 ? this.store.addRenown(player.id, total) : 0;
+      return { gained, results, overview: this.feastOverviewOf(player, t) };
     });
   }
 

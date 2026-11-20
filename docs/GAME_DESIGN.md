@@ -1201,6 +1201,16 @@ A builder or a defender who is never attacked still reaches the second village; 
    What it costs against a maxed village (BALANCE §17): the 2nd village (1,300 Renown) is 130 Feasts, 4.6 days of ALL that
    village's income at level 4 (9.1 days at level 1 by the scarcest resource); the 5th (5,325) is 533 Feasts, 18.8 days of all income.
 
+   **Feast in all villages (premium tools, owner 2026-11-20).** The Banner Hall page has a switch "This village | All villages".
+   "All villages" lists every own village: Banner Hall level, price of one Feast there, how many Feasts its stock pays for now
+   (`feastMaxCount`), a tick box and a number (default: that most, can be lowered). One button holds the ticked Feasts in every ticked
+   village at once. **No rule change:** the same price per village (its own Banner Hall level), the same 10 Renown per Feast, each
+   village all or nothing and paid from its own stock (nothing moves between villages). A village that cannot by the time of the
+   click (no Banner Hall, stock too low) is skipped and named; the others go ahead. Premium only saves clicks, it gives no Renown a
+   free player cannot earn the same way. Needs the premium tools (world `features.premium` AND `EXTRA_PREMIUM_TOOLS`, same as auto
+   mode); without them the list is shown greyed with a link to the Flames shop. At most `FEAST_ALL_MAX_VILLAGES` (200) villages per
+   request. API: `GET /api/feasts`, `POST /api/feasts` (contract in `packages/engine/src/api.ts`).
+
 4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
    so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
    each unit counted at the average of its infantry and cavalry defence (support troops belong to their owners and stay in the
@@ -1813,6 +1823,16 @@ A builder or a defender who is never attacked still reaches the second village; 
    What it costs against a maxed village (BALANCE §17): the 2nd village (1,300 Renown) is 130 Feasts, 4.6 days of ALL that
    village's income at level 4 (9.1 days at level 1 by the scarcest resource); the 5th (5,325) is 533 Feasts, 18.8 days of all income.
 
+   **Feast in all villages (premium tools, owner 2026-11-20).** The Banner Hall page has a switch "This village | All villages".
+   "All villages" lists every own village: Banner Hall level, price of one Feast there, how many Feasts its stock pays for now
+   (`feastMaxCount`), a tick box and a number (default: that most, can be lowered). One button holds the ticked Feasts in every ticked
+   village at once. **No rule change:** the same price per village (its own Banner Hall level), the same 10 Renown per Feast, each
+   village all or nothing and paid from its own stock (nothing moves between villages). A village that cannot by the time of the
+   click (no Banner Hall, stock too low) is skipped and named; the others go ahead. Premium only saves clicks, it gives no Renown a
+   free player cannot earn the same way. Needs the premium tools (world `features.premium` AND `EXTRA_PREMIUM_TOOLS`, same as auto
+   mode); without them the list is shown greyed with a link to the Flames shop. At most `FEAST_ALL_MAX_VILLAGES` (200) villages per
+   request. API: `GET /api/feasts`, `POST /api/feasts` (contract in `packages/engine/src/api.ts`).
+
 4. **Defender trickle** (owner approved 2026-11-04, built the same day): a small daily Renown amount for keeping a **real defence at home**,
    so a pure defender who is never attacked still reaches the second village. Strength = the village's **own troops at home**,
    each unit counted at the average of its infantry and cavalry defence (support troops belong to their owners and stay in the
@@ -2409,7 +2429,7 @@ buttons; every write and the send answer 403. Never for sale with it: resources,
 
 **Paid extra 2: the wide overview (owner, 2026-11-18).** The overview on the Map page always shows the region round the main map's view, 100 x 100 fields (`OVERVIEW_REGION`), for everybody. A premium player (bit `EXTRA_WIDE_OVERVIEW` (2) of `players.premium`; operator: `npm run admin -- extra <name> overview on|off`) can expand it: 100 / 200 / Whole world, and a Large view (wider side column on desktop, an edge-to-edge block on phones). The two big sizes read one light list `GET /api/map/overview` (premium only, 403 otherwise, cached about 60 s on the server, refreshed by the client at most every 5 minutes and only while the overview is shown) instead of every map chunk. It shows only where villages are and the viewer's relation to them (what the map already shows). Everybody else sees the controls greyed with a line that they are part of Premium. Information only: no resources, troops, speed or fight advantage.
 
-**Paid extra 3: the premium tools (owner, 2026-11-20).** 5 build slots per village and auto mode (section 23). World switch `features.premium` (default OFF for real worlds, ON in the preview; may be changed after the world opens) AND the player's bit `EXTRA_PREMIUM_TOOLS` (4) of `players.premium`; operator: `npm run admin -- extra <name> premium on|off` (`off` also switches auto mode off in the player's villages).
+**Paid extra 3: the premium tools (owner, 2026-11-20).** 5 build slots per village and auto mode (section 23). World switch `features.premium` (default OFF for real worlds, ON in the preview; may be changed after the world opens) AND the player's bit `EXTRA_PREMIUM_TOOLS` (4) of `players.premium`; operator: `npm run admin -- extra <name> premium on|off` (`off` also switches auto mode off in the player's villages). The same tools also unlock "Feast in all villages" on the Banner Hall page (section 18.2): convenience only, no new rule.
 
 ### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
 
