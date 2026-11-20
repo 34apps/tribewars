@@ -75,24 +75,18 @@ export const PREMIUM_BUILD_QUEUE = 5;
 export const PREMIUM_RESEARCH_QUEUE = 5;
 
 // ---- Auto mode (premium; docs/GAME_DESIGN.md "Auto mode"; engine auto.ts) ----
-/** The building / troops balance moves in steps of this many percent. */
-export const AUTO_SHARE_STEP = 10;
-/** Balance a village starts with: this percent of auto mode's spending goes to buildings. */
-export const AUTO_DEFAULT_SHARE = 70;
-/** Units a village starts with when auto mode is first set up. */
-export const AUTO_DEFAULT_UNITS: readonly UnitId[] = ['pikeman', 'guard'];
-/** Units auto mode may recruit: everything but Chieftains and siege units. */
+/** Units auto mode may recruit: everything but Chieftains and siege units (so they can be troop goals). */
 export const AUTO_UNIT_IDS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
-/** Units in one auto recruit order (added to the last waiting batch of the same unit when there is one). */
+/** Largest troop goal per unit (owner, 2026-11-20). */
+export const AUTO_GOAL_MAX_TROOPS = 100000;
+/** Units in one auto recruit order (or what remains of the goal when that is less). */
 export const AUTO_TRAIN_BATCH = 10;
 /** Safety bound on auto purchases worked out in one settle (a long absence); the rest follow on the next settle. */
 export const AUTO_MAX_ACTIONS_PER_SETTLE = 200;
-/** Steady growth plan: build the Longhouse when less than this share of the population room is free. */
+/** Goals: build the Longhouse when less than this share of the population room is free. */
 export const AUTO_POP_ROOM_SHARE = 0.1;
-/** Steady growth plan: build the Storehouse when any stock is at this share of the storehouse cap or more. */
+/** Goals: build the Storehouse when any stock is at this share of the storehouse cap or more. */
 export const AUTO_STORE_FULL_SHARE = 0.9;
-/** Steady growth plan: build the Town Hall when it is this many levels (or more) below the lowest resource building. */
-export const AUTO_HALL_LAG = 2;
 
 /** Research queue: two researches (one running, one waiting). */
 export const MAX_RESEARCH_QUEUE = 2;

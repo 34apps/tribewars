@@ -181,21 +181,16 @@ export interface TrainJob {
 }
 
 /**
- * Auto mode (premium, docs/GAME_DESIGN.md "Auto mode"): the village spends its own income on buildings and troops by itself.
+ * Auto mode (premium, docs/GAME_DESIGN.md "Auto mode"): the village works toward the goals the player set, with its own income.
  * Present once the player has set it up; the engine runs it inside `settleVillage` only while `on` (and never on an abandoned
  * village). The server writes it only for an entitled owner and switches it off when the entitlement ends or the owner changes.
  */
 export interface AutoModeState {
   on: boolean;
-  /** Percent of what auto mode spends that goes to buildings (0..100 in steps of AUTO_SHARE_STEP); the rest goes to troops. */
-  buildShare: number;
-  /** Units it recruits, one order at a time in this order (AUTO_UNIT_IDS only, no repeats). Empty = buildings only. */
-  units: UnitId[];
-  /** Resources (wood + food + iron + gold) auto mode spent on buildings / troops since it was last switched on or changed. */
-  spentBuild: number;
-  spentTroops: number;
-  /** Index into `units` of the unit it recruits next. */
-  nextUnit: number;
+  /** Troop goals: how many of a unit the village should have (home + away + in training). AUTO_UNIT_IDS only; only amounts above 0 are kept. */
+  troopGoals: Partial<Record<UnitId, number>>;
+  /** Building goals: the level to reach (built + queued). Any building; only levels above 0 are kept. */
+  buildingGoals: Partial<Record<BuildingId, number>>;
 }
 
 export interface NpcInfo {
