@@ -50,20 +50,26 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
 
-## Analytics (owner 2026-11-20, plan only, NOT wired)
+## Analytics (owner decided 2026-11-20; being built)
 
-- The owner's own analytics service (project `clanflame`, write-only key) is to be used for web now and iOS/Android later.
-- The full plan, the debate and the draft event list are in `docs/ANALYTICS.md`.
-- Agreed:
-  - no per-click tracking;
-  - about 15 named moments plus one `page_open` per page per session;
-  - off in the preview and dev.
-- Waiting for the owner on three choices: how to ask consent (our privacy policy currently says "no analytics"), the event list, and production-only.
-- Never change AWS, the server or keys.
+- The owner's own analytics service (project `clanflame`) is used for web now and iOS/Android later. Plan and events: `docs/ANALYTICS.md`.
+- Owner decisions (don't re-ask):
+  - track everyone, no consent card;
+  - the lean list;
+  - real game only (off in the preview and dev).
+- How we do that:
+  - events go from OUR world server and lobby, not the browser, so nothing is stored on the device and no card is needed;
+  - a quiet opt-out switch in account settings, on by default;
+  - the privacy texts are updated.
+- Lean list:
+  - the sign-up funnel, `world_enter` once a day, `page_open`, `shop_open`, `iap_done`/`iap_refund`, `premium_buy`;
+  - build/train/attack numbers come from our own database instead.
+- Known cost: no `country`, because our server's address would be read. Getting it back needs the owner's analytics server.
+- Never change AWS, the analytics server or keys.
 
 ## NEXT JOB
 
-Wire analytics once the owner answers (checklist in `docs/ANALYTICS.md` §5). After the mounted pictures land: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
+Analytics is being built in a worktree (checklist in `docs/ANALYTICS.md` §4). Then: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
