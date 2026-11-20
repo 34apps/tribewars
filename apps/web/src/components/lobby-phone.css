@@ -683,3 +683,10 @@ html:has(.lp-home:not(.lp-home-in)) body {
     transform: none;
   }
 }
+
+.lp-menu-flames {
+  margin: 0 12px 4px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--accent);
+}

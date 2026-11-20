@@ -99,6 +99,8 @@ export interface PlayerDto {
   researchQueueLimit: number;
   /** This account has the premium tools (5 build slots, auto mode) AND the world has `features.premium`. Absent = no. */
   premiumTools?: boolean;
+  /** Premium bought with Flames in the lobby shop for this world: active until this moment (ms since epoch). Absent or 0 = none. */
+  premiumUntil?: number;
 }
 
 // POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
@@ -2619,6 +2621,174 @@ export interface EntryPassClaims {
   /** Optional: the account's badges as a per-kind summary (at most one entry per BadgeKind; count 1-999, bestPlace 1-10 or null,
    *  non-null only for 'top10'). A world refuses a pass with a malformed `bdg`; a pass without it leaves the stored badges unchanged. */
   bdg?: BadgeSummaryDto[];
+  /** Optional: Premium bought with Flames for THIS world, active until this moment (ms since epoch); 0 = none or locked (the account
+   *  owes Flames after a bank dispute). A world copies it onto the player at every entry (`players.premium_until`); a pass without it
+   *  leaves the stored value unchanged. Safe integer >= 0, else the pass is refused. */
+  prm?: number;
+}
+
+// ---- Flames shop (docs/PAYMENTS_PLAN.md; lobby only, account level) ---------------------------------------------------------------
+// Flames are the one in-game currency, bought in packs through Stripe Checkout (hosted: card data never reaches us) and spent on
+// Premium (30 days in one world, never renews by itself) and looks (GAME_DESIGN 18.6). The lobby owns the balance (a ledger: the
+// balance is always the sum), the purchases, the consent records and the Stripe webhook. Worlds never hold money: they learn about
+// Premium through the entry-pass claim `prm`. Prices and packs come only from the lobby's own catalogue, never from the client.
+//   GET  /lobby/api/shop                       (signed in) -> 200 ShopResponse
+//   GET  /lobby/api/shop/balance               (signed in) -> 200 ShopBalanceResponse (small; the world's account menu)
+//   POST /lobby/api/shop/age        body ShopAgeRequest      (signed in) -> 200 ShopResponse. Once per account (support changes it later);
+//        409 too_late when already set
+//   POST /lobby/api/shop/checkout   body ShopCheckoutRequest (signed in) -> 200 ShopCheckoutResponse (redirect the browser to `url`)
+//        403 forbidden when payments are off, the account may not pay (dispute ban) or no age group is set; 400 without the consent tick
+//        (and, under 18, the parent tick); 409 too_late for a stale terms version; 409 not_enough_resources past the under-18 monthly cap.
+//        Buying is allowed while locked: new Flames fill the minus first.
+//   POST /lobby/api/shop/settle     body {}                  (signed in) -> 200 ShopCheckoutResponse: Stripe checkout for the open dispute
+//        fees (provider fee + 4 EUR handling; no handling fee when the bank's reason was fraud); 409 too_late when nothing is open
+//   POST /lobby/api/shop/spend      body ShopSpendRequest    (signed in) -> 200 ShopResponse; 409 not_enough_resources when the balance is short;
+//        403 forbidden while locked
+//   POST /lobby/api/shop/purchases/:id/refund  body {}       (signed in, own purchase) -> 200 ShopResponse; 409 too_late after 14 days
+//        or when any Flames of that purchase are spent (Flames are spent oldest first; a refund is always the whole purchase)
+//   POST /lobby/api/stripe/webhook  (Stripe only: signed with STRIPE_WEBHOOK_SECRET; raw JSON body) -> 200 { received: true }
+
+/** One Flames pack for sale. Euro amounts are in cents and include VAT. */
+export interface FlamesPackDto {
+  id: string;
+  flames: number;
+  priceCents: number;
+  currency: 'eur';
+}
+
+/** Something Flames buy. `eurCents` is the euro value shown next to the Flames price (EU rule), at the smallest pack's rate. */
+export interface ShopItemDto {
+  id: string;
+  kind: 'premium' | 'look';
+  name: string;
+  priceFlames: number;
+  eurCents: number;
+  /** Premium only: days added per purchase. */
+  days?: number;
+  /** Looks only: already owned by this account. */
+  owned?: boolean;
+}
+
+/** Premium of this account in one world that sells it. */
+export interface ShopPremiumWorldDto {
+  worldId: string;
+  worldName: string;
+  /** Active until (ms since epoch); 0 = none. */
+  until: number;
+}
+
+export type PurchaseStatus = 'pending' | 'paid' | 'refunded' | 'disputed' | 'dispute_lost' | 'dispute_won' | 'expired';
+
+export interface PurchaseDto {
+  id: number;
+  /** 'flames' = a pack; 'settle' = paying open dispute fees (no Flames, never refundable with the button). */
+  kind: 'flames' | 'settle';
+  /** Receipt number shown to the player (e.g. "CF-000123"). */
+  receiptNo: string;
+  /** Pack id ('' for a settlement). */
+  packId: string;
+  flames: number;
+  priceCents: number;
+  currency: 'eur';
+  status: PurchaseStatus;
+  createdAt: number;
+  paidAt: number | null;
+  /** Card used, from Stripe (null until known). */
+  cardBrand: string | null;
+  cardLast4: string | null;
+  /** Flames the refund button would remove now: the whole purchase, or 0 when it cannot be refunded. */
+  refundableFlames: number;
+  /** Euro cents that refund would pay back: the full price, or 0. */
+  refundableCents: number;
+  /** Why a paid pack cannot be refunded with the button: some of its Flames are spent, or the 14 days are over. null otherwise. */
+  refundBlock: 'spent' | 'too_late' | null;
+  /** Last moment a refund can be asked for (paidAt + 14 days); null while not paid. */
+  refundUntil: number | null;
+  /** Flames already refunded (and the cents paid back). */
+  refundedFlames: number;
+  refundedCents: number;
+}
+
+/** One bank dispute shown as a banner on the shop page. */
+export interface ShopDisputeDto {
+  purchaseId: number;
+  receiptNo: string;
+  priceCents: number;
+  flames: number;
+  /** Open, or closed in the player's favour (won: Flames back, fees cancelled) or not (lost). */
+  state: 'open' | 'won' | 'lost';
+  openedAt: number;
+}
+
+export interface ShopResponse {
+  /** Current balance; negative after a bank dispute on Flames that were already spent. */
+  balance: number;
+  /** Paid features are locked: the balance is below zero OR dispute fees are open. Premium is not passed to worlds and nothing can be
+   *  spent; buying Flames is still allowed (they fill the minus first). */
+  locked: boolean;
+  /** Open dispute fees in euro cents (provider fee + handling fee); paid with POST /lobby/api/shop/settle. */
+  openFeesCents: number;
+  /** Disputes of this account, newest first (for the banners). */
+  disputes: ShopDisputeDto[];
+  /** Self-declared at the first purchase; null = not asked yet. */
+  ageGroup: 'adult' | 'minor' | null;
+  /** Under-18 limit per calendar month (euro cents) and what was bought this month (paid and pending packs). */
+  minorMonthlyCapCents: number;
+  minorBoughtThisMonthCents: number;
+  /** This account may not buy Flames any more (second dispute or fraud). */
+  paymentsBanned: boolean;
+  /** Payments are switched on in this lobby (Stripe keys set). False: packs are shown, checkout answers 403. */
+  paymentsEnabled: boolean;
+  packs: FlamesPackDto[];
+  items: ShopItemDto[];
+  /** Worlds that sell Premium (operator switch per world), with this account's Premium there. */
+  premiumWorlds: ShopPremiumWorldDto[];
+  /** Newest first, at most SHOP_PURCHASES_MAX. */
+  purchases: PurchaseDto[];
+  /** Exact text of the required checkout tick box and the terms version it belongs to (sent back in ShopCheckoutRequest). */
+  consentText: string;
+  /** Small text under the tick box. */
+  consentNote: string;
+  /** Second required tick box for under-18 accounts. */
+  parentConsentText: string;
+  termsVersion: string;
+  /** Days a purchase's unspent Flames can be refunded. */
+  refundDays: number;
+}
+
+export const SHOP_PURCHASES_MAX = 50;
+
+export interface ShopBalanceResponse {
+  balance: number;
+  locked: boolean;
+}
+
+export interface ShopAgeRequest {
+  ageGroup: 'adult' | 'minor';
+}
+
+export interface ShopCheckoutRequest {
+  packId: string;
+  /** The required tick box: must be true. */
+  consent: boolean;
+  /** Under-18 accounts only: the parent/guardian tick, must be true. */
+  parentConsent?: boolean;
+  /** Must equal ShopResponse.termsVersion (else 409 too_late: reload the shop). */
+  termsVersion: string;
+}
+
+export interface ShopCheckoutResponse {
+  /** Stripe-hosted checkout page (always https://checkout.stripe.com/...). */
+  url: string;
+}
+
+export interface ShopSpendRequest {
+  /** A ShopItemDto id. */
+  itemId: string;
+  /** Premium only: the world it is for (one of `premiumWorlds`). */
+  worldId?: string;
+  /** Client-made id (16-64 url-safe characters), unique per spend: a repeated request with the same id spends only once. */
+  requestId: string;
 }
 
 // ---- Raid lists, a paid extra (docs/GAME_DESIGN.md "Raid lists") ------------------------------------------------------------

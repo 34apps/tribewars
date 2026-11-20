@@ -28,6 +28,7 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import { verifyEntryPass, type EntryKey } from './entry-pass.ts';
+import { effectivePremium } from './entitlement.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { awayFromSites, sitesFor, withoutSiteTiles } from './site-layout.ts';
@@ -139,8 +140,9 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    const premiumTools = worldRules(this.settings).features.premium && hasPremiumToolsExtra(p.premium);
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), premiumTools), researchQueueLimit: researchQueueLimit(worldRules(this.settings), premiumTools), ...(premiumTools ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    const bits = effectivePremium(p, this.now());
+    const premiumTools = worldRules(this.settings).features.premium && hasPremiumToolsExtra(bits);
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), premiumTools), researchQueueLimit: researchQueueLimit(worldRules(this.settings), premiumTools), ...(premiumTools ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(bits) ? { wideOverview: true as const } : {}), ...(p.premiumUntil > 0 ? { premiumUntil: p.premiumUntil } : {}) };
   }
 
   /** The player has read the "villages abandoned" news: clear it and return the updated row. */
@@ -265,6 +267,12 @@ export class AuthService {
       if (player.staffRole !== claims.role) {
         this.store.staff.setStaffRole(player.id, claims.role);
         this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'role_sync', targetPlayer: player.id, detail: `${player.staffRole ?? 'none'} -> ${claims.role ?? 'none'}` });
+        player = this.store.getPlayer(player.id) ?? player;
+      }
+      // Premium bought with Flames (this world): copied at every entry; a pass without the claim leaves it alone.
+      if (claims.prm !== undefined && claims.prm !== player.premiumUntil) {
+        this.store.setPremiumUntil(player.id, claims.prm);
+        this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'premium_sync', targetPlayer: player.id, detail: `${player.premiumUntil} -> ${claims.prm}` });
         player = this.store.getPlayer(player.id) ?? player;
       }
       // Badges of the account (all worlds), copied like the role; a pass without the claim leaves them unchanged.

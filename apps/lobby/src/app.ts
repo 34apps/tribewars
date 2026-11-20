@@ -9,8 +9,13 @@ import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
 import { authRoutes } from './routes/auth.ts';
+import { shopRoutes } from './routes/shop.ts';
+import { WEBHOOK_PATH, stripeRoutes } from './routes/stripe.ts';
 import { worldRoutes } from './routes/worlds.ts';
 import { CSP, HSTS, PERMISSIONS_POLICY, originAllowed } from './security.ts';
+import { LOOKS, type ShopLook } from './shop/catalogue.ts';
+import type { PaymentGateway } from './shop/gateway.ts';
+import { ShopService } from './shop/service.ts';
 import { Store } from './store.ts';
 import { rewriteLobbyUrl } from './worlds.ts';
 
@@ -46,6 +51,16 @@ export interface BuildAppOptions {
   maxAccountsPerIp?: number;
   /** A correct but weak password must be replaced at the next sign-in (PASSWORD_UPGRADE_ON_LOGIN). Default off. */
   requirePasswordUpgrade?: boolean;
+  /** Payment provider. Absent = payments are off (the shop is shown, checkout answers 403). Needs `webhookSecret` and `publicUrl`. */
+  payments?: PaymentGateway;
+  /** Stripe webhook signing secret (STRIPE_WEBHOOK_SECRET). Secret: never logged. */
+  webhookSecret?: string;
+  /** Public address of the site, scheme://host: the Stripe return URLs (PUBLIC_URL). */
+  publicUrl?: string;
+  /** Looks for sale. Default: the catalogue's (none yet); tests inject some. */
+  looks?: readonly ShopLook[];
+  /** Owner alert text sink (ALERT_WEBHOOK_URL in production, a function in tests). */
+  notify?: (text: string) => Promise<void>;
 }
 
 function isApiPath(url: string): boolean {
@@ -84,8 +99,22 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const production = process.env.NODE_ENV === 'production';
   const secureCookies = opts.secureCookies ?? production;
   if (production && !secureCookies) throw new Error('Refusing to start: the session cookie must be Secure when NODE_ENV=production.');
+  if (opts.payments && (!opts.webhookSecret || !opts.publicUrl)) {
+    throw new Error('Refusing to start: payments need both a webhook secret and the public URL.');
+  }
+  const shop = new ShopService({
+    store,
+    now,
+    gateway: opts.payments && opts.webhookSecret && opts.publicUrl ? opts.payments : null,
+    publicUrl: opts.publicUrl ?? null,
+    looks: opts.looks ?? LOOKS,
+    log: app.log,
+    notify: opts.notify,
+  });
   const ctx: AppContext = {
     store,
+    shop,
+    webhookSecret: shop.paymentsEnabled ? (opts.webhookSecret ?? null) : null,
     now,
     auth: new AuthService(store, now, opts.maxAccountsPerIp ?? 0, opts.requirePasswordUpgrade ?? false),
     signingKey: opts.signingKey,
@@ -158,7 +187,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const writeIpLimiter = new RateLimiter(RATE_WRITE_PER_IP, 60_000);
   const writeSessionLimiter = new RateLimiter(RATE_WRITE_PER_SESSION, 60_000);
   app.addHook('onRequest', async (req, reply) => {
-    if (!isApiPath(req.url) || req.url.split('?', 1)[0] === '/api/health') return;
+    // The Stripe webhook has its own limiter (routes/stripe.ts); the global per-IP ones must not refuse a burst of Stripe retries.
+    if (!isApiPath(req.url) || req.url.split('?', 1)[0] === '/api/health' || req.url.split('?', 1)[0] === WEBHOOK_PATH) return;
     const t = req.nowMs;
     let ok = apiLimiter.allow(req.ip, t);
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
@@ -182,6 +212,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   });
   authRoutes(app, ctx);
   worldRoutes(app, ctx);
+  shopRoutes(app, ctx);
+  await stripeRoutes(app, ctx);
 
   app.setNotFoundHandler(async (_req, reply) => reply.code(404).send(errorBody('not_found', 'Not found.')));
 

@@ -2,6 +2,14 @@
 
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
+import { StripeGateway } from './shop/gateway.ts';
+
+/** Owner alerts: POST {text} as JSON. A failing endpoint never breaks the lobby (the caller catches). */
+function postAlert(url: string): (text: string) => Promise<void> {
+  return async (text) => {
+    await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: AbortSignal.timeout(10_000) });
+  };
+}
 
 loadDotEnv();
 const env = loadEnv(); // fails fast (without printing the key) when LOBBY_SIGNING_KEY is missing or not an Ed25519 key
@@ -14,6 +22,10 @@ const app = await buildApp({
   allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
   requirePasswordUpgrade: env.requirePasswordUpgrade,
+  payments: env.paymentsEnabled && env.stripeSecretKey ? new StripeGateway({ secretKey: env.stripeSecretKey, tax: env.stripeTax }) : undefined,
+  webhookSecret: env.stripeWebhookSecret ?? undefined,
+  publicUrl: env.publicUrl ?? undefined,
+  notify: env.alertWebhookUrl ? postAlert(env.alertWebhookUrl) : undefined,
   logger: true,
 });
 

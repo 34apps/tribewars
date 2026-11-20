@@ -4,6 +4,12 @@ import { DEVICE_HEADER, deviceId } from './device.ts';
 
 import type {
   ApiError,
+  ShopAgeRequest,
+  ShopBalanceResponse,
+  ShopCheckoutRequest,
+  ShopCheckoutResponse,
+  ShopResponse,
+  ShopSpendRequest,
   ApplyRequest,
   AuthRequest,
   BuildRequest,
@@ -267,6 +273,17 @@ export const api = {
   /** End every lobby session of the account; worlds follow within hours (their lobby-linked sessions are short). */
   lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
   lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
+  // ---- Flames shop (lobby, signed in) ----
+  lobbyShop: () => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop`),
+  /** Small: the balance shown in the world's account menu. */
+  lobbyShopBalance: () => lobbyRequest<ShopBalanceResponse>('GET', `${lobbyApiBase}/shop/balance`),
+  lobbyCheckout: (body: ShopCheckoutRequest) => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/checkout`, body),
+  lobbySpend: (body: ShopSpendRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/spend`, body),
+  /** Self-declared age group, once per account (before the first purchase). */
+  lobbyShopAge: (body: ShopAgeRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/age`, body),
+  /** Pay open dispute fees: answers a Stripe checkout address like a purchase. */
+  lobbyShopSettle: () => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/settle`, {}),
+  lobbyRefund: (purchaseId: number) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/purchases/${encodeURIComponent(String(purchaseId))}/refund`, {}),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   /** Signed-out homepage strip: open and full worlds, public fields only. */
   lobbyPublicWorlds: () => lobbyRequest<PublicWorldsResponse>('GET', `${lobbyApiBase}/worlds/public`),

@@ -79,7 +79,7 @@ test('admin: world-add, worlds, world-status, world-rename, world-remove', () =>
   assert.equal(run('world-add', 'w1', 'First', 'World'), 0, err.join('\n'));
   assert.equal(run('world-add', 'w2', 'Second', '--path=/play/w2/', '--status=full'), 0, err.join('\n'));
   const w1 = store.getWorld('w1');
-  assert.deepEqual({ ...w1, createdAt: 0 }, { id: 'w1', name: 'First World', status: 'open', path: '/w/w1/', createdAt: 0, sortOrder: 10 });
+  assert.deepEqual({ ...w1, createdAt: 0 }, { id: 'w1', name: 'First World', status: 'open', path: '/w/w1/', createdAt: 0, sortOrder: 10, shopPremium: false });
   assert.ok((w1?.createdAt ?? 0) > 1_000);
   assert.deepEqual(store.listWorlds().map((w) => [w.id, w.status, w.path, w.sortOrder]), [
     ['w1', 'open', '/w/w1/', 10],

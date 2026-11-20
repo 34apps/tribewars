@@ -1830,3 +1830,21 @@ button.vtab-name:focus-visible {
 .hud .vtab {
   pointer-events: auto;
 }
+
+/* Flames shop link and Premium line in the account menus */
+.acct-premium {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.acct-shop {
+  gap: 8px;
+}
+
+.acct-flames {
+  padding-left: 8px;
+  border-left: 2px solid var(--edge);
+  font-weight: 800;
+}

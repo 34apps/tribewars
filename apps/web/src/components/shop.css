@@ -1,0 +1,586 @@
+/* Flames shop page (lobby #shop). Frame classes (.aw, .aw-bar, .lp-round) come from lobby-phone.css. Semantic tokens only. */
+
+.shop-bar-in {
+  max-width: 1180px;
+}
+
+.shop-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 14px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shop-paid {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.shop-ok {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.shop-balance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--edge), 0 4px 0 var(--edge-shadow);
+}
+
+.shop-flame {
+  display: inline-flex;
+  flex: none;
+}
+
+.shop-balance-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shop-balance-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--on-surface-muted);
+}
+
+.shop-balance-num {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.05;
+  color: var(--heading);
+}
+
+.shop-balance-num.is-neg {
+  color: var(--danger);
+}
+
+.shop-warn {
+  flex: 1 1 260px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.shop-card {
+  min-width: 0;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--edge), 0 4px 0 var(--edge-shadow);
+}
+
+.shop-h {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.1;
+  color: var(--heading);
+}
+
+.shop-sub {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.shop-fine {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--on-surface-muted);
+}
+
+.shop-eur {
+  color: var(--on-surface-muted);
+  font-weight: 600;
+}
+
+/* Packs: two per row on a phone (the last one centred), five in a row when there is room. */
+.shop-packs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shop-packs .shop-pack:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.shop-pack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-height: 112px;
+  padding: 10px 6px;
+  border: 2px solid var(--edge);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.shop-pack.is-on {
+  border-color: var(--c-ink);
+  background: var(--c-sun-hi);
+  box-shadow: inset 0 0 0 2px var(--c-sun);
+}
+
+.shop-pack:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 2px;
+}
+
+.shop-pack-flames {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.05;
+  color: var(--heading);
+}
+
+.shop-pack-unit {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--on-surface-muted);
+}
+
+.shop-pack.is-on .shop-pack-unit,
+.shop-pack.is-on .shop-pack-bonus {
+  color: var(--on-fill);
+}
+
+.shop-pack-price {
+  margin-top: 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.shop-pack-bonus {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.shop-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shop-consent input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--c-moss);
+}
+
+.shop-buy {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 10px;
+  font-size: 1.1rem;
+}
+
+.shop-buy + .shop-fine {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.shop-item + .shop-item {
+  margin-top: 14px;
+}
+
+.shop-item-title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin: 0 0 2px;
+}
+
+.shop-worlds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shop-world {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.shop-world-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shop-world-name {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.shop-world-state {
+  font-size: 0.85rem;
+  color: var(--on-surface-muted);
+}
+
+.shop-world-state.is-on {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.shop-world-btn {
+  min-height: 44px;
+  font-size: 0.92rem;
+}
+
+.shop-need {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--warn);
+}
+
+/* History */
+.shop-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shop-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.shop-row-date {
+  font-size: 0.85rem;
+  color: var(--on-surface-muted);
+}
+
+.shop-row-pack {
+  font-weight: 800;
+  grid-column: 1;
+}
+
+.shop-row-eur {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-weight: 800;
+  text-align: right;
+}
+
+.shop-row-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  grid-column: 1 / -1;
+}
+
+.shop-row-act {
+  grid-column: 1 / -1;
+}
+
+.shop-row-act:empty {
+  display: none;
+}
+
+.shop-row-act .btn {
+  width: 100%;
+  text-align: center;
+}
+
+.shop-tag-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.shop-tag-bad {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.shop-tag-info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.shop-tag-plain {
+  background: var(--surface-3);
+  color: var(--on-surface);
+}
+
+.shop-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.shop-confirm-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shop-confirm-btns .btn {
+  flex: 1 1 120px;
+}
+
+.shop-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--on-surface-muted);
+}
+
+.shop-foot p {
+  margin: 0;
+}
+
+.shop-foot nav {
+  display: flex;
+  gap: 4px;
+}
+
+.shop-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--link);
+  font-weight: 700;
+}
+
+@media (min-width: 640px) {
+  .shop-packs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .shop-packs .shop-pack:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+  .shop-row {
+    grid-template-columns: 175px minmax(0, 0.8fr) 90px 235px minmax(0, 1.6fr);
+    gap: 12px;
+  }
+
+  .shop-row-date,
+  .shop-row-pack,
+  .shop-row-eur,
+  .shop-row-status,
+  .shop-row-act {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .shop-row-date {
+    white-space: nowrap;
+  }
+
+  .shop-row-status {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .shop-row-act .btn {
+    width: auto;
+  }
+}
+
+/* Desktop: Buy and Spend side by side, history under them; everything fits 1440x900 without scrolling. */
+@media (min-width: 900px) {
+  .shop-main {
+    padding-top: 10px;
+    padding-bottom: 8px;
+    gap: 10px;
+  }
+
+  .shop-balance {
+    padding: 6px 16px;
+  }
+
+  .shop-flame svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .shop-balance-num {
+    font-size: 1.7rem;
+  }
+
+  .shop-foot {
+    flex-direction: row;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .shop-row {
+    padding: 6px 12px;
+  }
+
+  .shop-card {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+
+  .shop-h {
+    margin-bottom: 8px;
+  }
+
+  .shop-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .shop-pack {
+    min-height: 92px;
+  }
+}
+
+.shop-dispute {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.shop-dispute p {
+  flex: 1 1 300px;
+  margin: 0;
+}
+
+.shop-dispute-btns,
+.shop-age-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shop-age {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.shop-age p {
+  margin: 0;
+}
+
+.shop-age-btns .btn {
+  flex: 1 1 150px;
+}
+
+.shop-packs.is-off {
+  opacity: 0.55;
+}
+
+.shop-pack:disabled {
+  cursor: not-allowed;
+}
+
+.shop-pack-vat {
+  font-size: 0.68rem;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--on-surface-muted);
+}
+
+.shop-pack.is-on .shop-pack-vat {
+  color: var(--on-fill);
+}
+
+.shop-minor {
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.shop-note {
+  margin-top: 6px;
+}
+
+.shop-note a,
+.shop-accept a {
+  color: var(--link);
+  font-weight: 700;
+}
+
+.shop-accept {
+  margin-top: 10px;
+}
+
+.shop-dialog-title,
+.shop-dialog-line {
+  margin: 0;
+}
+
+.shop-row-act .shop-fine {
+  display: block;
+}

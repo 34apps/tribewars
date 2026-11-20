@@ -61,7 +61,7 @@ A world never sees a password once it uses the lobby.
 `clanfire-entry-pass-v1\n<payload part exactly as sent>`. Claims: `v` (1), `kid`, `aid` (account id), `name`, `wid`
 (the one world id it is for), `chn` (chieftain portrait), `role` (staff role or null), `iat`, `exp` (60 s, a world
 refuses a lifetime above 120 s whatever the signer says; `iat` may be at most 10 s in the future), `nonce`
-(22+ random characters). Keys travel as base64 DER: private = PKCS#8 (`LOBBY_SIGNING_KEY`, lobby only), public =
+(22+ random characters), and optionally `bdg` (badges) and `prm` (Premium bought with Flames for this world: active until, ms; 0 = none or locked; the world stores it as `players.premium_until` at every entry, see `docs/PAYMENTS_PLAN.md`). Keys travel as base64 DER: private = PKCS#8 (`LOBBY_SIGNING_KEY`, lobby only), public =
 SPKI (`LOBBY_PUBLIC_KEY`, worlds); `kid` = first 16 hex characters of the SHA-256 of the public SPKI DER.
 
 **World side** (`POST /w/<id>/api/auth/enter`, body `{ pass }`; 404 when `LOBBY_PUBLIC_KEY` is not set)

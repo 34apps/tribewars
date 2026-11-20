@@ -1566,9 +1566,23 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 `tribe_project_runs`, `tribe_store_ledger`, `tribe_store_sends` and `movements.to_tribe_store`; routes `GET /api/tribe/projects`,
 `POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
-### 18.6 Cosmetics-only shop
+### 18.6 The shop: Flames buy Premium and looks (owner, 2026-11-20; built 2026-11-20)
 
-> **Note 2026-11-20:** the owner overrode the "extra slots are never sold" part of this section for one paid extra, the premium tools (5 build slots per village and auto mode, section 23). Cosmetics stay as described here.
+> **Owner decision 2026-11-20 (replaces "cosmetics only"):** the shop sells **Premium convenience** and **looks**, both paid with one in-game currency,
+> **Flames**. Premium = the premium tools (5 build slots and 5 research slots per village, auto mode; section 23) plus the paid extras raid lists and
+> the wide overview, **30 days in one world for 150 Flames, never renews by itself**; buying again while active adds 30 days to the end. **Still never
+> sold, in any world:** troops, resources, gold, protection time, battle strength, Renown, badges, instant finishes, village limit. The older
+> wording below ("looks only", "extra queue slots never sold") is kept for history; where it disagrees, this note wins.
+>
+> **How the money works** (`docs/PAYMENTS_PLAN.md`): Flames are bought in packs in the lobby (3 EUR = 100, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000,
+> VAT included) through Stripe's hosted checkout; every Flames price also shows its euro value (at the smallest pack's rate, so 150 Flames = about
+> 4.50 EUR). The balance belongs to the **account** (all worlds) and is the sum of a ledger. A required tick box at checkout records the waiver of
+> the 14-day withdrawal right for Flames that are used (time + terms version). **Unspent** Flames of a purchase can be refunded within 14 days with one
+> button (Flames are spent oldest first, so the newest purchase is the most refundable); spent Flames are not refunded. A bank dispute removes the
+> purchase's Flames at once; the balance may go negative, and then Premium, spending and buying stay locked until it is back to zero; a second
+> dispute ends buying for that account. Worlds never hold money: the lobby tells a world through the signed entry pass (claim `prm`) until when
+> Premium runs there, and the world switches (`features.premium`, `features.raidLists`) still decide whether a world offers the tools at all.
+> Looks are catalogue plumbing only (no look is for sale yet).
 
 **How it works**
 - The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or

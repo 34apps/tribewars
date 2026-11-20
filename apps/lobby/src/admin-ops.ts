@@ -4,6 +4,8 @@
 import { BADGE_KINDS, BADGE_TOP_PLAYERS, STAFF_ROLES, WORLD_STATUSES, isBadgeKind, isStaffRole, isWorldStatus } from '@clanfire/engine';
 import { formatFinishReport, finishWorld } from './finish-world.ts';
 import { generateKeyPair, keyIdOf, parseSigningKey, publicKeyBase64 } from './pass.ts';
+import { ShopService, monthFromKey } from './shop/service.ts';
+import type { PaymentGateway } from './shop/gateway.ts';
 import type { AccountRow, Store } from './store.ts';
 import { checkWorldId, checkWorldName, checkWorldPath, defaultWorldPath } from './worlds.ts';
 
@@ -14,6 +16,8 @@ export interface AdminDeps {
   now: () => number;
   out: (line: string) => void;
   err: (line: string) => void;
+  /** Payment provider for the commands that call it (dispute-evidence). Absent = no Stripe key in the environment. */
+  gateway?: PaymentGateway | null;
 }
 
 export const ADMIN_USAGE = [
@@ -33,6 +37,12 @@ export const ADMIN_USAGE = [
   '  unban <username>',
   '  grant <username> <support|moderator|admin>',
   '  revoke <username>',
+  '  world-shop <id> <on|off>                 let the world sell Premium for Flames (default off)',
+  '  flames <username>                        Flames balance, lock state, open dispute fees and the last ledger rows',
+  '  flames-grant <username> <amount> <reason...>   support grant or correction (amount may be negative); audited',
+  '  age-group <username> <adult|minor>       set or change the self-declared age group (support)',
+  '  dispute-evidence <purchaseId>            (re)send the stored evidence pack of a disputed purchase to Stripe',
+  '  payments-report [YYYY-MM]                purchases, refunds, disputes and the dispute rate of a month (default: this month)',
 ];
 
 /** A mistake by the operator: printed, exit code 1. */
@@ -220,6 +230,56 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
         out(`${a.username} is now ${role}.`);
         return 0;
       }
+      case 'world-shop': {
+        const w = mustWorld(store, positional[0]);
+        const v = positional[1];
+        if (v !== 'on' && v !== 'off') throw new CliError('Usage: world-shop <id> <on|off>');
+        store.setWorldShopPremium(w.id, v === 'on');
+        log('world_shop', null, `${w.id} ${v}`);
+        out(`World ${w.id} ${v === 'on' ? 'now sells' : 'no longer sells'} Premium.`);
+        return 0;
+      }
+      case 'flames': {
+        const a = mustAccount(store, positional[0]);
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        const bal = shop.shop.balance(a.id);
+        const fees = shop.shop.openFeesCents(a.id);
+        out(`${a.username}: ${bal} Flames${shop.isLocked(a.id) ? ' (LOCKED)' : ''}, open dispute fees ${(fees / 100).toFixed(2)} EUR, disputes ${a.disputes}${a.payBannedAt ? ', buying banned' : ''}, age group ${a.ageGroup ?? 'not set'}`);
+        for (const r of shop.shop.ledgerRows(a.id, 10)) {
+          out(`  #${r.id} ${new Date(r.at).toISOString()} ${r.delta > 0 ? '+' : ''}${r.delta} ${r.reason}${r.purchaseId ? ` purchase ${r.purchaseId}` : ''}${r.itemId ? ` ${r.itemId}` : ''}${r.worldId ? ` ${r.worldId}` : ''}${r.detail ? ` (${r.detail})` : ''}`);
+        }
+        return 0;
+      }
+      case 'flames-grant': {
+        const a = mustAccount(store, positional[0]);
+        const raw = positional[1] ?? '';
+        const amount = /^-?\d{1,7}$/.test(raw) ? Number(raw) : NaN;
+        const reason = positional.slice(2).join(' ').trim().slice(0, 200);
+        if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000 || reason === '') throw new CliError('Usage: flames-grant <username> <amount (not 0, may be negative)> <reason...>');
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        const balance = shop.supportGrant(a.id, amount, reason);
+        out(`${a.username} got ${amount > 0 ? '+' : ''}${amount} Flames (${reason}). Balance now ${balance}.`);
+        return 0;
+      }
+      case 'age-group': {
+        const a = mustAccount(store, positional[0]);
+        const g = positional[1];
+        if (g !== 'adult' && g !== 'minor') throw new CliError('Usage: age-group <username> <adult|minor>');
+        store.tx(() => {
+          store.db.prepare('UPDATE accounts SET age_group = ? WHERE id = ?').run(g, a.id);
+          log('age_group', a.id, `${a.ageGroup ?? 'none'} -> ${g}`);
+        });
+        out(`${a.username} is now ${g}.`);
+        return 0;
+      }
+      case 'payments-report': {
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        if (positional[0] !== undefined && !monthFromKey(positional[0])) throw new CliError('Usage: payments-report [YYYY-MM]');
+        const r = shop.paymentsReport(positional[0]);
+        if (!r) throw new CliError('Usage: payments-report [YYYY-MM]');
+        out(`${r.month}: ${r.paidCount} paid purchases (${(r.paidCents / 100).toFixed(2)} EUR), ${r.refundCount} refunds (${(r.refundCents / 100).toFixed(2)} EUR), ${r.disputes} disputes${r.rate === null ? '' : `, dispute rate ${(r.rate * 100).toFixed(2)}%`}`);
+        return 0;
+      }
       case 'revoke': {
         const a = mustAccount(store, positional[0]);
         store.tx(() => {
@@ -237,4 +297,28 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
   }
 }
 
-const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);
+const quietLog = { warn: () => {}, error: () => {}, info: () => {} };
+
+const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['world-shop', 'flames', 'flames-grant', 'age-group', 'payments-report', 'worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);
+
+/**
+ * Like runAdmin, but also runs the commands that call the payment provider (dispute-evidence). admin.ts uses this one.
+ */
+export async function runAdminAsync(argv: string[], deps: AdminDeps): Promise<number> {
+  const [cmd, ...args] = argv;
+  if (cmd !== 'dispute-evidence') return runAdmin(argv, deps);
+  try {
+    const raw = args[0] ?? '';
+    const id = /^\d{1,9}$/.test(raw) ? Number(raw) : NaN;
+    if (!Number.isInteger(id)) throw new CliError('Usage: dispute-evidence <purchaseId>');
+    if (!deps.gateway) throw new CliError('STRIPE_SECRET_KEY is not set: nothing can be sent to Stripe from here.');
+    const store = deps.openStore();
+    const shop = new ShopService({ store, now: deps.now, gateway: deps.gateway, publicUrl: null, log: quietLog });
+    await shop.submitEvidence(id);
+    deps.out(`Evidence of purchase ${id} was sent to Stripe.`);
+    return 0;
+  } catch (err) {
+    deps.err(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}

@@ -15,6 +15,7 @@ import { formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
 import { useAutoTab } from '../hooks/useAutoTab.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
+import { useShopBalance } from '../hooks/useShopBalance.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 import { bellCounts } from '../notifications.ts';
 import { ResourcePills } from './ResourcePills.tsx';
@@ -157,12 +158,26 @@ function AccountItems({
   const { player, villages, tribeChanged, toast, navigate } = useGame();
   const [renaming, setRenaming] = useState(false);
   const worldInfo = useWorldInfo();
+  const lobby = isLobbyWorld(worldInfo);
+  // Best effort: dev servers and the preview have no lobby, then the number is simply left out.
+  const flames = useShopBalance(lobby)?.balance ?? null;
+  const premiumUntil = player.premiumUntil ?? 0;
   const go = (fn: () => void) => () => {
     onDone();
     fn();
   };
   return (
     <div className="acct-items">
+      {premiumUntil > Date.now() && (
+        <p className="acct-wide acct-premium">Premium until {new Date(premiumUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+      )}
+      {lobby && (
+        <a className="btn btn-block acct-wide acct-shop" href={`${LOBBY_URL}#shop`}>
+          <Icon name="flame" size={22} className="inline-icon" />
+          <span>Shop</span>
+          {flames !== null && <span className="acct-flames">{flames.toLocaleString('en-US')} Flames</span>}
+        </a>
+      )}
       {/* With several villages Rename sits in the village list; with one it lives here. */}
       {villages.length < 2 &&
         (renaming ? (
@@ -214,7 +229,7 @@ function AccountItems({
         />
         <span title="Accounts in the same household can't send troops to each other.">Shared household</span>
       </label>
-      {isLobbyWorld(worldInfo) && (
+      {lobby && (
         <a className="btn btn-block" href={LOBBY_URL}>
           Worlds
         </a>
