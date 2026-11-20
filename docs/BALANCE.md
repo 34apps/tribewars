@@ -1384,3 +1384,21 @@ Every unit is trained by at least one style (`sim.test.ts` checks it). Siege in 
 **New baseline (score = points + 2 x Renown + troops/100 + net raid/100):** builder 10,380 -> 10,639, raider 19,688 -> 19,936, turtle 4,153 -> 5,990, balanced 25,024 -> 24,211. Side effects to know: the **builder no longer gets its 2nd village within 30 days** (before: founded day 27.7). It now really trains the pikemen its weights say (army 3,863 instead of frozen at 1,286), the troops eat the food, Feasts drop from 60 to 18 and the Renown for the 2nd village is not there by day 30; its idle stretch (list finished) is 122 h from hour 558, expected for the builder (see §6). The turtle's list is done by day ~17, so it shows a 257 h dead period (pop full, nothing to buy: a pure defender). 2nd village (take): raider day 24.6 -> 26.6, balanced 21.2 -> 22.3 (the Stables 8 / Drillyard 6 / Wrightyard 4 steps cost a little pace).
 
 **Preview bots** (`apps/preview/src/bots.ts`): the same style changes; Ember Guards join the raids of raider and balanced bots (not builder/turtle), Log Rams and Firecarts go along against walled villages (Firecarts get `targetBuilding`, caps 16 / 8), seeded armies include Ember Guards (level 12+ villages), Log Rams and Firecarts (Wrightyard for non-builder villages of Town Hall 8+). In the 55-day bots test the bots trained pikeman 17,024, outrider 5,081, raider 15,393, pathfinder 948, hearthwarden 1,477, knight 1,182, guard 3,639, logram 124, firecart 60 and 540 raids carried siege (test asserts every unit is trained); the run takes about 12 s (limit 35 s).
+
+## 28. Ember Guard attack 140 → 160 (2026-11-20; config only, no schema change)
+
+Owner: "test it properly, from every angle". Read-only matrix on the real engine (resolveBattle, trainTimeMs, populationUsage): full-population armies of a maxed village (Longhouse 25 → cap 12,007, buildings 221, troop room 11,786 pop, income 3,277 value/h), 11 attack styles × 9 defence styles at Wall 0 / 10 / 22, with and without ranks, plus trades, rebuild time, raiding and travel. Smallest winning army, as attacker value (v) and attacker population (p) per 1.0 of the defender's; lower is better for the attacker. Wall 22, no ranks:
+
+| attacker | pike-heavy | shield-heavy | warden-heavy | realistic late-game |
+|---|---|---|---|---|
+| Raider | v1.63 / p1.16 | v2.40 / p2.01 | v1.44 / p1.34 | v1.65 / p1.43 |
+| Elk Rider | v3.31 / p2.18 | v2.04 / p1.57 | v2.07 / p1.77 | v2.41 / p1.91 |
+| Ember Guard 140 (rider) | v3.24 / p1.52 | v2.00 / p1.09 | v2.02 / p1.23 | v2.35 / p1.33 |
+| Ember Guard 140 before it was a rider | v1.92 / p0.90 | v2.84 / p1.55 | v1.69 / p1.03 | v1.95 / p1.10 |
+| **Ember Guard 160 (rider)** | v2.84 / p1.33 | v1.75 / p0.96 | v1.77 / p1.08 | v2.06 / p1.16 |
+
+- At 140 the rider Ember Guard was the dearest attacker (390 value, 36% of it gold), the slowest to train (384 s at Stables 18 vs 90 s for a Raider; a full-pop army 17.5 days from one building vs 12.2), lost ~1.5× value per value killed even when winning, and its pop edge over the Raider vs late-game defence was only ~7%. No computer style trained it.
+- 160 gives it one clear job: the population-capped hammer against Shieldbearer, Hearthwarden and mixed late-game defences. The Raider stays best per resource almost everywhere and best per population against Pikeman walls (p1.16 vs 1.33) and the builder mix; the Elk Rider stays the raider (264 loot/h per 1000 value at 10 tiles vs the Ember Guard's 23) and the fastest (0.77 h for 10 fields vs 1.11).
+- Not chosen: gold 14 → 8, iron 110 → 90 and all costs × 0.8 move only value, not population (late-game armies are pop-capped), and still lose to the Raider per value; speed 9 → 10 and carry 20 → 40 have no battle effect. 170 starts to beat the Raider per population against the builder mix too.
+- 30-day sim with the fixed computer players (§27): identical to 140 within noise (troop points +0.5–1%, all take days, villages and scores unchanged); every unit trained by some style (builder 26, raider 59, balanced 50 Ember Guards).
+- Caveats: luck 0, no loot or morale in the matrix; rebuild times assume both sides maxed. At Wall 22 every equal-pop full army loses to the defence (defence is strong by design; attacks need several waves or siege).
