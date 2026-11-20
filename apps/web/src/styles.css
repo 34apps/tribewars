@@ -77,6 +77,9 @@
   --warn-bg: #f6d991;
   --info: #155a5e;
   --info-bg: #c8eae6;
+  --fill-ok: var(--ok-bg); /* resource pill fill below 90% of the Storehouse (moss) */
+  --fill-near: var(--warn-bg); /* from 90% (gold) */
+  --fill-full: var(--danger-bg); /* full (pink, brick border) */
   --radius: 16px;
   --shadow: 0 4px 0 var(--edge-shadow);
   --font: 'Rubik', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

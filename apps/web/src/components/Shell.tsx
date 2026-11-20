@@ -3,7 +3,7 @@
 
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { RESOURCE_IDS, populationCap, populationUsage, productionPerHour, storageCap } from '@clanfire/engine';
+import { populationCap, populationUsage } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { ChieftainAvatar } from '../art/Chieftain.tsx';
 import { Icon } from '../art/Icon.tsx';
@@ -11,12 +11,12 @@ import type { IconName } from '../art/Icon.tsx';
 import { WORLD_ENDED_NOTICE, bannerText } from '../domination.ts';
 import { useGame } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
-import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
-import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+import { formatCoords, formatDuration, formatInt, formatLeft } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 import { bellCounts } from '../notifications.ts';
+import { ResourcePills } from './ResourcePills.tsx';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
 
@@ -28,14 +28,6 @@ export const TAB_ICON: Record<Tab, IconName> = { village: 'village', realm: 'rea
 /** The dock buttons on phones; Realm, Mail, Tribe and Ranks live in the More sheet. */
 const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
 
-/** "+3k" style rate for the narrow phone chips ("per hour" is read out, not shown). */
-function compactRate(perHour: number): string {
-  const r = Math.round(perHour);
-  const abs = Math.abs(r);
-  if (abs < 1000) return formatRate(r).replace(/\/h$/, '');
-  return `${r < 0 ? '−' : '+'}${(abs / 1000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k`;
-}
-
 /** Population usage and its screen-reader text (shared by the HUD pill and the More sheet). */
 export function usePopulation() {
   const { live } = useGame();
@@ -44,57 +36,6 @@ export function usePopulation() {
   const ratio = cap > 0 ? pop.total / cap : 0;
   const label = `Population ${formatInt(pop.total)} of ${formatInt(cap)}${ratio >= 0.9 ? (ratio >= 0.999 ? ' (full)' : ' (almost full)') : ''}`;
   return { total: pop.total, cap, ratio, label };
-}
-
-/** Wood/food/iron/gold: icon, compact amount and a small rate line. `compact` = the phone chips (no population; it lives in More). */
-function Resources({ compact }: { compact?: boolean }) {
-  const { live, settings } = useGame();
-  const cap = storageCap(live);
-  const net = productionPerHour(live, settings);
-  const pop = usePopulation();
-  return (
-    <ul className={`hud-res${compact ? ' is-compact' : ''}`} aria-label="Resources">
-      {RESOURCE_IDS.map((r) => {
-        const amount = Math.floor(live.resources[r] + 1e-9);
-        const ratio = cap > 0 ? live.resources[r] / cap : 0;
-        const rate = net[r];
-        const cls = ['hres', ratio >= 0.9 ? 'is-near-full' : '', ratio >= 0.999 ? 'is-full' : '', Math.round(rate) === 0 ? 'is-zero' : ''].filter(Boolean).join(' ');
-        return (
-          <li key={r} className={cls}>
-            <span className="token" aria-hidden="true">
-              <Icon name={RESOURCE_ICON[r]} size={compact ? 18 : 26} />
-            </span>
-            <span className="hres-text">
-              <span className="hres-amount">
-                <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
-                <span title={formatInt(amount)}>{formatCompact(amount)}</span>
-                <span className="visually-hidden">
-                  {' '}
-                  of {formatInt(cap)}
-                  {ratio >= 0.999 ? ' (full)' : ''}
-                </span>
-              </span>
-              <span className="hres-rate">
-                {compact ? compactRate(rate) : formatRate(rate)}
-                {compact && <span className="visually-hidden"> per hour</span>}
-              </span>
-            </span>
-          </li>
-        );
-      })}
-      {!compact && (
-        <li className={`hres hres-pop${pop.ratio >= 0.9 ? ' is-near-full' : ''}${pop.ratio >= 0.999 ? ' is-full' : ''}`} aria-label={pop.label}>
-          <span className="token" aria-hidden="true">
-            <Icon name="pop" size={26} />
-          </span>
-          <span className="hres-text" aria-hidden="true">
-            <span className="hres-amount">{formatInt(pop.total)}</span>
-            <span className="hres-rate">of {formatInt(pop.cap)}</span>
-          </span>
-        </li>
-      )}
-    </ul>
-  );
 }
 
 /** World end and connection notes: slim cards under the HUD row. */
@@ -475,7 +416,7 @@ export function Shell({ children, onSignOut, onSignOutEverywhere }: { children: 
     <div className={`app app-${tab}${pageMode ? ' app-page' : ''}${worldEnd ? ' is-ended' : ''}`} style={{ '--hud-h': `${hudH}px` } as CSSProperties}>
       <header className="hud hud-phone hud-float" ref={hudRef}>
         <div className="hud-row">
-          <Resources compact />
+          <ResourcePills compact />
           {bell}
         </div>
         <VillageBar />

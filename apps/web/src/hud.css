@@ -109,7 +109,8 @@
 .hud button,
 .hud a,
 .hud .hud-pill,
-.hud .hud-res,
+.hud .rp-list,
+.hud .rp-card,
 .hud .hud-attack,
 .hud .hud-note,
 .hud .hud-protect,
@@ -284,9 +285,9 @@ button.hud-village {
   display: none;
 }
 
-/* ---- Resources ----------------------------------------------------------------------------------------------------- */
+/* ---- Resources: fill-up pills (ResourcePills.tsx) ---------------------------------------------------------------- */
 
-.hud-res {
+.rp-list {
   display: flex;
   align-items: center;
   margin: 0;
@@ -294,15 +295,62 @@ button.hud-village {
   list-style: none;
 }
 
-.hres {
+.rp-item {
   display: flex;
-  align-items: center;
-  gap: 6px;
   min-width: 0;
-  white-space: nowrap;
 }
 
-.hud-res .token {
+.rp-cardli {
+  display: contents;
+}
+
+.rp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  font: 700 15px/1 var(--font);
+  color: var(--heading);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 999px;
+  /* The jar: the fill grows from the left to --rp-q of the Storehouse cap. */
+  background: linear-gradient(90deg, var(--fill-ok) var(--rp-q, 0%), var(--surface) var(--rp-q, 0%));
+  box-shadow: 0 3px 0 var(--c-ink);
+}
+
+.rp.is-near {
+  background: linear-gradient(90deg, var(--fill-near) var(--rp-q, 0%), var(--surface) var(--rp-q, 0%));
+}
+
+.rp.is-full {
+  background: var(--fill-full);
+  border-color: var(--strip-danger);
+  box-shadow: 0 3px 0 var(--strip-danger);
+}
+
+.rp:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 2px;
+}
+
+.rp.is-open {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--c-ink);
+}
+
+.rp.is-full.is-open {
+  box-shadow: 0 1px 0 var(--strip-danger);
+}
+
+.rp .token {
+  flex: none;
+  display: grid;
   width: auto;
   height: auto;
   border: 0;
@@ -310,78 +358,115 @@ button.hud-village {
   box-shadow: none;
 }
 
-.hres-text {
-  display: grid;
-  min-width: 0;
-  line-height: 1.15;
-}
-
-.hres-amount {
+.rp-amount {
   color: var(--heading);
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
-.hres-rate {
-  margin-top: 1px;
+.rp-rate {
   color: var(--on-surface-muted);
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.hres.is-near-full .hres-rate,
-.hres.is-near-full .hres-amount {
+.rp-rate.is-neg {
   color: var(--danger);
 }
 
-.hres.is-near-full .hres-rate {
-  font-weight: 700;
-}
-
-.hres.is-full .hres-amount {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-}
-
-/* Desktop: one wide pill, top centre. */
-.hud-resources {
-  min-height: 0;
-  padding: 7px 22px;
-}
-
-.hud-resources .hud-res {
-  gap: 18px;
-}
-
-/* Phone: four chips (+ the bell). The rate stays as a tiny second line. */
-.hud-res.is-compact {
+/* Phone: four number-only pills next to the bell. */
+.rp-list.is-compact {
   flex: 1;
   min-width: 0;
   gap: 4px;
 }
 
-.hud-res.is-compact .hres {
+.rp-list.is-compact .rp-item {
   flex: 1 1 0;
+}
+
+.rp-list.is-compact .rp {
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   min-height: 46px;
-  padding: 0 3px 2px 4px;
+  padding: 0 0 2px;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+
+/* The tap card: exact numbers (Toy Diorama card). Fixed to the window; ResourcePills.tsx sets top/left/right/--arrow. */
+.rp-card {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  padding: 12px 14px;
   border: 2.5px solid var(--c-ink);
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--surface);
-  box-shadow: 0 3px 0 var(--c-ink);
+  box-shadow: 0 4px 0 var(--c-ink);
+  font: 600 14px/1.35 var(--font);
+  color: var(--on-surface);
 }
 
-.hud-res.is-compact .hres-amount {
+.rp-card::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: var(--arrow, 24px);
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  border-left: 2.5px solid var(--c-ink);
+  border-top: 2.5px solid var(--c-ink);
+  transform: rotate(45deg);
+}
+
+.rp-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font: 800 16px/1.2 var(--font);
+  color: var(--heading);
+}
+
+.rp-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+}
+
+.rp-card dt {
+  color: var(--on-surface-muted);
+}
+
+.rp-card dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-card p {
+  margin: 8px 0 0;
   font-size: 13px;
+  color: var(--on-surface-muted);
 }
 
-.hud-res.is-compact .hres-rate {
-  font-size: 10px;
-  margin-top: 0;
+.rp-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font: 800 11px/1.3 var(--font);
+  letter-spacing: 0.04em;
+}
+
+.rp-tag.is-full {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.rp-tag.is-near {
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
 /* ---- Bell, avatar, account menu ----------------------------------------------------------------------------------- */
@@ -797,13 +882,6 @@ button.hud-village {
     width: 68px;
   }
 
-  .hud-resources {
-    padding: 7px 16px;
-  }
-
-  .hud-resources .hud-res {
-    gap: 12px;
-  }
 }
 
 /* ---- Sheets: alerts (bell) and More. Not modal: no scrim, the screen stays bright. ----------------------------------- */
@@ -1620,17 +1698,4 @@ html:has(.app.app-page) {
     flex: none;
   }
 
-  .hud-res.is-compact .hres {
-    gap: 4px;
-    padding: 0 6px 2px 6px;
-  }
-
-  .hud-res.is-compact .hres-amount {
-    font-size: 12.5px;
-    letter-spacing: -0.2px;
-  }
-
-  .hud-res.is-compact .hres-rate {
-    font-size: 10px;
-  }
 }

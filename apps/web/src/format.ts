@@ -8,13 +8,34 @@ export function formatInt(n: number): string {
   return intFormat.format(Math.floor(n + 1e-9));
 }
 
-/** 1,234 -> "1,234"; 12,345 -> "12.3k"; 1,234,567 -> "1.23M". */
+/** `abs / unit` rounded DOWN to `decimals` places, as a plain string ("48.2", "999", "1.91"): no trailing zeros, no rounding up. */
+function floorScaled(abs: number, unit: number, decimals: number): string {
+  const f = 10 ** decimals;
+  return String(Math.floor((abs / unit) * f + 1e-9) / f);
+}
+
+/**
+ * Big numbers shortened, always rounded DOWN so "999k" never turns into "1000k":
+ * 2,935 -> "2,935"; 48,250 -> "48.2k"; 999,999 -> "999k"; 1,912,345 -> "1.91M"; 12,400,000 -> "12.4M"; 125M; 1.23B.
+ */
 export function formatCompact(n: number): string {
-  const v = Math.floor(n + 1e-9);
-  const abs = Math.abs(v);
-  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2).replace(/\.?0+$/, '')}M`;
-  if (abs >= 10_000) return `${(v / 1000).toFixed(abs >= 100_000 ? 0 : 1).replace(/\.0$/, '')}k`;
-  return intFormat.format(v);
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.floor(Math.abs(n) + 1e-9);
+  if (abs < 10_000) return sign + intFormat.format(abs);
+  if (abs < 100_000) return `${sign}${floorScaled(abs, 1e3, 1)}k`;
+  if (abs < 1_000_000) return `${sign}${floorScaled(abs, 1e3, 0)}k`;
+  if (abs < 1e9) return `${sign}${floorScaled(abs, 1e6, abs < 1e7 ? 2 : abs < 1e8 ? 1 : 0)}M`;
+  return `${sign}${floorScaled(abs, 1e9, abs < 1e10 ? 2 : abs < 1e11 ? 1 : 0)}B`;
+}
+
+/** The phone-pill form: at most 4 glyphs (the comma does not count). 2,935 -> "2,935"; 48,250 -> "48k"; 1,912,345 -> "1.9M"; 125M. */
+export function formatCompactShort(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.floor(Math.abs(n) + 1e-9);
+  if (abs < 10_000) return sign + intFormat.format(abs);
+  if (abs < 1_000_000) return `${sign}${floorScaled(abs, 1e3, 0)}k`;
+  if (abs < 1e9) return `${sign}${floorScaled(abs, 1e6, abs < 1e7 ? 1 : 0)}M`;
+  return `${sign}${floorScaled(abs, 1e9, abs < 1e10 ? 1 : 0)}B`;
 }
 
 /** Per-hour rate with explicit sign: "+35/h", "−12/h". */
