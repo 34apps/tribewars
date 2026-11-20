@@ -6,7 +6,6 @@ import {
   BUILDINGS,
   BUILDING_IDS,
   CHIEFTAIN_MAX_BATCH,
-  CHIEFTAIN_RENOWN_REFUND_SHARE,
   HEARTH_MAX_CHIEFTAINS,
   HEARTH_POINTS_PER_CHIEFTAIN,
   UNITS,
@@ -19,14 +18,11 @@ import {
   occupierPopulation,
   totalUnits,
   villagePoints,
-  chieftainDepositChest,
-  chieftainDepositRenown,
-  strikeRemainder,
+  chieftainPrice,
   worldRules,
 } from '@clanfire/engine';
 import type {
   BuildingId,
-  ChestInfo,
   HearthInfoDto,
   MapVillageDto,
   Mission,
@@ -137,70 +133,82 @@ export function renameProblem(raw: string): string | null {
 // ---- Chieftain ------------------------------------------------------------------------------------------
 
 /**
- * Renown the next Chieftain reserves as a DEPOSIT (CHIEFTAIN_DEPOSIT_SHARE of the village price; owner 2026-11-18): the server's number,
- * or the engine rule when an older server did not send it. It does not grow with the Chieftains held.
+ * Renown price of each of the next CHIEFTAIN_MAX_BATCH Chieftains (owner 2026-11-20: each pays one whole village, in order): the server's
+ * list, or the engine rule when an older server did not send it.
  */
+export function chieftainPrices(r: RenownInfo, s?: Pick<WorldSettings, 'config'>): number[] {
+  if (r.chieftainPrices && r.chieftainPrices.length > 0) return r.chieftainPrices;
+  const held = r.chieftainsHeld ?? r.chieftains ?? 0;
+  return Array.from({ length: CHIEFTAIN_MAX_BATCH }, (_, i) => chieftainPrice(r.villages, held + i, s).renown);
+}
+
+/** Renown the next Chieftain costs when he is trained (the whole price of one village). */
 export function nextChieftainPrice(r: RenownInfo, s?: Pick<WorldSettings, 'config'>): number {
-  return r.chieftainPrice ?? chieftainDepositRenown(r.villages, s);
+  return r.chieftainPrice ?? chieftainPrices(r, s)[0] ?? 0;
 }
 
-/** Renown a batch of `count` Chieftains reserves when it is trained: `count` deposits. `s`: this world's rules. */
+/** Renown a batch of `count` Chieftains costs when it is trained: the first `count` prices added up. `s`: this world's rules. */
 export function chieftainBatchPrice(r: RenownInfo, count: number, s?: Pick<WorldSettings, 'config'>): number {
-  return Math.max(0, Math.floor(count)) * nextChieftainPrice(r, s);
+  return sumFirst(chieftainPrices(r, s), count);
 }
 
-/** What sending an order that can gain a village reserves: the rest of the village price (Renown, War Chest gold). */
-export function sendReserve(
-  r: Pick<RenownInfo, 'villages' | 'chieftainPrice'>,
-  chest: Pick<ChestInfo, 'chieftainPrice'> | undefined,
-  s?: Pick<WorldSettings, 'config'>,
-): { renown: number; gold: number } {
-  return strikeRemainder(r.villages, s, { renown: r.chieftainPrice ?? chieftainDepositRenown(r.villages, s), gold: chest?.chieftainPrice ?? chieftainDepositChest(r.villages, s) });
+/** Renown a batch of `count` Chieftains really pays now: the full slot prices minus what is banked from earlier Chieftains (owner 2026-11-20), never below 0. */
+export function chieftainBatchDue(r: Pick<RenownInfo, 'villages' | 'chieftains' | 'chieftainsHeld' | 'chieftainPrices' | 'banked'>, count: number, s?: Pick<WorldSettings, 'config'>): number {
+  return Math.max(0, chieftainBatchPrice(r as RenownInfo, count, s) - Math.max(0, r.banked ?? 0));
 }
 
-/** "Each Chieftain: 250 Renown + 500 gold now. The rest of the village price (750 Renown, 1,500 gold) is paid when you send them." */
-export function chieftainDepositLine(
-  r: Pick<RenownInfo, 'villages' | 'chieftainPrice'>,
-  chest: Pick<ChestInfo, 'chieftainPrice'> | undefined,
-  s?: Pick<WorldSettings, 'config'>,
-): string {
+/** "Banked from earlier Chieftains: 8,520 Renown + 13,107 gold" (null when nothing is banked). */
+export function bankedLine(renownBanked: number | undefined, goldBanked: number | undefined): string | null {
+  const r = Math.max(0, Math.floor(renownBanked ?? 0));
+  const g = Math.max(0, Math.floor(goldBanked ?? 0));
+  if (r < 1 && g < 1) return null;
   const n = (v: number) => v.toLocaleString('en-US');
-  const rest = sendReserve(r, chest, s);
-  const deposit = r.chieftainPrice ?? chieftainDepositRenown(r.villages, s);
-  if (!chest) return `Each Chieftain: ${n(deposit)} Renown now. The rest of the village price (${n(rest.renown)} Renown) is paid when you send them.`;
-  return `Each Chieftain: ${n(deposit)} Renown + ${n(chest.chieftainPrice)} gold now. The rest of the village price (${n(rest.renown)} Renown, ${n(rest.gold)} gold) is paid when you send them.`;
+  const parts = [r > 0 ? `${n(r)} Renown` : null, g > 0 ? `${n(g)} gold` : null].filter(Boolean);
+  return `Banked from earlier Chieftains: ${parts.join(' + ')}`;
 }
 
-/** "750 Renown + 1,500 War Chest gold" reserved at sending; null (a chain already covers the village) reads "Already covered". */
-export function reserveText(due: { renown: number; gold: number } | null, hasChest = true): string {
-  if (!due) return 'Already covered';
-  const n = (v: number) => v.toLocaleString('en-US');
-  return hasChest ? `${n(due.renown)} Renown + ${n(due.gold)} War Chest gold` : `${n(due.renown)} Renown`;
+/** The first `count` numbers of a price list added up (0 for none). */
+export function sumFirst(prices: ReadonlyArray<number>, count: number): number {
+  const n = Math.max(0, Math.floor(count));
+  return prices.slice(0, n).reduce((sum, v) => sum + v, 0);
 }
 
-/**
- * Why a Strike or Found order cannot be sent for lack of Renown or War Chest gold (the server says the same), or null. `claimed`: the player
- * already has a chain or claim on this village, so nothing more is reserved.
- */
-export function sendReserveProblem(
-  r: Pick<RenownInfo, 'villages' | 'chieftainPrice' | 'balance'>,
-  chest: Pick<ChestInfo, 'chieftainPrice' | 'gold'> | undefined,
-  what: 'Strike' | 'Found order',
-  claimed: boolean,
-  s?: Pick<WorldSettings, 'config'>,
-): string | null {
-  if (claimed) return null;
-  const due = sendReserve(r, chest, s);
-  const n = (v: number) => v.toLocaleString('en-US');
-  if (due.renown > r.balance) return `You need ${n(Math.ceil(due.renown - r.balance))} more Renown to send this ${what}.`;
-  if (chest && due.gold > chest.gold) return `You need ${n(Math.ceil(due.gold - chest.gold))} more War Chest gold to send this ${what}.`;
-  return null;
+/** "6th", "7th", "21st": the place of a village in the order of villages. */
+export function ordinal(n: number): string {
+  const m100 = n % 100;
+  if (m100 >= 11 && m100 <= 13) return `${n}th`;
+  return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
 }
 
-/** Most Chieftains the Renown balance can reserve, at most `limit`. */
+/** The title of the price block: "Price: your 6th village", "Price: your 6th and 7th villages", "Price: your 6th, 7th and 8th villages". */
+export function chieftainPriceTitle(r: Pick<RenownInfo, 'villages' | 'chieftains' | 'chieftainsHeld'>, count: number): string {
+  const first = r.villages + (r.chieftainsHeld ?? r.chieftains ?? 0) + 1;
+  const n = Math.max(1, Math.floor(count));
+  const places = Array.from({ length: n }, (_, i) => ordinal(first + i));
+  if (n === 1) return `Price: your ${places[0]} village`;
+  return `Price: your ${places.slice(0, -1).join(', ')} and ${places[n - 1]} villages`;
+}
+
+/** "1st 8,520 · 2nd 13,632 · 3rd 21,811 Renown": what each Chieftain of a batch pays (null for one: nothing to break down). */
+export function chieftainBreakdown(prices: ReadonlyArray<number>, count: number, unit = 'Renown'): string | null {
+  const n = Math.min(Math.floor(count), prices.length);
+  if (n < 2) return null;
+  const parts = prices.slice(0, n).map((v, i) => `${ordinal(i + 1)} ${v.toLocaleString('en-US')}`);
+  return `${parts.join(' · ')} ${unit}`;
+}
+
+/** "2,339 Renown missing: hold Feasts in this hall or win battles" (null when nothing is missing). */
+export function renownMissingText(missing: number): string | null {
+  return missing > 0 ? `${Math.ceil(missing).toLocaleString('en-US')} Renown missing: hold Feasts in this hall or win battles` : null;
+}
+
+/** The one plain line about what a Chieftain costs. */
+export const CHIEFTAIN_PAID_LINE = 'Paid in full when trained. Sending him costs nothing more. If he dies or you cancel him, the price stays banked: the next Chieftain costs only resources.';
+
+/** Most Chieftains the Renown balance can pay for (banked Renown counts), at most `limit`. */
 export function chieftainsAffordable(r: RenownInfo, limit = CHIEFTAIN_MAX_BATCH, s?: Pick<WorldSettings, 'config'>): number {
   let n = 0;
-  while (n < limit && chieftainBatchPrice(r, n + 1, s) <= r.balance) n += 1;
+  while (n < limit && chieftainBatchDue(r, n + 1, s) <= r.balance) n += 1;
   return n;
 }
 
@@ -234,16 +242,10 @@ export function takingSteps(s: WorldSettings): string[] {
     return Number.isInteger(h) ? `${h} h` : formatLeft(h * 3_600_000);
   };
   return [
-    `Train enough Chieftains: 1, plus 1 for every ${HEARTH_POINTS_PER_CHIEFTAIN.toLocaleString('en-US')} points of the village (most ${HEARTH_MAX_CHIEFTAINS}).`,
-    `Send them with an army that wins the battle, all of them within ${t(c.chainWindowHours)}.`,
-    `Hold the village for ${t(c.holdHours)} (${t(c.holdHoursAbandoned)} for an abandoned one). Your troops there stay as support from the villages that sent them: call them home any time from the Support box.`,
+    'Train Chieftains here. Each one pays the price of one village when you train him.',
+    `Send them from the map with an army that wins the battle, all within ${t(c.chainWindowHours)}.`,
+    `Hold the village for ${t(c.holdHours)} (${t(c.holdHoursAbandoned)} for an abandoned one).`,
   ];
-}
-
-/** The rule in words, with the real numbers. */
-export function chieftainRenownNote(): string {
-  const pct = Math.round(CHIEFTAIN_RENOWN_REFUND_SHARE * 100);
-  return `A deposit is reserved when training starts (${pct}% of it comes back if he dies; all of it if you cancel the batch). The rest of the village price is reserved when you send the order and spent when the village is yours. A village costs the same however many Chieftains it needs.`;
 }
 
 // ---- Missions on the map --------------------------------------------------------------------------------

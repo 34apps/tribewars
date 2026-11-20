@@ -12,12 +12,12 @@ import {
   armySpeed,
   checkMission,
   checkTrain,
-  CHIEFTAIN_DEPOSIT_SHARE,
   chestVillageCost,
-  chieftainDepositChest,
-  chieftainDepositRenown,
-  strikeRemainder,
-  chieftainRefund,
+  chieftainBanked,
+  chieftainBatchPrice,
+  chieftainDue,
+  chieftainPrice,
+  chieftainTarget,
   flatTravelTimeMs,
   normalizeVillage,
   populationUsage,
@@ -109,41 +109,19 @@ describe('Chieftain Renown price (pay for the village, not for each Chieftain, 2
     assert.equal(chestVillageCost(NaN), WAR_CHEST_BASE);
   });
 
-  it('a Chieftain reserves only a deposit: CHIEFTAIN_DEPOSIT_SHARE of the village price, Renown and chest gold', () => {
-    assert.equal(CHIEFTAIN_DEPOSIT_SHARE, 0.25);
-    assert.equal(chieftainDepositRenown(1), 325);
-    assert.equal(chieftainDepositChest(1), 500);
-    assert.equal(chieftainDepositRenown(2), Math.round(villageRenownCost(2) * 0.25));
-    assert.equal(chieftainDepositChest(3), Math.round(chestVillageCost(3) * 0.25));
-    assert.equal(chieftainDepositRenown(NaN), 325);
+  it('each Chieftain pays the full price of one village, in order: owned + held decides the slot', () => {
+    assert.deepEqual([0, 1, 2].map((h) => chieftainPrice(1, h).renown), [1300, 2080, 3328]);
+    assert.deepEqual([0, 1, 2].map((h) => chieftainPrice(1, h).gold), [2000, 3200, 5120]);
+    assert.deepEqual(chieftainPrice(5, 0), { renown: villageRenownCost(5), gold: chestVillageCost(5) });
+    assert.deepEqual(chieftainPrice(3, 2), { renown: villageRenownCost(5), gold: chestVillageCost(5) }, 'owned + held is what counts');
+    assert.deepEqual(chieftainPrice(NaN, NaN), { renown: 1300, gold: 2000 });
   });
 
-  it('the deposit is the same for every Chieftain: it depends on villages owned only, never on Chieftains held', () => {
-    // the old villageRenownPrice(villages, outstanding) grew x1.6 per Chieftain held; there is no such argument any more
-    assert.equal(chieftainDepositRenown.length, 2);
-    assert.ok(chieftainDepositRenown(3) > chieftainDepositRenown(2), 'only owning more villages raises it');
-  });
-
-  it('strikeRemainder = village price - one deposit, once per village however many Chieftains it needs', () => {
-    assert.deepEqual(strikeRemainder(1), { renown: 1300 - 325, gold: 2000 - 500 });
-    assert.deepEqual(strikeRemainder(2), { renown: 2080 - 520, gold: 3200 - 800 });
-    // deposit + remainder = the village price, exactly
-    for (const owned of [1, 2, 3, 4]) {
-      const r = strikeRemainder(owned);
-      assert.equal(chieftainDepositRenown(owned) + r.renown, villageRenownCost(owned));
-      assert.equal(chieftainDepositChest(owned) + r.gold, chestVillageCost(owned));
-    }
-  });
-
-  it('strikeRemainder uses the deposits the Chieftains really hold, never below 0', () => {
-    assert.deepEqual(strikeRemainder(1, undefined, { renown: 400, gold: 600 }), { renown: 900, gold: 1400 });
-    assert.deepEqual(strikeRemainder(1, undefined, { renown: 5000, gold: 9000 }), { renown: 0, gold: 0 });
-  });
-
-  it('a dead Chieftain gives back half of what he reserved (rounded down)', () => {
-    assert.equal(chieftainRefund(500), 250);
-    assert.equal(chieftainRefund(801), 400);
-    assert.equal(chieftainRefund(-5), 0);
+  it('a batch sums the slots held .. held + count - 1', () => {
+    assert.deepEqual(chieftainBatchPrice(1, 0, 1), { renown: 1300, gold: 2000 });
+    assert.deepEqual(chieftainBatchPrice(1, 0, 3), { renown: 1300 + 2080 + 3328, gold: 2000 + 3200 + 5120 });
+    assert.deepEqual(chieftainBatchPrice(1, 2, 2), { renown: 3328 + villageRenownCost(4), gold: 5120 + chestVillageCost(4) });
+    assert.deepEqual(chieftainBatchPrice(1, 0, 0), { renown: 0, gold: 0 });
   });
 });
 
@@ -183,5 +161,19 @@ describe('Chieftain in armies and missions', () => {
 
   it('occupy takes any own troops except Chieftains', () => {
     assert.ok(checkMission('occupy', units({ pikeman: 100, pathfinder: 2 })).ok);
+  });
+});
+
+describe('banked Chieftain payments (owner 2026-11-20)', () => {
+  it('target is the slot prices of the Chieftains held; banked is the pool above it; due never goes below 0', () => {
+    assert.deepEqual(chieftainTarget(1, 0), { renown: 0, gold: 0 });
+    assert.deepEqual(chieftainTarget(1, 2), { renown: 1300 + 2080, gold: 2000 + 3200 });
+    assert.deepEqual(chieftainTarget(3, 1), { renown: villageRenownCost(3), gold: chestVillageCost(3) });
+    assert.equal(chieftainBanked(3380, 1300), 2080);
+    assert.equal(chieftainBanked(1000, 1300), 0);
+    assert.equal(chieftainDue(2080, 2080), 0);
+    assert.equal(chieftainDue(2080, 500), 1580);
+    assert.equal(chieftainDue(100, 500), 0);
+    assert.equal(chieftainDue(100, -5), 100);
   });
 });

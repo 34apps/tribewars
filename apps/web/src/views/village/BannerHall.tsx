@@ -3,7 +3,6 @@
 // The server re-checks everything.
 
 import { useState } from "react";
-import type { ReactNode } from "react";
 import {
   BUILDINGS,
   CANCEL_REFUND_PERCENT,
@@ -22,7 +21,7 @@ import { Icon } from "../../art/Icon.tsx";
 import { Cost, ProgressBar } from "../../components/ui.tsx";
 import { RESOURCE_ICON, RESOURCE_NAME } from "../../icons.ts";
 import { useSites } from "../../hooks/useSites.ts";
-import { WarChestPayIn, WarChestProgress } from "../../components/WarChest.tsx";
+import { WarChestPayIn } from "../../components/WarChest.tsx";
 import { formatDuration, formatInt, formatLeft } from "../../format.ts";
 import { useGame, useRules } from "../../game.ts";
 import { useLock } from "../../hooks/useLock.ts";
@@ -40,13 +39,17 @@ import {
   requirementText,
   unmetRequirements,
 } from "../../rules.ts";
-import { chestBatchPrice } from "../../chest.ts";
+import { chestBatchDue } from "../../chest.ts";
 import {
   CHIEFTAIN_COUNT_RULE,
   HEARTH_OUT_REASON,
-  chieftainBatchPrice,
-  chieftainDepositLine,
-  chieftainRenownNote,
+  CHIEFTAIN_PAID_LINE,
+  bankedLine,
+  chieftainBatchDue,
+  chieftainBreakdown,
+  chieftainPriceTitle,
+  chieftainPrices,
+  renownMissingText,
   takingSteps,
 } from "../../villages.ts";
 import { useCancelJob } from "../cancelJob.tsx";
@@ -207,6 +210,7 @@ export function BannerHallPanel() {
             ))}
           </ol>
         </section>
+        <ChieftainStatus />
       </div>
 
       <ChieftainCard />
@@ -220,17 +224,15 @@ function NeedBar({
   have,
   need,
   hint,
-  action,
 }: {
   label: string;
   have: number;
   need: number;
   hint?: string;
-  action?: ReactNode;
 }) {
   const done = have >= need;
   return (
-    <li className="bh-need">
+    <div className="bh-need">
       <div className="bh-need-top">
         <span className="bh-name">{label}</span>
         <span className="bh-num">
@@ -243,10 +245,9 @@ function NeedBar({
           label={label}
           tone={done ? "ok" : "brand"}
         />
-        {action}
       </div>
       {hint && <span className="bh-hint">{hint}</span>}
-    </li>
+    </div>
   );
 }
 
@@ -258,21 +259,17 @@ function ChieftainCard() {
     village,
     renown,
     chest,
-    chains,
-    holds,
     settings,
     applyVillage,
     refresh,
     toast,
-    showOnMap,
   } = useGame();
+  const { chains } = useGame();
   const { myRenownPerDay } = useSites(useRules().features.sites);
-  const cancel = useCancelJob();
   const [picked, setPicked] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const queue = live.trainQueues.bannerhall;
   const def = UNITS.chieftain;
-  const owned = renown.villages;
   const home = live.troops.chieftain ?? 0;
   const inTraining = queue.reduce((n, j) => n + j.count - j.done, 0);
 
@@ -284,8 +281,8 @@ function ChieftainCard() {
     : 1;
   const count = picked ?? wanted;
 
-  const batchRenown = chieftainBatchPrice(renown, count, settings);
-  const batchChest = chest ? chestBatchPrice(owned, count, settings) : 0;
+  const batchRenown = chieftainBatchDue(renown, count, settings);
+  const batchChest = chest ? chestBatchDue(chest, count) : 0;
   const batchCost = Object.fromEntries(
     RESOURCE_IDS.map((r) => [r, def.cost[r] * count]),
   ) as Resources;
@@ -293,6 +290,8 @@ function ChieftainCard() {
   const perUnit = trainTimeMs("chieftain", live, settings);
   const missingRenown = Math.max(0, batchRenown - renown.balance);
   const missingGold = chest ? Math.max(0, batchChest - chest.gold) : 0;
+  const banked = bankedLine(renown.banked, chest?.banked);
+  const breakdown = chieftainBreakdown(chieftainPrices(renown, settings), count);
 
   let reason: string | null = null;
   if (village.hearth) reason = HEARTH_OUT_REASON;
@@ -309,7 +308,7 @@ function ChieftainCard() {
     try {
       applyVillage(await api.train(village.id, "chieftain", count));
       toast(
-        `${formatInt(count)} × ${def.name}: ${formatInt(batchRenown)} Renown deposit reserved`,
+        `${formatInt(count)} × ${def.name} trained: ${formatInt(batchRenown)} Renown paid`,
       );
       setPicked(null);
     } catch (e) {
@@ -321,15 +320,10 @@ function ChieftainCard() {
   }
 
   const away = live.away.chieftain ?? 0;
-  const rules = worldRules(settings).conquest;
-  const hourMs = 3_600_000 / Math.max(1e-6, settings.speed);
-  const windowMs = rules.chainWindowHours * hourMs;
-  const holdMs = Math.max(rules.holdHours, rules.holdHoursAbandoned) * hourMs;
   const have = (r: ResourceId) => Math.floor(live.resources[r] + 1e-9);
 
   return (
     <section className="fv-pn bh-card bh-chief" aria-label="Chieftain">
-      {cancel.dialog}
       <div className="fv-ph">
         <h2>Chieftains</h2>
         <span className="bh-chips">
@@ -366,34 +360,51 @@ function ChieftainCard() {
             </div>
           </div>
           <p className="muted bh-fine">
-            {chieftainDepositLine(renown, chest, settings)}
-          </p>
-          <p className="muted bh-fine">
             {open ? `${open.name} needs ${open.need - open.have} more. ` : ""}
             {CHIEFTAIN_COUNT_RULE}
           </p>
         </div>
 
-        <ul className="bh-list">
-          <NeedBar
-            label="Renown"
-            have={renown.balance}
-            need={batchRenown}
-            hint={`From Feasts and battles${myRenownPerDay > 0 ? ` · +${formatInt(myRenownPerDay)} a day from shrines your tribe holds` : ""}`}
-          />
-          {chest && (
-            <NeedBar label="Deposit for training" have={chest.gold} need={batchChest} />
-          )}
-          {chest && (
-            <li className="bh-chest">
-              <WarChestProgress />
-              <WarChestPayIn />
+        <div className="bh-price" aria-label="Price">
+          <div className="bh-sub">{chieftainPriceTitle(renown, count)}</div>
+          <ul className="bh-list">
+            <li>
+              <NeedBar
+                label="Renown"
+                have={renown.balance}
+                need={batchRenown}
+                hint={
+                  renownMissingText(missingRenown) ??
+                  (myRenownPerDay > 0
+                    ? `+${formatInt(myRenownPerDay)} a day from shrines your tribe holds`
+                    : undefined)
+                }
+              />
             </li>
-          )}
-          <li className="bh-need">
-            <div className="bh-need-top">
-              <span className="bh-name">Resources</span>
-            </div>
+            {chest && (
+              <li className="bh-gold">
+                <NeedBar
+                  label="War Chest gold"
+                  have={chest.gold}
+                  need={batchChest}
+                  hint={
+                    missingGold > 0
+                      ? `${formatInt(missingGold)} gold missing: pay in below`
+                      : undefined
+                  }
+                />
+                <WarChestPayIn />
+              </li>
+            )}
+          </ul>
+          {breakdown && <p className="muted bh-fine">{breakdown}</p>}
+          {banked && <p className="muted bh-fine">{banked}</p>}
+          <p className="bh-paid">{CHIEFTAIN_PAID_LINE}</p>
+        </div>
+
+        <ul className="bh-list">
+          <li className="bh-res-row">
+            <span className="bh-name">Resources</span>
             <div className="bh-res">
               {RESOURCE_IDS.filter((r) => batchCost[r] > 0).map((r) => {
                 const short = have(r) < batchCost[r];
@@ -424,7 +435,6 @@ function ChieftainCard() {
         <button
           type="button"
           className="btn btn-primary bh-go bh-train-btn"
-          title={chieftainRenownNote()}
           disabled={!!reason || busy}
           onClick={() => void train()}
         >
@@ -432,7 +442,29 @@ function ChieftainCard() {
           {reason ??
             `Train ${count} ${count === 1 ? "Chieftain" : "Chieftains"} · ${formatDuration(perUnit * count)}`}
         </button>
+      </div>
+    </section>
+  );
+}
 
+/** What is going on with Chieftains: batches in training (with Cancel), open chains and villages being held. Status only: nothing here sends. Nothing when idle. */
+function ChieftainStatus() {
+  const { live, now, chains, holds, settings, showOnMap } = useGame();
+  const cancel = useCancelJob();
+  const queue = live.trainQueues.bannerhall;
+  const def = UNITS.chieftain;
+  if (queue.length + chains.length + holds.length < 1) return null;
+  const rules = worldRules(settings).conquest;
+  const hourMs = 3_600_000 / Math.max(1e-6, settings.speed);
+  const windowMs = rules.chainWindowHours * hourMs;
+  const holdMs = Math.max(rules.holdHours, rules.holdHoursAbandoned) * hourMs;
+  return (
+    <section className="fv-pn bh-card" aria-label="Chieftains on the go">
+      {cancel.dialog}
+      <div className="fv-ph">
+        <h2>Chieftains on the go</h2>
+      </div>
+      <div className="bh-body bh-status">
         {chains.length > 0 && (
           <>
             <div className="bh-sub">Taking a village</div>
@@ -457,22 +489,14 @@ function ChieftainCard() {
                           i < c.have ? "●" : "○",
                         ).join("")}
                       </span>
-                      {c.need > c.have && (
-                        <button
-                          type="button"
-                          className="btn btn-small"
-                          onClick={() => showOnMap(c.x, c.y)}
-                        >
-                          Send {c.need - c.have} more
-                        </button>
-                      )}
                     </div>
                     <ProgressBar
                       value={left / windowMs}
                       label="Time left to bank the rest"
                     />
                     <span className="bh-hint">
-                      {left > 0 ? `${formatLeft(left)} left` : "Window over"}
+                      {c.have} of {c.need} Chieftains arrived,{" "}
+                      {left > 0 ? `${formatLeft(left)} left` : "window over"}
                     </span>
                   </li>
                 );
@@ -512,7 +536,6 @@ function ChieftainCard() {
 
         {queue.length > 0 && (
           <>
-            <div className="bh-sub">In training</div>
             <ul className="bh-live">
               {queue.map((job, i) => {
                 const left = job.count - job.done;

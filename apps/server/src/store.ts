@@ -132,17 +132,6 @@ export interface VillageRecord {
 export type MovementKind = Mission | 'return' | 'shipment';
 
 /** A movement row as stored. For both kinds `originVillageId` is the army's home village. */
-/** One reserved rest-of-the-village price (table chieftain_claims). A Strike claim has villageId, a Found claim movementId. */
-export interface ClaimRow {
-  id: number;
-  playerId: number;
-  villageId: number | null;
-  movementId: number | null;
-  renown: number;
-  gold: number;
-  createdAt: number;
-}
-
 export interface MovementRow {
   id: number;
   kind: MovementKind;
@@ -362,18 +351,6 @@ function parseRanks(raw: unknown): VillageRanks | null {
 }
 
 const stampRanks = (ranks: VillageRanks | null | undefined): string | null => (ranks ? JSON.stringify(ranks) : null);
-
-function toClaim(r: Raw): ClaimRow {
-  return {
-    id: Number(r.id),
-    playerId: Number(r.player_id),
-    villageId: r.village_id === null ? null : Number(r.village_id),
-    movementId: r.movement_id === null ? null : Number(r.movement_id),
-    renown: Number(r.renown),
-    gold: Number(r.gold),
-    createdAt: Number(r.created_at),
-  };
-}
 
 function toMovement(r: Raw): MovementRow {
   return {
@@ -1068,29 +1045,13 @@ export class Store extends SqlBase {
 
   // ---- Chieftain claims: the rest of a village's price, reserved when a Strike / Found order is sent (docs/GAME_DESIGN.md 18.2) ----
 
-  /** The player's open claim on a village (Strike), if any. */
-  claimOnVillage(playerId: number, villageId: number): ClaimRow | null {
-    const r = this.get('SELECT * FROM chieftain_claims WHERE player_id = ? AND village_id = ?', playerId, villageId);
-    return r ? toClaim(r) : null;
-  }
-
-  /** The claim of a walking Found order, if any. */
-  claimOfMovement(movementId: number): ClaimRow | null {
-    const r = this.get('SELECT * FROM chieftain_claims WHERE movement_id = ?', movementId);
-    return r ? toClaim(r) : null;
-  }
-
-  claimsOfPlayer(playerId: number): ClaimRow[] {
-    return this.all('SELECT * FROM chieftain_claims WHERE player_id = ? ORDER BY id', playerId).map(toClaim);
-  }
-
   /** Renown and chest gold currently held by the player's claims (both are already out of the balance). */
   claimsHeld(playerId: number): { renown: number; gold: number } {
     const r = this.get('SELECT COALESCE(SUM(renown), 0) AS renown, COALESCE(SUM(gold), 0) AS gold FROM chieftain_claims WHERE player_id = ?', playerId);
     return { renown: Number(r?.renown ?? 0), gold: Number(r?.gold ?? 0) };
   }
 
-  /** Reserve the rest of a village price: Renown into spent, gold out of the chest, one claim row. Call inside the action's transaction. */
+  /** Only the migration test uses this now (the claim rule ended 2026-11-20): reserve the rest of a village price: Renown into spent, gold out of the chest, one claim row. Call inside the action's transaction. */
   insertClaim(playerId: number, target: { villageId: number } | { movementId: number }, renown: number, gold: number, at: number): void {
     this.run(
       'INSERT INTO chieftain_claims (player_id, village_id, movement_id, renown, gold, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -1105,26 +1066,17 @@ export class Store extends SqlBase {
     if (gold > 0) this.run('UPDATE players SET chest_gold = MAX(0, chest_gold - ?) WHERE id = ?', gold, playerId);
   }
 
-  /** Players with an open claim (the caretaker sweeps them). */
+  /** The one-time v36 migration: the player's open claims become part of the Chieftain reservations (they are already out of the balance and the chest) and the rows go. */
+  foldClaimsIntoReserve(playerId: number): void {
+    const h = this.claimsHeld(playerId);
+    this.run('DELETE FROM chieftain_claims WHERE player_id = ?', playerId);
+    if (h.renown > 0) this.run('UPDATE players SET renown_reserved = renown_reserved + ? WHERE id = ?', h.renown, playerId);
+    if (h.gold > 0) this.run('UPDATE players SET chest_reserved = chest_reserved + ? WHERE id = ?', h.gold, playerId);
+  }
+
+  /** Players with an open claim (the v36 migration folds them). */
   allClaimPlayerIds(): number[] {
     return this.all('SELECT DISTINCT player_id FROM chieftain_claims').map((r) => Number(r.player_id));
-  }
-
-  /** Players whose Chieftains hold Renown or chest gold (the one-time deposit migration). */
-  playersWithReservations(): PlayerRow[] {
-    return this.all('SELECT * FROM players WHERE renown_reserved > 0 OR chest_reserved > 0 ORDER BY id').map(toPlayer);
-  }
-
-  /** The village was gained: the claim's Renown and gold stay spent, the row goes. */
-  spendClaim(id: number): void {
-    this.run('DELETE FROM chieftain_claims WHERE id = ?', id);
-  }
-
-  /** Nothing keeps the claim alive: the Renown comes back to the balance, the gold to the chest, the row goes. */
-  releaseClaim(c: ClaimRow): void {
-    this.run('DELETE FROM chieftain_claims WHERE id = ?', c.id);
-    if (c.renown > 0) this.run('UPDATE players SET renown_spent = MAX(0, renown_spent - ?) WHERE id = ?', c.renown, c.playerId);
-    if (c.gold > 0) this.run('UPDATE players SET chest_gold = chest_gold + ? WHERE id = ?', c.gold, c.playerId);
   }
 
   // ---- War Chest (docs/GAME_DESIGN.md 18.2) -------------------------------------------------------------
@@ -1146,15 +1098,6 @@ export class Store extends SqlBase {
     if (!(release > 0) && !(refund > 0)) return;
     const rel = Math.max(0, release);
     this.run('UPDATE players SET chest_reserved = MAX(0, chest_reserved - ?), chest_gold = chest_gold + ? WHERE id = ?', rel, Math.max(0, Math.min(refund, rel)), playerId);
-  }
-
-  /** Does the player have an attack with Chieftains walking to this village (a Strike that has not arrived yet)? */
-  hasStrikeMarchTo(villageId: number, playerId: number): boolean {
-    return this.all(
-      "SELECT m.* FROM movements m JOIN villages o ON o.id = m.origin_village_id WHERE m.kind = 'attack' AND m.target_village_id = ? AND o.owner_id = ?",
-      villageId,
-      playerId,
-    ).some((r) => toMovement(r).units.chieftain > 0);
   }
 
   /** Movements that left from this village (every kind), oldest first. */

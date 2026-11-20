@@ -41,10 +41,10 @@ test('an idle owner\'s village becomes abandoned with every building kept; queue
   assert.equal(store.stationedHomedAt(vid).length, 0, 'the owner\'s contingent elsewhere is gone');
   assert.equal(store.getVillage(otherVillage.id)?.ownerId, other.id, 'the active player keeps their village');
 
-  // The two Chieftains left the ledger like dead ones: their reservation ended and half of it came back.
+  // The two Chieftains are gone like dead ones: what they paid stays in the pool, banked for the next one (owner 2026-11-20).
   const l = ledger(app, idle);
-  assert.equal(l.reserved, 0);
-  assert.equal(l.spent, 500);
+  assert.equal(l.reserved, 1000, 'the pool is unchanged');
+  assert.equal(l.spent, 1000, 'nothing came back');
   assertLedgerSane(app, idle);
 
   // It is now a valuable target on the map: an abandoned village with the points of its buildings.

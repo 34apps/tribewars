@@ -1,8 +1,7 @@
 // War Chest helpers (docs/GAME_DESIGN.md 18.2): pay-in validation, error texts and the shortfall numbers. No React.
 // The server decides everything; these only keep the controls honest.
 
-import { chieftainDepositChest } from '@clanfire/engine';
-import type { ChestInfo, WorldSettings } from '@clanfire/engine';
+import type { ChestInfo } from '@clanfire/engine';
 import { HEARTH_OUT_REASON } from './villages.ts';
 
 export const CHEST_WARNING = "Gold paid in can't be taken back out. Only Chieftains use it. Raids can't touch it.";
@@ -26,13 +25,13 @@ export function chestPayInReason(text: string, villageGold: number, hearthOut: b
   return null;
 }
 
-/** Chest gold the next village costs in all (the deposits plus the rest paid at sending); an older server without it: the deposit. */
-export function chestWholePrice(chest: Pick<ChestInfo, 'chieftainPrice' | 'villagePrice'>): number {
-  return Math.max(1, chest.villagePrice ?? chest.chieftainPrice);
+/** Chest gold the next Chieftain costs in all (the whole price of one village, paid when he is trained). */
+export function chestWholePrice(chest: Pick<ChestInfo, 'chieftainPrice'>): number {
+  return Math.max(1, chest.chieftainPrice);
 }
 
-/** What "Fill to next village" pays: the whole village price minus the chest gold, capped by this village's gold (0 = nothing to fill). */
-export function chestFillAmount(chest: Pick<ChestInfo, 'gold' | 'chieftainPrice' | 'villagePrice'>, villageGold: number): number {
+/** What "Fill to next Chieftain" pays: the next Chieftain's price minus the chest gold, capped by this village's gold (0 = nothing to fill). */
+export function chestFillAmount(chest: Pick<ChestInfo, 'gold' | 'chieftainPrice'>, villageGold: number): number {
   return chestPayInAmount(chestWholePrice(chest) - chest.gold, villageGold);
 }
 
@@ -59,12 +58,6 @@ export function chestErrorText(code: string, fallback: string): string {
   return fallback;
 }
 
-/** "1,200 Renown" or "1,200 Renown + 2,000 War Chest gold" (chest absent on an older server). */
-export function chieftainPriceText(renownPrice: number, chest: Pick<ChestInfo, 'chieftainPrice'> | undefined): string {
-  const renown = `${renownPrice.toLocaleString('en-US')} Renown`;
-  return chest ? `${renown} + ${chest.chieftainPrice.toLocaleString('en-US')} War Chest gold` : renown;
-}
-
 /** Why the Chieftain Train button is off (null = ready): Renown first, then the chest. */
 export function chieftainTrainReason(
   renownBalance: number,
@@ -75,7 +68,18 @@ export function chieftainTrainReason(
   return chestShort(chest) ? 'Needs War Chest gold' : null;
 }
 
-/** War Chest gold a batch of `count` Chieftains reserves when it is trained: `count` deposits (they do not grow with the Chieftains held). */
-export function chestBatchPrice(villages: number, count: number, s?: Pick<WorldSettings, 'config'>): number {
-  return Math.max(0, Math.floor(count)) * chieftainDepositChest(Math.max(1, villages), s);
+/** The War Chest gold prices of the next Chieftains, one each: the server's list, or the next price repeated (an older server). */
+export function chestPrices(chest: Pick<ChestInfo, 'chieftainPrice' | 'chieftainPrices'>, n = 3): number[] {
+  if (chest.chieftainPrices && chest.chieftainPrices.length > 0) return chest.chieftainPrices;
+  return Array.from({ length: n }, () => chest.chieftainPrice);
+}
+
+/** War Chest gold a batch of `count` Chieftains costs when it is trained: the first `count` gold prices added up. */
+export function chestBatchPrice(chest: Pick<ChestInfo, 'chieftainPrice' | 'chieftainPrices'>, count: number): number {
+  return chestPrices(chest).slice(0, Math.max(0, Math.floor(count))).reduce((sum, v) => sum + v, 0);
+}
+
+/** War Chest gold a batch of `count` Chieftains really pays now: the full gold prices minus what is banked, never below 0. */
+export function chestBatchDue(chest: Pick<ChestInfo, 'chieftainPrice' | 'chieftainPrices' | 'banked'>, count: number): number {
+  return Math.max(0, chestBatchPrice(chest, count) - Math.max(0, chest.banked ?? 0));
 }

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { WAR_CHEST_BASE, chestVillageCost, chieftainDepositChest, chieftainDepositRenown, chieftainRefund, villagePoints, type CancelResponse, type ChestDepositResponse, type SendResponse } from '@clanfire/engine';
+import { WAR_CHEST_BASE, chestVillageCost, chieftainBatchPrice, villagePoints, type CancelResponse, type ChestDepositResponse, type SendResponse } from '@clanfire/engine';
 import { HOUR, errorOf, makeApp, ok, garrisonAbandoned, type Client } from './helpers.ts';
 import { giveTroops, sendOk, unprotect } from './warfare-helpers.ts';
 import { assertLedgerSane, chestOf, fillChest, homeOf, ledger, player, runTo, strongHome, villagesOf, freeTileNear } from './village-helpers.ts';
@@ -27,22 +27,22 @@ test('deposit: the village loses the gold, the chest gains it, the answer and th
   ok(res);
   const body = res.json<ChestDepositResponse>();
   assert.equal(body.village.state.resources.gold, before.gold - 1200);
-  assert.deepEqual(body.chest, { gold: 1200, reserved: 0, chieftainPrice: chieftainDepositChest(1), villagePrice: WAR_CHEST_BASE, held: 0 });
+  assert.deepEqual(body.chest, { gold: 1200, reserved: 0, banked: 0, chieftainPrice: 2000, chieftainPrices: [2000, 3200, 5120], villagePrice: WAR_CHEST_BASE, held: 0 });
   assert.equal(body.village.state.resources.wood, before.wood, 'only gold moves');
   ok(await deposit(p.c, vid, { gold: 300 }));
   const st = await p.c.state();
-  assert.deepEqual(st.chest, { gold: 1500, reserved: 0, chieftainPrice: chieftainDepositChest(1), villagePrice: WAR_CHEST_BASE, held: 0 });
+  assert.deepEqual(st.chest, { gold: 1500, reserved: 0, banked: 0, chieftainPrice: 2000, chieftainPrices: [2000, 3200, 5120], villagePrice: WAR_CHEST_BASE, held: 0 });
   assert.equal(chestOf(app, p).gold, 1500);
   await app.close();
 });
 
-test('deposit: any amount is accepted while the chest already covers a deposit, even past the whole village price', async () => {
+test('deposit: any amount is accepted, even past the whole village price', async () => {
   const { app, p, vid } = await rich(9000);
   const price = chestVillageCost(1);
-  ok(await deposit(p.c, vid, { gold: chieftainDepositChest(1) }));
+  ok(await deposit(p.c, vid, { gold: 500 }));
   ok(await deposit(p.c, vid, { gold: 1 }));
   ok(await deposit(p.c, vid, { gold: price }));
-  assert.equal(chestOf(app, p).gold, chieftainDepositChest(1) + 1 + price);
+  assert.equal(chestOf(app, p).gold, 500 + 1 + price);
   assert.ok(chestOf(app, p).gold > price, 'more than the whole village price is fine');
   await app.close();
 });
@@ -72,15 +72,19 @@ test('deposit: more than the village holds is 409 not_enough_resources; a cold v
   await app.close();
 });
 
-test('train: a short chest refuses the order (409) and nothing is paid; a batch of 2 reserves two deposits of 500', async () => {
+test('train: a short chest refuses the order (409, plain words) and nothing is paid; a batch of 2 reserves 2,000 + 3,200', async () => {
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 5000);
-  fillChest(app, p, 2 * chieftainDepositChest(1) - 1);
+  const need = chieftainBatchPrice(1, 0, 2).gold;
+  assert.equal(need, 5200);
+  fillChest(app, p, need - 1);
   const before = await p.c.state();
   const renown0 = ledger(app, p);
-  errorOf(await train(p.c, vid, 2), 409, 'not_enough_resources');
+  const refused = await train(p.c, vid, 2);
+  errorOf(refused, 409, 'not_enough_resources');
+  assert.match(refused.json<{ message: string }>().message, /You need 1 more War Chest gold\.$/);
   const same = await p.c.state();
   assert.deepEqual(same.chest, before.chest);
   assert.deepEqual(ledger(app, p), renown0, 'Renown untouched');
@@ -90,28 +94,29 @@ test('train: a short chest refuses the order (409) and nothing is paid; a batch 
   fillChest(app, p, 1);
   ok(await train(p.c, vid, 2));
   const after = await p.c.state();
-  assert.equal(after.chest?.reserved, 1000);
+  assert.equal(after.chest?.reserved, need);
   assert.equal(after.chest?.gold, 0);
-  assert.equal(after.chest?.chieftainPrice, 500, 'the third Chieftain pays the same deposit: it does not grow with the Chieftains held');
+  assert.equal(after.chest?.chieftainPrice, 5120, 'the third Chieftain pays the next village after that');
   assert.equal(after.villages[0]?.state.resources.gold, before.villages[0]?.state.resources.gold, 'the Chieftain costs the village no gold');
   assertLedgerSane(app, p);
   await app.close();
 });
 
-test('cancel: a queued batch gives the chest gold back in full', async () => {
+test('cancel: a queued batch keeps its chest gold in the reserve, banked for the next one', async () => {
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, {});
   app.ctx.store.addRenown(p.id, 5000);
   fillChest(app, p, 10_000);
   ok(await train(p.c, vid, 2));
-  assert.deepEqual(chestOf(app, p), { gold: 10_000 - 1000, reserved: 1000 });
+  assert.deepEqual(chestOf(app, p), { gold: 10_000 - 5200, reserved: 5200 });
   ok(await p.c.post(`/api/villages/${vid}/cancel-train`, { building: 'bannerhall', index: 0 }));
-  assert.deepEqual(chestOf(app, p), { gold: 10_000, reserved: 0 });
+  assert.deepEqual(chestOf(app, p), { gold: 10_000 - 5200, reserved: 5200 }, 'nothing comes back');
+  assert.equal((await p.c.state()).chest?.banked, 5200);
   await app.close();
 });
 
-test('death: a Chieftain who dies gives half his share back to the chest', async () => {
+test('death: a Chieftain who dies changes nothing in the chest; his gold is banked', async () => {
   const { app, clock } = await makeApp();
   const p = await player(app, 'alice');
   const vid = strongHome(app, clock, p, { raider: 1 });
@@ -124,17 +129,14 @@ test('death: a Chieftain who dies gives half his share back to the chest', async
   const target = app.ctx.store.getVillage(app.ctx.store.abandonedVillageIds()[0] as number);
   assert.ok(target);
   garrisonAbandoned(app, target.id, { pikeman: 50 }); // a village a player left, with troops: a Chieftain with one raider cannot win
-  const { movement } = await sendOk(p, target, 'attack', { chieftain: 1, raider: 1 });
   const base = chestOf(app, p);
-  const claim = app.ctx.store.claimsHeld(p.id);
-  assert.equal(claim.gold, chestVillageCost(1) - chieftainDepositChest(1), 'sending reserved the rest of the village price');
+  const { movement } = await sendOk(p, target, 'attack', { chieftain: 1, raider: 1 });
+  assert.deepEqual(chestOf(app, p), base, 'sending reserved nothing');
   clock.set(movement.arriveAt);
   await p.c.state();
-  const share = base.reserved / 2;
   const now = chestOf(app, p);
-  assert.equal(now.reserved, base.reserved - share, 'his share left the reserve');
-  assert.equal(now.gold, base.gold + chieftainRefund(share) + claim.gold, 'half of his deposit came back, and the rest of the price in full');
-  assert.equal(app.ctx.store.claimsHeld(p.id).gold, 0);
+  assert.equal(now.reserved, base.reserved, 'the reserve is unchanged (banked)');
+  assert.equal(now.gold, base.gold, 'and nothing came back to the chest');
   assertLedgerSane(app, p);
   await app.close();
 });
@@ -144,15 +146,16 @@ test('used up: a Chieftain who founds a village releases his share; the gold sta
   const p = await player(app, 'founder');
   const homeId = strongHome(app, clock, p, { pikeman: 40, chieftain: 1 });
   app.ctx.store.addRenown(p.id, 2000);
-  app.ctx.store.reserveRenown(p.id, chieftainDepositRenown(1));
+  app.ctx.store.reserveRenown(p.id, 1300);
   fillChest(app, p, 3000);
-  app.ctx.store.reserveChest(p.id, chieftainDepositChest(1));
+  app.ctx.store.reserveChest(p.id, 2000);
   const tile = freeTileNear(app, p);
   const res = await p.c.post(`/api/villages/${homeId}/send`, { x: tile.x, y: tile.y, units: { pikeman: 40, chieftain: 1 }, mission: 'found', travelSeconds: 60 });
   ok(res, 201);
   runTo(app, clock, res.json<SendResponse>().movement.arriveAt);
   assert.equal(villagesOf(app, p).length, 2);
   assert.deepEqual(chestOf(app, p), { gold: 1000, reserved: 0 });
+  assert.equal(chestOf(app, p).gold + chestOf(app, p).reserved, 1000, 'the gold stays spent');
   await app.close();
 });
 
@@ -175,9 +178,9 @@ test('kept: raids cannot touch the chest, and it survives losing the last villag
   const claimer = await player(app, 'claimer');
   const home = strongHome(app, clock, claimer, { raider: 400, chieftain: 1 });
   store.addRenown(claimer.id, 2000);
-  store.reserveRenown(claimer.id, chieftainDepositRenown(1));
+  store.reserveRenown(claimer.id, 1300);
   fillChest(app, claimer, 3000);
-  store.reserveChest(claimer.id, chieftainDepositChest(1));
+  store.reserveChest(claimer.id, 2000);
   const res = await claimer.c.post(`/api/villages/${home}/send`, { x: lost.x, y: lost.y, units: { raider: 400, chieftain: 1 }, mission: 'attack', travelSeconds: 60 });
   ok(res, 201);
   runTo(app, clock, res.json<SendResponse>().movement.arriveAt);
@@ -193,9 +196,9 @@ test('kept: raids cannot touch the chest, and it survives losing the last villag
   await app.close();
 });
 
-test('state: the chest is part of /api/state and the deposit and the village price follow the villages owned', async () => {
+test('state: the chest is part of /api/state and the Chieftain prices and the village price follow the villages owned', async () => {
   const { app, p } = await rich();
   const st = await p.c.state();
-  assert.deepEqual(st.chest, { gold: 0, reserved: 0, chieftainPrice: chieftainDepositChest(1), villagePrice: chestVillageCost(1), held: 0 });
+  assert.deepEqual(st.chest, { gold: 0, reserved: 0, banked: 0, chieftainPrice: 2000, chieftainPrices: [2000, 3200, 5120], villagePrice: chestVillageCost(1), held: 0 });
   await app.close();
 });

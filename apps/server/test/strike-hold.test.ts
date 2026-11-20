@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  CHIEFTAIN_RENOWN_REFUND_SHARE,
   HOLD_FAIL_HOURS,
   HOLD_HOURS_ABANDONED,
   STRIKE_LOCK_HOURS,
@@ -129,10 +128,11 @@ test('Strike, hold, change of owner: buildings kept, occupiers stay as support, 
 
   // Ledger: his reservation ended, the Renown stays spent.
   const l = ledger(app, p);
-  assert.equal(l.reserved, 500, 'the second Chieftain keeps his deposit');
-  // The village was paid once: the used-up Chieftain's deposit (500) and the rest reserved at sending (1,300 - 500); plus the other deposit (500).
-  assert.equal(l.spent, 500 + 500 + 800);
-  assert.equal(store.claimsHeld(p.id).renown, 0, 'the claim was spent with the village');
+  // The pool (1,000, below the 1,300 slot price) pays the village: min(pool, village price) = all of it leaves the pool, it stays spent.
+  assert.equal(l.reserved, 0, 'the take spent min(pool, village price)');
+  // Sending reserved nothing; spent is unchanged (1,000).
+  assert.equal(l.spent, 500 + 500);
+  assert.equal(store.claimsHeld(p.id).renown, 0, 'no claims exist any more');
   assertLedgerSane(app, p);
 
   const kinds = (await villageReports(p)).map((r) => r.village.kind);
@@ -322,10 +322,10 @@ test('contest: destroying the occupiers relights the hearth; a Chieftain-led arm
   assert.equal(rows[0]?.ownerPlayerId, rival.id);
   assert.equal(rows[0]?.units.chieftain, 1);
 
-  // The first claimant lost a Chieftain: his average share left the reservation, half came back; the report says "replaced".
+  // The first claimant lost a Chieftain: the pool is unchanged (banked) and nothing came back; the report says "replaced".
   const after = ledger(app, p);
-  assert.equal(after.reserved, before.reserved - before.reserved / 2);
-  assert.equal(after.spent, before.spent - Math.floor((before.reserved / 2) * CHIEFTAIN_RENOWN_REFUND_SHARE));
+  assert.equal(after.reserved, before.reserved, 'the pool is unchanged: the dead Chieftain\'s payment is banked');
+  assert.equal(after.spent, before.spent, 'nothing came back');
   assertLedgerSane(app, p);
   const reasons = (await villageReports(p)).filter((x) => x.village.kind === 'claim_failed').map((x) => x.village.reason);
   assert.deepEqual(reasons, ['replaced']);
@@ -339,7 +339,7 @@ test('contest: destroying the occupiers relights the hearth; a Chieftain-led arm
   assert.equal(lit?.state.hearth, undefined);
   assert.equal(lit?.holdDueAt, null);
   assert.equal(store.stationedAt(target.id).length, 0);
-  assert.equal(ledger(app, rival).reserved, 0, 'the rival\'s only Chieftain died');
+  assert.equal(ledger(app, rival).reserved, 500, 'the rival\'s Chieftain died: his payment stays in the pool');
   assertLedgerSane(app, rival);
   assert.ok((await villageReports(rival)).some((x) => x.village.kind === 'claim_failed'));
   await app.close();
