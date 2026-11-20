@@ -5,7 +5,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## State in one minute
 
-- `main` = `697aaa9`, 13 commits ahead of origin (not pushed). Lobby schema v9, game schema v39.
+- `main` = `a7d41f3`, 21 commits ahead of origin (not pushed). Lobby schema v9, game schema v39.
 - The owner plays the BUILT preview on http://localhost:5174. After every merge into main: back up
   `apps/preview/data/preview-world-metinaltinbas.sqlite` to `apps/preview/data/backups/`, run `npm run build:preview:local`,
   ask him to reload. Push only after he says "works, push it".
@@ -45,6 +45,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
   - schemas: lobby v9, world v39.
 - **Feast in all villages** (`claude/trusting-rubin-e46b57`): Banner Hall switch "This village | All villages", Premium only.
 - **Drillyard ranks polish** (`697aaa9`): cards grouped by role (Defence/Attack/Scouting/Breach), one card layout, 3 columns. Known: at Drillyard level 5 with 5 researchable units the Ranks panel is clipped by ~10 px at 1440x900.
+- **Pathfinder back at the Barracks** (owner undid the Stables move), **Drillyard Reset = small ↺ button with confirm**, **'foot'/'rider' tag next to unit attack** + explainer line (unit cards, Army recruit). In the preview, not pushed.
 - Nothing in flight. All side sessions are idle.
 
 ## Decisions made today (don't re-ask)
