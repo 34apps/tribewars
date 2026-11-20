@@ -584,12 +584,38 @@
 .fa-sact {
   display: flex;
   flex: none;
-  justify-content: flex-end;
-  width: 92px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 112px;
+  padding: 2px 0 4px;
 }
 
-.fa-some {
-  font-size: 13px;
+.fa-sact .fv-btn {
+  width: 100%;
+  min-height: 36px;
+}
+
+/* The troop list wraps to two lines and ends in an ellipsis; the full text is the tooltip. */
+.fa-sr .fv-mt b.fa-st {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+@media (max-width: 760px) {
+  .fa-sact {
+    width: 116px;
+  }
+
+  .fa-sact .fv-btn {
+    min-height: 40px;
+  }
 }
 
 /* -- the "+N more" dialogs -- */

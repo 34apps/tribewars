@@ -159,11 +159,12 @@ test('troops between own villages: support stands there and can be recalled; eve
   assert.equal(movement.kind, 'support');
   runTo(app, clock, movement.arriveAt);
   const st = await p.c.state();
-  const entry = st.stationed.here.find((s) => s.host.villageId === second);
+  const entry = st.stationed.abroad.find((s) => s.host.villageId === second);
   assert.ok(entry, 'my troops stand in my second village');
   assert.equal(entry.units.pikeman, 10);
   assert.equal(entry.home.villageId, home.id);
   assert.equal(st.stationed.abroad.length, 1);
+  assert.deepEqual(st.stationed.here, [], 'own troops in my own village are not guests');
   assert.equal(st.villages.find((v) => v.id === second)!.state.troops.pikeman, 0, 'a guest contingent, not the village\'s own troops');
 
   const back = await p.c.post(`/api/stationed/${entry.id}/recall`, {});

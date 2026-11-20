@@ -722,7 +722,7 @@ function MovementRow({ m }: { m: MovementDto }) {
         <Icon name={icon} size={20} />
       </span>
       <span className="fv-mt">
-        <b title={title}>{title}</b>
+        <b className="fa-st" title={title}>{title}</b>
         <small title={sub}>{sub}</small>
       </span>
       <span className="fv-mc">
@@ -806,7 +806,7 @@ function MovementsPanel() {
 // ---- Support ---------------------------------------------------------------------------------------------------------
 
 function SupportRows({ here, away, busy, actions }: { here: StationedDto[]; away: StationedDto[]; busy: boolean; actions: ReturnType<typeof useSupportActions> }) {
-  const { now, village } = useGame();
+  const { now } = useGame();
   const [some, setSome] = useState<StationedDto | null>(null);
   const row = (s: StationedDto, mine: boolean) => {
     const unit = firstUnit(s.units);
@@ -817,19 +817,19 @@ function SupportRows({ here, away, busy, actions }: { here: StationedDto[]; away
       <li key={s.id} className="fa-sr">
         <span className="fv-tk d">{unit ? <UnitFigure unit={unit} pose="icon" size={24} /> : <Icon name="support" size={20} />}</span>
         <span className="fv-mt">
-          <b title={title}>{title}</b>
+          <b className="fa-st" title={title}>{title}</b>
           <small title={sub}>{sub}</small>
         </span>
         <span className="fa-sact">
           {mine ? (
-            <span className="fa-cnc">
+            <>
               <button type="button" className="fv-btn sm" disabled={busy} onClick={() => void actions.recall(s)}>
                 Recall
               </button>
-              <button type="button" className="fv-lk fa-some" disabled={busy} aria-haspopup="dialog" onClick={() => setSome(s)}>
-                some…
+              <button type="button" className="fv-btn sm" disabled={busy} aria-haspopup="dialog" onClick={() => setSome(s)}>
+                Recall some
               </button>
-            </span>
+            </>
           ) : (
             <button type="button" className="fv-btn sm" disabled={busy} onClick={() => void actions.sendBack(s)}>
               Send back
@@ -857,7 +857,7 @@ function SupportRows({ here, away, busy, actions }: { here: StationedDto[]; away
       {here.length > 0 && (
         <div className="fa-sg2">
           <span className="fv-up">
-            Here in {village.name} · {here.length}
+            Guests in your villages · {here.length}
           </span>
           <ul>{here.map((s) => row(s, false))}</ul>
         </div>

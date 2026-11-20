@@ -1716,15 +1716,16 @@ export class Store extends SqlBase {
     return this.all('SELECT * FROM stationed WHERE host_village_id = ? ORDER BY id', hostVillageId).map(toStationed);
   }
 
-  /** Others' troops standing in the player's villages. */
+  /** Other players' troops (guests) standing in any of the player's villages; the player's own stacks in his other villages are in `stationedAbroad` only. */
   stationedHere(playerId: number): StationedView[] {
     return this.all(
-      `${STATIONED_VIEW_SQL} WHERE s.host_village_id IN (SELECT id FROM villages WHERE owner_id = ?) ORDER BY s.arrived_at, s.id`,
+      `${STATIONED_VIEW_SQL} WHERE s.host_village_id IN (SELECT id FROM villages WHERE owner_id = ?) AND s.owner_player_id <> ? ORDER BY s.arrived_at, s.id`,
+      playerId,
       playerId,
     ).map((r) => this.toStationedView(r));
   }
 
-  /** The player's troops standing in other villages. */
+  /** The player's troops standing in other villages (including his own other villages). */
   stationedAbroad(playerId: number): StationedView[] {
     return this.all(
       `${STATIONED_VIEW_SQL} WHERE s.home_village_id IN (SELECT id FROM villages WHERE owner_id = ?) ORDER BY s.arrived_at, s.id`,

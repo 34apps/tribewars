@@ -123,7 +123,7 @@ test('Strike, hold, change of owner: buildings kept, occupiers stay as support, 
   assert.equal(home?.state.troops.chieftain, 1, 'the second Chieftain is still at home');
   assert.equal(taken?.state.troops.chieftain, 0);
   const st = await p.c.state();
-  assert.equal(st.stationed.here.find((x) => x.host.villageId === target.id)?.units.raider, stood.raider, 'shows in the Support box');
+  assert.equal(st.stationed.abroad.find((x) => x.host.villageId === target.id)?.units.raider, stood.raider, 'shows in the Support box under his troops away');
   const takenReport = (await villageReports(p)).find((r) => r.village.kind === 'taken');
   assert.equal(takenReport?.village.stays?.raider, stood.raider);
 

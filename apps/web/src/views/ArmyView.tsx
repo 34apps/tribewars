@@ -314,7 +314,7 @@ function SupportPanel() {
 
       <div className="subsection">
         <h3 className="subtitle">
-          Stationed here <span className="muted">{stationed.here.length > 0 ? stationed.here.length : ''}</span>
+          Guests in your villages <span className="muted">{stationed.here.length > 0 ? stationed.here.length : ''}</span>
         </h3>
         {stationed.here.length === 0 ? (
           <p className="muted">None.</p>
