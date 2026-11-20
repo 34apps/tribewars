@@ -18,6 +18,7 @@ import {
   buildTimeMs,
   buildingCost,
   buildingPop,
+  isResearched,
   levelPoints,
   populationCap,
   populationUsage,
@@ -32,7 +33,7 @@ import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { BuildState } from '../../components/BuildState.tsx';
 import { useUnitInfo } from '../../components/UnitInfo.tsx';
 import { formatDuration, formatInt } from '../../format.ts';
-import { useGame, useRules } from '../../game.ts';
+import { useGame, useResearchQueueLimit, useRules } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { buildingEffects, requirementText, unmetRequirements } from '../../rules.ts';
 import { useLock } from '../../hooks/useLock.ts';
@@ -42,10 +43,8 @@ import { useCancelJob } from '../cancelJob.tsx';
 import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import '../../components/war-chest.css';
-import { DrillyardPanel } from './Drillyard.tsx';
+import { DrillPoints, DrillyardPanel } from './Drillyard.tsx';
 import { MarketSendPanel } from './MarketSend.tsx';
-import { rankCardUnits, rankRows } from './drillyardLogic.ts';
-import { takeResearchFocus } from './drillFocus.ts';
 import { setResearchFocus } from './drillFocus.ts';
 import { BuildingRow, Chev, LeftColumn, clockShort, pluralUnit } from './FrameParts.tsx';
 import { VillageScene } from './VillageScene.tsx';
@@ -651,39 +650,49 @@ function PanelBox({ title, children, fit = false, aside }: { title: string; chil
   );
 }
 
-/** More rank rows (one per unit and track) than fit two columns of three beside the research column: one wide panel with a Ranks / Research switch (so all 9 rankable units, 10 rows, still fit 1440x900 without scrolling). */
-const SIDE_BY_SIDE_RANK_ROWS = 5; // 6 two-line rows overflow 1440x900 beside the research column (checked 2026-11-20)
-
+/** Drillyard: research on top (short cards, two across), ranks under it (two across), both full width. The headers carry the
+ *  summaries (researched units and queue / Training Points bar). Every state, from 6 research cards + 3 rank rows to 0 + 10, fits
+ *  1440x900 without a scrollbar (owner 2026-11-20: the old thin research column ran past the frame). */
 function DrillyardFrame() {
   const { live } = useGame();
-  const [tab, setTab] = useState<'ranks' | 'research'>(() => (takeResearchFocus() ? 'research' : 'ranks'));
-  if (rankRows(rankCardUnits(live)).length <= SIDE_BY_SIDE_RANK_ROWS) {
-    return (
-      <>
-        <PanelBox title="Training Points and ranks" fit>
-          <DrillyardPanel part="ranks" />
-        </PanelBox>
-        <div className="fv-rcol is-wide">
-          <PanelBox title="Research" fit>
-            <DrillyardPanel part="research" />
-          </PanelBox>
-        </div>
-      </>
-    );
-  }
-  const tabs = (
-    <span className="fa-seg" role="group" aria-label="Show">
-      {(['ranks', 'research'] as const).map((t) => (
-        <button key={t} type="button" className={`fa-sg${tab === t ? ' is-on' : ''}`} aria-pressed={tab === t} onClick={() => setTab(t)}>
-          {t === 'ranks' ? 'Ranks' : 'Research'}
-        </button>
-      ))}
+  const limit = useResearchQueueLimit();
+  const queue = live.researchQueue?.length ?? 0;
+  const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
+  const done = researchable.filter((u) => isResearched(live, u));
+  const all = done.length === researchable.length;
+  const researchAside = (
+    <span className="fv-mut dy-aside">
+      {done.length > 0 && (
+        <span>
+          {all ? 'All researched' : 'Researched'}: <b>{done.map((u) => UNITS[u].name).join(', ')}</b>
+        </span>
+      )}
+      {!all && (
+        <span>
+          Queue {queue}/{limit}
+        </span>
+      )}
     </span>
   );
   return (
-    <PanelBox title={tab === 'ranks' ? 'Training Points and ranks' : 'Research'} fit aside={tabs}>
-      <DrillyardPanel part={tab} />
-    </PanelBox>
+    <div className="dy">
+      {all ? (
+        <section className="fv-pn fv-boxed" aria-label="Research">
+          <div className="fv-ph">
+            <h2>Research</h2>
+            <span className="fv-sp" />
+            {researchAside}
+          </div>
+        </section>
+      ) : (
+        <PanelBox title="Research" fit aside={researchAside}>
+          <DrillyardPanel part="research" />
+        </PanelBox>
+      )}
+      <PanelBox title="Ranks" fit aside={<DrillPoints />}>
+        <DrillyardPanel part="ranks" />
+      </PanelBox>
+    </div>
   );
 }
 

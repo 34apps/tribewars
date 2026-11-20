@@ -43,6 +43,14 @@ export function trackEffect(track: RankTrack, unit: UnitId): string {
   }
 }
 
+/** The same, short, for a row that already shows the track's name in its tag: "+5% per rank", "+4% per rank, on the Wall". */
+export function trackEffectShort(track: RankTrack, unit: UnitId): string {
+  const per = `+${pct(TRACK_PER_RANK[track])}% per rank`;
+  if (track !== 'breach') return per;
+  const hits = UNITS[unit].siege?.hits;
+  return `${per}${hits === 'wall' ? ', on the Wall' : hits === 'buildings' ? ', on buildings' : ''}`;
+}
+
 /** The bonus a given rank has reached, in percent (0 for rank 0). */
 export const trackBonusPct = (track: RankTrack, rank: number): number => pct(TRACK_PER_RANK[track] * rank);
 
