@@ -137,4 +137,4 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 - **Multi-account tooling follow-ups** (branch `staff-multi`): give the lobby the device id too (its IP table has none); privacy text for stored IPs and devices; add the new tables to the planned data export/delete; tune the `MULTI_*` numbers after a real world has run a few weeks.
 
 - **Abandoned-village personalities follow-ups (2026-11-18, `npc-growth`).** (1) Strength / "stronghold" hint dropped (owner 2026-11-20). (2) Re-run the sims after the Chieftain/Drillyard merge. (3) Unseeded (fixed layout) villages still use the fixed order; say if they should get personalities too.
-- **Support box (2026-11-20, `d74720d`):** phone view (ArmyView) keeps its own Support card with only the heading renamed; owner to look at both at 360 px. The "Recall some" dialog is unchanged.
+- **Support box (2026-11-20, `d74720d`):** phone view (ArmyView) keeps its own Support card (now also with the single "Bring home ▾" menu, `f83dd4d`); owner to look at both at 360 px.
