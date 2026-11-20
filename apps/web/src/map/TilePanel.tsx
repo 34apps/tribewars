@@ -19,6 +19,7 @@ import { builtinGroups, fillFromGroup, shortNote } from '../troopGroups.ts';
 import { Icon } from '../art/Icon.tsx';
 import { formatClock, formatClockParts, formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useGame, useRules } from '../game.ts';
+import type { LastTime } from '../game.ts';
 import { useLock } from '../hooks/useLock.ts';
 import { useSupportTiming } from '../hooks/useSupportTiming.ts';
 import { useSync } from '../hooks/useSync.ts';
@@ -102,7 +103,7 @@ interface Props {
   loaded: boolean;
   terrain: TerrainCache;
   /** Mission to pre-select for this tile (a jump from a tribe alert); null otherwise. */
-  preferred: { mission?: Mission; ship?: boolean; nonce: number } | null;
+  preferred: { mission?: Mission; ship?: boolean; lastTime?: LastTime; nonce: number } | null;
   /** Is a village standing on this tile (as far as the loaded map chunks know)? Previews the free-site rule for Found. */
   occupied: (x: number, y: number) => boolean;
   onClose: () => void;
@@ -121,6 +122,7 @@ export function SendForm({
   titles,
   targetLabel,
   layout = 'panel',
+  lastTime,
 }: {
   tile: Coords;
   target: MapVillageDto | null;
@@ -134,6 +136,8 @@ export function SendForm({
   targetLabel?: string;
   /** 'wide' (Command post): the troop picker in columns Foot / Riders / Siege / Special. The map panel keeps 'panel'. */
   layout?: 'panel' | 'wide';
+  /** "Raid again" from a report: adds the "Same as last time" button. The form itself still opens empty. */
+  lastTime?: LastTime;
 }) {
   const { live, now, settings, renown, chest, chains, village, villages, player, stationed, applySend, toast, viewMovement, navigate, worldEnd, openSimulator } = useGame();
   const rules = useRules();
@@ -235,6 +239,12 @@ export function SendForm({
     setCounts(fill.counts);
     if (!fill.counts.firecart) setSiegePick('');
     setGroupNote(Object.keys(fill.counts).length === 0 ? 'None at home' : shortNote(fill.short));
+  }
+
+  /** "Same as last time": the report's troops, capped by what is at home now (nothing else is changed or sent). */
+  function applyLastTime() {
+    if (!lastTime || lastTime.villageGone) return;
+    applyGroup(lastTime.units);
   }
 
   /** "Clear": every count back to zero. */
@@ -368,6 +378,18 @@ export function SendForm({
         </p>
       ) : (
         <>
+        {lastTime && (
+          <div className="wm-last">
+            <button type="button" className="wm-btn wm-btn-small" disabled={!!lastTime.villageGone || busy} onClick={applyLastTime}>
+              Same as last time
+            </button>
+            {lastTime.villageGone && (
+              <p className="wm-muted wm-last-note" role="status">
+                That village is not yours any more, so those troops cannot leave from there.
+              </p>
+            )}
+          </div>
+        )}
         {mission !== 'found' && (
           <TroopGroupBar
             builtins={builtinGroups({ visible, home: live.troops, mission, relief, target, minPopulation: target?.hearth?.minPopulation })}
@@ -824,7 +846,13 @@ export function TilePanel({ tile, village, loaded, terrain, preferred, occupied,
           target={village ?? null}
           missions={missions}
           preferred={preferred?.mission ?? null}
+          lastTime={preferred?.lastTime}
         />
+      )}
+      {preferred?.lastTime && !missions.includes(preferred.mission ?? 'attack') && (
+        <p className="wm-note" role="status">
+          {village ? 'This village cannot be raided right now.' : 'There is no village here any more, so there is nothing to raid.'}
+        </p>
       )}
     </aside>
   );

@@ -1930,3 +1930,16 @@
     font-size: 0.7rem;
   }
 }
+
+/* "Same as last time" (Raid again from a report): one small secondary button above the troop groups. */
+.wm-last {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.wm-last-note {
+  margin: 0;
+  flex: 1 1 180px;
+}
