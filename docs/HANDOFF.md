@@ -45,7 +45,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
   - schemas: lobby v9, world v39.
 - **Feast in all villages** (`claude/trusting-rubin-e46b57`): Banner Hall switch "This village | All villages", Premium only.
 - **Drillyard ranks polish** (`697aaa9`): cards grouped by role (Defence/Attack/Scouting/Breach), one card layout, 3 columns. Known: at Drillyard level 5 with 5 researchable units the Ranks panel is clipped by ~10 px at 1440x900.
-- **Pathfinder back at the Barracks** (owner undid the Stables move), **Drillyard Reset = small ↺ button with confirm**, **'foot'/'rider' tag next to unit attack** + explainer line (unit cards, Army recruit). In the preview, not pushed.
+- **Drillyard Reset = small ↺ button with confirm**, **'foot'/'rider' tag next to unit attack** + explainer line (unit cards, Army recruit). In the preview, not pushed.
 - **Roster (owner 2026-11-20, FINAL, genre-style):** Barracks = Pikeman, Raider, Shieldbearer (foot). Stables = Pathfinder (scout), Elk Rider, Hearthwarden, Ember Guard (all riders). The two 'back to Barracks' merges were reverted (`a00df2d`, `cc1ee45`). Never move riders back to the Barracks.
 - **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
@@ -79,7 +79,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## NEXT JOB
 
-Analytics pushed. Now: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
+Balance check done 2026-11-20: no break; the Ember Guard is fine to slightly weak, but no sim style builds it, so it is untested. Possible tweaks if nobody builds it in play: `knight` gold 14 → 8, then speed 9 → 10 (not applied). Take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
