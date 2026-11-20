@@ -1,72 +1,85 @@
 # Handoff — Clanflame
 
-Written 2026-11-18, end of a very long play-test session. Read this first, then `docs/AI-WORKFLOW.md`, the top of
-`CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
+Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a…`). Read this first, then
+`docs/AI-WORKFLOW.md`, the top of `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.
 
 ## State in one minute
 
-- `main` = `origin/main` = `f40af04`, **pushed** 2026-11-18. Game schema **v35**.
-- The owner plays the BUILT preview at http://localhost:5174 (`npm run serve:preview`, detached; log in the old session's
-  scratchpad). After every merge into main: back up his world, run `npm run build:preview:local`, ask him to reload.
-- Workflow that worked: integration worktree `../tribewars-tiers` (branch `originality-tiers`). Each change goes on its own branch
-  in its own worktree from main. Merge into tiers, run `npm run check` + `npm run build`, fast-forward main, build the preview.
-- Owner's world mirror is `apps/preview/data/preview-world-metinaltinbas.sqlite`, read with `sqlite3 -readonly`. Backups before
-  each update are in `apps/preview/data/backups/`.
+- `main` = `origin/main` = `e437ffb` (pushed). Lobby schema v9, game schema v37 (privacy branch brings v38).
+- The owner plays the BUILT preview on http://localhost:5174. After every merge into main: back up
+  `apps/preview/data/preview-world-metinaltinbas.sqlite` to `apps/preview/data/backups/`, run `npm run build:preview:local`,
+  ask him to reload. Push only after he says "works, push it".
+- Other sessions also merge into main and push. Before you merge, run `git status` in the main checkout and never commit
+  someone else's unsaved edits.
 
-## Landed 2026-11-18 (all in main, pushed)
+## Landed 2026-11-19/20 (main, pushed)
 
-- **Chieftain:** deposit 25% + rest claimed at send (v31); 12,000 points per Chieftain; slowest unit (speed 2.5).
-- **Drillyard ranks rework** (v32). Fighter points count people defeated (v33). Takes target 110–150.
-- **Abandoned villages** grow by seeded personality (farmstead / stronghold / market / mixed). Army buildings are rare (weights
-  x0.3). Every personality can build a Wall.
-- **Takeover:** occupiers stay as SUPPORT from the sending village, recallable in part (v34; retry pass v35 for worlds where v34
-  skipped). The owner's village 81 army is now support from village 86. A taken village KEEPS its name.
-- **War Chest:** pay-in always available ("Fill to next village", "All gold here"); the bar shows the whole village price.
-- **Pencil "Rename village"** button next to the name in the header.
-- **Map:**
-  - cloth banners on poles with the tribe tag, no symbols; the protection shield sits on the base;
-  - label priority own > site > others; fit-to-world minimum zoom; dot view;
-  - map chunks refresh after an owner change.
-- **Overview side column:**
-  - free view: isometric 100x100 region around the view, round tokens;
-  - premium Expand (bit 2 of `players.premium`, `npm run admin -- extra <name> overview on`) adds 200 / World and Large view, drawn
-    as a **territory map** (design A, owner pick): cells tinted by majority relation, borders, hatch for abandoned villages,
-    gold pins for own villages;
-  - `GET /api/map/overview` is premium-only; drag to move, edge notches, no arrow-button row.
+- **Map:** opens centred on the player's village; far zoom shows tiny flags with group counts.
+- **Computer players** keep developing (preview bots v4).
+- **Longhouse** is never refused for population.
+- **Fire Shrine / Waymark / Lookout panels:** design A, number tiles.
+- **Top bar:** fill-up resource pills; bell and profile pinned right.
+- **Phone:** village tab.
+- **Small fixes:** Support box with one "Bring home ▾" button; Raid again; +1 day refresh.
+- **Chieftain:** the full village price is paid at training. It stays banked if he dies or is cancelled. x1.6 per extra Chieftain held (v36).
+- **Premium:** 5 build slots, an Auto page (now goal-based, `8420e52`), raid lists, wide overview.
+- **Drillyard page:** research grid over ranks. Rider roster changes. Market send. Recruit max.
+- **Flames shop** (lobby, Stripe test mode):
+  - 5 net packs: 3, 6, 12, 25, 60 EUR → 100 / 220 / 480 / 1,100 / 3,000 Flames;
+  - VAT by country added on top (Stripe Tax when `STRIPE_TAX=1`);
+  - Premium 30 days = 150 Flames, no auto-renew;
+  - no self-service refunds (support command only);
+  - disputes lock paid features (fees + 4 EUR to settle);
+  - under-18: parent tick + 30 EUR/month cap.
+- **Docs:**
+  - `docs/PAYMENTS_PLAN.md` (accepted);
+  - `docs/legal/` drafts (terms, refunds, privacy, checkout texts; AI-written, not legal advice).
 
-## Decisions (don't re-ask)
+## In flight (side sessions; they report to the MAIN session, never to the owner)
 
-- **Real worlds are at least 500x500.** Test map screens on the 601x601 synthetic world (generator `gen.ts` from the session
-  scratchpad; rebuild if gone).
-- Original game: same genre as Tribal Wars, never its look, text, numbers or layouts ("don't make the same design").
-- Chieftains: several in one attack OR a chain within 2 h (owner kept both).
-- Targets:
-  - raider/builder 1.5–2x at 30 days;
-  - 2nd village day 21–28;
-  - conquest worst ratio ≤ 2;
-  - takes 110–150 on 5 seeds (noisy: judge on 12 seeds; recent 12-seed totals 230–255);
-  - restarts ≤ 26 on 5 seeds.
-- Ask decisions HERE as numbered choice questions, per item before → after. Push only on his OK.
+1. **Privacy** — session `local_10fc4a9d-cb07-4f58-aac7-51f2c927cdcf`, branch `claude/mystifying-davinci-fce37a`.
+   - Already built:
+     - self-hosted fonts;
+     - account deletion + data export (lobby `#account`, tombstone row keeps purchases 7 years);
+     - `cf_device` cookie created only at sign-in;
+     - signed lobby→world delete command.
+   - This round:
+     - merging main into its branch (it conflicted in 15 files; lobby stays v9, world v38);
+     - wiring the shop into `AccountDataHooks`;
+     - removing the 24-month closure (owner: dropped);
+     - NEW "welcome back" summary in a world after the 30-day abandon, with "start again like a new player".
+   - Next step: when it reports a merge-ready head, look at the shots, merge `--no-ff`, check, build, back up, rebuild the
+     preview, show the owner.
+2. **Feast in all villages (Premium)** — session `local_89979f9f-10b1-4d4e-bd0f-b2035f55e686`, branch `claude/trusting-rubin-e46b57`.
+   - Owner picks:
+     - a list of all villages;
+     - max Feasts each village can pay, editable;
+     - a switch "This village | All villages" at the top of the Banner Hall;
+     - greyed list + shop link without Premium.
+   - It was fixing layout bugs its shots found. Next step: same merge flow.
 
-## Open items / next steps
+## Decisions made today (don't re-ask)
 
-1. **Owner feedback pending** on the territory overview, which so far has only been seen in screenshots. In a synthetic world
-   with evenly spread abandoned villages, the whole-world hatch reads as texture; own pins overlap; switching to 200/World widens
-   the panel.
-2. The owner can't try Premium overview in his preview: offer to enable bit 2 for him (in-browser world, needs an in-app path).
-3. Unexplained: why v34 skipped the conversion in his browser (v35 fixed it). If a future data step skips silently, suspect a
-   second preview tab during reload; add skip-reason logging.
-4. Takes are below target on 5 seeds; a lever if the owner wants more: richer late abandoned villages.
-5. Not checked on screen: 1280 px with tile panel + overview (three columns); phone tile sheet inside the scrolling map region;
-   the one-village header with the pencil.
-6. Old follow-ups are still in NEXT_STEPS: phone pass, Siege icons, bot Wrightyard/Firecarts, Safari never measured.
+- Side sessions NEVER ask the owner. The main session batches questions as numbered choices (AskUserQuestion) with before → after.
+- Payments:
+  - Stripe direct; currency **Flames**;
+  - Flames buy Premium + looks only;
+  - no refund button.
+- Company is Estonian. VAT (OSS) registration and Stripe Tax come later; live payments stay off (`PAYMENTS_LIVE`) until then.
+- Accounts are never closed for inactivity. Only per-world villages are abandoned after 30 days.
+- Weak/strong hint on abandoned villages: dropped.
+
+## Open items for the owner
+
+- Company name, registry code, address and contact email for `docs/legal/*` (placeholders `[Company name]` etc.).
+- Before real sales: enable Stripe Tax, register for OSS, check the VAT rate table (`apps/lobby/src/shop/vat.ts`), then set
+  `STRIPE_TAX=1` and `PAYMENTS_LIVE=1` with live keys himself.
+- No email provider yet: receipt, dispute and refund emails are not sent.
+- Try in the preview: the Drillyard page, Auto goals, and everything above that he hasn't seen.
 
 ## Traps
 
-- **Never work in the main checkout for multi-step changes**; hot changes leak into his preview after a rebuild. Never `git stash`.
-- **No visible browsers, not even the in-app pane.** Headless Playwright WebKit (installed) on your own port; scripts were in the
-  old scratchpad (`br/`, `webkit/`, `terr/shots.mjs`).
-- Flaky tests (rerun alone): `warfare-alerts` (scouts-and-support), `mail conversations paging`, `map-points`.
-- The Mac gets slow: other sessions run heavy jobs (Whisper ad videos). Ask before stopping another project's processes.
-- Uncommitted on purpose: `.claude/launch.json`, `Pasted ... textClipping`, `design/proposals/originality-art/buildings-now-vs-planned.png`.
-- Leftover worktrees you can delete when done: `tribewars-{rider,ranks,staff,shrine,chief,npc,mirror,perf,perf-old,takeover,map,ovw,name,region,terr}`.
+- `npm run check`: the preview bots "run stays fast" test flakes under machine load. It passes when run alone.
+- A worktree `../tribewars-chiefprice` still has abandoned uncommitted "price is lost" edits. Never commit them. Removing
+  it needs the owner's OK (a permission prompt refused it).
+- Many old worktrees and branches are left over (`git worktree list`). Clean up only your own.
