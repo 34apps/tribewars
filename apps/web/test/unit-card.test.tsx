@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { UNITS, UNIT_IDS } from '@clanfire/engine';
-import { flipUnit, inTraining, perFieldText, statBars, stockLine, strongest } from '../src/components/unitCardLogic.ts';
+import { ATTACK_CLASS_HELP, attackClassTag, flipUnit, inTraining, perFieldText, statBars, stockLine, strongest } from '../src/components/unitCardLogic.ts';
 
 test('strongest unit per stat comes from the engine data', () => {
   for (const key of ['attack', 'defenseInfantry', 'defenseCavalry'] as const) {
@@ -55,4 +55,18 @@ test('troop roster: the Barracks list is the foot units, the Stables list the ri
   assert.equal(UNITS.hearthwarden.name, 'Hearthwarden');
   assert.equal(UNITS.outrider.name, 'Elk Rider');
   assert.equal(UNITS.knight.name, 'Ember Guard');
+});
+
+test('attack tag: foot or rider from the engine unitClass, none for units with no attack', () => {
+  for (const u of UNIT_IDS) {
+    const def = UNITS[u];
+    const tag = attackClassTag(u);
+    if (def.attack <= 0) assert.equal(tag, null, u);
+    else assert.equal(tag, def.unitClass === 'cavalry' ? 'rider' : 'foot', u);
+  }
+  assert.equal(attackClassTag('pathfinder'), null);
+  assert.equal(attackClassTag('chieftain'), null);
+  assert.equal(attackClassTag('raider'), 'foot');
+  assert.equal(attackClassTag('knight'), 'rider');
+  assert.match(ATTACK_CLASS_HELP, /defence vs foot.*defence vs riders/);
 });

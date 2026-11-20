@@ -19,9 +19,20 @@ import { useGame, useRules } from '../game.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { unmetRequirements } from '../rules.ts';
 import { UNIT_GOOD_FOR, UNIT_ROLE } from '../unitRole.ts';
-import { flipUnit, inTraining, perFieldText, statBars } from './unitCardLogic.ts';
+import { ATTACK_CLASS_HELP, attackClassTag, flipUnit, inTraining, perFieldText, statBars } from './unitCardLogic.ts';
 import '../army.css';
 import '../unit-card.css';
+
+/** Small filled "foot" / "rider" tag next to an attack number: says which defence number that attack meets. Nothing for attack 0. */
+export function AttackClassTag({ unit }: { unit: UnitId }) {
+  const tag = attackClassTag(unit);
+  if (!tag) return null;
+  return (
+    <span className={`atk-tag atk-tag-${tag}`} title={ATTACK_CLASS_HELP}>
+      {tag}
+    </span>
+  );
+}
 
 /** Time to walk one tile on flat ground at this world's speed: the same rule as the send preview (flatTravelTimeMs). */
 export function timePerTileMs(unit: UnitId, settings: WorldSettings): number {
@@ -62,7 +73,7 @@ export function UnitInfoBody({ unit, settings, buildings }: { unit: UnitId; sett
         </details>
       </div>
       <dl className="stats uinfo-stats">
-        {row('Attack', def.attack)}
+        {row('Attack', <>{def.attack} <AttackClassTag unit={unit} /></>)}
         {row('Defence vs infantry', def.defenseInfantry)}
         {row('Defence vs cavalry', def.defenseCavalry)}
         {row('Speed', `${formatDuration(timePerTileMs(unit, settings))} per tile`)}
@@ -71,6 +82,7 @@ export function UnitInfoBody({ unit, settings, buildings }: { unit: UnitId; sett
         {row(`Train time (${trainBuilding.name} ${Math.max(1, level)})`, `${formatDuration(perUnit)} each`)}
         {row('Unlocked by', requiresText(unit))}
       </dl>
+      {attackClassTag(unit) && <p className="uinfo-note">{ATTACK_CLASS_HELP}</p>}
       <div className="uinfo-cost">
         <Cost cost={def.cost} />
       </div>
@@ -159,7 +171,9 @@ export function UnitTipCard({ unit, rect, onOpen, onHold, onRelease }: { unit: U
         </span>
       </div>
       <div className="uc-tip-g">
-        <Stat icon="army" label="Attack">{d.def.attack}</Stat>
+        <Stat icon="army" label="Attack">
+          {d.def.attack} <AttackClassTag unit={unit} />
+        </Stat>
         <Stat icon="time" label="Speed">
           {perFieldText(d.perFieldMs)}
           <small> /field</small>
@@ -274,11 +288,13 @@ function UnitBigCard({ start, onClose }: { start: UnitId; onClose: () => void })
           <div className="fv-up">
             Fighting <span className="uc-bars-n">· bar = against the strongest unit</span>
           </div>
+          {attackClassTag(unit) && <p className="uc-bars-help">{ATTACK_CLASS_HELP}</p>}
           {bars.map((b) => (
             <div key={b.key} className="uc-bar">
               <span className="uc-bar-l">
                 <Icon name={b.key === 'attack' ? 'army' : 'shield'} size={20} />
                 {b.label}
+                {b.key === 'attack' && <AttackClassTag unit={unit} />}
               </span>
               <span className="uc-bar-t">
                 <i style={{ width: `${b.pct}%` }} />

@@ -67,3 +67,16 @@ export function stockLine(home: number, away: number, training: number): string 
   if (training > 0) parts.push(`${training} training`);
   return parts.join(' · ');
 }
+
+/**
+ * Which of the defender's two defence numbers a unit's ATTACK meets: "foot" (engine unitClass infantry) or "rider" (cavalry).
+ * Null for units with no attack (Pathfinder, Chieftain), which show no tag. Read from the engine data, never a hard-coded list.
+ */
+export function attackClassTag(unit: UnitId): 'foot' | 'rider' | null {
+  const def = UNITS[unit];
+  if (def.attack <= 0) return null;
+  return def.unitClass === 'cavalry' ? 'rider' : 'foot';
+}
+
+/** One-line explainer shown where the stats are explained; the words match the defence labels ("Defence vs foot", "Defence vs riders"). */
+export const ATTACK_CLASS_HELP = "Foot attack meets the defender's defence vs foot; rider attack meets defence vs riders.";
