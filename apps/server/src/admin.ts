@@ -14,7 +14,8 @@
 //   npm run admin -w @clanfire/server -- config                              (list every per-world setting and whether the world is open)
 //   npm run admin -w @clanfire/server -- config-set <path> <value>           (e.g. conquest.holdHours 4; after opening only tribe.maxMembers, features.scavenging, features.paidSpeedups, domination.*)
 //   npm run admin -w @clanfire/server -- extra <username> raidlists on|off   (paid extra: raid lists; switches one bit of players.premium, keeps the others;
-//                                                                            works only where the world setting features.raidLists is on)
+//                                                                            works only where the world setting features.raidLists is on;
+//                                                                            `premium` = 5 build slots + auto mode, needs features.premium; `off` also stops auto mode)
 //   npm run admin -w @clanfire/server -- world-open                          (mark the world open by hand; it also opens with the first player)
 // Reads DATABASE_PATH like the server. Banning ends the account's sessions and blocks sign-in.
 // Staff roles can only be granted here, never over HTTP. Every change is written to the audit log (actor: the CLI).
@@ -23,7 +24,7 @@
 // This is the WORLD's operator tool: it works on the database named by DATABASE_PATH (one world). `npm run lobby:admin` is the
 // lobby's own CLI with a separate database (accounts, world list) and cannot reach any world database, so per-world settings are changed here.
 
-import { EXTRA_RAID_LISTS, EXTRA_WIDE_OVERVIEW, MUTE_MAX_MINUTES, STAFF_ROLES, hasRaidListsExtra, hasWideOverviewExtra, isStaffRole } from '@clanfire/engine';
+import { EXTRA_PREMIUM_TOOLS, EXTRA_RAID_LISTS, EXTRA_WIDE_OVERVIEW, MUTE_MAX_MINUTES, STAFF_ROLES, hasPremiumToolsExtra, hasRaidListsExtra, hasWideOverviewExtra, isStaffRole } from '@clanfire/engine';
 import { loadDotEnv, loadEnv } from './env.ts';
 import { openDatabase } from './db.ts';
 import { DOMINATION_USAGE, isDominationCommand, runDominationCommand } from './domination-admin.ts';
@@ -117,14 +118,27 @@ if (cmd === 'shared-ips') {
   // Paid extras are bits of players.premium. When a shop exists the lobby should carry the extra in the signed entry pass; until then the operator sets it here.
   const p = player(name);
   const [extra, state] = rest;
-  if ((extra !== 'raidlists' && extra !== 'overview') || (state !== 'on' && state !== 'off')) {
-    console.error('Usage: extra <username> raidlists|overview on|off');
+  if ((extra !== 'raidlists' && extra !== 'overview' && extra !== 'premium') || (state !== 'on' && state !== 'off')) {
+    console.error('Usage: extra <username> raidlists|overview|premium on|off');
     process.exitCode = 1;
   } else {
-    store.setPremiumBit(p.id, extra === 'overview' ? EXTRA_WIDE_OVERVIEW : EXTRA_RAID_LISTS, state === 'on');
+    store.setPremiumBit(p.id, extra === 'overview' ? EXTRA_WIDE_OVERVIEW : extra === 'premium' ? EXTRA_PREMIUM_TOOLS : EXTRA_RAID_LISTS, state === 'on');
     log('extra_set', p.id, `${extra} ${state}`);
     const now = store.getPlayer(p.id);
-    console.log(`${p.username}: ${extra === 'overview' ? `wide overview ${hasWideOverviewExtra(now?.premium ?? 0) ? 'on' : 'off'}` : `raid lists ${hasRaidListsExtra(now?.premium ?? 0) ? 'on' : 'off'}`}.`);
+    if (extra === 'premium' && state === 'off') {
+      // The tools end: auto mode stops in every village of the player (settings kept; queued jobs carry on).
+      const n = store.switchAutoOff(p.id);
+      if (n > 0) console.log(`Auto mode switched off in ${n} village(s).`);
+    }
+    console.log(
+      `${p.username}: ${
+        extra === 'overview'
+          ? `wide overview ${hasWideOverviewExtra(now?.premium ?? 0) ? 'on' : 'off'}`
+          : extra === 'premium'
+            ? `premium tools ${hasPremiumToolsExtra(now?.premium ?? 0) ? 'on' : 'off'}`
+            : `raid lists ${hasRaidListsExtra(now?.premium ?? 0) ? 'on' : 'off'}`
+      }.`,
+    );
   }
 } else if (cmd === 'unmute') {
   const p = player(name);
@@ -142,7 +156,7 @@ if (cmd === 'shared-ips') {
   if (!result.ok) process.exitCode = 1;
 } else {
   console.error(
-    `Usage: admin shared-ips | multi <username> | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | extra <username> raidlists on|off | ${DOMINATION_USAGE} | ${WORLD_CONFIG_USAGE}`,
+    `Usage: admin shared-ips | multi <username> | ban <username> [reason] | unban <username> | grant <username> <role> | revoke <username> | mute <username> <minutes> [reason] | unmute <username> | extra <username> raidlists|overview|premium on|off | ${DOMINATION_USAGE} | ${WORLD_CONFIG_USAGE}`,
   );
   process.exitCode = 1;
 }

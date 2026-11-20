@@ -24,16 +24,22 @@ import { worldRules } from '@clanfire/engine';
 import type { SimDraftData } from './simulator.ts';
 
 /** Tabs shown in the main navigation. */
-export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'raids' | 'reports' | 'mail' | 'tribe' | 'ranks';
+export type NavTab = 'village' | 'realm' | 'map' | 'army' | 'raids' | 'auto' | 'reports' | 'mail' | 'tribe' | 'ranks';
 /** Pages reached from the account menu or a link (not in the navigation bar); `incoming` opens from the attack chip. */
 export type MenuPage = 'support' | 'staff' | 'results' | 'rules' | 'simulator' | 'notes' | 'incoming';
 export type Tab = NavTab | MenuPage;
 export const TABS: readonly NavTab[] = ['village', 'realm', 'map', 'army', 'reports', 'mail', 'tribe', 'ranks'];
 /** The Raid lists page (a paid extra): a tab only for a player who has the extra; it sits right after Army. Its route works for everyone. */
 export const RAID_TAB: NavTab = 'raids';
+/** The Auto mode page (Premium): a tab while the world has the premium tools, right after Army / Raid lists. Its route works for everyone. */
+export const AUTO_TAB: NavTab = 'auto';
 /** The tabs shown in the navigation: Realm only from the second village on, Raid lists only for a player who has the extra (both routes still work without). */
-export function navTabs(villageCount: number, raidLists = false): readonly NavTab[] {
-  return TABS.flatMap((t): NavTab[] => (t === 'realm' && villageCount < 2 ? [] : t === 'army' && raidLists ? [t, RAID_TAB] : [t]));
+export function navTabs(villageCount: number, raidLists = false, auto = false): readonly NavTab[] {
+  return TABS.flatMap((t): NavTab[] => {
+    if (t === 'realm' && villageCount < 2) return [];
+    if (t !== 'army') return [t];
+    return [t, ...(raidLists ? [RAID_TAB] : []), ...(auto ? [AUTO_TAB] : [])];
+  });
 }
 export const MENU_PAGES: readonly MenuPage[] = ['support', 'staff', 'results', 'rules', 'simulator', 'notes', 'incoming'];
 
@@ -190,4 +196,10 @@ export function useTickGame(): GameApi {
 /** The rules of this world (queue sizes, tribe limit, hold times, ...) from the settings the server sends. Defaults on an old server. */
 export function useRules(): WorldConfig {
   return worldRules(useGame().settings);
+}
+
+/** Build jobs per village this player may queue: the server's `player.buildQueueLimit` (5 with the premium tools), else the world rule. */
+export function useBuildQueueLimit(): number {
+  const g = useGame();
+  return g.player?.buildQueueLimit ?? worldRules(g.settings).queues.build;
 }

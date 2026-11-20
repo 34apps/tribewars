@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
 import { BUILDINGS } from '@clanfire/engine';
 import type { BuildingId, FirstStepsDto } from '@clanfire/engine';
 import { FIRST_STEP_TARGET, firstStepsVisible, nextOpenStep } from '../../firstSteps.ts';
-import { useGame, useRules } from '../../game.ts';
+import { useBuildQueueLimit, useGame } from '../../game.ts';
 import { buildingInfo } from './buildingInfo.ts';
 import type { BuildingInfo } from './buildingInfo.ts';
 
@@ -40,7 +40,7 @@ export function pickGuide(firstSteps: FirstStepsDto | undefined, infoOf: (id: Bu
 /** The village page's pointer (null = nothing to suggest). `enabled` off skips the work (design preview, other pages). */
 export function useGuide(enabled = true): Guide | null {
   const { live, now, settings, village, firstSteps } = useGame();
-  const limit = useRules().queues.build;
+  const limit = useBuildQueueLimit();
   const off = useSyncExternalStore(subscribe, guideOff, () => false);
   if (!enabled || off) return null;
   return pickGuide(firstSteps, (id) => buildingInfo(live, now, settings, !!village.hearth, limit, id));

@@ -48,6 +48,7 @@ import type {
 import { MS_PER_HOUR, cloneVillage, emptyResources, emptyUnits, fail, ipow, isBuildingId, isUnitId, normalizeUnits } from './util.ts';
 import { SIEGE_OFF_MESSAGE, siegeEnabled } from './siege.ts';
 import { worldRules } from './world-config.ts';
+import { settleAuto } from './auto.ts';
 
 // ---- Creation -----------------------------------------------------------------------------------
 
@@ -280,6 +281,9 @@ export function settleVillage(state: VillageState, t: number, s: WorldSettings):
     cur = to;
   };
 
+  // 0. Auto mode (premium): purchases at the exact moment they become affordable, interleaved with job completions (auto.ts).
+  if (v.auto?.on && !v.npc && !frozen) settleAuto(v, t, s, { cur: () => cur, advance });
+
   // 1. Build jobs that finish by t, in order: production at the old rates up to finishAt, then the new level. An abandoned village
   //    with an empty queue first saves up for its next build (production at the current levels), pays and queues it.
   let starts = 0;
@@ -346,7 +350,7 @@ interface BuildPlan {
 }
 
 /** Rule check on an already settled village. */
-function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: number): CheckResult<BuildPlan> {
+export function planBuild(v: VillageState, b: unknown, s: WorldSettings, maxQueue: number): CheckResult<BuildPlan> {
   if (!isBuildingId(b)) return fail('invalid_input', 'Unknown building.');
   // A cold village (hearth out) may build only its Wall (docs/GAME_DESIGN.md 18.2, 2026-11-05).
   if (v.hearth && b !== 'wall') return fail('requirements_not_met', 'The hearth is out: only the Wall can be built until it is relit.');
@@ -428,23 +432,31 @@ interface TrainPlan {
   perUnitMs: number;
 }
 
+/** Why unit `u` cannot be trained in this village at all right now (siege off, building level, research, cold village), or null. */
+export function unitUnavailable(v: VillageState, u: UnitId, s: WorldSettings): { ok: false; reason: 'requirements_not_met'; message: string } | null {
+  const def = UNITS[u];
+  if (def.siege !== undefined && !siegeEnabled(s)) return { ok: false, reason: 'requirements_not_met', message: SIEGE_OFF_MESSAGE };
+  for (const req of Object.keys(def.requires) as BuildingId[]) {
+    const need = def.requires[req] ?? 0;
+    if (v.buildings[req] < need) {
+      return { ok: false, reason: 'requirements_not_met', message: `Requires ${BUILDINGS[req].name} level ${need}.` };
+    }
+  }
+  if (def.research && !(v.researched ?? []).includes(u)) {
+    return { ok: false, reason: 'requirements_not_met', message: `${def.name} must be researched in the Drillyard first.` };
+  }
+  if (v.hearth) return { ok: false, reason: 'requirements_not_met', message: 'The hearth is out: nothing new can be trained until it is relit.' };
+  return null;
+}
+
 function planTrain(v: VillageState, u: unknown, count: unknown, s: WorldSettings): CheckResult<TrainPlan> {
   if (!isUnitId(u)) return fail('invalid_input', 'Unknown unit.');
   if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > MAX_TRAIN_BATCH) {
     return fail('invalid_input', 'Count must be a whole number of 1 or more.');
   }
   const def = UNITS[u];
-  if (def.siege !== undefined && !siegeEnabled(s)) return fail('requirements_not_met', SIEGE_OFF_MESSAGE);
-  for (const req of Object.keys(def.requires) as BuildingId[]) {
-    const need = def.requires[req] ?? 0;
-    if (v.buildings[req] < need) {
-      return fail('requirements_not_met', `Requires ${BUILDINGS[req].name} level ${need}.`);
-    }
-  }
-  if (def.research &&!(v.researched ?? []).includes(u)) {
-    return fail('requirements_not_met', `${def.name} must be researched in the Drillyard first.`);
-  }
-  if (v.hearth) return fail('requirements_not_met', 'The hearth is out: nothing new can be trained until it is relit.');
+  const unavailable = unitUnavailable(v, u, s);
+  if (unavailable) return unavailable;
   if (u === 'chieftain') {
     if (count > CHIEFTAIN_MAX_BATCH) return fail('invalid_input', `At most ${CHIEFTAIN_MAX_BATCH} Chieftains can be trained at once.`);
     if (v.trainQueues[def.building].length >= CHIEFTAIN_MAX_QUEUED_BATCHES) {
@@ -526,6 +538,7 @@ export function applyCancelBuild(state: VillageState, index: unknown, t: number,
   if (index !== v.buildQueue.length - 1) throw new GameError('invalid_input', 'Only the newest job in the construction queue can be cancelled.');
   const job = v.buildQueue[index] as BuildJob;
   v.buildQueue.pop();
+  if (job.auto && v.auto) v.auto.on = false; // cancelling what auto mode queued switches it off, so it does not re-queue at once
   const refund = refundOf(job.cost ?? buildingCost(job.building, job.targetLevel));
   addRefund(v, refund);
   return { state: v, refund };
@@ -551,6 +564,7 @@ export function applyCancelTrain(
   }
   const job = queue[index] as TrainJob;
   queue.splice(index, 1);
+  if (job.auto && v.auto) v.auto.on = false;
   // The batches behind it close the gap.
   for (let i = index; i < queue.length; i++) {
     const prev = queue[i - 1];

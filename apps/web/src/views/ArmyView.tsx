@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AutoTag } from '../components/AutoTag.tsx';
 import { CommandPost } from './army/CommandPost.tsx';
 import {
   BUILDINGS,
@@ -401,6 +402,7 @@ function TrainBatchRow({ job, onCancel, disabled }: { job: TrainJob; onCancel: (
       <div className="job-head">
         <span className="job-name">
           <UnitFigure unit={job.unit} pose="icon" size={22} className="inline-icon" /> {formatInt(job.count)} × {def.name}
+          <AutoTag show={job.auto} />
           <span className="muted"> ({job.done}/{job.count})</span>
         </span>
         <span className="job-time">

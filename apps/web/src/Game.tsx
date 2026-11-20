@@ -10,7 +10,7 @@ import { ErrorSplash, LoadingSplash } from './components/Splash.tsx';
 import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { toastTtl } from './components/toastKind.ts';
-import { GameContext, MENU_PAGES, RAID_TAB, TABS } from './game.ts';
+import { GameContext, AUTO_TAB, MENU_PAGES, RAID_TAB, TABS } from './game.ts';
 import type { GameApi, LastTime, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { useIsDesktop } from './hooks/useLayout.ts';
@@ -25,6 +25,7 @@ import { ArmyView } from './views/ArmyView.tsx';
 import { FrameArmy } from './views/army/FrameArmy.tsx';
 import { MailView } from './views/MailView.tsx';
 import { MapView } from './views/MapView.tsx';
+import { AutoView } from './views/AutoView.tsx';
 import { RaidListsView } from './views/RaidListsView.tsx';
 import { RankingsView } from './views/RankingsView.tsx';
 import { ReportsView } from './views/ReportsView.tsx';
@@ -42,6 +43,8 @@ import { RealmView } from './views/RealmView.tsx';
 import { NotesView } from './views/NotesView.tsx';
 import { NotesProvider } from './hooks/useNotes.tsx';
 import './notes.css';
+import './auto.css';
+import './autotag.css';
 import { SupportView } from './views/SupportView.tsx';
 
 const StaffView = lazy(() => import('./views/StaffView.tsx'));
@@ -57,7 +60,7 @@ function readRoute(): Route {
   const m = /^village\/b\/([a-z]+)$/.exec(h);
   const id = m?.[1] ?? '';
   if ((BUILDING_IDS as readonly string[]).includes(id)) return { tab: 'village', building: id as BuildingId };
-  const tab = (TABS as readonly string[]).includes(h) || h === RAID_TAB || (MENU_PAGES as readonly string[]).includes(h) ? (h as Tab) : 'village';
+  const tab = (TABS as readonly string[]).includes(h) || h === RAID_TAB || h === AUTO_TAB || (MENU_PAGES as readonly string[]).includes(h) ? (h as Tab) : 'village';
   return { tab, building: null };
 }
 
@@ -325,6 +328,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
       {tab === 'notes' && <NotesView />}
       {tab === 'army' && (desktop ? <FrameArmy /> : <ArmyView />)}
       {tab === 'raids' && <RaidListsView />}
+      {tab === 'auto' && <AutoView />}
       {tab === 'reports' && (desktop ? <FrameReports /> : <ReportsView />)}
       {tab === 'mail' && (desktop ? <FrameMail /> : <MailView />)}
       {tab === 'tribe' && (desktop ? <FrameTribe /> : <TribeView />)}

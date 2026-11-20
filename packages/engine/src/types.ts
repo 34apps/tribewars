@@ -161,6 +161,8 @@ export interface BuildJob {
   finishAt: number;
   /** What was paid when it was queued; a cancel refunds from this, not from today's price. Missing on old jobs. */
   cost?: Resources;
+  /** Queued by auto mode (premium), not by the player. Absent = queued by the player. */
+  auto?: true;
 }
 
 export interface TrainJob {
@@ -174,6 +176,26 @@ export interface TrainJob {
   startAt: number;
   /** Resources paid per unit when the batch was queued; a cancel refunds the untrained rest from this. Missing on old jobs. */
   unitCost?: Resources;
+  /** Queued (or last topped up) by auto mode (premium), not by the player. Absent = queued by the player. */
+  auto?: true;
+}
+
+/**
+ * Auto mode (premium, docs/GAME_DESIGN.md "Auto mode"): the village spends its own income on buildings and troops by itself.
+ * Present once the player has set it up; the engine runs it inside `settleVillage` only while `on` (and never on an abandoned
+ * village). The server writes it only for an entitled owner and switches it off when the entitlement ends or the owner changes.
+ */
+export interface AutoModeState {
+  on: boolean;
+  /** Percent of what auto mode spends that goes to buildings (0..100 in steps of AUTO_SHARE_STEP); the rest goes to troops. */
+  buildShare: number;
+  /** Units it recruits, one order at a time in this order (AUTO_UNIT_IDS only, no repeats). Empty = buildings only. */
+  units: UnitId[];
+  /** Resources (wood + food + iron + gold) auto mode spent on buildings / troops since it was last switched on or changed. */
+  spentBuild: number;
+  spentTroops: number;
+  /** Index into `units` of the unit it recruits next. */
+  nextUnit: number;
 }
 
 export interface NpcInfo {
@@ -232,6 +254,8 @@ export interface VillageState {
   lockUntil?: number;
   /** No attack of any kind before this time (a newly founded village, a restarted player). Absent = none. */
   protectedUntil?: number;
+  /** Auto mode settings and counters (premium). Absent = never set up. */
+  auto?: AutoModeState;
 }
 
 /** The "hearth is out" state of a village (hearth.ts). */

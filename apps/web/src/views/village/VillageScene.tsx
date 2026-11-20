@@ -66,7 +66,7 @@ import { Icon } from "../../art/Icon.tsx";
 import { Workers } from "../../art/workers.tsx";
 import { formatDuration } from "../../format.ts";
 import { unmetRequirements } from "../../rules.ts";
-import { useGame, useRules, useTickGame } from "../../game.ts";
+import { useBuildQueueLimit, useGame, useTickGame } from "../../game.ts";
 import { buildingInfo } from "./buildingInfo.ts";
 import type { BuildingInfo } from "./buildingInfo.ts";
 import { GuideCallout, HoverTip } from "./SceneGuide.tsx";
@@ -822,7 +822,7 @@ function BuildingHit({
  *  so this small part reads the real per-second state while the scene around it does not (see SceneHost). */
 function LiveInfo({ id, children }: { id: BuildingId; children: (info: BuildingInfo) => ReactElement }) {
   const { live, now, village, settings } = useTickGame();
-  const limit = useRules().queues.build;
+  const limit = useBuildQueueLimit();
   return children(buildingInfo(live, now, settings, !!village.hearth, limit, id));
 }
 

@@ -38,6 +38,7 @@ import { dominationRoutes } from './routes/domination.ts';
 import { siteRoutes } from './routes/sites.ts';
 import { noteRoutes } from './routes/notes.ts';
 import { troopGroupRoutes } from './routes/troop-groups.ts';
+import { autoRoutes } from './routes/auto.ts';
 import { raidListRoutes } from './routes/raid-lists.ts';
 import { RaidListService } from './raid-list-service.ts';
 import { firstStepsRoutes } from './routes/first-steps.ts';
@@ -396,6 +397,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   troopGroupRoutes(app, ctx);
   noteRoutes(app, ctx);
   raidListRoutes(app, ctx);
+  autoRoutes(app, ctx);
   firstStepsRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
