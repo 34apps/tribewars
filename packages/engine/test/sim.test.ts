@@ -30,19 +30,25 @@ describe('balance simulator (scripts/sim/balance.ts)', () => {
     assert.deepEqual(runSimulation({ days: 1 }).results, a.results);
   });
 
-  it('siege units are off by default and the siege experiments hold their invariants', () => {
-    const off = runSimulation({ days: 2 });
-    for (const r of off.results) assert.equal(r.siege, undefined);
-    assert.deepEqual(runSimulation({ days: 2, siege: false }).results, off.results);
-    // Switched on, nothing breaks and the stats exist.
-    const on = runSimulation({ days: 2, siege: true });
+  it('siege units are on by default (switch off with siege: false) and the siege experiments hold their invariants', () => {
+    const on = runSimulation({ days: 2 });
     for (const r of on.results) {
       assert.deepEqual(r.errors, []);
       assert.ok(r.siege);
     }
+    assert.deepEqual(runSimulation({ days: 2, siege: true }).results, on.results);
+    const off = runSimulation({ days: 2, siege: false });
+    for (const r of off.results) assert.equal(r.siege, undefined);
     const x = runSiegeExperiments();
     assert.ok(x.checks.length >= 7);
     assert.deepEqual(x.checks.filter((c) => !c.ok), []);
     assert.match(formatSiegeExperiments(x), /All invariants hold/);
+  });
+
+  it('the whole roster gets trained by some style in 30 days (balance is tested on every unit)', () => {
+    const rep = runSimulation({});
+    for (const u of ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder', 'logram', 'firecart'] as const) {
+      assert.ok(rep.results.some((r) => r.trained[u] > 0), `nobody trains ${u}`);
+    }
   });
 });
