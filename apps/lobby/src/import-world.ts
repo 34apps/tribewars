@@ -113,7 +113,7 @@ export function importWorld(o: ImportOptions): ImportReport {
     world.exec('PRAGMA busy_timeout = 10000');
     const cols = columnsOf(world, 'players');
     for (const c of ['id', 'username', 'password_hash', 'created_at']) {
-      if (!cols.has(c)) throw new ImportError(`${worldPath} is not a Clanfire world database (players.${c} is missing).`);
+      if (!cols.has(c)) throw new ImportError(`${worldPath} is not a Clanflame world database (players.${c} is missing).`);
     }
 
     // (b) back up BOTH databases and verify the copies before anything is written

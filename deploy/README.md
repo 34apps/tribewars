@@ -1,4 +1,4 @@
-# Deploying Clanfire (one EC2 host, Docker Compose)
+# Deploying Clanflame (one EC2 host, Docker Compose)
 
 Files: `docker-compose.yml` (one game service per world + the lobby + Caddy), `Caddyfile`, `.env` (Caddy secrets), `game.env`
 (settings of world w1; `game-w2.env` for w2, ...), `lobby.env` (lobby settings and its signing key), `update.sh`, `rollback.sh`,
@@ -78,7 +78,7 @@ start until `LOBBY_SIGNING_KEY` is filled in; the worlds are not affected.
    a world's file, `.env` or git). Put the public line into every world's env file (`game.env`, `game-w2.env`, ...).
 4. `docker compose up -d --build` (lobby, worlds, caddy). Check: `docker compose ps` shows `lobby` healthy.
 5. Add every world to the list (the id must match the world's `WORLD_ID`):
-   `docker compose exec lobby node admin.js world-add w1 "Clanfire One"` (default page path `/w/<id>/`, status `open`).
+   `docker compose exec lobby node admin.js world-add w1 "Clanflame One"` (default page path `/w/<id>/`, status `open`).
    More: `worlds`, `world-status <id> <open|full|closed>`, `world-rename`, `world-remove`, `shared-ips`, `ban`, `unban`,
    `grant <username> <support|moderator|admin>`, `revoke` (same command, `node admin.js <command>`).
 6. CloudFront and Caddy: see below. Open `https://play.example.com/lobby/`.
@@ -95,7 +95,7 @@ start until `LOBBY_SIGNING_KEY` is filled in; the worlds are not affected.
    the lobby from another world with a different password is a conflict: it is reported, left untouched, and the command exits with
    status 2. Then rename one of the two accounts in that world's database, or let that player register anew, and run it again.
 5. Put `LOBBY_PUBLIC_KEY=...` into the world's env file, start both: `docker compose up -d lobby game-w1`.
-6. Add the world: `docker compose exec lobby node admin.js world-add w1 "Clanfire One"`.
+6. Add the world: `docker compose exec lobby node admin.js world-add w1 "Clanflame One"`.
 
 **When a world has ended: record it in the lobby** (badges to accounts, Hall of Fame, status `finished`)
 1. Mount BOTH volumes (the lobby's `/data` comes from the compose file; the world's folder is added like for the import):

@@ -1,4 +1,4 @@
-# In-game experience vs the genre — what would make Clanfire better (2026-11-17)
+# In-game experience vs the genre — what would make Clanflame better (2026-11-17)
 
 **Proposal only. No game code was written.** Written for the owner; plain words first, details after.
 Screenshots (60, desktop 1440x900 and phone 360 px): `design/proposals/experience/` (`L1-…` to `L6-…`, one prefix per loop).

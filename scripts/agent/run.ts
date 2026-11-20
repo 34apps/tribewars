@@ -60,7 +60,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
   fail("ANTHROPIC_API_KEY is not set. Export it first; this runner never falls back to a Claude subscription login.");
 }
 
-const APPEND = `You are running unattended via "npm run agent" on the Clanfire repo (this repo only: never touch other repos). Follow AGENTS.md and docs/STANDARDS.md. Do not install packages. You cannot ask questions; make reasonable choices and state them in your final answer.
+const APPEND = `You are running unattended via "npm run agent" on the Clanflame repo (this repo only: never touch other repos). Follow AGENTS.md and docs/STANDARDS.md. Do not install packages. You cannot ask questions; make reasonable choices and state them in your final answer.
 
 This run is a fresh conversation. The previous run's final answer may be given before the task as context (for follow-ups such as "do step 2"); treat the task as its own: finish it completely and end in a clean state. Decide which kind of run this is:
 

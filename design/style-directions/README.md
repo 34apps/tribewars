@@ -1,4 +1,4 @@
-# Clanfire style directions (2026-11-02)
+# Clanflame style directions (2026-11-02)
 
 Four candidate visual directions for the redesign; the owner picks one. Live canvas (private to the
 owner): https://claude.ai/artifact/MBeYhuGXimx6ASUkUGGQDB — plan and rules in `docs/ART_DIRECTION.md`.

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Clanfire lobby image (one account for many worlds). linux/arm64 on t4g, also builds on amd64. API only, no web client.
+# Clanflame lobby image (one account for many worlds). linux/arm64 on t4g, also builds on amd64. API only, no web client.
 # The signing key (LOBBY_SIGNING_KEY) is never baked in: pass it as an environment variable at runtime.
 ARG NODE_VERSION=26
 
@@ -20,7 +20,7 @@ RUN npm run build -w @clanfire/lobby
 
 FROM node:${NODE_VERSION}-slim
 LABEL org.opencontainers.image.title="clanfire-lobby" \
-      org.opencontainers.image.description="Clanfire lobby: accounts, world list and entry passes" \
+      org.opencontainers.image.description="Clanflame lobby: accounts, world list and entry passes" \
       org.opencontainers.image.source="https://github.com/34apps/tribewars"
 WORKDIR /app
 ENV NODE_ENV=production \

@@ -23,7 +23,7 @@ const steps = () => `<span class="cg">Steps 5/8 · Claim</span>`;
 const mini = () => `<span class="cc sm">${ic('queue', 22)}<b>0/2</b></span><span class="cc sm">${ic('renown', 22)}<b>0/1,000</b></span>`;
 const tab = (n, l, on, bd, lab = true) => `<span class="tab${on ? ' on' : ''}">${ic(n, 24)}${lab ? `<span>${l}</span>` : ''}${bd || ''}</span>`;
 const bdAtk = '<span class="bd red">1</span>', bdRep = '<span class="bd dk">20</span>';
-const brand = `<span class="brand">${ic('flame', 32)}<span>Clanfire</span></span>`;
+const brand = `<span class="brand">${ic('flame', 32)}<span>Clanflame</span></span>`;
 const namePill = (big = true) => `<span class="np"><b>demo391716's village</b><small>24|24</small></span>`;
 
 const BASE = `

@@ -2,7 +2,7 @@
   "name": "@clanfire/preview",
   "version": "0.1.0",
   "private": true,
-  "description": "Single-file in-browser preview of Clanfire: the real server code runs against sql.js inside the page, no server needed.",
+  "description": "Single-file in-browser preview of Clanflame: the real server code runs against sql.js inside the page, no server needed.",
   "type": "module",
   "scripts": {
     "dev": "vite",

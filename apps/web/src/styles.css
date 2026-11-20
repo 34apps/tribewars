@@ -1,4 +1,4 @@
-/* Clanfire web client — style D · Toy Diorama pieces on "Parchment" (docs/ART_DIRECTION.md). Mobile-first: base rules
+/* Clanflame web client — style D · Toy Diorama pieces on "Parchment" (docs/ART_DIRECTION.md). Mobile-first: base rules
    target 360 px; the desktop shell starts at 1024 px. Pages are warm paper, panels and the floating HUD / dock (hud.css) are
    cream, the lobby bars are honey; text is dark ink. Rules use the SEMANTIC tokens below (--surface, --on-surface, --edge ...), never the raw palette
    for panel/text colours. The lobby bars re-point the same tokens to the honey values (see .home-bar below). */

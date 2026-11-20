@@ -1212,7 +1212,7 @@ Rule: a Chieftain reserves a deposit (`CHIEFTAIN_DEPOSIT_SHARE` 0.25 of the next
 
 After comparing with Tribal Wars world statistics the owner wants a livelier world, so the documented target for player-village takes (conquest sim, 20 players, 5 seeds x 90 days) moves from "30-50" to **70-110** (restarts still <= 26, worst biggest/second still <= 2x). Result at 12,000 points per Chieftain: 93 takes, 24 restarts, worst 1.69 (all three inside).
 
-| comparison figure (lead, 2026-11-18) | Tribal Wars | Clanfire |
+| comparison figure (lead, 2026-11-18) | Tribal Wars | Clanflame |
 |---|---|---|
 | Hits needed per village | about 4 noble hits whatever the size, only one noble is used up | 1 Chieftain per 12,000 points (1-3), all used up |
 | Conquests per player per week | about 0.9-2.6 in public world stats (barbarian villages included, world ages unknown) | about 0.17 before, about 0.36 player-village takes now |
