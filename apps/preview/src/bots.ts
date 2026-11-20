@@ -40,6 +40,7 @@ import {
   populationCap,
   populationUsage,
   protectionEndsAt,
+  randomSiegeCandidates,
   resolveBattle,
   settleVillage,
   storageCap,
@@ -151,11 +152,11 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
       ...ECO, ['hall', 3], ['lumber', 8], ['farm', 8], ['longhouse', 8], ['mine', 8], ['storehouse', 7], ['barracks', 1], ['vault', 2], ['hall', 5],
       ['goldmine', 3], ['lumber', 12], ['farm', 12], ['longhouse', 12], ['mine', 12], ['storehouse', 11], ['hall', 8], ['wall', 3], ['market', 3],
       ['barracks', 3], ['hall', 10], ['drillyard', 3], ['bannerhall', 1], ['stables', 1], ['goldmine', 8], ['lumber', 16],
-      ['farm', 16], ['longhouse', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 5], ['bannerhall', 2],
+      ['farm', 16], ['longhouse', 16], ['mine', 16], ['storehouse', 15], ['hall', 12], ['drillyard', 6], ['stables', 8], ['bannerhall', 2],
       ['wall', 10], ['vault', 8], ['market', 8], ['barracks', 8], ['drillyard', 9], ['stables', 8], ['bannerhall', 4],
     ],
     tail: ['lumber', 'farm', 'longhouse', 'mine', 'storehouse', 'hall', 'goldmine', 'bannerhall'],
-    army: [{ unit: 'pikeman', weight: 78 }, { unit: 'guard', weight: 10 }, { unit: 'hearthwarden', weight: 7 }, { unit: 'knight', weight: 5 }],
+    army: [{ unit: 'pikeman', weight: 70 }, { unit: 'guard', weight: 12 }, { unit: 'hearthwarden', weight: 10 }, { unit: 'knight', weight: 3 }],
     reserve: 1,
     trainFromDay: 4,
     research: ['guard', 'hearthwarden', 'knight'],
@@ -164,43 +165,43 @@ const STYLE_DEFS: Record<StyleName, StyleDef> = {
     order: [
       ['lumber', 2], ['farm', 3], ['longhouse', 3], ['hall', 2], ['barracks', 2], ['mine', 3], ['storehouse', 3], ['farm', 5], ['longhouse', 5], ['lumber', 4],
       ['mine', 5], ['barracks', 4], ['farm', 7], ['longhouse', 7], ['storehouse', 5], ['hall', 5], ['lumber', 6], ['mine', 7], ['farm', 9], ['longhouse', 9],
-      ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 2], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['wrightyard', 1],
-      ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['longhouse', 11], ['hall', 8], ['market', 3], ['barracks', 8], ['goldmine', 6],
+      ['stables', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['drillyard', 3], ['storehouse', 6], ['bannerhall', 1], ['barracks', 6], ['wrightyard', 4],
+      ['storehouse', 8], ['lumber', 8], ['mine', 9], ['farm', 11], ['longhouse', 11], ['hall', 8], ['market', 3], ['barracks', 8], ['stables', 8], ['drillyard', 6], ['goldmine', 6],
       ['lumber', 10], ['mine', 11], ['farm', 13], ['longhouse', 13], ['storehouse', 11], ['hall', 10],
     ],
     tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'barracks', 'hall'],
-    army: [{ unit: 'raider', weight: 69 }, { unit: 'outrider', weight: 15 }, { unit: 'pikeman', weight: 10 }, { unit: 'pathfinder', weight: 3 }, { unit: 'logram', weight: 3 }],
+    army: [{ unit: 'raider', weight: 58 }, { unit: 'outrider', weight: 20 }, { unit: 'knight', weight: 5 }, { unit: 'pikeman', weight: 8 }, { unit: 'pathfinder', weight: 3 }, { unit: 'logram', weight: 4 }, { unit: 'firecart', weight: 2 }],
     reserve: 0.8,
     trainFromDay: 2,
-    research: ['outrider', 'logram'],
+    research: ['outrider', 'knight', 'logram', 'firecart'],
   },
   turtle: {
     order: [
       ['lumber', 3], ['farm', 4], ['longhouse', 4], ['hall', 2], ['barracks', 1], ['wall', 2], ['mine', 3], ['storehouse', 3], ['vault', 3],
       ['hall', 3], ['barracks', 3], ['wall', 5], ['farm', 6], ['longhouse', 6], ['lumber', 5], ['mine', 5], ['storehouse', 5], ['hall', 5],
       ['drillyard', 1], ['goldmine', 3], ['market', 2], ['hall', 7], ['storehouse', 6], ['drillyard', 2], ['bannerhall', 1], ['wall', 8],
-      ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 4], ['stables', 4],
+      ['vault', 5], ['farm', 9], ['longhouse', 9], ['lumber', 8], ['mine', 8], ['storehouse', 8], ['hall', 8], ['market', 3], ['drillyard', 4], ['stables', 4], ['barracks', 5], ['wrightyard', 4],
       ['lumber', 11], ['farm', 12], ['longhouse', 12], ['mine', 11], ['storehouse', 11], ['hall', 10], ['wall', 12], ['wall', 15], ['vault', 8],
     ],
     tail: ['wall', 'farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'hall'],
-    army: [{ unit: 'pikeman', weight: 50 }, { unit: 'guard', weight: 38 }, { unit: 'hearthwarden', weight: 7 }, { unit: 'pathfinder', weight: 5 }],
+    army: [{ unit: 'pikeman', weight: 48 }, { unit: 'guard', weight: 36 }, { unit: 'hearthwarden', weight: 8 }, { unit: 'pathfinder', weight: 5 }, { unit: 'firecart', weight: 3 }],
     reserve: 0.9,
     trainFromDay: 2,
-    research: ['guard', 'hearthwarden'],
+    research: ['guard', 'hearthwarden', 'firecart'],
   },
   balanced: {
     order: [
       ['lumber', 3], ['farm', 4], ['longhouse', 4], ['mine', 3], ['hall', 2], ['barracks', 2], ['storehouse', 3], ['lumber', 5], ['farm', 6], ['longhouse', 6],
       ['mine', 5], ['wall', 2], ['hall', 3], ['barracks', 3], ['vault', 2], ['storehouse', 5], ['farm', 8], ['longhouse', 8], ['lumber', 7],
       ['mine', 7], ['hall', 5], ['stables', 1], ['drillyard', 1], ['wall', 5], ['goldmine', 2], ['farm', 10], ['longhouse', 10], ['lumber', 9],
-      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 3], ['farm', 12], ['longhouse', 12],
+      ['mine', 9], ['storehouse', 8], ['market', 3], ['hall', 8], ['drillyard', 3], ['barracks', 5], ['stables', 8], ['drillyard', 6], ['wrightyard', 4], ['farm', 12], ['longhouse', 12],
       ['lumber', 11], ['mine', 11], ['storehouse', 11], ['hall', 10], ['bannerhall', 1], ['goldmine', 5],
     ],
     tail: ['farm', 'longhouse', 'lumber', 'mine', 'storehouse', 'wall', 'hall'],
-    army: [{ unit: 'raider', weight: 40 }, { unit: 'pikeman', weight: 40 }, { unit: 'outrider', weight: 10 }, { unit: 'guard', weight: 10 }],
+    army: [{ unit: 'raider', weight: 36 }, { unit: 'pikeman', weight: 36 }, { unit: 'outrider', weight: 10 }, { unit: 'guard', weight: 8 }, { unit: 'knight', weight: 6 }, { unit: 'logram', weight: 3 }, { unit: 'firecart', weight: 2 }],
     reserve: 0.8,
     trainFromDay: 1.5,
-    research: ['guard', 'outrider'],
+    research: ['guard', 'outrider', 'knight', 'logram', 'firecart'],
   },
 };
 
@@ -240,8 +241,10 @@ const RAID_MIN_UNITS = 5;
 const TRIBE_ATTACK_MARGIN = 1.4;
 const TRIBE_ATTACK_MAX_SHARE = 0.85;
 const TRIBE_ATTACK_MIN_UNITS = 10;
-/** Units a bot attacks with. */
-const OFFENCE_UNITS: readonly UnitId[] = ['outrider', 'raider'];
+/** Units a bot attacks with. Ember Guards (the heavy riders) only go with the attacking styles (offencePool); a builder or turtle keeps them as a home guard. */
+const OFFENCE_UNITS: readonly UnitId[] = ['outrider', 'raider', 'knight'];
+/** Siege units a bot keeps at once (home, away or queued) and sends along at most per raid. */
+const SIEGE_BOT_CAP: Partial<Record<UnitId, number>> = { logram: 16, firecart: 8 };
 /** Troops may take at most this share of a village's population room (the rest stays free for buildings): while the style's build order still has steps / after it. */
 const POP_TROOP_SHARE_BUILDING = 0.8;
 const POP_TROOP_SHARE_DONE = 0.92;
@@ -280,7 +283,7 @@ function loadMeta(ctx: AppContext): BotMeta | null {
 }
 
 /** A bot village sized by Town Hall level, built directly as state (no waiting for construction). Level 0 = a normal new village. */
-function botVillage(level: number, t: number): VillageState {
+function botVillage(level: number, t: number, style: StyleName = 'balanced'): VillageState {
   const v = createPlayerVillage(t);
   if (level <= 0) return v;
   const set = (b: BuildingId, lvl: number): void => {
@@ -297,6 +300,8 @@ function botVillage(level: number, t: number): VillageState {
   set('vault', level >= 2 ? Math.max(0, level - 4) : 0);
   set('goldmine', level >= 3 ? level - 3 : 0);
   set('stables', level >= 5 && v.buildings.barracks >= 3 ? level - 4 : 0);
+  // A Wrightyard (Log Rams, Firecarts) for the styles that play siege; the builder never does.
+  if (level >= 8 && style !== 'builder') set('wrightyard', level - 4);
   if (level >= 8) {
     // The big villages start with a Banner Hall (its requirements: Town Hall 7, Drillyard 2, Market 2, Storehouse 6).
     set('drillyard', 2);
@@ -307,15 +312,18 @@ function botVillage(level: number, t: number): VillageState {
 }
 
 /** One-time starting army and stores of a seeded village (afterwards the bot earns everything through the real rules). */
-function startingStock(v: VillageState, scouts = 0): void {
+function startingStock(v: VillageState, scouts = 0, style: StyleName = 'balanced'): void {
   const level = v.buildings.hall;
   const want: Partial<Units> = {};
   for (const u of UNIT_IDS) {
     const def = UNITS[u];
     const ok = (Object.keys(def.requires) as BuildingId[]).every((b) => v.buildings[b] >= (def.requires[b] ?? 0));
     if (!ok) continue;
+    // The Stables units go with the style: attackers get riders and Ember Guards, defenders Hearthwardens and a few Ember Guards; siege only where the style plays it.
+    const attacker = style === 'raider' || style === 'balanced';
     want[u] =
-      u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : u === 'hearthwarden' ? level : u === 'pathfinder' ? scouts : 0;
+      u === 'raider' ? level * 8 : u === 'pikeman' ? level * 6 : u === 'guard' ? level * 3 : u === 'outrider' ? level * 2 : u === 'hearthwarden' ? level : u === 'pathfinder' ? scouts :
+      u === 'knight' ? Math.floor(level / (attacker ? 2 : 3)) : u === 'logram' ? (attacker ? level : 0) : u === 'firecart' ? (style === 'builder' ? 0 : Math.floor(level / 2)) : 0;
   }
   for (const u of UNIT_IDS) v.troops[u] = Math.max(v.troops[u], want[u] ?? 0);
   const cap = storageCapForLevel(v.buildings.storehouse);
@@ -330,8 +338,8 @@ function createBot(ctx: AppContext, plan: BotPlan, rng: () => number, t: number)
   // Bots cannot sign in: "bot" is not a valid password hash, so verifyPassword always refuses it.
   const id = store.insertPlayer(plan.name, 'bot', t, plan.level <= 0 ? protectionEndsAt(t, settings) : 0, plan.chieftain);
   const spot = findSpawnLocation((x, y) => store.villageExistsAt(x, y), rng, settings);
-  const state = botVillage(plan.level, t);
-  if (plan.level > 0) startingStock(state, plan.scouts);
+  const state = botVillage(plan.level, t, plan.style);
+  if (plan.level > 0) startingStock(state, plan.scouts, plan.style);
   store.insertVillage(id, `${plan.name}'s village`, spot.x, spot.y, villagePoints(state), state);
   const row = store.getPlayer(id);
   if (!row) throw new Error('bot vanished after insert');
@@ -510,8 +518,9 @@ function goldToKeep(def: StyleDef, s: VillageState): number {
   let keep = Math.max(nextBuildCost(def, s).gold, first);
   const nextResearch = def.research.find((u) => !(s.researched ?? []).includes(u) && !(s.researchQueue ?? []).some((j) => j.unit === u));
   if (nextResearch) keep += UNITS[nextResearch].research?.cost.gold ?? 0;
-  const knights = def.army.find((a) => a.unit === 'knight');
-  if (knights) keep += Math.round((knights.weight / def.army.reduce((a, x) => a + x.weight, 0)) * 40) * UNITS.knight.cost.gold;
+  // Gold units (Ember Guard 14, Firecart 6): keep what a batch of the style's share of them costs.
+  const total = def.army.reduce((a, x) => a + x.weight, 0);
+  for (const a of def.army) if (UNITS[a.unit].cost.gold > 0) keep += Math.max(1, Math.round((a.weight / total) * 40)) * UNITS[a.unit].cost.gold;
   return keep;
 }
 
@@ -635,11 +644,14 @@ function trainStep(ctx: AppContext, player: PlayerRow, vid: number, def: StyleDe
     const c1 = checkTrain(s, unit, 1, t, ctx.settings);
     if (!c1.ok && c1.reason === 'requirements_not_met') continue; // not trainable yet (building or research missing)
     if (POP_PER_UNIT[unit] > room) continue;
+    if (UNITS[unit].siege && owned(unit) >= (SIEGE_BOT_CAP[unit] ?? 0)) continue; // a bot keeps only a few siege units
     const reserve = nextBuildCost(def, s);
     const factor = reserveFactor(def, s);
     const spare = emptyResources();
     for (const id of RESOURCE_IDS) spare[id] = Math.max(0, s.resources[id] - reserve[id] * factor);
     spare.food = Math.max(0, spare.food - storageCap(s) * 0.25); // never let troops eat the food stock down to nothing
+    // Gold goes to buildings and the War Chest first: a unit that needs gold must not hold the whole wheel while it is short (it was the first of the wheel, so nothing else got trained).
+    if (UNITS[unit].cost.gold > spare.gold) continue;
     let n = Math.min(TRAIN_BATCH_BASE + TRAIN_BATCH_PER_LEVEL * s.buildings[UNITS[unit].building], Math.floor(room / POP_PER_UNIT[unit]));
     for (const id of RESOURCE_IDS) if (UNITS[unit].cost[id] > 0) n = Math.min(n, Math.floor(spare[id] / UNITS[unit].cost[id]));
     while (n >= 1) {
@@ -898,9 +910,9 @@ const underAttack = (ctx: AppContext, playerId: number): boolean =>
   ctx.store.movementViewsForPlayer(playerId).some((m) => m.kind === 'attack' && m.target.ownerId === playerId);
 
 /** Send on a mission from a village of the bot; false when the real rules refuse (pact, protection, troops away...). */
-function trySend(ctx: AppContext, bot: Bot, fromVillageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number): boolean {
+function trySend(ctx: AppContext, bot: Bot, fromVillageId: number, x: number, y: number, units: Partial<Units>, mission: Mission, t: number, targetBuilding?: BuildingId): boolean {
   try {
-    ctx.game.send(bot.player, fromVillageId, x, y, units, mission, t);
+    ctx.game.send(bot.player, fromVillageId, x, y, units, mission, t, {}, targetBuilding);
     return true;
   } catch {
     return false;
@@ -919,10 +931,10 @@ function nearbyAbandoned(ctx: AppContext, home: { x: number; y: number }, take: 
 
 const pick = <T>(list: readonly T[]): T | undefined => list[Math.floor(Math.random() * list.length)];
 
-/** The offensive units a village has at home (Elk Riders and Raiders). */
-function offencePool(state: VillageState): Units {
+/** The offensive units a village has at home (Elk Riders, Raiders and, for the attacking styles, Ember Guards). */
+function offencePool(state: VillageState, style: StyleName): Units {
   const pool = emptyUnits();
-  for (const u of OFFENCE_UNITS) pool[u] = state.troops[u];
+  for (const u of OFFENCE_UNITS) pool[u] = u === 'knight' && (style === 'builder' || style === 'turtle') ? 0 : state.troops[u];
   return pool;
 }
 const poolSize = (pool: Partial<Units>): number => OFFENCE_UNITS.reduce((n, u) => n + (pool[u] ?? 0), 0);
@@ -934,7 +946,7 @@ function strongestStriker(ctx: AppContext, bot: Bot, t: number): { village: Vill
   for (const village of bot.villages) {
     const state = settleVillage(village.state, t, ctx.settings);
     if (state.hearth) continue;
-    const pool = offencePool(state);
+    const pool = offencePool(state, bot.plan?.style ?? 'balanced');
     if (!best || poolAttack(pool) > poolAttack(best.pool)) best = { village, state, pool };
   }
   return best && poolSize(best.pool) > 0 ? best : undefined;
@@ -995,6 +1007,26 @@ function planArmy(ctx: AppContext, from: { x: number; y: number }, pool: Units, 
 /** What a raid on this abandoned village can take at most: everything it holds (the Vault share is small next to what a big army carries). */
 const lootableOf = (state: VillageState): number => RESOURCE_IDS.reduce((n, id) => n + Math.max(0, state.resources[id]), 0);
 
+/** The siege units a striker takes to the village at (x, y) and the building the Firecarts aim at; none when it has no Wall or no siege units at home. */
+function siegeAlong(ctx: AppContext, home: VillageState, x: number, y: number): { units: Partial<Units>; burn?: BuildingId } {
+  const row = ctx.store.getVillageAt(x, y);
+  if (!row || row.state.buildings.wall < 1) return { units: {} };
+  const units: Partial<Units> = {};
+  if (home.troops.logram > 0) units.logram = Math.min(home.troops.logram, SIEGE_BOT_CAP.logram ?? 0);
+  if (home.troops.firecart > 0) units.firecart = Math.min(home.troops.firecart, SIEGE_BOT_CAP.firecart ?? 0);
+  if (!units.firecart) return { units };
+  let burn: BuildingId | undefined;
+  let worth = -1;
+  for (const b of randomSiegeCandidates(row.state.buildings)) {
+    const w = RESOURCE_IDS.reduce((n, id) => n + buildingCost(b, row.state.buildings[b])[id], 0);
+    if (w > worth) {
+      worth = w;
+      burn = b;
+    }
+  }
+  return burn ? { units, burn } : { units };
+}
+
 /**
  * Some bots send their offence at a nearby abandoned village. The army is sized by the real battle rules to win with a wide margin
  * and to carry what the village holds (never more than 70% of what the strongest village has at home), so raids grow with the army.
@@ -1021,7 +1053,10 @@ function botRaid(ctx: AppContext, bots: Bot[], t: number): boolean {
       const score = Math.min(plan.carry, loot) / Math.max(1, plan.travelMs); // loot per travel time
       if (!best || score > best.score) best = { x: target.x, y: target.y, plan, score };
     }
-    if (best && trySend(ctx, bot, striker.village.id, best.x, best.y, best.plan.units, 'attack', t)) sent++;
+    if (!best) continue;
+    // Siege units at home go along against a walled village (Log Rams batter the Wall, Firecarts burn the dearest building); they only join an army that already wins.
+    const siege = siegeAlong(ctx, striker.state, best.x, best.y);
+    if (trySend(ctx, bot, striker.village.id, best.x, best.y, { ...best.plan.units, ...siege.units }, 'attack', t, siege.burn)) sent++;
   }
   return sent > 0;
 }

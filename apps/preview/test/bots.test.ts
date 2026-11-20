@@ -82,13 +82,14 @@ function snapshot(ctx: AppContext, id: number, t: number): { hall: number; level
 }
 
 /** Wrap game.send to record every march the computer players send (units counted, no Chieftains). */
-function recordSends(ctx: AppContext, clock: { t: number }): Array<{ from: number; x: number; y: number; units: number; mission: string; at: number }> {
-  const log: Array<{ from: number; x: number; y: number; units: number; mission: string; at: number }> = [];
+function recordSends(ctx: AppContext, clock: { t: number }): Array<{ from: number; x: number; y: number; units: number; mission: string; at: number; siege: boolean }> {
+  const log: Array<{ from: number; x: number; y: number; units: number; mission: string; at: number; siege: boolean }> = [];
   const send = ctx.game.send.bind(ctx.game);
   ctx.game.send = (...a: Parameters<typeof send>) => {
     const r = send(...a);
     const units = Object.values(a[4] as Record<string, number>).reduce((n, c) => n + c, 0);
-    log.push({ from: a[0].id, x: a[2], y: a[3], units, mission: String(a[5]), at: clock.t });
+    const u = a[4] as Record<string, number>;
+    log.push({ from: a[0].id, x: a[2], y: a[3], units, mission: String(a[5]), at: clock.t, siege: (u.logram ?? 0) + (u.firecart ?? 0) > 0 });
     return r;
   };
   return log;
@@ -137,6 +138,14 @@ test('bots grow alongside a human at speed 1: points, Feast, War Chest, Chieftai
   ctx.game.feast = (...a: Parameters<typeof gameFeast>) => {
     const r = gameFeast(...a);
     feastsHeld += a[2];
+    return r;
+  };
+  // Which units the bots train (every unit of the roster should be played by some style, so balance gets tested on it) and which raids carry siege.
+  const trainedBy: Record<string, number> = {};
+  const gameTrain = ctx.game.train.bind(ctx.game);
+  ctx.game.train = (...a: Parameters<typeof gameTrain>) => {
+    const r = gameTrain(...a);
+    trainedBy[a[2]] = (trainedBy[a[2]] ?? 0) + a[3];
     return r;
   };
   const day = { invite: -1, feast: -1, chest: -1, chieftain: -1, found: -1 };
@@ -199,6 +208,9 @@ test('bots grow alongside a human at speed 1: points, Feast, War Chest, Chieftai
   const early = raids.filter((r) => r.at < halfAt).map((r) => r.units);
   const late = raids.filter((r) => r.at >= halfAt).map((r) => r.units);
   console.log(`bots test: ${raids.length} real raids/attacks; biggest early ${Math.max(0, ...early)}, biggest late ${Math.max(0, ...late)}`);
+  console.log(`bots test: units trained by bots: ${Object.entries(trainedBy).map(([u, n]) => `${u} ${n}`).join(', ')}`);
+  for (const u of ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder', 'logram', 'firecart']) assert.ok((trainedBy[u] ?? 0) > 0, `the bots train ${u}`);
+  console.log(`bots test: ${raids.filter((r) => r.siege).length} raids carried siege units`);
   assert.ok(raids.length >= 10, 'the bots keep raiding');
   assert.ok(Math.max(0, ...late) >= 100, `late raids are big (${Math.max(0, ...late)})`);
   // The newcomer who starts from nothing: his first raids are small, his later ones several times bigger.

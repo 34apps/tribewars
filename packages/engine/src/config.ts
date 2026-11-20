@@ -494,7 +494,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     name: 'Ember Guard',
     description: 'Heavy rider who carries a live ember, strong in attack, a fair fighter at home. Costs gold. Trains at the Stables.',
     unitClass: 'cavalry', // owner 2026-11-20: was an elite foot soldier (Barracks, speed 5); now a heavy rider
-    attack: 140, // 70 / 60 / 60 -> 140 / 90 / 90 (BALANCE 14): the best attack per population (46.7 vs the Raider's 36), the dearest per coin
+    attack: 160, // 140 -> 160 (BALANCE 28, 2026-11-20: as a rider it lost its anti-pike job; 160 makes it the pop-capped late-game hammer). Before: 70 / 60 / 60 -> 140 / 90 / 90 (BALANCE 14): the best attack per population (46.7 vs the Raider's 36), the dearest per coin
     defenseInfantry: 50, // was 90 (owner 2026-11-20): a rider that strikes hard but no longer holds a village on its own
     defenseCavalry: 40, // was 90 (owner 2026-11-20)
     speed: 9, // was 5 (owner 2026-11-20): between the Hearthwarden (11) and the foot (5-6); the Elk Rider (13) stays the fastest fighter

@@ -149,7 +149,7 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Pathfinder (`pathfinder`) | **Stables 1** (owner 2026-11-20, was Barracks 2) | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout (a rider: `cavalry`) |
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
 | **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | **42 / 62 / 76** (owner 2026-11-20, was 60 / 90 / 110) | 700 s | **fast support defender** (2026-11-18) |
-| **Ember Guard** (`knight`) | **Stables 8, Town Hall 8** (owner 2026-11-20, was Barracks 8) | Drillyard 6 | 140 / **50 / 40** (was 90 / 90) | **9** (was 5) | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold **heavy rider** (`cavalry`) |
+| **Ember Guard** (`knight`) | **Stables 8, Town Hall 8** (owner 2026-11-20, was Barracks 8) | Drillyard 6 | **160** / **50 / 40** (attack 140 until 2026-11-20 evening; defence was 90 / 90) | **9** (was 5) | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold **heavy rider** (`cavalry`) |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 2.5 | 0 | 8 | unchanged | 6 h | takes villages; **the slowest unit in the game** (2.5, below the siege units' 3; owner 2026-11-18, was 5) |
 | Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
 | Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 100 / 80 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
@@ -157,6 +157,8 @@ Stat lines are attack / defence vs foot / defence vs riders:
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
 **Owner decision 2026-11-20 (no schema change, no data step):** the **Ember Guard becomes a heavy rider** (Stables 8 + Town Hall 8, `cavalry`, speed 9, attack 140 unchanged,
+
+**Balance 2026-11-20 (owner: "test it properly", BALANCE §28):** Ember Guard attack **140 → 160**. As a rider it meets the Pikeman's 40 'vs riders' defence and lost its anti-pike job; at 140 it was the dearest attacker and the slowest to train with no fight it was best at, so nobody trained it. At 160 it is the best attacker per population against Shieldbearer, Hearthwarden and mixed late-game defences (what a maxed, population-capped village needs), while the Raider stays best per resource and against Pikeman walls and the Elk Rider stays the fast raider.
 defence 50 vs foot / 40 vs riders, was 90 / 90; it walks the "mounted" terrain row; cost, population 3, carry, research Drillyard 6 unchanged). The **Pathfinder trains at the
 Stables** (Stables 1, `cavalry`, speed 18; its own "pathfinder" terrain row stays) and the **Hearthwarden costs 42 / 62 / 76** (was 60 / 90 / 110). Since the Stables need Town Hall 5 and Barracks 3, a
 village's first scouts come later than with Barracks 2. **Old worlds:** training jobs already queued at the Barracks for these two units stay in the Barracks queue and finish
