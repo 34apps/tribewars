@@ -146,22 +146,29 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Pikeman (`pikeman`) | Barracks 1 | none | 8 / 14 / 40 | 6 | 12 | 1 | 19 / 23 / 14 | 260 s | holds riders |
 | Shieldbearer (`guard`) | Barracks 3 | Drillyard 1 | 12 / 42 / 22 | 5 | 10 | 1 | 17 / 30 / 28 | 320 s | holds foot |
 | Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
-| Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
+| Pathfinder (`pathfinder`) | **Stables 1** (owner 2026-11-20, was Barracks 2) | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout (a rider: `cavalry`) |
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
-| **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | 60 / 90 / 110 | 700 s | **fast support defender** (2026-11-18) |
-| **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
+| **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | **42 / 62 / 76** (owner 2026-11-20, was 60 / 90 / 110) | 700 s | **fast support defender** (2026-11-18) |
+| **Ember Guard** (`knight`) | **Stables 8, Town Hall 8** (owner 2026-11-20, was Barracks 8) | Drillyard 6 | 140 / **50 / 40** (was 90 / 90) | **9** (was 5) | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold **heavy rider** (`cavalry`) |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 2.5 | 0 | 8 | unchanged | 6 h | takes villages; **the slowest unit in the game** (2.5, below the siege units' 3; owner 2026-11-18, was 5) |
 | Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
 | Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 100 / 80 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
 
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
-The **Elk Rider** and the **Hearthwarden** are the `cavalry` units, so "riders" in the defence mix means those two; the **Ember Guard** is `infantry`, walks
-the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
+**Owner decision 2026-11-20 (no schema change, no data step):** the **Ember Guard becomes a heavy rider** (Stables 8 + Town Hall 8, `cavalry`, speed 9, attack 140 unchanged,
+defence 50 vs foot / 40 vs riders, was 90 / 90; it walks the "mounted" terrain row; cost, population 3, carry, research Drillyard 6 unchanged). The **Pathfinder trains at the
+Stables** (Stables 1, `cavalry`, speed 18; its own "pathfinder" terrain row stays) and the **Hearthwarden costs 42 / 62 / 76** (was 60 / 90 / 110). Since the Stables need Town Hall 5 and Barracks 3, a
+village's first scouts come later than with Barracks 2. **Old worlds:** training jobs already queued at the Barracks for these two units stay in the Barracks queue and finish
+there (the engine completes a job by its queue, not by the unit's usual building; no refund, no re-timing; cancelling them still works). New batches go to the Stables. Pathfinders and
+Ember Guards already in a village are untouched. Test: `apps/server/test/roster-migration.test.ts`. Numbers: BALANCE §26.
+
+The **Elk Rider**, the **Hearthwarden**, the **Ember Guard** and the **Pathfinder** are the `cavalry` units, so "riders" in the defence mix means those four (the Pathfinder has no attack, so it adds nothing). Before 2026-11-20 the Ember Guard was `infantry`, walked
+the foot terrain row and was trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
 originality proposal's numbers with the branch's troop cost cut (x0.55, food about x0.5, rounded). The Log Ram and the Boulder Sling no longer
 exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, away, marching, stationed) is an Ember Guard 1:1, Knight research
 counts as Ember Guard research, and Knight batches already queued at the Stables finish there as Ember Guards (no refund, no change of time);
-new Ember Guards are trained at the Barracks only.
+new Ember Guards were trained at the Barracks only (until 2026-11-20, see below: now the Stables).
 
 **Hearthwarden (2026-11-18, no schema change):** a second Stables unit made for **support**: every other defender walks (speed 5-6), so help to a friend often landed too late. It
 rides at speed 11 (the Elk Rider 13), defends 48 vs foot / 52 vs riders, hardly attacks (18) and carries 20. It pays for the speed: per resource and per population its defence
@@ -231,7 +238,7 @@ Tests and the simulator pass their own seeds.
 1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`. The battle simulator in the web client uses the same battle rule (`resolveBattle`); there luck can be set from −10% to +10% (`BattleInput.fixedLuck`, clamped to ±BATTLE_LUCK; the server never sets it).
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
-   Since the troop roster pass (2026-11-11) only the Elk Rider was cavalry (the Hearthwarden joined it on 2026-11-18, but it hardly attacks); the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
+   Since the troop roster pass (2026-11-11) only the Elk Rider was cavalry (the Hearthwarden joined it on 2026-11-18, but it hardly attacks); the Ember Guard became cavalry on 2026-11-20 (owner), so an army with Ember Guards now leans on the defender's "vs riders" column; Raiders and the rest stay infantry.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
    at home. `D = (D_units + M) × (1 + WALL_BONUS_PER_LEVEL × wall)` with the Wall's militia `M = WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall` **only in a village that has an owner** (villagers defend their home; an abandoned village has none, `M = 0`, owner 2026-11-17; the percentage bonus still counts for troops that stand there).
 5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
@@ -1357,7 +1364,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (Elk Rider, Hearthwarden, Ember Guard) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |
@@ -1990,7 +1997,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (Elk Rider, Hearthwarden, Ember Guard) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |

@@ -1341,3 +1341,21 @@ Reading: the numbers match the diagnosis. Takes did not move (70 / 230), raider/
 ## 25. Firecart as a home defender (owner 2026-11-20; no schema change)
 
 `UNITS.firecart` defence 7 / 5 (foot / riders) becomes 100 / 80; attack, cost, population, speed and siege unchanged (dual-use: siege out, defender at home). `npm run sim -- --days 30`, before vs after: the headline figures (scores, growth, takes) are identical, because the computer players almost never train Firecarts (unit table, share of the army 0.014 before and after). The only change in the report is the Firecart's defence share in the unit table, 0.016 to 0.245 (a stat effect). The sim does not exercise Firecart defence in fights, so no defence or takes effect is measured.
+
+## 26. Ember Guard a heavy rider, Pathfinder at the Stables, cheaper Hearthwarden (owner 2026-11-20; no schema change)
+
+Changes (our own numbers, `config.ts`): Ember Guard (`knight`) Barracks -> Stables, `infantry` -> `cavalry`, speed 5 -> 9, defence 90 / 90 -> 50 / 40, requires {stables 8, hall 8} (attack 140, cost, pop 3, carry, research unchanged); Pathfinder Barracks 2 -> Stables 1, `cavalry` (speed 18, cost, pop unchanged); Hearthwarden 60 / 90 / 110 -> 42 / 62 / 76.
+`npm run sim -- --days 30` before vs after (same seed 20261104; the sim styles already build Stables, units go to the queue of `UNITS[u].building`, so no style code changed):
+
+| style | trained before | trained after | takes / growth before -> after |
+|---|---|---|---|
+| builder | pikeman 903, guard 129, hearthwarden 14 | pikeman 1199, guard 164, hearthwarden 23 | founded day 27.7 -> 27.7; points 5,510 -> same home village (4,989 / 521) |
+| raider | pikeman 1137, raider 5769, pathfinder 517 | pikeman 1052, raider 5520, pathfinder 487 | take (tier 5) day 27.1 -> 24.6; raid loot 469k -> similar; 2 villages both |
+| turtle | pikeman 2274, pathfinder 290 | pikeman 2431, **no Pathfinder** | no growth either way (1 village, 758 points) |
+| balanced | pikeman 3248, guard 739, raider 2565, outrider 171 | identical | take day 21.2 -> 21.2, 8,715 / 1,978 points: unchanged |
+
+- **Dominant style flag:** unchanged. "RAIDING IS FREE: the raider style kept up with the builder on buildings while also earning raid loot" appears before and after; balanced still leads on points.
+- **Rider share of trained armies** (cavalry = Elk Rider, Hearthwarden, Ember Guard; Pathfinders listed apart): builder 1.3% (14 Hearthwardens) -> 1.7% (23); raider 0% -> 0% (+487 Pathfinders); turtle 0% -> 0%; balanced 2.8% (171 Elk Riders) -> 2.8%. The Ember Guard is still trained by nobody (also before): "affordable from hour 158" before, now "from hour 485", because Stables 8 comes later than Barracks 8 in the style orders.
+- **Plainly:** (1) the **turtle style no longer trains Pathfinders at all**: it never builds the Stables (needs Town Hall 5 + Barracks 3, and Stables cost gold), so it has no scouts any more. Not a collapse (its score is the same), but a real effect of "scouts at the Stables" for a player who skips the Stables. (2) Scouts arrive later for every style: the Stables need Town Hall 5 and Barracks 3 (the Pathfinder used to need Barracks 2). (3) The cheaper Hearthwarden is trained more (builder 14 -> 23) and raised the builder's army by about 30%. Nothing else moved; no other number was tuned.
+- **Not covered by the sim:** the heavy rider's new attack/defence mix against a defender's "vs riders" column (a Pikeman holds 40 vs riders against 14 vs foot), and the travel time at speed 9. The Ember Guard no longer holds a village on its own (50 / 40 instead of 90 / 90).
+- **Security gate (docs/SECURITY_ROADMAP.md §4):** no new endpoint, no new input; the train route still validates unit and building against `UNITS` / `TRAINING_BUILDING_IDS` on the server, and movement time still comes only from `travelTimeMs` (the slowest unit's speed, terrain row "mounted" for the Ember Guard); a client cannot choose the queue. Old Barracks batches finish by queue, which is the existing server completion path.
