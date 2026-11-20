@@ -107,6 +107,8 @@ export interface PlayerRow {
   accountId: number | null;
   /** Paid extras as bits (the old `premium` column; EXTRA_RAID_LISTS in the engine). 0 = none. Changed only through the operator CLI. */
   premium: number;
+  /** Premium bought with Flames in the lobby shop: active until this time (ms); 0 = none. Copied from the entry pass claim `prm`. */
+  premiumUntil: number;
 }
 
 export interface SharedIpGroup {
@@ -425,6 +427,7 @@ function toPlayer(r: Raw): PlayerRow {
     muteReason: (r.mute_reason as string | null) ?? null,
     accountId: (r.account_id as number | null) ?? null,
     premium: Number.isInteger(r.premium) && (r.premium as number) > 0 ? (r.premium as number) : 0,
+    premiumUntil: Number.isSafeInteger(r.premium_until) && (r.premium_until as number) > 0 ? (r.premium_until as number) : 0,
   };
 }
 
@@ -1125,6 +1128,11 @@ export class Store extends SqlBase {
 
   setChieftain(playerId: number, chieftain: string): void {
     this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
+  }
+
+  /** Set the end of the Flames Premium (ms; 0 = none). Only the entry pass flow calls it. */
+  setPremiumUntil(playerId: number, until: number): void {
+    this.run('UPDATE players SET premium_until = ? WHERE id = ?', until, playerId);
   }
 
   /** Switch one paid-extra bit of `players.premium` on or off, keeping the other bits. The operator CLI and the preview use it. */

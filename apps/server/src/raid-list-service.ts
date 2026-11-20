@@ -66,7 +66,7 @@ export class RaidListService {
   /** Both the world switch and the player's extra; otherwise 403 saying which one is missing. */
   private requireAccess(player: PlayerRow): void {
     if (!this.enabled()) throw new GameError('forbidden', 'Raid lists are not switched on in this world.');
-    if (!hasRaidListsExtra(player.premium)) throw new GameError('forbidden', 'Raid lists are a paid extra, and this account does not have it.');
+    if (!hasRaidListsExtra(this.game.premiumBits(player))) throw new GameError('forbidden', 'Raid lists are a paid extra, and this account does not have it.');
   }
 
   private ownList(player: PlayerRow, id: number): RaidListRow {
@@ -80,7 +80,7 @@ export class RaidListService {
   /** Always answers; the lists themselves only when the world switch is on and the player has the extra. */
   snapshot(player: PlayerRow): RaidListsResponse {
     const enabled = this.enabled();
-    const entitled = hasRaidListsExtra(player.premium);
+    const entitled = hasRaidListsExtra(this.game.premiumBits(player));
     const limits = { lists: RAID_LIST_MAX_LISTS, rows: RAID_LIST_MAX_ROWS, sendCap: RAID_LIST_SEND_CAP };
     if (!enabled || !entitled) return { enabled, entitled, limits, lists: [] };
     const lists = this.store.raidLists.lists(player.id);

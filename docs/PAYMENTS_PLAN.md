@@ -1,6 +1,6 @@
 # Payments plan (draft, 2026-11-20)
 
-Status: **accepted 2026-11-20, being built.** Stripe account for the Estonian company is active (owner). VAT (OSS) registration later, before the first real sale; legal texts drafted by Claude, owner chose no separate lawyer review for now. The company is registered in **Estonia** (EU). Fees and contract terms below
+Status: **accepted 2026-11-20; shop built 2026-11-20 on branch `claude/flames-shop-5ed708` (test mode only, not live).** Nothing takes real money until the OSS VAT registration is done and the owner sets live keys (`PAYMENTS_LIVE=1`). Stripe account for the Estonian company is active (owner). VAT (OSS) registration later, before the first real sale; legal texts drafted by Claude, owner chose no separate lawyer review for now. The company is registered in **Estonia** (EU). Fees and contract terms below
 are from general knowledge; confirm each with the provider's sales team before signing. A lawyer checks the
 terms, refund policy and privacy policy before the first paid purchase.
 
@@ -48,8 +48,7 @@ The EU consumer authorities (CPC network) published principles for in-game curre
 - Players under 18: purchase needs a parent's consent statement; a monthly spending cap for young accounts.
 
 **Never for sale** (keep the game fair): troops, resources, protection time, battle strength, Renown. Premium tools
-are convenience only. Note: `GAME_DESIGN.md` 18.6 still says "cosmetics only, no paid queues"; the owner chose the
-premium 5-slot queue on 2026-11-20, so 18.6 must be updated when this plan is accepted.
+are convenience only. `GAME_DESIGN.md` 18.6 was updated 2026-11-20: Flames buy Premium convenience and looks.
 
 ## 4. Refund policy
 
@@ -85,3 +84,30 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
 - Points packs (App Store, USD): 80 = 2.99, 200 = 5.99, 600 = 9.99, 1,500 = 19.99, 8,000 = 79.99 (per point drops from 3.7 to 1.0 cent).
 - Premium Account 30 days about 4.99 USD; a second paid tier (Account Manager: automates building and recruiting) on top; a points-to-resources exchange (we will NOT copy this: it sells resources).
 - Terms (InnoGames GTC): 14-day withdrawal ends once the service starts with the player's consent; points are not money and are only paid back if the game closes; chargeback costs the player provider fees + 4 EUR.
+
+## 9. How it is built (2026-11-20, branch `claude/flames-shop-5ed708`, test mode)
+
+- **Lobby** (`apps/lobby/src/shop/`, routes `routes/shop.ts`, `routes/stripe.ts`; schema v7): Flames ledger (append-only, balance = sum),
+  purchases (Stripe ids, buyer email, card brand/last4/country, IP, browser, consent id, receipt no. `CF-000123`), consents (exact label text +
+  terms version `2026-11-20-v1`), Stripe event ids (idempotency), dispute fees, 2-year login history for paying accounts (30 days for the rest),
+  Premium per world, owned looks. Endpoints: `GET /lobby/api/shop`, `/shop/balance`, `POST /shop/age`, `/shop/checkout`, `/shop/settle`,
+  `/shop/spend`, `/shop/purchases/:id/refund`, `/stripe/webhook` (contract: `packages/engine/src/api.ts` "Flames shop").
+- **Stripe** without the SDK (plain HTTPS calls, pinned API version): hosted Checkout, card only, 3-D Secure requested on every payment,
+  statement suffix `CLANFIRE`, Stripe Tax only with `STRIPE_TAX=1`. Webhook signature checked (HMAC, 5 min tolerance), idempotent on the event
+  id. Events: `checkout.session.completed` / `.expired`, `charge.succeeded`, `charge.refunded`, `charge.dispute.created` / `.closed`.
+- **Rules as built:** refund = whole purchase, only if none of its Flames is spent (spent oldest first), within 14 days; dispute = Flames removed
+  (minus allowed), fees open (provider fee from Stripe, fallback 20 EUR, + 4 EUR handling, no handling fee when the bank's reason is fraud),
+  paid features locked until balance >= 0 and fees paid ("Settle account" checkout), buying still allowed; second dispute = no more buying; won
+  dispute = Flames back, fees cancelled or refunded; evidence pack submitted automatically; owner alert above 0.5% disputes in a month (log +
+  audit + optional `ALERT_WEBHOOK_URL`). Under 18 (self-declared once): parent tick + 30 EUR per calendar month.
+- **Worlds:** the entry pass carries `prm` (Premium until, 0 when locked); the world stores `players.premium_until` (schema v37) and treats it as
+  the premium tools + raid lists + wide overview bits while it lasts. The operator switches a world's Premium sale with
+  `npm run lobby:admin -- world-shop <id> on` (and the world needs `features.premium`).
+- **CLI:** `world-shop`, `flames <user>`, `flames-grant <user> <n> <reason>`, `age-group <user> adult|minor`, `payments-report [YYYY-MM]`,
+  `dispute-evidence <purchaseId>`.
+
+**Owner setup before testing with Stripe test mode** (keys only in `deploy/lobby.env` / `apps/lobby/.env`, never in git):
+1. `STRIPE_SECRET_KEY=sk_test_...`, `PUBLIC_URL=https://<site>`; live keys are refused unless `PAYMENTS_LIVE=1` (only after OSS VAT registration).
+2. Stripe Dashboard → Developers → Webhooks: endpoint `https://<site>/lobby/api/stripe/webhook`, events listed above; copy its signing
+   secret into `STRIPE_WEBHOOK_SECRET`. Locally: `stripe listen --forward-to localhost:<lobby port>/api/stripe/webhook`.
+3. Settings → Public details: statement descriptor `CLANFIRE`. Radar rules (block country/IP mismatch, cap new accounts) in the Dashboard.

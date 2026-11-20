@@ -6,6 +6,7 @@ import type { LobbyRoute } from '../lobby.ts';
 import { AllWorlds } from './AllWorlds.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
 import type { AuthCalls } from './AuthScreen.tsx';
+import { ShopPage } from './ShopPage.tsx';
 import { HomePage } from './HomePage.tsx';
 import HomeVillage from './HomeVillage.tsx';
 import { WorldsHome } from './WorldsHome.tsx';
@@ -83,8 +84,11 @@ export function LobbyApp() {
   /** After sign-in or sign-up the form's address is no longer wanted: Back must not return to it. */
   const authed = useCallback(() => {
     const { pathname, search } = window.location;
-    window.history.replaceState(null, '', `${pathname}${search}`);
-    setRoute('home');
+    // Sent here from the shop while signed out: land back on the shop.
+    const kept = currentRoute();
+    const next: LobbyRoute = kept === 'shop' || kept === 'shop-paid' ? kept : 'home';
+    window.history.replaceState(null, '', `${pathname}${search}${lobbyRouteHash(next)}`);
+    setRoute(next);
     setAccount('loading');
     setAttempt((n) => n + 1);
   }, []);
@@ -114,7 +118,9 @@ export function LobbyApp() {
       );
     case 'all-worlds':
       return <AllWorlds onBack={() => back('home')} onSignedOut={signedOut} />;
+    case 'shop':
+      return <ShopPage paid={route === 'shop-paid'} onBack={() => back('home')} onSignedOut={signedOut} />;
     case 'your-worlds':
-      return account === null ? null : <WorldsHome account={account} onSignedOut={signedOut} onAllWorlds={() => go('worlds')} />;
+      return account === null ? null : <WorldsHome account={account} onSignedOut={signedOut} onAllWorlds={() => go('worlds')} onShop={() => go('shop')} />;
   }
 }

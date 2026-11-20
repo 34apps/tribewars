@@ -172,6 +172,7 @@ import {
   worldRules,
   MULTI_RETENTION_MS,
 } from '@clanfire/engine';
+import { effectivePremium } from './entitlement.ts';
 import { abandonedNoticeOf } from './auth.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { loadRelationViewer, relationBetweenPlayers } from './relations.ts';
@@ -1968,7 +1969,7 @@ export class GameService {
 
   /** GET /api/map/overview: premium only (checked here, 403 otherwise). Light `[x, y, code]` rows with the relation computed for this viewer. */
   mapOverview(player: PlayerRow, t: number): MapOverviewResponse {
-    if (!hasWideOverviewExtra(player.premium)) throw new GameError('forbidden', 'The wide overview is part of Premium, and this account does not have it.');
+    if (!hasWideOverviewExtra(this.premiumBits(player))) throw new GameError('forbidden', 'The wide overview is part of Premium, and this account does not have it.');
     if (!this.overviewCache || t - this.overviewCache.at >= MAP_OVERVIEW_CACHE_MS || t < this.overviewCache.at) {
       this.overviewCache = { at: t, rows: this.store.overviewRows() };
     }
@@ -2796,7 +2797,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), this.premiumTools(p)), researchQueueLimit: researchQueueLimit(worldRules(this.settings), this.premiumTools(p)), ...(this.premiumTools(p) ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), this.premiumTools(p)), researchQueueLimit: researchQueueLimit(worldRules(this.settings), this.premiumTools(p)), ...(this.premiumTools(p) ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(this.premiumBits(p)) ? { wideOverview: true as const } : {}), ...(p.premiumUntil > 0 ? { premiumUntil: p.premiumUntil } : {}) };
   }
 
   /**
@@ -2926,15 +2927,20 @@ export class GameService {
   // ---- premium tools: 5 build slots and auto mode (docs/GAME_DESIGN.md "Auto mode and 5 build slots") ---------------------
 
   /** The world has the premium tools switched on AND this account has them (EXTRA_PREMIUM_TOOLS). */
-  private premiumTools(p: Pick<PlayerRow, 'premium'>): boolean {
-    return worldRules(this.settings).features.premium && hasPremiumToolsExtra(p.premium);
+  private premiumTools(p: Pick<PlayerRow, 'premium' | 'premiumUntil'>): boolean {
+    return worldRules(this.settings).features.premium && hasPremiumToolsExtra(this.premiumBits(p));
+  }
+
+  /** Paid-extra bits in force right now: operator bits plus Premium bought with Flames while it lasts (entitlement.ts). */
+  premiumBits(p: Pick<PlayerRow, 'premium' | 'premiumUntil'>): number {
+    return effectivePremium(p, this.clock());
   }
 
   /**
    * Auto mode only runs for an entitled owner: when the bit or the world switch is gone, auto mode is switched off (settings kept) in the
    * stored state before anything settles it. Called wherever the owner's villages are read.
    */
-  private withEntitlement(player: Pick<PlayerRow, 'premium'>, v: VillageRecord): VillageRecord {
+  private withEntitlement(player: Pick<PlayerRow, 'premium' | 'premiumUntil'>, v: VillageRecord): VillageRecord {
     const auto = v.state.auto;
     if (!auto?.on || this.premiumTools(player)) return v;
     this.store.switchAutoOffVillage(v.id, v.state);

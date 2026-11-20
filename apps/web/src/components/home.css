@@ -604,3 +604,22 @@ html:has(.home:not(.home-in)) body {
     transition: none;
   }
 }
+
+/* Flames balance + Shop button in the desktop welcome card head and the phone account menu */
+.home-welcome-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home-shop {
+  flex: none;
+  min-height: 44px;
+}
+
+.home-shop-n {
+  padding-right: 8px;
+  border-right: 2px solid var(--edge);
+  font-weight: 800;
+}

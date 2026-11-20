@@ -2,6 +2,7 @@
 
 import type { KeyObject } from 'node:crypto';
 import type { AuthService, RateLimiter } from './auth.ts';
+import type { ShopService } from './shop/service.ts';
 import type { AccountRow, Store } from './store.ts';
 
 export interface AppContext {
@@ -11,6 +12,10 @@ export interface AppContext {
   /** Entry passes are signed with this key. Secret. */
   signingKey: KeyObject;
   secureCookies: boolean;
+  /** Flames shop (rules, ledger, webhook effects). */
+  shop: ShopService;
+  /** Stripe webhook signing secret; null = webhook off. Secret: never log it. */
+  webhookSecret: string | null;
   /** Sign-in and registration attempts per IP. */
   limiter: RateLimiter;
   /** Entering a world: per account and per IP. */

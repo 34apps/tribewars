@@ -96,7 +96,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     { schema: registerSchema, onRequest: rateLimit(ctx, 'register') },
     async (req, reply): Promise<LobbyMeResponse> => {
       if (req.body.chieftain !== undefined && !isChieftainId(req.body.chieftain)) throw new GameError('invalid_input', 'Unknown chieftain.');
-      const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
+      const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip, req.headers['user-agent']);
       setSession(req, reply, grant);
       void reply.code(201);
       return { account: ctx.auth.toDto(grant.account) };
@@ -107,7 +107,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/auth/login',
     { schema: loginSchema, onRequest: rateLimit(ctx, 'login') },
     async (req, reply): Promise<LobbyMeResponse> => {
-      const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
+      const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip, req.headers['user-agent']);
       setSession(req, reply, grant);
       return { account: ctx.auth.toDto(grant.account) };
     },
