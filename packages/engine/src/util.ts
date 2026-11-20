@@ -2,7 +2,7 @@
 
 import { BUILDINGS, UNITS } from './config.ts';
 import { BUILDING_IDS, TRAINING_BUILDING_IDS, UNIT_IDS } from './types.ts';
-import type { BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, ResearchJob, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
+import type { AutoModeState, BuildingId, BuildingLevels, Coords, GameErrorCode, Resources, ResearchJob, TrainJob, UnitId, Units, VillageRanks, VillageState } from './types.ts';
 
 export const MS_PER_HOUR = 3_600_000;
 
@@ -67,6 +67,21 @@ export function normalizeUnits(u: Partial<Units> | undefined): Units {
  * building keys (missing = 0) and both training queues. Brings old saved states up to the current
  * shape. Pure; the input is never mutated and nothing is shared with it.
  */
+/**
+ * Auto mode settings from a saved state. Settings saved before goals existed (a balance and picked units, 2026-11-20) become empty
+ * goals with auto OFF: there is nothing to convert amounts from, and nobody loses anything.
+ */
+function normalizeAuto(a: unknown): AutoModeState {
+  const o = (typeof a === 'object' && a !== null ? a : {}) as Record<string, unknown>;
+  const goals = o.troopGoals;
+  if (typeof goals !== 'object' || goals === null || typeof o.buildingGoals !== 'object' || o.buildingGoals === null) return { on: false, troopGoals: {}, buildingGoals: {} };
+  const troopGoals: AutoModeState['troopGoals'] = {};
+  for (const [k, n] of Object.entries(goals)) if (isUnitId(k) && typeof n === 'number' && n > 0) troopGoals[k] = n;
+  const buildingGoals: AutoModeState['buildingGoals'] = {};
+  for (const [k, n] of Object.entries(o.buildingGoals)) if (isBuildingId(k) && typeof n === 'number' && n > 0) buildingGoals[k] = n;
+  return { on: o.on === true, troopGoals, buildingGoals };
+}
+
 export function normalizeVillage(v: VillageState): VillageState {
   const buildings = {} as BuildingLevels;
   for (const b of BUILDING_IDS) {
@@ -114,7 +129,7 @@ export function normalizeVillage(v: VillageState): VillageState {
   }
   out.renownPaid = paid;
   if (v.hearth) out.hearth = { ...v.hearth };
-  if (v.auto) out.auto = { ...v.auto, units: [...v.auto.units] };
+  if (v.auto) out.auto = normalizeAuto(v.auto);
   if (typeof v.lockUntil === 'number') out.lockUntil = v.lockUntil;
   if (typeof v.protectedUntil === 'number') out.protectedUntil = v.protectedUntil;
   if (v.feast) out.feast = { windowStart: v.feast.windowStart, count: v.feast.count };

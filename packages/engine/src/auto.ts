@@ -1,16 +1,13 @@
-// Auto mode (premium; docs/GAME_DESIGN.md "Auto mode and 5 build slots"): a village spends its own income on buildings and troops by itself.
-// Pure. `settleAuto` runs inside `settleVillage` as an event loop in time order, like an abandoned village's self-build: a purchase is
-// made at the exact moment its cost is covered and a queue slot is free, with build completions (which change production and levels)
-// and research completions in between. Settling in one call or in many steps gives the same result (up to the millisecond rounding of
-// "when is it affordable").
+// Auto mode (premium; docs/GAME_DESIGN.md section 23): a village works toward the goals the player set (troop amounts, building levels)
+// with its own income. Pure. `settleAuto` runs inside `settleVillage` as an event loop in time order, like an abandoned village's
+// self-build: a purchase is made at the exact moment its cost is covered and its queue has no auto job left, with build completions
+// (which change production and levels) and research completions in between. Settling in one call or in many steps gives the same result
+// (up to the millisecond rounding of "when is it affordable").
 
 import {
-  AUTO_DEFAULT_SHARE,
-  AUTO_DEFAULT_UNITS,
-  AUTO_HALL_LAG,
+  AUTO_GOAL_MAX_TROOPS,
   AUTO_MAX_ACTIONS_PER_SETTLE,
   AUTO_POP_ROOM_SHARE,
-  AUTO_SHARE_STEP,
   AUTO_STORE_FULL_SHARE,
   AUTO_TRAIN_BATCH,
   AUTO_UNIT_IDS,
@@ -21,10 +18,10 @@ import {
   UNITS,
 } from './config.ts';
 import { buildingCost, buildingPop, popCapForLevel, populationCap, populationUsage, productionFromLevels, storageCap, storageCapForLevel } from './economy.ts';
-import { RESOURCE_IDS, TRAINING_BUILDING_IDS } from './types.ts';
+import { BUILDING_IDS, RESOURCE_IDS, TRAINING_BUILDING_IDS } from './types.ts';
 import type { AutoModeState, BuildingId, BuildingLevels, CheckResult, Resources, TrainJob, UnitId, VillageState, WorldSettings } from './types.ts';
-import type { AutoNextDto } from './api.ts';
-import { MS_PER_HOUR, fail, isUnitId } from './util.ts';
+import type { AutoNextDto, AutoVillageDto } from './api.ts';
+import { MS_PER_HOUR, fail, isBuildingId, isUnitId } from './util.ts';
 import { planBuild, settleVillage, trainTimeMs, unitUnavailable } from './village.ts';
 import { worldRules } from './world-config.ts';
 import type { WorldConfig } from './world-config.ts';
@@ -41,76 +38,76 @@ export function researchQueueLimit(rules: Pick<WorldConfig, 'queues'>, premiumTo
   return premiumTools ? Math.max(PREMIUM_RESEARCH_QUEUE, rules.queues.research) : rules.queues.research;
 }
 
-/** Settings of a village that never had auto mode: off, the default balance and units, counters at zero. */
+/** Settings of a village that never had auto mode: off, no goals. */
 export function defaultAutoMode(): AutoModeState {
-  return { on: false, buildShare: AUTO_DEFAULT_SHARE, units: [...AUTO_DEFAULT_UNITS], spentBuild: 0, spentTroops: 0, nextUnit: 0 };
+  return { on: false, troopGoals: {}, buildingGoals: {} };
 }
 
 export interface AutoSettings {
   on: boolean;
-  buildShare: number;
-  units: UnitId[];
+  troopGoals: Partial<Record<UnitId, number>>;
+  buildingGoals: Partial<Record<BuildingId, number>>;
+}
+
+function plainObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
 /**
- * Check a settings request body. `on` is required; a missing `buildShare` / `units` keeps the value of `base` (the village's current
- * settings, or the defaults on first setup). Never throws.
+ * Check a settings request body. `on` is required; a missing `troopGoals` / `buildingGoals` keeps the value of `base` (the village's
+ * current settings). Amounts and levels of 0 remove the goal. Never throws.
  */
-export function checkAutoSettings(input: unknown, base: Pick<AutoModeState, 'buildShare' | 'units'> = defaultAutoMode()): CheckResult<AutoSettings> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) return fail('invalid_input', 'Auto mode settings must be an object.');
-  const o = input as Record<string, unknown>;
-  if (typeof o.on !== 'boolean') return fail('invalid_input', '"on" must be true or false.');
-  let buildShare = base.buildShare;
-  if (o.buildShare !== undefined) {
-    const n = o.buildShare;
-    if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 100 || n % AUTO_SHARE_STEP !== 0) {
-      return fail('invalid_input', `The balance must be a whole number from 0 to 100 in steps of ${AUTO_SHARE_STEP}.`);
-    }
-    buildShare = n;
-  }
-  let units: UnitId[] = [...base.units];
-  if (o.units !== undefined) {
-    if (!Array.isArray(o.units) || o.units.length > AUTO_UNIT_IDS.length) return fail('invalid_input', 'Pick up to ' + AUTO_UNIT_IDS.length + ' units.');
-    const seen = new Set<string>();
-    units = [];
-    for (const u of o.units) {
-      if (!isUnitId(u) || !(AUTO_UNIT_IDS as readonly string[]).includes(u)) return fail('invalid_input', 'Auto mode cannot recruit that unit.');
-      if (seen.has(u)) return fail('invalid_input', 'Each unit can be picked once.');
-      seen.add(u);
-      units.push(u);
+export function checkAutoSettings(input: unknown, base: Pick<AutoModeState, 'troopGoals' | 'buildingGoals'> = defaultAutoMode()): CheckResult<AutoSettings> {
+  if (!plainObject(input)) return fail('invalid_input', 'Auto mode settings must be an object.');
+  if (typeof input.on !== 'boolean') return fail('invalid_input', '"on" must be true or false.');
+  let troopGoals = { ...base.troopGoals };
+  if (input.troopGoals !== undefined) {
+    if (!plainObject(input.troopGoals)) return fail('invalid_input', 'Troop goals must be an object of unit amounts.');
+    const keys = Object.keys(input.troopGoals);
+    if (keys.length > AUTO_UNIT_IDS.length) return fail('invalid_input', 'Too many troop goals.');
+    troopGoals = {};
+    for (const k of keys) {
+      const n = input.troopGoals[k];
+      if (!isUnitId(k) || !(AUTO_UNIT_IDS as readonly string[]).includes(k)) return fail('invalid_input', 'Auto mode cannot recruit that unit.');
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > AUTO_GOAL_MAX_TROOPS) {
+        return fail('invalid_input', `A troop goal must be a whole number from 0 to ${AUTO_GOAL_MAX_TROOPS}.`);
+      }
+      if (n > 0) troopGoals[k] = n;
     }
   }
-  return { ok: true, on: o.on, buildShare, units };
+  let buildingGoals = { ...base.buildingGoals };
+  if (input.buildingGoals !== undefined) {
+    if (!plainObject(input.buildingGoals)) return fail('invalid_input', 'Building goals must be an object of levels.');
+    const keys = Object.keys(input.buildingGoals);
+    if (keys.length > BUILDING_IDS.length) return fail('invalid_input', 'Too many building goals.');
+    buildingGoals = {};
+    for (const k of keys) {
+      const n = input.buildingGoals[k];
+      if (!isBuildingId(k)) return fail('invalid_input', 'Unknown building.');
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > BUILDINGS[k].maxLevel) {
+        return fail('invalid_input', `The level of ${BUILDINGS[k].name} must be a whole number from 0 to ${BUILDINGS[k].maxLevel}.`);
+      }
+      if (n > 0) buildingGoals[k] = n;
+    }
+  }
+  return { ok: true, on: input.on, troopGoals, buildingGoals };
 }
 
-/**
- * The new auto mode state after the player saved `settings`. Switching on, or changing the balance or the units, resets the spending
- * counters (a fresh start for the balance); saving the same values again keeps them.
- */
-export function applyAutoSettings(current: AutoModeState | undefined, settings: AutoSettings): AutoModeState {
-  const cur = current ?? defaultAutoMode();
-  const same = cur.buildShare === settings.buildShare && cur.units.length === settings.units.length && cur.units.every((u, i) => u === settings.units[i]);
-  const keep = same && (cur.on || !settings.on);
-  return {
-    on: settings.on,
-    buildShare: settings.buildShare,
-    units: [...settings.units],
-    spentBuild: keep ? cur.spentBuild : 0,
-    spentTroops: keep ? cur.spentTroops : 0,
-    nextUnit: keep && cur.nextUnit < settings.units.length ? cur.nextUnit : 0,
-  };
+/** The new auto mode state after the player saved `settings`. */
+export function applyAutoSettings(_current: AutoModeState | undefined, settings: AutoSettings): AutoModeState {
+  return { on: settings.on, troopGoals: { ...settings.troopGoals }, buildingGoals: { ...settings.buildingGoals } };
 }
 
-// ---- Planning -------------------------------------------------------------------------------------
+// ---- Goals and planning ---------------------------------------------------------------------------
 
 type Waiting = AutoNextDto['waiting'];
 
-type AutoPick =
+type Step =
   | { kind: 'build'; building: BuildingId; level: number; cost: Resources }
-  | { kind: 'troops'; unit: UnitId; unitIndex: number; count: number; cost: Resources };
+  | { kind: 'troops'; unit: UnitId; count: number; cost: Resources };
 
 interface AutoPlan {
-  pick: AutoPick;
+  pick: Step;
   waiting: Waiting;
   /** Earliest time the purchase can happen if nothing else changes; Infinity = waits for a job to finish (an event). */
   at: number;
@@ -118,9 +115,16 @@ interface AutoPlan {
   readyAt: number | null;
 }
 
-const RESOURCE_BUILDINGS: readonly BuildingId[] = ['lumber', 'farm', 'mine', 'goldmine'];
+interface Goal {
+  kind: 'build' | 'troops';
+  building?: BuildingId;
+  unit?: UnitId;
+  have: number;
+  target: number;
+  /** have / target, 0..1. */
+  progress: number;
+}
 
-const sumOf = (c: Resources): number => c.wood + c.food + c.iron + c.gold;
 const trainEnd = (j: TrainJob): number => j.startAt + j.count * j.perUnitMs;
 
 /** Building levels counting queued levels as built. */
@@ -128,6 +132,37 @@ function effectiveLevels(v: VillageState): BuildingLevels {
   const eff = { ...v.buildings };
   for (const j of v.buildQueue) eff[j.building] = Math.max(eff[j.building], j.targetLevel);
   return eff;
+}
+
+/** Troops of a unit counted toward its goal: home + away + still in training. */
+export function troopsHave(v: VillageState, u: UnitId): number {
+  let n = (v.troops[u] || 0) + (v.away[u] || 0);
+  for (const b of TRAINING_BUILDING_IDS) for (const j of v.trainQueues[b]) if (j.unit === u) n += j.count - j.done;
+  return n;
+}
+
+/** A goal auto cannot work on whatever is built: the unit still needs Drillyard research (auto never researches), or the hearth is out. */
+function unitSkipped(v: VillageState, u: UnitId): boolean {
+  if (UNITS[u].research && !(v.researched ?? []).includes(u)) return true;
+  return !!v.hearth;
+}
+
+/** Every unmet goal, furthest behind first (lowest progress; ties: buildings before troops, then the game's own order). */
+function unmetGoals(v: VillageState, eff: BuildingLevels): Goal[] {
+  const a = v.auto;
+  const out: Goal[] = [];
+  if (!a) return out;
+  for (const b of BUILDING_IDS) {
+    const target = a.buildingGoals[b] ?? 0;
+    if (target > 0 && eff[b] < target) out.push({ kind: 'build', building: b, have: eff[b], target, progress: eff[b] / target });
+  }
+  for (const u of AUTO_UNIT_IDS) {
+    const target = a.troopGoals[u] ?? 0;
+    if (target <= 0) continue;
+    const have = troopsHave(v, u);
+    if (have < target) out.push({ kind: 'troops', unit: u, have, target, progress: have / target });
+  }
+  return out.map((g, i) => ({ g, i })).sort((x, y) => x.g.progress - y.g.progress || x.i - y.i).map((x) => x.g);
 }
 
 /** Ms until the stock covers `cost` at the current production: 0 when it does already, null when a missing resource is not produced. */
@@ -146,125 +181,162 @@ function overCap(cost: Resources, cap: number): boolean {
   return RESOURCE_IDS.some((r) => cost[r] > cap);
 }
 
-/** The building side's pick (the Steady growth plan, docs/GAME_DESIGN.md): null when it cannot happen. */
-function buildSide(v: VillageState, cur: number, s: WorldSettings, forceRoom: boolean, limit: number): AutoPlan | null {
-  const eff = effectiveLevels(v);
-  const effCap = storageCapForLevel(eff.storehouse);
-  const usage = populationUsage(v).total;
-  const effPopCap = popCapForLevel(eff.longhouse);
-  const avail = (b: BuildingId): boolean => {
-    if (eff[b] >= BUILDINGS[b].maxLevel) return false;
-    for (const req of Object.keys(BUILDINGS[b].requires) as BuildingId[]) if (v.buildings[req] < (BUILDINGS[b].requires[req] ?? 0)) return false;
-    return true;
-  };
-
-  // The base pick: Town Hall when it lags, else the lowest resource building.
-  let pick: BuildingId | null = null;
-  const inPlay = RESOURCE_BUILDINGS.filter((b) => eff[b] > 0 || avail(b));
-  const lowest = Math.min(...inPlay.map((b) => eff[b]));
-  if (inPlay.length > 0 && avail('hall') && eff.hall + AUTO_HALL_LAG <= lowest) pick = 'hall';
-  else {
-    // The resource building whose next level costs least (wood + food + iron + gold; ties in RESOURCE_BUILDINGS order), so the
-    // dear Gold Mine comes up less often than the three cheap camps and nothing waits half a day while the others are cheap.
-    let best = Infinity;
-    for (const b of RESOURCE_BUILDINGS) {
-      if (!avail(b)) continue;
-      const c = sumOf(buildingCost(b, eff[b] + 1));
-      if (c < best) { best = c; pick = b; }
-    }
-  }
-
-  const lowRoom = effPopCap > 0 && effPopCap - usage < AUTO_POP_ROOM_SHARE * effPopCap;
-  if ((lowRoom || forceRoom) && avail('longhouse')) pick = 'longhouse';
-  else if (pick !== null) {
-    const cost = buildingCost(pick, eff[pick] + 1);
-    const full = RESOURCE_IDS.some((r) => v.resources[r] >= AUTO_STORE_FULL_SHARE * effCap);
-    if ((full || overCap(cost, effCap)) && avail('storehouse')) pick = 'storehouse';
-    else if (overCap(cost, effCap)) return null;
-    else {
-      const extra = buildingPop(pick, eff[pick] + 1) - buildingPop(pick, eff[pick]);
-      if (extra > 0 && usage + extra > effPopCap) pick = avail('longhouse') ? 'longhouse' : null;
-    }
-  }
-  if (pick === null) return null;
-
-  const level = eff[pick] + 1;
-  const cost = buildingCost(pick, level);
-  if (overCap(cost, effCap)) return null;
-  const wait = resourceWaitMs(v, cost, s);
-  if (wait === null) return null;
-  const build: AutoPick = { kind: 'build', building: pick, level, cost };
-  // Blocked until a queued Storehouse / Longhouse level is done (the queue holds one: the pick fitted the effective levels only).
-  const extra = buildingPop(pick, level) - buildingPop(pick, level - 1);
-  if (overCap(cost, storageCap(v))) {
-    const job = v.buildQueue.find((j) => j.building === 'storehouse');
-    return job ? { pick: build, waiting: 'resources', at: Infinity, readyAt: job.finishAt } : null;
-  }
-  if (extra > 0 && usage + extra > populationCap(v)) {
-    const job = v.buildQueue.find((j) => j.building === 'longhouse');
-    return job ? { pick: build, waiting: 'room', at: Infinity, readyAt: job.finishAt } : null;
-  }
-  if (v.buildQueue.length >= limit) {
-    const first = v.buildQueue[0];
-    return { pick: build, waiting: 'slot', at: Infinity, readyAt: first ? Math.max(first.finishAt, cur + wait) : null };
-  }
-  return { pick: build, waiting: wait > 0 ? 'resources' : 'now', at: cur + wait, readyAt: cur + wait };
+interface Ctx {
+  v: VillageState;
+  s: WorldSettings;
+  cur: number;
+  limit: number;
+  eff: BuildingLevels;
+  effCap: number;
+  usage: number;
+  effPopCap: number;
 }
 
-/** The troop side: a plan, or null (cannot happen); `roomBlocked` tells that only the population room is missing. */
-function troopSide(v: VillageState, cur: number, s: WorldSettings): { plan: AutoPlan | null; roomBlocked: boolean } {
-  const a = v.auto!;
-  const none = { plan: null, roomBlocked: false };
-  const n = a.units.length;
-  let idx = -1;
-  for (let k = 0; k < n; k++) {
-    const i = (a.nextUnit + k) % n;
-    const u = a.units[i]!;
-    if (!(AUTO_UNIT_IDS as readonly string[]).includes(u) || unitUnavailable(v, u, s)) continue;
-    idx = i;
-    break;
+function makeCtx(v: VillageState, cur: number, s: WorldSettings, limit: number): Ctx {
+  const eff = effectiveLevels(v);
+  return { v, s, cur, limit, eff, effCap: storageCapForLevel(eff.storehouse), usage: populationUsage(v).total, effPopCap: popCapForLevel(eff.longhouse) };
+}
+
+/** Can the next level of `b` be queued as far as the building itself goes (not at max counting the queue, requirements built)? */
+function avail(c: Ctx, b: BuildingId): boolean {
+  if (c.eff[b] >= BUILDINGS[b].maxLevel) return false;
+  for (const req of Object.keys(BUILDINGS[b].requires) as BuildingId[]) if (c.v.buildings[req] < (BUILDINGS[b].requires[req] ?? 0)) return false;
+  return true;
+}
+
+const buildStep = (c: Ctx, b: BuildingId): Step => ({ kind: 'build', building: b, level: c.eff[b] + 1, cost: buildingCost(b, c.eff[b] + 1) });
+
+/** A step plus, when it has to wait for a building that is already queued, the time that building is done. */
+interface Resolved {
+  step: Step;
+  blockedAt?: number;
+}
+
+/**
+ * The first unmet requirement of a goal becomes the step (recursively: that building's own requirements first). A requirement that is
+ * queued but not built yet makes the goal wait for it (`blockedAt`). Null: it can never happen.
+ */
+function resolveRequires(c: Ctx, requires: Partial<Record<BuildingId, number>>, own: Step, depth: number): Resolved | 'met' | null {
+  for (const req of Object.keys(requires) as BuildingId[]) {
+    const need = requires[req] ?? 0;
+    if (c.v.buildings[req] >= need) continue;
+    if (c.eff[req] >= need) {
+      const job = c.v.buildQueue.find((j) => j.building === req && j.targetLevel >= need);
+      return job ? { step: own, blockedAt: job.finishAt } : null;
+    }
+    return resolveBuilding(c, req, depth + 1);
   }
-  if (idx < 0) return none;
-  const unit = a.units[idx]!;
-  const def = UNITS[unit];
-  const count = AUTO_TRAIN_BATCH;
+  return 'met';
+}
+
+function resolveBuilding(c: Ctx, b: BuildingId, depth: number): Resolved | null {
+  if (depth > BUILDING_IDS.length || c.eff[b] >= BUILDINGS[b].maxLevel) return null;
+  const own = buildStep(c, b);
+  const r = resolveRequires(c, BUILDINGS[b].requires, own, depth);
+  return r === 'met' ? { step: own } : r;
+}
+
+function troopCost(u: UnitId, count: number): Resources {
   const cost: Resources = { wood: 0, food: 0, iron: 0, gold: 0 };
-  for (const r of RESOURCE_IDS) cost[r] = def.cost[r] * count;
-  const eff = effectiveLevels(v);
-  if (overCap(cost, storageCapForLevel(eff.storehouse))) return none;
-  const usage = populationUsage(v).total;
-  const add = count * POP_PER_UNIT[unit];
-  if (usage + add > popCapForLevel(eff.longhouse)) return { plan: null, roomBlocked: true };
-  const wait = resourceWaitMs(v, cost, s);
-  if (wait === null) return none;
-  const pick: AutoPick = { kind: 'troops', unit, unitIndex: idx, count, cost };
-  if (overCap(cost, storageCap(v))) {
-    const job = v.buildQueue.find((j) => j.building === 'storehouse');
-    return job ? { plan: { pick, waiting: 'resources', at: Infinity, readyAt: job.finishAt }, roomBlocked: false } : none;
-  }
-  if (usage + add > populationCap(v)) {
-    const job = v.buildQueue.find((j) => j.building === 'longhouse');
-    return job ? { plan: { pick, waiting: 'room', at: Infinity, readyAt: job.finishAt }, roomBlocked: false } : none;
-  }
-  const x = cur + wait;
-  const queue = v.trainQueues[def.building];
-  const unfinished = queue.filter((j) => trainEnd(j) > x);
-  const last = queue[queue.length - 1];
-  const merge = last !== undefined && last.unit === unit && trainEnd(last) > x;
-  const limit = worldRules(s).queues.train;
-  if (merge || unfinished.length < limit) return { plan: { pick, waiting: wait > 0 ? 'resources' : 'now', at: x, readyAt: x }, roomBlocked: false };
-  const y = Math.max(x, trainEnd(unfinished[unfinished.length - limit]!));
-  return { plan: { pick, waiting: 'slot', at: y, readyAt: y }, roomBlocked: false };
+  for (const r of RESOURCE_IDS) cost[r] = UNITS[u].cost[r] * count;
+  return cost;
 }
 
-/** What auto mode buys next: the side whose turn it is, or the other side when that one cannot happen at all. Null: nothing can happen. */
+function resolveTroops(c: Ctx, u: UnitId, remaining: number): Resolved | null {
+  const count = Math.min(AUTO_TRAIN_BATCH, remaining);
+  const own: Step = { kind: 'troops', unit: u, count, cost: troopCost(u, count) };
+  const r = resolveRequires(c, UNITS[u].requires, own, 0);
+  return r === 'met' ? { step: own } : r;
+}
+
+/** Make a step fit the population room: otherwise the Longhouse comes first; with no Longhouse to build, a troop order shrinks to what fits. */
+function ensureRoom(c: Ctx, step: Step): Step | null {
+  if (step.kind === 'build') {
+    const extra = buildingPop(step.building, step.level) - buildingPop(step.building, step.level - 1);
+    if (extra > 0 && c.usage + extra > c.effPopCap) return avail(c, 'longhouse') ? buildStep(c, 'longhouse') : null;
+    return step;
+  }
+  const each = POP_PER_UNIT[step.unit];
+  if (c.usage + step.count * each <= c.effPopCap) return step;
+  if (avail(c, 'longhouse')) return buildStep(c, 'longhouse');
+  const fit = Math.floor((c.effPopCap - c.usage) / each);
+  if (fit < 1) return null;
+  return { ...step, count: fit, cost: troopCost(step.unit, fit) };
+}
+
+/** From a chosen step to when it happens. Null: it can never happen. */
+function planStep(c: Ctx, step: Step): AutoPlan | null {
+  const { v, s, cur } = c;
+  const wait = resourceWaitMs(v, step.cost, s);
+  if (wait === null) return null;
+  const x = cur + wait;
+  // Blocked until a queued Storehouse / Longhouse level is done (the step fitted the effective levels only).
+  if (overCap(step.cost, storageCap(v))) {
+    const job = v.buildQueue.find((j) => j.building === 'storehouse');
+    return job ? { pick: step, waiting: 'resources', at: Infinity, readyAt: job.finishAt } : null;
+  }
+  const each = step.kind === 'build' ? buildingPop(step.building, step.level) - buildingPop(step.building, step.level - 1) : step.count * POP_PER_UNIT[step.unit];
+  if (each > 0 && c.usage + each > populationCap(v)) {
+    const job = v.buildQueue.find((j) => j.building === 'longhouse');
+    return job ? { pick: step, waiting: 'room', at: Infinity, readyAt: job.finishAt } : null;
+  }
+  if (step.kind === 'build') {
+    // At most one auto job in the build queue at a time (owner, 2026-11-20); a full queue (manual jobs) waits for a slot too.
+    const auto = v.buildQueue.find((j) => j.auto);
+    if (auto) return { pick: step, waiting: 'slot', at: Infinity, readyAt: Math.max(auto.finishAt, x) };
+    if (v.buildQueue.length >= c.limit) {
+      const first = v.buildQueue[0];
+      return { pick: step, waiting: 'slot', at: Infinity, readyAt: first ? Math.max(first.finishAt, x) : null };
+    }
+    return { pick: step, waiting: wait > 0 ? 'resources' : 'now', at: x, readyAt: x };
+  }
+  // Troops: one auto batch per training queue at a time, and a free slot.
+  const queue = v.trainQueues[UNITS[step.unit].building];
+  const unfinished = queue.filter((j) => trainEnd(j) > x);
+  const limit = worldRules(s).queues.train;
+  let y = x;
+  const auto = unfinished.find((j) => j.auto);
+  if (auto) y = Math.max(y, trainEnd(auto));
+  if (unfinished.length >= limit) y = Math.max(y, trainEnd(unfinished[unfinished.length - limit]!));
+  if (y > x) return { pick: step, waiting: 'slot', at: y, readyAt: y };
+  return { pick: step, waiting: wait > 0 ? 'resources' : 'now', at: x, readyAt: x };
+}
+
+/**
+ * What auto mode buys next (docs/GAME_DESIGN.md section 23): the goal furthest behind, first the building its requirements need; the
+ * Longhouse when people room runs low and a troop goal is open; the Storehouse when a store is nearly full or the step costs more than
+ * it holds. A goal that cannot happen at all passes to the next one. Null: no open goal can happen (or all are met).
+ */
 function autoPlan(v: VillageState, cur: number, s: WorldSettings, limit: number): AutoPlan | null {
-  const a = v.auto!;
-  const total = a.spentBuild + a.spentTroops;
-  const wantBuild = a.buildShare >= 100 ? true : a.buildShare <= 0 ? false : total === 0 || a.spentBuild * 100 < a.buildShare * total;
-  const troops = troopSide(v, cur, s);
-  const build = buildSide(v, cur, s, troops.roomBlocked, limit);
-  return wantBuild ? (build ?? troops.plan) : (troops.plan ?? build);
+  const c = makeCtx(v, cur, s, limit);
+  const workable = unmetGoals(v, c.eff).filter((g) => g.kind === 'build' || !unitSkipped(v, g.unit!));
+  const troopOpen = workable.some((g) => g.kind === 'troops');
+  const lowRoom = c.effPopCap > 0 && c.effPopCap - c.usage < AUTO_POP_ROOM_SHARE * c.effPopCap;
+  const full = RESOURCE_IDS.some((r) => v.resources[r] >= AUTO_STORE_FULL_SHARE * c.effCap);
+  for (const g of workable) {
+    const r = g.kind === 'build' ? resolveBuilding(c, g.building!, 0) : resolveTroops(c, g.unit!, g.target - g.have);
+    if (!r) continue;
+    let step: Step | null = r.step;
+    let blocked = r.blockedAt;
+    if (lowRoom && troopOpen && avail(c, 'longhouse')) {
+      step = buildStep(c, 'longhouse');
+      blocked = undefined;
+    } else if (full && avail(c, 'storehouse')) {
+      step = buildStep(c, 'storehouse');
+      blocked = undefined;
+    }
+    if (blocked === undefined) step = ensureRoom(c, step);
+    if (step === null) continue;
+    if (blocked === undefined && overCap(step.cost, c.effCap)) {
+      if ((step.kind === 'build' && step.building === 'storehouse') || !avail(c, 'storehouse')) continue;
+      step = buildStep(c, 'storehouse');
+      if (overCap(step.cost, c.effCap)) continue;
+    }
+    if (blocked !== undefined) return { pick: step, waiting: 'requirement', at: Infinity, readyAt: blocked };
+    const plan = planStep(c, step);
+    if (plan) return plan;
+  }
+  return null;
 }
 
 // ---- Settling -------------------------------------------------------------------------------------
@@ -285,37 +357,31 @@ function landTraining(v: VillageState, at: number): void {
 }
 
 function buy(v: VillageState, plan: AutoPlan, cur: number, s: WorldSettings, limit: number): boolean {
-  const a = v.auto!;
   const cost = plan.pick.cost;
+  landTraining(v, cur); // a batch that ends exactly now frees its place
   // The wait was rounded up to a whole millisecond; floats may leave a hair short.
   for (const r of RESOURCE_IDS) if (v.resources[r] < cost[r] && cost[r] - v.resources[r] < 1e-6) v.resources[r] = cost[r];
   if (plan.pick.kind === 'build') {
+    if (v.buildQueue.some((j) => j.auto)) return false;
     const p = planBuild(v, plan.pick.building, s, limit);
     if (!p.ok) return false;
     const last = v.buildQueue[v.buildQueue.length - 1];
     const startAt = Math.max(cur, last ? last.finishAt : 0);
     for (const r of RESOURCE_IDS) v.resources[r] -= p.cost[r];
     v.buildQueue.push({ building: p.building, targetLevel: p.targetLevel, startAt, finishAt: startAt + p.timeMs, cost: { ...p.cost }, auto: true });
-    a.spentBuild += sumOf(p.cost);
     return true;
   }
-  const { unit, count, unitIndex } = plan.pick;
+  const { unit, count } = plan.pick;
   const def = UNITS[unit];
   if (unitUnavailable(v, unit, s)) return false;
   for (const r of RESOURCE_IDS) if (!(v.resources[r] >= cost[r])) return false;
   if (populationUsage(v).total + count * POP_PER_UNIT[unit] > populationCap(v)) return false;
   const queue = v.trainQueues[def.building];
+  if (queue.some((j) => j.auto)) return false;
   const last = queue[queue.length - 1];
-  if (last && last.unit === unit && trainEnd(last) > cur) {
-    last.count += count;
-    last.auto = true;
-  } else {
-    if (queue.length >= worldRules(s).queues.train) return false;
-    queue.push({ unit, count, done: 0, perUnitMs: trainTimeMs(unit, v, s), startAt: Math.max(cur, last ? trainEnd(last) : 0), unitCost: { ...def.cost }, auto: true });
-  }
+  if (queue.length >= worldRules(s).queues.train) return false;
+  queue.push({ unit, count, done: 0, perUnitMs: trainTimeMs(unit, v, s), startAt: Math.max(cur, last ? trainEnd(last) : 0), unitCost: { ...def.cost }, auto: true });
   for (const r of RESOURCE_IDS) v.resources[r] -= cost[r];
-  a.spentTroops += sumOf(cost);
-  a.nextUnit = (unitIndex + 1) % a.units.length;
   return true;
 }
 
@@ -362,24 +428,45 @@ export function settleAuto(v: VillageState, t: number, s: WorldSettings, h: Auto
   }
 }
 
+/** Goal status of an already settled village: 'empty' no goals, 'reached' all met, 'working' a step is next, 'blocked' nothing can happen. */
+export function autoSummary(v: VillageState, s: WorldSettings): { status: AutoVillageDto['status']; next: AutoNextDto | null } {
+  const a = v.auto;
+  if (!a || (Object.keys(a.troopGoals).length === 0 && Object.keys(a.buildingGoals).length === 0)) return { status: 'empty', next: null };
+  if (unmetGoals(v, effectiveLevels(v)).length === 0) return { status: 'reached', next: null };
+  const cur = v.lastUpdate;
+  const plan = autoPlan(v, cur, s, buildQueueLimit(worldRules(s), true));
+  if (!plan) return { status: 'blocked', next: null };
+  const waiting: Waiting = plan.at <= cur && plan.waiting !== 'requirement' ? 'now' : plan.waiting;
+  const readyAt = plan.readyAt !== null && Number.isFinite(plan.readyAt) ? plan.readyAt : null;
+  const p = plan.pick;
+  const next: AutoNextDto = p.kind === 'build' ? { kind: 'build', building: p.building, level: p.level, waiting, readyAt } : { kind: 'troops', unit: p.unit, count: p.count, waiting, readyAt };
+  return { status: 'working', next };
+}
+
 /**
  * What auto mode does next in this village, at time `t` (the village is settled to `t` first). Null while it is off, in an abandoned or
- * cold village, or when nothing can happen (every steady-growth building at max and no unit can be recruited).
+ * cold village, when all goals are met, or when nothing can happen.
  */
 export function autoNext(state: VillageState, t: number, s: WorldSettings): AutoNextDto | null {
   if (!state.auto?.on || state.npc || state.hearth) return null;
   const v = settleVillage(state, t, s);
   if (!v.auto?.on) return null;
-  const cur = v.lastUpdate;
-  const plan = autoPlan(v, cur, s, buildQueueLimit(worldRules(s), true));
-  if (!plan) return null;
-  const waiting: Waiting = plan.at <= cur ? 'now' : plan.waiting;
-  const readyAt = plan.readyAt !== null && Number.isFinite(plan.readyAt) ? plan.readyAt : null;
-  if (plan.pick.kind === 'build') return { kind: 'build', building: plan.pick.building, level: plan.pick.level, waiting, readyAt };
-  return { kind: 'troops', unit: plan.pick.unit, count: plan.pick.count, waiting, readyAt };
+  return autoSummary(v, s).next;
 }
 
-/** Units of AUTO_UNIT_IDS this village can train right now (building level, research); the Auto page greys out the rest. */
+/** Units of AUTO_UNIT_IDS this village can train right now (building level, research); the Auto page marks the rest. */
 export function autoTrainableUnits(v: VillageState, s: WorldSettings): UnitId[] {
   return AUTO_UNIT_IDS.filter((u) => unitUnavailable(v, u, s) === null);
+}
+
+/** Units of AUTO_UNIT_IDS that still need Drillyard research (their goals are skipped). */
+export function autoNeedsResearch(v: VillageState): UnitId[] {
+  return AUTO_UNIT_IDS.filter((u) => UNITS[u].research && !(v.researched ?? []).includes(u));
+}
+
+/** Troops counted toward goals per auto unit, and building levels counting queued ones (for the Auto page's progress bars). */
+export function autoProgress(v: VillageState): { have: Partial<Record<UnitId, number>>; levels: Partial<Record<BuildingId, number>> } {
+  const have: Partial<Record<UnitId, number>> = {};
+  for (const u of AUTO_UNIT_IDS) have[u] = troopsHave(v, u);
+  return { have, levels: effectiveLevels(v) };
 }

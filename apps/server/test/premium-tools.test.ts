@@ -55,7 +55,7 @@ test('GET /api/auto: 401 signed out; everyone may read; not entitled shows every
   assert.equal(a.feature, true);
   assert.equal(a.entitled, true);
   assert.equal(a.villages.length, 1);
-  assert.deepEqual([a.villages[0]!.on, a.villages[0]!.buildShare, a.villages[0]!.units], [false, 70, ['pikeman', 'guard']]);
+  assert.deepEqual([a.villages[0]!.on, a.villages[0]!.troopGoals, a.villages[0]!.buildingGoals, a.villages[0]!.status], [false, {}, {}, 'empty']);
   assert.equal(a.villages[0]!.next, null);
   const b = await auto(bob);
   assert.equal(b.entitled, false);
@@ -87,42 +87,82 @@ test('POST /api/villages/:id/auto: bad bodies answer 400', async () => {
   const bad: unknown[] = [
     {},
     { on: 'yes' },
-    { on: true, buildShare: 35 },
-    { on: true, buildShare: 110 },
-    { on: true, buildShare: -10 },
-    { on: true, buildShare: 7.5 },
-    { on: true, units: ['nope'] },
-    { on: true, units: ['chieftain'] },
-    { on: true, units: ['logram'] },
-    { on: true, units: ['pikeman', 'pikeman'] },
-    { on: true, units: 'pikeman' },
+    { on: true, troopGoals: [] },
+    { on: true, troopGoals: 'x' },
+    { on: true, troopGoals: { nope: 5 } },
+    { on: true, troopGoals: { chieftain: 5 } },
+    { on: true, troopGoals: { logram: 5 } },
+    { on: true, troopGoals: { firecart: 5 } },
+    { on: true, troopGoals: { pikeman: -1 } },
+    { on: true, troopGoals: { pikeman: 100001 } },
+    { on: true, troopGoals: { pikeman: 7.5 } },
+    { on: true, troopGoals: { pikeman: '5' } },
+    { on: true, buildingGoals: { nope: 1 } },
+    { on: true, buildingGoals: { wall: -1 } },
+    { on: true, buildingGoals: { wall: 999 } },
+    { on: true, buildingGoals: { wall: 1.5 } },
+    { on: true, buildingGoals: [] },
+    { on: true, buildShare: 50 },
+    { on: true, units: ['pikeman'] },
     { on: true, extra: 1 },
-    { on: true, units: ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder', 'pikeman'] },
   ];
   for (const body of bad) errorOf(await setAuto(alice, id, body), 400, 'invalid_input');
   assert.equal((await auto(alice)).villages[0]!.on, false, 'nothing changed');
 });
 
-test('POST /api/villages/:id/auto: happy path, defaults on first setup, reset of counters when changed', async () => {
+test('POST /api/villages/:id/auto: happy path, goals saved, 0 removes a goal, missing keeps them', async () => {
   const { app, clock, alice } = await setup();
   const id = fund(app, alice);
-  const first = await setAuto(alice, id, { on: true });
+  const first = await setAuto(alice, id, { on: true, troopGoals: { pikeman: 30 }, buildingGoals: { lumber: 4, wall: 2 } });
   ok(first);
   const dto = first.json<AutoVillageDto>();
-  assert.deepEqual([dto.on, dto.buildShare, dto.units], [true, 70, ['pikeman', 'guard']]);
+  assert.deepEqual([dto.on, dto.troopGoals, dto.buildingGoals, dto.status], [true, { pikeman: 30 }, { lumber: 4, wall: 2 }, 'working']);
   assert.ok(dto.trainable.includes('pikeman'));
   assert.ok(dto.next, 'it says what it does next');
+  assert.equal(dto.levels.lumber! >= 1, true);
+  assert.equal(typeof dto.have.pikeman, 'number');
   clock.advance(HOUR);
-  const afterTime = (await alice.c.state()).villages[0]!.state.auto!;
-  assert.ok(afterTime.spentBuild + afterTime.spentTroops > 0);
-  const again = await setAuto(alice, id, { on: true, buildShare: 40, units: ['pikeman'] });
+  const again = await setAuto(alice, id, { on: true, troopGoals: { pikeman: 0, raider: 5 } });
   ok(again);
-  const state = (await alice.c.state()).villages[0]!.state.auto!;
-  assert.deepEqual([state.buildShare, state.units, state.spentBuild, state.spentTroops], [40, ['pikeman'], 0, 0]);
+  const goals = (await alice.c.state()).villages[0]!.state.auto!;
+  assert.deepEqual([goals.troopGoals, goals.buildingGoals], [{ raider: 5 }, { lumber: 4, wall: 2 }]);
   const off = await setAuto(alice, id, { on: false });
   assert.equal(off.json<AutoVillageDto>().on, false);
-  assert.equal(off.json<AutoVillageDto>().buildShare, 40, 'settings kept');
+  assert.deepEqual(off.json<AutoVillageDto>().troopGoals, { raider: 5 }, 'goals kept');
   void defaultAutoMode;
+});
+
+test('auto works toward the goals while time passes, then stops with "reached"; offline too', async () => {
+  const { app, clock, alice } = await setup();
+  const id = fund(app, alice);
+  ok(await setAuto(alice, id, { on: true, troopGoals: { pikeman: 20 }, buildingGoals: { lumber: 3 } }));
+  clock.advance(10 * 24 * HOUR);
+  const v = (await alice.c.state()).villages[0]!.state;
+  assert.equal(v.troops.pikeman, 20);
+  assert.equal(v.buildings.lumber, 3);
+  assert.equal(v.buildQueue.length, 0);
+  const o = (await auto(alice)).villages[0]!;
+  assert.equal(o.status, 'reached');
+  assert.equal(o.next, null);
+  assert.equal(o.on, true);
+  assert.equal(o.have.pikeman, 20);
+  clock.advance(HOUR);
+  assert.equal((await alice.c.state()).villages[0]!.state.troops.pikeman, 20, 'nothing more bought');
+});
+
+test('auto queues only one building job at a time, with full stores and 5 build slots', async () => {
+  const { app, clock, alice } = await setup();
+  const id = fund(app, alice);
+  ok(await setAuto(alice, id, { on: true, buildingGoals: { lumber: 20, farm: 20, mine: 20 } }));
+  clock.advance(MINUTE);
+  const q = (await alice.c.state()).villages[0]!.state.buildQueue;
+  assert.equal(q.length, 1);
+  assert.equal(q.filter((j) => j.auto).length, 1);
+  // The slots stay free for the player's own orders.
+  ok(await alice.c.post(`/api/villages/${id}/build`, { building: 'hall' }));
+  const after = (await alice.c.state()).villages[0]!.state.buildQueue;
+  assert.equal(after.length, 2);
+  assert.equal(after.filter((j) => j.auto).length, 1);
 });
 
 test('5 build slots for the entitled player, 2 for everyone else', async () => {
@@ -175,25 +215,23 @@ test('5 research slots for the entitled player, 2 for everyone else (server-enfo
 test('auto mode queues a build and a troop order by itself while time passes (a read is all it takes)', async () => {
   const { app, clock, alice } = await setup();
   const id = fund(app, alice);
-  ok(await setAuto(alice, id, { on: true, buildShare: 50, units: ['pikeman'] }));
+  ok(await setAuto(alice, id, { on: true, buildingGoals: { lumber: 8 }, troopGoals: { pikeman: 500 } }));
   clock.advance(2 * HOUR);
   const v = (await alice.c.state()).villages[0]!;
   assert.ok(v.state.buildQueue.length > 0 || v.state.buildings.lumber > 1, 'it built');
   assert.ok(v.state.buildQueue.every((j) => j.auto === true) || v.state.buildings.lumber > 1);
-  const batches = v.state.trainQueues.barracks;
-  const trained = v.state.troops.pikeman;
-  assert.ok(batches.some((j) => j.auto) || trained > 0, 'it recruited');
-  assert.ok(v.state.auto!.spentBuild > 0 && v.state.auto!.spentTroops > 0);
+  assert.ok(v.state.trainQueues.barracks.some((j) => j.auto) || v.state.troops.pikeman > 0, 'it recruited');
+  assert.equal(v.state.trainQueues.barracks.filter((j) => j.auto).length <= 1, true);
   const overview = (await auto(alice)).villages[0]!;
   assert.equal(overview.on, true);
-  assert.ok(overview.queuedBuilds + overview.queuedTroops > 0 || trained > 0);
+  assert.ok(overview.queuedBuilds + overview.queuedTroops > 0 || v.state.troops.pikeman > 0);
   assert.ok(overview.next === null || ['build', 'troops'].includes(overview.next.kind));
 });
 
 test('cancel build of an auto job switches it off (through the API)', async () => {
   const { app, clock, alice } = await setup();
   const id = fund(app, alice);
-  ok(await setAuto(alice, id, { on: true, buildShare: 100 }));
+  ok(await setAuto(alice, id, { on: true, buildingGoals: { lumber: 9 } }));
   clock.advance(MINUTE);
   const before = (await alice.c.state()).villages[0]!.state;
   assert.ok(before.buildQueue.length > 0 && before.buildQueue.at(-1)!.auto, 'auto queued something');
@@ -206,7 +244,7 @@ test('cancel build of an auto job switches it off (through the API)', async () =
 test('cancel train of an auto batch switches it off', async () => {
   const { app, clock, alice } = await setup();
   const id = fund(app, alice);
-  ok(await setAuto(alice, id, { on: true, buildShare: 0, units: ['pikeman'] }));
+  ok(await setAuto(alice, id, { on: true, troopGoals: { pikeman: 50 } }));
   clock.advance(MINUTE);
   const before = (await alice.c.state()).villages[0]!.state;
   assert.ok(before.trainQueues.barracks.some((j) => j.auto), 'auto queued troops');
@@ -218,12 +256,12 @@ test('cancel train of an auto batch switches it off', async () => {
 test('entitlement removed: auto mode is off on the next read, settings kept; switching the bit back does not turn it on', async () => {
   const { app, clock, alice } = await setup();
   const id = fund(app, alice);
-  ok(await setAuto(alice, id, { on: true, buildShare: 30, units: ['pikeman'] }));
+  ok(await setAuto(alice, id, { on: true, buildingGoals: { lumber: 9 }, troopGoals: { pikeman: 30 } }));
   clock.advance(10 * MINUTE);
   app.ctx.store.setPremiumBit(alice.id, EXTRA_PREMIUM_TOOLS, false);
   const st: GameStateResponse = await alice.c.state();
   assert.equal(st.villages[0]!.state.auto!.on, false);
-  assert.equal(st.villages[0]!.state.auto!.buildShare, 30);
+  assert.deepEqual(st.villages[0]!.state.auto!.troopGoals, { pikeman: 30 });
   assert.equal(st.player.buildQueueLimit, 2);
   assert.equal(app.ctx.store.getVillage(id)!.state.auto!.on, false, 'saved off');
   app.ctx.store.setPremiumBit(alice.id, EXTRA_PREMIUM_TOOLS, true);
@@ -252,7 +290,7 @@ test('entitlement removed: the caretaker pass switches it off too, and does not 
 test('an idle owner\'s village is abandoned: auto mode is gone', async () => {
   const { app, clock, alice, bob } = await setup();
   const id = fund(app, alice);
-  ok(await setAuto(alice, id, { on: true }));
+  ok(await setAuto(alice, id, { on: true, buildingGoals: { lumber: 9 } }));
   const bobsId = await vid(bob);
   void bobsId;
   clock.advance(abandonIdleMs(app.ctx.settings) + HOUR);
@@ -261,4 +299,14 @@ test('an idle owner\'s village is abandoned: auto mode is gone', async () => {
   const after = app.ctx.store.getVillage(id)!;
   assert.equal(after.ownerId, null);
   assert.equal(after.state.auto, undefined);
+});
+
+test('old balance/units settings in a saved village become empty goals with auto off', async () => {
+  const { app, alice } = await setup();
+  const id = fund(app, alice);
+  const rec = app.ctx.store.getVillage(id)!;
+  rec.state.auto = { on: true, buildShare: 70, units: ['pikeman', 'guard'], spentBuild: 3, spentTroops: 1, nextUnit: 0 } as never;
+  app.ctx.store.saveVillage(id, rec.state, villagePoints(rec.state));
+  const v = (await auto(alice)).villages[0]!;
+  assert.deepEqual([v.on, v.troopGoals, v.buildingGoals, v.status], [false, {}, {}, 'empty']);
 });

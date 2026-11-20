@@ -518,9 +518,10 @@ export interface VillageListResponse {
 //                                    their villages with auto mode off and `entitled: false`). No query keys. Bucket `auto`.
 // POST /api/villages/:id/auto     body AutoSettingsRequest -> 200 AutoVillageDto. Owner only (403 stranger, 404 unknown). 403 `forbidden`
 //                                    unless the world has `features.premium` AND the player has EXTRA_PREMIUM_TOOLS. Strict schema:
-//                                    `buildShare` integer 0..100, a multiple of AUTO_SHARE_STEP; `units` 0..AUTO_UNIT_IDS.length distinct ids
-//                                    from AUTO_UNIT_IDS; no other keys. Settling to the server's now happens first; switching on or changing
-//                                    the balance or units resets the spending counters. Bucket `auto`.
+//                                    `on` boolean (required); `troopGoals` object unit id -> integer 0..AUTO_GOAL_MAX_TROOPS (ids from
+//                                    AUTO_UNIT_IDS only); `buildingGoals` object building id -> integer 0..that building's maxLevel;
+//                                    0 removes a goal; a missing object keeps the saved goals; no other keys. Settling to the server's
+//                                    now happens first. (Changed 2026-11-20: the balance slider and unit list are gone.) Bucket `auto`.
 
 /** What auto mode does next in one village, worked out by the server at serverTime (engine `autoNext`). */
 export interface AutoNextDto {
@@ -534,9 +535,10 @@ export interface AutoNextDto {
   /**
    * 'now' = it is queued at once (only seen between settles); 'resources' = waiting until the stock covers the cost (`readyAt`);
    * 'slot' = waiting for a free queue slot (`readyAt` = when one frees up); 'room' = waiting for population room (the next
-   * Longhouse level is built first by the steady growth plan).
+   * Longhouse level is built first); 'requirement' = a building the step needs is still being built (`readyAt` = when it is done).
+   * 'slot' also covers "the previous auto job in that queue has not finished" (at most one auto job per queue).
    */
-  waiting: 'now' | 'resources' | 'slot' | 'room';
+  waiting: 'now' | 'resources' | 'slot' | 'room' | 'requirement';
   /** Server time it expects to queue it, if it can tell; null when it cannot (e.g. production of a needed resource is 0). */
   readyAt: number | null;
 }
@@ -545,11 +547,20 @@ export interface AutoVillageDto extends Coords {
   id: number;
   name: string;
   on: boolean;
-  buildShare: number;
-  units: UnitId[];
+  /** The goals (only amounts / levels above 0). */
+  troopGoals: Partial<Record<UnitId, number>>;
+  buildingGoals: Partial<Record<BuildingId, number>>;
+  /** Troops of each AUTO_UNIT_IDS unit counted toward its goal: home + away + in training. */
+  have: Partial<Record<UnitId, number>>;
+  /** Building levels counted toward goals: built + queued (every building). */
+  levels: Partial<Record<BuildingId, number>>;
   /** Units from AUTO_UNIT_IDS this village can train right now (building level, research); others are shown greyed. */
   trainable: UnitId[];
-  /** Null while off, or when there is nothing left to do (all steady-growth buildings maxed and no units picked). */
+  /** Units that still need Drillyard research: auto skips their goals. */
+  needsResearch: UnitId[];
+  /** 'empty' no goals; 'reached' every goal met; 'working' a step is next; 'blocked' goals open but nothing can happen (e.g. research missing). */
+  status: 'empty' | 'reached' | 'working' | 'blocked';
+  /** Null while off, or unless status is 'working'. */
   next: AutoNextDto | null;
   /** Build jobs and training batches auto mode has queued that are still waiting or running in this village. */
   queuedBuilds: number;
@@ -567,8 +578,10 @@ export interface AutoOverviewResponse {
 
 export interface AutoSettingsRequest {
   on: boolean;
-  buildShare: number;
-  units: string[]; // UnitId[]; validated server-side
+  /** unit id -> amount; ids and ranges validated server-side. Missing = keep the saved goals. */
+  troopGoals?: Record<string, number>;
+  /** building id -> target level; validated server-side. Missing = keep the saved goals. */
+  buildingGoals?: Record<string, number>;
 }
 
 // Training a Chieftain (unit 'chieftain', Banner Hall level 1): the same train route. On top of the resources the server reserves

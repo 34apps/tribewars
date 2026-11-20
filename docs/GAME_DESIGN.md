@@ -2547,31 +2547,35 @@ than the normal limit stays as it is; new manual builds wait until it is under t
 
 **5 research slots (owner, 2026-11-20).** The same entitlement raises the Drillyard research queue to `max(PREMIUM_RESEARCH_QUEUE, queues.research)` = 5 per village (everyone else `queues.research`, 2). The server chooses the limit (`researchQueueLimit` in engine `auto.ts`); `PlayerDto.researchQueueLimit` only tells the client what to show. A queue longer than the normal limit stays if the entitlement ends; new research waits until it is under the limit.
 
-**Auto mode** (one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). Settings per village: on/off, a balance
-`buildShare` (0..100 percent in steps of `AUTO_SHARE_STEP` = 10, default 70 = "more building") and the units it recruits (`units`, default Pikeman and
-Shieldbearer; only `AUTO_UNIT_IDS`, never Chieftains or siege). Switching on, or changing the balance or the units, starts the spending counters at zero.
+**Auto mode: goals** (owner decision 2026-11-20; one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). The balance slider
+and the picked units are gone. Settings per village: on/off and **goals**.
+- **Troop goals:** an amount per unit (0 = no goal, up to `AUTO_GOAL_MAX_TROOPS` = 100000; only `AUTO_UNIT_IDS`, never Chieftains or siege units). A unit counts
+  troops at home + away + still in training.
+- **Building goals:** a target level per building (any building including Wall, Market, Barracks, Stables; at most the building's `maxLevel`). A building counts
+  built level + queued levels.
+- **All goals reached:** when every goal is met auto does nothing and the card says "All goals reached"; it carries on by itself if a goal is raised or troops are lost.
+- **Migration:** a village whose settings were saved with the old balance/units (before 2026-11-20) loads as no goals and auto OFF; there is nothing to convert amounts
+  from, and nobody loses anything.
 
-- **Which side goes next.** Auto mode counts what it has spent on buildings and on troops since it was switched on or changed (wood + food + iron + gold,
-  a plain sum). If buildings have received less than their share so far (`spentBuild * 100 < buildShare * (spentBuild + spentTroops)`, and at 0 / 0
-  buildings first when the share is above 0), the next purchase is a building, otherwise a troop order. Share 100 = buildings, share 0 = troops,
-  as long as that side can happen at all.
-- **It waits, it never skips.** The chosen purchase is made at the exact moment the village's stock covers it and a queue slot is free. This is worked
-  out inside `settleVillage` from production, like an abandoned village's self-build (section 8), so it also happens while the player is offline;
-  there is no timer. Until then nothing else is bought. Only when a side CANNOT happen at all does the turn go to the other side: the building side
-  has no step left (all its buildings at max, or the pick can never fit the storehouse); the troop side has no unit picked, none of the picked units
-  can be trained in this village (building level, research), the order can never fit the storehouse, or it does not fit the population room (then the
-  Steady growth plan's Longhouse rule builds a Longhouse level first). A resource the village does not produce at all (e.g. gold without a Gold Mine)
-  counts as "cannot", not as waiting. Waiting for resources, a queue slot, a finishing Storehouse or Longhouse level is not "cannot".
-- **Building step = the Steady growth plan.** The game decides, counting queued levels as built: (1) Longhouse when less than `AUTO_POP_ROOM_SHARE` (10%)
-  of the population room is free; (2) Storehouse when any stock is at `AUTO_STORE_FULL_SHARE` (90%) of the cap or more, or when the next pick below costs
-  more than the cap; (3) Town Hall when it is `AUTO_HALL_LAG` (2) or more levels below the lowest resource building; (4) otherwise the one of Lumber
-  Camp, Farm, Iron Mine, Gold Mine whose next level costs least (wood + food + iron + gold; ties in that order; a building whose requirements are
-  not met, or that is at max level, is left out), so the dear Gold Mine comes up less often than the three camps. It never
-  builds army buildings, Wall, Market and so on. A pick blocked only by population goes to the Longhouse.
-- **Troop order.** `AUTO_TRAIN_BATCH` (10) of the next picked unit (round-robin through `units`, skipping units that cannot be trained now). If the
-  LAST batch of that training building's queue is the same unit and is not finished, the 10 are added to it (so the queue does not fill up); otherwise a
-  new batch is queued (it waits for a free slot when the queue is full). Normal rules: cost, population, research. Units in training count for population
-  as always.
+**How auto picks what to do (the rule for "most efficient", lead's decision).** Always work on the goal that is **furthest behind**: lowest progress, where
+progress = have / goal for troops and level / goal for buildings. The start level counts as progress, so a goal already met is skipped. Ties: buildings before
+troops, then the game's own order. Before that goal's own step, these steps come first when needed:
+1. **(a) A missing requirement** of the goal. A troop goal for a unit whose building requirement is not met builds that building (and, if that building has
+   unmet requirements, those first). A building goal whose own requirements are not met builds those. A requirement that is already queued but not built makes the
+   goal wait for it ("waiting for a building it needs").
+2. **(b) Longhouse** when less than `AUTO_POP_ROOM_SHARE` (10%) of the population room is free and a troop goal is still open (counting queued levels as built); also
+   when a step would not fit the room.
+3. **(c) Storehouse** when any stock is at `AUTO_STORE_FULL_SHARE` (90%) of the cap or more, or when the chosen step costs more than the stores can hold.
+A unit that still needs Drillyard research is **skipped** (the card says "Needs research at the Drillyard"; auto never researches). Troop steps are batches of
+`AUTO_TRAIN_BATCH` (10) or what remains of the goal. Everything is deterministic (no random choices) and worked out inside `settleVillage`.
+- **It waits, it never skips.** The chosen step is made at the exact moment the village's stock covers it and its queue is free. Nothing cheaper is bought in the
+  meantime, so it also happens while the player is offline; there is no timer. Only a goal that CANNOT happen at all passes to the next goal: a resource the
+  village does not produce (e.g. gold without a Gold Mine), a step that can never fit the storehouse or the population room, a requirement with no way to be met,
+  a unit that needs research. Waiting for resources, a free queue slot, a finishing Storehouse / Longhouse level or a finishing requirement is not "cannot".
+- **At most one auto job per queue (owner, 2026-11-20).** Auto keeps one auto job in the build queue and one in each training building's queue (Barracks,
+  Stables, Wrightyard) at a time, and starts the next step in that queue only when its previous auto job there has finished. The player's own jobs do not count and
+  the other slots stay free for manual orders (the 5 build slots are for the player). Different queues run in parallel (one chosen step at a time per decision).
+  Training batches are never merged any more. Normal rules otherwise: cost, population, research, requirements.
 - **Never** on an abandoned village, never while the hearth is out, never in a world that has ended. At most `AUTO_MAX_ACTIONS_PER_SETTLE` (200) purchases
   per settle (a long absence continues on the next settle). Auto-queued jobs carry `auto: true`; built levels count like manual ones (points, Renown).
 - **Cancelling** an auto job (a build or a training batch) switches auto mode off in that village, so it does not re-queue it at once.
@@ -2579,4 +2583,5 @@ Shieldbearer; only `AUTO_UNIT_IDS`, never Chieftains or siege). Switching on, or
   the next time the owner's villages are read (and in the caretaker pass); queued jobs carry on and switching the bit back on does not turn auto mode on
   again. A village that changes owner (taken by a hold) or is abandoned loses its `auto` state. The caretaker bot leaves a village with auto mode on alone.
 - **API.** `GET /api/auto` (overview, anyone), `POST /api/villages/:id/auto` (owner, entitled); contract in `packages/engine/src/api.ts`.
-  The page "Auto" in the client has one card per village with the switch, the balance slider, the unit chips and a line "Next: ..." (`autoNext`).
+  The page "Auto" in the client has one card per village with the switch, a line "Next: ..." (or "All goals reached"), the troop goals (one row per unit with an
+  amount field and a progress bar), the building goals (level stepper and progress, "Add building goal", "Clear goals") and a short "How auto mode chooses" text.
