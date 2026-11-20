@@ -5,7 +5,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## State in one minute
 
-- `main` = `origin/main` = `e437ffb` (pushed). Lobby schema v9, game schema v37 (privacy branch brings v38).
+- `main` = `7207ad9`, 9 commits ahead of origin (not pushed). Lobby schema v9, game schema v39.
 - The owner plays the BUILT preview on http://localhost:5174. After every merge into main: back up
   `apps/preview/data/preview-world-metinaltinbas.sqlite` to `apps/preview/data/backups/`, run `npm run build:preview:local`,
   ask him to reload. Push only after he says "works, push it".
@@ -35,30 +35,16 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
   - `docs/PAYMENTS_PLAN.md` (accepted);
   - `docs/legal/` drafts (terms, refunds, privacy, checkout texts; AI-written, not legal advice).
 
-## In flight (side sessions; they report to the MAIN session, never to the owner)
+## Merged 2026-11-20 evening (main `7207ad9`, in the owner's preview, NOT pushed: waits for his OK)
 
-1. **Privacy** — session `local_10fc4a9d-cb07-4f58-aac7-51f2c927cdcf`, branch `claude/mystifying-davinci-fce37a`.
-   - Already built:
-     - self-hosted fonts;
-     - account deletion + data export (lobby `#account`, tombstone row keeps purchases 7 years);
-     - `cf_device` cookie created only at sign-in;
-     - signed lobby→world delete command.
-   - This round:
-     - merging main into its branch (it conflicted in 15 files; lobby stays v9, world v38);
-     - wiring the shop into `AccountDataHooks`;
-     - removing the 24-month closure (owner: dropped);
-     - NEW "welcome back" summary in a world after the 30-day abandon, with "start again like a new player".
-   - **MERGE-READY (reported 2026-11-20): head `700397c`** (contains `e437ffb`).
-     - Schemas: lobby v9, world v39 (39 = `abandoned_villages`). Its report says 2,203 tests pass.
-     - Shots of the "while you were away" card are under the privacy session's scratchpad `shots/return/`.
-     - Next step: look at the shots, merge `--no-ff`, run check and build, back up the world, rebuild the preview, show the owner.
-2. **Feast in all villages (Premium)** — session `local_89979f9f-10b1-4d4e-bd0f-b2035f55e686`, branch `claude/trusting-rubin-e46b57`.
-   - Owner picks:
-     - a list of all villages;
-     - max Feasts each village can pay, editable;
-     - a switch "This village | All villages" at the top of the Banner Hall;
-     - greyed list + shop link without Premium.
-   - It was fixing layout bugs its shots found. Next step: same merge flow.
+- **Privacy** (`claude/mystifying-davinci-fce37a`):
+  - self-hosted fonts (run `npm install` after pulling: new @fontsource packages);
+  - lobby `#account` with download my data and delete account (the shop's rows are kept 7 years);
+  - "While you were away" card with Start again;
+  - no 24-month closure;
+  - schemas: lobby v9, world v39.
+- **Feast in all villages** (`claude/trusting-rubin-e46b57`): Banner Hall switch "This village | All villages", Premium only.
+- Nothing in flight. All side sessions are idle.
 
 ## Decisions made today (don't re-ask)
 
@@ -77,7 +63,8 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - Before real sales: enable Stripe Tax, register for OSS, check the VAT rate table (`apps/lobby/src/shop/vat.ts`), then set
   `STRIPE_TAX=1` and `PAYMENTS_LIVE=1` with live keys himself.
 - No email provider yet: receipt, dispute and refund emails are not sent.
-- Try in the preview: the Drillyard page, Auto goals, and everything above that he hasn't seen.
+- Try in the preview: Drillyard page, Auto goals, Feast in all villages (Banner Hall), the while-you-were-away card (shows only after 30 idle days), then say push.
+- Known small issues: Banner Hall header shows "Feast price - -0% at level 1" when unbuilt; GAME_DESIGN has section 18.2 twice.
 
 ## Traps
 
