@@ -19,6 +19,14 @@ export const EXTRA_RAID_LISTS = 1;
 /** Premium extra: the wide world overview (bigger area, whole world; GET /api/map/overview). Another bit of `players.premium`. */
 export const EXTRA_WIDE_OVERVIEW = 2;
 
+/** Premium tools (owner, 2026-11-20): 5 build slots per village and auto mode. Another bit of `players.premium`; needs `features.premium`. */
+export const EXTRA_PREMIUM_TOOLS = 4;
+
+/** Does this `premium` value carry the premium tools (5 build slots, auto mode)? */
+export function hasPremiumToolsExtra(premium: number): boolean {
+  return Number.isInteger(premium) && premium > 0 && (premium & EXTRA_PREMIUM_TOOLS) !== 0;
+}
+
 /** Does this `premium` value carry the wide-overview extra? */
 export function hasWideOverviewExtra(premium: number): boolean {
   return Number.isInteger(premium) && premium > 0 && (premium & EXTRA_WIDE_OVERVIEW) !== 0;

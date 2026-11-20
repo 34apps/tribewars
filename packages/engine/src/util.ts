@@ -114,6 +114,7 @@ export function normalizeVillage(v: VillageState): VillageState {
   }
   out.renownPaid = paid;
   if (v.hearth) out.hearth = { ...v.hearth };
+  if (v.auto) out.auto = { ...v.auto, units: [...v.auto.units] };
   if (typeof v.lockUntil === 'number') out.lockUntil = v.lockUntil;
   if (typeof v.protectedUntil === 'number') out.protectedUntil = v.protectedUntil;
   if (v.feast) out.feast = { windowStart: v.feast.windowStart, count: v.feast.count };

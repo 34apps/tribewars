@@ -55,6 +55,9 @@ import type {
   RankRequest,
   ResearchRequest,
   ReportListResponse,
+  AutoOverviewResponse,
+  AutoSettingsRequest,
+  AutoVillageDto,
   RaidListRequest,
   RaidListResponse,
   RaidListSendRequest,
@@ -351,6 +354,8 @@ export const api = {
   saveNote: (body: NoteRequest) => request<NoteResponse>('POST', '/api/notes', body),
   deleteNote: (id: number) => request<void>('POST', `/api/notes/${id}/delete`, {}),
   // ---- Raid lists (a paid extra; GET works for everyone and says `enabled` / `entitled`) ----
+  autoOverview: () => request<AutoOverviewResponse>('GET', '/api/auto'),
+  autoSettings: (villageId: number, body: AutoSettingsRequest) => request<AutoVillageDto>('POST', `/api/villages/${villageId}/auto`, body),
   raidLists: () => request<RaidListsResponse>('GET', '/api/raid-lists'),
   createRaidList: (name: string) => request<RaidListResponse>('POST', '/api/raid-lists', { name } satisfies RaidListRequest),
   renameRaidList: (id: number, name: string) => request<RaidListResponse>('POST', `/api/raid-lists/${id}`, { name } satisfies RaidListRequest),

@@ -107,8 +107,10 @@ Fixed set (`BUILDINGS`), each with a level, 0 = not built. New player villages s
   using the Town Hall level when the job is queued.
 - **Intended pace at speed 1** (config: `baseTimeSec` hall 600, lumber/farm 360, mine 420, gold mine 1500, storehouse 480, barracks 900, stables 1800, wall 720, vault 540; `HALL_TIME_FACTOR` 0.9566): first levels ~6–15 min, mid levels ~1–3 h, late levels ~8–24 h depending on Town Hall; basic troops ~3–5 min each (`trainTimeSec` pikeman 270, guard 330, raider 300, outrider 600 (population 2), knight 1320, pathfinder 180; `TRAIN_TIME_FACTOR` 0.94).
 - Requirements: `requires` must be met (current levels, not queued) to start level 1 and every later level.
-- **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village, the same for everyone (the premium queue was removed
-  on 2026-11-04, owner decision; the `premium` database column is unused). Cost paid when queued. A job starts at
+- **Queue:** at most `MAX_BUILD_QUEUE` (2) jobs per village (the world's `queues.build`), **except** for players with the premium tools
+  (`features.premium` + `EXTRA_PREMIUM_TOOLS`), who may queue `PREMIUM_BUILD_QUEUE` (5): the owner overrode the 2026-11-04/05
+  "equal queues" decision on purpose on 2026-11-20, see section 23. `PlayerDto.buildQueueLimit` tells the client the number; the server
+  enforces it. Cost paid when queued. A job starts at
   `max(now, finishAt of the previous job)`. Queuing the same building twice targets the next level
   after the queued one (target = current level + jobs for it in queue + 1). Refuse with:
   `max_level` (target > maxLevel), `requirements_not_met`, `exceeds_storage` (any cost > cap — can never
@@ -1570,6 +1572,8 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 
 ### 18.6 Cosmetics-only shop
 
+> **Note 2026-11-20:** the owner overrode the "extra slots are never sold" part of this section for one paid extra, the premium tools (5 build slots per village and auto mode, section 23). Cosmetics stay as described here.
+
 **How it works**
 - The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or
   ranking. This is a hard rule: a cosmetic is an **id** (for example `roof.red`) that the client draws; the
@@ -2252,7 +2256,7 @@ gate, web check at 360 px and 1280–1440 px, then docs (this file's rules move 
 2. ~~**Season: 63 days with a fixed end. No early win and no shared win for allies.**~~ **Replaced 2026-11-05 (decision 12):** worlds end by domination; allies still do not win together.
 3. ~~A player's last village is safe from Strikes.~~ **Replaced 2026-11-04 (decision 9).**
 4. **Banner Hall: use the lower requirements** from §18.2. They still have to be checked with `npm run sim` (first second village around day 14–20 for a focused player) before step 2 is built.
-5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (Removed from the code 2026-11-04; do not sell or advertise anything that speeds up play.)
+5. **Premium queue is dropped: queues are equal for everyone, and the shop is cosmetics only.** (Removed from the code 2026-11-04; do not sell or advertise anything that speeds up play.) **Overridden by the owner on 2026-11-20 for the premium tools:** 5 build slots per village and auto mode are a paid extra (section 23); the equal-queues rule no longer holds for those players. Everything else in this decision stands.
 8. **Renown (owner, 2026-11-04):** the village limit is Renown, not Banner Hall level; see §18.2 "Owning several villages". Built 2026-11-04: earning (buildings, fights, Feast), anti-abuse, ranking, profile, cost formula. Founding and taking villages: step 2.
 6. ~~**Rest hours: 8 hours a day, +25% defence, and no economy pause**~~ — **dropped by the owner 2026-11-05.** Not built, not planned; taking player villages relies on the hold period, tribe alerts, restart protection and the pair cap (18.2).
 7. **The name Chieftain is final.**
@@ -2374,6 +2378,8 @@ buttons; every write and the send answer 403. Never for sale with it: resources,
 
 **Paid extra 2: the wide overview (owner, 2026-11-18).** The overview on the Map page always shows the region round the main map's view, 100 x 100 fields (`OVERVIEW_REGION`), for everybody. A premium player (bit `EXTRA_WIDE_OVERVIEW` (2) of `players.premium`; operator: `npm run admin -- extra <name> overview on|off`) can expand it: 100 / 200 / Whole world, and a Large view (wider side column on desktop, an edge-to-edge block on phones). The two big sizes read one light list `GET /api/map/overview` (premium only, 403 otherwise, cached about 60 s on the server, refreshed by the client at most every 5 minutes and only while the overview is shown) instead of every map chunk. It shows only where villages are and the viewer's relation to them (what the map already shows). Everybody else sees the controls greyed with a line that they are part of Premium. Information only: no resources, troops, speed or fight advantage.
 
+**Paid extra 3: the premium tools (owner, 2026-11-20).** 5 build slots per village and auto mode (section 23). World switch `features.premium` (default OFF for real worlds, ON in the preview; may be changed after the world opens) AND the player's bit `EXTRA_PREMIUM_TOOLS` (4) of `players.premium`; operator: `npm run admin -- extra <name> premium on|off` (`off` also switches auto mode off in the player's villages).
+
 ### 18.11 Planned later, NOT built: paid faster queue (owner, 2026-11-05)
 
 Settled by the owner on 2026-11-05 (§18.6): **one building at a time about 20% faster**, bought in the shop, per-world flag
@@ -2490,3 +2496,47 @@ A player can attach a short private note and tags to any village or any player (
   always within minutes), device on different connections, refused attempts, a village taken or a hearth put out between the members.
   Each finding adds to a risk score: low (declared and quiet), "worth a look", high.
 - **Privacy:** IPs, device hashes, activity slots and the pair log are personal data: staff-only, never shown to players, deleted after 30 days.
+
+## 23. Auto mode and 5 build slots (premium, owner 2026-11-20)
+
+A paid extra ("premium tools"). Entitled = the world has `features.premium` AND the player has the bit `EXTRA_PREMIUM_TOOLS`. Nothing here
+changes any game number for anybody else; it only saves clicks and fills the queues. The owner knowingly overrides the 2026-11-04/05 decision
+"queues are equal for everyone, extra slots are never sold" for these players (see section 18.6 and 18.8, decision 5).
+
+**5 build slots.** An entitled player may queue `max(PREMIUM_BUILD_QUEUE, queues.build)` = 5 build jobs per village, everyone else `queues.build` (2).
+Everything else about the queue is unchanged (cost paid when queued, a job starts when the one before ends). If the entitlement ends, a queue longer
+than the normal limit stays as it is; new manual builds wait until it is under the limit.
+
+**Auto mode** (one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). Settings per village: on/off, a balance
+`buildShare` (0..100 percent in steps of `AUTO_SHARE_STEP` = 10, default 70 = "more building") and the units it recruits (`units`, default Pikeman and
+Shieldbearer; only `AUTO_UNIT_IDS`, never Chieftains or siege). Switching on, or changing the balance or the units, starts the spending counters at zero.
+
+- **Which side goes next.** Auto mode counts what it has spent on buildings and on troops since it was switched on or changed (wood + food + iron + gold,
+  a plain sum). If buildings have received less than their share so far (`spentBuild * 100 < buildShare * (spentBuild + spentTroops)`, and at 0 / 0
+  buildings first when the share is above 0), the next purchase is a building, otherwise a troop order. Share 100 = buildings, share 0 = troops,
+  as long as that side can happen at all.
+- **It waits, it never skips.** The chosen purchase is made at the exact moment the village's stock covers it and a queue slot is free. This is worked
+  out inside `settleVillage` from production, like an abandoned village's self-build (section 8), so it also happens while the player is offline;
+  there is no timer. Until then nothing else is bought. Only when a side CANNOT happen at all does the turn go to the other side: the building side
+  has no step left (all its buildings at max, or the pick can never fit the storehouse); the troop side has no unit picked, none of the picked units
+  can be trained in this village (building level, research), the order can never fit the storehouse, or it does not fit the population room (then the
+  Steady growth plan's Longhouse rule builds a Longhouse level first). A resource the village does not produce at all (e.g. gold without a Gold Mine)
+  counts as "cannot", not as waiting. Waiting for resources, a queue slot, a finishing Storehouse or Longhouse level is not "cannot".
+- **Building step = the Steady growth plan.** The game decides, counting queued levels as built: (1) Longhouse when less than `AUTO_POP_ROOM_SHARE` (10%)
+  of the population room is free; (2) Storehouse when any stock is at `AUTO_STORE_FULL_SHARE` (90%) of the cap or more, or when the next pick below costs
+  more than the cap; (3) Town Hall when it is `AUTO_HALL_LAG` (2) or more levels below the lowest resource building; (4) otherwise the one of Lumber
+  Camp, Farm, Iron Mine, Gold Mine whose next level costs least (wood + food + iron + gold; ties in that order; a building whose requirements are
+  not met, or that is at max level, is left out), so the dear Gold Mine comes up less often than the three camps. It never
+  builds army buildings, Wall, Market and so on. A pick blocked only by population goes to the Longhouse.
+- **Troop order.** `AUTO_TRAIN_BATCH` (10) of the next picked unit (round-robin through `units`, skipping units that cannot be trained now). If the
+  LAST batch of that training building's queue is the same unit and is not finished, the 10 are added to it (so the queue does not fill up); otherwise a
+  new batch is queued (it waits for a free slot when the queue is full). Normal rules: cost, population, research. Units in training count for population
+  as always.
+- **Never** on an abandoned village, never while the hearth is out, never in a world that has ended. At most `AUTO_MAX_ACTIONS_PER_SETTLE` (200) purchases
+  per settle (a long absence continues on the next settle). Auto-queued jobs carry `auto: true`; built levels count like manual ones (points, Renown).
+- **Cancelling** an auto job (a build or a training batch) switches auto mode off in that village, so it does not re-queue it at once.
+- **Entitlement ends / owner changes.** When the operator removes the bit or the world switch goes off, the server switches `auto.on` off (settings kept)
+  the next time the owner's villages are read (and in the caretaker pass); queued jobs carry on and switching the bit back on does not turn auto mode on
+  again. A village that changes owner (taken by a hold) or is abandoned loses its `auto` state. The caretaker bot leaves a village with auto mode on alone.
+- **API.** `GET /api/auto` (overview, anyone), `POST /api/villages/:id/auto` (owner, entitled); contract in `packages/engine/src/api.ts`.
+  The page "Auto" in the client has one card per village with the switch, the balance slider, the unit chips and a line "Next: ..." (`autoNext`).

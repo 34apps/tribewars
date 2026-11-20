@@ -13,6 +13,7 @@ import { useGame } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
 import { formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
+import { useAutoTab } from '../hooks/useAutoTab.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
 import { bellCounts } from '../notifications.ts';
@@ -24,8 +25,8 @@ import '../villages.css';
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-export const TAB_LABEL: Record<Tab, string> = { village: 'Village', realm: 'Realm', map: 'Map', army: 'Army', raids: 'Raid lists', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
-export const TAB_ICON: Record<Tab, IconName> = { village: 'village', realm: 'realm', map: 'map', army: 'army', raids: 'raider', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
+export const TAB_LABEL: Record<Tab, string> = { village: 'Village', realm: 'Realm', map: 'Map', army: 'Army', raids: 'Raid lists', auto: 'Auto', reports: 'Reports', mail: 'Mail', tribe: 'Tribe', ranks: 'Ranks' };
+export const TAB_ICON: Record<Tab, IconName> = { village: 'village', realm: 'realm', map: 'map', army: 'army', raids: 'raider', auto: 'train', reports: 'reports', mail: 'mail', tribe: 'tribe', ranks: 'ranks' };
 /** The dock buttons on phones; Realm, Mail, Tribe and Ranks live in the More sheet. */
 const PHONE_TABS: readonly Tab[] = ['village', 'map', 'army', 'reports'];
 
@@ -304,6 +305,7 @@ function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => vo
   }, []);
   const tag = player.tribe ? `[${player.tribe.tag}]` : '';
   const raidLists = useRaidListsEntitled();
+  const autoTab = useAutoTab();
   const row = (tab: Tab, badge: number, danger = false) => (
     <button type="button" className="more-row" onClick={() => { onClose(); navigate(tab); }}>
       <span className="more-row-ico" aria-hidden="true">
@@ -337,6 +339,7 @@ function MoreSheet({ onClose, ...actions }: AccountActions & { onClose: () => vo
       </div>
       <div className="more-rows">
         {raidLists && row('raids', 0)}
+        {autoTab && row('auto', 0)}
         {villages.length >= 2 && row('realm', 0)}
         {row('mail', unreadMail)}
         {row('tribe', tribeInvites + tribeAlerts, tribeAlerts > 0)}

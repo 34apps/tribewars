@@ -4,6 +4,7 @@
 // the Town Hall lists every building; Drillyard and Banner Hall show their own panels; the rest show their next levels.
 // All numbers come from the engine; every action calls the same endpoint as the Army page and the Village list.
 
+import { AutoTag } from '../../components/AutoTag.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -451,7 +452,7 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
                   <b>
                     {formatInt(job.count)} {job.count === 1 ? UNITS[job.unit].name : pluralUnit(job.unit)}
                   </b>
-                  <small>{started ? `done ${clockShort(endAt, now)}` : `waits, done ${clockShort(endAt, now)}`}</small>
+                  <small><AutoTag show={job.auto} />{started ? `done ${clockShort(endAt, now)}` : `waits, done ${clockShort(endAt, now)}`}</small>
                   {started && (
                     <span className="fv-bar" aria-hidden="true">
                       <i

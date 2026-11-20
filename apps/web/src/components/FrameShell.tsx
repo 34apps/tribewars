@@ -12,6 +12,7 @@ import { navTabs, useGame } from '../game.ts';
 import type { NavTab } from '../game.ts';
 import { formatCompact, formatDuration, formatInt, formatLeft } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
+import { useAutoTab } from '../hooks/useAutoTab.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { bellCounts } from '../notifications.ts';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
@@ -153,6 +154,7 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
   // Village, realm, notes, map, incoming attacks, army, reports, mail and the Tribe Overview / Members keep the frame exactly window-tall, at least 900 px (no page scroll); every other page may grow it for now.
   const tribeFixed = useTribeFixed();
   const raidListsEntitled = useRaidListsEntitled();
+  const autoTab = useAutoTab();
   const fixed = tab === 'village' || tab === 'realm' || tab === 'notes' || tab === 'incoming' || tab === 'map' || tab === 'army' || tab === 'raids' || tab === 'reports' || tab === 'mail' || (tab === 'tribe' && tribeFixed);
   return (
     <div className="frame-root">
@@ -167,7 +169,7 @@ export function FrameShell({ children, onSignOut, onSignOutEverywhere }: { child
           <Who {...actions} />
         </header>
         <nav className="fr-tabs" aria-label="Main">
-          {navTabs(villages.length, raidListsEntitled).map((t) => (
+          {navTabs(villages.length, raidListsEntitled, autoTab).map((t) => (
             <FolderTab key={t} tab={t} />
           ))}
           <TabRowAlerts />

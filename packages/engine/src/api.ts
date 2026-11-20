@@ -90,6 +90,13 @@ export interface PlayerDto {
   staffRole?: StaffRole | null;
   /** This account has the premium extra "wide overview" (EXTRA_WIDE_OVERVIEW). Absent = no. The server enforces it on GET /api/map/overview. */
   wideOverview?: boolean;
+  /**
+   * Build jobs per village this player may queue (PREMIUM_BUILD_QUEUE with the premium tools in a world with `features.premium`,
+   * else the world's `queues.build`). The server enforces it on POST /api/villages/:id/build.
+   */
+  buildQueueLimit: number;
+  /** This account has the premium tools (5 build slots, auto mode) AND the world has `features.premium`. Absent = no. */
+  premiumTools?: boolean;
 }
 
 // POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
@@ -490,6 +497,64 @@ export interface VillageListItemDto extends Coords {
 export interface VillageListResponse {
   serverTime: number;
   villages: VillageListItemDto[];
+}
+
+// ---- Auto mode (premium; docs/GAME_DESIGN.md "Auto mode") ----
+// GET  /api/auto                  -> 200 AutoOverviewResponse. Signed in. Every player may read it (a player without the tools sees
+//                                    their villages with auto mode off and `entitled: false`). No query keys. Bucket `auto`.
+// POST /api/villages/:id/auto     body AutoSettingsRequest -> 200 AutoVillageDto. Owner only (403 stranger, 404 unknown). 403 `forbidden`
+//                                    unless the world has `features.premium` AND the player has EXTRA_PREMIUM_TOOLS. Strict schema:
+//                                    `buildShare` integer 0..100, a multiple of AUTO_SHARE_STEP; `units` 0..AUTO_UNIT_IDS.length distinct ids
+//                                    from AUTO_UNIT_IDS; no other keys. Settling to the server's now happens first; switching on or changing
+//                                    the balance or units resets the spending counters. Bucket `auto`.
+
+/** What auto mode does next in one village, worked out by the server at serverTime (engine `autoNext`). */
+export interface AutoNextDto {
+  kind: 'build' | 'troops';
+  /** kind 'build': the building and the level it will queue. */
+  building?: BuildingId;
+  level?: number;
+  /** kind 'troops': the unit and how many. */
+  unit?: UnitId;
+  count?: number;
+  /**
+   * 'now' = it is queued at once (only seen between settles); 'resources' = waiting until the stock covers the cost (`readyAt`);
+   * 'slot' = waiting for a free queue slot (`readyAt` = when one frees up); 'room' = waiting for population room (the next
+   * Longhouse level is built first by the steady growth plan).
+   */
+  waiting: 'now' | 'resources' | 'slot' | 'room';
+  /** Server time it expects to queue it, if it can tell; null when it cannot (e.g. production of a needed resource is 0). */
+  readyAt: number | null;
+}
+
+export interface AutoVillageDto extends Coords {
+  id: number;
+  name: string;
+  on: boolean;
+  buildShare: number;
+  units: UnitId[];
+  /** Units from AUTO_UNIT_IDS this village can train right now (building level, research); others are shown greyed. */
+  trainable: UnitId[];
+  /** Null while off, or when there is nothing left to do (all steady-growth buildings maxed and no units picked). */
+  next: AutoNextDto | null;
+  /** Build jobs and training batches auto mode has queued that are still waiting or running in this village. */
+  queuedBuilds: number;
+  queuedTroops: number;
+}
+
+export interface AutoOverviewResponse {
+  serverTime: number;
+  /** The world has `features.premium`. Off: the client shows no Auto tab. */
+  feature: boolean;
+  /** The player may switch auto mode on (feature on AND the EXTRA_PREMIUM_TOOLS bit). */
+  entitled: boolean;
+  villages: AutoVillageDto[];
+}
+
+export interface AutoSettingsRequest {
+  on: boolean;
+  buildShare: number;
+  units: string[]; // UnitId[]; validated server-side
 }
 
 // Training a Chieftain (unit 'chieftain', Banner Hall level 1): the same train route. On top of the resources the server reserves

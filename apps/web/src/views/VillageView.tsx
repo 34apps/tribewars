@@ -5,7 +5,7 @@ import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { formatDuration } from '../format.ts';
-import { useGame, useRules } from '../game.ts';
+import { useBuildQueueLimit, useGame } from '../game.ts';
 import { useDockSpace } from '../hooks/useDockSpace.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
 import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
@@ -25,7 +25,7 @@ type Panel = { kind: 'building'; id: BuildingId } | { kind: 'queue' } | { kind: 
 /** Queue chip: used slots and the running timer. */
 function QueueChip({ onClick }: { onClick: () => void }) {
   const { live, now } = useGame();
-  const maxQueue = useRules().queues.build;
+  const maxQueue = useBuildQueueLimit();
   const jobs = live.buildQueue;
   const first = jobs[0];
   return (
