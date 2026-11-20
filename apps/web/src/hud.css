@@ -1644,7 +1644,7 @@ html:has(.app.app-page) {
   --band-pad: 11px;
   --band-line: 2.5px;
   --tab-r: 10px;
-  --tab-inset: 16px;
+  --tab-inset: 6px;
 }
 
 .hud-phone .hud-row {
@@ -1671,12 +1671,12 @@ html:has(.app.app-page) {
 }
 
 /* The tab starts on the band's outline (the .hud gap is 8 px): its paper covers the outline's top edge, so the line steps down around it. */
+/* Centred: the same inset on both sides, always the full width, so the pencil sits in the same place (under the bell) for every name. */
 .vtab-row {
   display: flex;
   min-width: 0;
-  max-width: calc(100% - var(--tab-inset) + var(--hud-gutter) - 6px);
-  margin: calc(var(--band-pad) - 8px - var(--band-line)) 0 0 var(--tab-inset);
-  align-self: flex-start;
+  margin: calc(var(--band-pad) - 8px - var(--band-line)) var(--tab-inset) 0;
+  align-self: stretch;
 }
 
 .vtab {
@@ -1684,10 +1684,11 @@ html:has(.app.app-page) {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 0 3px 3px 13px;
+  padding: 0 6px 5px 14px;
   border: var(--band-line) solid var(--c-ink);
   border-top: 0;
   border-radius: 0 0 18px 18px;
@@ -1801,7 +1802,7 @@ button.vtab-name:focus-visible {
 .vtab .vb-pencil {
   width: 40px;
   height: 40px;
-  margin-left: 0;
+  margin-left: auto;
   border-width: 2px;
   border-radius: 50%;
   background: var(--surface);
