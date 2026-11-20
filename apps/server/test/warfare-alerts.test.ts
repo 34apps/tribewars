@@ -72,7 +72,8 @@ test('alerts list every incoming attack on any member, soonest first, with attac
 
 test('scouts and support are not alerts: not in the list, not in the badge, and a scout is invisible even to its target', async () => {
   const { app, clock, alice, bob, bea } = await world();
-  giveTroops(app, alice, { pathfinder: 4, raider: 3 });
+  // Overwhelming force: battle luck is random (secret salt per app), so a small attack could wipe out and leave no return march.
+  giveTroops(app, alice, { pathfinder: 4, raider: 300 });
   giveTroops(app, bea, { pikeman: 5 });
   const bobVillage = await village(bob);
 
@@ -89,7 +90,7 @@ test('scouts and support are not alerts: not in the list, not in the badge, and 
   assert.deepEqual((await movementsOf(bea)).map((x) => [x.kind, x.direction]), [['support', 'outgoing']]);
 
   // An attack among them counts exactly once.
-  const atk = await sendOk(alice, bob, 'attack', { raider: 3 });
+  const atk = await sendOk(alice, bob, 'attack', { raider: 300 });
   assert.equal((await stateOf(bob)).tribeAlerts, 1);
   assert.equal((await alerts(bea))[0]?.movementId, atk.movement.id);
   assert.equal((await alerts(bea))[0]?.target.villageId, bobVillage.id);
