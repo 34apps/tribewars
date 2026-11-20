@@ -1147,8 +1147,8 @@ th[scope='row'] {
    narrow (phone) puts the pips on the cost line. Two columns at desktop, one at 360 px. */
 .drill-units {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 10px 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1156,7 +1156,7 @@ th[scope='row'] {
 
 .drill-uc {
   min-width: 0;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 14px;
   background: var(--surface-2);
   container-type: inline-size;
@@ -1352,6 +1352,13 @@ th[scope='row'] {
   padding: 12px 14px;
   border-radius: 14px;
   background: var(--surface-2);
+}
+
+.drill-done {
+  margin: 10px 2px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ok, var(--on-surface-muted));
 }
 
 .drill-rc.is-done {

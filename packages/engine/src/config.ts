@@ -546,7 +546,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
   logram: {
     id: 'logram',
     name: 'Log Ram',
-    description: 'A heavy ram on wheels. It breaks only the Wall: in the battle it batters the Wall down, and after a won attack the surviving rams batter it again. Slow, and a poor fighter.',
+    description: 'A heavy ram on wheels. It breaks only the Wall: in the battle it batters the Wall down, and after a won attack the surviving rams batter it again. Slow, and a poor attacker, but a sturdy defender at home.',
     unitClass: 'infantry',
     attack: 3,
     defenseInfantry: 5,
@@ -566,8 +566,8 @@ export const UNITS: Record<UnitId, UnitDef> = {
     description: 'A cart of burning pitch. After a won attack the surviving carts burn the building you pick when sending (a random building other than the Wall if you pick none). They never touch the Wall: that is the Log Ram\'s job. Slow, and a poor fighter.',
     unitClass: 'infantry',
     attack: 5,
-    defenseInfantry: 7,
-    defenseCavalry: 5,
+    defenseInfantry: 100, // owner 2026-11-20, dual-use: siege out, defender at home (was 7 / 5)
+    defenseCavalry: 80,
     speed: 3,
     carry: 0,
     cost: res(99, 88, 121, 6), // 180 / 160 / 220 / 10 x 0.55, like the other troops on this branch

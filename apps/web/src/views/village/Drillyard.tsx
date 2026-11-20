@@ -77,6 +77,8 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const limit = useResearchQueueLimit();
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = rankCardUnits(live);
+  // Researched units fold into one line under the list, so the column shows only what can still be done (owner 2026-11-20: fits 1440x900).
+  const researched = researchable.filter((u) => isResearched(live, u));
 
   const focusRef = useRef<HTMLLIElement>(null);
   const [focusUnit] = useState(takeResearchFocus);
@@ -96,7 +98,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
             Research · queue {queue.length}/{limit}
           </h3>
           <ul className="drill-rlist">
-            {researchable.map((u) => {
+            {researchable.filter((u) => !researched.includes(u)).map((u) => {
               const def = UNITS[u];
               const rule = def.research!;
               const done = isResearched(live, u);
@@ -164,6 +166,11 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
               );
             })}
           </ul>
+          {researched.length > 0 && (
+            <p className="drill-done">
+              Researched: {researched.map((u) => UNITS[u].name).join(', ')}
+            </p>
+          )}
         </>
       )}
 

@@ -1,6 +1,6 @@
 # Payments plan (draft, 2026-11-20)
 
-Status: **proposal, nothing built.** The company is registered in **Estonia** (EU). Fees and contract terms below
+Status: **accepted 2026-11-20, being built.** Stripe account for the Estonian company is active (owner). VAT (OSS) registration later, before the first real sale; legal texts drafted by Claude, owner chose no separate lawyer review for now. The company is registered in **Estonia** (EU). Fees and contract terms below
 are from general knowledge; confirm each with the provider's sales team before signing. A lawyer checks the
 terms, refund policy and privacy policy before the first paid purchase.
 
@@ -76,7 +76,7 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
 
 ## 7. Open questions for the owner
 
-1. ~~Packs~~ (decided 2026-11-20): 3 EUR = 100 pts, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000; Premium 30 days = 150 pts. Still open: the currency's name.
+1. ~~Packs~~ (decided 2026-11-20): 3 EUR = 100 pts, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000; Premium 30 days = 150 pts. Currency name: **Flames** (owner 2026-11-20).
 2. ~~Points buy~~ (decided 2026-11-20): Premium days + looks (18.6 cosmetics). Never troops, resources, protection, Renown.
 3. ~~Seller~~: Stripe direct (decided 2026-11-20).
 

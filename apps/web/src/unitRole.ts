@@ -39,5 +39,5 @@ export const UNIT_GOOD_FOR: Record<UnitId, string> = {
   knight: 'both attacking and defending on foot. Slow and costly (it takes gold), so keep them alive.',
   chieftain: 'taking an abandoned village for your own. Needs an escort.',
   logram: 'breaking the Wall, in the battle and again after a win. Slow and fragile.',
-  firecart: 'burning one chosen building after a win (never the Wall). Slow and fragile.',
+  firecart: 'burning one chosen building after a win (never the Wall). A poor attacker, but a sturdy defender at home.',
 };

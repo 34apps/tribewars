@@ -152,7 +152,7 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 2.5 | 0 | 8 | unchanged | 6 h | takes villages; **the slowest unit in the game** (2.5, below the siege units' 3; owner 2026-11-18, was 5) |
 | Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
-| Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 7 / 5 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
+| Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 100 / 80 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
 
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
@@ -2303,7 +2303,7 @@ mission never lower anything. Existing Firecarts stay Firecarts (no unit convers
 | Unit | Does | Trained | Drillyard research | Speed | Attack / defence | Cost | Pop | Time | Max levels per step |
 |---|---|---|---|---|---|---|---|---|---|
 | **Log Ram** (`logram`) | Wall only: in the battle and after a win | Wrightyard 1 | Drillyard 2 | 3 (slowest unit) | 3 / 5 vs foot, 4 vs riders | 70 wood, 50 food, 90 iron, no gold | 3 | 1,100 s | 3 (power 6) |
-| **Firecart** (`firecart`) | Buildings after the battle: the pick (the Wall too), else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 7 vs foot, 5 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 4) |
+| **Firecart** (`firecart`) | Buildings after the battle: the pick (the Wall too), else a random one but the Wall | **Wrightyard 4** | Drillyard 3 | 3 | 5 / 100 vs foot, 80 vs riders | 99 wood, 88 food, 121 iron, 6 gold | 3 | 1,400 s | 2 (power 4) |
 
 Both walk over rough ground like a heavy carrier (`UNIT_TERRAIN_FAMILY` = carrier), carry nothing and can only go on an **attack** (not scout, support,
 found or occupy; `checkMission` refuses them). They fight, but badly, and die in the battle like everyone else (loss ratio is the same for every unit of
