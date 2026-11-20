@@ -18,6 +18,7 @@ import {
 } from "@clanfire/engine";
 import type { RankTrack, UnitId } from "@clanfire/engine";
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { takeResearchFocus } from "./drillFocus.ts";
 import { api, errorMessage } from "../../api.ts";
 import { Icon } from "../../art/Icon.tsx";
@@ -296,8 +297,9 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
         <>
           {!part && <DrillPoints />}
           <p className="drill-howto">{pointsRuleText()}</p>
+          <div className="drill-groups">
           {rankGroups(trained).map((group) => (
-            <section key={group.track} className="drill-grp" aria-label={`${group.label} ranks`}>
+            <section key={group.track} className="drill-grp" style={{ "--span": Math.min(group.units.length, 3) } as CSSProperties} aria-label={`${group.label} ranks`}>
               <h4 className="drill-gh">
                 <span className={`drill-tag is-${group.track}`}>{group.label}</span>
               </h4>
@@ -328,7 +330,7 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                           </span>
                         </span>
                       </div>
-                      {/* Middle: the five dots and the bonus reached so far (Reset sits here while ranks are still buyable) */}
+                      {/* Middle: the five dots and the bonus reached so far (Reset sits here once ranks are bought) */}
                       <div className="drill-pr">
                         <span className="drill-pips" role="img" aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}>
                           {Array.from({ length: RANK_MAX }, (_, i) => (
@@ -338,25 +340,8 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                         <strong className={`drill-bonus${rank === 0 ? " is-zero" : ""}`} title={`Now +${trackBonusPct(track, rank)}% (${trackEffect(track, u)})`}>
                           +{trackBonusPct(track, rank)}%
                         </strong>
-                        {rank > 0 && !atMax && (
+                        {rank > 0 && (
                           <button
-                              type="button"
-                              className="drill-reset"
-                              disabled={!respec?.ok || busy}
-                              title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
-                              aria-label={`Reset ${def.name} ${name}`}
-                              onClick={() => respec?.ok && void reset(u, track, respec.refund)}
-                            >
-                              Reset
-                            </button>
-                        )}
-                      </div>
-                      {/* Bottom, always in the same place: next cost and Buy, or the Max tag and Reset */}
-                      <div className="drill-bot">
-                        {atMax ? (
-                          <>
-                            <span className="drill-max">Max</span>
-                            <button
                               type="button"
                               className="drill-reset"
                               disabled={!respec?.ok || busy}
@@ -366,6 +351,13 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                             >
                               Reset{respec?.ok ? ` (+${respec.refund} pts)` : ""}
                             </button>
+                        )}
+                      </div>
+                      {/* Bottom, always in the same place: next cost and Buy, or the Max tag */}
+                      <div className="drill-bot">
+                        {atMax ? (
+                          <>
+                            <span className="drill-max">Max</span>
                           </>
                         ) : (
                           <>
@@ -376,7 +368,7 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                                 refusal
                               ) : (
                                 <>
-                                  {points} {points === 1 ? "pt" : "pts"}{" "}
+                                  <span className="drill-pts">{`${points} ${points === 1 ? "pt" : "pts"}`}</span>
                                   <Cost cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!} have={live.resources} />
                                 </>
                               )}
@@ -400,6 +392,7 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
               </ul>
             </section>
           ))}
+          </div>
         </>
       )}
       {dialog}

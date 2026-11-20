@@ -63,8 +63,8 @@ th[scope='row'] {
 }
 
 .vv-legend .token {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border: 0;
   box-shadow: none;
 }
@@ -1153,18 +1153,23 @@ th[scope='row'] {
   color: var(--on-surface-muted);
 }
 
-/* Ranks: one labelled row per role (Defence, Attack, Scouting, Breach), the cards of that role beside / under its label.
-   Every card has the same three rows: unit + what a rank gives, dots + bonus, then the cost with Buy or the Max tag with Reset. */
-.drill-grp {
+/* Ranks: one labelled block per role (Defence, Attack, Scouting, Breach): a small header line, then its cards at full width.
+   Every card has the same three rows: unit + what a rank gives, dots + bonus (+ Reset), then the cost with Buy or the Max tag. */
+/* The groups sit in a 3-column grid; a group takes as many columns as it has cards (up to 3), so Scouting (1) and Breach (2) share a row */
+.drill-groups {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  align-items: start;
-  gap: 4px 10px;
-  margin-bottom: 3px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px 8px;
+}
+
+.drill-grp {
+  grid-column: span var(--span, 3);
+  min-width: 0;
 }
 
 .drill-gh {
-  margin: 6px 0 0;
+  margin: 0 0 2px;
+  line-height: 1;
 }
 
 /* Filled tag (no outline, no side stripe); one colour per role */
@@ -1174,7 +1179,7 @@ th[scope='row'] {
   border-radius: 8px;
   background: var(--c-teal-hi);
   color: var(--c-ink);
-  font: 700 0.84rem/1.5 var(--font);
+  font: 700 0.8rem/1.4 var(--font);
 }
 
 .drill-tag.is-might {
@@ -1199,8 +1204,8 @@ th[scope='row'] {
 
 .drill-units {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(var(--span, 3), minmax(0, 1fr));
+  gap: 6px 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1209,16 +1214,16 @@ th[scope='row'] {
 .drill-uc {
   display: grid;
   grid-template-rows: auto auto minmax(30px, auto);
-  gap: 1px;
+  gap: 0;
   min-width: 0;
-  padding: 5px 10px;
+  padding: 3px 8px;
   border-radius: 14px;
   background: var(--surface-2);
 }
 
 .drill-top .drill-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 .drill-top {
@@ -1228,15 +1233,21 @@ th[scope='row'] {
   min-width: 0;
 }
 
+/* Name and what a rank gives on one line (a phone has room for two, see below) */
 .drill-who {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 0 8px;
   min-width: 0;
   line-height: 1.25;
 }
 
 .drill-fx {
+  min-width: 0;
+  overflow: hidden;
   font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--on-surface-muted);
 }
 
@@ -1278,51 +1289,48 @@ th[scope='row'] {
   margin-left: auto;
 }
 
-/* Bottom row, same place on every card */
+/* Bottom row, same place on every card: the cost on one line with Buy, or the Max tag */
 .drill-bot {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 2px 8px;
+  gap: 8px;
   min-width: 0;
 }
 
 .drill-tinfo {
   display: flex;
   flex: 1 1 0;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0 4px;
+  gap: 0 6px;
   min-width: 0;
-  font-size: 0.78rem;
-  line-height: 1.2;
+  font-size: 0.84rem;
+  line-height: 1.25;
+  white-space: nowrap;
   color: var(--on-surface-muted);
+}
+
+.drill-pts {
+  white-space: nowrap;
 }
 
 .drill-tinfo.is-warn {
   color: var(--warn);
+  white-space: normal;
 }
 
-/* Cost chips small enough for a 230 px card: points and three or four numbers in two short lines */
 .drill-tinfo .cost {
-  display: contents;
+  flex-wrap: nowrap;
+  gap: 0 5px;
 }
 
 .drill-tinfo .cost-item {
   gap: 1px;
 }
 
-
-.drill-tinfo .inline-icon {
-  width: 15px;
-  height: 15px;
-}
-
 .drill-bot .btn {
-  min-height: 28px;
-  padding: 0 7px 2px;
-  font-size: 0.8rem;
+  min-height: 30px;
+  padding: 0 6px 2px;
   white-space: nowrap;
 }
 
@@ -1360,15 +1368,27 @@ th[scope='row'] {
 
 /* Medium widths: two cards across */
 @media (max-width: 1100px) {
-  .drill-units {
+  .drill-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drill-grp {
+    grid-column: span min(var(--span, 2), 2);
+  }
+
+  .drill-units {
+    grid-template-columns: repeat(min(var(--span, 2), 2), minmax(0, 1fr));
   }
 }
 
 /* Phone: one column, the group label above its cards, bigger touch targets */
 @media (max-width: 600px) {
-  .drill-grp {
+  .drill-groups {
     grid-template-columns: 1fr;
+  }
+
+  .drill-grp {
+    grid-column: auto;
   }
 
   .drill-gh {
@@ -1377,6 +1397,25 @@ th[scope='row'] {
 
   .drill-units {
     grid-template-columns: 1fr;
+  }
+
+  .drill-who {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .drill-fx {
+    white-space: normal;
+  }
+
+  /* A phone card has Buy at 44 px high: the cost may take a second line rather than run under it */
+  .drill-tinfo {
+    white-space: normal;
+  }
+
+  .drill-tinfo .cost {
+    flex-wrap: wrap;
   }
 
   .drill-bot .btn {
@@ -2660,7 +2699,7 @@ th[scope='row'] {
 }
 
 .drill-compact .drill-howto {
-  margin: 0 2px 4px;
+  margin: 0 2px 3px;
   font-size: 0.82rem;
 }
 
