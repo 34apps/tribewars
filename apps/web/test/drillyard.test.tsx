@@ -23,7 +23,7 @@ import {
 } from '@clanfire/engine';
 import type { UnitId, VillageState } from '@clanfire/engine';
 import type { GameApi } from '../src/game.ts';
-import { nextRankPoints, pointsRuleText, rankCardUnits, rankCostRule, rankRows, trackBonusPct, trackEffect } from '../src/views/village/drillyardLogic.ts';
+import { RANK_GROUP_ORDER, nextRankPoints, pointsHint, pointsRuleText, rankCardUnits, rankCostRule, rankGroups, rankRows, trackBonusPct, trackEffect } from '../src/views/village/drillyardLogic.ts';
 
 // The panel draws unit pictures (import.meta.glob), so it and the game context are loaded through Vite's SSR loader.
 let server: ViteDevServer;
@@ -136,7 +136,9 @@ test('a bought rank shows pips, the bonus now, Reset with the refund, and Max at
   assert.ok(html.includes(`>+${Math.round(BREACH_BONUS * 2 * 100)}%</strong>`), 'the bonus reached sits beside the dots');
   assert.ok(html.includes(`Now +${Math.round(BREACH_BONUS * 2 * 100)}%`));
   assert.ok(html.includes('aria-label="Log Ram Breach rank 2 of 5"'));
-  assert.ok(html.includes(`Reset +${RANK_POINTS[0]! + RANK_POINTS[1]!}`));
+  assert.ok(html.includes('aria-label="Reset Log Ram Breach"'), 'a part-bought rank can be reset');
+  assert.ok(html.includes(`Reset (+${RANK_POINTS[0]! + RANK_POINTS[1]!} pts)`), 'Reset with refund sits in the middle row');
+  assert.ok(html.includes(`Reset (+${RANK_POINTS[0]! * RANK_MAX} pts)`), 'a maxed card shows the Max tag with Reset and its refund');
   assert.ok(html.includes('class="drill-max">Max<'));
 });
 
@@ -152,4 +154,42 @@ test('not enough points: the row says how many are needed and the Buy button is 
   assert.ok(html.includes(`Needs ${RANK_POINTS[0]} points · ${free} free`));
   const buy = html.match(new RegExp(`<button[^>]*Buy ${UNITS.guard.name} Defence rank 1[^>]*>`))?.[0] ?? '';
   assert.ok(buy.includes('disabled'), buy);
+});
+
+test('groups by role from RANK_TRACKS_OF: Defence, Attack, Scouting, Breach; the Ember Guard sits in two groups', () => {
+  const groups = rankGroups(rankCardUnits(village()));
+  assert.deepEqual(groups.map((g) => g.label), ['Defence', 'Attack', 'Scouting', 'Breach']);
+  assert.deepEqual(groups.map((g) => g.track), [...RANK_GROUP_ORDER]);
+  for (const g of groups) assert.deepEqual(g.units, RANKABLE_UNITS.filter((u) => RANK_TRACKS_OF[u]?.includes(g.track)), g.label);
+  const names = (label: string) => groups.find((g) => g.label === label)!.units.map((u) => UNITS[u].name);
+  assert.deepEqual(names('Defence'), ['Pikeman', 'Shieldbearer', 'Hearthwarden', 'Ember Guard']);
+  assert.deepEqual(names('Attack'), ['Raider', 'Elk Rider', 'Ember Guard']);
+  assert.deepEqual(names('Scouting'), ['Pathfinder']);
+  assert.deepEqual(names('Breach'), ['Log Ram', 'Firecart']);
+  assert.equal(rankGroups([]).length, 0, 'no empty groups');
+  assert.equal(groups.reduce((n, g) => n + g.units.length, 0), rankRows(rankCardUnits(village())).length);
+});
+
+test('the page shows one labelled section per role and every card, both Ember Guards included, has a unit picture', () => {
+  const html = render(village());
+  const sections = html.split('<section ').slice(1).map((chunk) => chunk.split('</section>')[0]!);
+  assert.deepEqual(sections.map((c) => c.match(/aria-label="([^"]+)"/)?.[1]), ['Defence ranks', 'Attack ranks', 'Scouting ranks', 'Breach ranks']);
+  const cards = html.split('<li class="drill-uc">').slice(1).map((chunk) => chunk.split('</li>')[0]!);
+  assert.equal(cards.length, rankRows(rankCardUnits(village())).length);
+  for (const card of cards) assert.ok(/<svg|<img/.test(card.split('class="drill-who"')[0]!), `picture on every card: ${card.slice(0, 120)}`);
+  assert.equal(cards.filter((c) => c.includes('>Ember Guard<')).length, 2);
+  assert.ok(!/class="drill-tag is-[a-z]+">[^<]*<\/span><\/span><span class="drill-fx/.test(html), 'no role tag on the cards');
+  // The same three rows on every card: top, dots + bonus, bottom (cost + Buy here)
+  for (const card of cards) for (const part of ['class="drill-top"', 'class="drill-pr"', 'class="drill-bot"']) assert.ok(card.includes(part), part);
+});
+
+test('points hint says where more points come from', () => {
+  assert.ok(pointsHint().startsWith(`+${DRILLYARD_POINTS_PER_LEVEL} per Drillyard level`));
+  assert.ok(render(village()).includes('class="drill-phint"'));
+});
+
+test('an unbought card shows +0% muted, a maxed one the Max tag instead of Buy', () => {
+  const html = render(village({ ranks: { raider: { might: RANK_MAX, bulwark: 0, keen: 0 } } }));
+  assert.ok(html.includes('class="drill-bonus is-zero"'));
+  assert.ok(!html.includes('Buy Raider Attack'));
 });

@@ -18,6 +18,7 @@ import {
 } from "@clanfire/engine";
 import type { RankTrack, UnitId } from "@clanfire/engine";
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { takeResearchFocus } from "./drillFocus.ts";
 import { api, errorMessage } from "../../api.ts";
 import { Icon } from "../../art/Icon.tsx";
@@ -36,7 +37,8 @@ import {
   nextRankPoints,
   pointsRuleText,
   rankCardUnits,
-  rankRows,
+  rankGroups,
+  pointsHint,
   trackBonusPct,
   trackEffect,
   trackEffectShort,
@@ -60,6 +62,7 @@ export function DrillPoints() {
       <span className="drill-pmut">
         {formatInt(spent)}/{formatInt(total)} used
       </span>
+      <span className="drill-phint">{pointsHint()}</span>
     </div>
   );
 }
@@ -294,125 +297,102 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
         <>
           {!part && <DrillPoints />}
           <p className="drill-howto">{pointsRuleText()}</p>
-          <ul className="drill-units">
-            {rankRows(trained).map(({ unit: u, track, first }) => {
-              const def = UNITS[u];
-              const name = TRACK_NAME[track];
-              const rank = rankOf(live.ranks, u, track);
-              const check = checkRank(live, u, track, now, settings);
-              const respec =
-                rank > 0 ? checkRespec(live, u, track, now, settings) : null;
-              const atMax = rank >= RANK_MAX;
-              const points = nextRankPoints(rank);
-              const refusal = atMax || check.ok ? null : reasonText(check);
-              const needsPoints = points !== null && points > free;
-              const lowOnResources =
-                !check.ok && check.reason === "not_enough_resources";
-              return (
-                <li key={`${u}-${track}`} className="drill-uc">
-                  <div className="drill-tr">
-                    <span className="drill-icon" aria-hidden="true">
-                      {first && <UnitFigure unit={u} pose="icon" size={32} />}
-                    </span>
-                    {/* Two lines (name + dots, effect + next cost) beside the picture and Buy; on a phone the wrappers dissolve
-                      (display: contents) and the parts stack in the row's own grid. */}
-                    <span className="drill-l1">
-                      <span className="drill-head">
-                        <span className="drill-name">{def.name}</span>
-                        <span className={`drill-tag is-${track}`}>{name}</span>
-                      </span>
-                      {/* Rank dots beside the name; Reset sits under Buy, so a row stays two lines tall in the desktop grid */}
-                      <span className="drill-pr">
-                        <span
-                          className="drill-pips"
-                          role="img"
-                          aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}
-                        >
+          <div className="drill-groups">
+          {rankGroups(trained).map((group) => (
+            <section key={group.track} className="drill-grp" style={{ "--span": Math.min(group.units.length, 3) } as CSSProperties} aria-label={`${group.label} ranks`}>
+              <h4 className="drill-gh">
+                <span className={`drill-tag is-${group.track}`}>{group.label}</span>
+              </h4>
+              <ul className="drill-units">
+                {group.units.map((u) => {
+                  const track = group.track;
+                  const def = UNITS[u];
+                  const name = group.label;
+                  const rank = rankOf(live.ranks, u, track);
+                  const check = checkRank(live, u, track, now, settings);
+                  const respec = rank > 0 ? checkRespec(live, u, track, now, settings) : null;
+                  const atMax = rank >= RANK_MAX;
+                  const points = nextRankPoints(rank);
+                  const refusal = atMax || check.ok ? null : reasonText(check);
+                  const needsPoints = points !== null && points > free;
+                  const lowOnResources = !check.ok && check.reason === "not_enough_resources";
+                  return (
+                    <li key={`${u}-${track}`} className="drill-uc">
+                      {/* Top: picture, name, what one rank gives */}
+                      <div className="drill-top">
+                        <span className="drill-icon" aria-hidden="true">
+                          <UnitFigure unit={u} pose="icon" size={32} />
+                        </span>
+                        <span className="drill-who">
+                          <span className="drill-name">{def.name}</span>
+                          <span className="drill-fx" title={trackEffect(track, u)}>
+                            {trackEffectShort(track, u)}
+                          </span>
+                        </span>
+                      </div>
+                      {/* Middle: the five dots and the bonus reached so far (Reset sits here once ranks are bought) */}
+                      <div className="drill-pr">
+                        <span className="drill-pips" role="img" aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}>
                           {Array.from({ length: RANK_MAX }, (_, i) => (
-                            <span
-                              key={i}
-                              className={`drill-pip${i < rank ? " is-on" : ""}`}
-                            />
+                            <span key={i} className={`drill-pip${i < rank ? " is-on" : ""}`} />
                           ))}
                         </span>
-                        {/* The bonus reached so far, beside the dots (line 2 keeps the effect and the next cost) */}
+                        <strong className={`drill-bonus${rank === 0 ? " is-zero" : ""}`} title={`Now +${trackBonusPct(track, rank)}% (${trackEffect(track, u)})`}>
+                          +{trackBonusPct(track, rank)}%
+                        </strong>
                         {rank > 0 && (
-                          <strong
-                            className="drill-bonus"
-                            title={`Now +${trackBonusPct(track, rank)}% (${trackEffect(track, u)})`}
-                          >
-                            +{trackBonusPct(track, rank)}%
-                          </strong>
+                          <button
+                              type="button"
+                              className="drill-reset"
+                              disabled={!respec?.ok || busy}
+                              title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
+                              aria-label={`Reset ${def.name} ${name}`}
+                              onClick={() => respec?.ok && void reset(u, track, respec.refund)}
+                            >
+                              Reset{respec?.ok ? ` (+${respec.refund} pts)` : ""}
+                            </button>
                         )}
-                      </span>
-                    </span>
-                    <span className="drill-l2">
-                      <span className="drill-fx" title={trackEffect(track, u)}>
-                        {trackEffectShort(track, u)}
-                      </span>
-                      {/* The next rank: what it costs (points and resources), or why it cannot be bought. */}
-                      <span
-                        className={`drill-tinfo${needsPoints || (refusal && !lowOnResources) ? " is-warn" : ""}`}
-                      >
-                        {atMax ? null : needsPoints ? (
-                          `Needs ${points} ${points === 1 ? "point" : "points"} · ${free} free`
-                        ) : refusal && !lowOnResources ? (
-                          refusal
+                      </div>
+                      {/* Bottom, always in the same place: next cost and Buy, or the Max tag */}
+                      <div className="drill-bot">
+                        {atMax ? (
+                          <>
+                            <span className="drill-max">Max</span>
+                          </>
                         ) : (
                           <>
-                            {points} {points === 1 ? "pt" : "pts"}{" "}
-                            <Cost
-                              cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!}
-                              have={live.resources}
-                            />
+                            <span className={`drill-tinfo${needsPoints || (refusal && !lowOnResources) ? " is-warn" : ""}`}>
+                              {needsPoints ? (
+                                `Needs ${points} ${points === 1 ? "point" : "points"} · ${free} free`
+                              ) : refusal && !lowOnResources ? (
+                                refusal
+                              ) : (
+                                <>
+                                  <span className="drill-pts">{`${points} ${points === 1 ? "pt" : "pts"}`}</span>
+                                  <Cost cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!} have={live.resources} />
+                                </>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-primary drill-buy"
+                              disabled={!check.ok || busy}
+                              title={refusal ?? undefined}
+                              aria-label={`Buy ${def.name} ${name} rank ${rank + 1}`}
+                              onClick={() => void run(() => api.rank(village.id, u, track), `${def.name} ${name} rank ${rank + 1}`)}
+                            >
+                              Buy rank {rank + 1}
+                            </button>
                           </>
                         )}
-                      </span>
-                    </span>
-                    <span className="drill-tbtns">
-                      {atMax ? (
-                        <span className="drill-max">Max</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-primary drill-buy"
-                          disabled={!check.ok || busy}
-                          title={refusal ?? undefined}
-                          aria-label={`Buy ${def.name} ${name} rank ${rank + 1}`}
-                          onClick={() =>
-                            void run(
-                              () => api.rank(village.id, u, track),
-                              `${def.name} ${name} rank ${rank + 1}`,
-                            )
-                          }
-                        >
-                          Buy rank {rank + 1}
-                        </button>
-                      )}
-                      {rank > 0 && (
-                        <button
-                          type="button"
-                          className="drill-reset"
-                          disabled={!respec?.ok || busy}
-                          title={
-                            respec && !respec.ok
-                              ? reasonText(respec)
-                              : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`
-                          }
-                          aria-label={`Reset ${def.name} ${name}`}
-                          onClick={() =>
-                            respec?.ok && void reset(u, track, respec.refund)
-                          }
-                        >
-                          Reset{respec?.ok ? ` +${respec.refund}` : ""}
-                        </button>
-                      )}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+          </div>
         </>
       )}
       {dialog}
