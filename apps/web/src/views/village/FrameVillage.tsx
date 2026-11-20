@@ -15,6 +15,7 @@ import { FIRST_STEP_LABEL, claimableSteps, doneCount, firstStepsVisible, nextOpe
 import { formatInt } from '../../format.ts';
 import { GameContext, TickGameContext, useGame } from '../../game.ts';
 import type { GameApi } from '../../game.ts';
+import { TIME_JUMP_EVENT } from '../../hooks/live.ts';
 import { deferTicks } from '../../hooks/tickLane.ts';
 import { BuildingPage } from './FrameBuilding.tsx';
 import { BuildingRow, Chev, LeftColumn } from './FrameParts.tsx';
@@ -133,9 +134,11 @@ function useRenownRank(active: boolean): number | null {
         .catch(() => undefined);
     load();
     const id = window.setInterval(load, 120_000);
+    window.addEventListener(TIME_JUMP_EVENT, load);
     return () => {
       dead = true;
       window.clearInterval(id);
+      window.removeEventListener(TIME_JUMP_EVENT, load);
     };
   }, [active]);
   return rank;

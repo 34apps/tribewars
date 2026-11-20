@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import { LIVE_CLOSE_SESSION_ENDED, LIVE_TOPICS } from '@clanfire/engine';
 import type { LiveTopic } from '@clanfire/engine';
-import { COALESCE_MS, backoffMs, liveSupported, liveUrl, parseLiveMessage } from './live.ts';
+import { COALESCE_MS, TIME_JUMP_EVENT, backoffMs, liveSupported, liveUrl, parseLiveMessage } from './live.ts';
 
 const PING_EVERY_MS = 25_000;
 const DEAD_AFTER_MS = 10_000;
@@ -32,6 +32,15 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     return () => void listeners.current.delete(cb);
   }, []);
   const api = useMemo<LiveApi>(() => ({ connected, subscribe }), [connected, subscribe]);
+
+  // The preview skipped time: every subscriber refetches now (it has no socket to hint through; see TIME_JUMP_EVENT).
+  useEffect(() => {
+    const jump = () => {
+      for (const cb of [...listeners.current.keys()]) cb();
+    };
+    window.addEventListener(TIME_JUMP_EVENT, jump);
+    return () => window.removeEventListener(TIME_JUMP_EVENT, jump);
+  }, []);
 
   useEffect(() => {
     if (!liveSupported()) return;

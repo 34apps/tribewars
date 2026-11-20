@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LookoutSightingDto } from '@clanfire/engine';
 import { api } from '../api.ts';
+import { useTimeJump } from './useTimeJump.ts';
 
 const POLL_MS = 30_000;
 const NONE: readonly LookoutSightingDto[] = [];
@@ -54,6 +55,10 @@ export function useSightings(enabled: boolean): SightingsStore {
     }, POLL_MS);
     return () => window.clearInterval(id);
   }, [enabled, load]);
+
+  useTimeJump(() => {
+    if (enabled) void load();
+  });
 
   return { ...data, loaded };
 }

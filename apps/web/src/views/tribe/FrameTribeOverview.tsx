@@ -10,6 +10,7 @@ import { ChieftainAvatar } from '../../art/Chieftain.tsx';
 import { formatAgo, formatChatTime, formatClock, formatDate, formatDuration, formatInt } from '../../format.ts';
 import { useGame } from '../../game.ts';
 import { pollMs } from '../../hooks/live.ts';
+import { useTimeJump } from '../../hooks/useTimeJump.ts';
 import { useAlertFeed } from '../../hooks/useAlertFeed.ts';
 import { useLiveConnected, useLiveTopic } from '../../hooks/useLive.tsx';
 import { PlainText, RECRUITMENT_NAME } from '../../tribe/bits.tsx';
@@ -156,6 +157,7 @@ function useLatestThreads(unread: number) {
     }, 60_000);
     return () => window.clearInterval(id);
   }, [load]);
+  useTimeJump(() => void load());
   return { threads, error };
 }
 

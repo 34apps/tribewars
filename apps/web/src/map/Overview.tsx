@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
 import type { SiteDto } from '@clanfire/engine';
+import { TIME_JUMP_EVENT } from '../hooks/live.ts';
 import { useOverviewRows } from '../hooks/useOverviewRows.ts';
 import { isUtilitySite } from '../sites.ts';
 import { allegianceOf } from './allegiance.ts';
@@ -194,8 +195,14 @@ export function Overview({ chunks, terrain, radius, sites, version, active, prem
     };
     ask();
     const id = window.setInterval(ask, 5000);
+    const jumped = () => {
+      chunks.invalidate();
+      ask();
+    };
+    window.addEventListener(TIME_JUMP_EVENT, jumped);
     return () => {
       window.clearInterval(id);
+      window.removeEventListener(TIME_JUMP_EVENT, jumped);
       chunks.clearRegion();
     };
   }, [chunks, active, useRows, region.x0, region.y0, region.x1, region.y1]);
