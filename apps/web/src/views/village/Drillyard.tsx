@@ -97,11 +97,11 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
 
   async function reset(unit: UnitId, track: RankTrack, refund: number) {
     const ok = await confirm({
-      title: `Reset ${UNITS[unit].name} ${TRACK_NAME[track]}?`,
+      title: `Reset ${UNITS[unit].name}?`,
       body: (
         <p>
-          Free. +{refund} {refund === 1 ? "point" : "points"} back; resources
-          spent are lost.
+          You get {refund} Training {refund === 1 ? "Point" : "Points"} back.
+          Resources are not returned.
         </p>
       ),
       confirmLabel: "Reset",
@@ -318,8 +318,20 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                   const lowOnResources = !check.ok && check.reason === "not_enough_resources";
                   return (
                     <li key={`${u}-${track}`} className="drill-uc">
+                      {rank > 0 && (
+                        <button
+                          type="button"
+                          className="drill-reset"
+                          disabled={!respec?.ok || busy}
+                          title={respec && !respec.ok ? reasonText(respec) : `Reset ${def.name} ranks (+${respec?.ok ? respec.refund : 0} points back)`}
+                          aria-label={`Reset ${def.name} ranks (+${respec?.ok ? respec.refund : 0} points back)`}
+                          onClick={() => respec?.ok && void reset(u, track, respec.refund)}
+                        >
+                          <Icon name="reset" size={16} />
+                        </button>
+                      )}
                       {/* Top: picture, name, what one rank gives */}
-                      <div className="drill-top">
+                      <div className={`drill-top${rank > 0 ? " has-reset" : ""}`}>
                         <span className="drill-icon" aria-hidden="true">
                           <UnitFigure unit={u} pose="icon" size={32} />
                         </span>
@@ -330,7 +342,7 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                           </span>
                         </span>
                       </div>
-                      {/* Middle: the five dots and the bonus reached so far (Reset sits here once ranks are bought) */}
+                      {/* Middle: the five dots and the bonus reached so far */}
                       <div className="drill-pr">
                         <span className="drill-pips" role="img" aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}>
                           {Array.from({ length: RANK_MAX }, (_, i) => (
@@ -340,18 +352,6 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                         <strong className={`drill-bonus${rank === 0 ? " is-zero" : ""}`} title={`Now +${trackBonusPct(track, rank)}% (${trackEffect(track, u)})`}>
                           +{trackBonusPct(track, rank)}%
                         </strong>
-                        {rank > 0 && (
-                          <button
-                              type="button"
-                              className="drill-reset"
-                              disabled={!respec?.ok || busy}
-                              title={respec && !respec.ok ? reasonText(respec) : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`}
-                              aria-label={`Reset ${def.name} ${name}`}
-                              onClick={() => respec?.ok && void reset(u, track, respec.refund)}
-                            >
-                              Reset{respec?.ok ? ` (+${respec.refund} pts)` : ""}
-                            </button>
-                        )}
                       </div>
                       {/* Bottom, always in the same place: next cost and Buy, or the Max tag */}
                       <div className="drill-bot">

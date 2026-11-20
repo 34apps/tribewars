@@ -1212,6 +1212,7 @@ th[scope='row'] {
 }
 
 .drill-uc {
+  position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(30px, auto);
   gap: 0;
@@ -1285,10 +1286,6 @@ th[scope='row'] {
   color: var(--on-surface-muted);
 }
 
-.drill-pr > .drill-reset {
-  margin-left: auto;
-}
-
 /* Bottom row, same place on every card: the cost on one line with Buy, or the Max tag */
 .drill-bot {
   display: flex;
@@ -1343,16 +1340,19 @@ th[scope='row'] {
   font: 700 0.84rem/1.5 var(--font);
 }
 
-/* Reset: a small text button */
+/* Reset: a quiet round icon button in the card's top-right corner (only once a rank is bought) */
 .drill-reset {
-  padding: 0 4px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--link, var(--c-teal-lo));
-  font: 700 0.8rem/1.3 var(--font);
-  text-decoration: underline;
-  white-space: nowrap;
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--c-dust);
+  border-radius: 50%;
+  background: var(--surface);
   cursor: pointer;
 }
 
@@ -1360,10 +1360,18 @@ th[scope='row'] {
   background: var(--surface-3);
 }
 
+.drill-reset:focus-visible {
+  outline: 2px solid var(--c-teal-lo);
+  outline-offset: 2px;
+}
+
 .drill-reset:disabled {
-  color: var(--on-surface-muted);
-  text-decoration: none;
+  opacity: 0.45;
   cursor: default;
+}
+
+.drill-top.has-reset {
+  padding-right: 32px;
 }
 
 /* Medium widths: two cards across */
@@ -1422,9 +1430,32 @@ th[scope='row'] {
     min-height: 44px;
   }
 
+  /* 44 px touch target; the drawn circle stays 30 px inside it */
   .drill-reset {
-    min-height: 44px;
-    padding: 0 8px;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    border-color: transparent;
+    background: none;
+  }
+
+  .drill-reset::before {
+    content: '';
+    grid-area: 1 / 1;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--c-dust);
+    border-radius: 50%;
+    background: var(--surface);
+  }
+
+  .drill-reset .icon {
+    grid-area: 1 / 1;
+  }
+
+  .drill-top.has-reset {
+    padding-right: 44px;
   }
 
   .drill-bot {

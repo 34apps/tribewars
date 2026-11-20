@@ -848,6 +848,18 @@ const ICONS = {
       </>
     ),
   },
+  // Reset: a circular arrow (ink outline under a warm stroke, arrow head at the top left).
+  reset: {
+    vb: '0 0 32 32',
+    draw: () => (
+      <>
+        <path d="M7.5 16a8.5 8.5 0 1 0 2.8-6.3" fill="none" stroke="#2B211C" strokeWidth="6" strokeLinecap="round" />
+        <path d="M3.5 4.5v9h9z" fill="#2B211C" stroke="#2B211C" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M7.5 16a8.5 8.5 0 1 0 2.8-6.3" fill="none" stroke="#F2B33D" strokeWidth="2.6" strokeLinecap="round" />
+        <path d="M5.4 6.8v5.2h5.2z" fill="#F2B33D" />
+      </>
+    ),
+  },
   // Renown: a banner on a pole with a gold finial.
   renown: {
     vb: '0 0 32 32',
