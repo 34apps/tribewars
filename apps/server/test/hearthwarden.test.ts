@@ -17,21 +17,21 @@ function setup(app: App, p: P, buildings: Record<string, number>, researched: st
 }
 const post = (p: P, id: number, path: string, body: unknown) => p.c.post(`/api/villages/${id}/${path}`, body);
 
-test('train: the Hearthwarden needs Barracks 5 and its research, and queues at the Barracks', async () => {
+test('train: the Hearthwarden needs Stables 4 and its research, and queues at the Stables', async () => {
   const { app, alice } = await world();
-  const id = setup(app, alice, { barracks: 4, drillyard: 4 });
+  const id = setup(app, alice, { stables: 3, drillyard: 4 });
   errorOf(await post(alice, id, 'train', { unit: 'hearthwarden', count: 1 }), 409, 'requirements_not_met');
-  setup(app, alice, { barracks: 5, drillyard: 4 });
+  setup(app, alice, { stables: 4, drillyard: 4 });
   errorOf(await post(alice, id, 'train', { unit: 'hearthwarden', count: 1 }), 409, 'requirements_not_met'); // not researched yet
   ok(await post(alice, id, 'research', { unit: 'hearthwarden' }), 200);
-  setup(app, alice, { barracks: 5, drillyard: 4 }, ['hearthwarden']);
+  setup(app, alice, { stables: 4, drillyard: 4 }, ['hearthwarden']);
   const r = await post(alice, id, 'train', { unit: 'hearthwarden', count: 2 });
   ok(r, 200);
-  const q = r.json<{ state: { trainQueues: { barracks: Array<{ unit: string; count: number }>; stables: unknown[] } } }>().state.trainQueues;
-  assert.equal(q.barracks[0]?.unit, 'hearthwarden');
-  assert.equal(q.stables.length, 0);
-  ok(await post(alice, id, 'cancel-train', { building: 'barracks', index: 0 }), 200);
-  assert.equal((await village(alice)).state.trainQueues.barracks.length, 0);
+  const q = r.json<{ state: { trainQueues: { stables: Array<{ unit: string; count: number }>; barracks: unknown[] } } }>().state.trainQueues;
+  assert.equal(q.stables[0]?.unit, 'hearthwarden');
+  assert.equal(q.barracks.length, 0);
+  ok(await post(alice, id, 'cancel-train', { building: 'stables', index: 0 }), 200);
+  assert.equal((await village(alice)).state.trainQueues.stables.length, 0);
   await app.close();
 });
 

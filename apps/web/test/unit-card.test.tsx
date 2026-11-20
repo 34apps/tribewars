@@ -48,10 +48,10 @@ test('inTraining sums what is still waiting; stockLine hides zeros', () => {
   assert.equal(stockLine(0, 0, 0), '0 at home');
 });
 
-test('troop roster: the Barracks list is every unit on foot, the Stables list only the Elk Rider (the lists are built like the Recruit table does)', () => {
+test('troop roster: the Barracks list is the foot units, the Stables list the riders: Elk Rider, Hearthwarden and Ember Guard (the lists are built like the Recruit table does)', () => {
   const at = (b: string) => UNIT_IDS.filter((u) => UNITS[u].building === b);
-  assert.deepEqual(at('barracks'), ['pikeman', 'guard', 'raider', 'hearthwarden', 'knight', 'pathfinder']);
-  assert.deepEqual(at('stables'), ['outrider']);
+  assert.deepEqual(at('barracks'), ['pikeman', 'guard', 'raider', 'pathfinder']);
+  assert.deepEqual(at('stables'), ['outrider', 'hearthwarden', 'knight']);
   assert.equal(UNITS.hearthwarden.name, 'Hearthwarden');
   assert.equal(UNITS.outrider.name, 'Elk Rider');
   assert.equal(UNITS.knight.name, 'Ember Guard');
@@ -67,7 +67,6 @@ test('attack tag: foot or rider from the engine unitClass, none for units with n
   assert.equal(attackClassTag('pathfinder'), null);
   assert.equal(attackClassTag('chieftain'), null);
   assert.equal(attackClassTag('raider'), 'foot');
-  assert.equal(attackClassTag('knight'), 'foot');
-  assert.equal(attackClassTag('outrider'), 'rider');
+  assert.equal(attackClassTag('knight'), 'rider');
   assert.match(ATTACK_CLASS_HELP, /defence vs foot.*defence vs riders/);
 });

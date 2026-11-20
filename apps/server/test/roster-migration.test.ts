@@ -16,7 +16,7 @@ type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-e
 
 const own = async (c: Client) => (await c.state()).villages[0]!;
 
-test('an old database: Knights stay as Ember Guards, queued Stables batches finish there, Ember Guards train at the Barracks only; once', async () => {
+test('an old database: Knights stay as Ember Guards, queued Stables batches finish there, Ember Guards need Stables 8 now; once', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-roster-'));
   try {
     const dbPath = join(dir, 'game.sqlite');
@@ -72,20 +72,20 @@ test('an old database: Knights stay as Ember Guards, queued Stables batches fini
     assert.equal(done.troops.knight, 7 + 2);
     assert.deepEqual(done.trainQueues.stables, []);
 
-    // Barracks 5: the Ember Guard is refused even with a Stables 6, and nothing is queued at the Stables.
+    // Stables 6: the Ember Guard is refused (it needs Stables 8 since 2026-11-20), and nothing is queued.
     errorOf(await c2.post(`/api/villages/${homeId}/train`, { unit: 'knight', count: 1 }), 409, 'requirements_not_met');
-    assert.deepEqual((await own(c2)).state.trainQueues.stables, []);
+    assert.deepEqual((await own(c2)).state.trainQueues.barracks, []);
 
-    // Barracks 8 + Town Hall 8: accepted, and it lands in the Barracks queue with the Ember Guard's own time.
+    // Stables 8 + Town Hall 8: accepted, and it lands in the Stables queue with the Ember Guard's own time.
     const v = app.ctx.store.getVillage(homeId)!;
-    v.state.buildings.barracks = 8;
+    v.state.buildings.stables = 8;
     app.ctx.store.saveVillage(v.id, v.state, v.points);
     const res = await c2.post(`/api/villages/${homeId}/train`, { unit: 'knight', count: 2 });
     ok(res);
     const q = res.json<OwnVillageDto>().state.trainQueues;
-    assert.deepEqual(q.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:2']);
-    assert.deepEqual(q.stables, []);
-    assert.ok(Math.abs((q.barracks[0]!.perUnitMs - (UNITS.knight.trainTimeSec * 1000 * 0.94 ** 7) / app.ctx.game.settings.speed) / 1000) < 1);
+    assert.deepEqual(q.stables.map((j) => `${j.unit}:${j.count}`), ['knight:2']);
+    assert.deepEqual(q.barracks, []);
+    assert.ok(Math.abs((q.stables[0]!.perUnitMs - (UNITS.knight.trainTimeSec * 1000 * 0.94 ** 7) / app.ctx.game.settings.speed) / 1000) < 1);
     await app.close();
 
     // Opening it again changes nothing and makes no second backup.
@@ -97,18 +97,17 @@ test('an old database: Knights stay as Ember Guards, queued Stables batches fini
   }
 });
 
-test('the Elk Rider is the only Stables unit; the Ember Guard, the Hearthwarden and the Pathfinder train at the Barracks', () => {
+test('the Elk Rider and the Ember Guard are Stables units, the Pathfinder is a Barracks unit', () => {
   assert.equal(UNITS.outrider.building, 'stables');
-  assert.equal(UNITS.knight.building, 'barracks');
-  assert.equal(UNITS.hearthwarden.building, 'barracks');
+  assert.equal(UNITS.knight.building, 'stables');
   assert.equal(UNITS.pathfinder.building, 'barracks');
   assert.equal(UNITS.outrider.name, 'Elk Rider');
 });
 
-// Owner decisions 2026-11-20 (no schema change, no data step): the Ember Guard, the Hearthwarden and the Pathfinder train at the Barracks; the
-// Stables train only the Elk Rider. Batches keep the queue they were ordered in and finish there (the engine completes jobs by queue, not by
-// the unit's usual building). Ember Guards and Pathfinders queued at the Stables, Hearthwardens queued at the Stables; new orders go to the Barracks.
-test('old batches (Ember Guards, Hearthwardens and Pathfinders queued at the Stables) finish where they are queued after a restart; new ones queue at the Barracks', async () => {
+// Owner decisions 2026-11-20 (no schema change, no data step): Ember Guards train at the Stables now; the Pathfinder moved to the Stables and
+// back to the Barracks the same day. Batches keep the queue they were ordered in and finish there (the engine completes jobs by queue, not by
+// the unit's usual building). Ember Guards queued at the Barracks, Pathfinders queued at the Stables; new orders go to each unit's building.
+test('old batches (Ember Guards at the Barracks, Pathfinders at the Stables) finish where they are queued after a restart; new ones queue at the unit\'s own building', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-queuemove-'));
   try {
     const dbPath = join(dir, 'game.sqlite');
@@ -123,15 +122,12 @@ test('old batches (Ember Guards, Hearthwardens and Pathfinders queued at the Sta
     const st = before.state as VillageState;
     st.buildings = { ...st.buildings, hall: 10, barracks: 8, stables: 8, drillyard: 6, storehouse: 20, longhouse: 20, farm: 12 };
     st.resources = { wood: 90000, food: 90000, iron: 90000, gold: 900 };
-    st.researched = ['knight', 'hearthwarden'];
+    st.researched = ['knight'];
     st.lastUpdate = t;
     st.buildQueue = [];
-    // What a world holds after the changes: Ember Guards (one batch half done), Pathfinders and Hearthwardens all queued at the Stables.
-    st.trainQueues.stables = [
-      { unit: 'knight', count: 3, done: 1, perUnitMs: 10_000, startAt: t },
-      { unit: 'pathfinder', count: 4, done: 0, perUnitMs: 5_000, startAt: t + 30_000 },
-      { unit: 'hearthwarden', count: 2, done: 0, perUnitMs: 8_000, startAt: t + 50_000 },
-    ];
+    // What a world holds after the changes: Ember Guards queued at the Barracks (one batch half done), Pathfinders queued at the Stables.
+    st.trainQueues.barracks = [{ unit: 'knight', count: 3, done: 1, perUnitMs: 10_000, startAt: t }];
+    st.trainQueues.stables = [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 5_000, startAt: t + 30_000 }];
     app.ctx.store.saveVillage(homeId, st, before.points);
     await app.close();
 
@@ -139,25 +135,23 @@ test('old batches (Ember Guards, Hearthwardens and Pathfinders queued at the Sta
     const c2 = new Client(app);
     ok(await c2.post('/api/auth/login', { username: 'alice', password: PASSWORD }));
     const queues = app.ctx.store.getVillage(homeId)!.state.trainQueues;
-    assert.deepEqual(queues.barracks, []);
-    assert.deepEqual(queues.stables.map((j) => `${j.unit}:${j.count}`), ['knight:3', 'pathfinder:4', 'hearthwarden:2']);
+    assert.deepEqual(queues.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:3']);
+    assert.deepEqual(queues.stables.map((j) => `${j.unit}:${j.count}`), ['pathfinder:4']);
 
-    // New orders: all three go to the Barracks, next to the old Stables batches.
+    // New orders: the Pathfinder goes to the Barracks, the Ember Guard to the Stables, next to the old batches.
     ok(await c2.post(`/api/villages/${homeId}/train`, { unit: 'pathfinder', count: 2 }));
-    ok(await c2.post(`/api/villages/${homeId}/train`, { unit: 'hearthwarden', count: 1 }));
     const res = await c2.post(`/api/villages/${homeId}/train`, { unit: 'knight', count: 1 });
     ok(res);
     const q = res.json<OwnVillageDto>().state.trainQueues;
-    assert.deepEqual(q.barracks.map((j) => `${j.unit}:${j.count}`), ['pathfinder:2', 'hearthwarden:1', 'knight:1']);
-    assert.deepEqual(q.stables.map((j) => `${j.unit}:${j.count}`), ['knight:3', 'pathfinder:4', 'hearthwarden:2']);
+    assert.deepEqual(q.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:3', 'pathfinder:2']);
+    assert.deepEqual(q.stables.map((j) => `${j.unit}:${j.count}`), ['pathfinder:4', 'knight:1']);
 
     // Everything lands: the old batches in full, the new ones, with no loss and no double count.
     const troopsBefore = (await own(c2)).state.troops;
-    clock.set(t + 50_000 + 2 * 8_000 + 4 * 5_000 + 60_000 + 24 * HOUR);
+    clock.set(t + 30_000 + 4 * 5_000 + 60_000 + 24 * HOUR);
     const done = (await own(c2)).state;
     assert.equal(done.troops.knight, troopsBefore.knight + 2 + 1);
     assert.equal(done.troops.pathfinder, troopsBefore.pathfinder + 4 + 2);
-    assert.equal(done.troops.hearthwarden, troopsBefore.hearthwarden + 2 + 1);
     assert.deepEqual(done.trainQueues.barracks, []);
     assert.deepEqual(done.trainQueues.stables, []);
     await app.close();

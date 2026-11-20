@@ -83,11 +83,11 @@ function emptyBuildings(): VillageState['buildings'] {
   return Object.fromEntries(Object.keys(BUILDINGS).map((b) => [b, 0])) as VillageState['buildings'];
 }
 
-test('the Hearthwarden has its own drawing (not the Elk Rider\'s) and an info card that names the Barracks', () => {
+test('the Hearthwarden has its own drawing (not the Elk Rider\'s) and an info card that names the Stables', () => {
   const a = renderToString(createElement(fig.UnitFigure, { unit: 'hearthwarden', pose: 'idle', size: 64 }));
   const b = renderToString(createElement(fig.UnitFigure, { unit: 'outrider', pose: 'idle', size: 64 }));
   assert.match(a, /hearthwarden-idle/);
   assert.notEqual(a, b);
-  const plain = text(renderToString(createElement(info.UnitInfoBody, { unit: 'hearthwarden', settings: DEFAULT_WORLD, buildings: { ...emptyBuildings(), barracks: 5, drillyard: 4 } })));
-  assert.ok(plain.includes('Hearthwarden') && plain.includes('Barracks'));
+  const plain = text(renderToString(createElement(info.UnitInfoBody, { unit: 'hearthwarden', settings: DEFAULT_WORLD, buildings: { ...emptyBuildings(), stables: 4, drillyard: 4 } })));
+  assert.ok(plain.includes('Hearthwarden') && plain.includes('Stables'));
 });

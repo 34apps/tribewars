@@ -1,4 +1,4 @@
-// The troop roster (originality piece 5): own stat lines, the Elk Rider as the only rider, the Ember Guard and the Hearthwarden on foot at the Barracks.
+// The troop roster (originality piece 5): own stat lines, the Elk Rider as the only rider, the Ember Guard on foot at the Barracks.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -20,7 +20,7 @@ describe('troop roster', () => {
       ['pathfinder', '0/3/2', 18, 0, 1],
       ['outrider', '65/18/16', 13, 75, 2],
       ['hearthwarden', '18/48/52', 11, 20, 2],
-      ['knight', '140/90/90', 5, 20, 3],
+      ['knight', '140/50/40', 9, 20, 3],
     ];
     for (const [u, stats, speed, carry, pop] of table) {
       assert.equal(line(u), stats, u);
@@ -32,23 +32,20 @@ describe('troop roster', () => {
     assert.equal(UNITS.knight.name, 'Ember Guard');
   });
 
-  it('the Elk Rider is the only rider (owner 2026-11-20); the Ember Guard, the Hearthwarden and the Pathfinder are infantry and walk the foot (Pathfinder: its own) terrain row', () => {
-    assert.deepEqual((Object.keys(UNITS) as UnitId[]).filter((u) => UNITS[u].unitClass === 'cavalry'), ['outrider']);
+  it('the Elk Rider, the Hearthwarden and the Ember Guard are riders (owner 2026-11-20); the Pathfinder is infantry; the Ember Guard walks the mounted terrain row', () => {
+    assert.deepEqual((Object.keys(UNITS) as UnitId[]).filter((u) => UNITS[u].unitClass === 'cavalry'), ['outrider', 'hearthwarden', 'knight']);
     assert.equal(UNITS.pathfinder.unitClass, 'infantry');
-    assert.equal(UNITS.hearthwarden.unitClass, 'infantry');
-    assert.equal(UNIT_TERRAIN_FAMILY.hearthwarden, 'foot');
-    assert.equal(UNITS.knight.unitClass, 'infantry');
-    assert.equal(UNIT_TERRAIN_FAMILY.knight, 'foot');
+    assert.equal(UNIT_TERRAIN_FAMILY.hearthwarden, 'mounted');
+    assert.equal(UNITS.knight.unitClass, 'cavalry');
+    assert.equal(UNIT_TERRAIN_FAMILY.knight, 'mounted');
     assert.equal(UNIT_TERRAIN_FAMILY.pathfinder, 'pathfinder');
-    assert.equal(armySpeed(units({ knight: 1, raider: 5 })), 5);
-    assert.equal(armySpeed(units({ knight: 2, hearthwarden: 5 })), 5);
-    assert.equal(armySpeed(units({ hearthwarden: 5, outrider: 2 })), 11);
+    assert.equal(armySpeed(units({ knight: 1, raider: 5 })), 6);
+    assert.equal(armySpeed(units({ knight: 2, hearthwarden: 5 })), 9);
   });
 
-  it('the Ember Guard is trained at the Barracks (8, Town Hall 8) and researched at Drillyard 6; the Elk Rider is the only Stables unit (Stables 1 / Drillyard 3)', () => {
-    assert.equal(UNITS.knight.building, 'barracks');
-    assert.deepEqual(UNITS.knight.requires, { barracks: 8, hall: 8 });
-    assert.deepEqual((Object.keys(UNITS) as UnitId[]).filter((u) => UNITS[u].building === 'stables'), ['outrider']);
+  it('the Ember Guard is trained at the Stables (8, Town Hall 8) and researched at Drillyard 6; the Elk Rider stays at the Stables 1 / Drillyard 3', () => {
+    assert.equal(UNITS.knight.building, 'stables');
+    assert.deepEqual(UNITS.knight.requires, { stables: 8, hall: 8 });
     assert.equal(UNITS.pathfinder.building, 'barracks');
     assert.deepEqual(UNITS.pathfinder.requires, { barracks: 2 });
     assert.deepEqual(UNITS.hearthwarden.cost, { wood: 42, food: 62, iron: 76, gold: 0 });
@@ -61,18 +58,18 @@ describe('troop roster', () => {
     assert.equal(UNITS.outrider.trainTimeSec, 620);
   });
 
-  it('training: Barracks 8 + Town Hall 8 + research; one of them missing refuses', () => {
-    const ok = withResearch(village({ buildings: { barracks: 8, hall: 8, stables: 5 }, resources: rich }), true);
+  it('training: Stables 8 + Town Hall 8 + research; one of them missing refuses', () => {
+    const ok = withResearch(village({ buildings: { barracks: 5, hall: 8, stables: 8 }, resources: rich }), true);
     const queued = applyTrain(ok, 'knight', 2, 0, S1);
-    assert.equal(queued.trainQueues.barracks[0]?.unit, 'knight');
-    assert.deepEqual(queued.trainQueues.stables, []);
-    assert.equal(queued.trainQueues.barracks[0]?.perUnitMs, Math.round(UNITS.knight.trainTimeSec * 0.94 ** 7 * 1000));
+    assert.equal(queued.trainQueues.stables[0]?.unit, 'knight');
+    assert.deepEqual(queued.trainQueues.barracks, []);
+    assert.equal(queued.trainQueues.stables[0]?.perUnitMs, Math.round(UNITS.knight.trainTimeSec * 0.94 ** 7 * 1000));
     const refuse = (b: Partial<Record<'barracks' | 'hall' | 'stables', number>>, researched = true) =>
       checkTrain(withResearch(village({ buildings: b, resources: rich }), researched), 'knight', 1, 0, S1);
-    assert.ok(!refuse({ barracks: 7, hall: 8, stables: 18 }).ok, 'Barracks 7');
-    assert.ok(!refuse({ barracks: 8, hall: 7 }).ok, 'Town Hall 7');
-    assert.ok(!refuse({ barracks: 8, hall: 8 }, false).ok, 'not researched');
-    assert.ok(!refuse({ stables: 18, hall: 25 }).ok, 'Stables alone never trains it');
+    assert.ok(!refuse({ stables: 7, hall: 8, barracks: 18 }).ok, 'Stables 7');
+    assert.ok(!refuse({ stables: 8, hall: 7 }).ok, 'Town Hall 7');
+    assert.ok(!refuse({ stables: 8, hall: 8 }, false).ok, 'not researched');
+    assert.ok(!refuse({ barracks: 18, hall: 25 }).ok, 'Barracks alone never trains it');
   });
 
   it('Knights in saved villages are Ember Guards 1:1, and their research counts', () => {
@@ -82,18 +79,18 @@ describe('troop roster', () => {
     assert.ok(v.researched?.includes('knight'));
   });
 
-  it('an Ember Guard fights on foot: it counts as infantry against the defence mix', () => {
+  it('an Ember Guard fights as a rider: it counts as cavalry against the defence mix', () => {
     const def = { troops: units({ pikeman: 10 }), buildings: village({}).buildings, resources: village({}).resources } as never;
     const r = resolveBattle({ attackerUnits: units({ knight: 10 }), defender: def, seed: 1 });
     assert.equal(r.attackPower > 0, true);
-    assert.equal(Math.round(r.defensePower - 20), 10 * 14 + 0, 'pikemen use their defence vs foot (14), not vs riders (40), when the attack is all on foot');
+    assert.equal(Math.round(r.defensePower - 20), 10 * 40 + 0, 'pikemen use their defence vs riders (40), not vs foot (14), when the attack is all mounted');
   });
 
-  it('the Hearthwarden: a Barracks 5 foot unit, researched at Drillyard 4, ranked, fast but not better in defence than the foot defenders', () => {
+  it('the Hearthwarden: a Stables 4 rider, researched at Drillyard 4, ranked, fast but not better in defence than the foot defenders', () => {
     const h = UNITS.hearthwarden;
     assert.equal(h.name, 'Hearthwarden');
-    assert.equal(h.building, 'barracks');
-    assert.deepEqual(h.requires, { barracks: 5 });
+    assert.equal(h.building, 'stables');
+    assert.deepEqual(h.requires, { stables: 4 });
     assert.equal(h.research?.drillyard, 4);
     assert.ok(RANKABLE_UNITS.includes('hearthwarden'));
     assert.ok(h.speed > UNITS.pikeman.speed && h.speed < UNITS.outrider.speed);
@@ -109,16 +106,16 @@ describe('troop roster', () => {
     assert.ok(per('hearthwarden', 'defenseInfantry')[1] < per('guard', 'defenseInfantry')[1], 'vs foot per population');
   });
 
-  it('the Hearthwarden trains at the Barracks from level 5 only, and only once researched', () => {
-    const at = (barracks: number, researched = true) =>
-      checkTrain({ ...village({ buildings: { barracks, drillyard: 4 }, resources: rich }), researched: researched ? ['hearthwarden'] : [] }, 'hearthwarden', 1, 0, S1);
-    assert.ok(at(5).ok);
-    assert.ok(!at(4).ok, 'Barracks 4');
-    assert.ok(!at(5, false).ok, 'not researched');
-    const q = applyTrain({ ...village({ buildings: { barracks: 5, drillyard: 4 }, resources: rich }), researched: ['hearthwarden'] }, 'hearthwarden', 2, 0, S1);
-    assert.equal(q.trainQueues.barracks[0]?.unit, 'hearthwarden');
-    assert.deepEqual(q.trainQueues.stables, []);
-    assert.ok(!checkTrain({ ...village({ buildings: { barracks: 4, stables: 20 }, resources: rich }), researched: ['hearthwarden'] }, 'hearthwarden', 1, 0, S1).ok, 'Stables never trains it');
+  it('the Hearthwarden trains at the Stables from level 4 only, and only once researched', () => {
+    const at = (stables: number, researched = true) =>
+      checkTrain({ ...village({ buildings: { stables, drillyard: 4 }, resources: rich }), researched: researched ? ['hearthwarden'] : [] }, 'hearthwarden', 1, 0, S1);
+    assert.ok(at(4).ok);
+    assert.ok(!at(3).ok, 'Stables 3');
+    assert.ok(!at(4, false).ok, 'not researched');
+    const q = applyTrain({ ...village({ buildings: { stables: 4, drillyard: 4 }, resources: rich }), researched: ['hearthwarden'] }, 'hearthwarden', 2, 0, S1);
+    assert.equal(q.trainQueues.stables[0]?.unit, 'hearthwarden');
+    assert.deepEqual(q.trainQueues.barracks, []);
+    assert.ok(!checkTrain({ ...village({ buildings: { barracks: 20, stables: 3 }, resources: rich }), researched: ['hearthwarden'] }, 'hearthwarden', 1, 0, S1).ok, 'Barracks never trains it');
   });
 
   it('the Hearthwarden research needs Drillyard 4 and then its rank tracks open', () => {
