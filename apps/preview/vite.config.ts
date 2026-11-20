@@ -83,11 +83,8 @@ function artifactFragment(): Plugin {
       const styles = blocks('style');
       const scripts = blocks('script');
       if (styles.length === 0 || scripts.length === 0) throw new Error('Expected inlined <style> and <script> in the built page');
-      // Google Fonts <link>s (the only external requests allowed) come along from the page head.
-      const fontLinks = (page.match(/<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>/g) ?? []).join('\n');
       const fragment = [
         '<title>Clanflame</title>',
-        fontLinks,
         ...styles,
         '<div id="root"></div>',
         ...scripts,

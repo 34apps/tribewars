@@ -67,12 +67,12 @@ player ──► CloudFront  play.<domain>  (TLS via ACM, HTTP/2+3, brotli)
 - **CloudFront response-headers policy `clanfire-security-headers`** (attach to the S3/default behaviour;
   the game server sends the same headers itself on `/api/*`, set `Override origin: Yes` so they match).
   Source of truth: `apps/server/src/security.ts`. Console/CDK values:
-  - Security headers → **Content-Security-Policy** (override): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
+  - Security headers → **Content-Security-Policy** (override): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
   - **Strict-Transport-Security** (override): max-age 31536000, includeSubDomains on, preload off.
   - **X-Content-Type-Options**: nosniff on. **X-Frame-Options**: DENY. **Referrer-Policy**: same-origin.
   - Custom header **Permissions-Policy** (override): `accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), xr-spatial-tracking=()`
-  - The two Google hosts exist only because `apps/web/index.html` loads fonts from Google Fonts; once
-    the fonts are self-hosted, drop them here and in `security.ts`. `connect-src 'self'` works because
+  - Fonts are self-hosted (Fontsource packages bundled by Vite, 2026-11-20), so no host beyond `'self'` is allowed;
+    keep this in step with `security.ts`. `connect-src 'self'` works because
     the API is the same origin (`/api/*` behaviour on the same CloudFront domain).
 - **Exactly one game container per world.** Never run two against one database (tick, rate limits
   and troop order assume one process). Never put SQLite on EFS.

@@ -48,7 +48,7 @@ Status: ✅ done · ◐ partly · ☐ open.
 - ✅ `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `no-store` on API.
 
 ### Phase 1 — before any public server (do next)
-- ✅ **Content-Security-Policy** + `Permissions-Policy` on every server response, HSTS in production only (`apps/server/src/security.ts`, tests `security-headers.test.ts`); CloudFront policy in `DEPLOYMENT_PLAN.md` §2. No inline script in the built client. Allowed beyond `'self'`: Google Fonts (style + font host) until fonts are self-hosted (NEXT_STEPS).
+- ✅ **Content-Security-Policy** + `Permissions-Policy` on every server response, HSTS in production only (`apps/server/src/security.ts`, tests `security-headers.test.ts`); CloudFront policy in `DEPLOYMENT_PLAN.md` §2. No inline script in the built client. Nothing allowed beyond `'self'`: fonts are self-hosted since 2026-11-20 (no visitor IP goes to Google).
 - ✅ **Rate limits** (in-house `RateLimiter`, no new package): global 600 API calls/min per IP, 180 writes/min per IP,
   120 writes/min per session; plus per-account route caps (`ROUTE_LIMITS`: send, build, train, research, market, tribe, mail, search, rankings; 30–60/min, keyed by account id); `429` + `Retry-After`.
 - ☑ **Session hygiene** (2026-11-04, lobby + worlds): idle expiry 14 days (slides, one write/hour), absolute 60 days, new token on every sign-in, 10 sessions per account (lobby), "Sign out everywhere" (`POST /lobby/api/auth/logout-all`), lobby `Secure` cookie enforced in production (fail to start without it). Lobby-linked world sessions last 12 h, fixed. Standalone worlds: expiry done; sign-out-everywhere and the cap are lobby-only.

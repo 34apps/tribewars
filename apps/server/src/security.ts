@@ -2,17 +2,15 @@
 
 /**
  * Content-Security-Policy for the game. Mirror any change in docs/DEPLOYMENT_PLAN.md (CloudFront policy).
- * Two hosts are allowed beyond 'self' only because apps/web/index.html still loads its fonts from
- * Google Fonts (stylesheet from fonts.googleapis.com, font files from fonts.gstatic.com).
- * Self-hosting the fonts (NEXT_STEPS.md) lets both be removed. No inline script, no eval.
+ * Fonts are self-hosted (Fontsource, bundled by Vite), so nothing beyond 'self' is allowed. No inline script, no eval.
  */
 export const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "connect-src 'self'",
-  "font-src 'self' https://fonts.gstatic.com",
+  "font-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",
   "frame-ancestors 'none'",
