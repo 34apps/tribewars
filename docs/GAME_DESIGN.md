@@ -146,7 +146,7 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Pikeman (`pikeman`) | Barracks 1 | none | 8 / 14 / 40 | 6 | 12 | 1 | 19 / 23 / 14 | 260 s | holds riders |
 | Shieldbearer (`guard`) | Barracks 3 | Drillyard 1 | 12 / 42 / 22 | 5 | 10 | 1 | 17 / 30 / 28 | 320 s | holds foot |
 | Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
-| Pathfinder (`pathfinder`) | **Stables 1** (owner 2026-11-20, was Barracks 2) | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout (a rider: `cavalry`) |
+| Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
 | **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | **42 / 62 / 76** (owner 2026-11-20, was 60 / 90 / 110) | 700 s | **fast support defender** (2026-11-18) |
 | **Ember Guard** (`knight`) | **Stables 8, Town Hall 8** (owner 2026-11-20, was Barracks 8) | Drillyard 6 | 140 / **50 / 40** (was 90 / 90) | **9** (was 5) | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold **heavy rider** (`cavalry`) |
@@ -157,13 +157,13 @@ Stat lines are attack / defence vs foot / defence vs riders:
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
 **Owner decision 2026-11-20 (no schema change, no data step):** the **Ember Guard becomes a heavy rider** (Stables 8 + Town Hall 8, `cavalry`, speed 9, attack 140 unchanged,
-defence 50 vs foot / 40 vs riders, was 90 / 90; it walks the "mounted" terrain row; cost, population 3, carry, research Drillyard 6 unchanged). The **Pathfinder trains at the
-Stables** (Stables 1, `cavalry`, speed 18; its own "pathfinder" terrain row stays) and the **Hearthwarden costs 42 / 62 / 76** (was 60 / 90 / 110). Since the Stables need Town Hall 5 and Barracks 3, a
-village's first scouts come later than with Barracks 2. **Old worlds:** training jobs already queued at the Barracks for these two units stay in the Barracks queue and finish
-there (the engine completes a job by its queue, not by the unit's usual building; no refund, no re-timing; cancelling them still works). New batches go to the Stables. Pathfinders and
+defence 50 vs foot / 40 vs riders, was 90 / 90; it walks the "mounted" terrain row; cost, population 3, carry, research Drillyard 6 unchanged). The **Hearthwarden costs 42 / 62 / 76** (was 60 / 90 / 110).
+The **Pathfinder** was moved to the Stables the same day and is **back at the Barracks (Barracks 2, `infantry`, speed 18, owner 2026-11-20)**; nothing else about it changed.
+**Old worlds:** training jobs already queued stay in the queue they were ordered in and finish there (the engine completes a job by its queue, not by the unit's usual building; no refund,
+no re-timing; cancelling them still works): Ember Guards queued at the Barracks, Pathfinders queued at the Stables. New batches go to each unit's own building. Pathfinders and
 Ember Guards already in a village are untouched. Test: `apps/server/test/roster-migration.test.ts`. Numbers: BALANCE §26.
 
-The **Elk Rider**, the **Hearthwarden**, the **Ember Guard** and the **Pathfinder** are the `cavalry` units, so "riders" in the defence mix means those four (the Pathfinder has no attack, so it adds nothing). Before 2026-11-20 the Ember Guard was `infantry`, walked
+The **Elk Rider**, the **Hearthwarden** and the **Ember Guard** are the `cavalry` units, so "riders" in the defence mix means those three (the Pathfinder is `infantry` again). Before 2026-11-20 the Ember Guard was `infantry`, walked
 the foot terrain row and was trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
 originality proposal's numbers with the branch's troop cost cut (x0.55, food about x0.5, rounded). The Log Ram and the Boulder Sling no longer
 exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, away, marching, stationed) is an Ember Guard 1:1, Knight research

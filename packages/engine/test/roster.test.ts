@@ -32,8 +32,9 @@ describe('troop roster', () => {
     assert.equal(UNITS.knight.name, 'Ember Guard');
   });
 
-  it('the Elk Rider, the Hearthwarden, the Ember Guard and the Pathfinder are riders (owner 2026-11-20); the Ember Guard walks the mounted terrain row', () => {
-    assert.deepEqual((Object.keys(UNITS) as UnitId[]).filter((u) => UNITS[u].unitClass === 'cavalry'), ['outrider', 'hearthwarden', 'knight', 'pathfinder']);
+  it('the Elk Rider, the Hearthwarden and the Ember Guard are riders (owner 2026-11-20); the Pathfinder is infantry; the Ember Guard walks the mounted terrain row', () => {
+    assert.deepEqual((Object.keys(UNITS) as UnitId[]).filter((u) => UNITS[u].unitClass === 'cavalry'), ['outrider', 'hearthwarden', 'knight']);
+    assert.equal(UNITS.pathfinder.unitClass, 'infantry');
     assert.equal(UNIT_TERRAIN_FAMILY.hearthwarden, 'mounted');
     assert.equal(UNITS.knight.unitClass, 'cavalry');
     assert.equal(UNIT_TERRAIN_FAMILY.knight, 'mounted');
@@ -45,8 +46,8 @@ describe('troop roster', () => {
   it('the Ember Guard is trained at the Stables (8, Town Hall 8) and researched at Drillyard 6; the Elk Rider stays at the Stables 1 / Drillyard 3', () => {
     assert.equal(UNITS.knight.building, 'stables');
     assert.deepEqual(UNITS.knight.requires, { stables: 8, hall: 8 });
-    assert.equal(UNITS.pathfinder.building, 'stables');
-    assert.deepEqual(UNITS.pathfinder.requires, { stables: 1 });
+    assert.equal(UNITS.pathfinder.building, 'barracks');
+    assert.deepEqual(UNITS.pathfinder.requires, { barracks: 2 });
     assert.deepEqual(UNITS.hearthwarden.cost, { wood: 42, food: 62, iron: 76, gold: 0 });
     assert.equal(UNITS.knight.research?.drillyard, 6);
     assert.ok(UNITS.knight.cost.gold > 0, 'a gold elite');
