@@ -8,6 +8,15 @@ export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 30_000;
 /** Polls slow down to this while the live socket is connected (hints do the real work). */
 export const LIVE_POLL_MS = 60_000;
+/**
+ * Game time jumped (the preview's "+1 day" skip, or a speed change). The preview has no live socket, so it dispatches this on `window`
+ * and everything that would refetch on a server hint refetches at once. Never fired by the real game.
+ */
+export const TIME_JUMP_EVENT = 'clanfire:time-jump';
+/** Tells the client that game time jumped (the preview calls this after a skip). `target` is `window` in the browser. */
+export function announceTimeJump(target: EventTarget = window): void {
+  target.dispatchEvent(new Event(TIME_JUMP_EVENT));
+}
 /** Hints arriving within this window are merged into one refetch per subscriber. */
 export const COALESCE_MS = 150;
 

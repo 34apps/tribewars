@@ -22,6 +22,7 @@ import { loadMapArt } from '../map/sprites.ts';
 import { TerrainCache } from '../map/terrain.ts';
 import { Legend } from '../map/Legend.tsx';
 import { TilePanel } from '../map/TilePanel.tsx';
+import { useTimeJump } from '../hooks/useTimeJump.ts';
 import '../map/map.css';
 import '../frame-map.css';
 
@@ -287,6 +288,13 @@ export function MapView({ active }: { active: boolean }) {
     sightingsRef.current = sightings;
     schedule();
   }, [sites, sightings, player.tribe?.id, schedule]);
+
+  // Game time jumped (the preview's skip): every cached chunk is out of date, load the visible ones again now.
+  useTimeJump(() => {
+    chunks.invalidate();
+    ensureChunks();
+    schedule();
+  });
 
   // My tribe or a diplomatic relation changed: villages change banners and tags, so refetch the visible chunks.
   // A village changed owner (taken, lost, held, freed): the state refresh that follows the server's hint changes my village or

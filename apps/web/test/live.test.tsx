@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { apiBase, withApiBase } from '../src/api.ts';
-import { LIVE_POLL_MS, RECONNECT_MAX_MS, backoffMs, liveUrl, parseLiveMessage, pollMs } from '../src/hooks/live.ts';
+import { LIVE_POLL_MS, RECONNECT_MAX_MS, TIME_JUMP_EVENT, announceTimeJump, backoffMs, liveUrl, parseLiveMessage, pollMs } from '../src/hooks/live.ts';
 
 test('parseLiveMessage accepts the three server frames and drops unknown topics', () => {
   assert.deepEqual(parseLiveMessage('{"type":"hello"}'), { type: 'hello' });
@@ -60,4 +60,13 @@ test('withApiBase prefixes API paths under a world page and leaves others alone'
   } finally {
     g.window = saved;
   }
+});
+
+test('announceTimeJump reaches every listener of the time-jump event (the preview skip refetches all screens)', () => {
+  const target = new EventTarget();
+  let calls = 0;
+  target.addEventListener(TIME_JUMP_EVENT, () => calls++);
+  target.addEventListener(TIME_JUMP_EVENT, () => calls++);
+  announceTimeJump(target);
+  assert.equal(calls, 2);
 });

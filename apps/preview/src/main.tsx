@@ -15,6 +15,7 @@ import type { SlowStep } from './host.ts';
 import { connectInPage, connectWorker, type GameLink, type LinkEvents } from './link.ts';
 import { loadSave, wipeSave } from './persist.ts';
 import { mountPill, type Pill } from './pill.ts';
+import { announceTimeJump } from '../../web/src/hooks/live.ts';
 import { mountSpeed } from './speed.ts';
 import { warmVillage } from '../../web/src/warmup.ts';
 import { STAGE_TOPS } from '../../web/src/art/buildings.ts';
@@ -117,7 +118,8 @@ async function boot(): Promise<void> {
     getWorldSpeed: () => link.info().worldSpeed,
     gameNow: clock.gameNow,
     worldStart: () => link.info().worldStart,
-    skip: (ms) => link.skip(ms),
+    // The game has moved on: tell the client at once (it has no live socket here), so every screen refetches without input.
+    skip: (ms) => link.skip(ms).then(() => announceTimeJump()),
   });
   clock.onChange(() => speed.refresh());
 

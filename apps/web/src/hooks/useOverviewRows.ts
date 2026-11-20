@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAP_OVERVIEW_REFRESH_MS } from '@clanfire/engine';
 import { api } from '../api.ts';
+import { TIME_JUMP_EVENT } from './live.ts';
 import { allegianceOfCode } from '../map/overview.ts';
 import type { OverviewPoint } from '../map/overview.ts';
 
@@ -34,8 +35,10 @@ export function useOverviewRows(enabled: boolean): { rows: OverviewPoint[] | nul
     const id = window.setInterval(() => due() && load(), CHECK_MS);
     const onVisible = () => due() && load();
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener(TIME_JUMP_EVENT, load);
     return () => {
       dead = true;
+      window.removeEventListener(TIME_JUMP_EVENT, load);
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
