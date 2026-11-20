@@ -1,5 +1,6 @@
 import type { WorldSettings } from '@clanfire/engine';
 import type { AccountDataService } from './account-data-service.ts';
+import type { WorldAnalytics } from './analytics.ts';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { DominationService } from './domination-service.ts';
 import type { EntryKey } from './entry-pass.ts';
@@ -30,6 +31,8 @@ export interface AppContext {
   msgReports: ReportService;
   /** Account deletion and the data export (account-data-service.ts). Absent in the in-browser preview, which has no account routes. */
   accountData?: AccountDataService;
+  /** Server-side analytics (analytics.ts); every method does nothing while it is off. Absent in the in-browser preview (never any analytics there). */
+  analytics?: WorldAnalytics;
   /** Raid lists, a paid extra (raid-list-service.ts). */
   raidLists: RaidListService;
   /**

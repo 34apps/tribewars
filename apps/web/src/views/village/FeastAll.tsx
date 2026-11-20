@@ -198,7 +198,7 @@ export function FeastAll() {
         {locked ? (
           <div className="au-note fa-lock" role="note">
             <span>{FEAST_ALL_NOT_ENTITLED}</span>{' '}
-            <a className="btn btn-small" href={`${LOBBY_URL}#shop`}>
+            <a className="btn btn-small" href={`${LOBBY_URL}?from=feast#shop`}>
               <Icon name="flame" size={18} className="inline-icon" /> Open the Flames shop
             </a>
           </div>

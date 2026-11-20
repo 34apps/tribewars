@@ -22,7 +22,7 @@ This policy describes what the game stores **at the time of the first sale** (th
 - To stop cheating and fraud we keep **IP addresses and a random browser id** for a short time (30 days), and a longer login record for accounts that **paid** (2 years).
 - Records of purchases are kept for **7 years** because the law makes us.
 - You can ask to see, fix, download or delete your data (section 11).
-- We do not sell your data and we do not use it for advertising. We run no analytics or tracking tools.
+- We do not sell your data and we do not use it for advertising. We count **anonymous play statistics** on our own servers (section 3.6); you can switch that off in your account.
 
 ## 3. What data we keep, why, and on what legal ground
 
@@ -76,8 +76,22 @@ Payment details (card number, bank data) are entered **on Stripe's pages**. We r
 ### 3.5 What we do **not** do
 
 - No advertising, no ad networks, no data sales.
-- No analytics or tracking scripts, no social media pixels.
+- No tracking scripts in your browser, no social media pixels, no advertising profiles. (The anonymous play statistics of section 3.6 are counted by our own servers and store nothing on your device.)
 - No profiling that has a legal effect on you. The one automatic step is payment fraud screening by Stripe (Radar), which may block a payment; you can ask us to have a person look at it.
+
+### 3.6 Anonymous play statistics
+
+We want to know where new players get stuck, which pages are used and whether the shop works, so that we can improve the game. Our servers (not your browser) send a few small events to our own analytics service. **Nothing is stored on your device for this.**
+
+| What | Detail |
+|---|---|
+| Events | Account created; early-game steps reached (joined a world, first build, first training, first raid, first report, joined a tribe, second village); the day you entered a world (at most once a day, with the world's id); which page of the game you opened (a fixed page name such as "map", once per visit); shop opened; a Flames purchase or refund (pack, price without VAT, currency, first purchase or not); Premium bought |
+| Who it is | A **pseudonymous id**: a code our servers compute from your account number with a secret key. It is the same in all worlds, and nobody without our secret key can turn it back into you or match it to your account |
+| Never sent | Your username, email, messages, tribe, village names, coordinates, IP address, browser details or location. The service sees our server's address, not yours |
+| Where | Amazon Web Services, `us-east-1` (USA), in an account run by us. AWS is certified under the EU–US Data Privacy Framework |
+| How long | Single events **400 days**, then they are deleted. A summary per id (first and last day seen, level, purchases) stays until we delete it |
+| Legal ground | Legitimate interest (GDPR art. 6(1)(f)): running and improving the game. The data is pseudonymous, minimal, and you can switch it off |
+| Your choice | **Account page, "Share play stats"** (on by default). Off = we send nothing about you, from the account service or from any world. A world you are already in follows the next time you enter it. You can also object or ask us to delete the record (section 11) |
 
 ## 4. Children and young players
 
@@ -112,6 +126,7 @@ These are all set by us, not by anybody else. The sign-in cookies are essential;
 |---|---|---|---|
 | **Amazon Web Services** (hosting, storage and backups) | Run the servers, database, backups | Everything on the game servers | EU (Frankfurt, `eu-central-1`) [confirm when hosting is set up] |
 | **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, work out VAT, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
+| **Amazon Web Services** (our analytics service, section 3.6) | Anonymous play statistics | Pseudonymous id and the events of 3.6, nothing else | USA (`us-east-1`); EU–US Data Privacy Framework |
 | **Anthropic** (only if "Ask Mags" is switched on) | The in-game advisor | Your question and a snapshot of your game state, no name or contact data | USA |
 
 If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standard Contractual Clauses or is certified under the EU–US Data Privacy Framework. We have the contracts that GDPR demands with the providers that work for us.
@@ -123,6 +138,7 @@ If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standar
 | Account, game data, messages | While your account exists, until you delete it. In each world, after about 30 days without play your villages become abandoned villages (terms, section 4); your account stays |
 | IPs, browser id hashes, activity slots, pair log | 30 days |
 | Login history of accounts that bought something | 2 years |
+| Anonymous play statistics (section 3.6) | Single events 400 days; the per-id summary until deleted (on request, or when you switch it off and ask) |
 | Reports and tickets sent to staff | 12 months after they are closed |
 | Bans (name and reason, so that a banned person cannot simply return) | While the ban lasts and 2 years after |
 | Purchase records, receipts, Flames ledger entries, consent ticks, refund and dispute records | 7 years from the end of the financial year |
@@ -136,6 +152,7 @@ When a time is up, the data is deleted or made anonymous.
 - Your account, username, password hash, worlds list and personal settings are deleted. Your cosmetics, badges and Flames go with it.
 - Your villages in running worlds become abandoned villages. Your **name in mail, forum posts, chat and reports is replaced** by "deleted player". Mail you sent may stay in the other person's mailbox without your name. Private notes, troop groups and raid lists are deleted.
 - What we keep because the law requires it or because we need it to defend a claim: purchase records and Flames ledger entries linked to purchases (7 years), the login history of paying accounts (2 years), ban records (section 8). They are kept apart from the game and used only for those purposes.
+- The anonymous play statistics (3.6) are tied to a code, not to your name. Deleting your account stops them; to have the record under your code removed too, write to us (section 11).
 - Backups age out within about 30 days.
 
 ## 10. Data security
@@ -149,7 +166,7 @@ You can ask us for:
 - **Access:** a copy of the data we hold about you.
 - **Correction** of wrong data.
 - **Deletion** ("right to be forgotten"), except for records we must keep (section 9).
-- **Restriction** of how we use it, or **objection** to the uses based on our legitimate interest (the security and fair-play data in 3.3). If you object, we stop unless we have a strong reason that outweighs yours, or need the data to defend a claim.
+- **Restriction** of how we use it, or **objection** to the uses based on our legitimate interest (the security and fair-play data in 3.3 and the play statistics in 3.6, which you can also switch off yourself in the account page). If you object, we stop unless we have a strong reason that outweighs yours, or need the data to defend a claim.
 - **A portable copy** of the data you gave us, in a common file format (the "Download my data" button in the account page, which includes your IPs with first and last seen, browser id labels, notes, mail, and purchases).
 - **Withdrawal of consent** (for example parental consent) at any time. That does not undo what happened before.
 
@@ -182,4 +199,5 @@ These points are about the code, not the player text. The policy promises them, 
 7. **Server logs**: check whether the Fastify logs contain client IPs and how long Docker keeps them (now 10 MB x 5 files); the text says "a few weeks".
 8. **Production hosting** (AWS Frankfurt) is a plan, not confirmed; the 30-day S3 backup lifecycle is still open.
 9. **Ask Mags** (Anthropic): remove the row if the advisor stays off; if on, a data processing agreement with Anthropic is needed.
-10. **Records of processing** (GDPR art. 30) and a short DPA with Stripe/AWS are an internal paperwork duty; not part of this text.
+10. **Play statistics (3.6)**: built 2026-11-20 (`docs/ANALYTICS.md`, `docs/PRIVACY.md` s.5). Confirm before publishing: that the analytics AWS account is the owner's own (so "run by us" and the DPF line are true), the 400-day retention in the analytics repo, and that the lobby and every world carry the same `ANALYTICS_SALT`. Deleting one person's record from the analytics service is a manual operator step (`admin_delete_player`); account deletion does not trigger it.
+11. **Records of processing** (GDPR art. 30) and a short DPA with Stripe/AWS are an internal paperwork duty; not part of this text.

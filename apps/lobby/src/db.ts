@@ -10,7 +10,7 @@ WHEN NOT (NEW.id IS OLD.id AND NEW.at IS OLD.at AND NEW.action IS OLD.action AND
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 9; // 9: Flames shop VAT: purchases.net_cents (backfilled = price_cents)/vat_cents/vat_rate_bp/vat_country; v8 belongs to the privacy session, both are column-existence based (2026-11-20)
+export const SCHEMA_VERSION = 10; // 10: accounts.share_stats (the "Share play stats" switch, default on) + purchases.stats_refund_cents (refund money already reported to analytics; both column-existence based) (2026-11-20); 9: Flames shop VAT: purchases.net_cents (backfilled = price_cents)/vat_cents/vat_rate_bp/vat_country; v8 belongs to the privacy session, both are column-existence based (2026-11-20)
 // 8: accounts.deleted_at + account_deletions queue (account deletion; privacy session, column-existence based) (2026-11-20)
 // 7: Flames shop: ledger, purchases, consents, stripe_events, login_history, world_premium, account_items; accounts.pay_banned_at/disputes; worlds.shop_premium (2026-11-20)
 // 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
@@ -329,6 +329,9 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, 'purchases', 'vat_cents', 'INTEGER');
   addColumnIfMissing(db, 'purchases', 'vat_rate_bp', 'INTEGER');
   addColumnIfMissing(db, 'purchases', 'vat_country', 'TEXT');
+  // v10: analytics (docs/ANALYTICS.md): the account's "Share play stats" switch (1 = on, the default) and how much of a purchase's refunds analytics already heard of.
+  addColumnIfMissing(db, 'accounts', 'share_stats', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(db, 'purchases', 'stats_refund_cents', 'INTEGER NOT NULL DEFAULT 0');
   // v5: fill "Your worlds" for players who entered worlds before it existed, from the append-only audit log.
   if (before > 0 && before < 5) {
     db.exec(`INSERT OR IGNORE INTO account_worlds (account_id, world_id, first_entered, last_entered)

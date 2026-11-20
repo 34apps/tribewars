@@ -18,6 +18,7 @@ export function requireAuth(ctx: AppContext, startVillage = true) {
   return async (req: FastifyRequest): Promise<void> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     if (!player) throw new GameError('unauthorized', 'Please sign in.');
+    ctx.analytics?.worldEnter(player); // analytics: at most one world_enter per player per UTC day (a map lookup the rest of the time)
     // Activity stamp for the caretaker bot: the row we already loaded tells us when a write is due (at most every few minutes).
     if (req.nowMs - player.lastActive >= ACTIVITY_WRITE_INTERVAL_MS) {
       ctx.store.touchActive(player.id, req.nowMs, 0);
@@ -121,6 +122,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const { grant, created } = ctx.auth.enterWithPass(req.body.pass, lobby.keys, ctx.worldId, req.ip);
       setSession(req, reply, grant);
       noteSeen(ctx, req, grant.player.id);
+      if (created) ctx.analytics?.ftue(grant.player.id, 'world_joined');
+      ctx.analytics?.worldEnter(grant.player);
       void reply.code(created ? 201 : 200);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -134,6 +137,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip);
       setSession(req, reply, grant);
       noteSeen(ctx, req, grant.player.id);
+      ctx.analytics?.ftue(grant.player.id, 'world_joined');
+      ctx.analytics?.worldEnter(grant.player);
       void reply.code(201);
       return { player: ctx.auth.toDto(grant.player) };
     },
@@ -146,6 +151,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const grant = await ctx.auth.login(req.body.username, req.body.password, req.ip);
       setSession(req, reply, grant);
       noteSeen(ctx, req, grant.player.id);
+      ctx.analytics?.worldEnter(grant.player);
       return { player: ctx.auth.toDto(grant.player) };
     },
   );

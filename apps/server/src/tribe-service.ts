@@ -213,6 +213,7 @@ export class TribeService {
 
       const tribeId = this.ts.insertTribe(identity.name, identity.tag, desc, body.recruitment, t);
       this.ts.insertMember(player.id, tribeId, 'leader', t);
+      this.store.onFtue?.(player.id, 'tribe_joined');
       this.store.forum.createDefaultBoards(tribeId, t);
       this.ts.deleteApplicationsOfPlayer(player.id);
       this.event(tribeId, t, `${player.username} founded the tribe.`);
@@ -706,6 +707,7 @@ export class TribeService {
   /** Every way into a tribe ends here: one tribe per player, and other applications are withdrawn. */
   private addMember(tribeId: number, playerId: number, username: string, t: number, what: string): void {
     this.ts.insertMember(playerId, tribeId, 'member', t);
+    this.store.onFtue?.(playerId, 'tribe_joined');
     this.ts.deleteApplicationsOfPlayer(playerId);
     this.event(tribeId, t, `${username} ${what}`);
   }

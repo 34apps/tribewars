@@ -1,10 +1,12 @@
 // Production/dev entry point: listen.
 
+import { analyticsFromEnv } from '@clanfire/analytics';
 import { startMaintenance } from './account-data.ts';
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
 import { lobbyHooks } from './hooks-config.ts';
 import { StripeGateway } from './shop/gateway.ts';
+import pkg from '../package.json' with { type: 'json' };
 
 /** Owner alerts: POST {text} as JSON. A failing endpoint never breaks the lobby (the caller catches). */
 function postAlert(url: string): (text: string) => Promise<void> {
@@ -15,6 +17,8 @@ function postAlert(url: string): (text: string) => Promise<void> {
 
 loadDotEnv();
 const env = loadEnv(); // fails fast (without printing the key) when LOBBY_SIGNING_KEY is missing or not an Ed25519 key
+// Server-side analytics (docs/ANALYTICS.md): a no-op unless ANALYTICS=1 and ANALYTICS_SALT are set (never in dev).
+const analytics = analyticsFromEnv(process.env, { version: pkg.version, log: { warn: (m) => console.warn(m) } });
 const app = await buildApp({
   dbPath: env.databasePath,
   signingKey: env.signingKey,
@@ -31,6 +35,7 @@ const app = await buildApp({
   webhookSecret: env.stripeWebhookSecret ?? undefined,
   publicUrl: env.publicUrl ?? undefined,
   notify: env.alertWebhookUrl ? postAlert(env.alertWebhookUrl) : undefined,
+  analytics,
   logger: true,
 });
 
@@ -43,6 +48,7 @@ async function shutdown(signal: string): Promise<void> {
   try {
     stopMaintenance();
     await app.close();
+    await analytics.close();
   } finally {
     process.exit(0);
   }

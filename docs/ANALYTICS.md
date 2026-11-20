@@ -5,7 +5,19 @@ Status 2026-11-20: **owner decided**:
 - the lean event list in section 3;
 - on in the real game only.
 
-Being built in a worktree; see `docs/HANDOFF.md`.
+**Built 2026-11-20** (branch `worktree-agent-ad3753d2401096824`, not merged): sender `packages/analytics`, world `apps/server/src/analytics.ts`
+(+ `analytics-store.ts`, `routes/stats.ts`), lobby `apps/lobby/src/analytics.ts`, client `apps/web/src/statsPing.ts`. How it behaves:
+- `ANALYTICS=1` + `ANALYTICS_SALT` (the same in the lobby and every world) switch it on; `ANALYTICS_APP` marks a test play; `ANALYTICS_URL` / `ANALYTICS_KEY`
+  override the defaults. Anything else = no-op (also dev, `dev:fast`, the preview and tests).
+- Opt-out: `accounts.share_stats` (lobby Account page, default on). Worlds get it in the entry pass (claim `ana`, 1/0), store it in `analytics_optout`, and
+  send nothing for that player. It follows at the player's next entry.
+- `ftue_step` is sent once per player ever (`analytics_sent`, world schema v40): `world_joined` (player created), `first_build` (build started),
+  `first_build_done` (a finished level is seen, only after our `first_build`), `first_train`, `first_raid` (an attack is sent), `first_report` (a battle
+  report opened), `tribe_joined` (founded or joined), `second_village` (founded or taken). `world_enter` once per player per UTC day (`enter:<day>`).
+- `page_open` pages (`STATS_PAGES` in `api.ts`): village, realm, map, army, raids, auto, reports, mail, tribe, ranks, incoming, notes, simulator, rules, results, support.
+  `shop_open` `from`: `lobby`, `menu` (world account menu), `feast` (Feast all panel). `lvl` = Hall level of the player's best village (world events only).
+- `iap_done` / `iap_refund`: product `flames_<n>`, `price_micros` = net cents x 10,000, `EUR`, `first` 1/0. A refund is reported once per cent
+  (`purchases.stats_refund_cents`, lobby schema v10), also one the operator booked in the CLI; a lost dispute reports the rest.
 
 ## 1. The service (from the owner's `CLANFLAME_ANALYTICS.md`)
 

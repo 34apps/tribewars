@@ -64,6 +64,7 @@ export const ROUTE_LIMITS = {
   auto: 30, // auto mode (premium tools): the overview and saving a village's settings
   raidlists: 30, // raid lists (paid extra): list, edit, send all (every row tried is also charged to `send`)
   firststeps: 30, // first steps card: claim, hide
+  stats: 30, // analytics page-open pings (the client sends one per page per session)
   projects: 30, // tribe projects: read the store and ledger, store village, start and cancel a project
   export: 2, // data export download: 2 per ROUTE_LIMIT_WINDOWS.export (10 minutes) per account
 } as const;
@@ -88,6 +89,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'auto', test: /^\/api\/(auto|villages\/:id\/auto)$/ },
   { bucket: 'raidlists', test: /^\/api\/raid-lists(\/|$)/ },
   { bucket: 'firststeps', test: /^\/api\/first-steps(\/|$)/ },
+  { bucket: 'stats', test: /^\/api\/stats\/page$/ },
   { bucket: 'notifications', test: /^\/api\/notifications(\/|$)/ },
   { bucket: 'search', test: /^\/api\/(tribes(\/:id)?|players\/:id)$/, methods: ['GET', 'HEAD'] },
   { bucket: 'lookup', test: /^\/api\/(search\/villages|scouted\/:id|intel\/:id)$/, methods: ['GET', 'HEAD'] },

@@ -17,7 +17,9 @@ import {
   type WorldInfoResponse,
   type WorldSettings,
 } from '@clanfire/engine';
+import { NO_ANALYTICS, type Analytics } from '@clanfire/analytics';
 import { AccountDataService } from './account-data-service.ts';
+import { WorldAnalytics } from './analytics.ts';
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
@@ -44,6 +46,7 @@ import { autoRoutes } from './routes/auto.ts';
 import { raidListRoutes } from './routes/raid-lists.ts';
 import { RaidListService } from './raid-list-service.ts';
 import { firstStepsRoutes } from './routes/first-steps.ts';
+import { statsRoutes } from './routes/stats.ts';
 import { rankingRoutes } from './routes/rankings.ts';
 import { reportRoutes } from './routes/reports.ts';
 import { staffRoutes } from './routes/staff.ts';
@@ -103,6 +106,8 @@ export interface BuildAppOptions {
   dueBudget?: DueBudget;
   /** How long the ranking lists are reused, in ms (default RANKINGS_CACHE_MS = 15 s). Tests pass 0 (always fresh). */
   rankingsCacheMs?: number;
+  /** Analytics sender (index.ts builds it from ANALYTICS / ANALYTICS_SALT). Default: none, so dev, tests and the preview send nothing. */
+  analytics?: Analytics;
   /** LOBBY_PUBLIC_KEY: comma list of base64 SPKI DER / PEM Ed25519 public keys. Set = entry passes from the lobby only (own register/login off). */
   lobbyPublicKey?: string;
 }
@@ -220,7 +225,12 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     multi: new MultiService(store),
     msgReports: new ReportService(store, forum),
     accountData: new AccountDataService(store, game, tribes, worldId, now),
+    analytics: new WorldAnalytics(store, opts.analytics ?? NO_ANALYTICS, worldId, now, (msg) => app.log.warn(msg)),
   };
+  if (ctx.analytics?.enabled) {
+    const wa = ctx.analytics;
+    store.onFtue = (playerId, step) => wa.ftue(playerId, step);
+  }
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
   app.decorateRequest('player', null);
@@ -405,6 +415,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   raidListRoutes(app, ctx);
   autoRoutes(app, ctx);
   firstStepsRoutes(app, ctx);
+  statsRoutes(app, ctx);
   accountRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));

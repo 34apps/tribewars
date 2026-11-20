@@ -28,6 +28,8 @@ export interface AccountRow {
   disputes: number;
   /** Self-declared age group; null = not asked yet. */
   ageGroup: 'adult' | 'minor' | null;
+  /** "Share play stats" switch (default on): off = no analytics event is sent for this account, in the lobby or in any world. */
+  shareStats: boolean;
 }
 
 export interface NewAccount {
@@ -92,6 +94,7 @@ const toAccount = (r: Raw): AccountRow => {
   payBannedAt: (r.pay_banned_at as number | null) ?? null,
   disputes: Number(r.disputes ?? 0),
   ageGroup: r.age_group === 'adult' || r.age_group === 'minor' ? r.age_group : null,
+  shareStats: Number(r.share_stats ?? 1) !== 0,
   };
 };
 
@@ -173,6 +176,11 @@ export class Store {
   getAccount(id: number): AccountRow | null {
     const r = this.get('SELECT * FROM accounts WHERE id = ?', id);
     return r ? toAccount(r) : null;
+  }
+
+  /** Switch "Share play stats" on or off (docs/ANALYTICS.md). */
+  setShareStats(id: number, share: boolean): void {
+    this.run('UPDATE accounts SET share_stats = ? WHERE id = ?', share ? 1 : 0, id);
   }
 
   getAccountByLowerName(lower: string): AccountRow | null {

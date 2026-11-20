@@ -327,7 +327,7 @@ export function AuthScreen({
             {busy ? 'Please wait…' : register ? 'Next' : 'Sign in'}
           </button>
         </form>
-        <p className="auth-cookie-note muted small">We keep a small security cookie to stop cheating. No ads, no tracking.</p>
+        <p className="auth-cookie-note muted small">We keep a small security cookie to stop cheating. No ads.</p>
 
         {onBack && !sheet && (
           <button type="button" className="auth-back" onClick={onBack}>

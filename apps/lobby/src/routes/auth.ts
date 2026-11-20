@@ -98,6 +98,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (req.body.chieftain !== undefined && !isChieftainId(req.body.chieftain)) throw new GameError('invalid_input', 'Unknown chieftain.');
       const grant = await ctx.auth.register(req.body.username, req.body.password, req.body.chieftain, req.ip, req.headers['user-agent']);
       setSession(req, reply, grant);
+      ctx.analytics.track(grant.account.id, 'register_done');
       void reply.code(201);
       return { account: ctx.auth.toDto(grant.account) };
     },

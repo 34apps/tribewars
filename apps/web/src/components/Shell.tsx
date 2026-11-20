@@ -172,7 +172,7 @@ function AccountItems({
         <p className="acct-wide acct-premium">Premium until {new Date(premiumUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
       )}
       {lobby && (
-        <a className="btn btn-block acct-wide acct-shop" href={`${LOBBY_URL}#shop`}>
+        <a className="btn btn-block acct-wide acct-shop" href={`${LOBBY_URL}?from=menu#shop`}>
           <Icon name="flame" size={22} className="inline-icon" />
           <span>Shop</span>
           {flames !== null && <span className="acct-flames">{flames.toLocaleString('en-US')} Flames</span>}

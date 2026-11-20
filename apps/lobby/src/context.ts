@@ -2,6 +2,7 @@
 
 import type { KeyObject } from 'node:crypto';
 import type { AccountDataService } from './account-data.ts';
+import type { LobbyAnalytics } from './analytics.ts';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { ShopService } from './shop/service.ts';
 import type { AccountRow, Store } from './store.ts';
@@ -28,6 +29,8 @@ export interface AppContext {
   /** Data export: 2 per 10 minutes per account. */
   exportLimiter: RateLimiter;
   accountData: AccountDataService;
+  /** Server-side analytics (analytics.ts); every method does nothing while it is off. */
+  analytics: LobbyAnalytics;
   worldCommands: WorldCommandClient;
   dispatcher: DeletionDispatcher;
 }

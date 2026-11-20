@@ -139,7 +139,7 @@ export function LobbyApp() {
     case 'all-worlds':
       return <AllWorlds onBack={() => back('home')} onSignedOut={signedOut} />;
     case 'account':
-      return account === null ? null : <AccountPage account={account} onBack={() => back('home')} onDeleted={deleted} />;
+      return account === null ? null : <AccountPage account={account} onBack={() => back('home')} onDeleted={deleted} onChanged={setAccount} />;
     case 'shop':
       return <ShopPage paid={route === 'shop-paid'} onBack={() => back('home')} onSignedOut={signedOut} />;
     case 'your-worlds':

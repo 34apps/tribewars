@@ -4,7 +4,9 @@ import type { KeyObject } from 'node:crypto';
 import cookie from '@fastify/cookie';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { GameError, LOBBY_SESSION_COOKIE, type ApiError, type GameErrorCode } from '@clanfire/engine';
+import { NO_ANALYTICS, type Analytics } from '@clanfire/analytics';
 import { AccountDataService } from './account-data.ts';
+import { LobbyAnalytics } from './analytics.ts';
 import { noopHooks, type AccountDataHooks } from './account-hooks.ts';
 import { AuthService, RateLimiter, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
@@ -74,6 +76,8 @@ export interface BuildAppOptions {
   stripeTax?: boolean;
   /** Looks for sale. Default: the catalogue's (none yet); tests inject some. */
   looks?: readonly ShopLook[];
+  /** Analytics sender (index.ts builds it from ANALYTICS / ANALYTICS_SALT). Default: none, so dev and tests send nothing. */
+  analytics?: Analytics;
   /** Owner alert text sink (ALERT_WEBHOOK_URL in production, a function in tests). */
   notify?: (text: string) => Promise<void>;
 }
@@ -119,6 +123,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   if (opts.payments && (!opts.webhookSecret || !opts.publicUrl)) {
     throw new Error('Refusing to start: payments need both a webhook secret and the public URL.');
   }
+  const analytics = new LobbyAnalytics(store, opts.analytics ?? NO_ANALYTICS, now, (msg) => app.log.warn(msg));
   const shop = new ShopService({
     store,
     now,
@@ -128,10 +133,12 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     looks: opts.looks ?? LOOKS,
     log: app.log,
     notify: opts.notify,
+    events: analytics,
   });
   const ctx: AppContext = {
     store,
     shop,
+    analytics,
     trustProxy: Boolean(opts.trustProxy),
     webhookSecret: shop.paymentsEnabled ? (opts.webhookSecret ?? null) : null,
     now,

@@ -4,7 +4,7 @@
 // scrolling; phone: stacked, the page scrolls.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ShopItemDto, ShopPremiumWorldDto, ShopResponse } from '@clanfire/engine';
+import type { ShopFromId, ShopItemDto, ShopPremiumWorldDto, ShopResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import {
@@ -28,6 +28,7 @@ import {
   payLabel,
   premiumButtonLabel,
   premiumStatus,
+  shopFromOf,
   purchaseStatusLabel,
   purchaseStatusTone,
   purchaseTitle,
@@ -59,6 +60,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const countryRef = useRef<string | null>(null);
+  const fromRef = useRef<ShopFromId | null>(shopFromOf(typeof window === 'undefined' ? '' : window.location.search));
   const [notice, setNotice] = useState<string | null>(null);
   const [polling, setPolling] = useState(paid);
   const signedOutRef = useRef(onSignedOut);
@@ -74,7 +76,9 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
     try {
       if (country) countryRef.current = country;
       else if (countryRef.current === null) countryRef.current = rememberedCountry(typeof localStorage === 'undefined' ? null : localStorage);
-      const r = await api.lobbyShop(countryRef.current);
+      // Where the shop was opened from (a world link adds ?from=); only the first load of the visit says it (the shop_open statistic).
+      const r = await api.lobbyShop(countryRef.current, fromRef.current ?? undefined);
+      fromRef.current = null;
       setShop(r);
       setLoadError(null);
       setPackId((cur) => (cur !== null && r.packs.some((p) => p.id === cur) ? cur : (r.packs[0]?.id ?? null)));
@@ -88,6 +92,14 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
   useEffect(() => {
     void load();
   }, [load]);
+  // The "?from=" of a world's link is used up by the first load; take it out of the address so a later visit inside the lobby counts as the lobby.
+  useEffect(() => {
+    try {
+      if (window.location.search) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.hash);
+    } catch {
+      // a browser that refuses is fine: only the statistic would name the wrong place
+    }
+  }, []);
 
   // The Stripe return: the webhook credits the Flames a moment later.
   useEffect(() => {

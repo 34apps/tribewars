@@ -44,6 +44,8 @@ const PRIVATE: Array<[string, string]> = [
   ['notifications', 'player_id'],
   ['first_steps', 'player_id'],
   ['first_steps_card', 'player_id'],
+  ['analytics_sent', 'player_id'],
+  ['analytics_optout', 'player_id'],
   ['advisor_log', 'player_id'],
   ['forum_reads', 'player_id'],
   ['tribe_invites', 'player_id'],
@@ -107,6 +109,8 @@ async function populate(over: Parameters<typeof makeApp>[0] = {}): Promise<Setup
   run("INSERT INTO notifications (player_id, kind, movement_id, origin_village_id, target_village_id, depart_at, arrive_at, created_at) VALUES (?, 'incoming_attack', 1, ?, ?, ?, ?, ?)", bob.id, aliceVillage, bobVillage, t, t + 1000, t);
   run("INSERT OR IGNORE INTO first_steps (player_id, step_id, done_at) VALUES (?, 'build_first', ?)", bob.id, t);
   run('INSERT OR IGNORE INTO first_steps_card (player_id, hidden) VALUES (?, 1)', bob.id);
+  run("INSERT OR IGNORE INTO analytics_sent (player_id, key, at) VALUES (?, 'ftue:world_joined', ?)", bob.id, t);
+  run('INSERT OR IGNORE INTO analytics_optout (player_id) VALUES (?)', bob.id);
   run("INSERT INTO advisor_log (player_id, asked_at, model) VALUES (?, ?, 'm')", bob.id, t);
   run('INSERT OR IGNORE INTO forum_reads (player_id, thread_id, last_read_at) VALUES (?, ?, ?)', bob.id, threadId, t);
   run('INSERT INTO tribe_invites (tribe_id, player_id, invited_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?)', alice.tribeId, bob.id, alice.id, t, t + 1000);

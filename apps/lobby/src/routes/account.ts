@@ -1,7 +1,7 @@
 // Account data rights: deletion (with the deletion info shown first) and the data export. Contract: end of packages/engine/src/api.ts.
 
 import type { FastifyInstance } from 'fastify';
-import { ACCOUNT_DELETE_CONFIRM, GameError, LOBBY_SESSION_COOKIE, type AccountDeleteRequest, type AccountDeletionInfoDto } from '@clanfire/engine';
+import { ACCOUNT_DELETE_CONFIRM, GameError, LOBBY_SESSION_COOKIE, type AccountDeleteRequest, type AccountDeletionInfoDto, type LobbyMeResponse, type LobbyShareStatsRequest } from '@clanfire/engine';
 import { PASSWORD_MAX } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import { COOKIE_PATH, accountOf, rateLimit, requireAccount } from './auth.ts';
@@ -18,6 +18,18 @@ export function accountRoutes(app: FastifyInstance, ctx: AppContext): void {
       },
     },
   };
+
+  // The "Share play stats" switch (docs/ANALYTICS.md). Own account only. Worlds follow at the account's next entry (the pass carries it).
+  app.post<{ Body: LobbyShareStatsRequest }>(
+    '/api/account/share-stats',
+    { schema: { body: { type: 'object', required: ['share'], additionalProperties: false, properties: { share: { type: 'boolean' } } } }, onRequest: requireAccount(ctx) },
+    async (req): Promise<LobbyMeResponse> => {
+      const account = accountOf(req);
+      ctx.store.setShareStats(account.id, req.body.share);
+      ctx.store.audit({ at: req.nowMs, actorId: account.id, actorIp: null, action: req.body.share ? 'share_stats_on' : 'share_stats_off', targetAccount: account.id, detail: '' });
+      return { account: ctx.auth.toDto(ctx.store.getAccount(account.id) ?? account) };
+    },
+  );
 
   app.get('/api/account/deletion-info', { onRequest: requireAccount(ctx) }, async (req): Promise<AccountDeletionInfoDto> => ctx.accountData.deletionInfo(accountOf(req)));
 

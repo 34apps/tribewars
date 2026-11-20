@@ -50,11 +50,37 @@ What the code does to stay inside the exemption:
 - The id is created only when the player **signs in, registers or enters a world**, never on a bare visit
   (`apps/web/src/device.ts`: `ensureDeviceId` on those calls, `existingDeviceId` elsewhere). The server sets `cf_device` only when the
   header arrives, so a visitor who never signs in gets neither the cookie nor the local storage entry.
-- One line under the sign-in forms: "We keep a small security cookie to stop cheating. No ads, no tracking."
+- One line under the sign-in forms: "We keep a small security cookie to stop cheating. No ads." ("No tracking" was dropped on 2026-11-20 when the anonymous play stats of section 5 were added; the line must stay true.)
 - privacy.md s.3.3 and s.5 describe it.
 
 Residual risk: a regulator could see multi-account detection as the operator's interest rather than the user's request. If the owner
 wants zero risk, the alternative is to drop the cookie and keep only the local storage id (same legal question) or ask for consent.
+
+## 5. Anonymous play stats (server-side analytics, 2026-11-20)
+
+Spec and event list: `docs/ANALYTICS.md`. Policy text: `docs/legal/privacy.md` s.3.6.
+
+- **Sent from our servers, never from the browser.** The world server and the lobby send events to the owner's analytics service (AWS
+  us-east-1, project `clanflame`). Nothing is stored on the player's device for it, so no consent banner is needed (ePrivacy art. 5(3)
+  covers storage on the device, and there is none); the legal ground is legitimate interest (GDPR art. 6(1)(f)) with a notice and an opt-out.
+- **Off unless `ANALYTICS=1` and `ANALYTICS_SALT` are set** (production env files only; dev, `dev:fast`, the preview and tests never set them).
+  `ANALYTICS_APP=0.1.0-dev` marks a test play. The same salt must be in the lobby and in every world (one person id across worlds).
+- **Who is who:** `iid` = first 32 hex of HMAC-SHA256(`ANALYTICS_SALT`, lobby account id). The salt is secret and never changes, so the id
+  cannot be turned back into an account and cannot be matched without our salt. A player of a world with its own accounts (no lobby) uses
+  `world:<worldId>:<playerId>` (those worlds have no opt-out switch; real worlds use the lobby).
+- **What is sent** (only these): `register_done`, `ftue_step` (8 one-time steps), `world_enter` (world id, once a day), `page_open` (a fixed
+  page id), `shop_open`, `iap_done`, `iap_refund`, `premium_buy`. Values are lowercase tokens, a currency code or numbers, checked by the
+  sender before they leave (`packages/analytics`); names, chat, e-mails, village names, coordinates and IPs are never event values.
+  The analytics service sees our server's address, not the player's, and keeps no player address.
+- **Opt-out:** `accounts.share_stats` in the lobby (default on), switch "Share play stats" on the Account page. The lobby sends nothing for an
+  opted-out account. Worlds learn it from the **entry pass** (claim `ana` 1/0, signed, sent at every entry); the world stores it
+  (`analytics_optout`) and sends nothing for that player. A change reaches a world the next time the player enters it (world sessions
+  opened through the lobby last 12 hours). Nothing else carries it: the lobby does not call worlds for this.
+- **Deletion:** a world player's bookkeeping rows (`analytics_sent`, `analytics_optout`) are deleted with the account like other private
+  data. The analytics service keeps raw events 400 days and a profile per id until deleted; to delete one person the operator runs the
+  service's `admin_delete_player` for their id (compute it with the salt). That step is manual today: account deletion does not call it.
+- **Bookkeeping in the world database** (schema v40): `analytics_sent(player_id, key, at)` makes `ftue:<step>` once ever and `enter:<UTC day>`
+  once a day survive restarts; day rows older than 3 days are pruned.
 
 ## 4. Still open (see NEXT_STEPS.md)
 

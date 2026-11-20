@@ -1,7 +1,7 @@
 // Flames shop HTTP API (contract: packages/engine/src/api.ts "Flames shop"). Signed in, own data only, strict schemas.
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { GameError, type ShopAgeRequest, type ShopBalanceResponse, type ShopCheckoutRequest, type ShopCheckoutResponse, type ShopResponse, type ShopSpendRequest } from '@clanfire/engine';
+import { GameError, SHOP_FROM, type ShopAgeRequest, type ShopBalanceResponse, type ShopCheckoutRequest, type ShopCheckoutResponse, type ShopResponse, type ShopSpendRequest } from '@clanfire/engine';
 import { RateLimiter } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import { isVatCountry } from '../shop/vat.ts';
@@ -42,17 +42,19 @@ export function shopRoutes(app: FastifyInstance, ctx: AppContext): void {
   const ageLimit = limitBy(new RateLimiter(RATE_AGE_PER_ACCOUNT, 60_000));
 
   // ?country=XX only chooses the VAT shown before paying: an EU country of the lobby's table, or 'XX' (outside the EU). Nothing else is accepted.
-  app.get<{ Querystring: { country?: string } }>(
+  app.get<{ Querystring: { country?: string; from?: string } }>(
     '/api/shop',
     {
       onRequest: auth,
-      schema: { querystring: { type: 'object', additionalProperties: false, properties: { country: { type: 'string', pattern: '^[A-Z]{2}$' } } } },
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: { country: { type: 'string', pattern: '^[A-Z]{2}$' }, from: { type: 'string', enum: [...SHOP_FROM] } } } },
     },
     async (req): Promise<ShopResponse> => {
       const asked = req.query.country ?? null;
       if (asked !== null && !isVatCountry(asked)) throw new GameError('invalid_input', 'Unknown country.');
       // The CDN's country header is only believed behind a trusted proxy (anyone can send it otherwise).
       const header = ctx.trustProxy ? headerValue(req.headers['cloudfront-viewer-country']) ?? headerValue(req.headers['cf-ipcountry']) : null;
+      // Analytics: where the shop was opened from (a fixed id; the client says it once per visit). Dropped quietly when tracking is off.
+      if (req.query.from) ctx.analytics.shopOpen(accountOf(req).id, req.query.from as (typeof SHOP_FROM)[number]);
       return shop.response(accountOf(req), asked, header);
     },
   );

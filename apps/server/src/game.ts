@@ -2275,7 +2275,10 @@ export class GameService {
       const r = this.store.getReport(player.id, id);
       if (!r) throw new GameError('not_found', 'Report not found.');
       if (!r.read) this.store.markReportRead(player.id, id);
-      if (r.type === 'battle') this.store.firstSteps.markDone(player.id, 'report', this.clock());
+      if (r.type === 'battle') {
+        this.store.firstSteps.markDone(player.id, 'report', this.clock());
+        this.store.onFtue?.(player.id, 'first_report');
+      }
       return {
         id: r.id,
         createdAt: r.createdAt,
@@ -2304,6 +2307,7 @@ export class GameService {
       const next = applyBuild(v.state, building, t, this.settings, limit);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { buildingLevelsBuilt: 1 });
+      this.store.onFtue?.(player.id, 'first_build');
       return this.ownDto(v, next, t);
     });
   }
@@ -2349,6 +2353,7 @@ export class GameService {
         this.store.reserveChest(player.id, due.gold);
       }
       this.store.addStats(player.id, { troopsTrained: count });
+      this.store.onFtue?.(player.id, 'first_train');
       return this.ownDto(v, next, t);
     });
   }
@@ -2613,6 +2618,7 @@ export class GameService {
         ...(siegeTarget ? { siegeTarget } : {}),
       });
       this.store.saveVillage(v.id, next, villagePoints(next));
+      if (mission === 'attack') this.store.onFtue?.(player.id, 'first_raid');
       // Staff tooling: support from one player to another (the pair log, kept 30 days).
       if (mission === 'support' && target && target.ownerId !== null && target.ownerId !== player.id) {
         this.store.multi.logEvent({ at: t, kind: 'support', a: player.id, b: target.ownerId, amount: totalUnits(check.units) });

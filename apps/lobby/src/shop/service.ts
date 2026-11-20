@@ -38,6 +38,7 @@ import {
   type ShopLook,
 } from './catalogue.ts';
 import { PaymentError, type PaymentGateway } from './gateway.ts';
+import type { AccountEvents } from '../analytics.ts';
 import { ShopStore, type PurchaseRow } from './store.ts';
 import { VAT_COUNTRIES, VAT_RATES_DATE, displayCountryOf, vatCentsOf, vatRatePercent } from './vat.ts';
 
@@ -60,6 +61,8 @@ export interface ShopServiceOptions {
   log: ShopLog;
   /** Owner alert (ALERT_WEBHOOK_URL). Failures are swallowed. */
   notify?: (text: string) => Promise<void>;
+  /** Analytics events for accounts (iap_done, iap_refund, premium_buy; docs/ANALYTICS.md). Absent = none (the CLI, most tests). */
+  events?: AccountEvents;
 }
 
 /** A Stripe checkout page is open this long (Stripe's minimum is 30 minutes from its receipt of the request). */
@@ -111,6 +114,9 @@ export class ShopService {
   private readonly looks: readonly ShopLook[];
   private readonly log: ShopLog;
   private readonly notify: (text: string) => Promise<void>;
+  private readonly events: AccountEvents | null;
+  /** Analytics work queued while a webhook event is being applied; it runs only after the transaction committed. */
+  private deferred: (() => void)[] | null = null;
 
   constructor(o: ShopServiceOptions) {
     this.store = o.store;
@@ -122,6 +128,31 @@ export class ShopService {
     this.looks = o.looks ?? LOOKS;
     this.log = o.log;
     this.notify = o.notify ?? (async () => {});
+    this.events = o.events ?? null;
+  }
+
+  /** Run `fn` once the current webhook transaction has committed (at once outside one). Never throws. */
+  private later(fn: () => void): void {
+    if (this.deferred) this.deferred.push(fn);
+    else {
+      try {
+        fn();
+      } catch {
+        // analytics never breaks the shop
+      }
+    }
+  }
+
+  /** Tell analytics about refund money not reported yet, up to `upToCents` gross of the purchase (each cent is reported once). */
+  private reportRefund(p: PurchaseRow, upToCents: number): void {
+    if (!this.events || p.kind !== 'flames' || p.paidAt === null || p.priceCents <= 0) return;
+    const cents = Math.min(upToCents, p.priceCents) - p.statsRefundCents;
+    if (cents <= 0) return;
+    this.shop.updatePurchase(p.id, { statsRefundCents: p.statsRefundCents + cents });
+    const net = Math.round((p.netCents * cents) / p.priceCents);
+    const first = this.shop.isFirstPaidFlames(p.accountId, p.id) ? 1 : 0;
+    const events = this.events;
+    this.later(() => events.track(p.accountId, 'iap_refund', { product: `flames_${p.flames}`, price_micros: net * 10_000, currency: 'EUR', first }));
   }
 
   get paymentsEnabled(): boolean {
@@ -347,6 +378,7 @@ export class ShopService {
 
   spend(account: AccountRow, req: ShopSpendRequest, ip: string): ShopResponse {
     const now = this.now();
+    let premiumBought = false;
     this.store.tx(() => {
       const prior = this.shop.ledgerByRequest(account.id, req.requestId);
       if (prior) {
@@ -375,11 +407,13 @@ export class ShopService {
       if (item.kind === 'premium' && worldId !== null) {
         const until = Math.max(this.shop.premiumUntil(account.id, worldId), now) + PREMIUM_DAYS * DAY_MS;
         this.shop.setPremiumUntil(account.id, worldId, until);
+        premiumBought = true;
       } else {
         this.shop.addItem(account.id, item.id, now);
       }
       this.audit(account, account.id, ip, 'shop_spend', `${item.id} ${item.priceFlames} flames${worldId ? ` world ${worldId}` : ''}`);
     });
+    if (premiumBought) this.later(() => this.events?.track(account.id, 'premium_buy', { days: PREMIUM_DAYS }));
     return this.response(account);
   }
 
@@ -512,32 +546,41 @@ export class ShopService {
     const obj = data && isObj(data.object) ? data.object : null;
     if (!id || !type || !obj) throw new GameError('invalid_input', 'Malformed event.');
     const after: (() => Promise<void>)[] = [];
-    const duplicate = this.store.tx(() => {
-      if (!this.shop.insertEvent(id, type, this.now())) return true;
-      switch (type) {
-        case 'checkout.session.completed':
-          this.onSessionCompleted(obj);
-          break;
-        case 'checkout.session.expired':
-          this.onSessionExpired(obj);
-          break;
-        case 'charge.succeeded':
-          this.onChargeSucceeded(obj);
-          break;
-        case 'charge.refunded':
-          this.onChargeRefunded(obj);
-          break;
-        case 'charge.dispute.created':
-          this.onDisputeCreated(obj, after);
-          break;
-        case 'charge.dispute.closed':
-          this.onDisputeClosed(obj, after);
-          break;
-        default:
-          break; // unknown types: stored (so a replay is a no-op) and ignored
-      }
-      return false;
-    });
+    const deferred: (() => void)[] = [];
+    this.deferred = deferred;
+    let duplicate: boolean;
+    try {
+      duplicate = this.store.tx(() => {
+        if (!this.shop.insertEvent(id, type, this.now())) return true;
+        switch (type) {
+          case 'checkout.session.completed':
+            this.onSessionCompleted(obj);
+            break;
+          case 'checkout.session.expired':
+            this.onSessionExpired(obj);
+            break;
+          case 'charge.succeeded':
+            this.onChargeSucceeded(obj);
+            break;
+          case 'charge.refunded':
+            this.onChargeRefunded(obj);
+            break;
+          case 'charge.dispute.created':
+            this.onDisputeCreated(obj, after);
+            break;
+          case 'charge.dispute.closed':
+            this.onDisputeClosed(obj, after);
+            break;
+          default:
+            break; // unknown types: stored (so a replay is a no-op) and ignored
+        }
+        return false;
+      });
+    } finally {
+      this.deferred = null;
+    }
+    // The transaction committed: only now do the analytics events leave (a rolled-back event sends nothing).
+    if (!duplicate) for (const fn of deferred) this.later(fn);
     return { duplicate, after };
   }
 
@@ -606,6 +649,12 @@ export class ShopService {
     });
     if (p.kind === 'flames') {
       this.shop.addLedger({ accountId: p.accountId, at: now, delta: p.flames, reason: 'purchase', purchaseId: p.id, detail: receiptNo(p.id) });
+      if (this.events) {
+        const events = this.events;
+        const first = this.shop.isFirstPaidFlames(p.accountId, p.id) ? 1 : 0;
+        // Net price (without VAT) in micros of a euro: 1 cent = 10,000 micros.
+        this.later(() => events.track(p.accountId, 'iap_done', { product: `flames_${p.flames}`, price_micros: p.netCents * 10_000, currency: 'EUR', first }));
+      }
     } else {
       const covered = this.shop.payBoundFees(p.id, now);
       if (covered === 0) this.log.warn({ purchase: p.id }, 'a settlement was paid but no open fees were bound to it');
@@ -642,6 +691,7 @@ export class ShopService {
     if (!p) return;
     const total = int(o.amount_refunded);
     if (total === null) return;
+    this.reportRefund(p, total); // analytics hears of every refund once, also one the CLI already booked
     const beyond = total - p.refundedCents;
     if (beyond <= 0) return; // a support refund already took care of it
     const now = this.now();
@@ -738,6 +788,7 @@ export class ShopService {
       this.store.audit({ at: now, actorId: null, actorIp: null, action: 'shop_dispute_won', targetAccount: p.accountId, detail: `purchase ${p.id} +${back} flames` });
     } else if (status === 'lost') {
       this.shop.updatePurchase(p.id, { status: 'dispute_lost' });
+      this.reportRefund(p, p.priceCents); // a lost dispute takes the money back: revenue goes down
       this.store.audit({ at: now, actorId: null, actorIp: null, action: 'shop_dispute_lost', targetAccount: p.accountId, detail: `purchase ${p.id}` });
     }
   }

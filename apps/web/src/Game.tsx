@@ -49,6 +49,7 @@ import './notes.css';
 import './auto.css';
 import './autotag.css';
 import { SupportView } from './views/SupportView.tsx';
+import { usePageOpenPing } from './statsPing.ts';
 
 const StaffView = lazy(() => import('./views/StaffView.tsx'));
 
@@ -127,6 +128,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const store = useGameState(onSignedOut);
   const now = useNow(store.serverOffset);
   const [{ tab, building }, navigate, openBuilding] = useRoute();
+  usePageOpenPing(tab);
   const desktop = useIsDesktop();
   const { end: worldEnd, fresh: worldEndFresh } = useWorldEnd();
   // The first time the end becomes known (start-up or a live hint), land on the results; a refused order only shows the banner.

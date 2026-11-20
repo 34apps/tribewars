@@ -1,6 +1,6 @@
 // Flames shop helpers (pure: unit-tested). Money is always whole euro cents. Pack prices are NET; VAT of the shown country comes on top (the server rounds it).
 
-import type { FlamesPackDto, PurchaseDto, PurchaseStatus, ShopDisputeDto, ShopItemDto, ShopPremiumWorldDto, ShopVatDto, VatCountryDto } from '@clanfire/engine';
+import { SHOP_FROM, type FlamesPackDto, type PurchaseDto, type PurchaseStatus, type ShopDisputeDto, type ShopFromId, type ShopItemDto, type ShopPremiumWorldDto, type ShopVatDto, type VatCountryDto } from '@clanfire/engine';
 
 /** Stripe's hosted checkout is the only address the browser is ever sent to after "Buy". */
 export const STRIPE_CHECKOUT_PREFIX = 'https://checkout.stripe.com/';
@@ -288,4 +288,10 @@ export function shortfallText(balance: number, price: number): string | null {
 export function newRequestId(rand: (n: number) => Uint8Array = (n) => crypto.getRandomValues(new Uint8Array(n))): string {
   const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   return Array.from(rand(24), (b) => abc[b & 63]).join('');
+}
+
+/** Where the shop was opened from, read from the page address ("?from=menu" is added by the world's links); anything else is the lobby itself. */
+export function shopFromOf(search: string): ShopFromId {
+  const v = new URLSearchParams(search).get('from');
+  return (SHOP_FROM as readonly string[]).includes(v ?? '') && v !== 'lobby' ? (v as ShopFromId) : 'lobby';
 }

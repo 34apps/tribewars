@@ -16,6 +16,7 @@
     "gen:passwords": "tsx scripts/gen-common-passwords.ts"
   },
   "dependencies": {
+    "@clanfire/analytics": "*",
     "@clanfire/engine": "*",
     "@fastify/cookie": "^11.1.5",
     "fastify": "^5.12.8"

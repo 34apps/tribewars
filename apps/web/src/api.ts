@@ -6,6 +6,9 @@ import type {
   AccountDeleteRequest,
   AccountDeletionInfoDto,
   ApiError,
+  LobbyShareStatsRequest,
+  ShopFromId,
+  StatsPageId,
   ShopAgeRequest,
   ShopBalanceResponse,
   ShopCheckoutRequest,
@@ -344,7 +347,11 @@ export const api = {
   /** Worlds with their own accounts only (lobby worlds answer 403: delete in the lobby). */
   worldDeleteAccount: (body: AccountDeleteRequest) => request<void>('POST', '/api/account/delete', body),
   // ---- Flames shop (lobby, signed in) ----
-  lobbyShop: (country?: string | null) => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop${country ? `?country=${encodeURIComponent(country)}` : ''}`),
+  /** `from` (where the shop was opened, a fixed id) is sent on the first load of a visit only: it is only used for the shop_open statistic. */
+  lobbyShop: (country?: string | null, from?: ShopFromId) => {
+    const q = [country ? `country=${encodeURIComponent(country)}` : '', from ? `from=${from}` : ''].filter(Boolean).join('&');
+    return lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop${q ? `?${q}` : ''}`);
+  },
   /** Small: the balance shown in the world's account menu. */
   lobbyShopBalance: () => lobbyRequest<ShopBalanceResponse>('GET', `${lobbyApiBase}/shop/balance`),
   lobbyCheckout: (body: ShopCheckoutRequest) => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/checkout`, body),
@@ -353,6 +360,8 @@ export const api = {
   lobbyShopAge: (body: ShopAgeRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/age`, body),
   /** Pay open dispute fees: answers a Stripe checkout address like a purchase. */
   lobbyShopSettle: () => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/settle`, {}),
+  /** The "Share play stats" switch of the account (anonymous play statistics, default on). Answers the account. */
+  lobbyShareStats: (share: boolean) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/account/share-stats`, { share } satisfies LobbyShareStatsRequest),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   /** Signed-out homepage strip: open and full worlds, public fields only. */
   lobbyPublicWorlds: () => lobbyRequest<PublicWorldsResponse>('GET', `${lobbyApiBase}/worlds/public`),
@@ -379,6 +388,8 @@ export const api = {
   sandboxReset: () => request<GameStateResponse>('POST', '/api/sandbox/reset', {}),
   logout: () => request<void>('POST', '/api/auth/logout', {}),
   setChieftain: (chieftain: string) => request<MeResponse>('POST', '/api/me/chieftain', { chieftain } satisfies ChieftainRequest),
+  /** Analytics: this page was opened for the first time this session. 204; the server decides whether anything is sent. */
+  statsPage: (page: StatsPageId) => request<void>('POST', '/api/stats/page', { page }),
   claimFirstStep: (id: FirstStepId, villageId: number) =>
     request<FirstStepClaimResponse>('POST', `/api/first-steps/${id}/claim`, { villageId } satisfies FirstStepClaimRequest),
   setFirstStepsHidden: (hidden: boolean) =>

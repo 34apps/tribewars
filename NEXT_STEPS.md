@@ -2,6 +2,13 @@
 
 Current open work and decisions only (history goes in `CHANGELOG.md`). Newest priorities first.
 
+## Analytics follow-ups (2026-11-20, branch `worktree-agent-ad3753d2401096824`, built, not merged, not pushed)
+- (1) Merge, then in production set `ANALYTICS=1` and the SAME long random `ANALYTICS_SALT` in `deploy/lobby.env` AND every world's env file (never change it later); one test play with `ANALYTICS_APP=0.1.0-dev`, wait about 5 minutes, ask the card shop session to run `event_counts` for `clanflame`.
+- (2) Owner confirms the privacy text (`docs/legal/privacy.md` 3.6): the analytics AWS account is his own, 400-day retention, DPF line. Deleting one person's record is manual (`admin_delete_player` with the id computed from the salt); account deletion does not call it yet (a lobby hook could, if the analytics service gets a delete key for us; owner's call).
+- (3) An opt-out reaches a world at the player's next entry (world sessions opened through the lobby last 12 hours); an instant channel would be a new lobby-to-world command.
+- (4) Worlds with their own accounts (no lobby) have no opt-out switch; real worlds use the lobby. `country` stays lost (the ingest would see our server's address).
+- (5) Not checked: the Account page switch at 360 px and 1280-1440 px in a real browser (no browser opened by rule; it reuses the page's card classes and the Settings switch markup).
+
 ## In-game layout redo (owner, 2026-11-09) — FIRST
 - **Feast in all villages follow-ups (2026-11-20, branch `claude/trusting-rubin-e46b57`):** (1) Merge, `npm run build:preview:local`, owner tries the Banner Hall switch with Premium on (preview world has `features.premium`; his account needs the premium tools). (2) The list loads once when opened and does not refresh with production; the server skips a village that can no longer pay. (3) `docs/GAME_DESIGN.md` holds section 18.2 twice (two copies of "Taking villages"); the new rule is in both, merge the copies some day.
 - **Preview skip refresh follow-ups (2026-11-20, branch `preview-skip-refresh`):** (1) Owner tries +1 day on the Village, Map, Reports and Tribe pages after the merge (`npm run build:preview:local`). (2) Screens with their own timers that no hint covers (e.g. Chat polls) refetch on their next poll; add `useTimeJump` where one shows stale after a skip.

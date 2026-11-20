@@ -33,6 +33,8 @@ export class AccountDataStore extends SqlBase {
       'notifications',
       'first_steps',
       'first_steps_card',
+      'analytics_sent',
+      'analytics_optout',
       'advisor_log',
       'forum_reads',
       'tribe_applications',

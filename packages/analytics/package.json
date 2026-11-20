@@ -1,0 +1,19 @@
+{
+  "name": "@clanfire/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Server-side analytics sender shared by the world server and the lobby (batching, retry, validation). Off unless ANALYTICS=1 and ANALYTICS_SALT are set. Not in the engine: it does I/O.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}

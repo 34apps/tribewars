@@ -113,7 +113,7 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
 
   // ---- signature good: now check every claim strictly ----
   const c = unverified as Record<string, unknown>;
-  const { v, kid, aid, name, wid, chn, role, iat, exp, nonce, bdg, prm } = c;
+  const { v, kid, aid, name, wid, chn, role, iat, exp, nonce, bdg, prm, ana } = c;
   if (v !== 1 || kid !== entry.kid) throw invalid();
   const keyId = entry.kid;
   if (!isSafeInt(aid) || aid <= 0) throw invalid();
@@ -127,6 +127,8 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
   if (badges === null) throw invalid();
   // Premium bought with Flames: absent = leave the stored value alone; present but not a safe integer >= 0 = refuse.
   if (prm !== undefined && (!isSafeInt(prm) || prm < 0)) throw invalid();
+  // "Share play stats": absent = leave the stored switch alone; present but not 0 or 1 = refuse.
+  if (ana !== undefined && ana !== 0 && ana !== 1) throw invalid();
   if (!isSafeInt(iat) || !isSafeInt(exp)) throw invalid();
   if (typeof nonce !== 'string' || !NONCE_RE.test(nonce)) throw invalid();
   if (wid !== worldId) throw invalid();
@@ -134,5 +136,5 @@ export function verifyEntryPass(pass: string, keys: readonly EntryKey[], now: nu
   if (iat > now + ENTRY_PASS_CLOCK_SKEW_MS) throw invalid();
   if (now >= exp) throw new GameError('unauthorized', 'This entry pass has expired.');
 
-  return { v: 1, kid: keyId, aid, name, wid, chn, role: staffRole, iat, exp, nonce, ...(badges ? { bdg: badges } : {}), ...(prm !== undefined ? { prm } : {}) };
+  return { v: 1, kid: keyId, aid, name, wid, chn, role: staffRole, iat, exp, nonce, ...(badges ? { bdg: badges } : {}), ...(prm !== undefined ? { prm } : {}), ...(ana !== undefined ? { ana } : {}) };
 }

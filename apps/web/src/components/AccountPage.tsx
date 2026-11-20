@@ -4,10 +4,11 @@ import type { LobbyAccountDto } from '@clanfire/engine';
 import { api } from '../api.ts';
 import { DeleteAccountFlow } from './DeleteAccountFlow.tsx';
 import { DownloadData } from './DownloadData.tsx';
+import { ShareStats } from './ShareStats.tsx';
 import './lobby-phone.css';
 import './account.css';
 
-export function AccountPage({ account, onBack, onDeleted }: { account: LobbyAccountDto; onBack: () => void; onDeleted: () => void }) {
+export function AccountPage({ account, onBack, onDeleted, onChanged }: { account: LobbyAccountDto; onBack: () => void; onDeleted: () => void; onChanged?: (a: LobbyAccountDto) => void }) {
   return (
     <div className="aw">
       <header className="aw-bar">
@@ -27,6 +28,7 @@ export function AccountPage({ account, onBack, onDeleted }: { account: LobbyAcco
           <p>Download everything we keep about you as one file. It includes every world you played.</p>
           <DownloadData label="Download my data" load={api.lobbyExport} />
         </section>
+        <ShareStats account={account} onChanged={(a) => onChanged?.(a)} />
         <section className="acc-card" aria-labelledby="acc-delete">
           <h2 id="acc-delete" className="card-title">Delete account</h2>
           <p>Delete your account and your data for good.</p>

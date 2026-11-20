@@ -67,6 +67,8 @@ export interface PurchaseRow {
   disputedAt: number | null;
   refundedFlames: number;
   refundedCents: number;
+  /** Gross refund money analytics was already told about (iap_refund), so each refund is reported once. */
+  statsRefundCents: number;
   refundedAt: number | null;
   receiptSent: number;
   evidenceJson: string | null;
@@ -163,6 +165,7 @@ const toPurchase = (r: Raw): PurchaseRow => ({
   disputedAt: n(r.disputed_at),
   refundedFlames: Number(r.refunded_flames),
   refundedCents: Number(r.refunded_cents),
+  statsRefundCents: Number(r.stats_refund_cents ?? 0),
   refundedAt: n(r.refunded_at),
   receiptSent: Number(r.receipt_sent),
   evidenceJson: sOrNull(r.evidence_json),
@@ -202,6 +205,7 @@ const PURCHASE_COLUMNS = {
   disputedAt: 'disputed_at',
   refundedFlames: 'refunded_flames',
   refundedCents: 'refunded_cents',
+  statsRefundCents: 'stats_refund_cents',
   refundedAt: 'refunded_at',
   evidenceJson: 'evidence_json',
   evidenceSubmittedAt: 'evidence_submitted_at',
@@ -371,6 +375,18 @@ export class ShopStore {
         to,
         pendingSince,
       )?.s ?? 0,
+    );
+  }
+
+  /** True when no other paid Flames pack of the account came before this one (analytics `first`). */
+  isFirstPaidFlames(accountId: number, purchaseId: number): boolean {
+    const me = this.get('SELECT paid_at FROM purchases WHERE id = ?', purchaseId);
+    if (!me || me.paid_at === null) return true;
+    return (
+      this.get(
+        "SELECT 1 AS x FROM purchases WHERE account_id = ? AND kind = 'flames' AND paid_at IS NOT NULL AND id != ? AND (paid_at < ? OR (paid_at = ? AND id < ?)) LIMIT 1",
+        accountId, purchaseId, me.paid_at as number, me.paid_at as number, purchaseId,
+      ) === undefined
     );
   }
 

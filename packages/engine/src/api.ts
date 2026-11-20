@@ -2618,6 +2618,13 @@ export interface LobbyAccountDto {
   staffRole: StaffRole | null;
   /** Badges from finished worlds, newest first. */
   badges: AccountBadgeDto[];
+  /** "Share play stats" switch (default on): anonymous play statistics, see docs/ANALYTICS.md. Off = nothing is sent for this account. */
+  shareStats: boolean;
+}
+
+/** POST /lobby/api/account/share-stats: turn the "Share play stats" switch on or off. Answers LobbyMeResponse. */
+export interface LobbyShareStatsRequest {
+  share: boolean;
 }
 
 export interface LobbyMeResponse {
@@ -2713,6 +2720,9 @@ export interface EntryPassClaims {
    *  owes Flames after a bank dispute). A world copies it onto the player at every entry (`players.premium_until`); a pass without it
    *  leaves the stored value unchanged. Safe integer >= 0, else the pass is refused. */
   prm?: number;
+  /** Optional: the account's "Share play stats" switch (docs/ANALYTICS.md): 1 = on (the default), 0 = the player opted out. A world copies
+   *  it onto the player at every entry and sends no analytics events for a player with 0; a pass without it leaves the stored value alone. */
+  ana?: 0 | 1;
 }
 
 // ---- Flames shop (docs/PAYMENTS_PLAN.md; lobby only, account level) ---------------------------------------------------------------
@@ -3128,4 +3138,24 @@ export interface LobbyCommandClaims {
 
 export interface LobbyCommandRequest {
   command: string;
+}
+
+// ---- Analytics (docs/ANALYTICS.md) -------------------------------------------------------------------------------------------------
+// Events are sent by OUR servers to the owner's analytics service, never by the browser. The only client part is this one call.
+
+/** Pages of the signed-in world app that `POST /api/stats/page` accepts (the real routes of the client; the staff page is left out on purpose). */
+export const STATS_PAGES = ['village', 'realm', 'map', 'army', 'raids', 'auto', 'reports', 'mail', 'tribe', 'ranks', 'incoming', 'notes', 'simulator', 'rules', 'results', 'support'] as const;
+export type StatsPageId = (typeof STATS_PAGES)[number];
+export function isStatsPage(v: unknown): v is StatsPageId {
+  return typeof v === 'string' && (STATS_PAGES as readonly string[]).includes(v);
+}
+
+/** Where the shop was opened from (`GET /lobby/api/shop?from=`): the lobby itself, the world's account menu, the "Feast all" panel. */
+export const SHOP_FROM = ['lobby', 'menu', 'feast'] as const;
+export type ShopFromId = (typeof SHOP_FROM)[number];
+
+// POST /api/stats/page  body StatsPageRequest -> 204 always (also when tracking is off or the player opted out). Signed in only
+//   (401 otherwise), rate-limited (429), a page id outside STATS_PAGES is 400. The client sends it on the FIRST open of each page per session.
+export interface StatsPageRequest {
+  page: StatsPageId;
 }

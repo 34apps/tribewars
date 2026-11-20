@@ -296,6 +296,8 @@ export class AuthService {
         this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'premium_sync', targetPlayer: player.id, detail: `${player.premiumUntil} -> ${claims.prm}` });
         player = this.store.getPlayer(player.id) ?? player;
       }
+      // "Share play stats" switch of the account (docs/ANALYTICS.md): copied at every entry, before any event of this entry is sent.
+      if (claims.ana !== undefined) this.store.analytics.setOptOut(player.id, claims.ana === 0);
       // Badges of the account (all worlds), copied like the role; a pass without the claim leaves them unchanged.
       if (claims.bdg) this.store.domination.setAccountBadges(player.id, claims.bdg);
       return { grant: this.openSession(player, t, true), created };

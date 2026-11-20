@@ -57,6 +57,7 @@ import { AccountDataStore } from './account-data-store.ts';
 import { FighterStore } from './fighter-store.ts';
 import { RaidListStore } from './raid-list-store.ts';
 import { reportDigest } from './report-digest.ts';
+import { AnalyticsStore, type FtueStep } from './analytics-store.ts';
 import { FirstStepsStore } from './first-steps-store.ts';
 import type { LiveEvent } from './live-events.ts';
 import { MailStore } from './mail-store.ts';
@@ -550,6 +551,8 @@ export class Store extends SqlBase {
   /** Fighter rankings: value of enemy troops destroyed per player (schema v27). */
   readonly fighters: FighterStore;
   readonly firstSteps: FirstStepsStore;
+  /** Analytics bookkeeping: events already sent, "Share play stats" opt-out (schema v40). */
+  readonly analytics: AnalyticsStore;
   readonly accountData: AccountDataStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
@@ -558,6 +561,12 @@ export class Store extends SqlBase {
   readonly multi: MultiStore;
   readonly support: SupportStore;
   readonly msgReports: ReportStore;
+
+  /**
+   * Analytics hook (docs/ANALYTICS.md): called when a player reaches a one-time step of the early game. Set by the app only when analytics
+   * is on; null (dev, tests, the preview) = nothing happens. It must never throw (WorldAnalytics.ftue catches everything).
+   */
+  onFtue: ((playerId: number, step: FtueStep) => void) | null = null;
 
   /** Lowercase usernames allowed to use sandbox (test) mode: SANDBOX_USERS. Set once at start-up. */
   sandboxUsers: ReadonlySet<string> = new Set();
@@ -582,6 +591,7 @@ export class Store extends SqlBase {
     this.raidLists = new RaidListStore(db);
     this.fighters = new FighterStore(db);
     this.firstSteps = new FirstStepsStore(db);
+    this.analytics = new AnalyticsStore(db);
     this.accountData = new AccountDataStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
@@ -955,6 +965,7 @@ export class Store extends SqlBase {
   setVillageOwner(id: number, ownerId: number, name: string): void {
     this.markSiteUpkeepDirty();
     this.run('UPDATE villages SET owner_id = ?, name = ?, bot_next_at = 0, hold_due_at = NULL WHERE id = ?', ownerId, name, id);
+    this.noteVillageCount(ownerId);
   }
 
   setVillageName(id: number, name: string): void {
@@ -1348,10 +1359,17 @@ export class Store extends SqlBase {
   }
 
   insertVillage(ownerId: number | null, name: string, x: number, y: number, points: number, state: VillageState): number {
-    return this.run(
+    const id = this.run(
       'INSERT INTO villages (owner_id, name, x, y, points, state_json, protected_until, has_troops) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       ownerId, name, x, y, points, JSON.stringify(state), state.protectedUntil ?? 0, totalUnits(state.troops) > 0 ? 1 : 0,
     ).id;
+    if (ownerId !== null) this.noteVillageCount(ownerId);
+    return id;
+  }
+
+  /** Analytics: the second village of a player (founded or taken) is a milestone of the early game. Costs nothing while the hook is off. */
+  private noteVillageCount(ownerId: number): void {
+    if (this.onFtue && Number(this.get('SELECT COUNT(*) AS n FROM villages WHERE owner_id = ?', ownerId)?.n ?? 0) === 2) this.onFtue(ownerId, 'second_village');
   }
 
   /**
@@ -1378,6 +1396,7 @@ export class Store extends SqlBase {
         if (this.isSandboxUser(o?.username as string)) {
           out = markDefenceCollected(markRenownPaid(state));
         } else {
+          if (this.onFtue && hasUnpaidBuildRenown(state)) this.onFtue(ownerId, 'first_build_done'); // a building level finished
           const paid = collectBuildRenown(state);
           out = paid.state;
           let earned = paid.renown;
