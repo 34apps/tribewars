@@ -136,9 +136,12 @@ test('a bought rank shows pips, the bonus now, Reset with the refund, and Max at
   assert.ok(html.includes(`>+${Math.round(BREACH_BONUS * 2 * 100)}%</strong>`), 'the bonus reached sits beside the dots');
   assert.ok(html.includes(`Now +${Math.round(BREACH_BONUS * 2 * 100)}%`));
   assert.ok(html.includes('aria-label="Log Ram Breach rank 2 of 5"'));
-  assert.ok(html.includes('aria-label="Reset Log Ram Breach"'), 'a part-bought rank can be reset');
-  assert.ok(html.includes(`Reset (+${RANK_POINTS[0]! + RANK_POINTS[1]!} pts)`), 'Reset with refund sits in the middle row');
-  assert.ok(html.includes(`Reset (+${RANK_POINTS[0]! * RANK_MAX} pts)`), 'a maxed card shows the Max tag with Reset and its refund');
+  const back = RANK_POINTS[0]! + RANK_POINTS[1]!;
+  assert.ok(html.includes(`aria-label="Reset Log Ram ranks (+${back} points back)"`), 'a part-bought rank has a round Reset icon button');
+  assert.ok(html.includes(`title="Reset Log Ram ranks (+${back} points back)"`), 'with the same tooltip');
+  assert.ok(html.includes(`aria-label="Reset Raider ranks (+${RANK_POINTS[0]! * RANK_MAX} points back)"`), 'a maxed card can be reset too');
+  assert.equal((html.match(/class="drill-reset"/g) ?? []).length, 2, 'only cards with a rank bought get Reset');
+  assert.ok(!/Reset \(\+|Reset \+/.test(html), 'no text link any more');
   assert.ok(html.includes('class="drill-max">Max<'));
 });
 
