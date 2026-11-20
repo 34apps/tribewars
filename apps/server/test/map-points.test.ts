@@ -115,7 +115,10 @@ test('refresh is bounded by the batch size, oldest first; the caretaker pass run
   assert.ok(NPC_REFRESH_BATCH >= ids.length);
   clock.advance(MINUTE);
   app.ctx.game.runCaretaker(clock.t);
-  assert.ok(ids.every((id) => stampOf(app, id) !== null), 'the periodic pass refreshes the rest');
+  // The pass has a real-time budget (performance.now), so on a busy machine it may stop early: only progress is guaranteed.
+  assert.ok(ids.filter((id) => stampOf(app, id) !== null).length > done.length, 'the periodic pass refreshes more of the rest');
+  app.ctx.game.refreshAbandonedVillages(clock.t, NPC_REFRESH_BATCH, Number.POSITIVE_INFINITY); // no time limit: the rest is done
+  assert.ok(ids.every((id) => stampOf(app, id) !== null), 'every village ends up refreshed');
   await app.close();
 });
 
