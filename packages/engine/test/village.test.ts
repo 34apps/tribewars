@@ -533,36 +533,36 @@ describe('checkTrain / applyTrain', () => {
     assert.equal(r('knight'), 'requirements_not_met');
   });
 
-  it('trains Pathfinders like any other unit (stables 1)', () => {
+  it('trains Pathfinders like any other unit (barracks 2)', () => {
     const rich = { wood: 5000, food: 5000, iron: 5000, gold: 1000 };
-    const level1 = village({ buildings: { barracks: 2, storehouse: 10 }, resources: rich });
+    const level1 = village({ buildings: { barracks: 1, storehouse: 10 }, resources: rich });
     const refused = checkTrain(level1, 'pathfinder', 1, 0, S1);
     assert.ok(!refused.ok && refused.reason === 'requirements_not_met');
-    assert.ok(!refused.ok && /Stables level 1/.test(refused.message));
+    assert.ok(!refused.ok && /Barracks level 2/.test(refused.message));
 
-    const v = village({ buildings: { stables: 1, storehouse: 10 }, resources: rich });
+    const v = village({ buildings: { barracks: 2, storehouse: 10 }, resources: rich });
     const c = checkTrain(v, 'pathfinder', 4, 0, S1);
     assert.ok(c.ok);
     if (c.ok) {
       assert.deepEqual(c.cost, { wood: UNITS.pathfinder.cost.wood * 4, food: UNITS.pathfinder.cost.food * 4, iron: UNITS.pathfinder.cost.iron * 4, gold: 0 });
-      assert.equal(c.perUnitMs, 170_000); // 170 s at stables level 1
+      assert.equal(c.perUnitMs, 159_800); // 170 s * 0.94 at barracks level 2
       assert.equal(c.perUnitMs, trainTimeMs('pathfinder', v, S1));
     }
-    assert.equal(trainTimeMs('pathfinder', v, S10), 17_000);
+    assert.equal(trainTimeMs('pathfinder', v, S10), 15_980);
 
     const queued = applyTrain(v, 'pathfinder', 4, 0, S1);
-    assert.deepEqual(queued.trainQueues.stables, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 170_000, startAt: 0, unitCost: UNITS.pathfinder.cost }]);
-    assert.deepEqual(queued.trainQueues.barracks, []);
+    assert.deepEqual(queued.trainQueues.barracks, [{ unit: 'pathfinder', count: 4, done: 0, perUnitMs: 159_800, startAt: 0, unitCost: UNITS.pathfinder.cost }]);
+    assert.deepEqual(queued.trainQueues.stables, []);
     assert.equal(queued.resources.wood, 5000 - UNITS.pathfinder.cost.wood * 4);
-    assert.equal(settleVillage(queued, 169_999, S1).troops.pathfinder, 0);
-    assert.equal(settleVillage(queued, 170_000, S1).troops.pathfinder, 1);
-    assert.equal(settleVillage(queued, 4 * 170_000, S1).troops.pathfinder, 4);
-    assert.deepEqual(settleVillage(queued, 4 * 170_000, S1).trainQueues.stables, []);
+    assert.equal(settleVillage(queued, 70_499, S1).troops.pathfinder, 0);
+    assert.equal(settleVillage(queued, 159_800, S1).troops.pathfinder, 1);
+    assert.equal(settleVillage(queued, 4 * 159_800, S1).troops.pathfinder, 4);
+    assert.deepEqual(settleVillage(queued, 4 * 159_800, S1).trainQueues.barracks, []);
     expectGameError(() => applyTrain(level1, 'pathfinder', 1, 0, S1), 'requirements_not_met');
   });
 
   it('Pathfinders eat no food either: only the population room limits a big batch', () => {
-    const v = village({ buildings: { stables: 1, storehouse: 10, farm: 0 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
+    const v = village({ buildings: { barracks: 2, storehouse: 10, farm: 0 }, resources: { wood: 5000, food: 5000, iron: 5000 } });
     assert.ok(checkTrain(v, 'pathfinder', 21, 0, S1).ok);
     const room = populationCap(v) - populationUsage(v).total;
     assert.ok(!checkTrain(v, 'pathfinder', room + 1, 0, S1).ok);

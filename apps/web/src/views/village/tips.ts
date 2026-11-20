@@ -73,7 +73,7 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
         ? 'Elk Riders are fast and carry loot home. The Hearthwarden rides to a friend as fast support. From Stables 8 (and Town Hall 8) you can also train the Ember Guard, a heavy rider that hits hard.'
         : level >= 4
           ? 'Elk Riders are fast and carry loot home. From Stables 4 (and Drillyard research) the Hearthwarden rides to a friend as fast support.'
-          : 'Pathfinders (scouts) and Elk Riders train here. Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
+          : 'Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
     case 'wrightyard':
       return level === 0
         ? 'The Wrightyard builds siege. Log Rams break only the Wall. Firecarts (from Wrightyard 4) burn the building you pick. Research them at the Drillyard first.'

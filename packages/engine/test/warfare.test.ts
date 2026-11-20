@@ -115,12 +115,12 @@ describe('normalizeVillage / old saved states', () => {
 
   it('can train and then use Pathfinders on an old state', () => {
     const base = village({
-      buildings: { stables: 1, storehouse: 10 },
+      buildings: { barracks: 2, storehouse: 10 },
       resources: { wood: 3000, food: 3000, iron: 3000, gold: 0 },
     });
     const old = deepFreeze(oldSave(base));
     const queued = applyTrain(old, 'pathfinder', 4, 0, S1);
-    assert.equal(queued.trainQueues.stables[0]?.unit, 'pathfinder');
+    assert.equal(queued.trainQueues.barracks[0]?.unit, 'pathfinder');
     const later = settleVillage(queued, 10 * HOUR, S1);
     assert.equal(later.troops.pathfinder, 4);
     const sent = applySend(later, { pathfinder: 3 }, 10 * HOUR, S1);
