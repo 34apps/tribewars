@@ -1,4 +1,4 @@
-// Extension points for account deletion, export and the inactivity warning (docs/MULTI_WORLD.md, "Account data").
+// Extension points for account deletion, export (docs/MULTI_WORLD.md, "Account data").
 // The lobby core knows nothing about the Flames shop; the shop session fills these in (in `lobbyHooks`, src/hooks-config.ts,
 // which both the lobby entry point and the operator CLI import, so a CLI deletion runs the same code as a self-service one).
 
@@ -14,16 +14,10 @@ export interface AccountDataHooks {
    * account_id that the law makes us keep, e.g. purchases and the ledger, remain valid). Throwing rolls the whole deletion back.
    */
   onAccountDeleted(db: DatabaseSync, accountId: number, now: number): void;
-  /**
-   * Tell the player their account will be closed at `closeAt` (ms) for inactivity. Return true only if a message was really
-   * delivered. Today nothing can deliver (the lobby holds no e-mail address), so the default returns false and the sweep records that.
-   */
-  notifyInactiveWarning(db: DatabaseSync, accountId: number, closeAt: number): boolean;
 }
 
 export const noopHooks: AccountDataHooks = {
   exportSections: () => ({}),
   deletionInfo: () => ({ flames: null }),
   onAccountDeleted: () => {},
-  notifyInactiveWarning: () => false,
 };

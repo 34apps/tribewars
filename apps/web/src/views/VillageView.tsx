@@ -1,13 +1,13 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BUILDINGS } from '@clanfire/engine';
 import type { BuildingId } from '@clanfire/engine';
-import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
 import { formatDuration } from '../format.ts';
 import { useBuildQueueLimit, useGame } from '../game.ts';
 import { useDockSpace } from '../hooks/useDockSpace.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
+import { MarketSendPanel } from './village/MarketSend.tsx';
 import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
 import { FrameVillage } from './village/FrameVillage.tsx';
 import { useBuild } from './village/useBuild.ts';
@@ -56,7 +56,6 @@ function RoadChip({ onClick }: { onClick: () => void }) {
 function Notices({ compact, preview }: { compact: boolean; preview: boolean }) {
   return (
     <div className="vv-notices">
-      <AbandonedNotice />
       <HearthNotice compact={compact} />
       {preview && <DesignPreviewBar inline />}
     </div>
@@ -70,6 +69,7 @@ function PanelContent({ panel, busy, build, setPanel, headingId, compact }: { pa
       return (
         <>
           <BuildingPanel id={panel.id} busy={busy} onBuild={build} headingId={headingId} onPick={pickBuilding} />
+          {panel.id === 'market' && <MarketSendPanel phone />}
           <Advisor id={panel.id} compact={compact} />
         </>
       );
@@ -188,33 +188,6 @@ function PhoneVillage({ active, backdrop }: { active: boolean; backdrop: boolean
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/** Shown once to a player whose villages were abandoned while they were away (until they dismiss it). */
-function AbandonedNotice() {
-  const { player, refresh, toast } = useGame();
-  const [busy, setBusy] = useState(false);
-  const n = player.abandonedNotice;
-  if (!n) return null;
-  const days = `${n.idleDays} ${n.idleDays === 1 ? 'day' : 'days'}`;
-  const dismiss = () => {
-    setBusy(true);
-    api
-      .dismissAbandonedNotice()
-      .then(() => refresh())
-      .catch((e) => toast(errorMessage(e), { kind: 'error' }))
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div className="notice notice-block vv-abandoned" role="status">
-      <div>
-        Away {days}: {n.villages === 1 ? '1 village' : `${n.villages} villages`} abandoned. You get a new village with beginner protection.
-      </div>
-      <button className="btn btn-primary vv-abandoned-btn" onClick={dismiss} disabled={busy}>
-        Got it
-      </button>
     </div>
   );
 }

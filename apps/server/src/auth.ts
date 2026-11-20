@@ -28,13 +28,35 @@ import {
   type WorldSettings,
 } from '@clanfire/engine';
 import { verifyEntryPass, type EntryKey } from './entry-pass.ts';
+import { effectivePremium } from './entitlement.ts';
 import type { PlayerRow, Store } from './store.ts';
 import { NPC_VILLAGE_NAME } from './world.ts';
 import { awayFromSites, sitesFor, withoutSiteTiles } from './site-layout.ts';
 
 /** The "your villages were abandoned" news for the player DTO, or null when there is none. */
-export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings): AbandonedNoticeDto | null {
-  return p.abandonedNotice > 0 ? { villages: p.abandonedNotice, idleDays: abandonIdleDays(s) } : null;
+export function abandonedNoticeOf(p: PlayerRow, s: WorldSettings, store: Store): AbandonedNoticeDto | null {
+  if (p.abandonedNotice <= 0) return null;
+  const rows = store.abandonedVillagesOf(p.id);
+  const restart = rows.find((r) => r.restartVillageId !== null)?.restartVillageId ?? null;
+  return {
+    villages: p.abandonedNotice,
+    idleDays: abandonIdleDays(s),
+    since: rows[0]?.abandonedAt ?? 0,
+    list: rows.map((r) => {
+      const taken = r.ownerId !== null;
+      return {
+        id: r.villageId,
+        name: r.name,
+        x: r.x,
+        y: r.y,
+        abandonedAt: r.abandonedAt,
+        status: taken ? ('taken' as const) : ('abandoned' as const),
+        ...(taken && r.ownerName ? { takenBy: r.ownerName } : {}),
+        ...(taken && r.ownerId === p.id ? { takenBy: p.username } : {}),
+      };
+    }),
+    ...(restart !== null ? { newVillageId: restart } : {}),
+  };
 }
 
 export const SESSION_COOKIE = 'tw_session';
@@ -139,8 +161,9 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    const premiumTools = worldRules(this.settings).features.premium && hasPremiumToolsExtra(p.premium);
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), premiumTools), researchQueueLimit: researchQueueLimit(worldRules(this.settings), premiumTools), ...(premiumTools ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    const bits = effectivePremium(p, this.now());
+    const premiumTools = worldRules(this.settings).features.premium && hasPremiumToolsExtra(bits);
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings, this.store), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), premiumTools), researchQueueLimit: researchQueueLimit(worldRules(this.settings), premiumTools), ...(premiumTools ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(bits) ? { wideOverview: true as const } : {}), ...(p.premiumUntil > 0 ? { premiumUntil: p.premiumUntil } : {}) };
   }
 
   /** The player has read the "villages abandoned" news: clear it and return the updated row. */
@@ -267,6 +290,12 @@ export class AuthService {
         this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'role_sync', targetPlayer: player.id, detail: `${player.staffRole ?? 'none'} -> ${claims.role ?? 'none'}` });
         player = this.store.getPlayer(player.id) ?? player;
       }
+      // Premium bought with Flames (this world): copied at every entry; a pass without the claim leaves it alone.
+      if (claims.prm !== undefined && claims.prm !== player.premiumUntil) {
+        this.store.setPremiumUntil(player.id, claims.prm);
+        this.store.audit({ at: t, actorId: null, actorIp: ip ?? null, action: 'premium_sync', targetPlayer: player.id, detail: `${player.premiumUntil} -> ${claims.prm}` });
+        player = this.store.getPlayer(player.id) ?? player;
+      }
       // Badges of the account (all worlds), copied like the role; a pass without the claim leaves them unchanged.
       if (claims.bdg) this.store.domination.setAccountBadges(player.id, claims.bdg);
       return { grant: this.openSession(player, t, true), created };
@@ -300,6 +329,8 @@ export class AuthService {
         const spot = { x, y };
         this.spawnVillage(player.id, `${player.username}'s village`, t, spot);
         this.store.setProtectedUntil(player.id, t + protectionMs);
+        const fresh = this.store.villagesOfPlayer(player.id)[0];
+        if (fresh) this.store.setRestartVillage(player.id, fresh.id); // the return summary says "you start again here"
       });
     } catch (err) {
       if (!(err instanceof GameError && err.code === 'not_found')) throw err; // a full world leaves the player without a village

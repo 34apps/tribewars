@@ -43,6 +43,7 @@ import { trainRowState } from '../trainRow.ts';
 import { BannerHallPanel } from './BannerHall.tsx';
 import '../../components/war-chest.css';
 import { DrillyardPanel } from './Drillyard.tsx';
+import { MarketSendPanel } from './MarketSend.tsx';
 import { rankCardUnits, rankRows } from './drillyardLogic.ts';
 import { takeResearchFocus } from './drillFocus.ts';
 import { setResearchFocus } from './drillFocus.ts';
@@ -567,17 +568,17 @@ function WhatItDoes({ id, info }: { id: BuildingId; info: BuildingInfo }) {
 }
 
 /** Next levels of any building: effect, cost, build time and points, so the page is never empty. */
-function NextLevels({ id, info }: { id: BuildingId; info: BuildingInfo }) {
+function NextLevels({ id, info, limit = 7, className = '' }: { id: BuildingId; info: BuildingInfo; limit?: number; className?: string }) {
   const { live, settings } = useGame();
   const def = BUILDINGS[id];
   const levels: number[] = [];
-  for (let l = info.target; l <= def.maxLevel && levels.length < 7; l++) levels.push(l);
+  for (let l = info.target; l <= def.maxLevel && levels.length < limit; l++) levels.push(l);
   const effectText = (l: number) => {
     const eff = buildingEffects(id, l - 1, l, settings.speed);
     return eff.length > 0 ? eff.map((e) => `${e.label} ${e.to}`).join(' · ') : def.description;
   };
   return (
-    <section className="fv-pn fv-nl" aria-label="Next levels">
+    <section className={`fv-pn fv-nl${className ? ` ${className}` : ''}`} aria-label="Next levels">
       <div className="fv-ph">
         <h2>Next levels</h2>
         <span className="fv-mut">
@@ -651,7 +652,7 @@ function PanelBox({ title, children, fit = false, aside }: { title: string; chil
 }
 
 /** More rank rows (one per unit and track) than fit two columns of three beside the research column: one wide panel with a Ranks / Research switch (so all 9 rankable units, 10 rows, still fit 1440x900 without scrolling). */
-const SIDE_BY_SIDE_RANK_ROWS = 6;
+const SIDE_BY_SIDE_RANK_ROWS = 5; // 6 two-line rows overflow 1440x900 beside the research column (checked 2026-11-20)
 
 function DrillyardFrame() {
   const { live } = useGame();
@@ -734,6 +735,11 @@ export function BuildingPage({ id, busy, build }: { id: BuildingId; busy: boolea
                 <DrillyardFrame />
               ) : id === 'bannerhall' ? (
                 <BannerHallPanel />
+              ) : id === 'market' ? (
+                <div className="mk-left">
+                  <MarketSendPanel />
+                  {info.target <= BUILDINGS.market.maxLevel && <NextLevels id={id} info={info} limit={2} className="mk-nl" />}
+                </div>
               ) : (
                 <NextLevels id={id} info={info} />
               )}

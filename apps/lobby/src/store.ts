@@ -3,6 +3,9 @@
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import { BADGE_KINDS, MULTI_RETENTION_MS, isBadgeKind, isStaffRole, type AccountBadgeDto, type BadgeKind, type StaffRole, type WorldEndKind, type WorldStatus } from '@clanfire/engine';
 
+/** Login history of paying accounts is deleted after two years. */
+export const LOGIN_HISTORY_RETENTION_MS = 2 * 365 * 24 * 3_600_000;
+
 type Raw = Record<string, unknown>;
 type Param = string | number | null;
 
@@ -19,8 +22,12 @@ export interface AccountRow {
   staffRole: StaffRole | null;
   /** Set when the account was deleted: the row stays as a tombstone (purchase records keep a valid account_id). */
   deletedAt: number | null;
-  /** When the 24-month inactivity warning was recorded; cleared by a sign-in or world entry. */
-  closureWarnedAt: number | null;
+  /** Set after a second bank dispute: may not buy Flames any more. */
+  payBannedAt: number | null;
+  /** Bank disputes opened against this account's purchases. */
+  disputes: number;
+  /** Self-declared age group; null = not asked yet. */
+  ageGroup: 'adult' | 'minor' | null;
 }
 
 export interface NewAccount {
@@ -40,6 +47,8 @@ export interface WorldRow {
   path: string;
   createdAt: number;
   sortOrder: number;
+  /** This world sells Premium for Flames. */
+  shopPremium: boolean;
 }
 
 export interface HallOfFameRow {
@@ -80,7 +89,9 @@ const toAccount = (r: Raw): AccountRow => {
   banReason: (r.ban_reason as string | null) ?? null,
   staffRole: isStaffRole(role) ? role : null,
   deletedAt: (r.deleted_at as number | null) ?? null,
-  closureWarnedAt: (r.closure_warned_at as number | null) ?? null,
+  payBannedAt: (r.pay_banned_at as number | null) ?? null,
+  disputes: Number(r.disputes ?? 0),
+  ageGroup: r.age_group === 'adult' || r.age_group === 'minor' ? r.age_group : null,
   };
 };
 
@@ -91,6 +102,7 @@ const toWorld = (r: Raw): WorldRow => ({
   path: r.path as string,
   createdAt: r.created_at as number,
   sortOrder: r.sort_order as number,
+  shopPremium: Number(r.shop_premium ?? 0) === 1,
 });
 
 export class Store {
@@ -169,7 +181,7 @@ export class Store {
   }
 
   touchLogin(id: number, t: number): void {
-    this.run('UPDATE accounts SET last_login = ?, closure_warned_at = NULL WHERE id = ?', t, id);
+    this.run('UPDATE accounts SET last_login = ? WHERE id = ?', t, id);
   }
 
   /** Ban an account and end all its sessions. */
@@ -180,6 +192,10 @@ export class Store {
 
   unbanAccount(id: number): void {
     this.run('UPDATE accounts SET banned_at = NULL, ban_reason = NULL WHERE id = ?', id);
+  }
+
+  setWorldShopPremium(id: string, on: boolean): void {
+    this.run('UPDATE worlds SET shop_premium = ? WHERE id = ?', on ? 1 : 0, id);
   }
 
   setStaffRole(id: number, role: StaffRole | null): void {
@@ -277,11 +293,31 @@ export class Store {
     return Number(n);
   }
 
+  /**
+   * Login history (v7): kept 2 years for accounts with at least one paid purchase (evidence for bank disputes), 30 days for everyone
+   * else (same as the IP purge). Returns rows deleted.
+   */
+  purgeLoginHistory(now: number): number {
+    return Number(
+      this.run(
+        'DELETE FROM login_history WHERE at < ? OR (at < ? AND account_id NOT IN (SELECT account_id FROM purchases WHERE paid_at IS NOT NULL))',
+        now - LOGIN_HISTORY_RETENTION_MS,
+        now - MULTI_RETENTION_MS,
+      ).changes,
+    );
+  }
+
+  /** Append a register / sign-in / world-entry row (IP and browser string, the browser string cut to 200 characters). */
+  recordLoginHistory(accountId: number, at: number, ip: string, userAgent: string | undefined, kind: 'register' | 'login' | 'enter', worldId: string | null = null): void {
+    this.run('INSERT INTO login_history (account_id, at, ip, user_agent, kind, world_id) VALUES (?, ?, ?, ?, ?, ?)', accountId, at, ip.slice(0, 64), (userAgent ?? '').slice(0, 200), kind, worldId);
+  }
+
   /** Remember that this account was seen on this IP. Also runs the 30-day purge, at most hourly (the lobby has no timer of its own). */
   recordIp(accountId: number, ip: string, now: number): void {
     if (now - this.connectionDataPurgedAt >= 3_600_000) {
       this.connectionDataPurgedAt = now;
       this.purgeConnectionData(now - MULTI_RETENTION_MS);
+      this.purgeLoginHistory(now);
     }
     this.run(
       'INSERT INTO account_ips (account_id, ip, first_seen, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(account_id, ip) DO UPDATE SET last_seen = excluded.last_seen',
@@ -396,7 +432,6 @@ export class Store {
 
   /** Remember that the account entered the world (first and latest time). */
   recordWorldEntry(accountId: number, worldId: string, now: number): void {
-    this.run('UPDATE accounts SET closure_warned_at = NULL WHERE id = ? AND closure_warned_at IS NOT NULL', accountId);
     this.run(
       `INSERT INTO account_worlds (account_id, world_id, first_entered, last_entered) VALUES (?, ?, ?, ?)
          ON CONFLICT (account_id, world_id) DO UPDATE SET last_entered = excluded.last_entered`,

@@ -2,7 +2,7 @@
 
 > Draft written by AI on 2026-11-20, not legal advice; review before the first real sale.
 
-Version: **2026-11-20 (draft v1)** · Written for the GDPR (EU 2016/679) and the Estonian Personal Data Protection Act.
+Version: **2026-11-20 (draft v2)** · Written for the GDPR (EU 2016/679) and the Estonian Personal Data Protection Act.
 
 Placeholders to fill before publishing: `[Company name]`, `[registry code]`, `[address]`, `[contact email]`.
 
@@ -65,7 +65,7 @@ We do **not** fingerprint your browser beyond this random id. Nothing here bans 
 
 | Data | Kept | Why | Legal ground |
 |---|---|---|---|
-| Purchase record: Stripe payment id, pack, price, currency, country, time, the **IP at purchase**, your **consent tick** (time and terms version), receipt sent | **7 years** | Accounting, tax, prove the purchase and your consent, defend against disputes | Legal duty (Estonian accounting law); legitimate interest for the consent proof and the IP |
+| Purchase record: Stripe payment id, pack, net price, VAT amount, VAT rate and country, currency, time, the **IP at purchase**, your **consent tick** (time and terms version), receipt sent | **7 years** | Accounting, tax, prove the purchase and your consent, defend against disputes | Legal duty (Estonian accounting law); legitimate interest for the consent proof and the IP |
 | Email address you entered at checkout | **7 years** with the purchase record | Send your receipt and notices about this purchase | Contract; legal duty |
 | Flames ledger: every change to your balance and the reason (bought, spent on what in which world, refunded, removed after a dispute, support gift) | 7 years for entries linked to a purchase; the rest while the account exists | Show your balance; settle refunds and disputes | Contract; legitimate interest |
 | **Login history of accounts that bought something:** time, IP, browser type, world entered | **2 years** | Fraud prevention and the evidence we send to Stripe in a dispute | Legitimate interest |
@@ -111,8 +111,7 @@ These are all set by us, not by anybody else. The sign-in cookies are essential;
 | Provider | For | Data | Where |
 |---|---|---|---|
 | **Amazon Web Services** (hosting, storage and backups) | Run the servers, database, backups | Everything on the game servers | EU (Frankfurt, `eu-central-1`) [confirm when hosting is set up] |
-| **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
-| **Google Fonts** (Google) | Loads the game's text fonts to your browser | Your IP address is sent to Google by your browser | USA. [We plan to host the fonts ourselves, which would end this] |
+| **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, work out VAT, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
 | **Anthropic** (only if "Ask Mags" is switched on) | The in-game advisor | Your question and a snapshot of your game state, no name or contact data | USA |
 
 If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standard Contractual Clauses or is certified under the EU–US Data Privacy Framework. We have the contracts that GDPR demands with the providers that work for us.
@@ -121,7 +120,7 @@ If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standar
 
 | Data | Kept |
 |---|---|
-| Account, game data, messages | While your account exists. We delete the account after you ask, or after **24 months without a sign-in** (we warn you first) |
+| Account, game data, messages | While your account exists, until you delete it. In each world, after about 30 days without play your villages become abandoned villages (terms, section 4); your account stays |
 | IPs, browser id hashes, activity slots, pair log | 30 days |
 | Login history of accounts that bought something | 2 years |
 | Reports and tickets sent to staff | 12 months after they are closed |
@@ -132,7 +131,7 @@ If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standar
 
 When a time is up, the data is deleted or made anonymous.
 
-## 9. If you delete your account (when live)
+## 9. If you delete your account
 
 - Your account, username, password hash, worlds list and personal settings are deleted. Your cosmetics, badges and Flames go with it.
 - Your villages in running worlds become abandoned villages. Your **name in mail, forum posts, chat and reports is replaced** by "deleted player". Mail you sent may stay in the other person's mailbox without your name. Private notes, troop groups and raid lists are deleted.
@@ -151,10 +150,10 @@ You can ask us for:
 - **Correction** of wrong data.
 - **Deletion** ("right to be forgotten"), except for records we must keep (section 9).
 - **Restriction** of how we use it, or **objection** to the uses based on our legitimate interest (the security and fair-play data in 3.3). If you object, we stop unless we have a strong reason that outweighs yours, or need the data to defend a claim.
-- **A portable copy** of the data you gave us, in a common file format (when live: a "Download my data" button in the account page, which includes your IPs with first and last seen, browser id labels, notes, mail, and purchases).
+- **A portable copy** of the data you gave us, in a common file format (the "Download my data" button in the account page, which includes your IPs with first and last seen, browser id labels, notes, mail, and purchases).
 - **Withdrawal of consent** (for example parental consent) at any time. That does not undo what happened before.
 
-Use the account page buttons (when live) or write to **[contact email]** from an address we can connect to you; we may ask you to prove it is you. We answer within **one month**. It is free, unless the requests are clearly unfounded or excessive.
+Use the account page buttons or write to **[contact email]** from an address we can connect to you; we may ask you to prove it is you. We answer within **one month**. It is free, unless the requests are clearly unfounded or excessive.
 
 ## 12. Automated decisions
 
@@ -174,12 +173,12 @@ We will update this text when the game or the law changes and tell you in the ga
 
 These points are about the code, not the player text. The policy promises them, so they must be true on the day of the first sale:
 
-1. **Account deletion and data export do not exist yet** (sections 9 and 11). Build them (including `notes`, mail, `player_ips`, `player_devices`, `player_activity`, `pair_events`; `SECURITY_ROADMAP.md` line 79) or soften the sections.
+1. ~~Account deletion and data export~~ built 2026-11-20 (lobby Account page; `docs/PRIVACY.md`).
 2. **The lobby stores no email.** The receipt and dispute notice need one. The shop must store the email Stripe collects at checkout with the purchase record (7 years). If a login email is added later, update section 3.1.
 3. **Login history for paying accounts (2 years)** does not exist: today IPs are purged after 30 days. The shop needs its own log (time, IP, browser type, world) kept 2 years, only for accounts with a purchase.
-4. **Inactive-account deletion after 24 months** and **12-month report retention** are defaults I chose; no job does this yet.
-5. **`cf_device` cookie and the localStorage device id**: it is for security, but under the ePrivacy rules a consent banner may be required for it. Decide; the safe choice is a one-line notice, or drop the cookie and keep the localStorage hash only.
-6. **Google Fonts** sends visitors' IPs to Google. Self-hosting the fonts removes the need to mention it and avoids a known risk.
+4. Inactive-account deletion after 24 months was DROPPED (owner 2026-11-20): accounts stay until the player deletes them. **12-month report retention** is a default I chose; no job does this yet.
+5. `cf_device` cookie and the localStorage device id: decided 2026-11-20, no banner (strictly necessary security storage), created only at sign-in/register/enter, one-line note under the sign-in forms; reasoning in `docs/PRIVACY.md` s.3.
+6. ~~Google Fonts~~ fonts are self-hosted since 2026-11-20; the Google row was removed from section 7.
 7. **Server logs**: check whether the Fastify logs contain client IPs and how long Docker keeps them (now 10 MB x 5 files); the text says "a few weeks".
 8. **Production hosting** (AWS Frankfurt) is a plan, not confirmed; the 30-day S3 backup lifecycle is still open.
 9. **Ask Mags** (Anthropic): remove the row if the advisor stays off; if on, a data processing agreement with Anthropic is needed.

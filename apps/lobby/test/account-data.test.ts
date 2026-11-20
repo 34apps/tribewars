@@ -1,4 +1,4 @@
-// Account deletion, export and the 24-month closure. Fast: injected clock and fake fetch, no real waiting.
+// Account deletion, and export. Fast: injected clock and fake fetch, no real waiting.
 
 import assert from 'node:assert/strict';
 import { createPublicKey, verify } from 'node:crypto';
@@ -6,8 +6,6 @@ import { test } from 'node:test';
 import {
   ACCOUNT_DELETE_CONFIRM,
   DELETED_PLAYER_NAME,
-  INACTIVE_CLOSE_MS,
-  INACTIVE_WARN_BEFORE_MS,
   LOBBY_COMMAND_DOMAIN,
   LOBBY_COMMAND_TTL_MS,
   LOBBY_SESSION_COOKIE,
@@ -333,115 +331,7 @@ test('export without WORLD_API_URL: every entered world is unavailable, the rest
   assert.deepEqual(dto.worldData, []);
 });
 
-test('inactive sweep: warn at 23 months, close only after the warning is 30 days old, sign-in clears the warning, staff skipped', async () => {
-  const { app, clock } = await setup();
-  const t0 = clock.t;
-  const quiet = await register(app, 'Quiet');
-  const active = await register(app, 'Active');
-  const staff = await register(app, 'Staffer');
-  app.ctx.store.setStaffRole(app.ctx.store.getAccountByLowerName('staffer')!.id, 'support');
-  const svc = app.ctx.accountData;
-  const get = (n: string) => app.ctx.store.getAccountByLowerName(n)!;
-
-  const warnAt = INACTIVE_CLOSE_MS - INACTIVE_WARN_BEFORE_MS;
-  assert.deepEqual(svc.runInactiveSweep(t0 + warnAt - DAY), { warned: [], closed: [] });
-
-  // dry run changes nothing but reports
-  clock.t = t0 + warnAt + DAY;
-  const dry = svc.runInactiveSweep(clock.t, { dryRun: true });
-  assert.deepEqual(dry.warned.map((w) => w.username).sort(), ['Active', 'Quiet']);
-  assert.equal(get('quiet').closureWarnedAt, null);
-  assert.equal(app.ctx.store.auditRows(50).some((r) => r.action === 'inactive_warned'), false);
-
-  // "Active" signs in on day 700 -> counts as activity
-  clock.t = t0 + warnAt - 1000 + 2 * DAY; // still before any warning was written
-  ok(await new Client(app).post('/lobby/api/auth/login', { username: 'Active', password: PASSWORD }));
-  const r1 = svc.runInactiveSweep(clock.t);
-  assert.deepEqual(r1.warned.map((w) => w.username), ['Quiet']);
-  assert.equal(r1.warned[0]!.delivered, false);
-  assert.equal(get('quiet').closureWarnedAt, clock.t);
-  const warnedAt = clock.t;
-  const wrow = app.ctx.store.auditRows(50).find((r) => r.action === 'inactive_warned')!;
-  assert.equal(wrow.targetAccount, get('quiet').id);
-  assert.equal(wrow.detail, 'delivered=no');
-  assert.equal(get('staffer').closureWarnedAt, null);
-
-  // 24 months passed but the warning is younger than 30 days: not closed
-  clock.t = t0 + INACTIVE_CLOSE_MS + DAY;
-  assert.ok(clock.t - warnedAt < INACTIVE_WARN_BEFORE_MS);
-  assert.deepEqual(svc.runInactiveSweep(clock.t).closed, []);
-
-  // Quiet signs in during the warning period: warning cleared, not closed later
-  ok(await new Client(app).post('/lobby/api/auth/login', { username: 'Quiet', password: PASSWORD }));
-  assert.equal(get('quiet').closureWarnedAt, null);
-  clock.t = warnedAt + INACTIVE_WARN_BEFORE_MS + DAY;
-  assert.deepEqual(svc.runInactiveSweep(clock.t).closed, []);
-
-  // Staffer: silent for 5 years, never touched
-  clock.t = t0 + 5 * INACTIVE_CLOSE_MS;
-  const late = svc.runInactiveSweep(clock.t);
-  assert.equal(late.warned.concat(late.closed as never).some((a) => a.username === 'Staffer'), false);
-  assert.equal(get('staffer').deletedAt, null);
-  void quiet;
-  void active;
-  void staff;
-});
-
-test('inactive sweep: closes after warning + 30 days, audit, same tombstone path; entering a world also clears the warning', async () => {
-  const { app, clock } = await setup();
-  const t0 = clock.t;
-  addWorld(app, 'w1');
-  const old = await register(app, 'Oldtimer');
-  const player = await register(app, 'Wanderer');
-  const svc = app.ctx.accountData;
-  const warnAt = INACTIVE_CLOSE_MS - INACTIVE_WARN_BEFORE_MS;
-
-  clock.t = t0 + warnAt + DAY;
-  assert.equal(svc.runInactiveSweep(clock.t).warned.length, 2);
-  const warned = clock.t;
-
-  // Wanderer enters a world (needs a live session: sign in again, which also clears; so clear via entry on a fresh session check)
-  const w = app.ctx.store.getAccountByLowerName('wanderer')!;
-  app.ctx.store.recordWorldEntry(w.id, 'w1', clock.t + DAY);
-  assert.equal(app.ctx.store.getAccount(w.id)!.closureWarnedAt, null);
-
-  clock.t = Math.max(t0 + INACTIVE_CLOSE_MS + DAY, warned + INACTIVE_WARN_BEFORE_MS);
-  const r = svc.runInactiveSweep(clock.t);
-  assert.deepEqual(r.closed.map((a) => a.username), ['Oldtimer']);
-  const id = app.ctx.store.getAccountByLowerName(`deleted-${r.closed[0]!.id}`)!.id;
-  assert.notEqual(app.ctx.store.getAccount(id)!.deletedAt, null);
-  assert.ok(app.ctx.store.auditRows(50).some((a) => a.action === 'account_closed_inactive' && a.targetAccount === id));
-  assert.equal(app.ctx.store.getAccountByLowerName('oldtimer'), null);
-  void old;
-  void player;
-  // batch bound
-  assert.deepEqual(svc.runInactiveSweep(clock.t, { limit: 1 }).closed.length <= 1, true);
-});
-
-test('inactive warning hook that delivers is recorded as delivered=yes; a throwing hook does not stop the sweep', async () => {
-  const delivered: { id: number; closeAt: number }[] = [];
-  const { app, clock } = await setup({
-    hooks: {
-      ...noopHooks,
-      notifyInactiveWarning: (_db, id, closeAt) => {
-        delivered.push({ id, closeAt });
-        if (id === 2) throw new Error('mail down');
-        return true;
-      },
-    },
-  });
-  const t0 = clock.t;
-  await register(app, 'One');
-  await register(app, 'Two');
-  const now = t0 + INACTIVE_CLOSE_MS - INACTIVE_WARN_BEFORE_MS + DAY;
-  const r = app.ctx.accountData.runInactiveSweep(now);
-  assert.deepEqual(r.warned.map((w) => [w.username, w.delivered]), [['One', true], ['Two', false]]);
-  assert.equal(delivered[0]!.closeAt, Math.max(t0 + INACTIVE_CLOSE_MS, now + INACTIVE_WARN_BEFORE_MS));
-  const details = app.ctx.store.auditRows(10).filter((a) => a.action === 'inactive_warned').map((a) => a.detail).sort();
-  assert.deepEqual(details, ['delivered=no', 'delivered=yes']);
-});
-
-test('CLI: inactive-sweep --dry-run, deletions, delete-account', async () => {
+test('CLI: deletions, delete-account', async () => {
   const { app, clock } = await setup();
   addWorld(app, 'w1');
   const c = await register(app, 'Kira');
@@ -451,13 +341,8 @@ test('CLI: inactive-sweep --dry-run, deletions, delete-account', async () => {
   const err: string[] = [];
   const run = (now: number, ...argv: string[]) => runAdmin(argv, { openStore: () => app.ctx.store, env: {}, now: () => now, out: (l) => out.push(l), err: (l) => err.push(l) });
 
-  const late = clock.t + INACTIVE_CLOSE_MS - INACTIVE_WARN_BEFORE_MS + DAY;
-  assert.equal(run(late, 'inactive-sweep', '--dry-run'), 0);
-  assert.match(out.join('\n'), /Would warn 2: Kira, Liam/);
-  assert.equal(app.ctx.store.getAccountByLowerName('kira')!.closureWarnedAt, null);
-  assert.equal(run(late, 'inactive-sweep', '--bogus'), 1);
-  assert.equal(run(late, 'inactive-sweep'), 0);
-  assert.notEqual(app.ctx.store.getAccountByLowerName('kira')!.closureWarnedAt, null);
+  const late = clock.t + DAY;
+  assert.equal(run(late, 'inactive-sweep'), 1);
 
   out.length = 0;
   assert.equal(run(late, 'deletions'), 0);

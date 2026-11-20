@@ -1296,7 +1296,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
 *Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (the troops at home stay, and the tier comes from the Town Hall level); beginner
-protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
+protection and sandbox accounts are skipped. *Return summary (schema v39):* when a village is abandoned the server records its id, name, coordinates and time (`abandoned_villages`). On the player's return `PlayerDto.abandonedNotice` carries `since`, `list` (each village: `abandoned` = still stands, `taken` = a player owns it now, with `takenBy`; read live from the village) and `newVillageId` when the player was left with nothing; the web shows the "While you were away" dialog. A player with nothing already got a fresh village with beginner protection at sign-in (`ensureStartingVillage`, restart placement), so "Start again" only closes the summary (`POST /api/me/abandoned-notice/dismiss`, which also deletes the list) and opens that village; a player who still owns villages sees the list and "OK". No takeover time is kept. Deleted accounts get no summary. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
 the Chieftain's cost is the lever); the pure raider script gets none within 30 days (day 41.9 in a 45-day run): the strike escort (158 population to hold) plus
@@ -1571,9 +1571,25 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 `tribe_project_runs`, `tribe_store_ledger`, `tribe_store_sends` and `movements.to_tribe_store`; routes `GET /api/tribe/projects`,
 `POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
-### 18.6 Cosmetics-only shop
+### 18.6 The shop: Flames buy Premium and looks (owner, 2026-11-20; built 2026-11-20)
 
-> **Note 2026-11-20:** the owner overrode the "extra slots are never sold" part of this section for one paid extra, the premium tools (5 build slots per village and auto mode, section 23). Cosmetics stay as described here.
+> **Owner decision 2026-11-20 (replaces "cosmetics only"):** the shop sells **Premium convenience** and **looks**, both paid with one in-game currency,
+> **Flames**. Premium = the premium tools (5 build slots and 5 research slots per village, auto mode; section 23) plus the paid extras raid lists and
+> the wide overview, **30 days in one world for 150 Flames, never renews by itself**; buying again while active adds 30 days to the end. **Still never
+> sold, in any world:** troops, resources, gold, protection time, battle strength, Renown, badges, instant finishes, village limit. The older
+> wording below ("looks only", "extra queue slots never sold") is kept for history; where it disagrees, this note wins.
+>
+> **How the money works** (`docs/PAYMENTS_PLAN.md`): Flames are bought in packs in the lobby (3 EUR = 100, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000,
+> net) through Stripe's hosted checkout; the buyer's country VAT is added on top and shown before paying (e.g. 3.00 EUR + 24% VAT (Estonia) = 3.72 EUR;
+> Stripe Tax computes the final VAT at checkout). Every Flames price also shows its net euro value (at the smallest pack's rate, so 150 Flames = about
+> 4.50 EUR + VAT). The balance belongs to the **account** (all worlds) and is the sum of a ledger. A required tick box at checkout records that the player wants
+> the Flames delivered now and loses the 14-day withdrawal right once they are delivered (time + terms version). **There are no self-service refunds**
+> (owner 2026-11-20): refunds go only through support, on a written request, for technical faults, double charges, a minor who bought without consent,
+> where the law requires it, and the game closing for good; every one is logged. A bank dispute removes the
+> purchase's Flames at once; the balance may go negative, and then Premium, spending and buying stay locked until it is back to zero; a second
+> dispute ends buying for that account. Worlds never hold money: the lobby tells a world through the signed entry pass (claim `prm`) until when
+> Premium runs there, and the world switches (`features.premium`, `features.raidLists`) still decide whether a world offers the tools at all.
+> Looks are catalogue plumbing only (no look is for sale yet).
 
 **How it works**
 - The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or
@@ -2189,6 +2205,8 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 `POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
 ### 18.6 Cosmetics-only shop
+
+> **Old copy (duplicate of 18.2-18.6 above).** Superseded by "18.6 The shop: Flames buy Premium and looks" earlier in this file (2026-11-20).
 
 **How it works**
 - The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or

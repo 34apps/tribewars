@@ -111,6 +111,7 @@ export class AccountDataStore extends SqlBase {
       DEFAULT_CHIEFTAIN,
       Math.trunc(playerId),
     );
+    this.run('DELETE FROM abandoned_villages WHERE player_id = ?', Math.trunc(playerId)); // a tombstone never gets a return summary
   }
 
   // ---- export ----------------------------------------------------------------------------------------

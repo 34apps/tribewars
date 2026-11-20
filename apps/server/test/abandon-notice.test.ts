@@ -24,9 +24,10 @@ test('notice: set per owner on abandon, exposed on the player, cleared by dismis
 
   const expected = { villages: 1, idleDays: Math.round((ms / (24 * HOUR)) * 10) / 10 };
   assert.equal(expected.idleDays, 3, 'real days value, scaled by world speed (30 / 10)');
-  assert.deepEqual((await gone.c.get('/api/auth/me')).json<Me>().player.abandonedNotice, expected);
+  const head = (n: Me['player']['abandonedNotice']) => (n ? { villages: n.villages, idleDays: n.idleDays } : n);
+  assert.deepEqual(head((await gone.c.get('/api/auth/me')).json<Me>().player.abandonedNotice), expected);
   const st = await gone.c.state(); // the returning player gets a new village, and the notice is still there
-  assert.deepEqual(st.player.abandonedNotice, expected);
+  assert.deepEqual(head(st.player.abandonedNotice as Me['player']['abandonedNotice']), expected);
   assert.equal(st.villages.length, 1);
   assert.equal((await here.c.get('/api/auth/me')).json<Me>().player.abandonedNotice, null, 'active player: no notice');
 
@@ -37,6 +38,74 @@ test('notice: set per owner on abandon, exposed on the player, cleared by dismis
   assert.equal((await gone.c.state()).player.abandonedNotice, null, 'stays cleared');
   ok(await here.c.post('/api/me/abandoned-notice/dismiss', {})); // harmless for someone without a notice
   assert.equal((await here.c.get('/api/auth/me')).json<Me>().player.abandonedNotice, null);
+  await app.close();
+});
+
+type FullNotice = {
+  villages: number;
+  since: number;
+  newVillageId?: number;
+  list: { id: number; name: string; x: number; y: number; abandonedAt: number; status: string; takenBy?: string }[];
+};
+
+test('return summary: lists each village, shows who took one, says "start again" for a player left with nothing, cleared by dismiss', async () => {
+  const { app, clock } = await makeApp();
+  const gone = await newPlayer(app, 'away_sum');
+  const taker = await newPlayer(app, 'taker');
+  const homeId = (await village(gone)).id;
+  const home = app.ctx.store.getVillage(homeId)!;
+  clock.advance(abandonIdleMs(app.ctx.settings) - HOUR);
+  ok(await taker.c.get('/api/state'));
+  clock.advance(HOUR + MINUTE);
+  app.ctx.game.runCaretaker(clock.now());
+  const abandonedAt = clock.now();
+
+  const st = await gone.c.state(); // returning: a fresh village comes with the notice
+  const n = st.player.abandonedNotice as unknown as FullNotice;
+  assert.equal(n.list.length, 1);
+  assert.equal(n.list[0]!.id, homeId);
+  assert.equal(n.list[0]!.name, home.name, 'the name from before the village became abandoned');
+  assert.deepEqual([n.list[0]!.x, n.list[0]!.y], [home.x, home.y]);
+  assert.equal(n.list[0]!.status, 'abandoned');
+  assert.equal(n.list[0]!.abandonedAt, abandonedAt);
+  assert.equal(n.since, abandonedAt);
+  assert.equal(n.newVillageId, st.villages[0]!.id, 'start again = the new village');
+  assert.ok(st.player.protectedUntil > clock.now(), 'with beginner protection');
+
+  // Another player takes the old village.
+  app.ctx.store.setVillageOwner(homeId, (await taker.c.state()).player.id, 'Taken');
+  const n2 = (await gone.c.state()).player.abandonedNotice as unknown as FullNotice;
+  assert.equal(n2.list[0]!.status, 'taken');
+  assert.equal(n2.list[0]!.takenBy, 'taker');
+
+  ok(await gone.c.post('/api/me/abandoned-notice/dismiss', {}));
+  assert.equal((await gone.c.state()).player.abandonedNotice, null);
+  assert.equal(app.ctx.store.abandonedVillagesOf((await gone.c.state()).player.id).length, 0, 'the list is gone with it');
+  await app.close();
+});
+
+test('return summary: a player who still owns villages gets the list but no new village', async () => {
+  const { app, clock } = await makeApp();
+  const p = await newPlayer(app, 'keeps_one');
+  const id = (await p.c.state()).player.id;
+  app.ctx.store.addAbandonedVillage(id, 999, 'Lost one', 3, 4, clock.now());
+  app.ctx.store.addAbandonedNotice(id, 1);
+  const n = (await p.c.state()).player.abandonedNotice as unknown as FullNotice;
+  assert.equal(n.list.length, 1);
+  assert.equal(n.newVillageId, undefined);
+  assert.equal(n.list[0]!.status, 'abandoned');
+  await app.close();
+});
+
+test('return summary: a tombstone (deleted player) keeps no list', async () => {
+  const { app, clock } = await makeApp();
+  const gone = await newPlayer(app, 'away_del');
+  clock.advance(abandonIdleMs(app.ctx.settings) + MINUTE);
+  app.ctx.game.runCaretaker(clock.now());
+  const id = (await gone.c.get('/api/auth/me')).json<{ player: { id: number } }>().player.id;
+  assert.equal(app.ctx.store.abandonedVillagesOf(id).length, 1);
+  app.ctx.store.accountData.tombstone(id, 'Deleted player', clock.now());
+  assert.equal(app.ctx.store.abandonedVillagesOf(id).length, 0);
   await app.close();
 });
 

@@ -42,6 +42,8 @@ import { VillageView } from './views/VillageView.tsx';
 import { RealmView } from './views/RealmView.tsx';
 import { NotesView } from './views/NotesView.tsx';
 import { NotesProvider } from './hooks/useNotes.tsx';
+import { ReturnSummary } from './components/ReturnSummary.tsx';
+import './components/return-summary.css';
 import './notes.css';
 import './auto.css';
 import './autotag.css';
@@ -362,6 +364,7 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
           </KeepAlive>
         )}
       </Frame>
+      <ReturnSummary />
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </GameContext.Provider>
   );

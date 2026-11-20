@@ -6,6 +6,8 @@ import { AccountDataService } from './account-data.ts';
 import { noopHooks, type AccountDataHooks } from './account-hooks.ts';
 import { formatFinishReport, finishWorld } from './finish-world.ts';
 import { generateKeyPair, keyIdOf, parseSigningKey, publicKeyBase64 } from './pass.ts';
+import { ShopService, monthFromKey } from './shop/service.ts';
+import type { PaymentGateway } from './shop/gateway.ts';
 import type { AccountRow, Store } from './store.ts';
 import { checkWorldId, checkWorldName, checkWorldPath, defaultWorldPath } from './worlds.ts';
 
@@ -18,6 +20,8 @@ export interface AdminDeps {
   err: (line: string) => void;
   /** Same hooks the lobby runs with (hooks-config.ts), so a CLI deletion does what a self-service one does. Default: no-ops. */
   hooks?: AccountDataHooks;
+  /** Payment provider for the commands that call it (dispute-evidence). Absent = no Stripe key in the environment. */
+  gateway?: PaymentGateway | null;
 }
 
 export const ADMIN_USAGE = [
@@ -37,9 +41,15 @@ export const ADMIN_USAGE = [
   '  unban <username>',
   '  grant <username> <support|moderator|admin>',
   '  revoke <username>',
-  '  inactive-sweep [--dry-run]               warn accounts inactive for 23 months, close those 24 months inactive and warned 30+ days ago (the lobby also does this hourly)',
   '  deletions                                list account deletions still waiting for a world to confirm',
   '  delete-account <username>                delete an account on the owner\'s written request (same path as the player\'s own delete)',
+  '  world-shop <id> <on|off>                 let the world sell Premium for Flames (default off)',
+  '  flames <username>                        Flames balance, lock state, open dispute fees and the last ledger rows',
+  '  flames-grant <username> <amount> <reason...>   support grant or correction (amount may be negative); audited',
+  '  age-group <username> <adult|minor>       set or change the self-declared age group (support)',
+  '  refund <purchaseId> <reason...> [--keep-flames]   support refund of a whole paid pack (full amount charged, through Stripe); takes its Flames off unless --keep-flames (balance may go negative); audited',
+  '  dispute-evidence <purchaseId>            (re)send the stored evidence pack of a disputed purchase to Stripe',
+  '  payments-report [YYYY-MM]                purchases, refunds, disputes and the dispute rate of a month (default: this month)',
 ];
 
 /** A mistake by the operator: printed, exit code 1. */
@@ -104,16 +114,6 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
     const { positional, flags } = cmd === 'world-add' ? splitFlags(args) : { positional: args, flags: new Map<string, string>() };
 
     switch (cmd) {
-      case 'inactive-sweep': {
-        const dry = positional.includes('--dry-run');
-        if (positional.some((a) => a !== '--dry-run')) throw new CliError('Usage: inactive-sweep [--dry-run]');
-        const r = new AccountDataService(store, deps.hooks ?? noopHooks, deps.now).runInactiveSweep(at, { dryRun: dry });
-        const verb = dry ? 'Would warn' : 'Warned';
-        out(`${verb} ${r.warned.length}: ${r.warned.map((a) => a.username).join(', ') || '-'}`);
-        out(`${dry ? 'Would close' : 'Closed'} ${r.closed.length}: ${r.closed.map((a) => a.username).join(', ') || '-'}`);
-        if (!dry && r.warned.some((a) => !a.delivered)) out('Note: no warning message could be delivered (the lobby has no e-mail address); closure still waits 30 days after the warning.');
-        return 0;
-      }
       case 'deletions': {
         const rows = store.db.prepare('SELECT account_id, world_id, attempts, next_try_at, last_error FROM account_deletions WHERE done_at IS NULL ORDER BY created_at, account_id, world_id').all() as { account_id: number; world_id: string; attempts: number; next_try_at: number; last_error: string | null }[];
         if (rows.length === 0) out('No account deletion is waiting.');
@@ -250,6 +250,56 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
         out(`${a.username} is now ${role}.`);
         return 0;
       }
+      case 'world-shop': {
+        const w = mustWorld(store, positional[0]);
+        const v = positional[1];
+        if (v !== 'on' && v !== 'off') throw new CliError('Usage: world-shop <id> <on|off>');
+        store.setWorldShopPremium(w.id, v === 'on');
+        log('world_shop', null, `${w.id} ${v}`);
+        out(`World ${w.id} ${v === 'on' ? 'now sells' : 'no longer sells'} Premium.`);
+        return 0;
+      }
+      case 'flames': {
+        const a = mustAccount(store, positional[0]);
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        const bal = shop.shop.balance(a.id);
+        const fees = shop.shop.openFeesCents(a.id);
+        out(`${a.username}: ${bal} Flames${shop.isLocked(a.id) ? ' (LOCKED)' : ''}, open dispute fees ${(fees / 100).toFixed(2)} EUR, disputes ${a.disputes}${a.payBannedAt ? ', buying banned' : ''}, age group ${a.ageGroup ?? 'not set'}`);
+        for (const r of shop.shop.ledgerRows(a.id, 10)) {
+          out(`  #${r.id} ${new Date(r.at).toISOString()} ${r.delta > 0 ? '+' : ''}${r.delta} ${r.reason}${r.purchaseId ? ` purchase ${r.purchaseId}` : ''}${r.itemId ? ` ${r.itemId}` : ''}${r.worldId ? ` ${r.worldId}` : ''}${r.detail ? ` (${r.detail})` : ''}`);
+        }
+        return 0;
+      }
+      case 'flames-grant': {
+        const a = mustAccount(store, positional[0]);
+        const raw = positional[1] ?? '';
+        const amount = /^-?\d{1,7}$/.test(raw) ? Number(raw) : NaN;
+        const reason = positional.slice(2).join(' ').trim().slice(0, 200);
+        if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000 || reason === '') throw new CliError('Usage: flames-grant <username> <amount (not 0, may be negative)> <reason...>');
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        const balance = shop.supportGrant(a.id, amount, reason);
+        out(`${a.username} got ${amount > 0 ? '+' : ''}${amount} Flames (${reason}). Balance now ${balance}.`);
+        return 0;
+      }
+      case 'age-group': {
+        const a = mustAccount(store, positional[0]);
+        const g = positional[1];
+        if (g !== 'adult' && g !== 'minor') throw new CliError('Usage: age-group <username> <adult|minor>');
+        store.tx(() => {
+          store.db.prepare('UPDATE accounts SET age_group = ? WHERE id = ?').run(g, a.id);
+          log('age_group', a.id, `${a.ageGroup ?? 'none'} -> ${g}`);
+        });
+        out(`${a.username} is now ${g}.`);
+        return 0;
+      }
+      case 'payments-report': {
+        const shop = new ShopService({ store, now: () => at, gateway: null, publicUrl: null, log: quietLog });
+        if (positional[0] !== undefined && !monthFromKey(positional[0])) throw new CliError('Usage: payments-report [YYYY-MM]');
+        const r = shop.paymentsReport(positional[0]);
+        if (!r) throw new CliError('Usage: payments-report [YYYY-MM]');
+        out(`${r.month}: ${r.paidCount} paid purchases (${(r.paidCents / 100).toFixed(2)} EUR), ${r.refundCount} refunds (${(r.refundCents / 100).toFixed(2)} EUR), ${r.disputes} disputes${r.rate === null ? '' : `, dispute rate ${(r.rate * 100).toFixed(2)}%`}`);
+        return 0;
+      }
       case 'revoke': {
         const a = mustAccount(store, positional[0]);
         store.tx(() => {
@@ -267,4 +317,50 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
   }
 }
 
-const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke', 'inactive-sweep', 'deletions', 'delete-account']);
+const quietLog = { warn: () => {}, error: () => {}, info: () => {} };
+
+const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['world-shop', 'flames', 'flames-grant', 'age-group', 'payments-report', 'worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke', 'deletions', 'delete-account']);
+
+/**
+ * Like runAdmin, but also runs the commands that call the payment provider (dispute-evidence, refund). admin.ts uses this one.
+ */
+export async function runAdminAsync(argv: string[], deps: AdminDeps): Promise<number> {
+  const [cmd, ...args] = argv;
+  if (cmd === 'refund') return runRefund(args, deps);
+  if (cmd !== 'dispute-evidence') return runAdmin(argv, deps);
+  try {
+    const raw = args[0] ?? '';
+    const id = /^\d{1,9}$/.test(raw) ? Number(raw) : NaN;
+    if (!Number.isInteger(id)) throw new CliError('Usage: dispute-evidence <purchaseId>');
+    if (!deps.gateway) throw new CliError('STRIPE_SECRET_KEY is not set: nothing can be sent to Stripe from here.');
+    const store = deps.openStore();
+    const shop = new ShopService({ store, now: deps.now, gateway: deps.gateway, publicUrl: null, log: quietLog });
+    await shop.submitEvidence(id);
+    deps.out(`Evidence of purchase ${id} was sent to Stripe.`);
+    return 0;
+  } catch (err) {
+    deps.err(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}
+
+/** `refund <purchaseId> <reason...> [--keep-flames]`: the only way to refund (players have no button). */
+async function runRefund(args: string[], deps: AdminDeps): Promise<number> {
+  const usage = 'Usage: refund <purchaseId> <reason...> [--keep-flames]';
+  try {
+    const keepFlames = args.includes('--keep-flames');
+    const rest = args.filter((a) => a !== '--keep-flames');
+    const id = /^\d{1,9}$/.test(rest[0] ?? '') ? Number(rest[0]) : NaN;
+    const reason = rest.slice(1).join(' ').trim().slice(0, 200);
+    if (!Number.isInteger(id) || reason === '' || rest.some((a) => a.startsWith('--'))) throw new CliError(usage);
+    if (!deps.gateway) throw new CliError('STRIPE_SECRET_KEY is not set: nothing can be refunded from here.');
+    const store = deps.openStore();
+    const shop = new ShopService({ store, now: deps.now, gateway: deps.gateway, publicUrl: null, log: quietLog });
+    const r = await shop.supportRefund(id, reason, keepFlames);
+    deps.out(`Purchase ${id} refunded: ${(r.cents / 100).toFixed(2)} EUR back to the card, ${r.flames} Flames removed${keepFlames ? ' (kept on purpose)' : ''}. Balance now ${r.balance}.`);
+    return 0;
+  } catch (err) {
+    deps.err(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}

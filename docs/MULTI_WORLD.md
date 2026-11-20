@@ -61,7 +61,7 @@ A world never sees a password once it uses the lobby.
 `clanfire-entry-pass-v1\n<payload part exactly as sent>`. Claims: `v` (1), `kid`, `aid` (account id), `name`, `wid`
 (the one world id it is for), `chn` (chieftain portrait), `role` (staff role or null), `iat`, `exp` (60 s, a world
 refuses a lifetime above 120 s whatever the signer says; `iat` may be at most 10 s in the future), `nonce`
-(22+ random characters). Keys travel as base64 DER: private = PKCS#8 (`LOBBY_SIGNING_KEY`, lobby only), public =
+(22+ random characters), and optionally `bdg` (badges) and `prm` (Premium bought with Flames for this world: active until, ms; 0 = none or locked; the world stores it as `players.premium_until` at every entry, see `docs/PAYMENTS_PLAN.md`). Keys travel as base64 DER: private = PKCS#8 (`LOBBY_SIGNING_KEY`, lobby only), public =
 SPKI (`LOBBY_PUBLIC_KEY`, worlds); `kid` = first 16 hex characters of the SHA-256 of the public SPKI DER.
 
 **World side** (`POST /w/<id>/api/auth/enter`, body `{ pass }`; 404 when `LOBBY_PUBLIC_KEY` is not set)
@@ -97,7 +97,7 @@ commands: `deploy/README.md` ("Lobby").
 **Bans and roles.** A lobby ban blocks only NEW passes. The world keeps its own bans and sessions, so ban in the world too
 (or with the staff tools) to end a session at once. Staff roles are granted in the lobby (`grant`) and copied at each entry.
 
-### Account data: deletion, export, inactive closure (2026-11-20)
+### Account data: deletion and export (2026-11-20)
 
 Promises: `docs/legal/privacy.md` s.8, 9, 11. Contract: end of `packages/engine/src/api.ts`.
 
@@ -117,13 +117,9 @@ Promises: `docs/legal/privacy.md` s.8, 9, 11. Contract: end of `packages/engine/
 - **Export** (`GET /lobby/api/account/export`, 2 per 10 minutes): lobby data + `extra` (hook `exportSections`, the shop) + every
   entered world's `WorldExportDto`, asked concurrently (5 s each); a world that does not answer is in `worldsUnavailable`.
 - **Hooks** (`apps/lobby/src/account-hooks.ts`, wired in `hooks-config.ts`, shared by the lobby and the CLI): `exportSections`,
-  `deletionInfo`, `onAccountDeleted`, `notifyInactiveWarning`. The Flames shop fills them in.
-- **Inactive closure.** Last activity = latest of sign-up, last sign-in, last world entry. 23 months without it and no warning ->
-  `closure_warned_at` is set and `notifyInactiveWarning` called (audit `inactive_warned`, `delivered=yes|no`; today nothing can
-  deliver, there is no e-mail address). 24 months without activity and a warning 30+ days old -> deleted like above (audit
-  `account_closed_inactive`). Staff accounts are skipped; a sign-in or world entry clears the warning. Runs hourly in the lobby
-  process (200 accounts per run).
-- **CLI**: `inactive-sweep [--dry-run]`, `deletions` (queue rows still waiting), `delete-account <username>` (written request;
+  `deletionInfo`, `onAccountDeleted`. The Flames shop fills them in.
+- **No closure for inactivity** (owner 2026-11-20): accounts stay until the player deletes them; per world, villages are abandoned after 30 days without play (GAME_DESIGN s.17). The hourly lobby timer only sends queued deletions and prunes finished queue rows.
+- **CLI**: `deletions` (queue rows still waiting), `delete-account <username>` (written request;
   audited as the operator). A banned player cannot delete themselves (the API refuses banned sessions): use the CLI.
 
 ### Threats and what stops them

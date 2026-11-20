@@ -8,6 +8,7 @@ import { api } from '../api.ts';
 import { HOME_ART } from '../art/home-village/index.ts';
 import { useEnterWorld, useLobbyWorlds } from '../hooks/useLobbyWorlds.ts';
 import type { WorldList } from '../hooks/useLobbyWorlds.ts';
+import { useShopBalance } from '../hooks/useShopBalance.ts';
 import { PHONE_QUERY, useMediaQuery } from '../hooks/useMediaQuery.ts';
 import { BADGE_HELP, BadgeRow } from './Badges.tsx';
 import { Flame } from './Flame.tsx';
@@ -24,12 +25,13 @@ const SIGN_OUT_ALL_HELP = 'Ends all sessions on every device. Open worlds close 
  * The page after sign-in. Desktop: the card on the left, the village in the same frame as the front page on the right.
  * Phone: village strip with the logo and an account button, then the sheet; the page scrolls.
  */
-export function WorldsHome({ account, onSignedOut, onAllWorlds, onAccount }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void; onAccount: () => void }) {
+export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop, onAccount }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void; onShop: () => void; onAccount: () => void }) {
   const phone = useMediaQuery(PHONE_QUERY);
   const [villageReady, setVillageReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [hall, setHall] = useState(false);
   const { list, retry } = useLobbyWorlds(onSignedOut);
+  const flames = useShopBalance()?.balance ?? null;
   const enter = useEnterWorld(onSignedOut);
   /** A world is opening: sign-out waits. */
   const opening = enter.busyId !== null;
@@ -57,6 +59,8 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds, onAccount }: { a
       onSignOutEverywhere={() => void signOut(true)}
       onHall={() => setHall(true)}
       onAllWorlds={onAllWorlds}
+      flames={flames}
+      onShop={onShop}
     />
   );
 
@@ -69,7 +73,7 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds, onAccount }: { a
           </div>
           <header className="lp-strip-top">
             <LogoPill loading={!villageReady} />
-            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} onAccount={onAccount} />
+            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} flames={flames} onShop={onShop} onAccount={onAccount} />
           </header>
         </div>
         {card}
@@ -115,8 +119,12 @@ function AccountMenu({
   onSignOut,
   onSignOutEverywhere,
   onHall,
+  flames,
+  onShop,
   onAccount,
 }: {
+  flames: number | null;
+  onShop: () => void;
   username: string;
   busy: boolean;
   onAccount: () => void;
@@ -155,6 +163,10 @@ function AccountMenu({
       {open && (
         <div className="lp-menu" role="menu" aria-label="Account">
           <p className="lp-menu-name">{username}</p>
+          {flames !== null && <p className="lp-menu-flames">{flames.toLocaleString('en-US')} Flames</p>}
+          <button type="button" role="menuitem" className="lp-menu-item" onClick={pick(onShop)}>
+            Shop
+          </button>
           <button type="button" role="menuitem" className="lp-menu-item" disabled={busy} onClick={pick(onSignOut)}>
             Sign out
           </button>
@@ -184,7 +196,11 @@ function WelcomeCard({
   onSignOutEverywhere,
   onHall,
   onAllWorlds,
+  flames,
+  onShop,
 }: {
+  flames: number | null;
+  onShop: () => void;
   account: LobbyAccountDto;
   phone: boolean;
   list: WorldList;
@@ -330,6 +346,10 @@ function WelcomeCard({
         <h2 className="home-welcome-title">
           Welcome back, <strong>{account.username}</strong>
         </h2>
+        <button type="button" className="btn btn-small home-shop" onClick={onShop}>
+          {flames !== null && <span className="home-shop-n">{flames.toLocaleString('en-US')} Flames</span>}
+          <span>Shop</span>
+        </button>
       </div>
 
       {badgeRow}

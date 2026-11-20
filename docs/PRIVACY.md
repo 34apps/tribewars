@@ -10,8 +10,9 @@ How the code keeps the promises in `docs/legal/privacy.md` and `docs/legal/terms
 | s.7 no Google Fonts | Fonts are bundled from Fontsource (`@fontsource/rubik`, `@fontsource/bagel-fat-one`, latin + latin-ext). CSP allows only `'self'`. |
 | s.9 account deletion | Lobby `POST /lobby/api/account/delete` (password + typing DELETE). Worlds get a signed lobby command (below). Worlds with their own accounts (preview): `POST /api/account/delete`. |
 | s.11 data download | Lobby `GET /lobby/api/account/export` (account + every entered world in one JSON file); inside a world `GET /api/account/export` (that world only). |
-| s.8 24 months without sign-in | Lobby sweep (hourly timer, CLI `inactive-sweep`): warning recorded at 23 months, closure at 24 months and at least 30 days after the warning. |
 | s.3.3 / s.5 `cf_device` | Section 3. |
+
+No account closure for inactivity (owner 2026-11-20): accounts stay until the player deletes them; per world, villages are abandoned after 30 days without play (GAME_DESIGN s.17).
 
 ## 2. Deletion
 
@@ -20,6 +21,9 @@ How the code keeps the promises in `docs/legal/privacy.md` and `docs/legal/terms
   the old name is replaced by "Deleted player" in the Hall of Fame. A banned account keeps its name and ban (ban records, s.8).
   Deletion is immediate (no grace period). Flames are not refundable once delivered (owner 2026-11-20; refunds only through support),
   so the confirm screen says "Your unspent Flames (N) will be lost and cannot be refunded." and links to no refund button.
+  The balance stays in the append-only ledger untouched (the account can never sign in again, so the Flames are simply lost). The shop hooks
+  (`apps/lobby/src/shop/account-data-hooks.ts`) delete premium and owned looks, keep purchases, consents, ledger, dispute fees and Stripe events, and keep
+  the login history only for accounts with a paid purchase (2-year evidence rule; non-payers lose it at deletion).
 - **Worlds**: the lobby queues one `account_delete` command per entered world (`account_deletions`) and sends it until the world
   answers; a world that is down gets it later (backoff up to 6 h). The world abandons every village at once, exactly as after
   `ABANDON_IDLE_DAYS` (GAME_DESIGN s.17), removes private data (notes, groups, raid lists, IPs, devices, activity, own reports, own inbox)
@@ -54,5 +58,4 @@ wants zero risk, the alternative is to drop the cookie and keep only the local s
 
 ## 4. Still open (see NEXT_STEPS.md)
 
-- No email exists, so the 24-month warning reaches nobody today (`notifyInactiveWarning` returns "not delivered" and the audit says so).
 - Server log retention ("a few weeks") and backup lifecycle (30 days) are set in deployment, not in code.

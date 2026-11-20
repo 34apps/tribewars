@@ -132,7 +132,7 @@ export class AuthService {
   }
 
   /** Create an account, then sign it in. */
-  async register(username: string, password: string, chieftain: string = DEFAULT_CHIEFTAIN, ip?: string): Promise<SessionGrant> {
+  async register(username: string, password: string, chieftain: string = DEFAULT_CHIEFTAIN, ip?: string, userAgent?: string): Promise<SessionGrant> {
     const problem = passwordProblem(password, username);
     if (problem) throw new GameError('invalid_input', problem);
     const hash = await hashPassword(password);
@@ -149,6 +149,7 @@ export class AuthService {
         const account = this.store.getAccount(id);
         if (!account) throw new Error('account vanished after insert');
         if (ip) this.store.recordIp(id, ip, t);
+        this.store.recordLoginHistory(id, t, ip ?? '', userAgent, 'register');
         this.store.touchLogin(id, t);
         this.store.audit({ at: t, actorId: id, actorIp: ip ?? null, action: 'register', targetAccount: id });
         return this.openSession(account, t);
@@ -189,7 +190,7 @@ export class AuthService {
     return account;
   }
 
-  async login(username: string, password: string, ip?: string): Promise<SessionGrant> {
+  async login(username: string, password: string, ip?: string, userAgent?: string): Promise<SessionGrant> {
     const account = await this.verifyCredentials(username, password);
     // Only after the password matched, so a ban never reveals whether a name exists.
     if (account.bannedAt !== null) {
@@ -206,6 +207,7 @@ export class AuthService {
     return this.store.tx(() => {
       const t = this.now();
       if (ip) this.store.recordIp(account.id, ip, t);
+      this.store.recordLoginHistory(account.id, t, ip ?? '', userAgent, 'login');
       this.store.touchLogin(account.id, t);
       this.store.audit({ at: t, actorId: account.id, actorIp: ip ?? null, action: 'login', targetAccount: account.id });
       return this.openSession(account, t);

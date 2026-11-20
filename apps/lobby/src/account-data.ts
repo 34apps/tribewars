@@ -1,7 +1,7 @@
-// Account data rights (docs/legal/privacy.md s.8, 9, 11): deletion, export, closure after 24 months without activity.
-// One deletion path serves the player's own request, the inactivity sweep and the operator's `delete-account`.
+// Account data rights (docs/legal/privacy.md s.8, 9, 11): deletion and export.
+// One deletion path serves the player's own request and the operator's `delete-account`.
 
-import { DEFAULT_CHIEFTAIN, DELETED_PLAYER_NAME, GameError, INACTIVE_CLOSE_MS, INACTIVE_WARN_BEFORE_MS, type AccountDeletionInfoDto, type AccountExportDto, type WorldExportDto } from '@clanfire/engine';
+import { DEFAULT_CHIEFTAIN, DELETED_PLAYER_NAME, GameError, type AccountDeletionInfoDto, type AccountExportDto, type WorldExportDto } from '@clanfire/engine';
 import type { AccountDataHooks } from './account-hooks.ts';
 import type { AccountRow, Store } from './store.ts';
 import type { CommandLog, DeletionDispatcher, WorldCommandClient } from './world-commands.ts';
@@ -10,23 +10,7 @@ import type { CommandLog, DeletionDispatcher, WorldCommandClient } from './world
 export const NO_PASSWORD_HASH = '!';
 /** Tombstone user name. A hyphen is never valid in a username (USERNAME_PATTERN), so no one can register it. */
 export const tombstoneName = (id: number): string => `deleted-${id}`;
-/** Accounts handled per sweep run (the next run continues). */
-export const SWEEP_BATCH = 200;
-
-export type DeletionCause = { kind: 'self'; ip: string | null } | { kind: 'inactive' } | { kind: 'operator' };
-
-export interface SweepReport {
-  /** Accounts that got (or, in a dry run, would get) the warning, and whether a message was delivered. */
-  warned: { id: number; username: string; delivered: boolean }[];
-  closed: { id: number; username: string }[];
-}
-
-interface ActivityRow {
-  id: number;
-  username: string;
-  last: number;
-  warnedAt: number | null;
-}
+export type DeletionCause = { kind: 'self'; ip: string | null } | { kind: 'operator' };
 
 export class AccountDataService {
   constructor(
@@ -73,7 +57,7 @@ export class AccountDataService {
       }
       const banned = account.bannedAt !== null;
       const name = banned ? account.username : tombstoneName(account.id);
-      db.prepare('UPDATE accounts SET username = ?, username_lower = ?, password_hash = ?, chieftain = ?, staff_role = NULL, last_login = NULL, closure_warned_at = NULL, deleted_at = ? WHERE id = ?').run(
+      db.prepare('UPDATE accounts SET username = ?, username_lower = ?, password_hash = ?, chieftain = ?, staff_role = NULL, last_login = NULL, deleted_at = ? WHERE id = ?').run(
         name,
         name.toLowerCase(),
         NO_PASSWORD_HASH,
@@ -92,7 +76,7 @@ export class AccountDataService {
         at: t,
         actorId: cause.kind === 'self' ? account.id : null,
         actorIp: cause.kind === 'self' ? cause.ip : cause.kind === 'operator' ? 'cli' : null,
-        action: cause.kind === 'inactive' ? 'account_closed_inactive' : 'account_deleted',
+        action: 'account_deleted',
         targetAccount: account.id,
         detail: cause.kind === 'operator' ? 'by operator' : '',
       });
@@ -122,52 +106,6 @@ export class AccountDataService {
       }
       this.db.prepare('UPDATE hall_of_fame SET winner_name = ?, top_json = ? WHERE world_id = ?').run(winner, top, r.world_id);
     }
-  }
-
-  // ---- inactivity ------------------------------------------------------------------------------
-
-  private activityRows(where: string, params: (number | string)[], limit: number): ActivityRow[] {
-    // Last activity = latest of sign-up, last sign-in, last world entry (sessions are at most 60 days, so a session never outlives a sign-in by enough to matter).
-    const rows = this.db
-      .prepare(
-        `SELECT id, username, last, warned FROM (
-           SELECT a.id AS id, a.username AS username, a.closure_warned_at AS warned,
-                  MAX(a.created_at, COALESCE(a.last_login, 0), COALESCE((SELECT MAX(last_entered) FROM account_worlds WHERE account_id = a.id), 0)) AS last
-             FROM accounts a WHERE a.deleted_at IS NULL AND a.staff_role IS NULL
-         ) WHERE ${where} ORDER BY last, id LIMIT ?`,
-      )
-      .all(...params, limit) as { id: number; username: string; last: number; warned: number | null }[];
-    return rows.map((r) => ({ id: r.id, username: r.username, last: r.last, warnedAt: r.warned }));
-  }
-
-  /**
-   * (a) 23 months without activity and not yet warned: record the warning (and try to deliver it). (b) 24 months without activity and
-   * the warning at least 30 days old: delete the account. Never staff, never deleted ones. Bounded per run. `dryRun` changes nothing.
-   */
-  runInactiveSweep(now: number, opts: { dryRun?: boolean; limit?: number } = {}): SweepReport {
-    const limit = opts.limit ?? SWEEP_BATCH;
-    const report: SweepReport = { warned: [], closed: [] };
-    const closing = this.activityRows('last < ? AND warned IS NOT NULL AND warned <= ?', [now - INACTIVE_CLOSE_MS, now - INACTIVE_WARN_BEFORE_MS], limit);
-    for (const a of closing) {
-      if (!opts.dryRun) this.deleteAccount(a.id, { kind: 'inactive' });
-      report.closed.push({ id: a.id, username: a.username });
-    }
-    const warning = this.activityRows('last < ? AND warned IS NULL', [now - (INACTIVE_CLOSE_MS - INACTIVE_WARN_BEFORE_MS)], limit);
-    for (const a of warning) {
-      let delivered = false;
-      if (!opts.dryRun) {
-        const closeAt = Math.max(a.last + INACTIVE_CLOSE_MS, now + INACTIVE_WARN_BEFORE_MS);
-        this.db.prepare('UPDATE accounts SET closure_warned_at = ? WHERE id = ?').run(now, a.id);
-        try {
-          delivered = this.hooks.notifyInactiveWarning(this.db, a.id, closeAt);
-        } catch (err) {
-          this.log.warn(`inactivity warning for account ${a.id} failed: ${err instanceof Error ? err.message : 'error'}`);
-        }
-        this.store.audit({ at: now, actorId: null, actorIp: null, action: 'inactive_warned', targetAccount: a.id, detail: `delivered=${delivered ? 'yes' : 'no'}` });
-      }
-      report.warned.push({ id: a.id, username: a.username, delivered });
-    }
-    return report;
   }
 
   // ---- export ----------------------------------------------------------------------------------
@@ -217,19 +155,17 @@ export class AccountDataService {
   }
 }
 
-/** Background jobs of the lobby process: send queued deletions every minute, run the inactivity sweep and drop old finished queue rows at most once an hour. Returns stop(). */
+/** Background jobs of the lobby process: send queued deletions every minute, drop old finished queue rows at most once an hour. Returns stop(). */
 export function startMaintenance(opts: { service: AccountDataService; dispatcher: DeletionDispatcher; now: () => number; log: CommandLog; tickMs?: number }): () => void {
-  let lastSweep = 0;
+  let lastPrune = 0;
   let busy = false;
   const tick = async (): Promise<void> => {
     if (busy) return;
     busy = true;
     try {
       const t = opts.now();
-      if (t - lastSweep >= 3_600_000) {
-        lastSweep = t;
-        const r = opts.service.runInactiveSweep(t);
-        if (r.warned.length > 0 || r.closed.length > 0) opts.log.info(`inactive sweep: ${r.warned.length} warned, ${r.closed.length} closed`);
+      if (t - lastPrune >= 3_600_000) {
+        lastPrune = t;
         opts.dispatcher.pruneDone();
       }
       if (opts.dispatcher.hasPending()) await opts.dispatcher.runPending();

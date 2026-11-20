@@ -82,6 +82,8 @@ export interface PassSubject {
   role: StaffRole | null;
   /** Per-kind badge summary (summarizeBadges output only). */
   bdg?: BadgeSummaryDto[];
+  /** Premium bought with Flames for this world: active until (ms), 0 = none or the account is locked. Always sent. */
+  prm?: number;
 }
 
 const b64u = (b: Buffer | string): string => Buffer.from(b).toString('base64url');
@@ -100,6 +102,7 @@ export function signPass(subject: PassSubject, privateKey: KeyObject, now: numbe
     exp: now + ENTRY_PASS_TTL_MS,
     nonce: randomBytes(16).toString('base64url'),
     ...(subject.bdg ? { bdg: subject.bdg } : {}),
+    prm: subject.prm ?? 0,
   };
   const payload = b64u(JSON.stringify(claims));
   const signature = sign(null, Buffer.from(`${ENTRY_PASS_DOMAIN}\n${payload}`, 'utf8'), privateKey);
@@ -131,6 +134,7 @@ export function verifyPass(pass: string, publicKeys: readonly string[], now: num
   if (!intOk(claims.aid) || !intOk(claims.iat) || !intOk(claims.exp)) throw new Error('bad claims');
   if (typeof claims.name !== 'string' || typeof claims.wid !== 'string' || typeof claims.chn !== 'string' || typeof claims.nonce !== 'string' || claims.nonce.length < 22) throw new Error('bad claims');
   if (claims.role !== null && !isStaffRole(claims.role)) throw new Error('bad claims');
+  if (claims.prm !== undefined && (!intOk(claims.prm) || claims.prm < 0)) throw new Error('bad claims');
   if (claims.exp - claims.iat > ENTRY_PASS_MAX_LIFETIME_MS) throw new Error('lifetime too long');
   if (claims.iat > now + ENTRY_PASS_CLOCK_SKEW_MS) throw new Error('issued in the future');
   if (claims.exp <= now) throw new Error('expired');

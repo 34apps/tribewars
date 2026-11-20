@@ -110,6 +110,8 @@ export interface PlayerRow {
   premium: number;
   /** When the account was deleted (ms): this row is only a tombstone (name "Deleted player <id>"). null = a real player. */
   deletedAt: number | null;
+  /** Premium bought with Flames in the lobby shop: active until this time (ms); 0 = none. Copied from the entry pass claim `prm`. */
+  premiumUntil: number;
 }
 
 export interface SharedIpGroup {
@@ -429,6 +431,7 @@ function toPlayer(r: Raw): PlayerRow {
     accountId: (r.account_id as number | null) ?? null,
     premium: Number.isInteger(r.premium) && (r.premium as number) > 0 ? (r.premium as number) : 0,
     deletedAt: (r.deleted_at as number | null) ?? null,
+    premiumUntil: Number.isSafeInteger(r.premium_until) && (r.premium_until as number) > 0 ? (r.premium_until as number) : 0,
   };
 }
 
@@ -1134,6 +1137,36 @@ export class Store extends SqlBase {
 
   clearAbandonedNotice(playerId: number): void {
     this.run('UPDATE players SET abandoned_notice = 0 WHERE id = ?', playerId);
+    this.run('DELETE FROM abandoned_villages WHERE player_id = ?', playerId);
+  }
+
+  /** Remember one village given up (before it is renamed to an NPC village), for the return summary. */
+  addAbandonedVillage(playerId: number, villageId: number, name: string, x: number, y: number, at: number): void {
+    this.run('INSERT INTO abandoned_villages (player_id, village_id, name, x, y, abandoned_at) VALUES (?, ?, ?, ?, ?, ?)', playerId, villageId, name, x, y, at);
+  }
+
+  /** The player's abandoned villages, oldest first, with who owns each one now (null = still abandoned). */
+  abandonedVillagesOf(playerId: number): { villageId: number; name: string; x: number; y: number; abandonedAt: number; ownerId: number | null; ownerName: string | null; restartVillageId: number | null }[] {
+    return this.all(
+      `SELECT a.village_id, a.name, a.x, a.y, a.abandoned_at, a.restart_village_id, v.owner_id, p.username
+         FROM abandoned_villages a LEFT JOIN villages v ON v.id = a.village_id LEFT JOIN players p ON p.id = v.owner_id
+        WHERE a.player_id = ? ORDER BY a.abandoned_at, a.id`,
+      playerId,
+    ).map((r) => ({
+      villageId: r.village_id as number,
+      name: r.name as string,
+      x: r.x as number,
+      y: r.y as number,
+      abandonedAt: r.abandoned_at as number,
+      ownerId: (r.owner_id as number | null) ?? null,
+      ownerName: (r.username as string | null) ?? null,
+      restartVillageId: (r.restart_village_id as number | null) ?? null,
+    }));
+  }
+
+  /** The player got a fresh village after abandonment: the summary can say so (no-op without a summary). */
+  setRestartVillage(playerId: number, villageId: number): void {
+    this.run('UPDATE abandoned_villages SET restart_village_id = ? WHERE player_id = ?', villageId, playerId);
   }
 
   setBotNextAt(villageId: number, t: number): void {
@@ -1142,6 +1175,11 @@ export class Store extends SqlBase {
 
   setChieftain(playerId: number, chieftain: string): void {
     this.run('UPDATE players SET chieftain = ? WHERE id = ?', chieftain, playerId);
+  }
+
+  /** Set the end of the Flames Premium (ms; 0 = none). Only the entry pass flow calls it. */
+  setPremiumUntil(playerId: number, until: number): void {
+    this.run('UPDATE players SET premium_until = ? WHERE id = ?', until, playerId);
   }
 
   /** Switch one paid-extra bit of `players.premium` on or off, keeping the other bits. The operator CLI and the preview use it. */

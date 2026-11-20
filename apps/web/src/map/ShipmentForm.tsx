@@ -11,7 +11,9 @@ import { useTribeWaymarks } from '../hooks/useWaymarks.ts';
 import { useRoadsLevel, withRoads } from '../hooks/useRoadsLevel.ts';
 
 /** "Send resources" for a tribe-mate's or ally's village. The server re-checks everything. */
-export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillageDto }) {
+export type ShipTarget = Pick<MapVillageDto, 'name' | 'tribeId'> & { tribeStore?: true };
+
+export function ShipmentForm({ tile, target, className = 'wm-send' }: { tile: Coords; target: ShipTarget; className?: string }) {
   const { player, live, now, settings, village, applySend, refresh, toast, viewMovement } = useGame();
   const [amounts, setAmounts] = useState<Partial<Record<ResourceId, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -77,7 +79,7 @@ export function ShipmentForm({ tile, target }: { tile: Coords; target: MapVillag
 
   return (
     <form
-      className="wm-send"
+      className={className}
       onSubmit={(e) => {
         e.preventDefault();
         void send();

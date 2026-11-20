@@ -1,0 +1,262 @@
+/* Market page: "Send resources" panel (desktop frame and phone sheet). The form is the map's ShipmentForm (map.css supplies the
+   field and button look); this file owns the target picker and the wide two-column arrangement. */
+
+.mk-send {
+  --wm-ink: var(--toy-ink, #2b211c);
+  --wm-bone: var(--toy-bone, #f1e1c2);
+  --wm-paper: #fff8e8;
+  --wm-sun: var(--toy-sunflower, #f2b33d);
+  --wm-sun-hi: #ffdc7a;
+  --wm-sky: var(--toy-sky, #2f9aa0);
+  --wm-soft: #5a4a3c;
+  --wm-display: var(--font-display, 'Bagel Fat One'), 'Rubik', system-ui, sans-serif;
+  --wm-text: var(--font-text, 'Rubik'), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.mk-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mk-left > .mk-send {
+  flex: none;
+}
+
+.mk-left > .mk-nl {
+  flex: none;
+}
+
+.mk-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px 14px;
+}
+
+.mk-send.is-phone {
+  padding: 14px 16px 16px;
+}
+
+.mk-send.is-phone .mk-body {
+  padding: 0;
+}
+
+.mk-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--heading);
+  font: 400 1.15rem/1.2 var(--font-display);
+}
+
+/* Target picker: my other villages as chips, then the coordinates field. */
+.mk-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mk-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 96px;
+  min-height: 48px;
+  padding: 4px 12px;
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  font: 600 14px/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-chip small {
+  color: var(--on-surface-muted);
+  font: 600 13px/1.2 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-chip.is-on {
+  border-color: var(--c-ink);
+  background: var(--c-sun);
+  box-shadow:
+    inset 0 2px 0 var(--c-sun-hi),
+    inset 0 -3px 0 var(--c-sun-lo);
+  color: var(--on-fill);
+}
+
+.mk-chip.is-on small {
+  color: var(--on-fill);
+}
+
+.mk-coords {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 4px 0 12px;
+  border: 2px solid var(--edge);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  font: 600 14px/1.2 var(--font);
+}
+
+.mk-coords.is-on {
+  border-color: var(--c-ink);
+}
+
+.mk-coords .wm-input {
+  width: 96px;
+  height: 40px;
+}
+
+.mk-hint {
+  margin: 0;
+  color: var(--on-surface-muted);
+  font: 600 14px/1.3 var(--font);
+}
+
+/* The form: resource fields on the left, the summary and the Send button on the right. */
+.mk-form {
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 2px dashed var(--edge);
+}
+
+.mk-send {
+  position: relative;
+}
+
+/* The "?" help sits in the panel header, not on a row of its own. */
+.mk-form .title-row {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 2;
+}
+
+.mk-send.is-phone .mk-form .title-row {
+  top: 8px;
+  right: 14px;
+}
+
+.mk-form .wm-send-title {
+  display: none;
+}
+
+.mk-form .wm-units li label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 14px/1.2 var(--font);
+}
+
+.mk-form .wm-input {
+  height: 44px;
+}
+
+.mk-form .wm-units .wm-input {
+  width: 84px;
+}
+
+.mk-form .wm-btn-big {
+  min-height: 48px;
+}
+
+.mk-form .wm-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.mk-form .wm-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.mk-form .wm-facts dt {
+  color: var(--on-surface-muted);
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mk-form .wm-facts > div {
+  border: 0;
+}
+
+.mk-form .wm-facts dd {
+  margin: 0;
+  text-align: left;
+  color: var(--heading);
+  font: 700 15px/1.2 var(--font);
+  overflow-wrap: anywhere;
+}
+
+.mk-form .wm-muted,
+.mk-form .wm-why {
+  color: var(--on-surface-muted);
+  font: 600 14px/1.3 var(--font);
+}
+
+@media (min-width: 900px) {
+  html.layout-desktop .mk-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 18px;
+    align-items: start;
+  }
+
+  html.layout-desktop .mk-form .wm-units {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+  }
+
+  html.layout-desktop .mk-form > :not(.wm-units) {
+    grid-column: 2;
+  }
+
+  html.layout-desktop .mk-form > .wm-muted {
+    grid-row: 1;
+  }
+}
+
+/* Next levels under the send panel: two short rows. */
+.mk-nl .fv-nlr {
+  flex: none;
+}
+
+.mk-to {
+  margin: 0;
+  color: var(--on-surface-muted);
+  font: 600 14px/1.3 var(--font);
+}
+
+.mk-to b {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .mk-form .wm-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mk-form .wm-facts > div:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}

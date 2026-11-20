@@ -3,6 +3,7 @@
 import type { KeyObject } from 'node:crypto';
 import type { AccountDataService } from './account-data.ts';
 import type { AuthService, RateLimiter } from './auth.ts';
+import type { ShopService } from './shop/service.ts';
 import type { AccountRow, Store } from './store.ts';
 import type { DeletionDispatcher, WorldCommandClient } from './world-commands.ts';
 
@@ -13,6 +14,12 @@ export interface AppContext {
   /** Entry passes are signed with this key. Secret. */
   signingKey: KeyObject;
   secureCookies: boolean;
+  /** Flames shop (rules, ledger, webhook effects). */
+  shop: ShopService;
+  /** Behind a trusted reverse proxy: only then may headers like the CDN's country header be believed. */
+  trustProxy: boolean;
+  /** Stripe webhook signing secret; null = webhook off. Secret: never log it. */
+  webhookSecret: string | null;
   /** Sign-in and registration attempts per IP. */
   limiter: RateLimiter;
   /** Entering a world: per account and per IP. */

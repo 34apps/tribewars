@@ -67,6 +67,22 @@ export interface AbandonedNoticeDto {
   villages: number;
   /** How many days away that takes at this world speed (30 at speed 1). */
   idleDays: number;
+  /** When the first of these villages was abandoned (ms); 0 if unknown (notices from before the summary existed). */
+  since?: number;
+  /** Each abandoned village and what became of it. Empty on old notices. `taken` = a player owns it now (`takenBy`), `abandoned` = still stands abandoned. */
+  list?: AbandonedVillageDto[];
+  /** Set when the player owns no village from before and got a fresh one with beginner protection ("Start again" = open it). Absent = they still own others. */
+  newVillageId?: number;
+}
+
+export interface AbandonedVillageDto {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  abandonedAt: number;
+  status: 'abandoned' | 'taken';
+  takenBy?: string;
 }
 
 // POST /api/me/abandoned-notice/dismiss (no body) -> 200 MeResponse. Clears PlayerDto.abandonedNotice (own account only).
@@ -99,6 +115,8 @@ export interface PlayerDto {
   researchQueueLimit: number;
   /** This account has the premium tools (5 build slots, auto mode) AND the world has `features.premium`. Absent = no. */
   premiumTools?: boolean;
+  /** Premium bought with Flames in the lobby shop for this world: active until this moment (ms since epoch). Absent or 0 = none. */
+  premiumUntil?: number;
 }
 
 // POST /api/sandbox/max   (no body) -> 200 GameStateResponse. Every village of the player: all buildings at max level, full
@@ -2619,6 +2637,198 @@ export interface EntryPassClaims {
   /** Optional: the account's badges as a per-kind summary (at most one entry per BadgeKind; count 1-999, bestPlace 1-10 or null,
    *  non-null only for 'top10'). A world refuses a pass with a malformed `bdg`; a pass without it leaves the stored badges unchanged. */
   bdg?: BadgeSummaryDto[];
+  /** Optional: Premium bought with Flames for THIS world, active until this moment (ms since epoch); 0 = none or locked (the account
+   *  owes Flames after a bank dispute). A world copies it onto the player at every entry (`players.premium_until`); a pass without it
+   *  leaves the stored value unchanged. Safe integer >= 0, else the pass is refused. */
+  prm?: number;
+}
+
+// ---- Flames shop (docs/PAYMENTS_PLAN.md; lobby only, account level) ---------------------------------------------------------------
+// Flames are the one in-game currency, bought in packs through Stripe Checkout (hosted: card data never reaches us) and spent on
+// Premium (30 days in one world, never renews by itself) and looks (GAME_DESIGN 18.6). The lobby owns the balance (a ledger: the
+// balance is always the sum), the purchases, the consent records and the Stripe webhook. Worlds never hold money: they learn about
+// Premium through the entry-pass claim `prm`. Prices and packs come only from the lobby's own catalogue, never from the client.
+//   GET  /lobby/api/shop[?country=XX]          (signed in) -> 200 ShopResponse. `country` (ISO 3166-1 alpha-2 from `vatCountries`, or 'XX' for
+//        outside the EU) only chooses the VAT shown before paying; without it the lobby guesses (last billing country, then the CDN's
+//        country header). Display only: Stripe Tax decides the real VAT from the billing address at checkout.
+//   GET  /lobby/api/shop/balance               (signed in) -> 200 ShopBalanceResponse (small; the world's account menu)
+//   POST /lobby/api/shop/age        body ShopAgeRequest      (signed in) -> 200 ShopResponse. Once per account (support changes it later);
+//        409 too_late when already set
+//   POST /lobby/api/shop/checkout   body ShopCheckoutRequest (signed in) -> 200 ShopCheckoutResponse (redirect the browser to `url`)
+//        403 forbidden when payments are off, the account may not pay (dispute ban) or no age group is set; 400 without the consent tick
+//        (and, under 18, the parent tick); 409 too_late for a stale terms version; 409 not_enough_resources past the under-18 monthly cap.
+//        Buying is allowed while locked: new Flames fill the minus first.
+//   POST /lobby/api/shop/settle     body {}                  (signed in) -> 200 ShopCheckoutResponse: Stripe checkout for the open dispute
+//        fees (provider fee + 4 EUR handling; no handling fee when the bank's reason was fraud); 409 too_late when nothing is open
+//   POST /lobby/api/shop/spend      body ShopSpendRequest    (signed in) -> 200 ShopResponse; 409 not_enough_resources when the balance is short;
+//        403 forbidden while locked
+//   No self-service refunds (owner, 2026-11-20): Flames are delivered at once and the checkout tick ends the withdrawal right at delivery.
+//   Refunds go through support only (lobby CLI `refund`, audited).
+//   POST /lobby/api/stripe/webhook  (Stripe only: signed with STRIPE_WEBHOOK_SECRET; raw JSON body) -> 200 { received: true }
+
+/** One Flames pack for sale. `netCents` is the price WITHOUT VAT (owner, 2026-11-20); VAT of the buyer's country comes on top. */
+export interface FlamesPackDto {
+  id: string;
+  flames: number;
+  netCents: number;
+  /** VAT for the shown country (ShopResponse.vat), rounded like Stripe; null when VAT is not shown ('none' mode or no country yet). */
+  vatCents: number | null;
+  /** netCents + vatCents; null when vatCents is null. */
+  totalCents: number | null;
+  currency: 'eur';
+}
+
+/** VAT shown before paying. Display only: Stripe Tax computes the real amount from the billing address. */
+export interface ShopVatDto {
+  /** 'stripe_tax': VAT by country is added at checkout (STRIPE_TAX=1). 'none': Stripe Tax is off (test mode): no VAT is added, the shop says
+   *  "VAT: added at checkout". */
+  mode: 'stripe_tax' | 'none';
+  /** Country the VAT is shown for (alpha-2, or 'XX' = outside the EU, no EU VAT); null = not known yet: the player picks one. */
+  country: string | null;
+  /** Standard rate in percent for that country (e.g. 24), 0 outside the EU; null when country is null. */
+  ratePercent: number | null;
+  /** Date of the lobby's rate table (YYYY-MM-DD). */
+  ratesDate: string;
+}
+
+export interface VatCountryDto {
+  code: string;
+  name: string;
+  ratePercent: number;
+}
+
+/** Something Flames buy. `eurCents` is the NET euro value shown next to the Flames price ("+ VAT"), at the smallest pack's rate. */
+export interface ShopItemDto {
+  id: string;
+  kind: 'premium' | 'look';
+  name: string;
+  priceFlames: number;
+  eurCents: number;
+  /** Premium only: days added per purchase. */
+  days?: number;
+  /** Looks only: already owned by this account. */
+  owned?: boolean;
+}
+
+/** Premium of this account in one world that sells it. */
+export interface ShopPremiumWorldDto {
+  worldId: string;
+  worldName: string;
+  /** Active until (ms since epoch); 0 = none. */
+  until: number;
+}
+
+export type PurchaseStatus = 'pending' | 'paid' | 'refunded' | 'disputed' | 'dispute_lost' | 'dispute_won' | 'expired';
+
+export interface PurchaseDto {
+  id: number;
+  /** 'flames' = a pack; 'settle' = paying open dispute fees (no Flames, no VAT). */
+  kind: 'flames' | 'settle';
+  /** Receipt number shown to the player (e.g. "CF-000123"). */
+  receiptNo: string;
+  /** Pack id ('' for a settlement). */
+  packId: string;
+  flames: number;
+  priceCents: number;
+  currency: 'eur';
+  status: PurchaseStatus;
+  createdAt: number;
+  paidAt: number | null;
+  /** Card used, from Stripe (null until known). */
+  cardBrand: string | null;
+  cardLast4: string | null;
+  /** Net price (without VAT), the VAT Stripe added, its rate in basis points (2400 = 24%) and the billing country. `priceCents` is the
+   *  total charged (net + VAT); before payment it is the net price and the VAT fields are null. */
+  netCents: number;
+  vatCents: number | null;
+  vatRateBp: number | null;
+  vatCountry: string | null;
+  /** Flames removed and cents paid back by a support refund (or one made in the Stripe Dashboard). */
+  refundedFlames: number;
+  refundedCents: number;
+}
+
+/** One bank dispute shown as a banner on the shop page. */
+export interface ShopDisputeDto {
+  purchaseId: number;
+  receiptNo: string;
+  priceCents: number;
+  flames: number;
+  /** Open, or closed in the player's favour (won: Flames back, fees cancelled) or not (lost). */
+  state: 'open' | 'won' | 'lost';
+  openedAt: number;
+}
+
+export interface ShopResponse {
+  /** Current balance; negative after a bank dispute on Flames that were already spent. */
+  balance: number;
+  /** Paid features are locked: the balance is below zero OR dispute fees are open. Premium is not passed to worlds and nothing can be
+   *  spent; buying Flames is still allowed (they fill the minus first). */
+  locked: boolean;
+  /** Open dispute fees in euro cents (provider fee + handling fee); paid with POST /lobby/api/shop/settle. */
+  openFeesCents: number;
+  /** Disputes of this account, newest first (for the banners). */
+  disputes: ShopDisputeDto[];
+  /** Self-declared at the first purchase; null = not asked yet. */
+  ageGroup: 'adult' | 'minor' | null;
+  /** Under-18 limit per calendar month (euro cents) and what was bought this month (paid and pending packs). */
+  minorMonthlyCapCents: number;
+  minorBoughtThisMonthCents: number;
+  /** This account may not buy Flames any more (second dispute or fraud). */
+  paymentsBanned: boolean;
+  /** Payments are switched on in this lobby (Stripe keys set). False: packs are shown, checkout answers 403. */
+  paymentsEnabled: boolean;
+  packs: FlamesPackDto[];
+  items: ShopItemDto[];
+  /** Worlds that sell Premium (operator switch per world), with this account's Premium there. */
+  premiumWorlds: ShopPremiumWorldDto[];
+  /** Newest first, at most SHOP_PURCHASES_MAX. */
+  purchases: PurchaseDto[];
+  /** Exact text of the required checkout tick box and the terms version it belongs to (sent back in ShopCheckoutRequest). */
+  consentText: string;
+  /** Small text under the tick box. */
+  consentNote: string;
+  /** Second required tick box for under-18 accounts. */
+  parentConsentText: string;
+  termsVersion: string;
+  /** VAT shown before paying, and the countries the player may pick from (EU members, standard rates). */
+  vat: ShopVatDto;
+  vatCountries: VatCountryDto[];
+}
+
+export const SHOP_PURCHASES_MAX = 50;
+
+export interface ShopBalanceResponse {
+  balance: number;
+  locked: boolean;
+}
+
+export interface ShopAgeRequest {
+  ageGroup: 'adult' | 'minor';
+}
+
+export interface ShopCheckoutRequest {
+  packId: string;
+  /** The required tick box: must be true. */
+  consent: boolean;
+  /** Under-18 accounts only: the parent/guardian tick, must be true. */
+  parentConsent?: boolean;
+  /** Must equal ShopResponse.termsVersion (else 409 too_late: reload the shop). */
+  termsVersion: string;
+}
+
+export interface ShopCheckoutResponse {
+  /** Stripe-hosted checkout page (always https://checkout.stripe.com/...). */
+  url: string;
+}
+
+export interface ShopSpendRequest {
+  /** A ShopItemDto id. */
+  itemId: string;
+  /** Premium only: the world it is for (one of `premiumWorlds`). */
+  worldId?: string;
+  /** Client-made id (16-64 url-safe characters), unique per spend: a repeated request with the same id spends only once. */
+  requestId: string;
 }
 
 // ---- Raid lists, a paid extra (docs/GAME_DESIGN.md "Raid lists") ------------------------------------------------------------
@@ -2722,7 +2932,7 @@ export interface RaidListSendResponse {
   skipped: number;
 }
 
-// ---- Account data: deletion, export, inactive closure (docs/PRIVACY.md; promises in docs/legal/privacy.md s.8, 9, 11) ----------
+// ---- Account data: deletion and export (docs/PRIVACY.md; promises in docs/legal/privacy.md s.8, 9, 11) ----------
 // Lobby (signed in, cookie tw_lobby):
 //   GET  /lobby/api/account/deletion-info -> 200 AccountDeletionInfoDto (what deleting will do; shown before the confirm step)
 //   POST /lobby/api/account/delete  body AccountDeleteRequest -> 204 (clears the cookie). 401 wrong password (login bucket,
@@ -2744,10 +2954,6 @@ export const ACCOUNT_DELETE_CONFIRM = 'DELETE';
 /** Name a deleted player shows under in a world (mail, forum, chat, reports, rankings): `${DELETED_PLAYER_NAME} ${playerId}`.
  *  Contains a space, so no real account can ever register it. */
 export const DELETED_PLAYER_NAME = 'Deleted player';
-/** No sign-in for this long -> the lobby account is closed (privacy s.8). */
-export const INACTIVE_CLOSE_MS = 730 * 24 * 3600 * 1000;
-/** The warning is recorded this long before closure; closure never comes sooner than this after the warning. */
-export const INACTIVE_WARN_BEFORE_MS = 30 * 24 * 3600 * 1000;
 
 export interface AccountDeleteRequest {
   /** Current password, checked like at sign-in. */

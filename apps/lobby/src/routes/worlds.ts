@@ -47,10 +47,11 @@ export function worldRoutes(app: FastifyInstance, ctx: AppContext): void {
     if (world.status === 'closed') throw new GameError('forbidden', 'This world is closed.');
     // 'full' and 'finished' still get a pass: the world decides about newcomers (a finished world refuses them),
     // returning players may always enter (a finished world is read-only, to look at the results).
-    const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole, bdg: summarizeBadges(ctx.store.accountBadges(account.id)) }, ctx.signingKey, req.nowMs);
+    const { pass, claims } = signPass({ aid: account.id, name: account.username, wid: world.id, chn: account.chieftain, role: account.staffRole, bdg: summarizeBadges(ctx.store.accountBadges(account.id)), prm: ctx.shop.premiumClaim(account.id, world.id, req.nowMs) }, ctx.signingKey, req.nowMs);
     ctx.store.audit({ at: req.nowMs, actorId: account.id, actorIp: req.ip, action: 'enter', targetAccount: account.id, detail: world.id });
     // Only a successful entry is remembered (every refusal above throws first).
     ctx.store.recordWorldEntry(account.id, world.id, req.nowMs);
+    ctx.store.recordLoginHistory(account.id, req.nowMs, req.ip, req.headers['user-agent'], 'enter', world.id);
     return { pass, path: world.path, expiresAt: claims.exp };
   });
 }

@@ -24,6 +24,16 @@ export interface LobbyEnv {
   signingKey: KeyObject;
   /** Template with `{id}` for a world's API base (WORLD_API_URL), used for lobby -> world commands. null = not configured (commands queue up). */
   worldApiUrl: string | null;
+  /** Stripe secret key (STRIPE_SECRET_KEY) and webhook signing secret (STRIPE_WEBHOOK_SECRET); payments are on only when BOTH are set. Secrets: never log them. */
+  stripeSecretKey: string | null;
+  stripeWebhookSecret: string | null;
+  paymentsEnabled: boolean;
+  /** Public address of the site, scheme://host (PUBLIC_URL): required when payments are on. */
+  publicUrl: string | null;
+  /** Let Stripe Tax add VAT (STRIPE_TAX=1). */
+  stripeTax: boolean;
+  /** Where the owner's alerts are POSTed as JSON (ALERT_WEBHOOK_URL), optional. */
+  alertWebhookUrl: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -76,6 +86,52 @@ export function parseAllowedOrigins(raw: string | undefined): string[] {
   return out;
 }
 
+/** PUBLIC_URL: scheme://host[:port] only. Returns the normalized origin. */
+export function parsePublicUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    throw new Error('Invalid PUBLIC_URL: not a valid URL.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Invalid PUBLIC_URL: must be http or https.');
+  if ((url.pathname !== '/' && url.pathname !== '') || url.search || url.hash || url.username || url.password) {
+    throw new Error('Invalid PUBLIC_URL: give only scheme://host[:port], no path.');
+  }
+  return url.origin;
+}
+
+/** Stripe settings. Error messages never contain the key values. */
+export function parseStripeEnv(env: Env): Pick<LobbyEnv, 'stripeSecretKey' | 'stripeWebhookSecret' | 'paymentsEnabled' | 'publicUrl' | 'stripeTax' | 'alertWebhookUrl'> {
+  const key = env.STRIPE_SECRET_KEY?.trim() || null;
+  const whsec = env.STRIPE_WEBHOOK_SECRET?.trim() || null;
+  if ((key === null) !== (whsec === null)) throw new Error('Set both STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, or neither.');
+  const rawPublic = env.PUBLIC_URL?.trim();
+  const publicUrl = rawPublic ? parsePublicUrl(rawPublic) : null;
+  if (key !== null) {
+    if (!/^(sk|rk)_(test|live)_[A-Za-z0-9]{8,}$/.test(key)) throw new Error('STRIPE_SECRET_KEY does not look like a Stripe secret or restricted key.');
+    if (!/^whsec_[A-Za-z0-9]{8,}$/.test(whsec ?? '')) throw new Error('STRIPE_WEBHOOK_SECRET does not look like a Stripe webhook signing secret (whsec_...).');
+    // Nothing goes live before the VAT registration (owner, 2026-11-20).
+    if (/^(sk|rk)_live_/.test(key) && !parseFlag(env.PAYMENTS_LIVE, 'PAYMENTS_LIVE')) {
+      throw new Error('Refusing to start with a live Stripe key: set PAYMENTS_LIVE=1 once the VAT registration is done.');
+    }
+    if (publicUrl === null) throw new Error('PUBLIC_URL is required when payments are enabled (for example https://clanflame.example).');
+  }
+  const alertRaw = env.ALERT_WEBHOOK_URL?.trim();
+  let alertWebhookUrl: string | null = null;
+  if (alertRaw) {
+    let u: URL;
+    try {
+      u = new URL(alertRaw);
+    } catch {
+      throw new Error('Invalid ALERT_WEBHOOK_URL: not a valid URL.');
+    }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Invalid ALERT_WEBHOOK_URL: must be http or https.');
+    alertWebhookUrl = u.toString();
+  }
+  return { stripeSecretKey: key, stripeWebhookSecret: whsec, paymentsEnabled: key !== null, publicUrl, stripeTax: parseFlag(env.STRIPE_TAX, 'STRIPE_TAX'), alertWebhookUrl };
+}
+
 /** Load apps/lobby/.env if it exists (path relative to this package, not the cwd). Real environment variables win. */
 export function loadDotEnv(): void {
   const file = new URL('../.env', import.meta.url);
@@ -105,6 +161,7 @@ export function loadEnv(env: Env = process.env): LobbyEnv {
     requirePasswordUpgrade: parseFlag(env.PASSWORD_UPGRADE_ON_LOGIN, 'PASSWORD_UPGRADE_ON_LOGIN'),
     signingKey: parseSigningKey(rawKey),
     worldApiUrl: parseWorldApiUrl(env.WORLD_API_URL, nodeEnv === 'production'),
+    ...parseStripeEnv(env),
   };
 }
 

@@ -6,6 +6,12 @@ import type {
   AccountDeleteRequest,
   AccountDeletionInfoDto,
   ApiError,
+  ShopAgeRequest,
+  ShopBalanceResponse,
+  ShopCheckoutRequest,
+  ShopCheckoutResponse,
+  ShopResponse,
+  ShopSpendRequest,
   ApplyRequest,
   AuthRequest,
   BuildRequest,
@@ -334,6 +340,16 @@ export const api = {
   worldExport: () => downloadJson(withApiBase('/api/account/export'), 'clanflame-world-data.json'),
   /** Worlds with their own accounts only (lobby worlds answer 403: delete in the lobby). */
   worldDeleteAccount: (body: AccountDeleteRequest) => request<void>('POST', '/api/account/delete', body),
+  // ---- Flames shop (lobby, signed in) ----
+  lobbyShop: (country?: string | null) => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop${country ? `?country=${encodeURIComponent(country)}` : ''}`),
+  /** Small: the balance shown in the world's account menu. */
+  lobbyShopBalance: () => lobbyRequest<ShopBalanceResponse>('GET', `${lobbyApiBase}/shop/balance`),
+  lobbyCheckout: (body: ShopCheckoutRequest) => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/checkout`, body),
+  lobbySpend: (body: ShopSpendRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/spend`, body),
+  /** Self-declared age group, once per account (before the first purchase). */
+  lobbyShopAge: (body: ShopAgeRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/age`, body),
+  /** Pay open dispute fees: answers a Stripe checkout address like a purchase. */
+  lobbyShopSettle: () => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/settle`, {}),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   /** Signed-out homepage strip: open and full worlds, public fields only. */
   lobbyPublicWorlds: () => lobbyRequest<PublicWorldsResponse>('GET', `${lobbyApiBase}/worlds/public`),
