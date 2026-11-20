@@ -48,8 +48,10 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
      - wiring the shop into `AccountDataHooks`;
      - removing the 24-month closure (owner: dropped);
      - NEW "welcome back" summary in a world after the 30-day abandon, with "start again like a new player".
-   - Next step: when it reports a merge-ready head, look at the shots, merge `--no-ff`, check, build, back up, rebuild the
-     preview, show the owner.
+   - **MERGE-READY (reported 2026-11-20): head `700397c`** (contains `e437ffb`).
+     - Schemas: lobby v9, world v39 (39 = `abandoned_villages`). Its report says 2,203 tests pass.
+     - Shots of the "while you were away" card are under the privacy session's scratchpad `shots/return/`.
+     - Next step: look at the shots, merge `--no-ff`, run check and build, back up the world, rebuild the preview, show the owner.
 2. **Feast in all villages (Premium)** — session `local_89979f9f-10b1-4d4e-bd0f-b2035f55e686`, branch `claude/trusting-rubin-e46b57`.
    - Owner picks:
      - a list of all villages;
