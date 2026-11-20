@@ -1,8 +1,10 @@
 // What routes share, plus the Fastify type extensions.
 
 import type { KeyObject } from 'node:crypto';
+import type { AccountDataService } from './account-data.ts';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { AccountRow, Store } from './store.ts';
+import type { DeletionDispatcher, WorldCommandClient } from './world-commands.ts';
 
 export interface AppContext {
   store: Store;
@@ -16,6 +18,11 @@ export interface AppContext {
   /** Entering a world: per account and per IP. */
   enterAccountLimiter: RateLimiter;
   enterIpLimiter: RateLimiter;
+  /** Data export: 2 per 10 minutes per account. */
+  exportLimiter: RateLimiter;
+  accountData: AccountDataService;
+  worldCommands: WorldCommandClient;
+  dispatcher: DeletionDispatcher;
 }
 
 declare module 'fastify' {

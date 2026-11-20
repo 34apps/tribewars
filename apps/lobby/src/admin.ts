@@ -7,6 +7,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { runAdmin } from './admin-ops.ts';
 import { openDatabase } from './db.ts';
 import { databasePathOf, loadDotEnv } from './env.ts';
+import { lobbyHooks } from './hooks-config.ts';
 import { Store } from './store.ts';
 
 loadDotEnv();
@@ -18,6 +19,7 @@ const code = runAdmin(process.argv.slice(2), {
   },
   env: process.env,
   now: Date.now,
+  hooks: lobbyHooks,
   out: (line) => console.log(line),
   err: (line) => console.error(line),
 });

@@ -34,7 +34,7 @@ export function accountOf(req: FastifyRequest): AccountRow {
   return req.account;
 }
 
-function rateLimit(ctx: AppContext, name: string) {
+export function rateLimit(ctx: AppContext, name: string) {
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!ctx.limiter.allow(`${name}:${req.ip}`, req.nowMs)) {
       void reply.header('Retry-After', '60');

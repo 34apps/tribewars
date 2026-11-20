@@ -24,7 +24,7 @@ const SIGN_OUT_ALL_HELP = 'Ends all sessions on every device. Open worlds close 
  * The page after sign-in. Desktop: the card on the left, the village in the same frame as the front page on the right.
  * Phone: village strip with the logo and an account button, then the sheet; the page scrolls.
  */
-export function WorldsHome({ account, onSignedOut, onAllWorlds }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void }) {
+export function WorldsHome({ account, onSignedOut, onAllWorlds, onAccount }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void; onAccount: () => void }) {
   const phone = useMediaQuery(PHONE_QUERY);
   const [villageReady, setVillageReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -69,7 +69,7 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds }: { account: Lob
           </div>
           <header className="lp-strip-top">
             <LogoPill loading={!villageReady} />
-            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} />
+            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} onAccount={onAccount} />
           </header>
         </div>
         {card}
@@ -87,6 +87,9 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds }: { account: Lob
         </span>
         <span className="home-who">
           <strong className="home-who-name">{account.username}</strong>
+          <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={onAccount}>
+            Account
+          </button>
           <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={() => void signOut(false)}>
             Sign out
           </button>
@@ -105,16 +108,18 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds }: { account: Lob
   );
 }
 
-/** Phone: the round initial button with a small menu (name, Sign out, Sign out everywhere, Hall of Fame). */
+/** Phone: the round initial button with a small menu (name, Sign out, Sign out everywhere, Hall of Fame, Account and data). */
 function AccountMenu({
   username,
   busy,
   onSignOut,
   onSignOutEverywhere,
   onHall,
+  onAccount,
 }: {
   username: string;
   busy: boolean;
+  onAccount: () => void;
   onSignOut: () => void;
   onSignOutEverywhere: () => void;
   onHall: () => void;
@@ -158,6 +163,9 @@ function AccountMenu({
           </button>
           <button type="button" role="menuitem" className="lp-menu-item" onClick={pick(onHall)}>
             Hall of Fame
+          </button>
+          <button type="button" role="menuitem" className="lp-menu-item" onClick={pick(onAccount)}>
+            Account and data
           </button>
         </div>
       )}

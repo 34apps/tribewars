@@ -1,7 +1,9 @@
 // Production/dev entry point: listen.
 
+import { startMaintenance } from './account-data.ts';
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
+import { lobbyHooks } from './hooks-config.ts';
 
 loadDotEnv();
 const env = loadEnv(); // fails fast (without printing the key) when LOBBY_SIGNING_KEY is missing or not an Ed25519 key
@@ -14,15 +16,19 @@ const app = await buildApp({
   allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
   requirePasswordUpgrade: env.requirePasswordUpgrade,
+  hooks: lobbyHooks,
+  worldApiUrl: env.worldApiUrl,
   logger: true,
 });
 
+let stopMaintenance: () => void = () => {};
 let closing = false;
 async function shutdown(signal: string): Promise<void> {
   if (closing) return;
   closing = true;
   app.log.info(`${signal} received, shutting down`);
   try {
+    stopMaintenance();
     await app.close();
   } finally {
     process.exit(0);
@@ -33,6 +39,8 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
 try {
   await app.listen({ port: env.port, host: env.host });
+  // Queued account deletions are sent every minute; the 24-month inactivity sweep runs at most once an hour.
+  stopMaintenance = startMaintenance({ service: app.ctx.accountData, dispatcher: app.ctx.dispatcher, now: Date.now, log: { info: (m) => app.log.info(m), warn: (m) => app.log.warn(m) } });
 } catch (err) {
   app.log.error({ err }, 'failed to start');
   process.exit(1);

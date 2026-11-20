@@ -22,6 +22,8 @@ export interface LobbyEnv {
   requirePasswordUpgrade: boolean;
   /** Ed25519 private key that signs entry passes (LOBBY_SIGNING_KEY). Secret: never log it. */
   signingKey: KeyObject;
+  /** Template with `{id}` for a world's API base (WORLD_API_URL), used for lobby -> world commands. null = not configured (commands queue up). */
+  worldApiUrl: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -102,6 +104,7 @@ export function loadEnv(env: Env = process.env): LobbyEnv {
     maxAccountsPerIp: num(env, 'MAX_ACCOUNTS_PER_IP', (n) => Number.isInteger(n) && n >= 0 && n <= 1000, 'an integer from 0 to 1000') ?? (nodeEnv === 'production' ? 3 : 0),
     requirePasswordUpgrade: parseFlag(env.PASSWORD_UPGRADE_ON_LOGIN, 'PASSWORD_UPGRADE_ON_LOGIN'),
     signingKey: parseSigningKey(rawKey),
+    worldApiUrl: parseWorldApiUrl(env.WORLD_API_URL, nodeEnv === 'production'),
   };
 }
 
@@ -111,4 +114,23 @@ export function parseFlag(raw: string | undefined, name: string): boolean {
   if (v === '' || /^(0|false|no)$/i.test(v)) return false;
   if (/^(1|true|yes)$/i.test(v)) return true;
   throw new Error(`Invalid ${name}="${raw}": expected 1 or 0.`);
+}
+
+/**
+ * WORLD_API_URL: http(s) URL containing `{id}`, no query or fragment, e.g. `http://game-{id}:3000/w/{id}/api`. Unset: in development
+ * `http://127.0.0.1:3000/w/{id}/api` (the dev world; the game strips /w/<id> itself), in production null (commands queue up, logged).
+ */
+export function parseWorldApiUrl(raw: string | undefined, production: boolean): string | null {
+  const v = (raw ?? '').trim();
+  if (v === '') return production ? null : 'http://127.0.0.1:3000/w/{id}/api';
+  let url: URL;
+  try {
+    url = new URL(v.split('{id}').join('x'));
+  } catch {
+    throw new Error(`Invalid WORLD_API_URL="${raw}": not a valid URL.`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`Invalid WORLD_API_URL="${raw}": must be http or https.`);
+  if (url.search || url.hash || url.username || url.password) throw new Error(`Invalid WORLD_API_URL="${raw}": no query, fragment or credentials.`);
+  if (!v.includes('{id}')) throw new Error(`Invalid WORLD_API_URL="${raw}": it must contain {id}.`);
+  return v;
 }

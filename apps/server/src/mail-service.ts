@@ -159,7 +159,7 @@ export class MailService {
 
     return this.store.tx(() => {
       const to = this.store.getPlayerByLowerName(toName.toLowerCase());
-      if (!to) throw new GameError('not_found', `There is no player called "${toName}".`);
+      if (!to || to.deletedAt !== null) throw new GameError('not_found', `There is no player called "${toName}".`); // a deleted account answers like an unknown name
       if (to.id === player.id) throw new GameError('invalid_input', "You can't send mail to yourself.");
       if (!this.limiter.allow(player.id, t)) throw new GameError('rate_limited', 'You are sending mail too fast. Please slow down.');
       if (this.ms.inboxCount(to.id) >= MAIL_INBOX_KEEP && !this.ms.dropOldestRead(to.id)) {

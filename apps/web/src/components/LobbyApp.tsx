@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api.ts';
 import { lobbyRouteHash, lobbyScreen, parseLobbyHash } from '../lobby.ts';
 import type { LobbyRoute } from '../lobby.ts';
 import { AllWorlds } from './AllWorlds.tsx';
+import { AccountPage } from './AccountPage.tsx';
 import { AuthScreen } from './AuthScreen.tsx';
 import type { AuthCalls } from './AuthScreen.tsx';
 import { HomePage } from './HomePage.tsx';
@@ -11,6 +12,7 @@ import HomeVillage from './HomeVillage.tsx';
 import { WorldsHome } from './WorldsHome.tsx';
 import { ErrorSplash, LoadingSplash } from './Splash.tsx';
 import './lobby-phone.css';
+import './account.css';
 
 const LOBBY_CALLS: AuthCalls = { login: api.lobbyLogin, register: api.lobbyRegister, changePassword: api.lobbyChangePassword, passwordMin: 10 };
 
@@ -93,13 +95,31 @@ export function LobbyApp() {
     setAttempt((n) => n + 1);
   }, []);
   const signedOut = useCallback(() => setAccount(null), []);
+  /** One line on the signed-out home after the account was deleted. */
+  const [notice, setNotice] = useState<string | null>(null);
+  const deleted = useCallback(() => {
+    const { pathname, search } = window.location;
+    window.history.replaceState(null, '', `${pathname}${search}`);
+    setRoute('home');
+    setNotice('Your account has been deleted.');
+    setAccount(null);
+  }, []);
 
   if (bootError) return <ErrorSplash message={bootError} onRetry={reload} />;
   if (account === 'loading') return <LoadingSplash text="Loading Clanflame…" />;
   const screen = lobbyScreen(route, account !== null);
   switch (screen) {
     case 'home':
-      return <HomePage onPlay={() => go('signup')} onSignIn={() => go('signin')} />;
+      return (
+        <>
+          {notice && (
+            <p className="acc-notice" role="status" onClick={() => setNotice(null)}>
+              {notice}
+            </p>
+          )}
+          <HomePage onPlay={() => go('signup')} onSignIn={() => go('signin')} />
+        </>
+      );
     case 'form-login':
     case 'form-register':
       return (
@@ -114,7 +134,9 @@ export function LobbyApp() {
       );
     case 'all-worlds':
       return <AllWorlds onBack={() => back('home')} onSignedOut={signedOut} />;
+    case 'account':
+      return account === null ? null : <AccountPage account={account} onBack={() => back('home')} onDeleted={deleted} />;
     case 'your-worlds':
-      return account === null ? null : <WorldsHome account={account} onSignedOut={signedOut} onAllWorlds={() => go('worlds')} />;
+      return account === null ? null : <WorldsHome account={account} onSignedOut={signedOut} onAllWorlds={() => go('worlds')} onAccount={() => go('account')} />;
   }
 }

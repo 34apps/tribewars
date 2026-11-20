@@ -10,7 +10,7 @@ WHEN NOT (NEW.id IS OLD.id AND NEW.at IS OLD.at AND NEW.action IS OLD.action AND
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 6; // 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
+export const SCHEMA_VERSION = 8; // 8: accounts.deleted_at / closure_warned_at + account_deletions queue (account deletion, inactive closure; 7 is the Flames shop, merged separately) (2026-11-20). 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
 
 /**
  * The world list. Managed only by the lobby CLI. path is the public URL path of the world's page ("/w/w1/").
@@ -127,6 +127,21 @@ CREATE TABLE IF NOT EXISTS account_worlds (
   PRIMARY KEY (account_id, world_id)
 );
 
+-- v8: deletion of an account in the worlds it entered. One row per (account, world); the lobby keeps sending the signed
+-- account_delete command until the world answers done. No personal data here (ids only). Rows of a world removed from the
+-- lobby are dropped. (accounts.deleted_at / closure_warned_at are added by addColumnIfMissing, see openDatabase.)
+CREATE TABLE IF NOT EXISTS account_deletions (
+  account_id   INTEGER NOT NULL,
+  world_id     TEXT    NOT NULL,
+  created_at   INTEGER NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  last_error   TEXT,
+  next_try_at  INTEGER NOT NULL DEFAULT 0,
+  done_at      INTEGER,
+  PRIMARY KEY (account_id, world_id)
+);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_pending ON account_deletions(done_at, next_try_at);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   at             INTEGER NOT NULL,
@@ -143,6 +158,12 @@ CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
 ${AUDIT_UPDATE_GUARD_SQL}
 `;
+
+/** Idempotent, by column existence (not by version): the Flames shop branch adds its own columns to `accounts`, in any merge order. */
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, type: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
 
 /** Open (creating the folder and schema if needed) the lobby database. */
 export function openDatabase(path: string): DatabaseSync {
@@ -170,6 +191,10 @@ export function openDatabase(path: string): DatabaseSync {
     db.exec('DROP TRIGGER IF EXISTS audit_no_update');
     db.exec(AUDIT_UPDATE_GUARD_SQL);
   }
-  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  // v8: tombstone marker (deleted accounts stay as a row) and the inactive-closure warning time.
+  addColumnIfMissing(db, 'accounts', 'deleted_at', 'INTEGER');
+  addColumnIfMissing(db, 'accounts', 'closure_warned_at', 'INTEGER');
+  // max(): if the shop's v7 code runs on a v8 file (or the other way round) the number never goes backwards.
+  db.exec(`PRAGMA user_version = ${Math.max(before, SCHEMA_VERSION)}`);
   return db;
 }

@@ -97,6 +97,35 @@ commands: `deploy/README.md` ("Lobby").
 **Bans and roles.** A lobby ban blocks only NEW passes. The world keeps its own bans and sessions, so ban in the world too
 (or with the staff tools) to end a session at once. Staff roles are granted in the lobby (`grant`) and copied at each entry.
 
+### Account data: deletion, export, inactive closure (2026-11-20)
+
+Promises: `docs/legal/privacy.md` s.8, 9, 11. Contract: end of `packages/engine/src/api.ts`.
+
+- **Lobby -> world commands.** The lobby now calls worlds, for two things only: `account_delete` and `account_export`
+  (`POST <WORLD_API_URL>/lobby/account/delete|export`, body `{ command }`). A command is a `LobbyCommandClaims` signed with the
+  same Ed25519 key as entry passes but over `LOBBY_COMMAND_DOMAIN`, valid 2 minutes, fresh nonce per attempt (a pass can never
+  stand in for a command). `WORLD_API_URL` is a template with `{id}`: production example `http://game-{id}:3000/w/{id}/api`
+  (`deploy/lobby.env.example`); unset in development = `http://127.0.0.1:3000/w/{id}/api`, unset in production = nothing is
+  sent (deletions stay queued, exports list the world as unavailable, one log line). 5 s timeout, global `fetch`.
+- **Deleting** (`POST /lobby/api/account/delete`, password + `confirm: "DELETE"`; `GET .../deletion-info` first): one transaction
+  queues a row per entered world in `account_deletions`, turns the account into a **tombstone** (name `deleted-<id>`, no password,
+  `deleted_at` set; the row stays so purchase and ledger rows the law makes us keep keep a valid `account_id`), removes sessions,
+  IPs, badges, worlds list and sign-in failures, replaces the name in the Hall of Fame by "Deleted player", calls the hook
+  `onAccountDeleted` and audits `account_deleted`. A **banned** account keeps its name and ban fields (ban records are kept) so the
+  name stays taken. The dispatcher (every minute, and right after a deletion) sends the command to each queued world until it
+  answers `{ done: true }`, retrying after 1 min, doubling up to 6 h, for ever. `world-remove` drops that world's rows.
+- **Export** (`GET /lobby/api/account/export`, 2 per 10 minutes): lobby data + `extra` (hook `exportSections`, the shop) + every
+  entered world's `WorldExportDto`, asked concurrently (5 s each); a world that does not answer is in `worldsUnavailable`.
+- **Hooks** (`apps/lobby/src/account-hooks.ts`, wired in `hooks-config.ts`, shared by the lobby and the CLI): `exportSections`,
+  `deletionInfo`, `onAccountDeleted`, `notifyInactiveWarning`. The Flames shop fills them in.
+- **Inactive closure.** Last activity = latest of sign-up, last sign-in, last world entry. 23 months without it and no warning ->
+  `closure_warned_at` is set and `notifyInactiveWarning` called (audit `inactive_warned`, `delivered=yes|no`; today nothing can
+  deliver, there is no e-mail address). 24 months without activity and a warning 30+ days old -> deleted like above (audit
+  `account_closed_inactive`). Staff accounts are skipped; a sign-in or world entry clears the warning. Runs hourly in the lobby
+  process (200 accounts per run).
+- **CLI**: `inactive-sweep [--dry-run]`, `deletions` (queue rows still waiting), `delete-account <username>` (written request;
+  audited as the operator). A banned player cannot delete themselves (the API refuses banned sessions): use the CLI.
+
 ### Threats and what stops them
 
 | Threat | Mitigation |

@@ -8,9 +8,13 @@ import {
   ENTRY_PASS_DOMAIN,
   ENTRY_PASS_MAX_LIFETIME_MS,
   ENTRY_PASS_TTL_MS,
+  LOBBY_COMMAND_DOMAIN,
+  LOBBY_COMMAND_TTL_MS,
   isStaffRole,
   type BadgeSummaryDto,
   type EntryPassClaims,
+  type LobbyCommandClaims,
+  type LobbyCommandType,
   type StaffRole,
 } from '@clanfire/engine';
 
@@ -131,4 +135,24 @@ export function verifyPass(pass: string, publicKeys: readonly string[], now: num
   if (claims.iat > now + ENTRY_PASS_CLOCK_SKEW_MS) throw new Error('issued in the future');
   if (claims.exp <= now) throw new Error('expired');
   return claims;
+}
+
+/**
+ * Build and sign a lobby -> world command (account_delete / account_export). Same key as the passes, different domain string,
+ * so a pass can never be replayed as a command or the other way round. Valid LOBBY_COMMAND_TTL_MS; a fresh nonce every call.
+ */
+export function signLobbyCommand(typ: LobbyCommandType, aid: number, wid: string, privateKey: KeyObject, now: number): { command: string; claims: LobbyCommandClaims } {
+  const claims: LobbyCommandClaims = {
+    v: 1,
+    kid: keyIdOf(privateKey),
+    typ,
+    aid,
+    wid,
+    iat: now,
+    exp: now + LOBBY_COMMAND_TTL_MS,
+    nonce: randomBytes(16).toString('base64url'),
+  };
+  const payload = b64u(JSON.stringify(claims));
+  const signature = sign(null, Buffer.from(`${LOBBY_COMMAND_DOMAIN}\n${payload}`, 'utf8'), privateKey);
+  return { command: `${payload}.${b64u(signature)}`, claims };
 }

@@ -17,6 +17,10 @@ export interface AccountRow {
   bannedAt: number | null;
   banReason: string | null;
   staffRole: StaffRole | null;
+  /** Set when the account was deleted: the row stays as a tombstone (purchase records keep a valid account_id). */
+  deletedAt: number | null;
+  /** When the 24-month inactivity warning was recorded; cleared by a sign-in or world entry. */
+  closureWarnedAt: number | null;
 }
 
 export interface NewAccount {
@@ -75,6 +79,8 @@ const toAccount = (r: Raw): AccountRow => {
   bannedAt: (r.banned_at as number | null) ?? null,
   banReason: (r.ban_reason as string | null) ?? null,
   staffRole: isStaffRole(role) ? role : null,
+  deletedAt: (r.deleted_at as number | null) ?? null,
+  closureWarnedAt: (r.closure_warned_at as number | null) ?? null,
   };
 };
 
@@ -163,7 +169,7 @@ export class Store {
   }
 
   touchLogin(id: number, t: number): void {
-    this.run('UPDATE accounts SET last_login = ? WHERE id = ?', t, id);
+    this.run('UPDATE accounts SET last_login = ?, closure_warned_at = NULL WHERE id = ?', t, id);
   }
 
   /** Ban an account and end all its sessions. */
@@ -189,7 +195,7 @@ export class Store {
   /** The account a live session belongs to, with the session's own times. A banned account is returned too: the caller decides what to answer. */
   getSessionAccount(tokenHash: string, now: number): { account: AccountRow; createdAt: number; expiresAt: number } | null {
     const r = this.get(
-      'SELECT a.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?',
+      'SELECT a.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ? AND a.deleted_at IS NULL',
       tokenHash,
       now,
     );
@@ -341,6 +347,7 @@ export class Store {
 
   removeWorld(id: string): void {
     this.run('DELETE FROM worlds WHERE id = ?', id);
+    this.run('DELETE FROM account_deletions WHERE world_id = ?', id); // nobody left to tell
   }
 
   // ---- badges and Hall of Fame ---------------------------------------------------------------------
@@ -389,6 +396,7 @@ export class Store {
 
   /** Remember that the account entered the world (first and latest time). */
   recordWorldEntry(accountId: number, worldId: string, now: number): void {
+    this.run('UPDATE accounts SET closure_warned_at = NULL WHERE id = ? AND closure_warned_at IS NOT NULL', accountId);
     this.run(
       `INSERT INTO account_worlds (account_id, world_id, first_entered, last_entered) VALUES (?, ?, ?, ?)
          ON CONFLICT (account_id, world_id) DO UPDATE SET last_entered = excluded.last_entered`,

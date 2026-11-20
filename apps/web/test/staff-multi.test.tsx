@@ -10,7 +10,7 @@ import { GameContext } from '../src/game.ts';
 import type { GameApi } from '../src/game.ts';
 import { GroupCard, pairLines } from '../src/views/staff/MultiGroups.tsx';
 import StaffView from '../src/views/StaffView.tsx';
-import { deviceId } from '../src/device.ts';
+import { ensureDeviceId, resetDeviceCache } from '../src/device.ts';
 
 const NOW = Date.UTC(2026, 10, 18, 12);
 
@@ -107,8 +107,9 @@ test('the Shared connections section is for moderators and admins, not for suppo
 test('the device id is one random 128-bit hex id, kept for the browser', () => {
   const store = new Map<string, string>();
   (globalThis as { localStorage?: unknown }).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
-  const id = deviceId();
+  resetDeviceCache();
+  const id = ensureDeviceId();
   assert.match(id, /^[0-9a-f]{32}$/);
-  assert.equal(deviceId(), id);
+  assert.equal(ensureDeviceId(), id);
   assert.equal(store.get('clanfire_device'), id);
 });

@@ -65,10 +65,14 @@ export const ROUTE_LIMITS = {
   raidlists: 30, // raid lists (paid extra): list, edit, send all (every row tried is also charged to `send`)
   firststeps: 30, // first steps card: claim, hide
   projects: 30, // tribe projects: read the store and ledger, store village, start and cancel a project
+  export: 2, // data export download: 2 per ROUTE_LIMIT_WINDOWS.export (10 minutes) per account
 } as const;
 export type RouteBucket = keyof typeof ROUTE_LIMITS;
+/** Buckets whose window is not the default minute. */
+export const ROUTE_LIMIT_WINDOWS: Partial<Record<RouteBucket, number>> = { export: 10 * 60_000 };
 
 const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[] = [
+  { bucket: 'export', test: /^\/api\/account\/export$/, methods: ['GET', 'HEAD'] },
   { bucket: 'send', test: /^\/api\/(villages\/:id\/send|movements\/:id\/cancel|stationed\/:id\/(recall|send-back)|sites\/:id\/recall)$/ },
   { bucket: 'build', test: /^\/api\/villages\/:id\/(build|cancel-build)$/ },
   { bucket: 'train', test: /^\/api\/villages\/:id\/(train|cancel-train)$/ },

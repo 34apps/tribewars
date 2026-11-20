@@ -14,7 +14,7 @@ export function noteSeen(ctx: AppContext, req: FastifyRequest, playerId: number)
 }
 
 /** Route-level hook: attach the signed-in player or answer 401. Runs before body validation. */
-export function requireAuth(ctx: AppContext) {
+export function requireAuth(ctx: AppContext, startVillage = true) {
   return async (req: FastifyRequest): Promise<void> => {
     const player = ctx.auth.authenticate(req.cookies[SESSION_COOKIE]);
     if (!player) throw new GameError('unauthorized', 'Please sign in.');
@@ -24,7 +24,7 @@ export function requireAuth(ctx: AppContext) {
       noteSeen(ctx, req, player.id);
     }
     // No village (abandoned after a long absence, or the last one was taken): start again at once with a new village.
-    ctx.auth.ensureStartingVillage(player);
+    if (startVillage) ctx.auth.ensureStartingVillage(player);
     req.player = player;
   };
 }
@@ -35,7 +35,7 @@ export function playerOf(req: FastifyRequest): PlayerRow {
   return req.player;
 }
 
-function rateLimit(ctx: AppContext, name: string) {
+export function rateLimit(ctx: AppContext, name: string) {
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     if (!ctx.limiter.allow(`${name}:${req.ip}`, req.nowMs)) {
       void reply.header('Retry-After', '60');

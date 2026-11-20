@@ -438,6 +438,32 @@ export class GameService {
     }
   }
 
+  /**
+   * Account deletion (docs/GAME_DESIGN.md 17, "Account deletion"): every village of the player turns abandoned NOW, exactly as after
+   * ABANDON_IDLE_DAYS (abandonVillage: buildings stay, queues and the player's own armies and contingents are gone, others' support goes home).
+   * Beforehand any hold the player runs on someone else's village ends (the claim fails, the occupiers walk home), so the village can never fall
+   * to a deleted account. The player's troops standing at map sites are disbanded like stationed support of an abandoned owner. Runs in the
+   * caller's transaction; returns the number of villages given up. Movements due by `now` must already be resolved (the request hook / caretaker does).
+   */
+  abandonAllVillagesOf(playerId: number, now: number): number {
+    return this.store.tx(() => {
+      for (const id of this.store.villageIdsClaimedBy(playerId)) {
+        const v = this.store.getVillage(id);
+        const h = v?.state.hearth;
+        if (v && h && h.claimBy === playerId) this.endClaim(v, h, 'no_room', now);
+      }
+      let n = 0;
+      for (const { id } of this.store.villagesOfPlayer(playerId)) {
+        const v = this.store.getVillage(id); // fresh: an earlier village may have sent hosted support home
+        if (!v || v.ownerId !== playerId) continue;
+        this.abandonVillage(v, now);
+        n++;
+      }
+      this.store.deleteSiteGarrisonsOf(playerId);
+      return n;
+    });
+  }
+
   private abandonVillage(v: VillageRecord, now: number): void {
     const s = this.settings;
     const ownerId = v.ownerId;
@@ -1197,7 +1223,7 @@ export class GameService {
     const s = this.settings;
     const claimant = this.store.getPlayer(h.claimBy);
     const owned = claimant ? this.store.villagesOfPlayer(claimant.id).length : 0;
-    if (!claimant || !underVillageLimit(owned)) return this.endClaim(v, h, 'no_room', at);
+    if (!claimant || claimant.deletedAt !== null || !underVillageLimit(owned)) return this.endClaim(v, h, 'no_room', at);
     const oldOwnerId = v.ownerId;
     const rows = this.store.stationedAt(v.id);
     const occ = rows.filter((c) => c.ownerPlayerId === claimant.id);

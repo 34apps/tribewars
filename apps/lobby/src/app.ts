@@ -4,15 +4,19 @@ import type { KeyObject } from 'node:crypto';
 import cookie from '@fastify/cookie';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { GameError, LOBBY_SESSION_COOKIE, type ApiError, type GameErrorCode } from '@clanfire/engine';
+import { AccountDataService } from './account-data.ts';
+import { noopHooks, type AccountDataHooks } from './account-hooks.ts';
 import { AuthService, RateLimiter, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
 import { openDatabase } from './db.ts';
 import { statusFor } from './errors.ts';
+import { accountRoutes } from './routes/account.ts';
 import { authRoutes } from './routes/auth.ts';
 import { worldRoutes } from './routes/worlds.ts';
 import { CSP, HSTS, PERMISSIONS_POLICY, originAllowed } from './security.ts';
 import { Store } from './store.ts';
 import { rewriteLobbyUrl } from './worlds.ts';
+import { DeletionDispatcher, WorldCommandClient } from './world-commands.ts';
 
 export const BODY_LIMIT = 16 * 1024;
 /** Limits per minute (see the rate-limit hook in buildApp). Smaller than a world's: the lobby is only sign-in and a click per world. */
@@ -24,6 +28,9 @@ export const RATE_AUTH_PER_IP = 10;
 /** Entering a world: passes per account and per IP. */
 export const RATE_ENTER_PER_ACCOUNT = 20;
 export const RATE_ENTER_PER_IP = 60;
+/** Account data export (it fans out to every world): per account. */
+export const RATE_EXPORT_PER_ACCOUNT = 2;
+export const RATE_EXPORT_WINDOW_MS = 10 * 60_000;
 
 export interface BuildAppOptions {
   /** SQLite file, or ':memory:'. */
@@ -46,6 +53,12 @@ export interface BuildAppOptions {
   maxAccountsPerIp?: number;
   /** A correct but weak password must be replaced at the next sign-in (PASSWORD_UPGRADE_ON_LOGIN). Default off. */
   requirePasswordUpgrade?: boolean;
+  /** Extension points for deletion / export / inactivity warning (the Flames shop fills them in; src/hooks-config.ts). Default: no-ops. */
+  hooks?: AccountDataHooks;
+  /** Template with `{id}` for a world's API base, e.g. http://game-{id}:3000/w/{id}/api (WORLD_API_URL). Unset/null: commands are queued, not sent. */
+  worldApiUrl?: string | null;
+  /** fetch used for lobby -> world commands. Tests pass a fake. */
+  fetchImpl?: typeof fetch;
 }
 
 function isApiPath(url: string): boolean {
@@ -84,6 +97,8 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const production = process.env.NODE_ENV === 'production';
   const secureCookies = opts.secureCookies ?? production;
   if (production && !secureCookies) throw new Error('Refusing to start: the session cookie must be Secure when NODE_ENV=production.');
+  const cmdLog = { info: (m: string) => app.log.info(m), warn: (m: string) => app.log.warn(m) };
+  const worldCommands = new WorldCommandClient(opts.signingKey, opts.worldApiUrl ?? null, now, opts.fetchImpl ?? fetch, cmdLog);
   const ctx: AppContext = {
     store,
     now,
@@ -93,6 +108,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     limiter: new RateLimiter(RATE_AUTH_PER_IP, 60_000),
     enterAccountLimiter: new RateLimiter(RATE_ENTER_PER_ACCOUNT, 60_000),
     enterIpLimiter: new RateLimiter(RATE_ENTER_PER_IP, 60_000),
+    exportLimiter: new RateLimiter(RATE_EXPORT_PER_ACCOUNT, RATE_EXPORT_WINDOW_MS),
+    accountData: new AccountDataService(store, opts.hooks ?? noopHooks, now, worldCommands, cmdLog),
+    worldCommands,
+    dispatcher: new DeletionDispatcher(store, worldCommands, now, cmdLog),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
@@ -182,6 +201,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   });
   authRoutes(app, ctx);
   worldRoutes(app, ctx);
+  accountRoutes(app, ctx);
 
   app.setNotFoundHandler(async (_req, reply) => reply.code(404).send(errorBody('not_found', 'Not found.')));
 

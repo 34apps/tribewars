@@ -736,6 +736,11 @@ stored and sent as plain text and the client renders it as text (line breaks kep
 - Security gate: the abandonment job has no input. The dismiss endpoint is own-account only, takes no body, writes one
   column and is covered by the global rate limit. The caretaker bot only reads and writes the owner's own village through
   the build planner, so it cannot send resources or troops to anyone.
+- **Account deletion** (schema v38; docs/PRIVACY.md): when a player deletes their account (in the world, or the lobby tells the world), every village turns
+  abandoned AT ONCE exactly as after `ABANDON_IDLE_DAYS` (buildings kept, queues and the player's own armies, marches and troops at sites or standing as support
+  elsewhere are gone, other players' support in those villages walks home), any hold they run on another village ends, and they leave their tribe (a lone leader
+  hands over to the longest-serving officer, else member; the last member disbands it). Private data is erased; the player row stays as a tombstone named
+  "Deleted player <id>" so mail they sent, forum posts and chat keep working. Tombstones are not ranked, not searchable, cannot be mailed or invited and cannot sign in.
 
 ## 14. Roadmap (not yet built)
 

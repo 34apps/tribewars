@@ -1,4 +1,5 @@
 import type { WorldSettings } from '@clanfire/engine';
+import type { AccountDataService } from './account-data-service.ts';
 import type { AuthService, RateLimiter } from './auth.ts';
 import type { DominationService } from './domination-service.ts';
 import type { EntryKey } from './entry-pass.ts';
@@ -27,6 +28,8 @@ export interface AppContext {
   /** Shared connections / multi-account tooling for staff (multi-service.ts). */
   multi: MultiService;
   msgReports: ReportService;
+  /** Account deletion and the data export (account-data-service.ts). Absent in the in-browser preview, which has no account routes. */
+  accountData?: AccountDataService;
   /** Raid lists, a paid extra (raid-list-service.ts). */
   raidLists: RaidListService;
   /**

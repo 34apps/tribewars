@@ -53,6 +53,7 @@ import { SqlBase, type Param, type Raw } from './sql.ts';
 import { ForumStore } from './forum-store.ts';
 import { NoteStore } from './notes-store.ts';
 import { TroopGroupStore } from './troop-group-store.ts';
+import { AccountDataStore } from './account-data-store.ts';
 import { FighterStore } from './fighter-store.ts';
 import { RaidListStore } from './raid-list-store.ts';
 import { reportDigest } from './report-digest.ts';
@@ -107,6 +108,8 @@ export interface PlayerRow {
   accountId: number | null;
   /** Paid extras as bits (the old `premium` column; EXTRA_RAID_LISTS in the engine). 0 = none. Changed only through the operator CLI. */
   premium: number;
+  /** When the account was deleted (ms): this row is only a tombstone (name "Deleted player <id>"). null = a real player. */
+  deletedAt: number | null;
 }
 
 export interface SharedIpGroup {
@@ -425,6 +428,7 @@ function toPlayer(r: Raw): PlayerRow {
     muteReason: (r.mute_reason as string | null) ?? null,
     accountId: (r.account_id as number | null) ?? null,
     premium: Number.isInteger(r.premium) && (r.premium as number) > 0 ? (r.premium as number) : 0,
+    deletedAt: (r.deleted_at as number | null) ?? null,
   };
 }
 
@@ -543,6 +547,7 @@ export class Store extends SqlBase {
   /** Fighter rankings: value of enemy troops destroyed per player (schema v27). */
   readonly fighters: FighterStore;
   readonly firstSteps: FirstStepsStore;
+  readonly accountData: AccountDataStore;
   readonly forum: ForumStore;
   /** Staff tooling tables (audit log, roles, mutes), tickets with templates, and player reports. Share this connection. */
   readonly staff: StaffStore;
@@ -574,6 +579,7 @@ export class Store extends SqlBase {
     this.raidLists = new RaidListStore(db);
     this.fighters = new FighterStore(db);
     this.firstSteps = new FirstStepsStore(db);
+    this.accountData = new AccountDataStore(db);
     this.emit = (event) => this.queueLive(event);
     this.tribes.siteUpkeepTouch = this.sites.siteUpkeepTouch = () => this.markSiteUpkeepDirty();
     this.tribes.beforeMembersLeave = (ids) => this.settleSiteRenown?.(ids);
@@ -923,6 +929,17 @@ export class Store extends SqlBase {
       ...sandbox,
       limit,
     ).map(toVillage);
+  }
+
+  /** Villages whose running or paused hold (hearth out) was started by this player: found by the claimant id in the stored state. Rare (account deletion only). */
+  villageIdsClaimedBy(playerId: number): number[] {
+    return this.all('SELECT id FROM villages WHERE state_json LIKE ?', `%"claimBy":${Math.trunc(playerId)},%`).map((r) => r.id as number);
+  }
+
+  /** The player's troops standing at map sites are disbanded (account deletion); the site upkeep re-checks who holds what. */
+  deleteSiteGarrisonsOf(playerId: number): void {
+    this.markSiteUpkeepDirty();
+    this.run('DELETE FROM site_garrison WHERE owner_player_id = ?', playerId);
   }
 
   /** Give a village up: no owner (the caller saves the new abandoned state), no hold clock. */
@@ -1408,6 +1425,7 @@ export class Store extends SqlBase {
        JOIN villages v ON v.owner_id = p.id
        LEFT JOIN tribe_members tm ON tm.player_id = p.id
        LEFT JOIN tribes tr ON tr.id = tm.tribe_id
+       WHERE p.deleted_at IS NULL
        GROUP BY p.id
        ORDER BY p.renown_total DESC, p.username_lower ASC, p.id ASC`,
     ).map((r) => ({
@@ -1458,6 +1476,7 @@ export class Store extends SqlBase {
        JOIN villages v ON v.owner_id = p.id
        LEFT JOIN tribe_members tm ON tm.player_id = p.id
        LEFT JOIN tribes tr ON tr.id = tm.tribe_id
+       WHERE p.deleted_at IS NULL
        GROUP BY p.id
        ORDER BY total_points DESC, p.username_lower ASC, p.id ASC`,
     ).map((r) => ({
@@ -1513,7 +1532,7 @@ export class Store extends SqlBase {
            ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
            LIMIT ?`
         : `SELECT v.id FROM players p CROSS JOIN villages v ON v.owner_id = p.id
-           WHERE p.username LIKE ? ESCAPE '\\' AND p.banned_at IS NULL
+           WHERE p.username LIKE ? ESCAPE '\\' AND p.banned_at IS NULL AND p.deleted_at IS NULL
            ORDER BY ${dist} CASE WHEN ${col} LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, ${col} COLLATE NOCASE, v.id
            LIMIT ?`;
     const ids = this.all(idSql, ...params).map((r) => r.id as number);
