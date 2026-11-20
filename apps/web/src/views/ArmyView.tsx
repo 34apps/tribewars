@@ -29,7 +29,8 @@ import { useGame, useRules } from '../game.ts';
 import { BuildingArt } from '../art/BuildingArt.tsx';
 import { Icon } from '../art/Icon.tsx';
 import { UnitFigure } from '../art/UnitFigure.tsx';
-import { timePerTileMs, useUnitInfo } from '../components/UnitInfo.tsx';
+import { AttackClassTag, timePerTileMs, useUnitInfo } from '../components/UnitInfo.tsx';
+import { ATTACK_CLASS_HELP } from '../components/unitCardLogic.ts';
 import { UNIT_ROLE } from '../unitRole.ts';
 import '../army.css';
 import { MISSION_ICON, MISSION_NAME, RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
@@ -483,7 +484,7 @@ function UnitCard({ unit, building, busy, setBusy }: { unit: UnitId; building: T
         <span className={`urole urole-${role.tone}`}>{role.label}</span>
       </header>
       <ul className="chips" aria-label="Stats">
-        <li className="chip" title="Attack"><span className="chip-k">Atk</span> {def.attack}</li>
+        <li className="chip" title="Attack"><span className="chip-k">Atk</span> {def.attack} <AttackClassTag unit={unit} /></li>
         <li className="chip" title="Defence vs infantry"><span className="chip-k">Def foot</span> {def.defenseInfantry}</li>
         <li className="chip" title="Defence vs cavalry"><span className="chip-k">Def riders</span> {def.defenseCavalry}</li>
         <li className="chip" title="Speed"><span className="chip-k">Per field</span> {formatDuration(timePerTileMs(unit, settings))}</li>
@@ -607,6 +608,7 @@ function TrainingPanel({ building }: { building: TrainingBuildingId }) {
               </ol>
             </div>
           )}
+          <p className="small unit-grid-help">{ATTACK_CLASS_HELP}</p>
           <div className="unit-grid">
             {units.map((u) => (
               <UnitCard key={u} unit={u} building={building} busy={busy} setBusy={setBusy} />
