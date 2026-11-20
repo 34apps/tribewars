@@ -54,8 +54,15 @@ read or log other repos (e.g. MeetingNote) from a Clanflame session.**
 - **Owner standing preferences (2026-11-03):** no scrollbar inside desktop side panels (the page scrolls instead); always check phone (360 px) and desktop (1280–1440 px) layouts; add server tests for every new endpoint.
 - Before handing off a change: review against `docs/STANDARDS.md`; `npm run check`; `npm run build`
   if `apps/` or dependencies changed; add a dated line to `CHANGELOG.md` (newest first, commit hash);
-  update `NEXT_STEPS.md` (remove done items, add new follow-ups). Rewrite `docs/HANDOFF.md` when
-  handing off a session.
+  update `NEXT_STEPS.md` (remove done items, add new follow-ups).
+- **Keep `docs/HANDOFF.md` current all the time** (owner, 2026-11-20), not only when handing off. Update it, under ~5 KB,
+  at natural moments:
+  - after each merge or push;
+  - after an owner decision;
+  - when a side session starts or reports;
+  - before a long wait.
+
+  Any session can then continue from it at once.
 - **Never open a visible browser window** (owner, 2026-11-11): no `open http://...`, no Google Chrome/Safari, no Claude-in-Chrome.
   Not the in-app browser pane either while the owner is playing (it pops over his screen): check screens only with fully
   headless scripts that show no window, or list them as not checked.
