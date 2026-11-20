@@ -214,26 +214,39 @@ html.layout-desktop .toasts {
 .fr-res {
   display: flex;
   align-items: center;
-  gap: 22px;
-  height: 52px;
+  gap: 8px;
   margin: 0 0 0 auto;
-  padding: 0 18px;
+  padding: 0;
   list-style: none;
-  border: 2px solid var(--edge-soft);
-  border-radius: 14px;
-  background: var(--surface-2);
+}
+
+.fr-res .rp {
+  min-height: 42px;
+  padding: 0 14px 2px 10px;
+  gap: 7px;
+  font-size: 16px;
+  box-shadow: 0 3px 0 var(--c-ink);
+}
+
+.fr-res .rp.is-full {
+  box-shadow: 0 3px 0 var(--strip-danger);
+}
+
+.fr-res .rp.is-open {
+  box-shadow: 0 1px 0 var(--c-ink);
 }
 
 .fr-rs {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 0 14px 0 10px;
   white-space: nowrap;
-}
-
-.fr-rs-cap {
-  padding-right: 18px;
-  border-right: 2px solid var(--edge-soft);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  background: var(--surface-2);
 }
 
 .fr-cap-label {
@@ -246,31 +259,12 @@ html.layout-desktop .toasts {
 .fr-rv {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
-.fr-ra {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.fr-ra b {
-  font: 700 16px/1.2 var(--font);
+.fr-rv b {
+  font: 700 15px/1.1 var(--font);
   color: var(--heading);
-}
-
-.fr-ra small {
-  font: 600 13px/1.2 var(--font);
-  color: var(--ok);
-}
-
-.fr-ra small.is-zero {
-  color: var(--on-surface-muted);
-}
-
-.fr-ra small.is-neg {
-  color: var(--danger);
 }
 
 .fr-sf,
@@ -285,7 +279,7 @@ html.layout-desktop .toasts {
 }
 
 .fr-sf-pop {
-  min-width: 70px;
+  min-width: 44px;
 }
 
 .fr-sf i,

@@ -5,86 +5,61 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { RESOURCE_IDS, productionPerHour, storageCap } from '@clanfire/engine';
+import { storageCap } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { bannerText } from '../domination.ts';
 import { navTabs, useGame } from '../game.ts';
 import type { NavTab } from '../game.ts';
-import { formatCompact, formatDuration, formatInt, formatLeft, formatRate } from '../format.ts';
-import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
+import { formatCompact, formatDuration, formatInt, formatLeft } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { bellCounts } from '../notifications.ts';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
+import { ResourcePills } from './ResourcePills.tsx';
 import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell.tsx';
 import type { AccountActions } from './Shell.tsx';
 import { VillageBar } from './VillageSwitcher.tsx';
+import '../villages.css';
 import { useTribeFixed } from '../views/tribe/tribe-fixed.ts';
 import '../frame.css';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
 
-/** Wood/food/iron/gold with the rate and a thin storage-fill bar, then population used / cap. */
+/** Storehouse cap, the four fill-up resource pills (tap = exact numbers), then population used / cap. */
 function TopResources() {
-  const { live, settings } = useGame();
+  const { live } = useGame();
   const cap = storageCap(live);
-  const net = productionPerHour(live, settings);
   const pop = usePopulation();
+  const popState = pop.ratio >= 0.999 ? ' is-full' : pop.ratio >= 0.9 ? ' is-near' : '';
   return (
-    <ul className="fr-res" aria-label="Resources">
-      <li className="fr-rs fr-rs-cap" title={`Storehouse: each resource holds up to ${formatInt(cap)}`}>
-        <Icon name="chest" size={28} />
-        <span className="fr-rv">
-          <span className="fr-ra">
+    <ResourcePills
+      className="fr-res"
+      before={
+        <li className="fr-rs fr-rs-cap" title={`Storehouse: each resource holds up to ${formatInt(cap)}`}>
+          <Icon name="chest" size={24} />
+          <span className="fr-rv">
             <b>
               <span className="visually-hidden">Storage capacity: </span>
               {formatCompact(cap)}
             </b>
-            <small className="is-zero" aria-hidden="true">max</small>
+            <span className="fr-cap-label" aria-hidden="true">Storehouse</span>
           </span>
-          <span className="fr-cap-label" aria-hidden="true">Storehouse</span>
-        </span>
-      </li>
-      {RESOURCE_IDS.map((r) => {
-        const ratio = cap > 0 ? live.resources[r] / cap : 0;
-        const amount = Math.floor(live.resources[r] + 1e-9);
-        return (
-          <li key={r} className="fr-rs" title={`${RESOURCE_NAME[r]}: ${formatInt(amount)} of ${formatInt(cap)}${ratio >= 0.999 ? ' (full)' : ''}`}>
-            <Icon name={RESOURCE_ICON[r]} size={28} />
-            <span className="fr-rv">
-              <span className="fr-ra">
-                <b title={formatInt(amount)}>
-                  <span className="visually-hidden">{RESOURCE_NAME[r]}: </span>
-                  {formatCompact(amount)}
-                  <span className="visually-hidden">
-                    {' '}
-                    of {formatInt(cap)}
-                    {ratio >= 0.999 ? ' (full)' : ''}
-                  </span>
-                </b>
-                <small className={Math.round(net[r]) < 0 ? 'is-neg' : Math.round(net[r]) === 0 ? 'is-zero' : ''}>{formatRate(net[r])}</small>
-              </span>
-              <span className="fr-sf" aria-hidden="true">
-                <i className={ratio >= 0.9 ? 'hi' : ''} style={{ width: `${Math.max(0, Math.min(1, ratio)) * 100}%` }} />
-              </span>
-            </span>
-          </li>
-        );
-      })}
-      <li className="fr-rs fr-rs-pop" aria-label={pop.label}>
-        <Icon name="pop" size={28} />
-        <span className="fr-rv" aria-hidden="true">
-          <span className="fr-ra">
-            <b>{formatInt(pop.total)}</b>
-            <small className="is-zero">/ {formatInt(pop.cap)}</small>
+        </li>
+      }
+      after={
+        <li className={`fr-rs fr-rs-pop${popState}`} aria-label={pop.label}>
+          <Icon name="pop" size={24} />
+          <span className="fr-rv" aria-hidden="true">
+            <b>{formatCompact(pop.total)}</b>
+            <span className="fr-cap-label">/ {formatCompact(pop.cap)}</span>
           </span>
           <span className="fr-sf fr-sf-pop">
-            <i className="hi" style={{ width: `${Math.max(0, Math.min(1, pop.ratio)) * 100}%` }} />
+            <i className={pop.ratio >= 0.9 ? 'hi' : ''} style={{ width: `${Math.max(0, Math.min(1, pop.ratio)) * 100}%` }} />
           </span>
-        </span>
-      </li>
-    </ul>
+        </li>
+      }
+    />
   );
 }
 
