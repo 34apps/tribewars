@@ -50,7 +50,17 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
 
-## Analytics (owner decided 2026-11-20; being built)
+## Analytics (owner decided 2026-11-20; merged `d09d8b8`, in the preview, NOT pushed: waits for his OK)
+
+- Built: the shared sender `packages/analytics`; world schema v40, lobby v10.
+- The opt-out reaches worlds as entry-pass claim `ana`. New routes: `POST /api/stats/page` and `POST /lobby/api/account/share-stats`.
+- To switch it on in production: `ANALYTICS=1` and the SAME `ANALYTICS_SALT` in the lobby and every world. Then do a test play
+  with `ANALYTICS_APP=0.1.0-dev` and ask the card shop session to run `event_counts`.
+- Open points:
+  - deleting one player's analytics record is manual (`admin_delete_player`);
+  - confirm the analytics AWS account is the owner's own (the privacy text relies on it);
+  - the 360/1440 px look of the account page switch is not checked in a browser.
+
 
 - The owner's own analytics service (project `clanflame`) is used for web now and iOS/Android later. Plan and events: `docs/ANALYTICS.md`.
 - Owner decisions (don't re-ask):
@@ -69,7 +79,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## NEXT JOB
 
-Analytics is being built in a worktree (checklist in `docs/ANALYTICS.md` §4). Then: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
+Analytics merged (waits for his push OK). Then: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
