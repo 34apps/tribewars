@@ -90,3 +90,20 @@ test('training row: a unit whose building level is missing is locked with its re
   assert.equal(cart.locked, true);
   assert.match(cart.reason ?? '', /^Needs Wrightyard 4/);
 });
+
+test('training row: "max" leaves room for what is typed in the other rows of the same order', () => {
+  const now = 1_000;
+  const live = createPlayerVillage(now, { wood: 5000, food: 5000, iron: 5000, gold: 5000 });
+  live.buildings.barracks = 3;
+  const args = { live, unit: 'pikeman' as const, building: 'barracks' as const, text: '', now, settings: DEFAULT_WORLD, trainQueueLimit: 5, hearthOut: false };
+  const alone = trainRowState(args).max;
+  assert.ok(alone >= 4);
+  // Half the wood already promised to another row: max drops to what is left.
+  const zero = { wood: 0, food: 0, iron: 0, gold: 0 };
+  const half = trainRowState({ ...args, reserved: { cost: { ...zero, wood: Math.floor(live.resources.wood / 2) }, pop: 0 } }).max;
+  assert.ok(half < alone);
+  // Everything promised: nothing left for this row.
+  assert.equal(trainRowState({ ...args, reserved: { cost: { ...live.resources }, pop: 0 } }).max, 0);
+  // Population promised to another row counts too.
+  assert.equal(trainRowState({ ...args, reserved: { cost: zero, pop: 1e9 } }).max, 0);
+});

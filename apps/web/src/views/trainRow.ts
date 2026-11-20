@@ -1,7 +1,7 @@
 // One unit's training row: the typed amount, what it costs, how many can be afforded and why Train is refused. Shared by the Army
 // page's unit cards and the Barracks / Stables page, so both validate the same way. The server re-checks everything.
 
-import { MAX_TRAIN_BATCH, RESOURCE_IDS, productionPerHour, storageCap, UNITS, checkTrain, isResearched, trainTimeMs } from '@clanfire/engine';
+import { MAX_TRAIN_BATCH, POP_PER_UNIT, RESOURCE_IDS, populationCap, populationUsage, productionPerHour, storageCap, UNITS, checkTrain, isResearched, trainTimeMs } from '@clanfire/engine';
 import type { Resources, TrainingBuildingId, UnitId, VillageState, WorldSettings } from '@clanfire/engine';
 import { maxTrainable, reasonText, requirementText, researchGate, unmetRequirements } from '../rules.ts';
 import type { UnmetRequirement } from '../rules.ts';
@@ -36,6 +36,8 @@ export function trainRowState(args: {
   settings: WorldSettings;
   trainQueueLimit: number;
   hearthOut: boolean;
+  /** Already typed in the other rows of the same order: "max" only offers what is left after them. */
+  reserved?: { cost: Resources; pop: number };
 }): TrainRowState {
   const { live, unit, building, text, now, settings } = args;
   const def = UNITS[unit];
@@ -44,7 +46,7 @@ export function trainRowState(args: {
   const unresearched = !locked && !isResearched(live, unit);
   const parsed = text.trim() === '' ? 0 : Number(text);
   const count = Number.isInteger(parsed) ? Math.max(0, Math.min(MAX_TRAIN_BATCH, parsed)) : 0;
-  const max = locked ? 0 : maxTrainable(live, unit, now, settings);
+  const max = locked ? 0 : maxAfterReserved(live, unit, now, settings, args.reserved);
   const check = checkTrain(live, unit, Math.max(1, count), now, settings);
   const queueFull = live.trainQueues[building].length >= args.trainQueueLimit;
 
@@ -62,4 +64,13 @@ export function trainRowState(args: {
     if (goldNeverArrives(live.resources, productionPerHour(live, settings), batchCost, storageCap(live))) reason = needsGoldText(live.buildings);
   }
   return { unmet, locked, unresearched, researchGate: unresearched ? researchGate(live.buildings, unit) : [], count, perUnitMs: trainTimeMs(unit, live, settings), max, reason, batchCost };
+}
+
+function maxAfterReserved(live: VillageState, unit: UnitId, now: number, settings: WorldSettings, reserved?: { cost: Resources; pop: number }): number {
+  if (!reserved) return maxTrainable(live, unit, now, settings);
+  const resources = Object.fromEntries(RESOURCE_IDS.map((r) => [r, Math.max(0, live.resources[r] - reserved.cost[r])])) as Resources;
+  let n = maxTrainable({ ...live, resources }, unit, now, settings);
+  const per = POP_PER_UNIT[unit];
+  if (per > 0) n = Math.min(n, Math.floor((populationCap(live) - populationUsage(live).total - reserved.pop) / per));
+  return Math.max(0, n);
 }

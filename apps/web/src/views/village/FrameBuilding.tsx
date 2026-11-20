@@ -259,19 +259,21 @@ function RecruitPanel({ building }: { building: TrainingBuildingId }) {
   const def = BUILDINGS[building];
   const queue = live.trainQueues[building];
   const units = UNIT_IDS.filter((u) => UNITS[u].building === building && (rules.features.siege || !UNITS[u].siege));
-  const rows = units.map((u) => ({
-    unit: u,
-    st: trainRowState({
-      live,
-      unit: u,
-      building,
-      text: texts[u] ?? '',
-      now,
-      settings,
-      trainQueueLimit: rules.queues.train,
-      hearthOut: !!village.hearth,
-    }),
-  }));
+  const base = {
+    live,
+    building,
+    now,
+    settings,
+    trainQueueLimit: rules.queues.train,
+    hearthOut: !!village.hearth,
+  };
+  const plain = units.map((u) => ({ unit: u, st: trainRowState({ ...base, unit: u, text: texts[u] ?? '' }) }));
+  // Each row's "max" leaves room for what is already typed in the other rows, so one order never asks for more than the village has.
+  const rows = plain.map(({ unit }) => {
+    const others = plain.filter((r) => r.unit !== unit && r.st.count >= 1);
+    const reserved = { cost: sumCost(others.map((r) => r.st.batchCost)), pop: others.reduce((n, r) => n + POP_PER_UNIT[r.unit] * r.st.count, 0) };
+    return { unit, st: trainRowState({ ...base, unit, text: texts[unit] ?? '', reserved }) };
+  });
   const freePop = Math.max(0, populationCap(live) - populationUsage(live).total);
   const typed = rows.filter((r) => r.st.count >= 1);
   const total = sumCost(typed.map((r) => r.st.batchCost));

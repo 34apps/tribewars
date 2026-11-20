@@ -940,6 +940,8 @@ button.hud-village {
 
 .notif-list {
   display: grid;
+  /* one column no wider than the sheet: long names cut off with "…" instead of pushing rows past the edge */
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -1143,7 +1145,8 @@ button.hud-village {
     right: 16px;
     left: auto;
     bottom: auto;
-    width: 380px;
+    width: 440px;
+    box-sizing: border-box;
     max-height: none;
     overflow: visible;
     padding: 12px 18px 18px;
