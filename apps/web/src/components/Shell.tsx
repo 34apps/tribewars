@@ -11,7 +11,7 @@ import type { IconName } from '../art/Icon.tsx';
 import { WORLD_ENDED_NOTICE, bannerText } from '../domination.ts';
 import { useGame } from '../game.ts';
 import type { NavTab as Tab } from '../game.ts';
-import { formatCoords, formatDuration, formatInt, formatLeft } from '../format.ts';
+import { formatCoords, formatDuration, formatInt } from '../format.ts';
 import { useNotifications } from '../hooks/useNotifications.ts';
 import { useRaidListsEntitled } from '../hooks/useRaidListsOn.ts';
 import { LOBBY_URL, isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
@@ -19,6 +19,7 @@ import { bellCounts } from '../notifications.ts';
 import { ResourcePills } from './ResourcePills.tsx';
 import NotificationsSheet, { NotificationBell } from './Notifications.tsx';
 import { RenameVillage, VillageBar } from './VillageSwitcher.tsx';
+import '../villages.css';
 
 const ChieftainDialog = lazy(() => import('./ChieftainDialog.tsx'));
 const SettingsDialog = lazy(() => import('./SettingsDialog.tsx'));
@@ -64,23 +65,13 @@ export function AlertNotes() {
   );
 }
 
-/** Attacks and protection on phones: one slim pills row under the HUD. */
+/** Attacks on phones: one slim pill row under the village tab (protection lives in the tab itself). */
 function AlertCards() {
-  const { player, now, movements, navigate } = useGame();
-  const protectedLeft = player.protectedUntil - now;
+  const { now, movements, navigate } = useGame();
   const incoming = movements.filter((m) => m.direction === 'incoming' && m.kind === 'attack' && m.arriveAt > now - 1000).sort((a, b) => a.arriveAt - b.arriveAt);
   const first = incoming[0];
   const who = first ? first.origin.ownerName || first.origin.name : '';
   const left = first ? formatDuration(first.arriveAt - now) : '';
-  const protect =
-    protectedLeft > 0 ? (
-      <div className="hud-protect">
-        <Icon name="shield" size={18} />
-        <span>
-          Protected <strong>{formatLeft(protectedLeft)}</strong>
-        </span>
-      </div>
-    ) : null;
   const pill = first ? (
     <button type="button" className="hud-attack-pill" onClick={() => navigate('incoming')} aria-label={`${incoming.length > 1 ? `${incoming.length} attacks, next` : 'Attack'} in ${left} from ${who}. Open incoming attacks`}>
       <Icon name="warning" size={20} />
@@ -90,12 +81,10 @@ function AlertCards() {
       </span>
     </button>
   ) : null;
+  if (!pill) return null;
   return (
     <div className="hud-alerts">
-      <div className="hud-alert-row">
-        {pill}
-        {protect}
-      </div>
+      <div className="hud-alert-row">{pill}</div>
     </div>
   );
 }

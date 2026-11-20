@@ -55,6 +55,14 @@ function useKeepInside(ref: RefObject<HTMLDivElement | null>) {
     const pad = 8;
     const shift = b.left < f.left + pad ? f.left + pad - b.left : b.right > f.right - pad ? f.right - pad - b.right : 0;
     if (shift !== 0) el.style.setProperty('--shift', `${Math.round(shift)}px`);
+    // Phone: the village scene runs under the floating HUD (band + village tab); a bubble never sits under it.
+    el.style.setProperty('--shift-y', '0px');
+    const hud = document.querySelector('.hud-phone');
+    if (hud) {
+      const min = hud.getBoundingClientRect().bottom + 12;
+      const top = el.getBoundingClientRect().top - 3; // the bubble bobs up by 3 px
+      if (top < min) el.style.setProperty('--shift-y', `${Math.ceil(min - top)}px`);
+    }
   });
 }
 

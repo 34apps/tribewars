@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatClock, formatClockParts, formatCompact, formatCompactShort } from '../src/format.ts';
+import { formatClock, formatClockParts, formatCompact, formatCompactShort, formatCoords, formatCoordsTag } from '../src/format.ts';
 
 test('formatCompact keeps small numbers exact and shortens big ones, always rounding down', () => {
   const cases: [number, string][] = [
@@ -42,4 +42,12 @@ test('formatClockParts splits the day off the clock time; formatClock joins them
   const far = formatClockParts(later, now);
   assert.notEqual(far.day, '');
   assert.equal(formatClock(later, now), `${far.day} ${far.time}`);
+});
+
+test('formatCoordsTag: spaces around the bar, true minus sign; formatCoords keeps the old style', () => {
+  assert.equal(formatCoordsTag(-9, 24), '\u22129 | 24');
+  assert.equal(formatCoordsTag(6, 2), '6 | 2');
+  assert.equal(formatCoordsTag(0, -15), '0 | \u221215');
+  assert.equal(formatCoordsTag(-120, -3), '\u2212120 | \u22123');
+  assert.equal(formatCoords(-9, 24), '-9|24');
 });

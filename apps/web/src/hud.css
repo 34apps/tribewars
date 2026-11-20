@@ -202,19 +202,6 @@ button.hud-village {
   box-shadow: 0 5px 0 var(--c-ink), 0 14px 28px rgba(43, 33, 28, 0.25);
 }
 
-/* Phone: a compact pill under the chips (several villages only; one village needs no switcher and no name here). */
-.hud-phone .hud-village {
-  align-self: flex-start;
-  min-height: 44px;
-  padding: 0 14px 2px 8px;
-  border-width: 2.5px;
-  box-shadow: 0 3px 0 var(--c-ink);
-}
-
-.hud-phone .hud-village.is-static {
-  cursor: default;
-}
-
 /* Name pill + pencil on one row (phone and desktop); the rename popover hangs under the row. */
 .vb-row {
   position: relative;
@@ -223,10 +210,6 @@ button.hud-village {
   gap: 6px;
   min-width: 0;
   max-width: 100%;
-}
-
-.hud-phone .vb-row {
-  align-self: flex-start;
 }
 
 .vb-rename {
@@ -269,20 +252,6 @@ button.hud-village {
   border: 3px solid var(--c-ink);
   border-radius: 24px;
   box-shadow: 0 5px 0 var(--c-ink), 0 14px 28px rgba(43, 33, 28, 0.25);
-}
-
-.hud-phone .hud-village-name {
-  max-width: 170px;
-  font-size: 17px;
-  padding-top: 2px;
-}
-
-.hud-phone .hud-village-xy {
-  font-size: 12px;
-}
-
-.hud-phone .hud-village-tag {
-  display: none;
 }
 
 /* ---- Resources: fill-up pills (ResourcePills.tsx) ---------------------------------------------------------------- */
@@ -741,14 +710,6 @@ button.hud-village {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.hud-phone .hud-protect {
-  flex: none;
-  margin-left: auto;
-  gap: 3px;
-  padding: 0 10px 2px 6px;
-  font-size: 12px;
 }
 
 /* ---- Bottom dock --------------------------------------------------------------------------------------------------- */
@@ -1675,27 +1636,193 @@ html:has(.app.app-page) {
   box-shadow: inset 0 2px 0 var(--edge-soft), 0 5px 0 var(--edge-shadow);
 }
 
-/* ---- Phone top band (owner 2026-11-09: map labels showed through between the chips; numbers touched the chip edges) ---- */
-@media (max-width: 1023.98px) {
-  /* A calm paper band behind the chip row only; the attack/Protected row below still floats over the art. */
-  .hud-phone::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: calc(max(12px, env(safe-area-inset-top) + 8px) + 46px + 11px);
-    background: var(--page);
-    border-bottom: 2px solid var(--edge);
-    box-shadow: 0 2px 0 var(--edge-soft);
-    pointer-events: none;
-  }
+/* ---- Phone top band + village tab (owner 2026-11-20) ------------------------------------------------------------------
+   A calm paper band behind the chip row (owner 2026-11-09: map labels showed through between the chips). The village row hangs under it as a
+   tab of the same paper: ONE 2.5 px ink outline runs along the band's bottom and steps down around the tab, with small rounded inner corners
+   where tab meets band (the two ::before / ::after quarter circles). Nothing straddles the band edge. */
+.hud-phone {
+  --band-pad: 11px;
+  --band-line: 2.5px;
+  --tab-r: 10px;
+  --tab-inset: 16px;
+}
 
-  .hud-phone .bell {
-    width: 44px;
-    height: 44px;
-    flex: none;
-  }
+.hud-phone .hud-row {
+  position: relative;
+}
 
+.hud-phone .hud-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: calc(-1 * max(12px, env(safe-area-inset-top) + 8px));
+  left: calc(-1 * var(--hud-gutter));
+  right: calc(-1 * var(--hud-gutter));
+  bottom: calc(-1 * var(--band-pad));
+  background: var(--page);
+  border-bottom: var(--band-line) solid var(--c-ink);
+  pointer-events: none;
+}
+
+.hud-phone .bell {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+/* The tab starts on the band's outline (the .hud gap is 8 px): its paper covers the outline's top edge, so the line steps down around it. */
+.vtab-row {
+  display: flex;
+  min-width: 0;
+  max-width: calc(100% - var(--tab-inset) + var(--hud-gutter) - 6px);
+  margin: calc(var(--band-pad) - 8px - var(--band-line)) 0 0 var(--tab-inset);
+  align-self: flex-start;
+}
+
+.vtab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 3px 3px 13px;
+  border: var(--band-line) solid var(--c-ink);
+  border-top: 0;
+  border-radius: 0 0 18px 18px;
+  background: var(--page);
+  color: var(--on-surface);
+  pointer-events: auto;
+}
+
+.vtab::before,
+.vtab::after {
+  content: '';
+  position: absolute;
+  top: var(--band-line);
+  width: var(--tab-r);
+  height: var(--tab-r);
+  pointer-events: none;
+}
+
+.vtab::before {
+  right: calc(100% + var(--band-line));
+  background: radial-gradient(circle at 0 100%, transparent calc(var(--tab-r) - 0.5px), var(--c-ink) var(--tab-r), var(--c-ink) calc(var(--tab-r) + var(--band-line) - 0.5px), var(--page) calc(var(--tab-r) + var(--band-line)));
+}
+
+.vtab::after {
+  left: calc(100% + var(--band-line));
+  background: radial-gradient(circle at 100% 100%, transparent calc(var(--tab-r) - 0.5px), var(--c-ink) var(--tab-r), var(--c-ink) calc(var(--tab-r) + var(--band-line) - 0.5px), var(--page) calc(var(--tab-r) + var(--band-line)));
+}
+
+/* The name: body font, bold, never wraps (ellipsis); with several villages it is the switcher button with a chevron. */
+.vtab-switch {
+  position: static;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.vtab-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--heading);
+  font: 800 16px/1.25 var(--font);
+  letter-spacing: -0.1px;
+  text-align: left;
+}
+
+button.vtab-name {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button.vtab-name:focus-visible {
+  outline: 3px solid var(--focus, var(--c-ink));
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.vtab-name.is-static {
+  display: block;
+  line-height: 40px;
+}
+
+.vtab-name.is-static,
+.vtab-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vtab-name.is-cold {
+  color: var(--on-surface-muted);
+}
+
+.vtab-chev {
+  flex: none;
+}
+
+/* Filled tags (never outlined): coordinates on soft paper, protection on light teal with the shield. */
+.vtag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font: 700 12.5px/1 var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vtag-xy {
+  background: var(--edge-soft);
+  color: var(--on-surface);
+}
+
+.vtag-prot {
+  padding-left: 5px;
+  background: var(--c-teal-hi);
+  color: var(--on-fill);
+}
+
+/* The pencil: a round ring with a 40 px touch area. */
+.vtab .vb-pencil {
+  width: 40px;
+  height: 40px;
+  margin-left: 0;
+  border-width: 2px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.vtab .vb-pencil:active {
+  transform: translateY(1px);
+}
+
+/* The lists (villages, rename) hang under the tab, aligned to the screen gutter. */
+.vtab .vsw-pop {
+  top: calc(100% + 10px);
+  right: auto;
+  left: calc(-1 * (var(--tab-inset) + var(--band-line)));
+  width: min(460px, calc(100vw - 2 * var(--hud-gutter)));
+  border: 3px solid var(--c-ink);
+  border-radius: 24px;
+  box-shadow: 0 5px 0 var(--c-ink), 0 14px 28px rgba(43, 33, 28, 0.25);
+}
+
+.hud .vtab {
+  pointer-events: auto;
 }

@@ -19,6 +19,7 @@ import { ResourcePills } from './ResourcePills.tsx';
 import { TAB_ICON, TAB_LABEL, Who, usePopulation, useGuardOrders } from './Shell.tsx';
 import type { AccountActions } from './Shell.tsx';
 import { VillageBar } from './VillageSwitcher.tsx';
+import '../villages.css';
 import { useTribeFixed } from '../views/tribe/tribe-fixed.ts';
 import '../frame.css';
 

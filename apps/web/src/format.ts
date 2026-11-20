@@ -102,6 +102,9 @@ export function formatAgo(ts: number, now: number): string {
 
 export const formatCoords = (x: number, y: number): string => `${x}|${y}`;
 
+/** The coordinate tag of the phone village tab: "−9 | 24" (true minus sign, spaces around the bar). */
+export const formatCoordsTag = (x: number, y: number): string => `${x < 0 ? '−' : ''}${Math.abs(x)} | ${y < 0 ? '−' : ''}${Math.abs(y)}`;
+
 /** "+3.2%" / "−1.0%" from a fraction. */
 export function formatSignedPercent(fraction: number): string {
   const p = Math.round(fraction * 1000) / 10;
