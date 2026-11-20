@@ -28,7 +28,7 @@ const page = (name, body, fixed = false) => `<!doctype html><html lang="en"><hea
 const files = {};
 
 /* ================= A · Game launcher ================= */
-const aLogo = `<span class="a-logo">${FLAME(32)}Clanfire</span>`;
+const aLogo = `<span class="a-logo">${FLAME(32)}Clanflame</span>`;
 files['a-home'] = page('A home', `
 <div class="a-hero" style="height:560px"></div>
 <div class="a-top">${aLogo}</div>
@@ -52,7 +52,7 @@ files['a-signin'] = page('A signin', `
 <div class="a-hero" style="height:250px"></div>
 <div class="a-top"><a class="btn btn-icon" style="background:var(--surface);border-radius:50%;width:48px;height:48px">${BACK}</a>${aLogo}</div>
 <div class="a-sheet" style="top:214px;padding-top:24px"><div class="a-grab"></div>
-  <h1 class="a-h1" style="text-align:left;font-size:26px;margin-bottom:14px">Join Clanfire</h1>
+  <h1 class="a-h1" style="text-align:left;font-size:26px;margin-bottom:14px">Join Clanflame</h1>
   ${aFields()}
 </div>`, true);
 
@@ -84,7 +84,7 @@ files['a-allworlds'] = page('A all worlds', `
 <p class="meta" style="text-align:center;margin-top:16px">Worlds you play are on the first page.</p></div>`);
 
 /* ================= B · Clean list ================= */
-const bBar = (right) => `<div class="bar"><span class="logo">${FLAME(30)}Clanfire</span>${right}</div>`;
+const bBar = (right) => `<div class="bar"><span class="logo">${FLAME(30)}Clanflame</span>${right}</div>`;
 const bRow = (w, k, t, meta) => `<div class="row">${AV(w).replace('class="wav"', 'class="wav" style="width:40px;height:40px;border-radius:12px;border-width:2px"')}<div class="mid"><div class="l1"><span class="nm">${w}</span>${tag(k, t)}</div><div class="meta">${meta}</div></div>${CHEV}</div>`;
 const bOpenRow = (w) => bRow(w[0], 'open', 'Open', `Started ${ago(w[1])} &middot; ${w[2]} players`);
 files['b-home'] = page('B home', `
@@ -100,7 +100,7 @@ ${bBar('<a class="btn" style="min-height:44px">Sign in</a>')}
 </div>`, true);
 
 files['b-signin'] = page('B signin', `
-<div class="bar"><a class="btn btn-icon" style="background:var(--surface)">${BACK}</a><span class="logo" style="font-size:24px;flex:1">Join Clanfire</span></div>
+<div class="bar"><a class="btn btn-icon" style="background:var(--surface)">${BACK}</a><span class="logo" style="font-size:24px;flex:1">Join Clanflame</span></div>
 <div class="b-pad" style="padding-top:20px">
   <div class="tabs"><div class="tab">Sign in</div><div class="tab on">Create account</div></div>
   <div class="label grp-label">Account</div>
@@ -136,7 +136,7 @@ files['b-allworlds'] = page('B all worlds', `
 const cSm = (w) => `<div class="c-card c-sm">${BAN(w[0])}<div class="bd"><h3>${w[0]}</h3><div>${tag('open', 'Open')}</div><div class="meta">Started ${ago(w[1])}</div><a class="btn btn-primary">Join</a></div></div>`;
 const cMore = `<div class="c-card c-more"><b>14</b><span>All worlds</span>${CHEV.replace('class="chev"', '')}</div>`;
 files['c-home'] = page('C home', `
-<div class="c-head" style="padding-bottom:0"><div style="display:flex;align-items:center;justify-content:space-between"><span class="logo" style="font-size:28px">${FLAME(34)}Clanfire</span><a class="btn" style="min-height:44px">Sign in</a></div></div>
+<div class="c-head" style="padding-bottom:0"><div style="display:flex;align-items:center;justify-content:space-between"><span class="logo" style="font-size:28px">${FLAME(34)}Clanflame</span><a class="btn" style="min-height:44px">Sign in</a></div></div>
 <div style="padding:14px 14px 0"><div class="c-card c-big"><div class="ban" style="height:190px"></div>
   <div class="bd" style="padding:14px"><h1 style="font:400 26px/1.12 var(--font-display)">Build a village.<br><span style="color:var(--accent)">Raid the world.</span></h1>
   <p class="muted" style="margin:6px 0 14px">Free strategy in your browser.</p>
@@ -149,7 +149,7 @@ files['c-signin'] = page('C signin', `
 <div style="height:210px;position:relative;background:${COLORS[1]};border-bottom:3px solid var(--c-ink);overflow:hidden">
   <svg width="100%" height="100%" viewBox="0 0 390 210" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0"><circle cx="320" cy="50" r="26" fill="#FFDC7A"/><ellipse cx="90" cy="250" rx="240" ry="100" fill="#fff" fill-opacity=".2"/><ellipse cx="330" cy="250" rx="220" ry="90" fill="#2B211C" fill-opacity=".2"/></svg>
   <a class="btn btn-icon" style="position:absolute;left:14px;top:14px;background:var(--surface);border-radius:50%;width:48px;height:48px">${BACK}</a>
-  <div style="position:absolute;left:0;right:0;top:56px;text-align:center"><div style="display:inline-block;filter:drop-shadow(0 3px 0 #2B211C)">${FLAME(64)}</div><div style="font:400 38px/1.1 var(--font-display);color:var(--c-cream);text-shadow:0 3px 0 var(--c-ink);margin-top:4px">Clanfire</div></div>
+  <div style="position:absolute;left:0;right:0;top:56px;text-align:center"><div style="display:inline-block;filter:drop-shadow(0 3px 0 #2B211C)">${FLAME(64)}</div><div style="font:400 38px/1.1 var(--font-display);color:var(--c-cream);text-shadow:0 3px 0 var(--c-ink);margin-top:4px">Clanflame</div></div>
 </div>
 <div style="padding:0 14px;margin-top:-34px;position:relative"><div class="c-card" style="padding:16px 16px 18px">
   <div class="tabs"><div class="tab">Sign in</div><div class="tab on">Create account</div></div>
@@ -160,7 +160,7 @@ files['c-signin'] = page('C signin', `
   <a class="btn btn-primary btn-lg btn-block" style="margin-top:20px">Next</a></div></div>`, true);
 
 files['c-worlds'] = page('C worlds', `
-<div class="bar"><span class="logo">${FLAME(30)}Clanfire</span><div class="avatar">R</div></div>
+<div class="bar"><span class="logo">${FLAME(30)}Clanflame</span><div class="avatar">R</div></div>
 <div style="padding:0 14px 24px">
   <h2 class="c-sec" style="margin-top:20px">Your worlds</h2>
   <div class="c-card c-big"><div class="ban">${tag('run', 'Running')}</div>

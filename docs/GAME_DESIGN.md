@@ -1,4 +1,4 @@
-# Clanfire — game design (v0.1)
+# Clanflame — game design (v0.1)
 
 Original browser strategy game. Players each own a village on a shared square world map,
 grow it with four resources, train troops, raid abandoned villages and (later) fight other
@@ -825,7 +825,7 @@ tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored on
 tests) → server (table, research queue, security gate per SECURITY_ROADMAP §4) → web (Armory panel with a points
 bar, tiered scout report) → preview + CHANGELOG.
 
-## 18. PROPOSAL (needs owner approval): what makes Clanfire different
+## 18. PROPOSAL (needs owner approval): what makes Clanflame different
 
 Written 2026-11-04. **Nothing here is built and nothing here is a rule yet.** Each part says how it would work,
 why it is fair, first numbers for `config.ts`, what it needs, a size, and what the owner has to decide. When a
@@ -841,7 +841,7 @@ Sizes: **S** = a day or less, **M** = a few days, **L** = about a week or more (
 
 ### 18.0 The big picture
 
-Clanfire's promise in one sentence: **a world is a story with an ending (one tribe takes the land), and the land, the clock and the
+Clanflame's promise in one sentence: **a world is a story with an ending (one tribe takes the land), and the land, the clock and the
 tribe all matter.** (Revised 2026-11-05: no short seasons for normal worlds.)
 
 | Pillar | What the player feels | Part |

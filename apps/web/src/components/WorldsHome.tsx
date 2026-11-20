@@ -83,7 +83,7 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds }: { account: Lob
       <header className="home-bar">
         <span className="home-brand">
           <Flame size={30} loading={!villageReady} />
-          Clanfire
+          Clanflame
         </span>
         <span className="home-who">
           <strong className="home-who-name">{account.username}</strong>

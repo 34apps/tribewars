@@ -25,7 +25,7 @@ export function WorldGate({ onAuthed }: { onAuthed: () => void }) {
       cancelled = true;
     };
   }, [toLobby, onAuthed]);
-  if (info === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
+  if (info === 'loading') return <LoadingSplash text="Loading Clanflame…" />;
   if (toLobby) {
     return (
       <LoadingSplash text="Taking you to the lobby…">

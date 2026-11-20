@@ -34,7 +34,7 @@ export default function HomeVillage() {
     };
   }, []);
   return (
-    <div className={`home-village-stage${ready ? ' is-ready' : ''}`} role="img" aria-label="A fully built Clanfire village" data-ready={ready ? 'true' : 'false'} style={{ '--vb-ratio': VB.w / VB.h } as React.CSSProperties}>
+    <div className={`home-village-stage${ready ? ' is-ready' : ''}`} role="img" aria-label="A fully built Clanflame village" data-ready={ready ? 'true' : 'false'} style={{ '--vb-ratio': VB.w / VB.h } as React.CSSProperties}>
       <SceneArt arts={MAX_ARTS} vb={VB} tier={3} wide landscape="tiles" selected={null} hearthOut={false} onBox={noBox} onPick={noBox} memoryKey="home" />
     </div>
   );

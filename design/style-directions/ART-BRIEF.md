@@ -1,6 +1,6 @@
-# Clanfire — style exploration brief (shared by all four art directions)
+# Clanflame — style exploration brief (shared by all four art directions)
 
-Clanfire is an original browser + mobile-browser strategy game: each player has a village on a
+Clanflame is an original browser + mobile-browser strategy game: each player has a village on a
 shared world map, gathers wood, food, iron and gold, upgrades buildings, trains troops, raids
 abandoned villages and fights alongside a tribe (alliances, pacts, enemies). The owner rejected the
 current look as "AI slop" and asked to see several genuinely different directions, then choose.
@@ -8,7 +8,7 @@ Each direction is drawn as THREE artboards on a design canvas. Make each directi
 shippable game with a strong point of view — not a template.
 
 ## Hard rules (the owner will reject the work if these slip)
-- **No emoji anywhere.** Every icon and picture is hand-drawn inline SVG made for Clanfire.
+- **No emoji anywhere.** Every icon and picture is hand-drawn inline SVG made for Clanflame.
 - No generic "AI app" tropes: no gradient washes or glows-on-everything, no glassmorphism, no white
   rounded cards on cream/parchment, no left-border accent cards, no purple/blue tech gradients, no
   drop-shadow soup, no stock "fantasy" fonts (Cinzel, MedievalSharp, Uncial Antiqua, Pirata One,

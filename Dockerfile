@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Clanfire game server image (linux/arm64 on t4g, also builds on amd64). The web client is NOT in this image (it goes to S3).
+# Clanflame game server image (linux/arm64 on t4g, also builds on amd64). The web client is NOT in this image (it goes to S3).
 ARG NODE_VERSION=26
 
 FROM node:${NODE_VERSION}-slim AS build
@@ -21,7 +21,7 @@ RUN npm run build -w @clanfire/server
 
 FROM node:${NODE_VERSION}-slim
 LABEL org.opencontainers.image.title="clanfire-game" \
-      org.opencontainers.image.description="Clanfire game server (one container per world)" \
+      org.opencontainers.image.description="Clanflame game server (one container per world)" \
       org.opencontainers.image.source="https://github.com/34apps/tribewars"
 WORKDIR /app
 ENV NODE_ENV=production \

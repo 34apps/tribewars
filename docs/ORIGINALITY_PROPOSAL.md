@@ -6,7 +6,7 @@ Rules kept: attack and support only, no new trip types, no new battle formula, n
 Travian (names, numbers, formulas, art, text, screen layouts). TW numbers below are from memory of its public help
 pages, only to show where we are too close; re-check before building, never reuse them.
 
-## 1. Where Clanfire still mirrors Tribal Wars (honest list)
+## 1. Where Clanflame still mirrors Tribal Wars (honest list)
 
 **Troops: same 9-slot shape** (2 defenders, 1 foot attacker, scout, light rider, heavy rider, ram, catapult, conqueror).
 Worse, some stat lines are **identical**:

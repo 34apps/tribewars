@@ -1,4 +1,4 @@
-// Drawn icons for Clanfire (style D · Toy Diorama). Most shapes come straight from the approved artboards in
+// Drawn icons for Clanflame (style D · Toy Diorama). Most shapes come straight from the approved artboards in
 // design/style-directions/artboards (VillageViewDesktop / VillageViewPhone / ToyMap); the small status and unit
 // glyphs at the end are drawn here in the same style (ink outline, 3-tone block shading lit from the top left).
 // To restyle an icon, replace its `draw` body; names are stable.

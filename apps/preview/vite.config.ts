@@ -86,7 +86,7 @@ function artifactFragment(): Plugin {
       // Google Fonts <link>s (the only external requests allowed) come along from the page head.
       const fontLinks = (page.match(/<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>/g) ?? []).join('\n');
       const fragment = [
-        '<title>Clanfire</title>',
+        '<title>Clanflame</title>',
         fontLinks,
         ...styles,
         '<div id="root"></div>',

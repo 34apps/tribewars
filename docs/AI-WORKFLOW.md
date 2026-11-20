@@ -1,4 +1,4 @@
-# AI workflow — how sessions work on Clanfire
+# AI workflow — how sessions work on Clanflame
 
 Standing rules for every AI session (Claude Code locally or in Claude cloud, or any other
 assistant). `AGENTS.md` links here. They come from the owner, so don't ask them to repeat them.

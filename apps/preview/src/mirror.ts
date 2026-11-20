@@ -18,6 +18,6 @@ export function createProblemReporter(log: (msg: string) => void): (reason: stri
   return (reason) => {
     if (seen.has(reason)) return;
     seen.add(reason);
-    log(`Clanfire world mirror: ${reason}. The owner's copy on disk is not updating (rebuild with npm run build:preview:local?).`);
+    log(`Clanflame world mirror: ${reason}. The owner's copy on disk is not updating (rebuild with npm run build:preview:local?).`);
   };
 }

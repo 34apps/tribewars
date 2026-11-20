@@ -7,7 +7,7 @@ Owner's direction (2026-11-02). Read before any visual work.
   layouts, icons or text. Reference screenshots the owner shares describe *structure*, not look;
   don't store them in this repo.
 - **No generic "AI" look**: no emoji icons, no gradient washes, no stock fantasy fonts. Every icon and picture is
-  drawn for Clanfire. The app UI is **Parchment** (owner, 2026-11-08, replacing the dark brown look): see "UI colours" below.
+  drawn for Clanflame. The app UI is **Parchment** (owner, 2026-11-08, replacing the dark brown look): see "UI colours" below.
 - **No one-sided accent stripes** (owner, 2026-11-07: "AI slop"): no thick left/right border bar on rows,
   cards or list items. Mark a state with a thin even border, a filled tag or a background instead.
 - **Web app first**: desktop browsers and phone browsers from one responsive app; native mobile app later.

@@ -32,7 +32,7 @@ export default function WorldApp() {
   const signedIn = useCallback(() => setSession('in'), []);
 
   if (bootError) return <ErrorSplash message={bootError} onRetry={() => setAttempt((n) => n + 1)} />;
-  if (session === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
+  if (session === 'loading') return <LoadingSplash text="Loading Clanflame…" />;
   if (session === 'out') return <WorldGate onAuthed={signedIn} />;
   return <Game onSignedOut={signedOut} />;
 }

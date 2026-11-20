@@ -1,4 +1,4 @@
-# Troops and battles: Clanfire against the genre, and our own better numbers
+# Troops and battles: Clanflame against the genre, and our own better numbers
 
 Written 2026-11-17 on branch `claude/brave-boyd-1f323b` (local, not merged, not pushed). Owner's ask: "compare the game to Tribal Wars,
 resources, units etc. but we shouldn't be the same, we might do better ... troops ... time". This session covers troops, recruit time,

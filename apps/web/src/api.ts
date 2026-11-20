@@ -1,4 +1,4 @@
-// Typed fetch wrapper for the Clanfire HTTP API (contract: packages/engine/src/api.ts).
+// Typed fetch wrapper for the Clanflame HTTP API (contract: packages/engine/src/api.ts).
 
 import { DEVICE_HEADER, deviceId } from './device.ts';
 
