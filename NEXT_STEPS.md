@@ -138,3 +138,4 @@ Current open work and decisions only (history goes in `CHANGELOG.md`). Newest pr
 
 - **Abandoned-village personalities follow-ups (2026-11-18, `npc-growth`).** (1) Strength / "stronghold" hint dropped (owner 2026-11-20). (2) Re-run the sims after the Chieftain/Drillyard merge. (3) Unseeded (fixed layout) villages still use the fixed order; say if they should get personalities too.
 - **Support box (2026-11-20, `d74720d`):** phone view (ArmyView) keeps its own Support card (now also with the single "Bring home ▾" menu, `f83dd4d`); owner to look at both at 360 px.
+- **Payments (2026-11-20, `docs/PAYMENTS_PLAN.md`, proposal):** owner picks provider (Xsolla/Paddle), currency name, packs and prices; then update GAME_DESIGN 18.6 (premium queue now sold) and build lobby ledger + webhook. Lawyer checks terms/refund/privacy before the first sale.
