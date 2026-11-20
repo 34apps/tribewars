@@ -18,9 +18,8 @@ import { unitListText } from '../rules.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
 import { ReportNoteChips } from '../components/Notes.tsx';
 import { reportCoords } from '../notes.ts';
-import { RaidAgainButton, RaidAgainNote } from '../components/RaidAgain.tsx';
-import { useRaidAgain } from '../hooks/useRaidAgain.ts';
-import type { RaidAgainCtl } from '../hooks/useRaidAgain.ts';
+import { RaidAgainButton } from '../components/RaidAgain.tsx';
+import '../raid.css';
 import { UnitFigure } from '../art/UnitFigure.tsx';
 import { DAY_GROUP_LABEL, formatShortAgo, groupByDay, reportFigures, reportHeadline, reportResultLine } from '../reports.ts';
 import { moraleLabel, villageReportText } from '../villages.ts';
@@ -596,7 +595,7 @@ function ReportBody({ report }: { report: ReportDto }) {
   return <p className="muted">No details.</p>;
 }
 
-function ReportDetail({ report, onBack, again }: { report: ReportDto; onBack: () => void; again: RaidAgainCtl }) {
+function ReportDetail({ report, onBack }: { report: ReportDto; onBack: () => void }) {
   const { now, openSimulator } = useGame();
   const draft = draftFromReport(report);
   const head = reportHeadline(report);
@@ -620,7 +619,7 @@ function ReportDetail({ report, onBack, again }: { report: ReportDto; onBack: ()
       </header>
       {(draft || redo) && (
         <p className="rp-acts">
-          {redo && <RaidAgainButton reportId={report.id} again={redo} ctl={again} variant="phone" />}
+          {redo && <RaidAgainButton again={redo} variant="phone" />}
           {draft && (
             <button type="button" className="btn btn-small" onClick={() => openSimulator(draft)}>
               Simulate
@@ -628,7 +627,6 @@ function ReportDetail({ report, onBack, again }: { report: ReportDto; onBack: ()
           )}
         </p>
       )}
-      <RaidAgainNote reportId={report.id} ctl={again} variant="phone" />
       <ReportBody report={report} />
     </article>
   );
@@ -644,7 +642,6 @@ function Chevron() {
 
 export function ReportsView() {
   const { unreadReports, now } = useGame();
-  const again = useRaidAgain();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -757,10 +754,9 @@ export function ReportsView() {
                       </button>
                       {redo && (
                         <div className="rp-again">
-                          <RaidAgainButton reportId={r.id} again={redo} ctl={again} variant="phone" />
+                          <RaidAgainButton again={redo} variant="phone" />
                         </div>
                       )}
-                      <RaidAgainNote reportId={r.id} ctl={again} variant="phone" />
                     </li>
                   );
                 })}
@@ -770,7 +766,7 @@ export function ReportsView() {
         </section>
 
         <div className="rp-pane">
-          {report && <ReportDetail report={report} onBack={() => setSelected(null)} again={again} />}
+          {report && <ReportDetail report={report} onBack={() => setSelected(null)} />}
           {!report && showDetail && (
             <div className="rp-detail">
               <button className="btn btn-small back" onClick={() => setSelected(null)}>

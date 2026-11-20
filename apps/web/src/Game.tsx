@@ -11,7 +11,7 @@ import { Toasts } from './components/Toasts.tsx';
 import type { ToastItem } from './components/Toasts.tsx';
 import { toastTtl } from './components/toastKind.ts';
 import { GameContext, MENU_PAGES, RAID_TAB, TABS } from './game.ts';
-import type { GameApi, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
+import type { GameApi, LastTime, MailDraft, SimDraft, MapFocus, Tab, ToastOptions, TribeTarget } from './game.ts';
 import { useGameState } from './hooks/useGameState.ts';
 import { useIsDesktop } from './hooks/useLayout.ts';
 import { LiveProvider } from './hooks/useLive.tsx';
@@ -192,11 +192,18 @@ function GameScreen({ onSignedOut }: { onSignedOut: () => void }) {
   const dismissToast = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
   const showOnMap = useCallback(
-    (x: number, y: number, options?: { mission?: Mission; ship?: boolean }) => {
-      setMapFocus({ x, y, nonce: Date.now(), mission: options?.mission, ship: options?.ship });
+    (x: number, y: number, options?: { mission?: Mission; ship?: boolean; lastTime?: LastTime }) => {
+      let lastTime = options?.lastTime;
+      if (lastTime) {
+        // Raid again: send from the village the earlier march left from, when it is still mine.
+        const mine = data?.villages.some((v) => v.id === lastTime!.fromVillageId) ?? false;
+        if (mine) selectVillage(lastTime.fromVillageId);
+        else lastTime = { ...lastTime, villageGone: true };
+      }
+      setMapFocus({ x, y, nonce: Date.now(), mission: options?.mission, ship: options?.ship, lastTime });
       navigate('map');
     },
-    [navigate],
+    [navigate, data, selectVillage],
   );
 
   const viewMovement = useCallback(

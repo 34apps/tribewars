@@ -13,14 +13,13 @@ import { BuildingArt } from '../../art/BuildingArt.tsx';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
-import { RaidAgainButton, RaidAgainNote } from '../../components/RaidAgain.tsx';
+import { RaidAgainButton } from '../../components/RaidAgain.tsx';
+import '../../raid.css';
 import { UnitInfoButton } from '../../components/UnitInfo.tsx';
 import { ReportNoteChips } from '../../components/Notes.tsx';
 import { reportCoords } from '../../notes.ts';
 import { formatCoords, formatInt, formatSignedPercent } from '../../format.ts';
 import { useGame } from '../../game.ts';
-import { useRaidAgain } from '../../hooks/useRaidAgain.ts';
-import type { RaidAgainCtl } from '../../hooks/useRaidAgain.ts';
 import { useReportRead } from '../../hooks/useReportRead.ts';
 import { useLiveTopic } from '../../hooks/useLive.tsx';
 import { MISSION_ICON, RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
@@ -700,7 +699,7 @@ function ContextLine({ report }: { report: ReportDto }) {
   );
 }
 
-function Detail({ report, position, again }: { report: ReportDto; position: string; again: RaidAgainCtl }) {
+function Detail({ report, position }: { report: ReportDto; position: string }) {
   const { openSimulator } = useGame();
   const draft = draftFromReport(report);
   const out = rowOutcome(report);
@@ -729,7 +728,7 @@ function Detail({ report, position, again }: { report: ReportDto; position: stri
             </div>
           </div>
           <span className="fv-sp" />
-          {redo && <RaidAgainButton reportId={report.id} again={redo} ctl={again} variant="frame" />}
+          {redo && <RaidAgainButton again={redo} variant="frame" />}
           <button type="button" className="fv-btn sm frp-share" disabled title="Sharing a report comes later">
             Share
             <span className="frp-soon">soon</span>
@@ -741,7 +740,6 @@ function Detail({ report, position, again }: { report: ReportDto; position: stri
             </button>
           )}
         </div>
-        <RaidAgainNote reportId={report.id} ctl={again} variant="frame" />
         <Body report={report} />
       </div>
     </section>
@@ -788,9 +786,7 @@ function ListPanel({
   now,
   error,
   retry,
-  again,
 }: {
-  again: RaidAgainCtl;
   list: ReportSummaryDto[] | null;
   filter: ReportFilter;
   setFilter: (f: ReportFilter) => void;
@@ -853,7 +849,7 @@ function ListPanel({
                     <Tag tone={out.tone}>{out.label}</Tag>
                     <span className="frp-rtm">{rowTime(r.createdAt, now)}</span>
                   </button>
-                  {redo && <RaidAgainButton reportId={r.id} again={redo} ctl={again} variant="frame" onPressed={() => onSelect(r.id)} />}
+                  {redo && <RaidAgainButton again={redo} variant="frame" />}
                 </div>
               );
             })}
@@ -878,7 +874,6 @@ function ListPanel({
 
 export function FrameReports() {
   const { unreadReports, now } = useGame();
-  const again = useRaidAgain();
   const [list, setList] = useState<ReportSummaryDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReportFilter>('all');
@@ -965,10 +960,9 @@ export function FrameReports() {
         now={now}
         error={listError}
         retry={() => void loadList()}
-        again={again}
       />
       {shown ? (
-        <Detail report={shown} position={position} again={again} />
+        <Detail report={shown} position={position} />
       ) : (
         <section className="fv-pn frp-detail" aria-label="Report">
           <div className="fv-ph">

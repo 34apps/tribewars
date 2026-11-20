@@ -8,6 +8,7 @@ import type {
   FirstStepsDto,
   Mission,
   MovementDto,
+  Units,
   OwnVillageDto,
   PlayerDto,
   RenownInfo,
@@ -55,6 +56,15 @@ export interface TribeTarget {
   id: number;
 }
 
+/** The earlier march of a report, offered as one tap in the send form ("Same as last time"). Nothing is sent by itself. */
+export interface LastTime {
+  units: Partial<Units>;
+  /** The village the troops left from; the send form switches to it when it is still one of mine. */
+  fromVillageId: number;
+  /** Set by showOnMap when that village is not mine any more (the send form says so instead of filling). */
+  villageGone?: boolean;
+}
+
 export interface MapFocus {
   x: number;
   y: number;
@@ -64,6 +74,8 @@ export interface MapFocus {
   mission?: Mission;
   /** Open the send-resources form on that village (the Tribe Store button). */
   ship?: boolean;
+  /** "Raid again" on a report: the send form opens empty and offers "Same as last time" with these troops. */
+  lastTime?: LastTime;
 }
 
 export interface ToastOptions {
@@ -133,7 +145,7 @@ export interface GameApi {
   /** Desktop: the building whose own page is open (route `#village/b/<id>`, the Village tab stays active); null on the Village page. */
   building: BuildingId | null;
   openBuilding: (id: BuildingId | null) => void;
-  showOnMap: (x: number, y: number, options?: { mission?: Mission; ship?: boolean }) => void;
+  showOnMap: (x: number, y: number, options?: { mission?: Mission; ship?: boolean; lastTime?: LastTime }) => void;
   mapFocus: MapFocus | null;
   highlightMovementId: number | null;
   viewMovement: (id: number) => void;
