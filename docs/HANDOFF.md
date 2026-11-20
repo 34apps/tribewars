@@ -50,7 +50,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
 
-## Analytics (owner decided 2026-11-20; merged `d09d8b8`, in the preview, NOT pushed: waits for his OK)
+## Analytics (owner decided 2026-11-20; merged `d09d8b8`, pushed after his OK; production switch still off)
 
 - Built: the shared sender `packages/analytics`; world schema v40, lobby v10.
 - The opt-out reaches worlds as entry-pass claim `ana`. New routes: `POST /api/stats/page` and `POST /lobby/api/account/share-stats`.
@@ -79,7 +79,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## NEXT JOB
 
-Analytics merged (waits for his push OK). Then: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
+Analytics pushed. Now: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
