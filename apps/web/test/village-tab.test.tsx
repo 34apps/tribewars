@@ -43,7 +43,7 @@ test('the tab shows the village name and the filled coordinate tag with a true m
 test('while protected the tab carries a teal tag with the time left and an explaining label', () => {
   const html = render({ protectedMs: 2 * DAY + 23 * 3_600_000 });
   assert.match(html, /class="vtag vtag-prot"/);
-  assert.match(html, />2d 23h</);
+  assert.match(html, />2d</);
   assert.match(html, /title="Protected from attacks for 2d 23h"/);
   assert.match(html, /aria-label="Protected from attacks, 2d 23h left"/);
 });

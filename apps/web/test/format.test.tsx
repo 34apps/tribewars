@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatClock, formatClockParts, formatCompact, formatCompactShort, formatCoords, formatCoordsTag } from '../src/format.ts';
+import { formatClock, formatClockParts, formatCompact, formatCompactShort, formatCoords, formatCoordsTag, formatLeftShort } from '../src/format.ts';
 
 test('formatCompact keeps small numbers exact and shortens big ones, always rounding down', () => {
   const cases: [number, string][] = [
@@ -50,4 +50,13 @@ test('formatCoordsTag: spaces around the bar, true minus sign; formatCoords keep
   assert.equal(formatCoordsTag(0, -15), '0 | \u221215');
   assert.equal(formatCoordsTag(-120, -3), '\u2212120 | \u22123');
   assert.equal(formatCoords(-9, 24), '-9|24');
+});
+
+test('formatLeftShort: the largest whole unit only', () => {
+  assert.equal(formatLeftShort((2 * 86400 + 23 * 3600) * 1000), '2d');
+  assert.equal(formatLeftShort(86400 * 1000), '1d');
+  assert.equal(formatLeftShort((23 * 3600 + 59 * 60) * 1000), '23h');
+  assert.equal(formatLeftShort(45 * 60 * 1000), '45m');
+  assert.equal(formatLeftShort(30_500), '31s');
+  assert.equal(formatLeftShort(-5), '0s');
 });

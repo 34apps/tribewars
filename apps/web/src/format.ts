@@ -70,6 +70,15 @@ export function formatLeft(ms: number): string {
   return `${total}s`;
 }
 
+/** One unit only, for tight tags: "2d", "23h", "45m", "30s" (the largest whole unit; the full time goes in the tooltip). */
+export function formatLeftShort(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  if (total >= 86400) return `${Math.floor(total / 86400)}d`;
+  if (total >= 3600) return `${Math.floor(total / 3600)}h`;
+  if (total >= 60) return `${Math.floor(total / 60)}m`;
+  return `${total}s`;
+}
+
 function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }

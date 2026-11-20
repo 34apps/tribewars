@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RESOURCE_IDS, villagePoints } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
-import { formatCompact, formatCoords, formatCoordsTag, formatInt, formatLeft } from '../format.ts';
+import { formatCompact, formatCoords, formatCoordsTag, formatInt, formatLeft, formatLeftShort } from '../format.ts';
 import { useGame } from '../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../icons.ts';
 import { orderVillages, villageBadges, villageLabel } from '../villages.ts';
@@ -34,7 +34,7 @@ export function VillageTab() {
             aria-label={`Protected from attacks, ${formatLeft(protectedLeft)} left`}
           >
             <Icon name="shield" size={15} />
-            <span aria-hidden="true">{formatLeft(protectedLeft)}</span>
+            <span aria-hidden="true">{formatLeftShort(protectedLeft)}</span>
           </span>
         )}
         <RenameButton />
