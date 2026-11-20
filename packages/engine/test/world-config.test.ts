@@ -42,9 +42,7 @@ import {
   checkWorldConfigInput,
   checkWorldConfigValue,
   chestVillageCost,
-  chieftainDepositChest,
-  chieftainDepositRenown,
-  strikeRemainder,
+  chieftainPrice,
   createFoundedVillage,
   createNpcVillage,
   createPlayerVillage,
@@ -289,7 +287,7 @@ describe('two configs behave differently', () => {
     assert.equal(chestVillageCost(1, a), 500);
     assert.equal(chestVillageCost(2, a), Math.round(500 * RENOWN_VILLAGE_GROWTH));
     assert.equal(chestVillageCost(1, S1), WAR_CHEST_BASE);
-    assert.equal(chieftainDepositChest(1, a), 125, 'the deposit follows the world\'s chest price');
+    assert.equal(chieftainPrice(1, 0, a).gold, 500, 'a Chieftain follows the world\'s chest price');
     const old = structuredClone(DEFAULT_WORLD_CONFIG) as unknown as { conquest: Record<string, unknown> };
     delete old.conquest.chestBase;
     assert.equal(resolveWorldConfig(old).conquest.chestBase, WAR_CHEST_BASE);
@@ -304,8 +302,7 @@ describe('two configs behave differently', () => {
     assert.equal(villageRenownCost(2, S1), villageRenownCost(2));
     assert.equal(villageRenownCost(2), Math.round(RENOWN_VILLAGE_BASE * RENOWN_VILLAGE_GROWTH));
     assert.equal(villageRenownCost(3, cfg('conquest.renownGrowth', 1)), RENOWN_VILLAGE_BASE);
-    assert.ok(chieftainDepositRenown(2, b) > chieftainDepositRenown(2, a));
-    assert.ok(strikeRemainder(2, b).renown > strikeRemainder(2, a).renown);
+    assert.ok(chieftainPrice(2, 1, b).renown > chieftainPrice(2, 1, a).renown);
     assert.equal(makeRenownInfo(0, 0, 2, a).nextVillageCost, villageRenownCost(2, a));
   });
 

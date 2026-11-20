@@ -731,6 +731,7 @@
 
 .wm-send-hint {
   font-size: 0.78rem;
+  margin-bottom: 10px;
 }
 
 /* Units at home: two columns of cards (icon, name, "N at home" link, count field). */

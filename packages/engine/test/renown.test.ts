@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 import {
   BUILDINGS,
   BUILDING_IDS,
-  CHIEFTAIN_RENOWN_REFUND_SHARE,
   FEAST_COST,
   FEAST_LEVEL_DISCOUNT,
   FEAST_MAX_COUNT,
@@ -26,7 +25,6 @@ import {
   buildingRenown,
   checkBuild,
   checkFeast,
-  chieftainRefund,
   collectBuildRenown,
   createNpcVillage,
   createPlayerVillage,
@@ -102,12 +100,6 @@ describe('cost of a new village', () => {
   it('treats nonsense counts as one village', () => {
     assert.equal(villageRenownCost(0), RENOWN_VILLAGE_BASE);
     assert.equal(villageRenownCost(Number.NaN), RENOWN_VILLAGE_BASE);
-  });
-
-  it('gives back the refund share of a Chieftain cost, rounded down', () => {
-    assert.equal(chieftainRefund(480), Math.floor(480 * CHIEFTAIN_RENOWN_REFUND_SHARE));
-    assert.equal(chieftainRefund(481), 240);
-    assert.equal(chieftainRefund(-5), 0);
   });
 
   it('shows floored numbers in RenownInfo', () => {

@@ -99,7 +99,7 @@ test('the owner, a tribe-mate and an ally break the hold by beating the occupier
   assert.equal(store.getVillage(amyVillage.id)?.ownerId, amy.id);
   assert.equal(store.stationedAt(amyVillage.id).length, 0, 'the occupiers are dead');
   assert.equal(store.getVillage(amyVillage.id)?.holdDueAt, null);
-  assert.ok(ledger(app, claimer).reserved < before.reserved, 'the dead Chieftain left the reservation');
+  assert.equal(ledger(app, claimer).reserved, before.reserved, 'the dead Chieftain changes nothing in the pool (banked)');
   assert.ok(store.movementsFrom(amySecond.id).some((m) => m.kind === 'return'), 'the relief army walks home');
   assert.ok((await villageReports(claimer)).some((r) => r.village.kind === 'claim_failed' && r.village.reason === 'relit'));
   assert.ok((await villageReports(amy)).some((r) => r.village.kind === 'relit'));

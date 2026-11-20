@@ -3,8 +3,6 @@
 // is the server's job; the order of the combat rules is documented at `battleRenown`.
 
 import {
-  CHIEFTAIN_DEPOSIT_SHARE,
-  CHIEFTAIN_RENOWN_REFUND_SHARE,
   DEFENDER_RENOWN_DAILY_CAP,
   DEFENDER_RENOWN_PER_DEFENCE,
   FEAST_COST,
@@ -113,40 +111,53 @@ export function chestVillageCost(villagesOwned: number, s?: Pick<WorldSettings, 
 }
 
 /**
- * Renown a Chieftain reserves when he is trained (owner 2026-11-18, "pay for the village, not for each Chieftain"):
- * CHIEFTAIN_DEPOSIT_SHARE of the next village's price. Every Chieftain pays the same; it does not grow with the Chieftains held.
+ * What the next Chieftain costs when he is trained (owner 2026-11-20: whatever it takes to send a Chieftain is asked before recruiting
+ * him). Each Chieftain pays the full price of one village, in order: `owned` villages and `held` Chieftains the player already has
+ * (queued, at home, away, standing as occupiers or walking home) make the next one the price of village number owned + held.
+ * Sending a Chieftain costs nothing more. Escalating by Chieftains held stops players stocking up cheap Chieftains.
  */
-export function chieftainDepositRenown(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
-  return Math.round(villageRenownCost(villagesOwned, s) * CHIEFTAIN_DEPOSIT_SHARE);
+export function chieftainPrice(villagesOwned: number, held: number, s?: Pick<WorldSettings, 'config'>): { renown: number; gold: number } {
+  const owned = Number.isFinite(villagesOwned) ? Math.max(1, Math.floor(villagesOwned)) : 1;
+  const h = Number.isFinite(held) ? Math.max(0, Math.floor(held)) : 0;
+  return { renown: villageRenownCost(owned + h, s), gold: chestVillageCost(owned + h, s) };
 }
 
-/** War Chest gold a Chieftain reserves when he is trained: CHIEFTAIN_DEPOSIT_SHARE of the next village's chest price. */
-export function chieftainDepositChest(villagesOwned: number, s?: Pick<WorldSettings, 'config'>): number {
-  return Math.round(chestVillageCost(villagesOwned, s) * CHIEFTAIN_DEPOSIT_SHARE);
+/** What a batch of `count` Chieftains costs together: the prices of slots held .. held + count - 1 added up. */
+export function chieftainBatchPrice(
+  villagesOwned: number,
+  held: number,
+  count: number,
+  s?: Pick<WorldSettings, 'config'>,
+): { renown: number; gold: number } {
+  const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const h = Number.isFinite(held) ? Math.max(0, Math.floor(held)) : 0;
+  let renown = 0;
+  let gold = 0;
+  for (let i = 0; i < n; i++) {
+    const p = chieftainPrice(villagesOwned, h + i, s);
+    renown += p.renown;
+    gold += p.gold;
+  }
+  return { renown, gold };
 }
 
 /**
- * What is still due when an order that can gain a village is sent: the village price minus the deposit of the ONE Chieftain the
- * take uses up (a village costs the same however many Chieftains it needs; the others walk home with their deposits). Never below 0.
- * Paid once per village: a follow-up Strike of an open chain reserves nothing more. `deposit` is the average deposit the player's
- * Chieftains really hold (default: today's chieftainDeposit*, which they equal unless villages were gained since they were trained).
+ * What the Chieftains held already add up to: the slot prices of the `held` Chieftains in order (village numbers owned .. owned + held - 1).
+ * A pool (players.renown_reserved / chest_reserved) above this is BANKED: paid for Chieftains that died or were cancelled, so it
+ * counts toward the next Chieftain (owner 2026-11-20: nothing is paid twice).
  */
-export function strikeRemainder(
-  villagesOwned: number,
-  s?: Pick<WorldSettings, 'config'>,
-  deposit?: { renown: number; gold: number },
-): { renown: number; gold: number } {
-  const dr = deposit ? deposit.renown : chieftainDepositRenown(villagesOwned, s);
-  const dg = deposit ? deposit.gold : chieftainDepositChest(villagesOwned, s);
-  return {
-    renown: Math.max(0, Math.ceil(villageRenownCost(villagesOwned, s) - dr - 1e-9)),
-    gold: Math.max(0, Math.ceil(chestVillageCost(villagesOwned, s) - dg - 1e-9)),
-  };
+export function chieftainTarget(villagesOwned: number, held: number, s?: Pick<WorldSettings, 'config'>): { renown: number; gold: number } {
+  return chieftainBatchPrice(villagesOwned, 0, held, s);
 }
 
-/** Renown that comes back when a Chieftain who reserved `cost` dies on the way (rounded down). */
-export function chieftainRefund(cost: number): number {
-  return Math.floor(Math.max(0, cost) * CHIEFTAIN_RENOWN_REFUND_SHARE);
+/** Banked part of a paid pool: what exceeds the target. Never below 0. */
+export function chieftainBanked(pool: number, target: number): number {
+  return Math.max(0, (Number.isFinite(pool) ? pool : 0) - target);
+}
+
+/** What is still due for a Chieftain price when `banked` is already paid. Never below 0. */
+export function chieftainDue(fullPrice: number, banked: number): number {
+  return Math.max(0, fullPrice - Math.max(0, banked));
 }
 
 /** The numbers a player sees (everything floored). `total` and `spent` may be fractional in the database. */

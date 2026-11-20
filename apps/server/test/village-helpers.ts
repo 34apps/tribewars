@@ -117,18 +117,15 @@ export function assertLedgerSane(app: App, p: P): void {
   assert.ok(l.spent >= -1e-9, `spent never negative (${l.spent})`);
   assert.ok(l.reserved >= -1e-9, `reserved never negative (${l.reserved})`);
   assert.ok(l.reserved <= l.spent + 1e-9, `reserved (${l.reserved}) is part of spent (${l.spent})`);
-  // Pay for the village (2026-11-18): the rest of a village price held by sent orders is part of spent too, and chest gold never goes negative.
-  const held = app.ctx.store.claimsHeld(p.id);
-  assert.ok(held.renown >= -1e-9 && held.gold >= -1e-9, 'claims are never negative');
-  assert.ok(l.reserved + held.renown <= l.spent + 1e-9, `deposits (${l.reserved}) + claims (${held.renown}) are part of spent (${l.spent})`);
+  // Since 2026-11-20 no claims exist (the whole village price is paid when a Chieftain is trained).
+  assert.equal(app.ctx.store.claimsHeld(p.id).renown, 0, 'no claim rows any more');
   const chest = app.ctx.store.getPlayer(p.id);
   assert.ok(chest && chest.chestGold >= -1e-9 && chest.chestReserved >= -1e-9, 'chest gold and its reserve are never negative');
 }
 
 /**
  * Give `n` Chieftains a reservation of `each` Renown (as if they had been trained): total, spent and reserved go up together.
- * `spare` Renown and `spareGold` chest gold stay free in the balance: sending a Strike or Found order reserves the rest of the village
- * price (docs/GAME_DESIGN.md 18.2), so a player who is about to send needs more than the deposits (the defaults cover 2 villages).
+ * `spare` Renown and `spareGold` chest gold stay free in the balance for whatever else the test buys.
  */
 export function reserveFor(app: App, p: P, n: number, each: number, spare = 1000 + 6000, spareGold = 12_000): void {
   app.ctx.store.addRenown(p.id, n * each + spare);

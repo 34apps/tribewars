@@ -1080,7 +1080,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   abandoned villages; scattered layout: a random free tile), keep account, tribe, Renown and rankings, and get a short **restart protection**
   (`RESTART_PROTECTION_HOURS`, ÷ speed) so the same attacker cannot hunt them again at once. Built in step 2, it has triggered since step 4 (player villages can be taken).
 - **Built in step 2** (numbers in `config.ts`): the Banner Hall trains the **Chieftain** (Banner Hall level 1; Renown is **reserved** when training
-  starts, `CHIEFTAIN_RENOWN_REFUND_SHARE` comes back if he dies); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
+  starts, what he cost stays paid and is banked if he dies, since 2026-11-20); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
   out, 6 h hold with occupiers); **FOUND** (a Chieftain sent to a free tile carries an ember; the new village starts small, `FOUND_*` numbers);
   **inactive players** (`ABANDON_IDLE_DAYS`) turn their villages abandoned **with buildings kept**, so they become valuable targets (never during
   beginner protection); basic multi-village play (switch villages, per-village queues and resources, send troops and resources between own villages,
@@ -1089,29 +1089,29 @@ A builder or a defender who is never attacked still reaches the second village; 
   strike and hold timing is computed by the server only, in order of arrival time (SECURITY_ROADMAP §2); every new route is rate limited and acts only on
   the caller's own Chieftains and villages.
 
-**Pay for the village, not for each Chieftain (owner 2026-11-18)**
-Before, every Chieftain reserved the price of one more village (x1.6 per Chieftain held), so one big village that needs 2-3 Chieftains cost 2-3 villages' worth
-(1,300 + 2,080 + 3,328 Renown). Now **each village gained costs the full village price exactly once** (`villageRenownCost(owned)` = `RENOWN_VILLAGE_BASE x 1.6^(owned - 1)`
-Renown and `chestVillageCost(owned)` War Chest gold), however many Chieftains it needs:
-- **Training** a Chieftain reserves a **deposit**: `CHIEFTAIN_DEPOSIT_SHARE` (0.25, `config.ts`) of the next village's Renown price and of its chest price (325 Renown +
-  500 gold for the 2nd village). It does not grow with the Chieftains held. Resources and training time are unchanged. Death: half of the deposit comes back
-  (`CHIEFTAIN_RENOWN_REFUND_SHARE`); cancelling a queued batch gives the deposits back in full.
-- **Sending** an order that can gain a village (a Strike on a village, a Found) reserves the **rest** (`strikeRemainder`: village price minus ONE deposit, the deposit of the one
-  Chieftain the take uses up; 975 Renown + 1,500 gold for the 2nd village) from the balance and the chest. Short: 409 "You need 750 more Renown to send this Strike." and
-  nothing is paid or leaves. Follow-up Strikes of the sender's own open chain, or a second order to the same village already on the way, reserve nothing new (a **claim** exists
-  per player and village; table `chieftain_claims`).
-- **Outcome.** Village gained (hold completes, or founded): the claim and the used-up Chieftain's deposit are spent, so the village was paid once. A Strike that banks into a
-  chain keeps the claim reserved while the chain, a Strike on the way or the hold is alive; when nothing keeps it alive any more (all Chieftains died, the order was refused or called
-  off, the chain window ran out, the hold failed or was relit, a Found tile was taken) the rest goes back to the balance and the chest **in full** (checked when an order ends, when
-  the player opens the game or trains or sends, and by the caretaker, so it is also back when nobody looks). Spare Chieftains of a 2-3 Chieftain take walk home with their deposits.
-- **Balance (2026-11-18):** with one village price per take, takes in the conquest sim doubled (93 per 5 seeds x 90 days against 49), and the owner KEPT `HEARTH_POINTS_PER_CHIEFTAIN` at 12,000 on purpose (6,000 would give 45): livelier, closer to Tribal Wars world statistics (BALANCE 21).
-- The price after a gain follows villages owned (x1.6 per village), so the deposit and the rest rise with every village, not with every Chieftain.
-- **Existing worlds** (schema v31, once, `GameService.migrateChieftainDeposits`, meta `chieftain_deposit_applied`): Chieftains queued or at home that reserved the old, larger amount
-  get the difference to the new deposit back (Renown and gold), logged per player; Chieftains already away keep what they reserved. Fresh worlds only set the flag.
-- API: no new route; `RenownInfo.chieftainPrice` and `ChestInfo.chieftainPrice` now mean the deposit; new `ChestInfo.villagePrice`, `held` on both (remainders held by sent orders).
+**Pay for the village at training, not at sending; it stays paid (owner 2026-11-20; replaces "Pay for the village, not for each Chieftain" of 2026-11-18)**
+"Whatever it takes to send a Chieftain is asked before recruiting him, like other troops." The whole village price is paid when a Chieftain is **trained**; sending costs nothing more. **The village price is paid when a Chieftain is trained and stays paid: if he dies or is cancelled, it is banked for the next one, who then costs only wood, food, iron and time.**
+- **Price.** Each Chieftain pays the full price of one village, in order. With `owned` villages and `held` Chieftains the player already has (queued, at home, away, standing as
+  occupiers, walking home), the next one costs `villageRenownCost(owned + held)` Renown and `chestVillageCost(owned + held)` War Chest gold (`chieftainPrice(owned, held)`; a batch
+  of `count` sums the slots held .. held + count - 1, `chieftainBatchPrice`). At one village: 1,300 / 2,080 / 3,328 Renown and 2,000 / 3,200 / 5,120 gold. It escalates with the
+  Chieftains held so nobody can stock up cheap Chieftains and dodge the rising village price. Resources and training time are unchanged.
+- **Banked pool.** `renown_reserved` / `chest_reserved` is the pool paid for Chieftains. With `H` Chieftains held, its *target* is the sum of the H slot prices (`chieftainTarget(owned, H)`);
+  what the pool holds above the target is **banked** (`chieftainBanked`) and is credited to the next Chieftain: due = max(0, full slot price - banked), for Renown and gold separately
+  (`chieftainDue`). Nothing is ever paid twice.
+- **Training** takes the due part from the balance and the chest into the pool, checked on the server before anything is paid. Short: 409 with plain words:
+  "A Chieftain costs 8,520 Renown + 13,107 War Chest gold (your 6th village). 2,000 Renown is banked from earlier Chieftains. You need 2,339 more Renown." (no banked sentence when nothing is banked;
+  "3 Chieftains cost ..." for a batch; gold short: "... more War Chest gold."). Cancelling a queued batch refunds the resources by the normal cancel rule; its Renown and gold stay in the pool (banked).
+- **Sending** a Strike or Found order reserves nothing and is never refused for Renown or gold. Strike chains, holds and Hold rules are unchanged.
+- **Death or loss** (battle, his home village lost, the village he stands in taken): the pool is **unchanged**; what he cost is banked for the next Chieftain. Losing a village or restarting changes the pool in no way either.
+- **Village gained** (hold completes, or founded): exactly the price of the village before it (`villageRenownCost(owned before)` Renown, `chestVillageCost(owned before)` gold, or the whole pool if smaller) leaves the pool for good (it stays spent); spare Chieftains of a 2-3 Chieftain take walk home keeping their payment.
+- **Existing worlds** (schema v36, once, `GameService.migrateChieftainFullPrice`, meta `chieftain_full_price_applied`): every open claim of the 2026-11-18 rule is folded into the
+  player's Chieftain pool (its Renown and gold were already out of the balance and chest, so they now count as reserved) and the claim rows are deleted; Chieftains already trained keep
+  what they paid, nothing more is charged ("deposits count, the rest is waived once"). Logged per player. The table `chieftain_claims` stays in the schema, unused.
+- API: no new route. `RenownInfo.chieftainPrice` = the next Chieftain's full Renown price; new `RenownInfo.chieftainPrices` (next 3, in order) and `chieftainsHeld`; `ChestInfo.chieftainPrice` = his gold,
+  new `ChestInfo.chieftainPrices`; `held` on both is always 0 (deprecated). The conquest sim numbers are in `docs/BALANCE.md` 21.
 
 **Chieftains live in the Banner Hall; the report says what a strike did (owner, 2026-11-18)**
-- **One home.** The Banner Hall page holds everything about Chieftains: training with a 1 / 2 / 3 choice (labelled "How many Chieftains? A village needs 1, plus 1 for every 12,000 points it has (most 3)", the Renown and War Chest gold deposit of each Chieftain, the same for every one, and in one plain line what is paid when the order is sent: "Each Chieftain: 250 Renown + 500 gold now. The rest of the village price (750 Renown, 1,500 gold) is paid when you send them."; "You have 2 at home" sits next to How many, and a known target preselects what it still needs), the queue with time left and Cancel, Chieftains at home / away / in training, the War Chest (changed 2026-11-18: a row "War Chest  2,400 / 3,200 gold" with the bar against the WHOLE village price `villagePrice` and a filled "Ready" tag once it is covered, always with a pay-in control: a whole-number amount field, the quick buttons "Fill to next village" (village price minus chest gold, capped by this village's gold, hidden once the chest covers the price) and "All gold here", and Pay in with the one-way confirm; any amount from 1 to the village's gold is allowed, so a player can save up ahead; the plain reasons stay: hearth out, no gold in this village; a separate bar "Deposit for training" shows the deposit the next batch needs), the open strike chains ("Sable's village: 1 of 3 Chieftains banked, 1h 58m left · send 2 more") and the villages being held ("Holding X: 5h 12m left"), plus a three-step box "How taking a village works". The Army page only links to it ("Chieftains are in the Banner Hall"); sending Chieftains stays in the normal send forms. State carries the lists (`GET /api/state`: `chains`, `holds`, the viewer's own only).
+- **One home (page redone 2026-11-20 for the full price paid at training; no sending here).** The Banner Hall page holds everything about Chieftains except sending them. Left: the Feast card, then "How taking a village works" with three plain steps and real numbers (train Chieftains here, each pays the price of one village; send them from the map with an army that wins, all within the chain window; hold the village X h, Y h for an abandoned one). Right, the Chieftains card: chips At home / On the way / Training; "How many?" 1 / 2 / 3 with the rule "A village needs 1, plus 1 for every 12,000 points it has (most 3)" (a known target preselects what it still needs); a price block titled "Price: your 6th village" (2-3: "your 6th and 7th villages") with ONE have/need bar for Renown (balance against the first `count` of `RenownInfo.chieftainPrices` added up) and ONE for War Chest gold (chest against the gold prices added up), green when covered, the missing amount in words ("2,339 Renown missing: hold Feasts in this hall or win battles"), the War Chest pay-in attached to the gold bar (amount field, "Fill to next Chieftain", "All gold here", Pay in with the one-way confirm; hearth out and no gold give plain reasons), one line "Paid in full when trained. Sending him costs nothing more. If he dies or you cancel him, the price stays banked: the next Chieftain costs only resources." (the bars count the slot prices minus `banked`; with banked Renown or gold a small line "Banked from earlier Chieftains: 8,520 Renown + 13,107 gold" shows), and for 2-3 a breakdown "1st 8,520 · 2nd 13,632 · 3rd 21,811 Renown"; then the Resources row, the Train button (off with the plain reason when short), the queue with Cancel (the price stays banked), and a status list of open chains ("Sable: 1 of 3 Chieftains arrived, 1h 58m left") and villages being held. No send button or send link on this page. The send form and the map tile panel show only "Chieftains are paid when trained: sending costs nothing more." (no reserve rows, no refusal for Renown). The Army page only links to it ("Chieftains are in the Banner Hall"). State carries the lists (`GET /api/state`: `chains`, `holds`, the viewer's own only).
 - **The attacker's battle report says what the Chieftains did** (`BattleReportData.strike`, written with the report by the server; old reports have none; the defender's report never has it): `struck` (hearth out, hold time), `banked` (won, but `have` of `need` Chieftains are in the chain until `endsAt`), `fell` (no Chieftain survived, nothing banked) or `refused` with the real reason (battle not won, players cannot be taken, protected, locked, same connection).
 - **Renown in the preview.** Test (sandbox) accounts earn no combat Renown from fights against real players, but they do from computer players (`Store.isComputerPlayer`, set by the preview from its `preview_bots` list; a real world has none), so the preview's battles pay Renown.
 
@@ -1167,20 +1167,18 @@ Renown and `chestVillageCost(owned)` War Chest gold), however many Chieftains it
 - **Two ways to get a village** (built in step 2; the rules are fixed here): **FOUND** a new village on a free map spot (the
   Chieftain carries an ember from the home hearth, no attack and no hold needed), or **TAKE** one by the Strike and Hold of
   this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
-  cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
+  cost (it leaves the balance but not `renownTotal`); if he dies on the way, it stays paid and is banked for the next Chieftain (since 2026-11-20 the whole village price is paid when he is trained).
   Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
 - **War Chest** (owner-approved 2026-11-10, `BALANCE.md` 12.3; `players.chest_gold` / `chest_reserved`). Chieftains cost **no gold** any more:
   their gold comes from an account-wide pool.
   - *What it is:* gold you pay in from any village with `POST /api/villages/:id/chest {gold}`. **One way**: nothing ever comes back out to a
     village (a lit village only; a cold one cannot pay). Raids and takes never touch it; it is kept when you lose villages and when you restart.
-  - *Chieftain price (changed 2026-11-18, "pay for the village, not for each Chieftain"):* the **village** costs `chestVillageCost(villages owned)` =
-    `WAR_CHEST_BASE (2,000) x 1.6^(owned - 1)` chest gold, paid ONCE per village gained: 2,000, then 3,200, 5,120, 8,192, 13,107. Each Chieftain
-    **reserves only a deposit** when trained, `CHIEFTAIN_DEPOSIT_SHARE (0.25)` of that (500 for the 2nd village), the same for every Chieftain however many
-    you hold; the rest (1,500) is reserved when the Strike or Found order is **sent** (§18.2 "Pay for the village"). Per-world: `conquest.chestBase`.
-    A short chest refuses the order (409 `not_enough_resources`) and nothing is paid.
-  - *Where it goes:* half comes back to the chest if he dies (`chieftainRefund`); his share is released when he is used up founding or taking a
-    village (the gold stays spent); cancelling a queued batch gives it back in full. Same ledger shape as the Renown reservation.
-  - `GET /api/state` sends `chest {gold, reserved, chieftainPrice (the deposit), villagePrice, held}`.
+  - *Chieftain price (changed 2026-11-20, "pay for the village at training"):* the **village** costs `chestVillageCost(villages owned)` =
+    `WAR_CHEST_BASE (2,000) x 1.6^(owned - 1)` chest gold: 2,000, then 3,200, 5,120, 8,192, 13,107. Each Chieftain **pays the full price of one village when trained**, in
+    order: the slot is `owned + Chieftains held` (§18.2 "Pay for the village at training"). Per-world: `conquest.chestBase`. A short chest refuses the order (409
+    `not_enough_resources`, plain words) and nothing is paid.
+  - *Where it goes:* a Chieftain who dies or is cancelled leaves his gold in the pool, banked for the next one; one village price is spent when a village is gained (the gold stays spent). Same ledger shape as the Renown pool.
+  - `GET /api/state` sends `chest {gold, reserved, banked, chieftainPrice (due for one), chieftainPrices (full slot prices), villagePrice, held (always 0)}`.
 - Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
 
 *Sources*
@@ -1234,7 +1232,7 @@ Building and Feast Renown are never reduced by these rules (the Feast is held ba
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
-Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50% (gone 2026-11-20); **defender trickle 0.006 Renown per day per point of stationed defence, at most
 36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
@@ -1286,9 +1284,7 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | `RESTART_PROTECTION_HOURS` / `RESTART_EDGE_BAND` | 48 / 2 | A player who lost the last village restarts within 2 tiles inside the outer edge of the populated disc, protected 48 h (÷ speed) |
 | `MAX_VILLAGES_PER_PLAYER` | 20 | Sanity cap for performance; the Renown price makes it unreachable |
 
-**Server and web as built (2026-11-05; the price rule changed 2026-11-18, see "Pay for the village" above).** *Renown ledger:* training a Chieftain adds its DEPOSIT (`chieftainDepositRenown(villages owned)` = a quarter of the village price, the same for every Chieftain; before 2026-11-18 it was the price of one more village per Chieftain held) to `renown_spent` and to `players.renown_reserved` in the same transaction as the queue and the payment; each Chieftain's share is the average
-`reserved / outstanding` (queued + home + away + occupying, all villages); death in any battle, village loss or abandonment releases the share and refunds
-`floor(share x 0.5)`; founding or taking releases the share only (the spend stays); cancelling a queued batch refunds the Renown in full. *Strike and Hold*
+**Server and web as built (2026-11-05; the price rule changed 2026-11-20, see "Pay for the village at training" above).** *Renown ledger:* training a Chieftain adds the due part of the batch price (`chieftainBatchPrice(villages owned, Chieftains held, count)` minus banked) to `renown_spent` and to `players.renown_reserved` in the same transaction as the queue and the payment; the pool covers the Chieftains queued, home, away and occupying in all villages; death in any battle, village loss, abandonment or a cancel leave the pool unchanged (banked); training pays only max(0, batch price - banked); founding or taking spends one village price from the pool (the spend stays). *Strike and Hold*
 run inside `processDue` in strict time order with the movements (a `villages.hold_due_at` column holds the next due time); the surviving army stays as an occupier
 contingent in `stationed`; a taken village changes owner in one transaction (report "Village taken", old owner's troops away are disbanded and listed in
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
@@ -1706,7 +1702,7 @@ A builder or a defender who is never attacked still reaches the second village; 
   abandoned villages; scattered layout: a random free tile), keep account, tribe, Renown and rankings, and get a short **restart protection**
   (`RESTART_PROTECTION_HOURS`, ÷ speed) so the same attacker cannot hunt them again at once. Built in step 2, it has triggered since step 4 (player villages can be taken).
 - **Built in step 2** (numbers in `config.ts`): the Banner Hall trains the **Chieftain** (Banner Hall level 1; Renown is **reserved** when training
-  starts, `CHIEFTAIN_RENOWN_REFUND_SHARE` comes back if he dies); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
+  starts, what he cost stays paid and is banked if he dies, since 2026-11-20); **Strike and Hold on abandoned villages only** (1 Chieftain survivor puts the hearth
   out, 6 h hold with occupiers); **FOUND** (a Chieftain sent to a free tile carries an ember; the new village starts small, `FOUND_*` numbers);
   **inactive players** (`ABANDON_IDLE_DAYS`) turn their villages abandoned **with buildings kept**, so they become valuable targets (never during
   beginner protection); basic multi-village play (switch villages, per-village queues and resources, send troops and resources between own villages,
@@ -1767,20 +1763,18 @@ A builder or a defender who is never attacked still reaches the second village; 
 - **Two ways to get a village** (built in step 2; the rules are fixed here): **FOUND** a new village on a free map spot (the
   Chieftain carries an ember from the home hearth, no attack and no hold needed), or **TAKE** one by the Strike and Hold of
   this section (abandoned villages first, players later). Both cost the same Renown. Training a Chieftain **reserves** the
-  cost (it leaves the balance but not `renownTotal`); if he dies on the way, `CHIEFTAIN_RENOWN_REFUND_SHARE` (50%) comes back.
+  cost (it leaves the balance but not `renownTotal`); if he dies on the way, it stays paid and is banked for the next Chieftain (since 2026-11-20 the whole village price is paid when he is trained).
   Banner Hall level 1 is needed to train Chieftains (step 2); until then its use is the Feast (below).
 - **War Chest** (owner-approved 2026-11-10, `BALANCE.md` 12.3; `players.chest_gold` / `chest_reserved`). Chieftains cost **no gold** any more:
   their gold comes from an account-wide pool.
   - *What it is:* gold you pay in from any village with `POST /api/villages/:id/chest {gold}`. **One way**: nothing ever comes back out to a
     village (a lit village only; a cold one cannot pay). Raids and takes never touch it; it is kept when you lose villages and when you restart.
-  - *Chieftain price (changed 2026-11-18, "pay for the village, not for each Chieftain"):* the **village** costs `chestVillageCost(villages owned)` =
-    `WAR_CHEST_BASE (2,000) x 1.6^(owned - 1)` chest gold, paid ONCE per village gained: 2,000, then 3,200, 5,120, 8,192, 13,107. Each Chieftain
-    **reserves only a deposit** when trained, `CHIEFTAIN_DEPOSIT_SHARE (0.25)` of that (500 for the 2nd village), the same for every Chieftain however many
-    you hold; the rest (1,500) is reserved when the Strike or Found order is **sent** (§18.2 "Pay for the village"). Per-world: `conquest.chestBase`.
-    A short chest refuses the order (409 `not_enough_resources`) and nothing is paid.
-  - *Where it goes:* half comes back to the chest if he dies (`chieftainRefund`); his share is released when he is used up founding or taking a
-    village (the gold stays spent); cancelling a queued batch gives it back in full. Same ledger shape as the Renown reservation.
-  - `GET /api/state` sends `chest {gold, reserved, chieftainPrice (the deposit), villagePrice, held}`.
+  - *Chieftain price (changed 2026-11-20, "pay for the village at training"):* the **village** costs `chestVillageCost(villages owned)` =
+    `WAR_CHEST_BASE (2,000) x 1.6^(owned - 1)` chest gold: 2,000, then 3,200, 5,120, 8,192, 13,107. Each Chieftain **pays the full price of one village when trained**, in
+    order: the slot is `owned + Chieftains held` (§18.2 "Pay for the village at training"). Per-world: `conquest.chestBase`. A short chest refuses the order (409
+    `not_enough_resources`, plain words) and nothing is paid.
+  - *Where it goes:* a Chieftain who dies or is cancelled leaves his gold in the pool, banked for the next one; one village price is spent when a village is gained (the gold stays spent). Same ledger shape as the Renown pool.
+  - `GET /api/state` sends `chest {gold, reserved, banked, chieftainPrice (due for one), chieftainPrices (full slot prices), villagePrice, held (always 0)}`.
 - Ranking points stay **buildings + villages**. Renown has its **own ranking** (by `renownTotal`) and shows on the profile.
 
 *Sources*
@@ -1834,7 +1828,7 @@ Building and Feast Renown are never reduced by these rules (the Feast is held ba
 *Built numbers (`config.ts`, tuned with the sim 2026-11-04, `docs/sim/2026-11-04-after-step0.txt`):* building Renown
 `max(1, round(0.25 x level^1.25))`; loot 1 Renown per 4,000 value (was 1 per 16 until 2026-11-05: loot is now always full, so the same village pays its whole stock to every raid, BALANCE §9), troops destroyed 1 per 16 value; pair cap 60 per 24 h;
 minimum battle value 300; village base price 1,000 since 2026-11-05 (was 500; then 1,600, 2,560, 4,096 ...); Feast 400/1,000/400 for 10 Renown (was 600/600/600 until 2026-11-05: food needed a sink), 3 per
-Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50%; **defender trickle 0.006 Renown per day per point of stationed defence, at most
+Banner Hall level per day until 2026-11-18, then no limit at 810/2,025/810 with -10% per Banner Hall level above 1; Chieftain refund 50% (gone 2026-11-20); **defender trickle 0.006 Renown per day per point of stationed defence, at most
 36 per village per day** (a defence of about 6,000 points reaches the cap; 22 until 2026-11-05, raised together with the Renown price base 1,000 so a pure defender still gets its 2nd village around day 35, `BALANCE.md` 7.8). **The size factor is for player targets only: raiding an abandoned village always earns Renown** (they are small by design; the minimum battle value, the low Renown per loot value and the per-pair Renown window limit farming them; loot itself is always full). Test-mode accounts earn from abandoned villages too, but not from fights against players. Support owners who kill attackers
 and village owners earn the defender share; an attacker sharing an IP group with any defending-side player earns nothing
 from that player.
@@ -1886,9 +1880,28 @@ It relies on the hold period, tribe alerts, restart protection and the pair cap 
 | `RESTART_PROTECTION_HOURS` / `RESTART_EDGE_BAND` | 48 / 2 | A player who lost the last village restarts within 2 tiles inside the outer edge of the populated disc, protected 48 h (÷ speed) |
 | `MAX_VILLAGES_PER_PLAYER` | 20 | Sanity cap for performance; the Renown price makes it unreachable |
 
-**Server and web as built (2026-11-05; the price rule changed 2026-11-18, see "Pay for the village" above).** *Renown ledger:* training a Chieftain adds its DEPOSIT (`chieftainDepositRenown(villages owned)` = a quarter of the village price, the same for every Chieftain; before 2026-11-18 it was the price of one more village per Chieftain held) to `renown_spent` and to `players.renown_reserved` in the same transaction as the queue and the payment; each Chieftain's share is the average
-`reserved / outstanding` (queued + home + away + occupying, all villages); death in any battle, village loss or abandonment releases the share and refunds
-`floor(share x 0.5)`; founding or taking releases the share only (the spend stays); cancelling a queued batch refunds the Renown in full. *Strike and Hold*
+**Pay for the village at training, not at sending; it stays paid (owner 2026-11-20; replaces "Pay for the village, not for each Chieftain" of 2026-11-18)**
+"Whatever it takes to send a Chieftain is asked before recruiting him, like other troops." The whole village price is paid when a Chieftain is **trained**; sending costs nothing more. **The village price is paid when a Chieftain is trained and stays paid: if he dies or is cancelled, it is banked for the next one, who then costs only wood, food, iron and time.**
+- **Price.** Each Chieftain pays the full price of one village, in order. With `owned` villages and `held` Chieftains the player already has (queued, at home, away, standing as
+  occupiers, walking home), the next one costs `villageRenownCost(owned + held)` Renown and `chestVillageCost(owned + held)` War Chest gold (`chieftainPrice(owned, held)`; a batch
+  of `count` sums the slots held .. held + count - 1, `chieftainBatchPrice`). At one village: 1,300 / 2,080 / 3,328 Renown and 2,000 / 3,200 / 5,120 gold. It escalates with the
+  Chieftains held so nobody can stock up cheap Chieftains and dodge the rising village price. Resources and training time are unchanged.
+- **Banked pool.** `renown_reserved` / `chest_reserved` is the pool paid for Chieftains. With `H` Chieftains held, its *target* is the sum of the H slot prices (`chieftainTarget(owned, H)`);
+  what the pool holds above the target is **banked** (`chieftainBanked`) and is credited to the next Chieftain: due = max(0, full slot price - banked), for Renown and gold separately
+  (`chieftainDue`). Nothing is ever paid twice.
+- **Training** takes the due part from the balance and the chest into the pool, checked on the server before anything is paid. Short: 409 with plain words:
+  "A Chieftain costs 8,520 Renown + 13,107 War Chest gold (your 6th village). 2,000 Renown is banked from earlier Chieftains. You need 2,339 more Renown." (no banked sentence when nothing is banked;
+  "3 Chieftains cost ..." for a batch; gold short: "... more War Chest gold."). Cancelling a queued batch refunds the resources by the normal cancel rule; its Renown and gold stay in the pool (banked).
+- **Sending** a Strike or Found order reserves nothing and is never refused for Renown or gold. Strike chains, holds and Hold rules are unchanged.
+- **Death or loss** (battle, his home village lost, the village he stands in taken): the pool is **unchanged**; what he cost is banked for the next Chieftain. Losing a village or restarting changes the pool in no way either.
+- **Village gained** (hold completes, or founded): exactly the price of the village before it (`villageRenownCost(owned before)` Renown, `chestVillageCost(owned before)` gold, or the whole pool if smaller) leaves the pool for good (it stays spent); spare Chieftains of a 2-3 Chieftain take walk home keeping their payment.
+- **Existing worlds** (schema v36, once, `GameService.migrateChieftainFullPrice`, meta `chieftain_full_price_applied`): every open claim of the 2026-11-18 rule is folded into the
+  player's Chieftain pool (its Renown and gold were already out of the balance and chest, so they now count as reserved) and the claim rows are deleted; Chieftains already trained keep
+  what they paid, nothing more is charged ("deposits count, the rest is waived once"). Logged per player. The table `chieftain_claims` stays in the schema, unused.
+- API: no new route. `RenownInfo.chieftainPrice` = the next Chieftain's full Renown price; new `RenownInfo.chieftainPrices` (next 3, in order) and `chieftainsHeld`; `ChestInfo.chieftainPrice` = his gold,
+  new `ChestInfo.chieftainPrices`; `held` on both is always 0 (deprecated). The conquest sim numbers are in `docs/BALANCE.md` 21.
+
+**Server and web as built (2026-11-05; the price rule changed 2026-11-20, see "Pay for the village at training" above).** *Renown ledger:* training a Chieftain adds the due part of the batch price (`chieftainBatchPrice(villages owned, Chieftains held, count)` minus banked) to `renown_spent` and to `players.renown_reserved` in the same transaction as the queue and the payment; the pool covers the Chieftains queued, home, away and occupying in all villages; death in any battle, village loss, abandonment or a cancel leave the pool unchanged (banked); training pays only max(0, batch price - banked); founding or taking spends one village price from the pool (the spend stays). *Strike and Hold*
 run inside `processDue` in strict time order with the movements (a `villages.hold_due_at` column holds the next due time); the surviving army stays as an occupier
 contingent in `stationed`; a taken village changes owner in one transaction (report "Village taken", old owner's troops away are disbanded and listed in
 "Village lost"); the claimant's occupiers cannot be sent home by anyone else, found and occupy movements cannot be cancelled; a Strike attempt carries no loot;
