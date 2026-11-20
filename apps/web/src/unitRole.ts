@@ -33,7 +33,7 @@ export const UNIT_GOOD_FOR: Record<UnitId, string> = {
   pikeman: 'holding the village against riders. A weak attacker.',
   guard: 'holding the village against foot soldiers. Slow to hit back.',
   raider: 'hitting hard and carrying loot home. Weak when attacked.',
-  pathfinder: 'scouting a village before you send the army. The fastest unit.',
+  pathfinder: 'scouting a village before you send the army. The fastest unit. Trains at the Stables.',
   outrider: 'fast raids on elk-back that carry a lot of loot home.',
   hearthwarden: 'riding to a friend\'s village as support, faster than foot defenders. Weak in attack, carries little.',
   knight: 'hard-hitting rider attacks that also carry loot home. A fair fighter at home, but costly (it takes gold), so keep them alive. Trains at the Stables.',

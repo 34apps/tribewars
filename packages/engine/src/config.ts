@@ -337,7 +337,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   stables: {
     id: 'stables',
     name: 'Stables',
-    description: 'Keeps tame elks and trains the riders: Elk Riders, Hearthwardens and, from level 8, the Ember Guard. Higher levels train faster.',
+    description: 'Keeps tame elks and trains the riders: Pathfinders (scouts), Elk Riders, Hearthwardens and, from level 8, the Ember Guard. Higher levels train faster.',
     maxLevel: 18,
     startLevel: 0,
     requires: { hall: 5, barracks: 3 },
@@ -508,8 +508,8 @@ export const UNITS: Record<UnitId, UnitDef> = {
   pathfinder: {
     id: 'pathfinder',
     name: 'Pathfinder',
-    description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home.',
-    unitClass: 'infantry',
+    description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home. Trains at the Stables.',
+    unitClass: 'cavalry', // owner 2026-11-20: scouts ride; trained at the Stables (was Barracks 2)
     attack: 0,
     defenseInfantry: 3,
     defenseCavalry: 2,
@@ -517,8 +517,8 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 0,
     cost: res(11, 20, 14), // 20 / 40 / 25 x 0.55 (food x 0.5)
     trainTimeSec: 170,
-    building: 'barracks', // owner 2026-11-20: back at the Barracks (briefly the Stables); batches already queued at the Stables finish there
-    requires: { barracks: 2 },
+    building: 'stables', // was 'barracks' (owner 2026-11-20); batches queued at the Barracks before finish there
+    requires: { stables: 1 }, // was { barracks: 2 }
   },
   chieftain: {
     id: 'chieftain',

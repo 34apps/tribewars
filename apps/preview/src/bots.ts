@@ -61,7 +61,7 @@ interface BotPlan {
   level: number;
   tribe: 'EMBR' | 'ASH' | 'MIST';
   role: 'leader' | 'officer' | 'member';
-  /** Pathfinders this village keeps at home (only with Barracks 2). They defend against enemy scouts and scout abandoned villages. */
+  /** Pathfinders this village keeps at home (only with Stables 1). They defend against enemy scouts and scout abandoned villages. */
   scouts?: number;
   /** Fixed portrait (CHIEFTAINS id), so the preview shows variety. */
   chieftain: ChieftainId;
