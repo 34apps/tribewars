@@ -63,6 +63,7 @@ export const ROUTE_LIMITS = {
   notifications: 60, // incoming-attack notifications: list and mark read
   groups: 30, // saved troop groups: list, create, update, delete
   notes: 60, // private notes and tags: list, save, delete
+  auto: 30, // auto mode (premium tools): the overview and saving a village's settings
   raidlists: 30, // raid lists (paid extra): list, edit, send all (every row tried is also charged to `send`)
   firststeps: 30, // first steps card: claim, hide
   projects: 30, // tribe projects: read the store and ledger, store village, start and cancel a project
@@ -82,6 +83,7 @@ const RULES: { bucket: RouteBucket; test: RegExp; methods?: readonly string[] }[
   { bucket: 'groups', test: /^\/api\/troop-groups(\/|$)/ },
   { bucket: 'notes', test: /^\/api\/notes(\/|$)/ },
 
+  { bucket: 'auto', test: /^\/api\/(auto|villages\/:id\/auto)$/ },
   { bucket: 'raidlists', test: /^\/api\/raid-lists(\/|$)/ },
   { bucket: 'firststeps', test: /^\/api\/first-steps(\/|$)/ },
   { bucket: 'notifications', test: /^\/api\/notifications(\/|$)/ },

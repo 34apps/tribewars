@@ -18,6 +18,16 @@ import {
   HOLD_MIN_POPULATION,
   UNIT_IDS,
   abandonVillageKeepBuildings,
+  applyAutoSettings,
+  autoNext,
+  autoTrainableUnits,
+  buildQueueLimit,
+  checkAutoSettings,
+  defaultAutoMode,
+  hasPremiumToolsExtra,
+  type AutoOverviewResponse,
+  type AutoSettingsRequest,
+  type AutoVillageDto,
   applyOwnerChange,
   applyStrike,
   checkFoundTarget,
@@ -467,7 +477,15 @@ export class GameService {
       this.store.setBotNextAt(v.id, now + stepMs); // a cold village cannot build; look again later
       return 0;
     }
-    let state = settleVillage(v.state, now, s);
+    const owner = this.store.getPlayer(v.ownerId);
+    const vr = owner ? this.withEntitlement(owner, v) : v; // the tools ended: auto mode stops before this village is settled
+    let state = settleVillage(vr.state, now, s);
+    if (state.auto?.on) {
+      // Auto mode runs this village; the caretaker's own random builds would only fight it. Keep the settled state (and the map points) current.
+      this.store.saveVillage(v.id, state, villagePoints(state));
+      this.store.setBotNextAt(v.id, now + stepMs);
+      return 0;
+    }
     let queued = 0;
     for (let i = 0; i < BOT_MAX_STEPS_PER_RUN; i++) {
       const choice = botBuildChoice(state, now, s, mulberry32(hashSeed(v.id, Math.floor(now / stepMs), i)));
@@ -1800,7 +1818,8 @@ export class GameService {
     const eligibleFrom = defenderEligibleFrom(fresh0.protectedUntil, fresh0.createdAt, this.settings);
     const earns = !this.store.isSandboxUser(player.username);
     const settledStates: VillageState[] = [];
-    const villages = this.store.villagesOfPlayer(player.id).map((v) => {
+    const villages = this.store.villagesOfPlayer(player.id).map((v0) => {
+      const v = this.withEntitlement(fresh0, v0);
       const settled = settleVillage(v.state, t, this.settings);
       settledStates.push(settled);
       chieftains += chieftainsIn(settled);
@@ -2042,7 +2061,8 @@ export class GameService {
     }
     return {
       serverTime: t,
-      villages: this.store.villagesOfPlayer(player.id).map((v) => {
+      villages: this.store.villagesOfPlayer(player.id).map((v0) => {
+        const v = this.withEntitlement(this.store.getPlayer(player.id) ?? player, v0);
         const settled = settleVillage(v.state, t, this.settings);
         const h = settled.hearth;
         const protectedUntil = settled.protectedUntil !== undefined && settled.protectedUntil > t ? settled.protectedUntil : null;
@@ -2240,7 +2260,8 @@ export class GameService {
   build(player: PlayerRow, villageId: number, building: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyBuild(v.state, building, t, this.settings);
+      const limit = buildQueueLimit(worldRules(this.settings), this.premiumTools(this.store.getPlayer(player.id) ?? player));
+      const next = applyBuild(v.state, building, t, this.settings, limit);
       this.store.saveVillage(v.id, next, villagePoints(next));
       this.store.addStats(player.id, { buildingLevelsBuilt: 1 });
       return this.ownDto(v, next, t);
@@ -2774,7 +2795,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), this.premiumTools(p)), ...(this.premiumTools(p) ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
   }
 
   /**
@@ -2898,6 +2919,70 @@ export class GameService {
     const v = this.store.getVillage(villageId);
     if (!v) throw new GameError('not_found', 'Village not found.');
     if (v.ownerId !== player.id) throw new GameError('forbidden', 'That is not your village.');
-    return v;
+    return this.withEntitlement(player, v);
+  }
+
+  // ---- premium tools: 5 build slots and auto mode (docs/GAME_DESIGN.md "Auto mode and 5 build slots") ---------------------
+
+  /** The world has the premium tools switched on AND this account has them (EXTRA_PREMIUM_TOOLS). */
+  private premiumTools(p: Pick<PlayerRow, 'premium'>): boolean {
+    return worldRules(this.settings).features.premium && hasPremiumToolsExtra(p.premium);
+  }
+
+  /**
+   * Auto mode only runs for an entitled owner: when the bit or the world switch is gone, auto mode is switched off (settings kept) in the
+   * stored state before anything settles it. Called wherever the owner's villages are read.
+   */
+  private withEntitlement(player: Pick<PlayerRow, 'premium'>, v: VillageRecord): VillageRecord {
+    const auto = v.state.auto;
+    if (!auto?.on || this.premiumTools(player)) return v;
+    this.store.switchAutoOffVillage(v.id, v.state);
+    return { ...v, state: { ...v.state, auto: { ...auto, on: false } } };
+  }
+
+  private autoDto(v: VillageRecord, t: number): AutoVillageDto {
+    const settled = settleVillage(v.state, t, this.settings);
+    const a = settled.auto ?? defaultAutoMode();
+    let queuedTroops = 0;
+    for (const q of Object.values(settled.trainQueues)) for (const j of q) if (j.auto) queuedTroops++;
+    return {
+      id: v.id,
+      name: v.name,
+      x: v.x,
+      y: v.y,
+      on: a.on,
+      buildShare: a.buildShare,
+      units: [...a.units],
+      trainable: autoTrainableUnits(settled, this.settings),
+      next: a.on ? autoNext(settled, t, this.settings) : null,
+      queuedBuilds: settled.buildQueue.filter((j) => j.auto).length,
+      queuedTroops,
+    };
+  }
+
+  /** GET /api/auto: every village's auto mode settings and what it does next. Anyone may read it; without the tools it shows everything off. */
+  autoOverview(player: PlayerRow, t: number): AutoOverviewResponse {
+    const fresh = this.store.getPlayer(player.id) ?? player;
+    return {
+      serverTime: t,
+      feature: worldRules(this.settings).features.premium,
+      entitled: this.premiumTools(fresh),
+      villages: this.store.villagesOfPlayer(player.id).map((v) => this.autoDto(this.withEntitlement(fresh, v), t)),
+    };
+  }
+
+  /** POST /api/villages/:id/auto: save the settings of one village (needs the premium tools). The village is settled first with the old settings. */
+  setAutoMode(player: PlayerRow, villageId: number, body: AutoSettingsRequest, t: number): AutoVillageDto {
+    return this.store.tx(() => {
+      const fresh = this.store.getPlayer(player.id) ?? player;
+      if (!this.premiumTools(fresh)) throw new GameError('forbidden', 'Auto mode is part of the premium tools, and this account does not have them.');
+      const v = this.ownedVillage(fresh, villageId);
+      const state = settleVillage(v.state, t, this.settings);
+      const check = checkAutoSettings(body, state.auto ?? defaultAutoMode());
+      if (!check.ok) throw new GameError(check.reason, check.message);
+      const next = { ...state, auto: applyAutoSettings(state.auto, check) };
+      this.store.saveVillage(v.id, next, villagePoints(next));
+      return this.autoDto({ ...v, state: next }, t);
+    });
   }
 }

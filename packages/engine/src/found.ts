@@ -55,6 +55,7 @@ export function abandonVillageKeepBuildings(state: VillageState, now: number, s:
   delete v.researchQueue;
   delete v.feast;
   delete v.defenceMark;
+  delete v.auto; // auto mode never survives a change of owner (premium; docs/GAME_DESIGN.md)
   v.buildQueue = [];
   v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };
   v.away = emptyUnits();

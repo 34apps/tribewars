@@ -65,6 +65,33 @@ export const START_RESOURCES: Resources = res(600, 600, 600, 100);
  * `buildQueueLimit()` / `researchQueueLimit()` and the *_PREMIUM constants are gone; use these constants directly.
  */
 export const MAX_BUILD_QUEUE = 2;
+/**
+ * Premium build queue (owner, 2026-11-20, overriding the 2026-11-04/05 "equal queues" decision on purpose): a player with the
+ * premium tools (EXTRA_PREMIUM_TOOLS, world switch `features.premium`) gets this many build jobs per village instead of
+ * `queues.build` (never fewer than `queues.build`). See `buildQueueLimit`.
+ */
+export const PREMIUM_BUILD_QUEUE = 5;
+
+// ---- Auto mode (premium; docs/GAME_DESIGN.md "Auto mode"; engine auto.ts) ----
+/** The building / troops balance moves in steps of this many percent. */
+export const AUTO_SHARE_STEP = 10;
+/** Balance a village starts with: this percent of auto mode's spending goes to buildings. */
+export const AUTO_DEFAULT_SHARE = 70;
+/** Units a village starts with when auto mode is first set up. */
+export const AUTO_DEFAULT_UNITS: readonly UnitId[] = ['pikeman', 'guard'];
+/** Units auto mode may recruit: everything but Chieftains and siege units. */
+export const AUTO_UNIT_IDS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
+/** Units in one auto recruit order (added to the last waiting batch of the same unit when there is one). */
+export const AUTO_TRAIN_BATCH = 10;
+/** Safety bound on auto purchases worked out in one settle (a long absence); the rest follow on the next settle. */
+export const AUTO_MAX_ACTIONS_PER_SETTLE = 200;
+/** Steady growth plan: build the Longhouse when less than this share of the population room is free. */
+export const AUTO_POP_ROOM_SHARE = 0.1;
+/** Steady growth plan: build the Storehouse when any stock is at this share of the storehouse cap or more. */
+export const AUTO_STORE_FULL_SHARE = 0.9;
+/** Steady growth plan: build the Town Hall when it is this many levels (or more) below the lowest resource building. */
+export const AUTO_HALL_LAG = 2;
+
 /** Research queue: two researches (one running, one waiting). */
 export const MAX_RESEARCH_QUEUE = 2;
 /** Batches waiting per training building. */

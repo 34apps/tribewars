@@ -1132,6 +1132,23 @@ export class Store extends SqlBase {
     this.run(on ? 'UPDATE players SET premium = premium | ? WHERE id = ?' : 'UPDATE players SET premium = premium & ~? WHERE id = ?', bit, playerId);
   }
 
+  /**
+   * Premium tools ended for this player: auto mode is switched off (settings kept) in every village they own. The stored state is changed
+   * as it is (not settled), so nothing auto mode would have bought since the last save is bought. Returns how many villages changed.
+   */
+  switchAutoOff(playerId: number): number {
+    let n = 0;
+    for (const v of this.villagesOfPlayer(playerId)) if (this.switchAutoOffVillage(v.id, v.state)) n++;
+    return n;
+  }
+
+  /** Switch auto mode off in one village's stored state; false when it was not on. */
+  switchAutoOffVillage(villageId: number, state: VillageState): boolean {
+    if (!state.auto?.on) return false;
+    this.run('UPDATE villages SET state_json = ? WHERE id = ?', JSON.stringify({ ...state, auto: { ...state.auto, on: false } }), villageId);
+    return true;
+  }
+
   setProtectedUntil(playerId: number, t: number): void {
     this.run('UPDATE players SET protected_until = ? WHERE id = ?', t, playerId);
   }

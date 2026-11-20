@@ -223,6 +223,7 @@ export function applyOwnerChange(
   delete v.ranks;
   delete v.feast;
   delete v.protectedUntil;
+  delete v.auto; // auto mode never survives a change of owner (premium)
   v.renownPaid = paid;
   v.buildQueue = [];
   v.trainQueues = { barracks: [], stables: [], wrightyard: [], bannerhall: [] };

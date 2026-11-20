@@ -19,7 +19,8 @@ import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { BuildState } from '../../components/BuildState.tsx';
 import { formatCompact, formatCoords, formatDuration, formatInt, formatLeft, formatRate } from '../../format.ts';
-import { useGame, useRules } from '../../game.ts';
+import { AutoTag } from '../../components/AutoTag.tsx';
+import { useBuildQueueLimit, useGame } from '../../game.ts';
 import { RESOURCE_ICON, RESOURCE_NAME } from '../../icons.ts';
 import { requirementText } from '../../rules.ts';
 import { queueDoneAt, queueUnitsLeft } from '../army/frame-army-logic.ts';
@@ -75,7 +76,7 @@ export function costShort(n: number): string {
 
 export function QueueSection({ onPick }: { onPick: (id: BuildingId) => void }) {
   const { live, now } = useGame();
-  const max = useRules().queues.build;
+  const max = useBuildQueueLimit();
   const jobs = live.buildQueue;
   const cancel = useCancelJob();
   return (
@@ -102,7 +103,7 @@ export function QueueSection({ onPick }: { onPick: (id: BuildingId) => void }) {
                 <b>
                   {def.name} → {job.targetLevel}
                 </b>
-                <small>{started ? `Done at ${clockShort(job.finishAt, now)}` : `Next · takes ${formatDuration(total)}`}</small>
+                <small><AutoTag show={job.auto} />{started ? `Done at ${clockShort(job.finishAt, now)}` : `Next · takes ${formatDuration(total)}`}</small>
                 {started && (
                   <span className="fv-bar" aria-hidden="true">
                     <i style={{ width: `${Math.max(0, Math.min(1, (now - job.startAt) / total)) * 100}%` }} />
@@ -307,7 +308,7 @@ export function LeftColumn({ onPick, top, middle = 'movements' }: { onPick: (id:
 /** One building of the Village page's list (and the Town Hall page's list): art, name + level, cost or reason, the state control. */
 export function BuildingRow({ id, busy, build, onPick, next = false }: { id: BuildingId; busy: boolean; build: (id: BuildingId) => void; onPick: (id: BuildingId) => void; next?: boolean }) {
   const { live, now, settings, village } = useGame();
-  const limit = useRules().queues.build;
+  const limit = useBuildQueueLimit();
   const info = buildingInfo(live, now, settings, !!village.hearth, limit, id);
   const def = BUILDINGS[id];
   const { kind } = info.pick;
@@ -315,11 +316,8 @@ export function BuildingRow({ id, busy, build, onPick, next = false }: { id: Bui
   // queued one): keep the Up (or "ready in") control and show the running job as a small tag by the name instead.
   const more = (kind === 'upgrading' || kind === 'queued') && (info.actionPick.kind === 'build' || info.actionPick.kind === 'afford');
   const lastTarget = info.jobs[info.jobs.length - 1]?.targetLevel ?? info.target - 1;
-  const jobTag = !more
-    ? null
-    : kind === 'upgrading'
-      ? `→ ${lastTarget} · ${formatDuration(info.upgradingLeftMs ?? 0)}`
-      : `→ ${lastTarget} queued`;
+  const jobTag = more ? `→ ${lastTarget}` : null;
+  const jobTagTitle = !more ? undefined : kind === 'upgrading' ? `Upgrading to ${lastTarget}, ${formatDuration(info.upgradingLeftMs ?? 0)} left` : `Level ${lastTarget} is queued`;
   let sub: ReactNode = null;
   if (kind === 'upgrading' && !more) sub = `Upgrading to ${info.active?.targetLevel ?? info.target} · ${formatDuration(info.upgradingLeftMs ?? 0)}`;
   else if (kind === 'queued' && !more) sub = `Queued: level ${lastTarget}`;
@@ -348,8 +346,8 @@ export function BuildingRow({ id, busy, build, onPick, next = false }: { id: Bui
         <BuildingArt id={id} level={info.level} size={38} building={info.jobs.length > 0} className="fv-th" />
         <span className="fv-mt">
           <b>
-            {def.name} <span className="fv-lv">{info.level}</span>
-            {jobTag && <span className="fv-jobtag">{jobTag}</span>}
+            <span className="fv-bn">{def.name}</span> <span className="fv-lv">{info.level}</span>
+            {jobTag && <span className="fv-jobtag" title={jobTagTitle}>{jobTag}</span>}
             {next && <span className="fv-nexttag">Next</span>}
           </b>
           <small>{sub}</small>

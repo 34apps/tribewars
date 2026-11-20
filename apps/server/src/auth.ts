@@ -3,7 +3,10 @@
 import { createHash, randomBytes, randomInt, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import {
+  buildQueueLimit,
+  hasPremiumToolsExtra,
   hasWideOverviewExtra,
+  worldRules,
   DEFAULT_CHIEFTAIN,
   ENTRY_PASS_CLOCK_SKEW_MS,
   GameError,
@@ -135,7 +138,8 @@ export class AuthService {
   ) {}
 
   toDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    const premiumTools = worldRules(this.settings).features.premium && hasPremiumToolsExtra(p.premium);
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), premiumTools), ...(premiumTools ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
   }
 
   /** The player has read the "villages abandoned" news: clear it and return the updated row. */

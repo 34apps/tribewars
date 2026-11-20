@@ -3,7 +3,7 @@
 
 import { BUILDINGS, buildTimeMs, buildingCost, checkBuild, productionPerHour, storageCap } from '@clanfire/engine';
 import type { BuildingId, Resources, VillageState, WorldSettings } from '@clanfire/engine';
-import { useGame, useRules } from '../../game.ts';
+import { useBuildQueueLimit, useGame } from '../../game.ts';
 import { pickBuildState, refusalOf } from '../../buildState.ts';
 import type { BuildStatePick } from '../../buildState.ts';
 import { formatDuration, formatLeft } from '../../format.ts';
@@ -110,7 +110,7 @@ export function buildingInfo(
 
 export function useBuildingInfo(id: BuildingId): BuildingInfo {
   const { live, now, settings, village } = useGame();
-  return buildingInfo(live, now, settings, !!village.hearth, useRules().queues.build, id);
+  return buildingInfo(live, now, settings, !!village.hearth, useBuildQueueLimit(), id);
 }
 
 /** The text under the state control on the building page: why it can not be built (or null). */
