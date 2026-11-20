@@ -1,0 +1,71 @@
+/* "Bring home" button + its small menu (own troops abroad, Support box and phone Support card). */
+.bh {
+  position: relative;
+  display: inline-flex;
+}
+
+.fa-sact .bh {
+  display: flex;
+  width: 100%;
+}
+
+.bh-btn {
+  width: 100%;
+}
+
+.bh-chev {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.bh-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  padding: 5px;
+  border: 2.5px solid var(--c-ink);
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--c-ink);
+}
+
+.bh-item {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px 2px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--on-surface);
+  font: 700 14.5px/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bh-item:hover,
+.bh-item:focus-visible {
+  background: var(--c-bone);
+  outline: none;
+}
+
+.bh-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--c-ink);
+}
+
+@media (max-width: 760px) {
+  .bh-item {
+    min-height: 44px;
+  }
+}
+
+/* Phone card: the button sits at the left edge, so the menu opens to the right of it. */
+.bh-btn.btn ~ .bh-menu {
+  right: auto;
+  left: 0;
+}

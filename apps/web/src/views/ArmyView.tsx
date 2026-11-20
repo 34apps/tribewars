@@ -19,6 +19,7 @@ import {
 import type { MovementDto, Resources, StationedDto, TrainJob, TrainingBuildingId, UnitId, Units, VillageRefDto } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { errorToast } from '../components/toastKind.ts';
+import { BringHome } from '../components/BringHome.tsx';
 import { RecallSome } from '../components/RecallSome.tsx';
 import { useRaidListsAccess } from '../hooks/useRaidListsOn.ts';
 import { PageHeader } from '../components/PageHeader.tsx';
@@ -363,17 +364,12 @@ function SupportPanel() {
                   <div className="muted small">arrived {formatAgo(s.arrivedAt, now)}</div>
                 </div>
                 <div className="stationed-actions">
-                  <button className="btn btn-primary btn-tall" disabled={busy} onClick={() => void act(() => api.recall(s.id), 'Recalled')}>
-                    Recall all
-                  </button>
-                  <button
-                    className="btn btn-tall"
-                    aria-expanded={recalling === s.id}
-                    disabled={busy}
-                    onClick={() => setRecalling((cur) => (cur === s.id ? null : s.id))}
-                  >
-                    Recall some
-                  </button>
+                  <BringHome
+                    busy={busy}
+                    className="btn btn-primary btn-tall"
+                    onAll={() => void act(() => api.recall(s.id), 'Recalled')}
+                    onSome={() => setRecalling((cur) => (cur === s.id ? null : s.id))}
+                  />
                 </div>
                 {recalling === s.id && (
                   <RecallSome s={s} busy={busy} onRecall={(units) => void act(() => api.recall(s.id, units), 'Recalled')} />

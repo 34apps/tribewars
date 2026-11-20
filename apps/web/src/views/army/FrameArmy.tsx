@@ -23,6 +23,7 @@ import { api, errorMessage } from '../../api.ts';
 import { Icon } from '../../art/Icon.tsx';
 import type { IconName } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
+import { SupportRowActions } from '../../components/BringHome.tsx';
 import { AttackHint } from '../../components/AttackHint.tsx';
 import { SupportTimingView, hintTarget } from '../../components/hintViews.tsx';
 import { SiegePicker } from '../../components/Siege.tsx';
@@ -821,20 +822,7 @@ function SupportRows({ here, away, busy, actions }: { here: StationedDto[]; away
           <small title={sub}>{sub}</small>
         </span>
         <span className="fa-sact">
-          {mine ? (
-            <>
-              <button type="button" className="fv-btn sm" disabled={busy} onClick={() => void actions.recall(s)}>
-                Recall
-              </button>
-              <button type="button" className="fv-btn sm" disabled={busy} aria-haspopup="dialog" onClick={() => setSome(s)}>
-                Recall some
-              </button>
-            </>
-          ) : (
-            <button type="button" className="fv-btn sm" disabled={busy} onClick={() => void actions.sendBack(s)}>
-              Send back
-            </button>
-          )}
+          <SupportRowActions mine={mine} busy={busy} onRecall={() => void actions.recall(s)} onRecallSome={() => setSome(s)} onSendBack={() => void actions.sendBack(s)} />
         </span>
       </li>
     );
