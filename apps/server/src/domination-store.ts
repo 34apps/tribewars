@@ -18,7 +18,7 @@ export interface WorldEndRow {
 /** Players who count as "active": played since `since`, not banned, not a test (sandbox) account. */
 function activeFilter(sandbox: readonly string[]): string {
   const skip = sandbox.length > 0 ? ` AND p.username_lower NOT IN (${sandbox.map(() => '?').join(', ')})` : '';
-  return `COALESCE(p.last_active, p.created_at) >= ? AND p.banned_at IS NULL${skip}`;
+  return `COALESCE(p.last_active, p.created_at) >= ? AND p.banned_at IS NULL AND p.deleted_at IS NULL${skip}`;
 }
 
 export class DominationStore extends SqlBase {
@@ -87,7 +87,7 @@ export class DominationStore extends SqlBase {
     return this.all(
       `SELECT p.id, p.username_lower, p.created_at, p.last_active, p.banned_at, tm.tribe_id, tm.joined_at,
               (SELECT COUNT(*) FROM villages v WHERE v.owner_id = p.id) AS villages
-         FROM players p LEFT JOIN tribe_members tm ON tm.player_id = p.id`,
+         FROM players p LEFT JOIN tribe_members tm ON tm.player_id = p.id WHERE p.deleted_at IS NULL`,
     ).map((r) => ({
       playerId: r.id as number,
       createdAt: r.created_at as number,

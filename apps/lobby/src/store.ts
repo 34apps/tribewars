@@ -20,6 +20,8 @@ export interface AccountRow {
   bannedAt: number | null;
   banReason: string | null;
   staffRole: StaffRole | null;
+  /** Set when the account was deleted: the row stays as a tombstone (purchase records keep a valid account_id). */
+  deletedAt: number | null;
   /** Set after a second bank dispute: may not buy Flames any more. */
   payBannedAt: number | null;
   /** Bank disputes opened against this account's purchases. */
@@ -86,6 +88,7 @@ const toAccount = (r: Raw): AccountRow => {
   bannedAt: (r.banned_at as number | null) ?? null,
   banReason: (r.ban_reason as string | null) ?? null,
   staffRole: isStaffRole(role) ? role : null,
+  deletedAt: (r.deleted_at as number | null) ?? null,
   payBannedAt: (r.pay_banned_at as number | null) ?? null,
   disputes: Number(r.disputes ?? 0),
   ageGroup: r.age_group === 'adult' || r.age_group === 'minor' ? r.age_group : null,
@@ -208,7 +211,7 @@ export class Store {
   /** The account a live session belongs to, with the session's own times. A banned account is returned too: the caller decides what to answer. */
   getSessionAccount(tokenHash: string, now: number): { account: AccountRow; createdAt: number; expiresAt: number } | null {
     const r = this.get(
-      'SELECT a.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?',
+      'SELECT a.*, s.created_at AS s_created, s.expires_at AS s_expires FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ? AND a.deleted_at IS NULL',
       tokenHash,
       now,
     );
@@ -380,6 +383,7 @@ export class Store {
 
   removeWorld(id: string): void {
     this.run('DELETE FROM worlds WHERE id = ?', id);
+    this.run('DELETE FROM account_deletions WHERE world_id = ?', id); // nobody left to tell
   }
 
   // ---- badges and Hall of Fame ---------------------------------------------------------------------

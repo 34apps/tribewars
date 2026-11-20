@@ -2,6 +2,8 @@
 // everything lives here so tests can call it. Every change goes to the audit log (actor: none, ip: 'cli').
 
 import { BADGE_KINDS, BADGE_TOP_PLAYERS, STAFF_ROLES, WORLD_STATUSES, isBadgeKind, isStaffRole, isWorldStatus } from '@clanfire/engine';
+import { AccountDataService } from './account-data.ts';
+import { noopHooks, type AccountDataHooks } from './account-hooks.ts';
 import { formatFinishReport, finishWorld } from './finish-world.ts';
 import { generateKeyPair, keyIdOf, parseSigningKey, publicKeyBase64 } from './pass.ts';
 import { ShopService, monthFromKey } from './shop/service.ts';
@@ -16,6 +18,8 @@ export interface AdminDeps {
   now: () => number;
   out: (line: string) => void;
   err: (line: string) => void;
+  /** Same hooks the lobby runs with (hooks-config.ts), so a CLI deletion does what a self-service one does. Default: no-ops. */
+  hooks?: AccountDataHooks;
   /** Payment provider for the commands that call it (dispute-evidence). Absent = no Stripe key in the environment. */
   gateway?: PaymentGateway | null;
 }
@@ -37,6 +41,8 @@ export const ADMIN_USAGE = [
   '  unban <username>',
   '  grant <username> <support|moderator|admin>',
   '  revoke <username>',
+  '  deletions                                list account deletions still waiting for a world to confirm',
+  '  delete-account <username>                delete an account on the owner\'s written request (same path as the player\'s own delete)',
   '  world-shop <id> <on|off>                 let the world sell Premium for Flames (default off)',
   '  flames <username>                        Flames balance, lock state, open dispute fees and the last ledger rows',
   '  flames-grant <username> <amount> <reason...>   support grant or correction (amount may be negative); audited',
@@ -108,6 +114,19 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
     const { positional, flags } = cmd === 'world-add' ? splitFlags(args) : { positional: args, flags: new Map<string, string>() };
 
     switch (cmd) {
+      case 'deletions': {
+        const rows = store.db.prepare('SELECT account_id, world_id, attempts, next_try_at, last_error FROM account_deletions WHERE done_at IS NULL ORDER BY created_at, account_id, world_id').all() as { account_id: number; world_id: string; attempts: number; next_try_at: number; last_error: string | null }[];
+        if (rows.length === 0) out('No account deletion is waiting.');
+        for (const r of rows) out(`account ${r.account_id}  world ${r.world_id}  attempts ${r.attempts}  next try ${r.next_try_at > 0 ? new Date(r.next_try_at).toISOString() : 'now'}${r.last_error ? `  last error: ${r.last_error}` : ''}`);
+        return 0;
+      }
+      case 'delete-account': {
+        const a = mustAccount(store, positional[0]);
+        if (a.deletedAt !== null) throw new CliError('That account is already deleted.');
+        new AccountDataService(store, deps.hooks ?? noopHooks, deps.now).deleteAccount(a.id, { kind: 'operator' });
+        out(`Deleted account ${a.id} (${a.username}). Worlds are told by the running lobby; check with: deletions`);
+        return 0;
+      }
       case 'worlds': {
         const worlds = store.listWorlds();
         if (worlds.length === 0) out('No worlds yet. Add one with: world-add <id> <name>');
@@ -300,7 +319,7 @@ export function runAdmin(argv: string[], deps: AdminDeps): number {
 
 const quietLog = { warn: () => {}, error: () => {}, info: () => {} };
 
-const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['world-shop', 'flames', 'flames-grant', 'age-group', 'payments-report', 'worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);
+const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['world-shop', 'flames', 'flames-grant', 'age-group', 'payments-report', 'worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke', 'deletions', 'delete-account']);
 
 /**
  * Like runAdmin, but also runs the commands that call the payment provider (dispute-evidence, refund). admin.ts uses this one.

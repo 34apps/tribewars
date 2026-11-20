@@ -743,6 +743,11 @@ stored and sent as plain text and the client renders it as text (line breaks kep
 - Security gate: the abandonment job has no input. The dismiss endpoint is own-account only, takes no body, writes one
   column and is covered by the global rate limit. The caretaker bot only reads and writes the owner's own village through
   the build planner, so it cannot send resources or troops to anyone.
+- **Account deletion** (schema v38; docs/PRIVACY.md): when a player deletes their account (in the world, or the lobby tells the world), every village turns
+  abandoned AT ONCE exactly as after `ABANDON_IDLE_DAYS` (buildings kept, queues and the player's own armies, marches and troops at sites or standing as support
+  elsewhere are gone, other players' support in those villages walks home), any hold they run on another village ends, and they leave their tribe (a lone leader
+  hands over to the longest-serving officer, else member; the last member disbands it). Private data is erased; the player row stays as a tombstone named
+  "Deleted player <id>" so mail they sent, forum posts and chat keep working. Tombstones are not ranked, not searchable, cannot be mailed or invited and cannot sign in.
 
 ## 14. Roadmap (not yet built)
 
@@ -1298,7 +1303,7 @@ contingent in `stationed`; a taken village changes owner in one transaction (rep
 a found mission is re-checked at arrival (tile free, village limit) or the Chieftain walks home. *Restart:* `ensureStartingVillage` runs at sign-in and on every
 authenticated request; a player with no village gets a fresh one at the restart place, 48 h protection, ring of abandoned villages in the expanding layout.
 *Inactivity:* after `ABANDON_IDLE_DAYS` (÷ speed) the villages turn abandoned with buildings kept (the troops at home stay, and the tier comes from the Town Hall level); beginner
-protection and sandbox accounts are skipped. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
+protection and sandbox accounts are skipped. *Return summary (schema v39):* when a village is abandoned the server records its id, name, coordinates and time (`abandoned_villages`). On the player's return `PlayerDto.abandonedNotice` carries `since`, `list` (each village: `abandoned` = still stands, `taken` = a player owns it now, with `takenBy`; read live from the village) and `newVillageId` when the player was left with nothing; the web shows the "While you were away" dialog. A player with nothing already got a fresh village with beginner protection at sign-in (`ensureStartingVillage`, restart placement), so "Start again" only closes the summary (`POST /api/me/abandoned-notice/dismiss`, which also deletes the list) and opens that village; a player who still owns villages sees the list and "OK". No takeover time is kept. Deleted accounts get no summary. *Multi-village:* `GET /api/villages`, `POST /api/villages/:id/rename`, support to own other villages, per-village
 protection (`protectedUntil`), village switcher in the web top bar. Known gap: a shipment in flight to a village that is taken lands in the conqueror's stock.
 *Sim result (`BALANCE.md` 7.5):* balanced takes the 2nd village on day 20.7, builder founds on 15.2, pure defender 26.8 (about a day over the 24-26 target,
 the Chieftain's cost is the lever); the pure raider script gets none within 30 days (day 41.9 in a 45-day run): the strike escort (158 population to hold) plus

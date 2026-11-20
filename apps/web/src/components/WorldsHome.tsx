@@ -25,7 +25,7 @@ const SIGN_OUT_ALL_HELP = 'Ends all sessions on every device. Open worlds close 
  * The page after sign-in. Desktop: the card on the left, the village in the same frame as the front page on the right.
  * Phone: village strip with the logo and an account button, then the sheet; the page scrolls.
  */
-export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void; onShop: () => void }) {
+export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop, onAccount }: { account: LobbyAccountDto; onSignedOut: () => void; onAllWorlds: () => void; onShop: () => void; onAccount: () => void }) {
   const phone = useMediaQuery(PHONE_QUERY);
   const [villageReady, setVillageReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -73,7 +73,7 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop }: { acco
           </div>
           <header className="lp-strip-top">
             <LogoPill loading={!villageReady} />
-            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} flames={flames} onShop={onShop} />
+            <AccountMenu username={account.username} busy={signingOut || opening} onSignOut={() => void signOut(false)} onSignOutEverywhere={() => void signOut(true)} onHall={() => setHall(true)} flames={flames} onShop={onShop} onAccount={onAccount} />
           </header>
         </div>
         {card}
@@ -91,6 +91,9 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop }: { acco
         </span>
         <span className="home-who">
           <strong className="home-who-name">{account.username}</strong>
+          <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={onAccount}>
+            Account
+          </button>
           <button type="button" className="btn btn-small" disabled={signingOut || opening} onClick={() => void signOut(false)}>
             Sign out
           </button>
@@ -109,7 +112,7 @@ export function WorldsHome({ account, onSignedOut, onAllWorlds, onShop }: { acco
   );
 }
 
-/** Phone: the round initial button with a small menu (name, Sign out, Sign out everywhere, Hall of Fame). */
+/** Phone: the round initial button with a small menu (name, Sign out, Sign out everywhere, Hall of Fame, Account and data). */
 function AccountMenu({
   username,
   busy,
@@ -118,11 +121,13 @@ function AccountMenu({
   onHall,
   flames,
   onShop,
+  onAccount,
 }: {
   flames: number | null;
   onShop: () => void;
   username: string;
   busy: boolean;
+  onAccount: () => void;
   onSignOut: () => void;
   onSignOutEverywhere: () => void;
   onHall: () => void;
@@ -170,6 +175,9 @@ function AccountMenu({
           </button>
           <button type="button" role="menuitem" className="lp-menu-item" onClick={pick(onHall)}>
             Hall of Fame
+          </button>
+          <button type="button" role="menuitem" className="lp-menu-item" onClick={pick(onAccount)}>
+            Account and data
           </button>
         </div>
       )}

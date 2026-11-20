@@ -166,13 +166,14 @@ export class AuthService {
    * Check name + password with the progressive lockout. Same message, same work (one scrypt) for a wrong password, an
    * unknown name and a locked name, and failures are counted per submitted name whether or not it exists.
    */
-  private async verifyCredentials(username: string, password: string): Promise<AccountRow> {
+  async verifyCredentials(username: string, password: string): Promise<AccountRow> {
     const key = username.toLowerCase().slice(0, 64);
     const t = this.now();
     const record = this.store.getLoginFailure(key);
     const fails = record && t - record.lastFail < LOCKOUT_FORGET_MS ? record.fails : 0;
     const locked = record !== null && record.lockedUntil > t;
-    const account = this.store.getAccountByLowerName(key);
+    const found = this.store.getAccountByLowerName(key);
+    const account = found && found.deletedAt === null ? found : null; // a deleted account never signs in
     const ok = account && !locked ? await verifyPassword(password, account.passwordHash) : (await burnVerify(password), false);
     if (!account || !ok) {
       // Attempts while locked do not extend the lock (an attacker could otherwise keep a victim out for ever).

@@ -72,7 +72,7 @@ export function startedLabel(openedAt: number | undefined, now: number = Date.no
 }
 
 /** The lobby page's screens, kept in the address after the "#" so Back, Forward and a reload land on the right one. */
-export type LobbyRoute = 'home' | 'signin' | 'signup' | 'worlds' | 'shop' | 'shop-paid';
+export type LobbyRoute = 'home' | 'signin' | 'signup' | 'worlds' | 'shop' | 'shop-paid' | 'account';
 
 /** "#signin", "#signup", "#worlds" (also without the "#"); anything else is the front page. Never throws. */
 export function parseLobbyHash(hash: string): LobbyRoute {
@@ -83,6 +83,8 @@ export function parseLobbyHash(hash: string): LobbyRoute {
       return 'signup';
     case 'worlds':
       return 'worlds';
+    case 'account':
+      return 'account';
     case 'shop':
       return 'shop';
     case 'shop-paid':
@@ -97,11 +99,11 @@ export function lobbyRouteHash(route: LobbyRoute): string {
   return route === 'home' ? '' : `#${route}`;
 }
 
-export type LobbyScreen = 'home' | 'form-login' | 'form-register' | 'your-worlds' | 'all-worlds' | 'shop';
+export type LobbyScreen = 'home' | 'form-login' | 'form-register' | 'your-worlds' | 'all-worlds' | 'shop' | 'account';
 
-/** Which screen a route shows. Signed in: the form routes lead to Your worlds. Signed out: #worlds falls back to the front page. */
+/** Which screen a route shows. Signed in: the form routes lead to Your worlds. Signed out: #worlds and #account fall back to the front page. */
 export function lobbyScreen(route: LobbyRoute, signedIn: boolean): LobbyScreen {
-  if (signedIn) return route === 'worlds' ? 'all-worlds' : route === 'shop' || route === 'shop-paid' ? 'shop' : 'your-worlds';
+  if (signedIn) return route === 'worlds' ? 'all-worlds' : route === 'shop' || route === 'shop-paid' ? 'shop' : route === 'account' ? 'account' : 'your-worlds';
   if (route === 'signin' || route === 'shop' || route === 'shop-paid') return 'form-login';
   if (route === 'signup') return 'form-register';
   return 'home';

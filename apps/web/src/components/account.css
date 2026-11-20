@@ -1,0 +1,40 @@
+/* Account page, delete flow, signed-out notice. Semantic tokens only. */
+.acc-bar-in { max-width: 1080px; }
+.acc-main { max-width: 1108px; }
+.acc-main { display: grid; gap: 14px; }
+.acc-who { margin: 0; }
+.acc-card, .acc-data-card { padding: 14px; border: 2px solid var(--edge); border-radius: 16px; background: var(--surface); }
+@media (min-width: 1024px) {
+  .acc-main { grid-template-columns: 1fr 1fr; align-items: start; gap: 18px; padding-top: 24px; }
+  .acc-who { grid-column: 1 / -1; }
+  .acc-card { padding: 20px; }
+}
+.acc-card p { margin: 0 0 10px; }
+.acc-card .card-title { margin-top: 0; }
+.acc-list { margin: 0 0 12px; padding-left: 18px; list-style: disc; display: grid; gap: 4px; }
+.acc-list li::marker { color: var(--on-surface-muted); }
+.acc-flames { margin: 0 0 10px; padding: 10px; border-radius: 12px; background: var(--surface-2); }
+.acc-flames p { margin: 0 0 8px; }
+.acc-flames a { font-weight: 700; }
+.acc-form { display: grid; gap: 10px; }
+.acc-actions { display: flex; flex-direction: column; gap: 8px; }
+.acc-actions .btn { min-height: 44px; width: 100%; white-space: nowrap; }
+@media (min-width: 480px) {
+  .acc-actions { flex-direction: row; }
+  .acc-actions .btn { flex: 1 1 0; width: auto; }
+}
+.acc-delete .btn-danger:disabled { background: var(--edge-soft); border-color: var(--edge); box-shadow: inset 0 -4px 0 var(--edge); color: var(--on-surface-muted); }
+.acc-delete .btn { min-height: 44px; }
+.acc-card > .btn, .acc-card .acc-delete > .btn { width: 100%; }
+.acc-card .form-error:empty, .settings-data .form-error:empty { min-height: 0; }
+.acc-notice {
+  position: fixed; top: calc(82px + env(safe-area-inset-top)); left: 14px; right: 14px;
+  z-index: 50; width: fit-content; max-width: calc(100vw - 28px); margin: 0 auto; padding: 10px 16px; text-align: center;
+  border-radius: 12px; background: var(--surface-2); border: 2px solid var(--edge); font-weight: 700; cursor: pointer;
+}
+@media (min-width: 900px) { .acc-notice { top: 10px; } }
+.settings-data { display: grid; gap: 10px; margin: 10px 0; }
+.settings-data p { margin: 0; }
+.settings-data .btn { width: 100%; min-height: 44px; }
+.settings-data .acc-delete { display: grid; gap: 10px; }
+.auth-cookie-note { margin: 10px 0 0; text-align: center; font-size: 0.8rem; }

@@ -7,6 +7,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { runAdminAsync } from './admin-ops.ts';
 import { openDatabase } from './db.ts';
 import { databasePathOf, loadDotEnv } from './env.ts';
+import { lobbyHooks } from './hooks-config.ts';
 import { StripeGateway } from './shop/gateway.ts';
 import { Store } from './store.ts';
 
@@ -20,6 +21,7 @@ const code = await runAdminAsync(process.argv.slice(2), {
   },
   env: process.env,
   now: Date.now,
+  hooks: lobbyHooks,
   gateway: stripeKey ? new StripeGateway({ secretKey: stripeKey }) : null,
   out: (line) => console.log(line),
   err: (line) => console.error(line),

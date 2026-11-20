@@ -1,8 +1,10 @@
 // Typed fetch wrapper for the Clanflame HTTP API (contract: packages/engine/src/api.ts).
 
-import { DEVICE_HEADER, deviceId } from './device.ts';
+import { DEVICE_HEADER, ensureDeviceId, existingDeviceId } from './device.ts';
 
 import type {
+  AccountDeleteRequest,
+  AccountDeletionInfoDto,
   ApiError,
   ShopAgeRequest,
   ShopBalanceResponse,
@@ -224,6 +226,61 @@ function lobbyRequest<T>(method: Method, path: string, body?: unknown): Promise<
   return send<T>(method, path, body);
 }
 
+/** World calls that create the browser id: sign-in, register and entering with a lobby pass. */
+const DEVICE_CREATING = /\/api\/auth\/(login|register|enter)$/;
+
+/**
+ * The device-id header for a request URL. Never for the lobby. For a world's sign-in, register and enter calls the id is created
+ * if needed; every other world call sends an id only when one already exists (a bare visit creates nothing).
+ */
+export function deviceHeaderFor(url: string): Record<string, string> {
+  if (url.startsWith(`${lobbyApiBase}/`)) return {};
+  const id = DEVICE_CREATING.test(url.split('?')[0] ?? url) ? ensureDeviceId() : existingDeviceId();
+  return id ? { [DEVICE_HEADER]: id } : {};
+}
+
+/** A JSON file the server sends as a download: the text and the file name from Content-Disposition. */
+export async function downloadJson(url: string, fallbackName: string): Promise<{ filename: string; blob: Blob }> {
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json', ...deviceHeaderFor(url) } });
+  } catch {
+    throw new ApiRequestError('network', 'Cannot reach the server. Check your connection.', 0);
+  }
+  if (!res.ok) {
+    let err: Partial<ApiError> = {};
+    try {
+      err = JSON.parse(await res.text()) as Partial<ApiError>;
+    } catch {
+      err = {};
+    }
+    const fallback = res.status === 429 ? 'Try again in a few minutes.' : res.status >= 500 ? 'The server had a problem. Try again in a moment.' : `Request failed (${res.status}).`;
+    throw new ApiRequestError(err.error ?? 'server_error', err.message ?? fallback, res.status);
+  }
+  const text = await res.text();
+  return { filename: filenameFromDisposition(res.headers.get('Content-Disposition'), fallbackName), blob: new Blob([text], { type: 'application/json' }) };
+}
+
+/** The file name in a Content-Disposition header (plain or RFC 5987 filename*), made safe; the fallback when absent or odd. */
+export function filenameFromDisposition(header: string | null | undefined, fallback: string): string {
+  if (!header) return fallback;
+  let name: string | null = null;
+  const star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(header);
+  if (star?.[1]) {
+    try {
+      name = decodeURIComponent(star[1].trim());
+    } catch {
+      name = null;
+    }
+  }
+  if (name === null) {
+    const plain = /filename\s*=\s*(?:"([^"]*)"|([^;]+))/.exec(header);
+    name = (plain?.[1] ?? plain?.[2] ?? '').trim();
+  }
+  name = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '');
+  return name === '' || name.length > 120 ? fallback : name;
+}
+
 async function send<T>(method: Method, url: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
@@ -235,7 +292,7 @@ async function send<T>(method: Method, url: string, body?: unknown): Promise<T> 
         Accept: 'application/json',
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         // The lobby never gets the device id; only the world's own API (multi-account tooling for staff).
-        ...(url.startsWith(`${lobbyApiBase}/`) ? {} : { [DEVICE_HEADER]: deviceId() }),
+        ...deviceHeaderFor(url),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -273,6 +330,16 @@ export const api = {
   /** End every lobby session of the account; worlds follow within hours (their lobby-linked sessions are short). */
   lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
   lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
+  /** What deleting the account will do (worlds, Flames that will be lost): shown before the confirm step. */
+  lobbyDeletionInfo: () => lobbyRequest<AccountDeletionInfoDto>('GET', `${lobbyApiBase}/account/deletion-info`),
+  /** Delete the lobby account for good. 204; the cookie is cleared. */
+  lobbyDeleteAccount: (body: AccountDeleteRequest) => lobbyRequest<void>('POST', `${lobbyApiBase}/account/delete`, body),
+  /** Everything kept about the account, every world included, as a JSON download. */
+  lobbyExport: () => downloadJson(`${lobbyApiBase}/account/export`, 'clanflame-data.json'),
+  /** This world's data about the signed-in player, as a JSON download. */
+  worldExport: () => downloadJson(withApiBase('/api/account/export'), 'clanflame-world-data.json'),
+  /** Worlds with their own accounts only (lobby worlds answer 403: delete in the lobby). */
+  worldDeleteAccount: (body: AccountDeleteRequest) => request<void>('POST', '/api/account/delete', body),
   // ---- Flames shop (lobby, signed in) ----
   lobbyShop: (country?: string | null) => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop${country ? `?country=${encodeURIComponent(country)}` : ''}`),
   /** Small: the balance shown in the world's account menu. */

@@ -11,6 +11,8 @@ import type { AppContext } from '../../server/src/context.ts';
 import { openDatabase } from '../../server/src/db.ts';
 import { DominationService } from '../../server/src/domination-service.ts';
 import { GameService } from '../../server/src/game.ts';
+import { AccountDataService } from '../../server/src/account-data-service.ts';
+import { accountRoutes } from '../../server/src/routes/account.ts';
 import { authRoutes } from '../../server/src/routes/auth.ts';
 import { gameRoutes } from '../../server/src/routes/game.ts';
 import { ForumService } from '../../server/src/forum-service.ts';
@@ -169,6 +171,7 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   const forum = new ForumService(store);
   const support = new SupportService(store);
   const game = new GameService(store, settings, { error: (obj, msg) => console.error(msg ?? 'game error', obj) }, now);
+  const tribes = new TribeService(store, settings);
   const ctx: AppContext = {
     store,
     settings,
@@ -181,7 +184,8 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
     game,
     raidLists: new RaidListService(store, settings, game),
     domination: new DominationService(store, settings, game),
-    tribes: new TribeService(store, settings),
+    tribes,
+    accountData: new AccountDataService(store, game, tribes, 'w1', now),
     mail: new MailService(store),
     forum,
     support,
@@ -197,7 +201,10 @@ export async function createBackend(saved: Uint8Array | null, token: string | nu
   const app = new FakeApp();
   const fastifyLike = app as unknown as FastifyInstance;
   app.get('/api/health', async () => ({ ok: true }));
+  // Public world info: tells the client this world has its own accounts (no lobby), so Settings offers Delete next to Download.
+  app.get('/api/world/info', async () => ({ id: ctx.worldId, name: ctx.worldName, speed: settings.speed, startedAt: new Date(now()).toISOString(), lobby: false, ended: false }));
   authRoutes(fastifyLike, ctx);
+  accountRoutes(fastifyLike, ctx); // the preview is a world with its own accounts: Download my data + Delete my account (no lobby, so the lobby command routes answer 404)
   gameRoutes(fastifyLike, ctx);
   reportRoutes(fastifyLike, ctx);
   tribeRoutes(fastifyLike, ctx);

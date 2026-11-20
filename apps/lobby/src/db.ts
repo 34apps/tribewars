@@ -11,6 +11,7 @@ BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
 export const SCHEMA_VERSION = 9; // 9: Flames shop VAT: purchases.net_cents (backfilled = price_cents)/vat_cents/vat_rate_bp/vat_country; v8 belongs to the privacy session, both are column-existence based (2026-11-20)
+// 8: accounts.deleted_at + account_deletions queue (account deletion; privacy session, column-existence based) (2026-11-20)
 // 7: Flames shop: ledger, purchases, consents, stripe_events, login_history, world_premium, account_items; accounts.pay_banned_at/disputes; worlds.shop_premium (2026-11-20)
 // 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
 
@@ -135,6 +136,21 @@ CREATE TABLE IF NOT EXISTS account_worlds (
   last_entered  INTEGER NOT NULL,
   PRIMARY KEY (account_id, world_id)
 );
+
+-- v8: deletion of an account in the worlds it entered. One row per (account, world); the lobby keeps sending the signed
+-- account_delete command until the world answers done. No personal data here (ids only). Rows of a world removed from the
+-- lobby are dropped. (accounts.deleted_at is added by addColumnIfMissing, see openDatabase.)
+CREATE TABLE IF NOT EXISTS account_deletions (
+  account_id   INTEGER NOT NULL,
+  world_id     TEXT    NOT NULL,
+  created_at   INTEGER NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  last_error   TEXT,
+  next_try_at  INTEGER NOT NULL DEFAULT 0,
+  done_at      INTEGER,
+  PRIMARY KEY (account_id, world_id)
+);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_pending ON account_deletions(done_at, next_try_at);
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,6 +341,9 @@ export function openDatabase(path: string): DatabaseSync {
     db.exec('DROP TRIGGER IF EXISTS audit_no_update');
     db.exec(AUDIT_UPDATE_GUARD_SQL);
   }
-  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  // v8: tombstone marker (deleted accounts stay as a row).
+  addColumnIfMissing(db, 'accounts', 'deleted_at', 'INTEGER');
+  // max(): if the shop's v7 code runs on a v8 file (or the other way round) the number never goes backwards.
+  db.exec(`PRAGMA user_version = ${Math.max(before, SCHEMA_VERSION)}`);
   return db;
 }

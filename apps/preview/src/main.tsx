@@ -6,6 +6,17 @@ import { clock } from './clock.ts'; // first: it replaces Date with the game clo
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '../../web/src/App.tsx';
+// Self-hosted fonts (inlined by inlineAssets): latin + latin-ext only.
+import '@fontsource/rubik/latin-400.css';
+import '@fontsource/rubik/latin-500.css';
+import '@fontsource/rubik/latin-600.css';
+import '@fontsource/rubik/latin-700.css';
+import '@fontsource/rubik/latin-ext-400.css';
+import '@fontsource/rubik/latin-ext-500.css';
+import '@fontsource/rubik/latin-ext-600.css';
+import '@fontsource/rubik/latin-ext-700.css';
+import '@fontsource/bagel-fat-one/latin-400.css';
+import '@fontsource/bagel-fat-one/latin-ext-400.css';
 import '../../web/src/styles.css';
 import '../../web/src/hud.css';
 import '../../web/src/pages.css';

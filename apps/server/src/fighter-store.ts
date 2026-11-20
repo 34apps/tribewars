@@ -54,6 +54,7 @@ export class FighterStore extends SqlBase {
        LEFT JOIN tribe_members tm ON tm.player_id = p.id
        LEFT JOIN tribes tr ON tr.id = tm.tribe_id
        LEFT JOIN fighter_totals f ON f.player_id = p.id
+       WHERE p.deleted_at IS NULL
        GROUP BY p.id
        ORDER BY p.username_lower ASC, p.id ASC`,
     ).map((r) => ({

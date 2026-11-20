@@ -5,6 +5,7 @@ import {
   GameError,
   RANKINGS_CACHE_MS,
   achievementProgress,
+  emptyStats,
   type FightingDto,
   type FighterKind,
   type FighterRankDto,
@@ -171,8 +172,16 @@ function fightingOf(ctx: AppContext, id: number): FightingDto {
 
 /** Public profile: same data the map and rankings already show. Players without a village are not ranked, so 404. */
 function playerProfile(ctx: AppContext, id: number, now: number): PlayerProfileDto {
-  const rank = playerRanking(ctx, id).me;
   const player = ctx.store.getPlayer(id);
+  // A deleted account: only the tombstone name (what mail, forum and chat show) and the join date; nothing else is kept.
+  if (player && player.deletedAt !== null) {
+    const stats = emptyStats();
+    return {
+      playerId: id, username: player.username, chieftain: player.chieftain, rank: 0, points: 0, renown: 0, renownRank: 0, fighting: { attacker: 0, defender: 0, total: 0 },
+      tribe: null, joinedAt: player.createdAt, protectedNow: false, villages: [], villageCount: 0, stats, achievements: achievementProgress(stats), badges: [], worldBadges: [],
+    };
+  }
+  const rank = playerRanking(ctx, id).me;
   if (!rank || !player) throw new GameError('not_found', 'Player not found.');
   const renownRow = renownRanking(ctx, id).me;
   const villages = ctx.store

@@ -99,7 +99,7 @@ Premium days that are still running at that point are paid back in the same way,
 - **You close your account:** unspent Flames are lost when the account is deleted, so spend them first. We remind you of this before you confirm.
 - **We close your account for breaking the terms:** unspent Flames and running Premium are forfeited. If the closing was a mistake, we undo it and give everything back. Where the law says that we must pay back money for Flames you have not used, we do.
 - **We close an account for age reasons or by mistake:** we refund what the person (or the parent) paid.
-- **We end your account for no fault of yours** (for example an inactive account closed after 24 months with a warning): unspent Flames are refunded on request if you answer in time.
+- **We end your account for no fault of yours:** unspent Flames are refunded on request.
 - **We change the terms against you:** you may close the account within the 14-day notice and get unspent Flames back.
 
 ## 10. Bugs and mistakes

@@ -17,6 +17,7 @@ import {
   type WorldInfoResponse,
   type WorldSettings,
 } from '@clanfire/engine';
+import { AccountDataService } from './account-data-service.ts';
 import { AdvisorService, type AdvisorClient } from './advisor.ts';
 import { AuthService, RateLimiter, SESSION_COOKIE, sha256Hex } from './auth.ts';
 import type { AppContext } from './context.ts';
@@ -28,6 +29,7 @@ import { DUE_BUDGET, GameService, type DueBudget } from './game.ts';
 import { ForumService } from './forum-service.ts';
 import { MailService } from './mail-service.ts';
 import { LiveHub, liveRoutes } from './live.ts';
+import { accountRoutes } from './routes/account.ts';
 import { advisorRoutes } from './routes/advisor.ts';
 import { authRoutes } from './routes/auth.ts';
 import { gameRoutes } from './routes/game.ts';
@@ -51,7 +53,7 @@ import { ReportService } from './report-service.ts';
 import { StaffService } from './staff-service.ts';
 import { MultiService } from './multi-service.ts';
 import { readDeviceHashes } from './device.ts';
-import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOW_MS, originAllowed, routeBucket, type RouteBucket } from './security.ts';
+import { CSP, HSTS, PERMISSIONS_POLICY, ROUTE_LIMITS, ROUTE_LIMIT_WINDOWS, ROUTE_LIMIT_WINDOW_MS, originAllowed, routeBucket, type RouteBucket } from './security.ts';
 import { Store } from './store.ts';
 import { SupportService } from './support-service.ts';
 import { TribeService } from './tribe-service.ts';
@@ -126,6 +128,8 @@ export const FROZEN_ALLOWED: readonly string[] = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/enter',
+  '/api/account/delete', // the right to be forgotten does not wait for the world to be live
+  '/api/lobby/account',
   '/api/mail',
   '/api/tickets',
   '/api/reports',
@@ -184,6 +188,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const forum = new ForumService(store);
   const support = new SupportService(store);
   const game = new GameService(store, settings, app.log, now);
+  const tribes = new TribeService(store, settings);
   // Live updates: the store hands over events after each commit; the hub pushes them to the right sockets.
   const live = new LiveHub(store, now, app.log, { heartbeatMs: opts.liveHeartbeatMs });
   store.onLive = (events) => live.publish(events);
@@ -207,13 +212,14 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     game,
     raidLists: new RaidListService(store, settings, game),
     domination: new DominationService(store, settings, game),
-    tribes: new TribeService(store, settings),
+    tribes,
     mail: new MailService(store),
     forum,
     support,
     staff: new StaffService(store, support),
     multi: new MultiService(store),
     msgReports: new ReportService(store, forum),
+    accountData: new AccountDataService(store, game, tribes, worldId, now),
   };
   app.decorate('ctx', ctx);
   app.decorateRequest('nowMs', 0);
@@ -342,7 +348,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   // own auth hook, so the player is known; calls without a player fall under the global limits only.
   const routeLimiters = new Map<RouteBucket, RateLimiter>();
   for (const [bucket, limit] of Object.entries(ROUTE_LIMITS) as [RouteBucket, number][]) {
-    routeLimiters.set(bucket, new RateLimiter(limit, ROUTE_LIMIT_WINDOW_MS));
+    routeLimiters.set(bucket, new RateLimiter(limit, ROUTE_LIMIT_WINDOWS[bucket] ?? ROUTE_LIMIT_WINDOW_MS));
   }
   // The raid-list send charges one hit of the `send` bucket per row it tries (same key and window as the normal send route).
   ctx.chargeSend = (playerId, nowMs) => routeLimiters.get('send')?.allow(String(playerId), nowMs) ?? true;
@@ -351,7 +357,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     const bucket = routeBucket(req.method, req.routeOptions.url ?? '');
     if (!bucket) return;
     if (!routeLimiters.get(bucket)?.allow(String(req.player.id), req.nowMs)) {
-      void reply.header('Retry-After', '60');
+      void reply.header('Retry-After', String(Math.ceil((ROUTE_LIMIT_WINDOWS[bucket] ?? ROUTE_LIMIT_WINDOW_MS) / 1000)));
       throw new GameError('rate_limited', 'Too many requests. Please slow down and try again in a minute.');
     }
   });
@@ -399,6 +405,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   raidListRoutes(app, ctx);
   autoRoutes(app, ctx);
   firstStepsRoutes(app, ctx);
+  accountRoutes(app, ctx);
   await liveRoutes(app, ctx, live, allowedOrigins);
   advisorRoutes(app, ctx, new AdvisorService(store, ctx.game, opts.advisorClient ?? null, app.log));
 

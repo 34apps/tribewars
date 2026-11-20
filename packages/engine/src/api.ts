@@ -67,6 +67,22 @@ export interface AbandonedNoticeDto {
   villages: number;
   /** How many days away that takes at this world speed (30 at speed 1). */
   idleDays: number;
+  /** When the first of these villages was abandoned (ms); 0 if unknown (notices from before the summary existed). */
+  since?: number;
+  /** Each abandoned village and what became of it. Empty on old notices. `taken` = a player owns it now (`takenBy`), `abandoned` = still stands abandoned. */
+  list?: AbandonedVillageDto[];
+  /** Set when the player owns no village from before and got a fresh one with beginner protection ("Start again" = open it). Absent = they still own others. */
+  newVillageId?: number;
+}
+
+export interface AbandonedVillageDto {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  abandonedAt: number;
+  status: 'abandoned' | 'taken';
+  takenBy?: string;
 }
 
 // POST /api/me/abandoned-notice/dismiss (no body) -> 200 MeResponse. Clears PlayerDto.abandonedNotice (own account only).
@@ -2927,4 +2943,130 @@ export interface RaidListSendResponse {
   results: RaidSendResult[];
   sent: number;
   skipped: number;
+}
+
+// ---- Account data: deletion and export (docs/PRIVACY.md; promises in docs/legal/privacy.md s.8, 9, 11) ----------
+// Lobby (signed in, cookie tw_lobby):
+//   GET  /lobby/api/account/deletion-info -> 200 AccountDeletionInfoDto (what deleting will do; shown before the confirm step)
+//   POST /lobby/api/account/delete  body AccountDeleteRequest -> 204 (clears the cookie). 401 wrong password (login bucket,
+//        same lockout as sign-in), 400 invalid_input when `confirm` is not ACCOUNT_DELETE_CONFIRM.
+//   GET  /lobby/api/account/export -> 200 AccountExportDto as a download (Content-Disposition: attachment; filename
+//        "clanflame-data-<username>.json"). Bucket `export` (2 per 10 minutes per account). Includes every entered world's
+//        WorldExportDto, fetched with a signed lobby command; a world that does not answer is listed in `worldsUnavailable`.
+// World, every mode (signed in, world session):
+//   GET  /api/account/export -> 200 WorldExportDto as a download ("clanflame-<worldId>-<username>.json"). Bucket `export`.
+// World with its own accounts only (no LOBBY_PUBLIC_KEY; the preview): 
+//   POST /api/account/delete body AccountDeleteRequest -> 204 (clears the cookie). In a lobby world 403 forbidden (delete in the lobby).
+// World, called by the lobby only (no cookie; body LobbyCommandRequest, a signed LobbyCommandClaims, single use):
+//   POST /api/lobby/account/delete -> 200 { done: true } (idempotent: an unknown or already deleted account is also done)
+//   POST /api/lobby/account/export -> 200 WorldExportDto ({ player: null } when the account never played here)
+//   404 in a world without LOBBY_PUBLIC_KEY; 401 bad/expired/reused/other-world command.
+
+/** Exact text the player types (or the button sends) to confirm deletion. */
+export const ACCOUNT_DELETE_CONFIRM = 'DELETE';
+/** Name a deleted player shows under in a world (mail, forum, chat, reports, rankings): `${DELETED_PLAYER_NAME} ${playerId}`.
+ *  Contains a space, so no real account can ever register it. */
+export const DELETED_PLAYER_NAME = 'Deleted player';
+
+export interface AccountDeleteRequest {
+  /** Current password, checked like at sign-in. */
+  password: string;
+  /** Must equal ACCOUNT_DELETE_CONFIRM. */
+  confirm: string;
+}
+
+export interface AccountDeletionInfoDto {
+  /** Worlds this account has entered (their villages become abandoned villages). */
+  worlds: { id: string; name: string }[];
+  /** Flames on the account, or null when the shop is not part of this build. Lost on deletion and never refunded (owner 2026-11-20:
+   *  Flames are not refundable once delivered; refunds only through support). */
+  flames: number | null;
+}
+
+/** One IP address seen for the account, with first and last time (ms since epoch). */
+export interface ExportIpDto {
+  ip: string;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+/** GET /lobby/api/account/export. Plain JSON, no secrets (no password hash, no session tokens). */
+export interface AccountExportDto {
+  format: 'clanflame-account-export-v1';
+  exportedAt: number;
+  account: {
+    id: number;
+    username: string;
+    chieftain: string;
+    createdAt: number;
+    lastLogin: number | null;
+    staffRole: StaffRole | null;
+    banned: { at: number; reason: string | null } | null;
+  };
+  worlds: { id: string; name: string; firstEntered: number; lastEntered: number }[];
+  badges: AccountBadgeDto[];
+  ips: ExportIpDto[];
+  /** Audit entries about this account (action, time; the IP column only while it is still kept). */
+  audit: { at: number; action: string; ip: string | null }[];
+  /** Extra sections added by other lobby parts (e.g. the Flames shop: purchases, ledger, consents, login history). */
+  extra: Record<string, unknown>;
+  /** Each entered world's own data. */
+  worldData: WorldExportDto[];
+  /** Worlds that did not answer in time; download from inside that world instead, or try later. */
+  worldsUnavailable: string[];
+}
+
+/** One world's data about one player. Arrays are capped only by the game's own limits. */
+export interface WorldExportDto {
+  format: 'clanflame-world-export-v1';
+  worldId: string;
+  exportedAt: number;
+  /** null: this account never played in the world (lobby export only). */
+  player: {
+    id: number;
+    username: string;
+    chieftain: string;
+    createdAt: number;
+    lastActive: number | null;
+    tribe: { name: string; tag: string } | null;
+  } | null;
+  villages: { id: number; name: string; x: number; y: number }[];
+  notes: unknown[];
+  troopGroups: unknown[];
+  raidLists: unknown[];
+  /** Mail the player sent or received and has not deleted. */
+  mail: { id: number; at: number; from: string; to: string; subject: string; body: string }[];
+  forumPosts: { at: number; thread: string; body: string }[];
+  tribeChat: { at: number; body: string }[];
+  /** Report headlines (kind, time, title), not the full battle data. */
+  reports: { at: number; kind: string; title: string }[];
+  /** Security data kept for 30 days (privacy s.3.3): IPs and browser-id labels (first 8 hex of the stored hash). */
+  ips: ExportIpDto[];
+  devices: { label: string; firstSeen: number; lastSeen: number }[];
+  supportTickets: { at: number; subject: string }[];
+}
+
+// ---- lobby -> world commands (signed like entry passes, different domain so neither can stand in for the other) ----
+// command = base64url(JSON(LobbyCommandClaims)) + "." + base64url(Ed25519 signature over LOBBY_COMMAND_DOMAIN + "\n" + payload part)
+export const LOBBY_COMMAND_DOMAIN = 'clanfire-lobby-command-v1';
+export const LOBBY_COMMAND_TTL_MS = 120_000;
+
+export type LobbyCommandType = 'account_delete' | 'account_export';
+
+export interface LobbyCommandClaims {
+  v: 1;
+  kid: string;
+  typ: LobbyCommandType;
+  /** Lobby account id (players.account_id in the world). */
+  aid: number;
+  /** World id; any other world refuses it. */
+  wid: string;
+  iat: number;
+  exp: number;
+  /** 22+ random url-safe characters, never reused (stored like entry pass nonces). */
+  nonce: string;
+}
+
+export interface LobbyCommandRequest {
+  command: string;
 }

@@ -1,7 +1,9 @@
 // Production/dev entry point: listen.
 
+import { startMaintenance } from './account-data.ts';
 import { buildApp } from './app.ts';
 import { loadDotEnv, loadEnv } from './env.ts';
+import { lobbyHooks } from './hooks-config.ts';
 import { StripeGateway } from './shop/gateway.ts';
 
 /** Owner alerts: POST {text} as JSON. A failing endpoint never breaks the lobby (the caller catches). */
@@ -22,6 +24,8 @@ const app = await buildApp({
   allowedOrigins: env.allowedOrigins,
   maxAccountsPerIp: env.maxAccountsPerIp,
   requirePasswordUpgrade: env.requirePasswordUpgrade,
+  hooks: lobbyHooks,
+  worldApiUrl: env.worldApiUrl,
   payments: env.paymentsEnabled && env.stripeSecretKey ? new StripeGateway({ secretKey: env.stripeSecretKey, tax: env.stripeTax }) : undefined,
   stripeTax: env.stripeTax,
   webhookSecret: env.stripeWebhookSecret ?? undefined,
@@ -30,12 +34,14 @@ const app = await buildApp({
   logger: true,
 });
 
+let stopMaintenance: () => void = () => {};
 let closing = false;
 async function shutdown(signal: string): Promise<void> {
   if (closing) return;
   closing = true;
   app.log.info(`${signal} received, shutting down`);
   try {
+    stopMaintenance();
     await app.close();
   } finally {
     process.exit(0);
@@ -46,6 +52,8 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
 try {
   await app.listen({ port: env.port, host: env.host });
+  // Queued account deletions are sent every minute; finished queue rows are pruned at most once an hour.
+  stopMaintenance = startMaintenance({ service: app.ctx.accountData, dispatcher: app.ctx.dispatcher, now: Date.now, log: { info: (m) => app.log.info(m), warn: (m) => app.log.warn(m) } });
 } catch (err) {
   app.log.error({ err }, 'failed to start');
   process.exit(1);

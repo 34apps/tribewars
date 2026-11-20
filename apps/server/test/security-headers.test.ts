@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CSP, ROUTE_LIMITS, routeBucket, type RouteBucket } from '../src/security.ts';
+import { CSP, ROUTE_LIMITS, ROUTE_LIMIT_WINDOWS, routeBucket, type RouteBucket } from '../src/security.ts';
 import { Client, MINUTE, PASSWORD, errorOf, makeApp, ok, register } from './helpers.ts';
 
 const headers = { host: 'clanfire.test' };
@@ -80,6 +80,8 @@ test('route patterns map to the intended limit buckets', () => {
     ['POST', '/api/tribe/projects/start', 'projects'],
     ['POST', '/api/tribe/projects/store-village', 'projects'],
     ['POST', '/api/tribe/projects/cancel', 'projects'],
+    ['GET', '/api/account/export', 'export'],
+    ['POST', '/api/account/delete', null],
     ['GET', '/api/state', null],
     ['GET', '/api/map', null],
     ['GET', '/api/villages', 'village'],
@@ -111,10 +113,11 @@ const CALLS: Record<RouteBucket, (c: Client, vid: number) => ReturnType<Client['
   lookup: (c) => c.get('/api/search/villages?q=ab&by=village'),
   rankings: (c) => c.get('/api/rankings/players'),
   world: (c) => c.get('/api/domination'),
+  export: (c) => c.get('/api/account/export'),
 };
 
 for (const bucket of Object.keys(ROUTE_LIMITS) as RouteBucket[]) {
-  test(`per-account limit "${bucket}": refused past ${ROUTE_LIMITS[bucket]}/min for one account, others unaffected, resets`, async () => {
+  test(`per-account limit "${bucket}": refused past ${ROUTE_LIMITS[bucket]} per window for one account, others unaffected, resets`, async () => {
     const { app, clock } = await makeApp();
     const a = await register(app, 'alice', '10.0.0.1');
     const b = await register(app, 'bob', '10.0.0.2');
@@ -127,14 +130,15 @@ for (const bucket of Object.keys(ROUTE_LIMITS) as RouteBucket[]) {
     }
     const blocked = await call(a, va);
     errorOf(blocked, 429, 'rate_limited');
-    assert.equal(blocked.headers['retry-after'], '60');
+    const windowMs = ROUTE_LIMIT_WINDOWS[bucket] ?? MINUTE;
+    assert.equal(blocked.headers['retry-after'], String(windowMs / 1000));
     // Same account from a new session and another IP is still limited (key is the account, not session/IP).
     const a2 = new Client(app, '10.0.0.9');
     ok(await a2.post('/api/auth/login', { username: 'alice', password: PASSWORD }));
     errorOf(await call(a2, va), 429, 'rate_limited');
     // Another account is unaffected.
     assert.notEqual((await call(b, vb)).statusCode, 429);
-    clock.advance(MINUTE + 1);
+    clock.advance(windowMs + 1);
     assert.notEqual((await call(a, va)).statusCode, 429);
   });
 }

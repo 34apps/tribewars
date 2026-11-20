@@ -1340,22 +1340,6 @@ button.hud-village {
   }
 }
 
-.vv-abandoned {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 3px solid var(--c-ink);
-  border-radius: 20px;
-  box-shadow: 0 4px 0 var(--c-ink);
-}
-
-.vv-abandoned-btn {
-  min-height: 44px;
-  align-self: flex-start;
-}
-
 /* Desktop detail sheet (building, queue, renown, first steps, on the road): same floating cream sheet as the alerts. */
 .vv-dsheet {
   z-index: 30;

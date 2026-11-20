@@ -3,6 +3,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api.ts';
+import { isLobbyWorld, useWorldInfo } from '../hooks/useWorldInfo.ts';
+import { DeleteAccountFlow } from './DeleteAccountFlow.tsx';
+import { DownloadData } from './DownloadData.tsx';
+import './account.css';
 import { useGame } from '../game.ts';
 import { setDesignPreview, useDesignPreview } from '../views/village/designPreviewState.ts';
 
@@ -12,6 +16,8 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dp = useDesignPreview();
+  const worldInfo = useWorldInfo();
+  const lobby = isLobbyWorld(worldInfo);
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -89,6 +95,16 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           <span>Show first steps</span>
         </label>
       )}
+      <section className="settings-data" aria-labelledby="your-data-title">
+        <h3 id="your-data-title" className="card-title">Your data</h3>
+        <DownloadData label="Download my data from this world" load={api.worldExport} />
+        {/* Unknown whether the world uses the lobby (info request failed): offer the download only, nothing about deletion. */}
+        {worldInfo === 'loading' || worldInfo === 'failed' ? null : lobby ? (
+          <p>To delete your account, open <a href="/lobby/#account">your account page</a>.</p>
+        ) : (
+          <DeleteAccountFlow mode="world" onDone={() => window.location.reload()} />
+        )}
+      </section>
       {player.sandbox ? (
         <section aria-labelledby="test-mode-title">
           <h3 id="test-mode-title" className="card-title">Test mode</h3>

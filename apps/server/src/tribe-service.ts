@@ -282,7 +282,7 @@ export class TribeService {
     return this.mutate(t, () => {
       const m = this.requireMember(player, 'invite');
       const target = this.store.getPlayerByLowerName(username.trim().toLowerCase());
-      if (!target) throw new GameError('not_found', 'No player has that name.');
+      if (!target || target.deletedAt !== null) throw new GameError('not_found', 'No player has that name.');
       if (this.ts.membership(target.id)?.tribeId === m.tribeId) {
         throw new GameError('already_in_tribe', `${target.username} is already in your tribe.`);
       }
@@ -444,6 +444,32 @@ export class TribeService {
         this.event(m.tribeId, t, `${player.username} left the tribe.`);
       }
       return this.view(player.id, t);
+    });
+  }
+
+  /**
+   * The player's account is being deleted: they leave their tribe like a normal leave. Alone = the tribe is disbanded; the only
+   * leader of a tribe with other members first hands leadership to the longest-serving officer (else the longest-serving member), which the
+   * normal "leave" refuses to do for them. Runs inside the caller's transaction. `name` is what the tribe log shows for them.
+   */
+  leaveForDeletion(playerId: number, name: string, t: number): void {
+    this.mutate(t, () => {
+      const m = this.ts.membership(playerId);
+      if (!m) return;
+      if (this.ts.memberCount(m.tribeId) <= 1) {
+        this.disbandTribe(m, t);
+        return;
+      }
+      if (m.role === 'leader') {
+        const rest = this.ts.members(m.tribeId).filter((x) => x.playerId !== playerId).sort((a, b) => Number(b.role === 'officer') - Number(a.role === 'officer') || a.joinedAt - b.joinedAt || a.playerId - b.playerId);
+        const heir = rest[0];
+        if (!heir) return;
+        this.ts.setMemberRole(playerId, 'officer');
+        this.ts.setMemberRole(heir.playerId, 'leader');
+        this.event(m.tribeId, t, `${name} handed leadership to ${heir.username}.`);
+      }
+      this.ts.deleteMember(playerId);
+      this.event(m.tribeId, t, `${name} left the tribe.`);
     });
   }
 

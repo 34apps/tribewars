@@ -43,7 +43,7 @@ If we learn that an account breaks the age rules, we may close it and, where the
 - The game is played in **worlds**. A world has its own map, its own speed and its own rules, which are shown on the world list. A world can end, for example when one tribe wins by domination or when we decide to end it. After the end it may stay open for viewing results only.
 - What you build and train belongs to the world you built it in. It is game data, not property. It cannot be carried to another world or sold.
 - What you keep when a world ends: your account, your Flames, your cosmetic looks and your badges and Hall of Fame entries.
-- **Inactivity:** if you stay away from a world for about 30 days (shorter in fast worlds; the world's own settings show the exact time), your villages are abandoned: they stay on the map as computer-run abandoned villages that other players may raid. You keep your account and can start again with a new village. Troops that were standing in an abandoned village stay there. While you are away for a shorter time, a caretaker may spend your resources on building so that your village does not fall behind; it never attacks or trains for you.
+- **Inactivity:** if you stay away from a world for about 30 days (shorter in fast worlds; the world's own settings show the exact time), your villages are abandoned: they stay on the map as computer-run abandoned villages that other players may raid. You keep your account. When you come back, the game shows what happened to your villages while you were away and lets you start again with a new village. Troops that were standing in an abandoned village stay there. While you are away for a shorter time, a caretaker may spend your resources on building so that your village does not fall behind; it never attacks or trains for you.
 - **Tribes** are run by their leaders under the tribe rules in the game. A tribe leader may remove members. We do not decide tribe disputes but may step in if a rule here is broken.
 - We may change game rules, numbers, units, buildings and balance at any time to keep the game fair and fun. Changes inside a running world are announced in the game where they matter. The game is a game: no result in it gives you a claim against us.
 
@@ -102,7 +102,6 @@ If you are a consumer in the EU you normally have 14 days to withdraw from an on
 
 - **You** can close your account at any time from the account page or by writing to **[contact email]**. Before you do, spend your Flames: unspent Flames are lost when the account is deleted.
 - Closing the account deletes or anonymises your data as described in the [privacy policy](privacy.md). Your past messages may stay for a short time in other players' mailboxes and reports, with your name replaced by "deleted player".
-- We may close an account that has had no login for **24 months** after warning you by email. Unspent Flames on it are refunded to the original payment method on request if you answer within the warning period.
 
 ## 13. Intellectual property
 
