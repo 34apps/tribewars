@@ -5,7 +5,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## State in one minute
 
-- `main` = `a7d41f3`, 21 commits ahead of origin (not pushed). Lobby schema v9, game schema v39.
+- `main` = `2b50a22`; everything up to `3988169` is pushed; the roster merge after it is NOT pushed (owner tries it first). Lobby schema v9, game schema v39.
 - The owner plays the BUILT preview on http://localhost:5174. After every merge into main: back up
   `apps/preview/data/preview-world-metinaltinbas.sqlite` to `apps/preview/data/backups/`, run `npm run build:preview:local`,
   ask him to reload. Push only after he says "works, push it".
@@ -46,7 +46,25 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Feast in all villages** (`claude/trusting-rubin-e46b57`): Banner Hall switch "This village | All villages", Premium only.
 - **Drillyard ranks polish** (`697aaa9`): cards grouped by role (Defence/Attack/Scouting/Breach), one card layout, 3 columns. Known: at Drillyard level 5 with 5 researchable units the Ranks panel is clipped by ~10 px at 1440x900.
 - **Pathfinder back at the Barracks** (owner undid the Stables move), **Drillyard Reset = small ↺ button with confirm**, **'foot'/'rider' tag next to unit attack** + explainer line (unit cards, Army recruit). In the preview, not pushed.
-- Nothing in flight. All side sessions are idle.
+- **Roster (owner 2026-11-20):** the Stables now train ONLY the Elk Rider.
+  - Ember Guard is back at Barracks 8 + Town Hall 8, on foot.
+  - Hearthwarden is at Barracks 5, on foot; its numbers are unchanged.
+  - Pathfinder is at Barracks 2, on foot.
+  - Merged and in the preview, not pushed.
+- Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
+
+## NEXT JOB (owner decided, not started)
+
+**Two new Stables riders**, each drawn ON a mount (the owner laughed at foot soldiers trained in the Stables):
+1. a **mounted scout**: faster and pricier than the foot Pathfinder, which stays the cheap Barracks scout;
+2. a **heavy mounted attacker**: costs gold, at a late Stables level.
+
+Rules for the job:
+- Original names, numbers and art, same toy style (`docs/ART_DIRECTION.md`).
+- Balance with `npm run sim` before showing the owner.
+- No new mechanics: attack/defence/speed/carry only (memory "keep mechanics simple").
+- Needs: engine units + migration for existing worlds, Drillyard rank tracks, bots, unit cards, recruit page, GAME_DESIGN, BALANCE.
+- Show before → after pictures and the sim numbers, then ask the owner.
 
 ## Decisions made today (don't re-ask)
 
