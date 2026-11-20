@@ -676,6 +676,11 @@ export const FEAST_LEVEL_DISCOUNT = 0.1;
 /** Most Feasts one request may hold (sanity bound, not a game limit). */
 export const FEAST_MAX_COUNT = 1000;
 /**
+ * "Feast in all villages" (premium tools, GAME_DESIGN 18.2): most villages one POST /api/feasts may list (sanity bound, not a game
+ * limit; a player with more villages sends a second request).
+ */
+export const FEAST_ALL_MAX_VILLAGES = 200;
+/**
  * Defender Renown (GAME_DESIGN 18.2 source 4): a small daily trickle for keeping a real defence at home. Strength is the
  * defence of the village's own troops at home (support and troops away do not count). Renown per 24 h (divided by world
  * speed) = min(DEFENDER_RENOWN_DAILY_CAP, strength x DEFENDER_RENOWN_PER_DEFENCE), nothing during beginner protection.

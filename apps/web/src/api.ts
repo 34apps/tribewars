@@ -92,6 +92,9 @@ import type {
   FighterScope,
   ChestDepositRequest,
   ChestDepositResponse,
+  FeastAllRequest,
+  FeastAllResponse,
+  FeastOverviewResponse,
   FeastRequest,
   FirstStepClaimRequest,
   FirstStepClaimResponse,
@@ -482,6 +485,9 @@ export const api = {
   playerRanking: () => request<PlayerRankingResponse>('GET', '/api/rankings/players'),
   renownRanking: () => request<RenownRankingResponse>('GET', '/api/rankings/renown'),
   fighterRanking: (scope: FighterScope, kind: FighterKind) => request<FighterRankingResponse>('GET', `/api/rankings/fighters?scope=${scope}&kind=${kind}`),
+  feastsOverview: () => request<FeastOverviewResponse>('GET', '/api/feasts'),
+  feastAll: (villages: FeastAllRequest['villages']) =>
+    request<FeastAllResponse>('POST', '/api/feasts', { villages } satisfies FeastAllRequest),
   feast: (villageId: number, count: number) =>
     request<FeastResponse>('POST', `/api/villages/${villageId}/feast`, { count } satisfies FeastRequest),
   chestDeposit: (villageId: number, gold: number) =>

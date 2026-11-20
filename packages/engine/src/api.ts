@@ -241,6 +241,65 @@ export interface FeastResponse {
   gained: number;
 }
 
+// ---- Feast in all villages (premium tools; GAME_DESIGN 18.2 "Feast in all villages", owner 2026-11-20) ----
+// GET  /api/feasts  -> 200 FeastOverviewResponse. Signed in. Every player may read it (without the tools `entitled` is false and the
+//                      client shows the list greyed). No query keys (400 invalid_input). Only the caller's own villages. Bucket `feast`.
+// POST /api/feasts  body FeastAllRequest -> 200 FeastAllResponse. 403 `forbidden` unless the world has `features.premium` AND the player
+//                      has EXTRA_PREMIUM_TOOLS (the same premium tools as auto mode). Strict schema: `villages` 1..FEAST_ALL_MAX_VILLAGES
+//                      entries `{ id, count }` (id integer >= 1, count integer 1..FEAST_MAX_COUNT), no other keys, every id at most once
+//                      (400 invalid_input). Every id must be the caller's own village (another player's 403, unknown 404: the whole
+//                      request is refused, nothing held). Same rules as the one-village Feast, no new formula: each village is settled
+//                      and holds its `count` all or nothing (applyFeast). A village that cannot (no Banner Hall, stock too low by now)
+//                      is SKIPPED with its reason and the others go ahead. One transaction; the Renown of all held Feasts is added to
+//                      the player's total once. Bucket `feast` (one request = one hit, however many villages).
+
+/** One of the caller's villages on the "All villages" Feast list, settled to serverTime. */
+export interface FeastVillageDto extends Coords {
+  id: number;
+  name: string;
+  /** Banner Hall level (0 = cannot Feast: "needs Banner Hall level 1"). */
+  bannerhall: number;
+  /** Price of ONE Feast here (feastPrice(bannerhall)). */
+  price: Resources;
+  /** Stock at serverTime. */
+  resources: Resources;
+  /** Feasts this village can pay for now (feastMaxCount; 0 without a Banner Hall), at most FEAST_MAX_COUNT. */
+  max: number;
+}
+
+export interface FeastOverviewResponse {
+  serverTime: number;
+  /** The world has `features.premium`. */
+  feature: boolean;
+  /** The player has the premium tools (feature on AND EXTRA_PREMIUM_TOOLS): the POST is allowed. */
+  entitled: boolean;
+  renown: RenownInfo;
+  villages: FeastVillageDto[];
+}
+
+export interface FeastAllRequest {
+  villages: { id: number; count: number }[];
+}
+
+export interface FeastAllResult {
+  id: number;
+  /** Feasts held in this village (0 when skipped). */
+  held: number;
+  /** Renown they gave (held * FEAST_RENOWN). */
+  gained: number;
+  /** Set when the village was skipped: the engine's reason code and plain message (e.g. not_enough_resources). */
+  skipped?: { reason: string; message: string };
+}
+
+export interface FeastAllResponse {
+  /** Renown of all held Feasts together. */
+  gained: number;
+  /** One entry per requested village, in request order. */
+  results: FeastAllResult[];
+  /** The list after the Feasts (fresh stock, max and Renown). */
+  overview: FeastOverviewResponse;
+}
+
 // POST /api/villages/:id/chest  body ChestDepositRequest -> 200 ChestDepositResponse   (War Chest, GAME_DESIGN 18.2, BALANCE 12.3)
 //   Pays `gold` from this village into the player's War Chest. ONE WAY: nothing ever comes back out to a village. Owner only (someone
 //   else's village 403, unknown 404, same as build/train). Server: settle the village, then in one transaction take `gold` from its

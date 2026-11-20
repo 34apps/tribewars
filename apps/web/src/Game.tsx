@@ -36,6 +36,7 @@ import { FrameMail } from './views/mail/FrameMail.tsx';
 import { FrameIncoming } from './views/incoming/FrameIncoming.tsx';
 import './frame-incoming.css';
 import './components/war-chest.css';
+import './components/feast-all.css';
 import { FrameTribe } from './views/tribe/FrameTribe.tsx';
 import { TribeView } from './views/TribeView.tsx';
 import { VillageView } from './views/VillageView.tsx';

@@ -18,7 +18,11 @@ import {
   FEAST_MAX_COUNT,
   type ChestDepositRequest,
   type ChestDepositResponse,
+  type FeastAllRequest,
+  type FeastAllResponse,
+  type FeastOverviewResponse,
   type FeastRequest,
+  FEAST_ALL_MAX_VILLAGES,
   type FeastResponse,
   type GameStateResponse,
   type MapResponse,
@@ -110,6 +114,25 @@ const feastBody = {
   required: ['count'],
   additionalProperties: false,
   properties: { count: { type: 'integer', minimum: 1, maximum: FEAST_MAX_COUNT } },
+} as const;
+
+const feastAllBody = {
+  type: 'object',
+  required: ['villages'],
+  additionalProperties: false,
+  properties: {
+    villages: {
+      type: 'array',
+      minItems: 1,
+      maxItems: FEAST_ALL_MAX_VILLAGES,
+      items: {
+        type: 'object',
+        required: ['id', 'count'],
+        additionalProperties: false,
+        properties: { id: { type: 'integer', minimum: 1 }, count: { type: 'integer', minimum: 1, maximum: FEAST_MAX_COUNT } },
+      },
+    },
+  },
 } as const;
 
 const cancelTrainBody = {
@@ -309,6 +332,14 @@ export function gameRoutes(app: FastifyInstance, ctx: AppContext): void {
     '/api/villages/:id/feast',
     { ...auth, schema: { params: idParams, body: feastBody } },
     async (req): Promise<FeastResponse> => ctx.game.feast(playerOf(req), Number(req.params.id), req.body.count, req.nowMs),
+  );
+
+  app.get('/api/feasts', { ...auth, schema: { querystring: noQuery } }, async (req): Promise<FeastOverviewResponse> => ctx.game.feastOverview(playerOf(req), req.nowMs));
+
+  app.post<{ Body: FeastAllRequest }>(
+    '/api/feasts',
+    { ...auth, schema: { body: feastAllBody } },
+    async (req): Promise<FeastAllResponse> => ctx.game.feastAll(playerOf(req), req.body, req.nowMs),
   );
 
   app.post<{ Params: { id: string }; Body: ChestDepositRequest }>(
