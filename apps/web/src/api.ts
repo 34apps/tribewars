@@ -360,7 +360,7 @@ export const api = {
   lobbyShopAge: (body: ShopAgeRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/age`, body),
   /** Pay open dispute fees: answers a Stripe checkout address like a purchase. */
   lobbyShopSettle: () => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/settle`, {}),
-  /** The "Share play stats" switch of the account (anonymous play statistics, default on). Answers the account. */
+  /** The "Share play stats" switch of the account (play statistics under a code, default on). Answers the account. */
   lobbyShareStats: (share: boolean) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/account/share-stats`, { share } satisfies LobbyShareStatsRequest),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   /** Signed-out homepage strip: open and full worlds, public fields only. */

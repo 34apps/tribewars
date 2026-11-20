@@ -50,13 +50,13 @@ What the code does to stay inside the exemption:
 - The id is created only when the player **signs in, registers or enters a world**, never on a bare visit
   (`apps/web/src/device.ts`: `ensureDeviceId` on those calls, `existingDeviceId` elsewhere). The server sets `cf_device` only when the
   header arrives, so a visitor who never signs in gets neither the cookie nor the local storage entry.
-- One line under the sign-in forms: "We keep a small security cookie to stop cheating. No ads." ("No tracking" was dropped on 2026-11-20 when the anonymous play stats of section 5 were added; the line must stay true.)
+- One line under the sign-in forms: "We keep a small security cookie to stop cheating. No ads." ("No tracking" was dropped on 2026-11-20 when the play stats of section 5 were added; the line must stay true.)
 - privacy.md s.3.3 and s.5 describe it.
 
 Residual risk: a regulator could see multi-account detection as the operator's interest rather than the user's request. If the owner
 wants zero risk, the alternative is to drop the cookie and keep only the local storage id (same legal question) or ask for consent.
 
-## 5. Anonymous play stats (server-side analytics, 2026-11-20)
+## 5. Play stats under a code (server-side analytics, 2026-11-20)
 
 Spec and event list: `docs/ANALYTICS.md`. Policy text: `docs/legal/privacy.md` s.3.6.
 

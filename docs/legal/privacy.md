@@ -22,7 +22,7 @@ This policy describes what the game stores **at the time of the first sale** (th
 - To stop cheating and fraud we keep **IP addresses and a random browser id** for a short time (30 days), and a longer login record for accounts that **paid** (2 years).
 - Records of purchases are kept for **7 years** because the law makes us.
 - You can ask to see, fix, download or delete your data (section 11).
-- We do not sell your data and we do not use it for advertising. We count **anonymous play statistics** on our own servers (section 3.6); you can switch that off in your account.
+- We do not sell your data and we do not use it for advertising. We count **play statistics under a code (not your name)** on our own servers (section 3.6); you can switch that off in your account.
 
 ## 3. What data we keep, why, and on what legal ground
 
@@ -76,10 +76,10 @@ Payment details (card number, bank data) are entered **on Stripe's pages**. We r
 ### 3.5 What we do **not** do
 
 - No advertising, no ad networks, no data sales.
-- No tracking scripts in your browser, no social media pixels, no advertising profiles. (The anonymous play statistics of section 3.6 are counted by our own servers and store nothing on your device.)
+- No tracking scripts in your browser, no social media pixels, no advertising profiles. (The play statistics of section 3.6 are counted by our own servers and store nothing on your device.)
 - No profiling that has a legal effect on you. The one automatic step is payment fraud screening by Stripe (Radar), which may block a payment; you can ask us to have a person look at it.
 
-### 3.6 Anonymous play statistics
+### 3.6 Play statistics (under a code, not your name)
 
 We want to know where new players get stuck, which pages are used and whether the shop works, so that we can improve the game. Our servers (not your browser) send a few small events to our own analytics service. **Nothing is stored on your device for this.**
 
@@ -126,7 +126,7 @@ These are all set by us, not by anybody else. The sign-in cookies are essential;
 |---|---|---|---|
 | **Amazon Web Services** (hosting, storage and backups) | Run the servers, database, backups | Everything on the game servers | EU (Frankfurt, `eu-central-1`) [confirm when hosting is set up] |
 | **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, work out VAT, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
-| **Amazon Web Services** (our analytics service, section 3.6) | Anonymous play statistics | Pseudonymous id and the events of 3.6, nothing else | USA (`us-east-1`); EU–US Data Privacy Framework |
+| **Amazon Web Services** (our analytics service, section 3.6) | Play statistics under a code | Pseudonymous id and the events of 3.6, nothing else | USA (`us-east-1`); EU–US Data Privacy Framework |
 | **Anthropic** (only if "Ask Mags" is switched on) | The in-game advisor | Your question and a snapshot of your game state, no name or contact data | USA |
 
 If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standard Contractual Clauses or is certified under the EU–US Data Privacy Framework. We have the contracts that GDPR demands with the providers that work for us.
@@ -138,7 +138,7 @@ If data leaves the EU/EEA, it goes only to a provider that uses the EU's Standar
 | Account, game data, messages | While your account exists, until you delete it. In each world, after about 30 days without play your villages become abandoned villages (terms, section 4); your account stays |
 | IPs, browser id hashes, activity slots, pair log | 30 days |
 | Login history of accounts that bought something | 2 years |
-| Anonymous play statistics (section 3.6) | Single events 400 days; the per-id summary until deleted (on request, or when you switch it off and ask) |
+| Play statistics (section 3.6) | Single events 400 days; the per-id summary until deleted (on request, or when you switch it off and ask) |
 | Reports and tickets sent to staff | 12 months after they are closed |
 | Bans (name and reason, so that a banned person cannot simply return) | While the ban lasts and 2 years after |
 | Purchase records, receipts, Flames ledger entries, consent ticks, refund and dispute records | 7 years from the end of the financial year |
@@ -152,7 +152,7 @@ When a time is up, the data is deleted or made anonymous.
 - Your account, username, password hash, worlds list and personal settings are deleted. Your cosmetics, badges and Flames go with it.
 - Your villages in running worlds become abandoned villages. Your **name in mail, forum posts, chat and reports is replaced** by "deleted player". Mail you sent may stay in the other person's mailbox without your name. Private notes, troop groups and raid lists are deleted.
 - What we keep because the law requires it or because we need it to defend a claim: purchase records and Flames ledger entries linked to purchases (7 years), the login history of paying accounts (2 years), ban records (section 8). They are kept apart from the game and used only for those purposes.
-- The anonymous play statistics (3.6) are tied to a code, not to your name. Deleting your account stops them; to have the record under your code removed too, write to us (section 11).
+- The play statistics (3.6) are tied to a code, not to your name. Deleting your account stops them; to have the record under your code removed too, write to us (section 11).
 - Backups age out within about 30 days.
 
 ## 10. Data security
