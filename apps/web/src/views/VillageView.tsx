@@ -8,6 +8,7 @@ import { formatDuration } from '../format.ts';
 import { useBuildQueueLimit, useGame } from '../game.ts';
 import { useDockSpace } from '../hooks/useDockSpace.ts';
 import { useIsDesktop } from '../hooks/useLayout.ts';
+import { MarketSendPanel } from './village/MarketSend.tsx';
 import { Advisor, BuildQueue, BuildingPanel } from './village/Panels.tsx';
 import { FrameVillage } from './village/FrameVillage.tsx';
 import { useBuild } from './village/useBuild.ts';
@@ -70,6 +71,7 @@ function PanelContent({ panel, busy, build, setPanel, headingId, compact }: { pa
       return (
         <>
           <BuildingPanel id={panel.id} busy={busy} onBuild={build} headingId={headingId} onPick={pickBuilding} />
+          {panel.id === 'market' && <MarketSendPanel phone />}
           <Advisor id={panel.id} compact={compact} />
         </>
       );
