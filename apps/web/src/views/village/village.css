@@ -1147,8 +1147,8 @@ th[scope='row'] {
   color: var(--on-surface-muted);
 }
 
-/* Rank rows: one per (unit, track). The row is its own size container: wide (>= 380 px) puts the pips beside the name and keeps three lines,
-   narrow (phone) puts the pips on the cost line. Two columns at desktop, one at 360 px. */
+/* Rank rows: one per (unit, track). The row is its own size container: wide (>= 440 px, the desktop grid) is two lines beside the
+   picture and Buy, narrow (phone) stacks name, effect, cost, then dots + Buy. Two columns at desktop, one at 360 px. */
 .drill-units {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
@@ -1166,7 +1166,7 @@ th[scope='row'] {
   container-type: inline-size;
 }
 
-/* Narrow row (phone): name, effect, cost on one line each, then dots + Reset on the left and Buy on the right */
+/* Narrow row (phone): name, effect, cost on one line each, then dots on the left and Buy on the right, Reset under Buy */
 .drill-tr {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) auto;
@@ -1174,9 +1174,16 @@ th[scope='row'] {
     'ic head head'
     'ic fx fx'
     'ic info info'
-    'ic pips btn';
+    'ic pips btn'
+    'ic . reset';
   align-items: center;
   gap: 4px 12px;
+}
+
+/* Narrow: the two line wrappers dissolve so their parts sit in the grid areas above */
+.drill-l1,
+.drill-l2 {
+  display: contents;
 }
 
 .drill-tr .drill-icon {
@@ -1282,14 +1289,20 @@ th[scope='row'] {
   color: var(--warn);
 }
 
-/* Buy (and Reset under it) down the right edge of the row */
+/* Narrow: Buy (or Max) and Reset take their own grid cells, so the dots line up with Buy */
 .drill-tbtns {
+  display: contents;
+}
+
+.drill-tbtns > .btn,
+.drill-max {
   grid-area: btn;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 1px;
+  justify-self: end;
+}
+
+.drill-tbtns > .drill-reset {
+  grid-area: reset;
+  justify-self: end;
 }
 
 .drill-tbtns .btn {
@@ -1326,27 +1339,54 @@ th[scope='row'] {
   cursor: default;
 }
 
-@container (min-width: 380px) {
+/* Wide row (desktop grid, ~490 px): line 1 name + tag ... dots, line 2 effect ... next cost; Buy (with Reset under it) on the right */
+@container (min-width: 440px) {
   .drill-tr {
-    grid-template-columns: 32px 1fr auto auto;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
     grid-template-areas:
-      'ic head pips btn'
-      'ic fx fx btn'
-      'ic info info btn';
-  }
-}
-
-/* Very wide row (one column beside the research column): two lines, name + pips, then effect + cost */
-@container (min-width: 600px) {
-  .drill-tr {
-    grid-template-columns: 32px minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'ic head pips btn'
-      'ic fx info btn';
+      'ic l1 btn'
+      'ic l2 btn';
+    gap: 2px 10px;
   }
 
-  .drill-tinfo {
-    justify-content: flex-end;
+  .drill-l2 .cost {
+    column-gap: 8px;
+  }
+
+  .drill-l1,
+  .drill-l2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    min-width: 0;
+  }
+
+  .drill-l1 {
+    grid-area: l1;
+  }
+
+  /* Buy (and Reset under it) down the right edge of the row */
+  .drill-tbtns {
+    grid-area: btn;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+  }
+
+  .drill-l2 {
+    grid-area: l2;
+  }
+
+  .drill-l1 .drill-pr,
+  .drill-l2 .drill-tinfo {
+    margin-left: auto;
+  }
+
+  .drill-tbtns .btn {
+    min-height: 32px;
   }
 }
 
@@ -1420,6 +1460,19 @@ th[scope='row'] {
 
 .drill-cost {
   font-size: 0.95rem;
+}
+
+/* Running / queued / locked research: progress bar (running) and the state on one line */
+.drill-rc-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.drill-rc-line .progress {
+  flex: 1;
+  max-width: 180px;
 }
 
 .drill-state {
@@ -2596,25 +2649,49 @@ th[scope='row'] {
   }
 }
 
-/* Desktop side column (256 px): the cost line and the Research button wrap under each other instead of being cut off. */
+/* Desktop page: research cards two across, each two lines (name + time, cost or state) with its button on the right */
+.drill-compact .drill-rlist {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
 .drill-compact .drill-rc {
-  flex-wrap: wrap;
+  padding: 6px 12px;
 }
 
-.drill-compact .drill-rc-main {
-  flex-basis: calc(100% - 60px);
+.drill-compact .drill-rc-head {
+  justify-content: flex-start;
 }
 
-.drill-compact .drill-rc .drill-btn {
-  width: 100%;
+.drill-compact .drill-btn {
   min-height: 36px;
+  min-width: 104px;
 }
 
-/* Running or queued research: Cancel sits beside the text, not on a line of its own */
-.drill-compact .drill-rc.is-run .drill-rc-main {
-  flex-basis: 0;
+.drill-compact .drill-units {
+  gap: 6px 10px;
 }
 
-.drill-compact .drill-rc.is-run .drill-btn {
-  width: auto;
+.drill-compact .drill-uc {
+  padding: 6px 12px;
+}
+
+.drill-compact .drill-howto {
+  margin: 0 2px 8px;
+}
+
+/* Training Points in the Ranks panel's header: one line, no box */
+.fv-ph .drill-points {
+  grid-template-columns: auto auto 200px auto;
+  margin: 0;
+  padding: 0;
+  background: none;
+}
+
+.fv-ph .drill-ptitle {
+  font-size: 0.95rem;
+}
+
+.fv-ph .drill-pfree strong {
+  font-size: 1.1rem;
 }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
-import { createElement } from 'react';
+import { Fragment, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   BREACH_BONUS,
@@ -29,6 +29,7 @@ import { nextRankPoints, pointsRuleText, rankCardUnits, rankCostRule, rankRows, 
 let server: ViteDevServer;
 let GameContext: React.Context<GameApi | null>;
 let DrillyardPanel: React.ComponentType<{ part?: 'research' | 'ranks' }>;
+let DrillPoints: React.ComponentType;
 
 before(async () => {
   server = await createServer({
@@ -40,7 +41,7 @@ before(async () => {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   ({ GameContext } = await server.ssrLoadModule('/src/game.ts'));
-  ({ DrillyardPanel } = await server.ssrLoadModule('/src/views/village/Drillyard.tsx'));
+  ({ DrillyardPanel, DrillPoints } = await server.ssrLoadModule('/src/views/village/Drillyard.tsx'));
 });
 
 after(async () => {
@@ -60,7 +61,8 @@ const render = (live: VillageState): string =>
     createElement(
       GameContext.Provider,
       { value: { live, now: 0, settings: DEFAULT_WORLD, village: { id: 1 }, applyVillage: () => {}, toast: () => {}, refresh: async () => {}, firstSteps: undefined } as unknown as GameApi },
-      createElement(DrillyardPanel, { part: 'ranks' }),
+      // As on the desktop page: the points bar (the Ranks panel's header) above the rank rows
+      createElement(Fragment, null, createElement(DrillPoints), createElement(DrillyardPanel, { part: 'ranks' })),
     ),
   );
 
@@ -131,7 +133,8 @@ test('the page renders a row per (unit, track) with effect, next cost and a Buy 
 test('a bought rank shows pips, the bonus now, Reset with the refund, and Max at the top', () => {
   const live = village({ ranks: { logram: { might: 0, bulwark: 0, keen: 0, breach: 2 }, raider: { might: RANK_MAX, bulwark: 0, keen: 0 } } });
   const html = render(live);
-  assert.ok(html.includes(`now +${Math.round(BREACH_BONUS * 2 * 100)}%`));
+  assert.ok(html.includes(`>+${Math.round(BREACH_BONUS * 2 * 100)}%</strong>`), 'the bonus reached sits beside the dots');
+  assert.ok(html.includes(`Now +${Math.round(BREACH_BONUS * 2 * 100)}%`));
   assert.ok(html.includes('aria-label="Log Ram Breach rank 2 of 5"'));
   assert.ok(html.includes(`Reset +${RANK_POINTS[0]! + RANK_POINTS[1]!}`));
   assert.ok(html.includes('class="drill-max">Max<'));
