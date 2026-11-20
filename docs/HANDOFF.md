@@ -79,7 +79,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## NEXT JOB
 
-Merged 2026-11-20 late (`c497c63`, in the owner's preview, NOT pushed: waits for his OK):
+Merged 2026-11-20 late (`c497c63`), pushed after the owner's OK:
 - computer players (sim + preview bots) use the whole roster: a gold-stall bug kept the Ember Guard untrained (BALANCE §27); siege now on by default in `npm run sim`;
 - Ember Guard attack 140 → 160 after a full-population attack × defence matrix (BALANCE §28; tables in `docs/sim/2026-11-20-ember-guard-matrix-a140.md` / `-a160.md`).
 - Side effect to watch: the builder sim style no longer founds a 2nd village by day 30 (its army now really grows and eats the food).
