@@ -1220,6 +1220,23 @@ After comparing with Tribal Wars world statistics the owner wants a livelier wor
 
 Single-Chieftain sims are unchanged by the point step (one Chieftain either way): `npm run sim` 30 days: 2nd village day 26.7 builder, 27.5 raider, none within the run for the turtle, 20.7 balanced; score raider 19,139 vs builder 10,591 = 1.81x.
 
+### 21.2 Pay at training, escalating by Chieftains held, banked when a Chieftain is lost (owner 2026-11-20; schema v36)
+
+Rule: each Chieftain pays the full village price when trained (slot = villages owned + Chieftains held); sending is free; what a Chieftain paid stays paid: if he dies or is cancelled it is banked and the next Chieftain costs only resources (due = full slot price - banked); a gained village spends one village price from the pool (GAME_DESIGN 18.2). Sim: `npm run sim:conquest -- --seeds 5 --days 90` (`scripts/sim/conquest.ts`; bots pay the due price at training, nothing at send, deaths and restarts keep the pool). Same code at c7cf17a for "before".
+
+| conquest sim, 5 seeds | takes | restarts | worst biggest/second |
+|---|---|---|---|
+| before (deposit 0.25 + rest at send), 90 days | 112 | 31 | 1.49 |
+| full price at training, dead Chieftain loses it, 90 days | 116 | 28 | 1.43 |
+| **full price at training, banked (this rule), 90 days** | **112** | **29** | **3.46** (seed 20261107; the other four <= 1.40) |
+| before, 30 days | 48 | 18 | 1.44 |
+| full price, loses, 30 days | 39 | 15 | 1.59 |
+| **banked, 30 days** | **38** | **16** | **1.99** |
+
+Reading it: banking is the same or a bit gentler on a player than losing the payment, yet over 90 days the take count (112) equals the pre-change count, inside the 110-150 target, with 29 restarts. The first month stays slower (38 vs 48 takes) because the full price is needed before the first Chieftain walks. The worse snowball ratio comes from one seed (20261107: 70,355 vs 20,352 points); the other four seeds are at or under 1.40. Not tuned; reported to the lead. The single-Chieftain sim (`npm run sim`) uses the same pool rule (one Chieftain at a time).
+
+**12-seed check (seeds 20261101-20261112, 90 days, `conquest.ts --conquest`; "before" = main aa1dbe4):** takes 213 against 226 before (-6%); worst biggest/second 3.46 (only seed 20261107) against 1.85 before; 11 of 12 seeds stay under 2 (mean 1.47 against 1.32). Seed 20261107: the leader takes fully built player villages and reaches 70k points with 4 villages while nobody else passes 20k; with the old rule the same seed ends at 1.19. Kept as a known outlier (owner's rule); follow-up in NEXT_STEPS.
+
 ## 22. Drillyard ranks: 5 points per level, flat 2-point ranks, Breach for siege (2026-11-18, branch `claude/hungry-kapitsa-ba124a`; schema v32)
 
 Owner: "Drillyard rank increase system is too limited ... also there should be [ranks for] the ram etc." Options, genre comparison and the player-facing view: `docs/proposals/drillyard-ranks.md`. Built: option 1.

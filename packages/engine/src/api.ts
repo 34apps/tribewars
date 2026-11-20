@@ -179,21 +179,26 @@ export interface RenownInfo {
   /** Villages owned now. */
   villages: number;
   /**
-   * Chieftain ledger (step 2, section 18.2). `spent` already contains `reserved`: the Renown held by Chieftains that are queued,
-   * at home, away or standing as occupiers. Each Chieftain's share is reserved / chieftains (the average); it is released when he
-   * founds or takes a village and half comes back (CHIEFTAIN_RENOWN_REFUND_SHARE) when he dies. Cancelling a queued batch gives
-   * its Renown back in full. Sent by GET /api/state; absent in older responses.
+   * Chieftain ledger (section 18.2, banked model since 2026-11-20). `spent` already contains `reserved`: the Renown paid for Chieftains
+   * (the pool). What the Chieftains held need (their slot prices) is the target; the pool above it is `banked`. A Chieftain who dies or
+   * is cancelled loses nothing: his payment stays in the pool and counts toward the next one. Gaining a village spends one village price
+   * from the pool for good. Sent by GET /api/state; absent in older responses.
    */
   reserved?: number;
+  /** Renown already paid and not tied to a living Chieftain (floored): subtracted from the next Chieftain's price. 0 when nothing is banked. */
+  banked?: number;
   /**
-   * Renown the next Chieftain reserves as a deposit (chieftainDepositRenown: CHIEFTAIN_DEPOSIT_SHARE of nextVillageCost, the same for
-   * every Chieftain). Needs balance >= count x this to train a batch. The rest of the village price (strikeRemainder: nextVillageCost
-   * minus one deposit) is reserved when an order that can gain a village is sent. Since 2026-11-18; before, it grew with every Chieftain held.
+   * Renown ONE Chieftain would cost now (the due amount for a batch of 1): his full slot price (chieftainPrices[0]) minus `banked`.
+   * Paid when he is trained; sending him costs nothing more (owner 2026-11-20).
    */
   chieftainPrice?: number;
-  /** Renown held by sent Strike / Found orders (the village price minus the deposits), spent when the village is gained, released otherwise. Also part of `spent`. */
+  /** FULL Renown slot price of each of the next CHIEFTAIN_MAX_BATCH Chieftains, in order (slot chieftainsHeld, chieftainsHeld + 1, ...), before `banked`. */
+  chieftainPrices?: number[];
+  /** Chieftains held now (same as `chieftains`): the slot the next price counts from. */
+  chieftainsHeld?: number;
+  /** Always 0 now (no claims are held since 2026-11-20). Deprecated, kept so old clients still parse. */
   held?: number;
-  /** Chieftains the player has now: queued + at home + away + standing as occupiers, in all villages. */
+  /** Chieftains the player has now: queued + at home + away + standing as occupiers (and walking home), in all villages. */
   chieftains?: number;
 }
 
@@ -214,14 +219,15 @@ export interface FeastResponse {
 //   else's village 403, unknown 404, same as build/train). Server: settle the village, then in one transaction take `gold` from its
 //   stock and add it to players.chest_gold. 400 invalid_input for a bad body (gold must be a whole number >= 1, no extra fields);
 //   409 not_enough_resources if the village holds less; 409 requirements_not_met while the village's hearth is out (cold, under a hold).
-// Chieftains pay no gold any more: training a batch of `count` also reserves War Chest gold, sum of
-//   chieftainDepositChest(villages owned) each (a deposit, CHIEFTAIN_DEPOSIT_SHARE of the village's chest price, the same for every Chieftain),
-//   from chest_gold into chest_reserved in the same transaction as the Renown (409 not_enough_resources if the chest is short; nothing is paid).
-//   A Chieftain who dies gives half his share back to chest_gold (chieftainRefund); one used up founding/taking a village releases his share;
-//   cancelling a queued batch gives it back in full. The rest of the village price (strikeRemainder) is reserved when a Strike or Found order
-//   is SENT (POST /api/villages/:id/send, 409 not_enough_resources "You need N more Renown to send this Strike" when short); a follow-up
-//   Strike of the sender's own open chain on the same village reserves nothing; the remainder is spent when the village is gained and given
-//   back in full when the order fails, the chain runs out or the claim ends. (2026-11-18; the response shapes did not change.)
+// Chieftains pay their whole price when they are TRAINED (owner 2026-11-20): training a batch of `count` reserves, from the balance and
+//   from chest_gold into renown_reserved / chest_reserved in one transaction, chieftainBatchPrice(villages owned, Chieftains held, count):
+//   each Chieftain pays the full price of one village, in order (the next village, then the one after, x RENOWN_VILLAGE_GROWTH each).
+//   409 not_enough_resources with a plain message ("A Chieftain costs ... You need N more Renown.") when short; nothing is paid.
+//   Sending a Strike or Found order costs nothing more and is never refused for Renown or gold. (The response shapes did not change.)
+// BANKED model (owner 2026-11-20): what a Chieftain paid stays paid. renown_reserved / chest_reserved is a pool; target = the slot prices of
+//   the Chieftains held; banked = pool - target (>= 0). Training `count` pays max(0, chieftainBatchPrice - banked) of each, 409 before
+//   anything is paid when short. A Chieftain who dies, is lost or is cancelled changes nothing in the pool (it becomes banked). Gaining a
+//   village spends min(pool, the price of the player's next village) for good.
 
 export interface ChestDepositRequest {
   /** Gold to pay in: whole number, 1 or more, at most what the village holds. */
@@ -232,13 +238,17 @@ export interface ChestDepositRequest {
 export interface ChestInfo {
   /** Gold that can be spent now (on Chieftains only). */
   gold: number;
-  /** Gold held by the player's Chieftains (queued, at home, away, occupying): half comes back if one dies. */
+  /** Gold paid for Chieftains (the pool): their slot prices plus `banked`. Stays paid when one dies or is cancelled. */
   reserved: number;
-  /** Chest gold the next Chieftain reserves as a deposit (chieftainDepositChest). Needs gold >= count x this to train a batch. */
+  /** Chest gold already paid and not tied to a living Chieftain (floored): subtracted from the next Chieftain's price. */
+  banked?: number;
+  /** Chest gold ONE Chieftain would cost now (due for a batch of 1): his full slot price (chieftainPrices[0]) minus `banked`. */
   chieftainPrice: number;
-  /** Chest gold the next village costs in all (chestVillageCost): the deposits plus what is reserved when the order is sent. */
+  /** FULL chest gold slot price of each of the next CHIEFTAIN_MAX_BATCH Chieftains, in order, before `banked`. */
+  chieftainPrices?: number[];
+  /** Chest gold the next village costs (chestVillageCost(villages)). */
   villagePrice?: number;
-  /** Chest gold held by sent Strike / Found orders (spent when the village is gained, released otherwise). */
+  /** Always 0 now (no claims are held since 2026-11-20). Deprecated, kept so old clients still parse. */
   held?: number;
 }
 
@@ -493,8 +503,8 @@ export interface VillageListResponse {
 }
 
 // Training a Chieftain (unit 'chieftain', Banner Hall level 1): the same train route. On top of the resources the server reserves
-// Renown (count x chieftainDepositRenown(villages), a deposit) in the same transaction: 409 not_enough_resources
-// ("Not enough Renown") when `renown.balance` is short. See RenownInfo for the ledger.
+// Renown (chieftainBatchPrice(villages, held, count): the full village price per Chieftain) in the same transaction: 409
+// not_enough_resources with a plain message when `renown.balance` or the chest is short. See RenownInfo for the ledger.
 export interface TrainRequest {
   unit: string; // UnitId; validated server-side
   count: number;

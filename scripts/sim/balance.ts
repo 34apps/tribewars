@@ -47,7 +47,6 @@ import {
   checkResearch,
   checkStrike,
   checkTrain,
-  chieftainRefund,
   collectBuildRenown,
   collectDefenderRenown,
   createFoundedVillage,
@@ -77,9 +76,6 @@ import {
   updateHold,
   villagePoints,
   villageRenownCost,
-  CHIEFTAIN_DEPOSIT_SHARE,
-  chieftainDepositRenown,
-  strikeRemainder,
 } from '../../packages/engine/src/index.ts';
 import type { BuildingId, Resources, UnitId, Units, VillageState, WorldSettings } from '../../packages/engine/src/index.ts';
 import { formatSiegeExperiments, runSiegeExperiments } from './siege.ts';
@@ -696,8 +692,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   let chest = 0;
   let chestReserved = 0;
   /** The rest of the village price, reserved when the order that can gain it is sent (owner 2026-11-18: pay for the village, not each Chieftain). */
-  let claimRenown = 0;
-  let claimGold = 0;
   let chiefGoldPaid = 0;
   const waits = new WaitTracker();
   /** Since when a Chieftain has been waiting at home for a target (ms), or -1. */
@@ -742,7 +736,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   const chiefHolder = (): Vil | undefined => vils.find((x) => x.state.troops.chieftain >= 1);
   /** Gold price of the next Chieftain (batch of 1) for the training village (flat / growth) or for the chest (chest). */
   const chiefGoldPrice = (): number => (goldMode === 'growth' ? chiefGoldSum(CHIEF_COST.gold, vils.length, 1) : CHIEF_COST.gold);
-  const chestPrice = (): number => chiefGoldSum(chestBase, vils.length, 1);
+  const chestPrice = (): number => Math.max(0, chiefGoldSum(chestBase, vils.length, 1) - chestReserved);
   const chestOk = (): boolean => goldMode !== 'chest' || chest >= chestPrice();
   /** What the training village must hold for the next Chieftain: the chest pays his gold in chest mode, the village in growth mode. */
   const chiefNeed = (): Resources => ({ ...CHIEF_COST, gold: goldMode === 'growth' ? chiefGoldPrice() : goldMode === 'chest' ? 0 : CHIEF_COST.gold });
@@ -783,32 +777,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     events.push({ at: at + travelTimeMs(from, to.pos, units, s), kind: 'return', to: to.id, survivors: units, loot });
     sortEvents();
   };
-  /** An order that can gain a village is sent: the rest of its price (the village price minus the one deposit) leaves the balance and the chest. */
-  const reserveClaim = (): void => {
-    claimRenown = strikeRemainder(vils.length, s, { renown: chiefReserved, gold: 0 }).renown;
-    renownSpent += claimRenown;
-    if (goldMode === 'chest') {
-      claimGold = Math.max(0, chestPrice() - chestReserved);
-      chest -= claimGold;
-      chiefGoldPaid += claimGold;
-    }
+  /** A village is gained: min(pool, price of the next village) leaves the pool (Renown and chest gold), before the village is added. */
+  const spendVillagePrice = (): void => {
+    chiefReserved -= Math.min(chiefReserved, villageRenownCost(vils.length));
+    chestReserved -= Math.min(chestReserved, chiefGoldSum(chestBase, vils.length, 1));
   };
-  /** Nothing keeps the claim alive (order failed, hold failed): it comes back in full. */
-  const releaseClaim = (): void => {
-    renownSpent -= claimRenown;
-    chest += claimGold;
-    chiefGoldPaid -= claimGold;
-    claimRenown = 0;
-    claimGold = 0;
-  };
-  const refundLostChieftain = (): void => {
-    releaseClaim();
-    renownSpent -= chieftainRefund(chiefReserved);
-    chiefReserved = 0;
-    const back = chieftainRefund(chestReserved);
-    chest += back;
-    chiefGoldPaid -= back;
-    chestReserved = 0;
+  /** A Chieftain died (owner 2026-11-20): the pool stays paid, banked for the next one. */
+  const loseChieftain = (): void => {
     expansion.chieftainsLost += 1;
   };
 
@@ -883,7 +858,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       const o = origin(e.from);
       const tg = targets[e.target] as Target;
       if (!tg.alive || tg.state.hearth) {
-        releaseClaim();
         homeTrip(o, tg.pos, e.at, e.units);
         return;
       }
@@ -905,8 +879,7 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         ...(tg.state.protectedUntil !== undefined ? { protectedUntil: tg.state.protectedUntil } : {}),
       });
       if (!chk.ok) {
-        if (r.attackerSurvivors.chieftain < 1) refundLostChieftain();
-        else releaseClaim();
+        if (r.attackerSurvivors.chieftain < 1) loseChieftain();
         homeTrip(o, tg.pos, e.at, r.attackerSurvivors);
         return;
       }
@@ -929,17 +902,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
         // The occupiers stay as support (rule since 2026-11-18); the sim recalls them at once: the used-up Chieftain is lost, the rest walks home.
         const used = { ...emptyUnits(), chieftain: oc.chieftainUsed };
         o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), used);
-        chiefReserved = 0; // the deposit and the claim paid for this village (spent)
-        chestReserved = 0;
-        claimRenown = 0;
-        claimGold = 0;
+        spendVillagePrice(); // one village price leaves the pool for good (it stays spent)
         addVillage(oc.state, tg.pos, 'taken', e.at, tg.tier);
         homeTrip(o, tg.pos, e.at, subUnits(e.occupiers, used));
       } else {
         // The claim failed (occupiers under the minimum for too long): the hearth relights and everybody goes home.
         expansion.holdFails += 1;
         delete tg.state.hearth;
-        releaseClaim();
         homeTrip(o, tg.pos, e.at, e.occupiers);
       }
       return;
@@ -949,16 +918,12 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     const occupied = new Set([...vils.map((x) => `${x.pos.x},${x.pos.y}`), ...targets.map((x) => `${x.pos.x},${x.pos.y}`)]);
     const ok = checkFoundTarget(e.pos, s, (x, y) => occupied.has(`${x},${y}`)).ok;
     if (!ok) {
-      releaseClaim();
       homeTrip(o, e.pos, e.at, e.units);
       return;
     }
     const made = createFoundedVillage(e.at, s, e.units);
     o.state = applyAttackerLosses(settleVillage(o.state, e.at, s), subUnits(e.units, made.overflow));
-    chiefReserved = 0;
-    chestReserved = 0;
-    claimRenown = 0;
-    claimGold = 0;
+    spendVillagePrice();
     expansion.founds += 1;
     addVillage(made.state, e.pos, 'founded', e.at);
     homeTrip(o, e.pos, e.at, made.overflow);
@@ -1208,13 +1173,13 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
   /** Can the next Chieftain be trained in this village now? Renown, gold (village or chest, by mode) and the engine's own checks. */
   const canTrainChief = (vil: Vil, t: number): boolean => {
     if (trainer() !== vil || outstanding() > 0) return false;
-    if (renownBalance() < villageRenownCost(vils.length) || !chestOk()) return false;
+    if (renownBalance() < Math.max(0, villageRenownCost(vils.length) - chiefReserved) || !chestOk()) return false;
     if (goldMode !== 'chest' && settleVillage(vil.state, t, s).resources.gold < chiefGoldPrice()) return false;
     return checkTrain(chiefState(vil, t), 'chieftain', 1, t, s).ok;
   };
   const tryChieftain = (vil: Vil, t: number): void => {
     if (!canTrainChief(vil, t)) return;
-    const price = chieftainDepositRenown(vils.length);
+    const price = Math.max(0, villageRenownCost(vils.length) - chiefReserved); // the full village price minus what is banked (owner 2026-11-20); one Chieftain at a time, so none is held
     waits.trained(1);
     const trained = applyTrain(chiefState(vil, t), 'chieftain', 1, t, s);
     if (goldMode !== 'chest') {
@@ -1222,14 +1187,14 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       trained.resources.gold = Math.max(0, trained.resources.gold - gold); // the engine takes no gold: the village pays the historical price
       chiefGoldPaid += gold;
     } else if (goldMode === 'chest') {
-      const gold = Math.round(chiefGoldSum(chestBase, vils.length, 1) * CHIEFTAIN_DEPOSIT_SHARE);
+      const gold = Math.max(0, chiefGoldSum(chestBase, vils.length, 1) - chestReserved);
       chest -= gold;
       chestReserved += gold;
       chiefGoldPaid += gold;
     }
     vil.state = trained;
     renownSpent += price;
-    chiefReserved = price;
+    chiefReserved += price;
     expansion.chieftainsTrained += 1;
     chieftainQueuedHour ??= t / HOUR;
   };
@@ -1283,7 +1248,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
       }
       if (best >= 0) {
         holder.state = applySend(holder.state, send, t, s);
-        reserveClaim();
         events.push({ at: t + bestTravel, kind: 'strike', from: holder.id, target: best, units: send, seed: hashSeed(styleSeed, 556, strikeSeq++), travel: bestTravel });
         sortEvents();
         chiefWaitSince = -1;
@@ -1305,7 +1269,6 @@ function simulateStyle(style: StyleName, opt: SimOptions): StyleResult {
     }
     const travel = travelTimeMs(holder.pos, pos, send, s);
     holder.state = applySend(holder.state, send, t, s);
-    reserveClaim();
     events.push({ at: t + travel, kind: 'found', from: holder.id, pos, units: send, travel });
     sortEvents();
     chiefWaitSince = -1;
@@ -1729,7 +1692,7 @@ export function formatReport(rep: SimReport, full = false): string {
     '- Renown (engine renown.ts): building levels pay once per village and level after each settle (collectBuildRenown; a taken village pays nothing for the levels it came with); raid Renown through battleRenown for raids on the abandoned villages (attacker eligible, defender not; one 24 h pair window per target village; size factor from own village points vs the target); the assumed enemy raids pay the defender (pair key "enemy", enemy of about our size); Feast (applyFeast) once the Banner Hall exists, when a Feast resource is at >= 50% of storage or nothing else is worth doing, never touching what the next building needs.',
     '- Defender trickle (engine collectDefenderRenown, GAME_DESIGN 18.2 source 4): paid every step for EVERY village from the troops at home (troops away or in training do not count), nothing during the 72 h beginner protection of the account (the sim player never attacks a player).',
     '- Terrain: every route is the straight line from the village (`--home x,y`, default -30|-10) to the target, travel time from `travelTimeMs` with the default world seed. Try `--home` for other starts.',
-    '- SEVERAL VILLAGES (step 2): Renown is reserved when a Chieftain is queued (villageRenownPrice; 500, 800, 1,280 ...; he costs 4,000/3,000/5,000 + 150 gold and 6 h) and half comes back if he dies in a strike (chieftainRefund). One Chieftain at a time. The first village with a Banner Hall trains him. Take styles first build an escort of 1.05 x HOLD_MIN_POPULATION fighters (they stop raiding and train as usual; only once the Banner Hall exists). Then, while the Renown is there, the village saves up: it only builds what leaves his cost untouched (plus the storehouse / farm he needs) and trains nothing.',
+    '- SEVERAL VILLAGES (step 2): Renown is reserved when a Chieftain is queued (villageRenownPrice; 500, 800, 1,280 ...; he costs 4,000/3,000/5,000 + 150 gold and 6 h) and nothing comes back if he dies in a strike (since 2026-11-20 he pays the whole village price when trained; sending costs nothing). One Chieftain at a time. The first village with a Banner Hall trains him. Take styles first build an escort of 1.05 x HOLD_MIN_POPULATION fighters (they stop raiding and train as usual; only once the Banner Hall exists). Then, while the Renown is there, the village saves up: it only builds what leaves his cost untouched (plus the storehouse / farm he needs) and trains nothing.',
     '- TAKE (raider, balanced): all home troops (except Pathfinders) + the Chieftain strike the abandoned village with the most points that the army beats in a preview (attack >= 1.25 x defence, Chieftain survives, survivors >= HOLD_MIN_POPULATION). Real Strike and Hold from the engine: checkStrike, applyStrike (hearth out, village frozen), updateHold after 6 h, applyOwnerChange (all buildings kept, stock x TAKE_KEEP_RESOURCE_SHARE, old garrison gone, the occupiers stay as support and the sim recalls them at once (all walk home, the used Chieftain is lost)). The strike army carries no loot (noLoot: a Strike attempt is not a raid). A take style keeps its army at home while a Chieftain exists and founds instead after 72 h without a beatable target.',
     '- FOUND (builder, turtle): the Chieftain + up to 30 defenders walk to the nearest free buildable tile (checkFoundTarget); createFoundedVillage (start levels, 300/300/150, 24 h protection, the escort is the garrison).',
     '- Extra villages play the same style script (build list, army, research, raids against the shared abandoned villages from their own tile, Feast), starting from their own levels; a taken village starts with all its buildings. Chieftains are only trained in the first village with a Banner Hall. Not modeled: sending resources or troops between the player\'s villages, a second hold wave (occupiers who arrive late), the Banner Hall of an extra village training Chieftains, enemy attacks on a village while it is struck, players as targets.',

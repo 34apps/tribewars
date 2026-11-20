@@ -1,34 +1,12 @@
-// War Chest (docs/GAME_DESIGN.md 18.2): account-wide gold for Chieftains only. WarChestProgress is the one-row bar against the WHOLE village price
-// (Banner Hall page); WarChestPayIn is always there: an amount field, two quick fills and Pay in. Both render nothing against a server without a chest.
+// War Chest (docs/GAME_DESIGN.md 18.2): account-wide gold for Chieftains only. WarChestPayIn is always there (Banner Hall page): an amount field, two quick fills and Pay in. It renders nothing against a server without a chest.
 
 import { useId, useState } from 'react';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
-import { CHEST_WARNING, chestErrorText, chestFillAmount, chestPayInReason, chestWholePrice, parseChestGold } from '../chest.ts';
+import { CHEST_WARNING, chestErrorText, chestFillAmount, chestPayInReason, parseChestGold } from '../chest.ts';
 import { formatInt } from '../format.ts';
 import { useGame } from '../game.ts';
 import { useConfirm } from '../tribe/Confirm.tsx';
 import { HEARTH_OUT_REASON } from '../villages.ts';
-
-/** One row: "War Chest", a thin bar and "chest / village price gold" (a filled "Ready" tag when the chest covers the whole price). */
-export function WarChestProgress() {
-  const { chest } = useGame();
-  if (!chest) return null;
-  const price = chestWholePrice(chest);
-  const ready = chest.gold >= price;
-  const pct = Math.min(100, Math.round((chest.gold / price) * 100));
-  return (
-    <div className="wc-prog">
-      <span className="wc-label">War Chest</span>
-      <span className="wc-bar" role="progressbar" aria-label="War Chest gold" aria-valuemin={0} aria-valuemax={price} aria-valuenow={Math.min(chest.gold, price)}>
-        <span className="wc-fill" style={{ width: `${pct}%` }} />
-      </span>
-      <span className="wc-num">
-        {formatInt(chest.gold)} / {formatInt(price)} gold
-      </span>
-      {ready && <span className="wc-ready">Ready</span>}
-    </div>
-  );
-}
 
 /** Always there: any whole amount from 1 to this village's gold, two quick fills, Pay in (confirm step, one way). */
 export function WarChestPayIn() {
@@ -94,7 +72,7 @@ export function WarChestPayIn() {
       <div className="wc-quick">
         {fill >= 1 && (
           <button type="button" className="btn btn-small" disabled={quickOff} onClick={() => setText(String(fill))}>
-            Fill to next village ({formatInt(fill)})
+            Fill to next Chieftain ({formatInt(fill)})
           </button>
         )}
         <button type="button" className="btn btn-small" disabled={quickOff || have < 1} onClick={() => setText(String(have))}>

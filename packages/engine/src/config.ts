@@ -605,14 +605,6 @@ export const RENOWN_VILLAGE_BASE = 1300; // was 1,000 before the 2026-11-11 econ
 export const RENOWN_VILLAGE_GROWTH = 1.6;
 /** War Chest gold the 2nd village's Chieftain reserves (BALANCE 12.3); each further one costs RENOWN_VILLAGE_GROWTH times more. */
 export const WAR_CHEST_BASE = 2000;
-/** Share of a Chieftain's reserved Renown that comes back when he dies on the way (step 2). */
-export const CHIEFTAIN_RENOWN_REFUND_SHARE = 0.5;
-/**
- * Pay for the village, not for each Chieftain (owner 2026-11-18): training a Chieftain reserves only this share of the next village's
- * Renown price (and of its War Chest gold price), a deposit that does not grow with the Chieftains held. The rest of the village price
- * is reserved when an order that can gain the village is SENT (once per village, however many Chieftains it takes) and spent when it is gained.
- */
-export const CHIEFTAIN_DEPOSIT_SHARE = 0.25;
 /** Chieftains per village in the Banner Hall queue: one batch of at most this many (each living or queued one is a future village). */
 export const CHIEFTAIN_MAX_QUEUED_BATCHES = 1;
 export const CHIEFTAIN_MAX_BATCH = 3;

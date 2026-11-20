@@ -6,7 +6,7 @@ import { afterEach, test } from 'node:test';
 import { createElement } from 'react';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DEFAULT_WORLD_CONFIG, DEFAULT_WORLD, WORLD_CONFIG_FIELDS, defaultWorldConfig, makeRenownInfo, setWorldConfigValue, villageRenownCost, chieftainDepositRenown } from '@clanfire/engine';
+import { DEFAULT_WORLD_CONFIG, DEFAULT_WORLD, WORLD_CONFIG_FIELDS, defaultWorldConfig, makeRenownInfo, setWorldConfigValue, villageRenownCost, chieftainPrice } from '@clanfire/engine';
 import type { MyTribeResponse, WorldConfig, WorldConfigResponse, WorldSettings } from '@clanfire/engine';
 import { GameContext, useRules } from '../src/game.ts';
 import type { GameApi } from '../src/game.ts';
@@ -217,10 +217,11 @@ test('Renown prices follow the world: the settings go to the engine', () => {
   assert.equal(villageRenownCost(2, s), 1000);
   const info = makeRenownInfo(5000, 0, 2, s);
   assert.equal(info.nextVillageCost, 1000);
-  assert.equal(nextChieftainPrice({ ...info, chieftainPrice: undefined, chieftains: 0 }, s), 250, 'the deposit is a quarter of the world\'s village price');
-  assert.equal(chieftainBatchPrice({ ...info, chieftains: 0 }, 2, s), 2 * chieftainDepositRenown(2, s));
-  assert.equal(chieftainsAffordable({ ...info, balance: 600, chieftains: 0 }, 5, s), 2);
-  assert.notEqual(nextChieftainPrice({ ...info, chieftainPrice: undefined, chieftains: 0 }), 250, 'without settings it is the default price');
+  const bare = { ...info, chieftains: 0 };
+  assert.equal(nextChieftainPrice(bare, s), 1000, "the whole village price of this world");
+  assert.equal(chieftainBatchPrice(bare, 2, s), chieftainPrice(2, 0, s).renown + chieftainPrice(2, 1, s).renown, 'the second pays the next village');
+  assert.equal(chieftainsAffordable({ ...bare, balance: 3000 }, 5, s), 2, '1,000 + 2,000');
+  assert.notEqual(nextChieftainPrice(bare), 1000, 'without settings it is the default price');
 });
 
 test('strike hint uses the world\'s hold time and chain window, in real time', () => {

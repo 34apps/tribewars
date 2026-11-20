@@ -4,7 +4,6 @@ import { MAP_STAGE_NAMES, UNITS, UNIT_IDS, buildSiteProblem, checkFoundTarget, c
 import type { Coords, MapVillageDto, Mission, UnitId, Units } from '@clanfire/engine';
 import { api, errorMessage } from '../api.ts';
 import { UnitFigure } from '../art/UnitFigure.tsx';
-import { chieftainPriceText } from '../chest.ts';
 import { AttackHint } from '../components/AttackHint.tsx';
 import { SupportTimingView } from '../components/hintViews.tsx';
 import { HoldCard } from '../components/HoldCard.tsx';
@@ -37,10 +36,6 @@ import {
   isReliefTarget,
   missionsFor,
   myOccupierPopulation,
-  nextChieftainPrice,
-  reserveText,
-  sendReserve,
-  sendReserveProblem,
   occupyWarning,
   selectableUnits,
   sendMode,
@@ -207,11 +202,8 @@ export function SendForm({
   } else if (!check.ok) reason = check.message;
   else if (!missionCheck.ok) reason = missionCheck.message;
   else if (mission === 'found') reason = foundProblem(chosen);
-  // Strike and Found reserve the rest of the village price when sent (nothing more when you already have a chain on this village).
+  // Chieftains are paid when trained (owner 2026-11-20): a Strike or Found order is never refused for Renown or gold.
   const reservesPrice = (mode === 'strike' || mode === 'found') && chosen.chieftain > 0;
-  const claimed = !!target && chains.some((c) => c.villageId === target.id);
-  const reserve = reservesPrice && !claimed ? sendReserve(renown, chest, settings) : null;
-  if (!reason && reservesPrice) reason = sendReserveProblem(renown, chest, mode === 'found' ? 'Found order' : 'Strike', claimed, settings);
 
   // Not blocking (the server decides), but worth saying before the army leaves.
   let warning: string | null = null;
@@ -308,7 +300,6 @@ export function SendForm({
   const hint = (
     <>
       {mode === 'strike' ? strikeHint(target?.kind ?? null, settings) : (hints?.[mission] ?? SEND_MODE_HINT[mode] ?? MISSION_HINT[mission])}
-      {mode === 'found' && chieftainHome ? ' The rest of the village price is reserved when you send him.' : ''}
     </>
   );
   const simulateLink = (
@@ -533,12 +524,6 @@ export function SendForm({
                 <dd>{formatInt(carry)}</dd>
               </div>
             )}
-            {mode === 'found' && (
-              <div className="wm-sum-wide">
-                <dt>{chosen.chieftain > 0 ? 'Reserved' : 'Price'}</dt>
-                <dd>{chosen.chieftain > 0 ? reserveText(reserve, chest !== undefined) : chieftainPriceText(nextChieftainPrice(renown, settings), chest)}</dd>
-              </div>
-            )}
           </dl>
         )
       )}
@@ -585,7 +570,7 @@ export function SendForm({
       {breaksProtection && !targetProtected && (
         <p className="wm-note">Ends your protection</p>
       )}
-      {mode === 'strike' && reservesPrice && <p className="wm-muted wm-send-hint">Reserved when sent: {reserveText(reserve, chest !== undefined)}. Spent when the village is yours, given back if it is not.</p>}
+      {reservesPrice && <p className="wm-muted wm-send-hint">Chieftains are paid when trained: sending costs nothing more.</p>}
       {warning && <p className="wm-note">{warning}</p>}
       {error && (
         <p className="wm-error" role="alert">
@@ -607,12 +592,6 @@ export function SendForm({
               <div>
                 <dt>Carry</dt>
                 <dd>{total > 0 ? formatInt(carry) : '–'}</dd>
-              </div>
-            )}
-            {mode === 'found' && (
-              <div className="wm-sum-wide">
-                <dt>{chosen.chieftain > 0 ? 'Reserved' : 'Price'}</dt>
-                <dd>{chosen.chieftain > 0 ? reserveText(reserve, chest !== undefined) : chieftainPriceText(nextChieftainPrice(renown, settings), chest)}</dd>
               </div>
             )}
           </dl>
