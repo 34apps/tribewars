@@ -177,7 +177,7 @@ travel time, so it says "arrives in time" for a Hearthwarden where foot would be
 - **Research gate (Drillyard, see §15):** Shieldbearer, Elk Rider, Hearthwarden and Ember Guard have `UnitDef.research`
   (Drillyard level to start, cost, time; the Firecart too, Drillyard 3). They can only be trained after the research finished in that
   village (`VillageState.researched`); refusal is `requirements_not_met`. Research queue per village
-  (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting), the same for everyone. Cost is paid when
+  (`VillageState.researchQueue`): `MAX_RESEARCH_QUEUE` (2: one running, one waiting; the world's `queues.research`), except for players with the premium tools (`features.premium` + `EXTRA_PREMIUM_TOOLS`), who may queue `PREMIUM_RESEARCH_QUEUE` (5; owner 2026-11-20, see section 23; `PlayerDto.researchQueueLimit`). Cost is paid when
   queued; jobs run one after another; the same unit can't be queued twice (full queue is `queue_full`);
   time is divided by world speed. Pikeman, Raider and Pathfinder need none. Villages saved before the Drillyard
   keep every unit they already have (home, away or queued count as researched; abandoned villages never train).
@@ -2519,6 +2519,8 @@ changes any game number for anybody else; it only saves clicks and fills the que
 **5 build slots.** An entitled player may queue `max(PREMIUM_BUILD_QUEUE, queues.build)` = 5 build jobs per village, everyone else `queues.build` (2).
 Everything else about the queue is unchanged (cost paid when queued, a job starts when the one before ends). If the entitlement ends, a queue longer
 than the normal limit stays as it is; new manual builds wait until it is under the limit.
+
+**5 research slots (owner, 2026-11-20).** The same entitlement raises the Drillyard research queue to `max(PREMIUM_RESEARCH_QUEUE, queues.research)` = 5 per village (everyone else `queues.research`, 2). The server chooses the limit (`researchQueueLimit` in engine `auto.ts`); `PlayerDto.researchQueueLimit` only tells the client what to show. A queue longer than the normal limit stays if the entitlement ends; new research waits until it is under the limit.
 
 **Auto mode** (one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). Settings per village: on/off, a balance
 `buildShare` (0..100 percent in steps of `AUTO_SHARE_STEP` = 10, default 70 = "more building") and the units it recruits (`units`, default Pikeman and

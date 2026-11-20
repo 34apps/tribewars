@@ -1118,8 +1118,8 @@ th[scope='row'] {
   align-items: center;
   gap: 4px 12px;
   margin-bottom: 8px;
-  padding: 6px 12px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
   background: var(--surface-2);
 }
 
@@ -1133,7 +1133,7 @@ th[scope='row'] {
 }
 
 .drill-howto {
-  margin: 0 0 8px;
+  margin: 4px 2px 14px;
   font-size: 0.92rem;
   color: var(--on-surface-muted);
 }
@@ -1148,7 +1148,7 @@ th[scope='row'] {
 .drill-units {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
-  gap: 6px 8px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1156,8 +1156,8 @@ th[scope='row'] {
 
 .drill-uc {
   min-width: 0;
-  padding: 4px 8px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   background: var(--surface-2);
   container-type: inline-size;
 }
@@ -1170,7 +1170,7 @@ th[scope='row'] {
     'ic fx fx btn'
     'ic pips info btn';
   align-items: center;
-  gap: 0 8px;
+  gap: 4px 12px;
 }
 
 .drill-tr .drill-icon {
@@ -1196,6 +1196,27 @@ th[scope='row'] {
   background: var(--c-teal-hi);
   color: var(--c-ink);
   font: 700 0.78rem/1.4 var(--font);
+}
+
+/* One colour per track, so attack, defence and scouting rows tell apart at a glance */
+.drill-tag.is-might {
+  background: var(--c-terra);
+  color: var(--c-cream);
+}
+
+.drill-tag.is-bulwark {
+  background: var(--c-teal-lo);
+  color: var(--c-cream);
+}
+
+.drill-tag.is-keen {
+  background: var(--c-moss);
+  color: var(--c-cream);
+}
+
+.drill-tag.is-breach {
+  background: var(--c-plum);
+  color: var(--c-cream);
 }
 
 .drill-fx {
@@ -1328,8 +1349,8 @@ th[scope='row'] {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   background: var(--surface-2);
 }
 
@@ -1351,8 +1372,10 @@ th[scope='row'] {
 
 .drill-rc-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 0 10px;
 }
 
 .drill-time {

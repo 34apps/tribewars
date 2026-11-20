@@ -198,6 +198,12 @@ export function useRules(): WorldConfig {
   return worldRules(useGame().settings);
 }
 
+/** Research jobs per village this player may queue: the server's `player.researchQueueLimit` (5 with the premium tools), else the world rule. */
+export function useResearchQueueLimit(): number {
+  const g = useGame();
+  return g.player?.researchQueueLimit ?? worldRules(g.settings).queues.research;
+}
+
 /** Build jobs per village this player may queue: the server's `player.buildQueueLimit` (5 with the premium tools), else the world rule. */
 export function useBuildQueueLimit(): number {
   const g = useGame();

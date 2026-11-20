@@ -17,6 +17,7 @@ import {
   BUILDINGS,
   POP_PER_UNIT,
   PREMIUM_BUILD_QUEUE,
+  PREMIUM_RESEARCH_QUEUE,
   UNITS,
 } from './config.ts';
 import { buildingCost, buildingPop, popCapForLevel, populationCap, populationUsage, productionFromLevels, storageCap, storageCapForLevel } from './economy.ts';
@@ -33,6 +34,11 @@ import type { WorldConfig } from './world-config.ts';
 /** Build jobs per village: the premium tools raise it to PREMIUM_BUILD_QUEUE (never below the world's own limit). */
 export function buildQueueLimit(rules: Pick<WorldConfig, 'queues'>, premiumTools: boolean): number {
   return premiumTools ? Math.max(PREMIUM_BUILD_QUEUE, rules.queues.build) : rules.queues.build;
+}
+
+/** Research jobs per village: the premium tools raise it to PREMIUM_RESEARCH_QUEUE (never below the world's own limit). */
+export function researchQueueLimit(rules: Pick<WorldConfig, 'queues'>, premiumTools: boolean): number {
+  return premiumTools ? Math.max(PREMIUM_RESEARCH_QUEUE, rules.queues.research) : rules.queues.research;
 }
 
 /** Settings of a village that never had auto mode: off, the default balance and units, counters at zero. */

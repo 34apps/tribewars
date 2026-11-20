@@ -22,6 +22,7 @@ import {
   autoNext,
   autoTrainableUnits,
   buildQueueLimit,
+  researchQueueLimit,
   checkAutoSettings,
   defaultAutoMode,
   hasPremiumToolsExtra,
@@ -2371,7 +2372,7 @@ export class GameService {
   research(player: PlayerRow, villageId: number, unit: string, t: number): OwnVillageDto {
     return this.store.tx(() => {
       const v = this.ownedVillage(player, villageId);
-      const next = applyResearch(v.state, unit, t, this.settings);
+      const next = applyResearch(v.state, unit, t, this.settings, researchQueueLimit(worldRules(this.settings), this.premiumTools(this.store.getPlayer(player.id) ?? player)));
       this.store.saveVillage(v.id, next, villagePoints(next));
       return this.ownDto(v, next, t);
     });
@@ -2795,7 +2796,7 @@ export class GameService {
   }
 
   private playerDto(p: PlayerRow): PlayerDto {
-    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), this.premiumTools(p)), ...(this.premiumTools(p) ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
+    return { id: p.id, username: p.username, protectedUntil: p.protectedUntil, tribe: this.store.tribes.playerTribe(p.id), chieftain: p.chieftain, householdShared: p.householdShared, abandonedNotice: abandonedNoticeOf(p, this.settings), sandbox: this.store.isSandboxUser(p.username), staffRole: p.staffRole, buildQueueLimit: buildQueueLimit(worldRules(this.settings), this.premiumTools(p)), researchQueueLimit: researchQueueLimit(worldRules(this.settings), this.premiumTools(p)), ...(this.premiumTools(p) ? { premiumTools: true as const } : {}), ...(hasWideOverviewExtra(p.premium) ? { wideOverview: true as const } : {}) };
   }
 
   /**

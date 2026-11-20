@@ -95,6 +95,8 @@ export interface PlayerDto {
    * else the world's `queues.build`). The server enforces it on POST /api/villages/:id/build.
    */
   buildQueueLimit: number;
+  /** Research jobs per village this player may queue (PREMIUM_RESEARCH_QUEUE with the premium tools, else `queues.research`). Enforced on POST /api/villages/:id/research. */
+  researchQueueLimit: number;
   /** This account has the premium tools (5 build slots, auto mode) AND the world has `features.premium`. Absent = no. */
   premiumTools?: boolean;
 }

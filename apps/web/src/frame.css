@@ -2196,7 +2196,8 @@ button.bs:active:not(:disabled) {
 }
 
 .fv-rcol.is-wide {
-  width: 256px;
+  /* Drillyard research column: room for a name, its time and four costs on one line each (was 256 px and clipped) */
+  width: 372px;
 }
 
 .fv-rcol.is-wide .fv-boxed {

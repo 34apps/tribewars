@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import {
   EXTRA_PREMIUM_TOOLS,
   PREMIUM_BUILD_QUEUE,
+  PREMIUM_RESEARCH_QUEUE,
   abandonIdleMs,
   botIdleMs,
   defaultAutoMode,
@@ -141,6 +142,34 @@ test('5 build slots for the entitled player, 2 for everyone else', async () => {
   errorOf(await alice.c.post(`/api/villages/${a}/build`, { building: ids[5] }), 409, 'queue_full');
   for (let i = 0; i < 2; i++) ok(await bob.c.post(`/api/villages/${b}/build`, { building: ids[i] }));
   errorOf(await bob.c.post(`/api/villages/${b}/build`, { building: ids[2] }), 409, 'queue_full');
+});
+
+test('5 research slots for the entitled player, 2 for everyone else (server-enforced)', async () => {
+  const { app, clock } = await makeApp({ worldConfig: { npc: { selfBuild: false }, features: { premium: true, siege: true } } });
+  void clock;
+  const alice = await newPlayer(app, 'alice');
+  const bob = await newPlayer(app, 'bob');
+  app.ctx.store.setPremiumBit(alice.id, EXTRA_PREMIUM_TOOLS, true);
+  for (const p of [alice, bob]) {
+    const v = app.ctx.store.villagesOfPlayer(p.id)[0]!;
+    v.state.buildings.drillyard = 10;
+    v.state.buildings.storehouse = 25;
+    v.state.resources = { wood: 40000, food: 40000, iron: 40000, gold: 2000 } as typeof v.state.resources;
+    app.ctx.store.saveVillage(v.id, v.state, villagePoints(v.state));
+  }
+  assert.equal((await alice.c.state()).player.researchQueueLimit, PREMIUM_RESEARCH_QUEUE);
+  assert.equal((await bob.c.state()).player.researchQueueLimit, 2);
+  const units = ['guard', 'outrider', 'hearthwarden', 'knight', 'logram', 'firecart'];
+  const a = await vid(alice);
+  const b = await vid(bob);
+  for (let i = 0; i < 5; i++) ok(await alice.c.post(`/api/villages/${a}/research`, { unit: units[i] }));
+  errorOf(await alice.c.post(`/api/villages/${a}/research`, { unit: units[5] }), 409, 'queue_full');
+  for (let i = 0; i < 2; i++) ok(await bob.c.post(`/api/villages/${b}/research`, { unit: units[i] }));
+  errorOf(await bob.c.post(`/api/villages/${b}/research`, { unit: units[2] }), 409, 'queue_full');
+  // Entitlement ends: the switch or the bit off means the normal limit again.
+  app.ctx.store.setPremiumBit(alice.id, EXTRA_PREMIUM_TOOLS, false);
+  assert.equal((await alice.c.state()).player.researchQueueLimit, 2);
+  errorOf(await alice.c.post(`/api/villages/${a}/research`, { unit: units[5] }), 409, 'queue_full');
 });
 
 test('auto mode queues a build and a troop order by itself while time passes (a read is all it takes)', async () => {

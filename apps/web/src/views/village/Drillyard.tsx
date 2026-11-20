@@ -24,7 +24,7 @@ import { Icon } from '../../art/Icon.tsx';
 import { UnitFigure } from '../../art/UnitFigure.tsx';
 import { Cost, ProgressBar } from '../../components/ui.tsx';
 import { formatDuration, formatInt } from '../../format.ts';
-import { useGame, useRules } from '../../game.ts';
+import { useGame, useResearchQueueLimit } from '../../game.ts';
 import { useLock } from '../../hooks/useLock.ts';
 import { useSync } from '../../hooks/useSync.ts';
 import { reasonText } from '../../rules.ts';
@@ -74,7 +74,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
   const total = pointsTotal(live);
   const spent = pointsSpent(live);
   const queue = live.researchQueue ?? [];
-  const limit = useRules().queues.research;
+  const limit = useResearchQueueLimit();
   const researchable = UNIT_IDS.filter((u) => UNITS[u].research);
   const trained = rankCardUnits(live);
 
@@ -200,7 +200,7 @@ export function DrillyardPanel({ part }: { part?: 'research' | 'ranks' } = {}) {
                     </span>
                     <span className="drill-head">
                       <span className="drill-name">{def.name}</span>
-                      <span className="drill-tag">{name}</span>
+                      <span className={`drill-tag is-${track}`}>{name}</span>
                     </span>
                     <span className="drill-fx" title={trackEffect(track, u)}>
                       {trackEffect(track, u)}

@@ -4,6 +4,7 @@ import {
   AUTO_TRAIN_BATCH,
   DEFAULT_WORLD_CONFIG,
   PREMIUM_BUILD_QUEUE,
+  PREMIUM_RESEARCH_QUEUE,
   UNITS,
   applyAutoSettings,
   applyBuild,
@@ -14,6 +15,7 @@ import {
   applyTrain,
   autoNext,
   buildQueueLimit,
+  researchQueueLimit,
   buildingCost,
   checkAutoSettings,
   createNpcVillage,
@@ -46,6 +48,12 @@ const shape = (v: VillageState) => ({
 });
 
 describe('settings', () => {
+  it('researchQueueLimit', () => {
+    assert.equal(researchQueueLimit(DEFAULT_WORLD_CONFIG, false), DEFAULT_WORLD_CONFIG.queues.research);
+    assert.equal(researchQueueLimit(DEFAULT_WORLD_CONFIG, true), PREMIUM_RESEARCH_QUEUE);
+    assert.equal(researchQueueLimit({ queues: { ...DEFAULT_WORLD_CONFIG.queues, research: 8 } }, true), 8);
+  });
+
   it('buildQueueLimit', () => {
     assert.equal(buildQueueLimit(DEFAULT_WORLD_CONFIG, false), DEFAULT_WORLD_CONFIG.queues.build);
     assert.equal(buildQueueLimit(DEFAULT_WORLD_CONFIG, true), PREMIUM_BUILD_QUEUE);

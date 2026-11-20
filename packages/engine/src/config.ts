@@ -71,6 +71,8 @@ export const MAX_BUILD_QUEUE = 2;
  * `queues.build` (never fewer than `queues.build`). See `buildQueueLimit`.
  */
 export const PREMIUM_BUILD_QUEUE = 5;
+/** Premium Drillyard research queue (owner, 2026-11-20): research jobs per village with the premium tools, instead of `queues.research` (never fewer). See `researchQueueLimit`. */
+export const PREMIUM_RESEARCH_QUEUE = 5;
 
 // ---- Auto mode (premium; docs/GAME_DESIGN.md "Auto mode"; engine auto.ts) ----
 /** The building / troops balance moves in steps of this many percent. */

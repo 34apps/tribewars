@@ -76,8 +76,8 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
 
 ## 7. Open questions for the owner
 
-1. Name of the currency, pack sizes and prices (suggest 5 / 10 / 25 / 50 EUR packs, premium 30 days = about 5 EUR).
-2. What else points buy besides premium (cosmetics from 18.6?).
+1. ~~Packs~~ (decided 2026-11-20): 3 EUR = 100 pts, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000; Premium 30 days = 150 pts. Still open: the currency's name.
+2. ~~Points buy~~ (decided 2026-11-20): Premium days + looks (18.6 cosmetics). Never troops, resources, protection, Renown.
 3. ~~Seller~~: Stripe direct (decided 2026-11-20).
 
 ## 8. Tribal Wars reference (research 2026-11-20, mobile store prices; browser table not found)
