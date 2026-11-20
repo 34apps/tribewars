@@ -5,7 +5,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## State in one minute
 
-- `main`: everything up to `3988169` is pushed; the roster commits after it are NOT pushed (owner tries them first). Lobby schema v9, game schema v39.
+- `main` = `origin/main`, everything pushed (owner OK 2026-11-20). Lobby schema v9, game schema v39.
 - The owner plays the BUILT preview on http://localhost:5174. After every merge into main: back up
   `apps/preview/data/preview-world-metinaltinbas.sqlite` to `apps/preview/data/backups/`, run `npm run build:preview:local`,
   ask him to reload. Push only after he says "works, push it".
@@ -47,7 +47,7 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Drillyard ranks polish** (`697aaa9`): cards grouped by role (Defence/Attack/Scouting/Breach), one card layout, 3 columns. Known: at Drillyard level 5 with 5 researchable units the Ranks panel is clipped by ~10 px at 1440x900.
 - **Pathfinder back at the Barracks** (owner undid the Stables move), **Drillyard Reset = small ↺ button with confirm**, **'foot'/'rider' tag next to unit attack** + explainer line (unit cards, Army recruit). In the preview, not pushed.
 - **Roster (owner 2026-11-20, FINAL, genre-style):** Barracks = Pikeman, Raider, Shieldbearer (foot). Stables = Pathfinder (scout), Elk Rider, Hearthwarden, Ember Guard (all riders). The two 'back to Barracks' merges were reverted (`a00df2d`, `cc1ee45`). Never move riders back to the Barracks.
-- **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), in the preview, not pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
+- **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
 
 ## NEXT JOB
