@@ -14,11 +14,11 @@ test('SANDBOX_USERS default: dev name outside production, empty in production, e
 
 test('ALLOWED_ORIGINS parsing', () => {
   assert.deepEqual(loadEnv({}).allowedOrigins, []);
-  assert.deepEqual(loadEnv({ ALLOWED_ORIGINS: 'https://Play.Clanfire.com/, http://localhost:5173 ,https://play.clanfire.com' }).allowedOrigins, [
-    'https://play.clanfire.com',
+  assert.deepEqual(loadEnv({ ALLOWED_ORIGINS: 'https://Play.Clanflame.com/, http://localhost:5173 ,https://play.clanflame.com' }).allowedOrigins, [
+    'https://play.clanflame.com',
     'http://localhost:5173',
   ]);
-  for (const bad of ['play.clanfire.com', 'ftp://x.com', 'https://x.com/path', 'https://x.com/?q=1', 'not a url']) {
+  for (const bad of ['play.clanflame.com', 'ftp://x.com', 'https://x.com/path', 'https://x.com/?q=1', 'not a url']) {
     assert.throws(() => loadEnv({ ALLOWED_ORIGINS: bad }), /ALLOWED_ORIGINS/, bad);
   }
 });

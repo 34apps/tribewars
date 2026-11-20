@@ -1,4 +1,4 @@
-# Clanfire — game design (v0.1)
+# Clanflame — game design (v0.1)
 
 Original browser strategy game. Players each own a village on a shared square world map,
 grow it with four resources, train troops, raid abandoned villages and (later) fight other
@@ -825,7 +825,7 @@ tables/endpoints, stamping ranks on movements, scout intel tiers (Keen stored on
 tests) → server (table, research queue, security gate per SECURITY_ROADMAP §4) → web (Armory panel with a points
 bar, tiered scout report) → preview + CHANGELOG.
 
-## 18. PROPOSAL (needs owner approval): what makes Clanfire different
+## 18. PROPOSAL (needs owner approval): what makes Clanflame different
 
 Written 2026-11-04. **Nothing here is built and nothing here is a rule yet.** Each part says how it would work,
 why it is fair, first numbers for `config.ts`, what it needs, a size, and what the owner has to decide. When a
@@ -841,7 +841,7 @@ Sizes: **S** = a day or less, **M** = a few days, **L** = about a week or more (
 
 ### 18.0 The big picture
 
-Clanfire's promise in one sentence: **a world is a story with an ending (one tribe takes the land), and the land, the clock and the
+Clanflame's promise in one sentence: **a world is a story with an ending (one tribe takes the land), and the land, the clock and the
 tribe all matter.** (Revised 2026-11-05: no short seasons for normal worlds.)
 
 | Pillar | What the player feels | Part |
@@ -1460,16 +1460,17 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
   member from the moment the tribe holds the site or the member joins until the tribe loses it or the member leaves (a member in several tribes earns only
   for the time they were members; a site nobody holds pays nobody), through `Store.addRenown` like the defender trickle: settled on requests and on the
   tick (`SiteService.settleHolders`, every `SITE_RENOWN_SETTLE_MS`), exactly at every change (capture, loss, leaving, a Chieftain order), counted in `renown_total`, so it shows on
-  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel says "While your tribe holds this shrine, every member earns 12 Renown a
-  day (20 once it wakes on day 120)" and, for a holder, "You earn 12 a day from it". Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
+  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel's "Gives" tile says "+12 Renown a day to every member of your tribe" (and "20 once it wakes" while dormant). Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
 - **Keepers and Wall (owner, 2026-11-18).** The keepers (militia, `SITE_MILITIA`, x2 awake) of a site nobody holds return **linearly from 0 to full over 24 game hours**
   (`SITE_KEEPERS_REGROW_HOURS`, / speed) from the moment the holding tribe's last troops leave; a tribe that takes a site finds none; keepers killed in a lost attack come
   back from what stands. Every site has a **Wall** that rises by 1 every `SITE_WALL_STEP_HOURS` (12, / speed) with no resources, from level 0 when the world begins up to
   `BUILDINGS.wall.maxLevel` (22). It protects whoever stands there (keepers when unheld, the holding tribe's troops when held) with the Wall's percentage bonus; the
   village Wall militia does not apply (the keepers are the militia). Log Rams lower it like a village Wall (same points and steps); it then rises again from the new level, and it
-  keeps its level when the site changes hands. The panel shows "Wall 14 of 22, next level in 7h 12m" and the keepers' share; battle reports show the Wall after the fight.
-- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
-  size, calm time and the send buttons; `GET /api/sites`.
+  keeps its level when the site changes hands. The panel's Wall tile shows "14 of 22" with a bar and "+1 level in 7h 12m"; the Keepers tile shows their share; battle reports show the Wall after the fight.
+- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; the site panel (web, 2026-11-19, "number tiles") reads top to bottom: name and state tag (Awake/Dormant) with
+  place, distance and terrain; one status line (nobody holds it / your tribe holds it / held by another tribe, or the calm time while a calm runs); three tiles
+  Gives (Renown a day, or the 12-tile Waymark / 20-tile Lookout reach), Keepers (nobody holds it) or Troops (a holder's garrison with its room), and Wall (level of max,
+  next level); my troops there with Call back; then the send form (attack to take it, support to keep it). `GET /api/sites`.
 - **Server as built (2026-11-05), where it differs from or adds to the text above:**
   - Attack and support go through the normal send route (`POST /api/villages/:id/send`) with the site's tile; the march is stored with the tile (like a
     Chieftain's found mission). Scouts, occupiers, shipments and Chieftains are refused at a site. **Only tribe members** can attack or support a site
@@ -2057,16 +2058,17 @@ an unheld one is 300 population (`SITE_MILITIA`). They **never wake** (no double
   member from the moment the tribe holds the site or the member joins until the tribe loses it or the member leaves (a member in several tribes earns only
   for the time they were members; a site nobody holds pays nobody), through `Store.addRenown` like the defender trickle: settled on requests and on the
   tick (`SiteService.settleHolders`, every `SITE_RENOWN_SETTLE_MS`), exactly at every change (capture, loss, leaving, a Chieftain order), counted in `renown_total`, so it shows on
-  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel says "While your tribe holds this shrine, every member earns 12 Renown a
-  day (20 once it wakes on day 120)" and, for a holder, "You earn 12 a day from it". Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
+  the Renown ranking and the Banner Hall. No cap: more sites, more Renown. The site panel's "Gives" tile says "+12 Renown a day to every member of your tribe" (and "20 once it wakes" while dormant). Numbers and the worst case (30 members holding every site): `BALANCE.md` section 20.
 - **Keepers and Wall (owner, 2026-11-18).** The keepers (militia, `SITE_MILITIA`, x2 awake) of a site nobody holds return **linearly from 0 to full over 24 game hours**
   (`SITE_KEEPERS_REGROW_HOURS`, / speed) from the moment the holding tribe's last troops leave; a tribe that takes a site finds none; keepers killed in a lost attack come
   back from what stands. Every site has a **Wall** that rises by 1 every `SITE_WALL_STEP_HOURS` (12, / speed) with no resources, from level 0 when the world begins up to
   `BUILDINGS.wall.maxLevel` (22). It protects whoever stands there (keepers when unheld, the holding tribe's troops when held) with the Wall's percentage bonus; the
   village Wall militia does not apply (the keepers are the militia). Log Rams lower it like a village Wall (same points and steps); it then rises again from the new level, and it
-  keeps its level when the site changes hands. The panel shows "Wall 14 of 22, next level in 7h 12m" and the keepers' share; battle reports show the Wall after the fight.
-- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; a site panel lists holder, garrison
-  size, calm time and the send buttons; `GET /api/sites`.
+  keeps its level when the site changes hands. The panel's Wall tile shows "14 of 22" with a bar and "+1 level in 7h 12m"; the Keepers tile shows their share; battle reports show the Wall after the fight.
+- **Visible to everyone:** the map shows every site with its holder tag and (when awake or not) a state mark; the site panel (web, 2026-11-19, "number tiles") reads top to bottom: name and state tag (Awake/Dormant) with
+  place, distance and terrain; one status line (nobody holds it / your tribe holds it / held by another tribe, or the calm time while a calm runs); three tiles
+  Gives (Renown a day, or the 12-tile Waymark / 20-tile Lookout reach), Keepers (nobody holds it) or Troops (a holder's garrison with its room), and Wall (level of max,
+  next level); my troops there with Call back; then the send form (attack to take it, support to keep it). `GET /api/sites`.
 - **Server as built (2026-11-05), where it differs from or adds to the text above:**
   - Attack and support go through the normal send route (`POST /api/villages/:id/send`) with the site's tile; the march is stored with the tile (like a
     Chieftain's found mission). Scouts, occupiers, shipments and Chieftains are refused at a site. **Only tribe members** can attack or support a site

@@ -40,7 +40,7 @@ export default function HomeVillage({ onReady }: { onReady?: () => void }) {
         sizes={SIZES}
         width={frameW}
         height={frameH}
-        alt="A fully built Clanfire village"
+        alt="A fully built Clanflame village"
         fetchPriority="high"
         decoding="async"
         onLoad={() => setReady(true)}

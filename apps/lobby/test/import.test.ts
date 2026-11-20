@@ -339,7 +339,7 @@ test('import: refuses a missing file, a non-SQLite file, a foreign database and 
     const f = new DatabaseSync(foreign);
     f.exec('CREATE TABLE other (x INTEGER); INSERT INTO other VALUES (1)');
     f.close();
-    assert.throws(() => importWorld(opts(foreign)), (e: Error) => e instanceof ImportError && /not a Clanfire world database/.test(e.message));
+    assert.throws(() => importWorld(opts(foreign)), (e: Error) => e instanceof ImportError && /not a Clanflame world database/.test(e.message));
     assert.throws(() => importWorld(opts(foreign, foreign)), (e: Error) => e instanceof ImportError && /same file/.test(e.message));
 
     assert.ok(!existsSync(join(dir, 'lb')) && !existsSync(join(dir, 'wb')), 'no backup folders were created');

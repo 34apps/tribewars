@@ -1,6 +1,6 @@
-# Genre comparison: Clanfire vs Tribal Wars (2026-11-05)
+# Genre comparison: Clanflame vs Tribal Wars (2026-11-05)
 
-Purpose: understand the genre leader completely, then decide what Clanfire keeps, adds, does differently or
+Purpose: understand the genre leader completely, then decide what Clanflame keeps, adds, does differently or
 avoids. **Rule (AGENTS.md): never copy another game's names, numbers, formulas, texts or screen layouts.**
 Their mechanics are described for understanding; our numbers come only from our simulator.
 
@@ -62,7 +62,7 @@ team conquest operations; long-term planning; a clear world goal.
 
 ## 3. Side by side
 
-| Area | Tribal Wars | Clanfire now | Verdict for us |
+| Area | Tribal Wars | Clanflame now | Verdict for us |
 |---|---|---|---|
 | Resources | 3 + population | 4 (gold) + population | Keep; gold is ours. |
 | Troop upkeep | none | none (owner) | Same. **Food needs a use**: more food in costs. |
@@ -86,7 +86,7 @@ team conquest operations; long-term planning; a clear world goal.
 | Premium | big convenience and speed advantages | none yet; owner plans ~20% faster queue | **Biggest risk** (complaint #1). Keep it small, or cosmetics plus convenience only. |
 | World end | domination / held villages / % | 75% points for 14 days after 6 months, min players | Same family; ours is fair. |
 
-## 4. What makes Clanfire different (keep and promote)
+## 4. What makes Clanflame different (keep and promote)
 
 Renown (expansion earned by playing), conquest with a **hold** instead of millisecond trains, founding with
 an ember, Fire Shrines and the Great Fire, gold as a 4th resource, troop ranks, 5-tier scouting, terrain

@@ -10,7 +10,7 @@ const WorldApp = lazy(() => import('./WorldApp.tsx'));
 export function App() {
   if (isLobbyPath(window.location.pathname)) return <LobbyApp />;
   return (
-    <Suspense fallback={<LoadingSplash text="Loading Clanfire…" />}>
+    <Suspense fallback={<LoadingSplash text="Loading Clanflame…" />}>
       <WorldApp />
     </Suspense>
   );

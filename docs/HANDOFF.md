@@ -1,4 +1,4 @@
-# Handoff — Clanfire
+# Handoff — Clanflame
 
 Written 2026-11-18, end of a very long play-test session. Read this first, then `docs/AI-WORKFLOW.md`, the top of
 `CHANGELOG.md`, and `grep` `NEXT_STEPS.md` for your topic.

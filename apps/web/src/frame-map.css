@@ -216,15 +216,6 @@ html.layout-desktop .wm-allegiance {
   filter: brightness(1.7);
 }
 
-html.layout-desktop .wm-site-state {
-  color: #cdba98;
-  filter: none;
-}
-
-html.layout-desktop .wm-site-state.is-awake {
-  color: var(--c-sun);
-}
-
 html.layout-desktop .wm-panel .wm-close {
   width: 40px;
   height: 40px;
@@ -930,4 +921,28 @@ html.layout-desktop .wm-legend-banners li {
 
 html.layout-desktop .wm-panel.is-tight .wm-test-help {
   display: none;
+}
+
+/* Site panel (tight): smaller plate, tiles and rows so the send form still fits without scrolling. */
+html.layout-desktop .wm-panel.is-tight .wm-site-plate {
+  width: 48px;
+  height: 48px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-site-plate svg {
+  width: 40px;
+  height: auto;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-site-tile {
+  padding: 5px 8px 6px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-site-status {
+  padding: 5px 12px;
+}
+
+html.layout-desktop .wm-panel.is-tight .wm-site-mine {
+  padding: 6px 10px;
+  gap: 2px;
 }

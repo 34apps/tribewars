@@ -46,7 +46,7 @@ function makeWorldDb(dir: string, name: string, spec: WorldSpec = {}): string {
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-badges-'));
   const store = new Store(openDatabase(':memory:'));
-  store.insertWorld({ id: 'w1', name: 'Clanfire One', status: 'open', path: '/w/w1/', createdAt: 0 });
+  store.insertWorld({ id: 'w1', name: 'Clanflame One', status: 'open', path: '/w/w1/', createdAt: 0 });
   const acc = (name: string): number => store.insertAccount({ username: name, passwordHash: 'x', chieftain: 'old-orm', createdAt: 1 });
   const out: string[] = [];
   const err: string[] = [];
@@ -68,9 +68,9 @@ test('world-finish: copies badges of accounts, writes the Hall of Fame, sets fin
     assert.match(s.out.join('\n'), /4 badge/);
     assert.match(s.out.join('\n'), /1 badge\(s\) of players without a lobby account/);
     assert.deepEqual(s.store.accountBadges(a).map((x) => [x.badge, x.place, x.worldName, x.endedAt]), [
-      ['champion', null, 'Clanfire One', END],
-      ['top10', 1, 'Clanfire One', END],
-      ['veteran', null, 'Clanfire One', END],
+      ['champion', null, 'Clanflame One', END],
+      ['top10', 1, 'Clanflame One', END],
+      ['veteran', null, 'Clanflame One', END],
     ]);
     assert.equal(s.store.accountBadges(b).length, 1);
     assert.equal(s.store.getWorld('w1')?.status, 'finished');

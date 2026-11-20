@@ -38,7 +38,7 @@ const T = (x, yy, s, size, fill = '#FFF8E8', weight = 700, anchor = 'start') =>
   `<text x="${x}" y="${yy}" font-family="Rubik, Helvetica, Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${esc(s)}</text>`;
 const img = (x, yy, w, h, href) => `<image x="${x}" y="${yy}" width="${w}" height="${h}" href="${href}" preserveAspectRatio="xMidYMid meet"/>`;
 
-body += T(W / 2, y + 30, 'Clanfire originality pass: old art vs new art', 32, INK, 800, 'middle');
+body += T(W / 2, y + 30, 'Clanflame originality pass: old art vs new art', 32, INK, 800, 'middle');
 y += 46;
 body += T(W / 2, y + 14, 'Buildings shown stage 1 to 4 at about village size; units idle / march / victory / defeated + round icon.', 15, INK, 400, 'middle');
 y += 34;

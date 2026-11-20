@@ -71,7 +71,7 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
       <header className="home-bar">
         <span className="home-brand">
           <Flame size={30} loading={!villageReady} />
-          Clanfire
+          Clanflame
         </span>
         <button type="button" className="btn home-signin-top" onClick={onSignIn}>
           Sign in
@@ -133,7 +133,7 @@ export function HomePage({ onPlay, onSignIn }: { onPlay: () => void; onSignIn: (
             ))}
           </ul>
         )}
-        <small className="home-copy-line">© 2026 Clanfire</small>
+        <small className="home-copy-line">© 2026 Clanflame</small>
       </footer>
     </div>
   );

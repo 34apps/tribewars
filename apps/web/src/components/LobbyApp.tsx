@@ -95,7 +95,7 @@ export function LobbyApp() {
   const signedOut = useCallback(() => setAccount(null), []);
 
   if (bootError) return <ErrorSplash message={bootError} onRetry={reload} />;
-  if (account === 'loading') return <LoadingSplash text="Loading Clanfire…" />;
+  if (account === 'loading') return <LoadingSplash text="Loading Clanflame…" />;
   const screen = lobbyScreen(route, account !== null);
   switch (screen) {
     case 'home':

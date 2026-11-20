@@ -237,14 +237,14 @@ export function AuthScreen({
         {sheet ? (
           <>
             <div className="lp-grab" aria-hidden="true" />
-            <h1 className="lp-title">{register ? 'Join Clanfire' : 'Welcome back'}</h1>
+            <h1 className="lp-title">{register ? 'Join Clanflame' : 'Welcome back'}</h1>
           </>
         ) : (
           <div className="auth-brand">
             <span className="auth-crest" aria-hidden="true">
               <Icon name="flame" size={52} />
             </span>
-            <h1>Clanfire</h1>
+            <h1>Clanflame</h1>
             <p className="auth-tagline">Build a village. Train an army. Raid the world.</p>
           </div>
         )}
