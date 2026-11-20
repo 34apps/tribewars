@@ -41,6 +41,7 @@ export const ADMIN_USAGE = [
   '  flames <username>                        Flames balance, lock state, open dispute fees and the last ledger rows',
   '  flames-grant <username> <amount> <reason...>   support grant or correction (amount may be negative); audited',
   '  age-group <username> <adult|minor>       set or change the self-declared age group (support)',
+  '  refund <purchaseId> <reason...> [--keep-flames]   support refund of a whole paid pack (full amount charged, through Stripe); takes its Flames off unless --keep-flames (balance may go negative); audited',
   '  dispute-evidence <purchaseId>            (re)send the stored evidence pack of a disputed purchase to Stripe',
   '  payments-report [YYYY-MM]                purchases, refunds, disputes and the dispute rate of a month (default: this month)',
 ];
@@ -302,10 +303,11 @@ const quietLog = { warn: () => {}, error: () => {}, info: () => {} };
 const ADMIN_COMMANDS: ReadonlySet<string> = new Set(['world-shop', 'flames', 'flames-grant', 'age-group', 'payments-report', 'worlds', 'world-add', 'world-status', 'world-rename', 'world-remove', 'world-finish', 'badge-grant', 'badge-revoke', 'shared-ips', 'ban', 'unban', 'grant', 'revoke']);
 
 /**
- * Like runAdmin, but also runs the commands that call the payment provider (dispute-evidence). admin.ts uses this one.
+ * Like runAdmin, but also runs the commands that call the payment provider (dispute-evidence, refund). admin.ts uses this one.
  */
 export async function runAdminAsync(argv: string[], deps: AdminDeps): Promise<number> {
   const [cmd, ...args] = argv;
+  if (cmd === 'refund') return runRefund(args, deps);
   if (cmd !== 'dispute-evidence') return runAdmin(argv, deps);
   try {
     const raw = args[0] ?? '';
@@ -316,6 +318,27 @@ export async function runAdminAsync(argv: string[], deps: AdminDeps): Promise<nu
     const shop = new ShopService({ store, now: deps.now, gateway: deps.gateway, publicUrl: null, log: quietLog });
     await shop.submitEvidence(id);
     deps.out(`Evidence of purchase ${id} was sent to Stripe.`);
+    return 0;
+  } catch (err) {
+    deps.err(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}
+
+/** `refund <purchaseId> <reason...> [--keep-flames]`: the only way to refund (players have no button). */
+async function runRefund(args: string[], deps: AdminDeps): Promise<number> {
+  const usage = 'Usage: refund <purchaseId> <reason...> [--keep-flames]';
+  try {
+    const keepFlames = args.includes('--keep-flames');
+    const rest = args.filter((a) => a !== '--keep-flames');
+    const id = /^\d{1,9}$/.test(rest[0] ?? '') ? Number(rest[0]) : NaN;
+    const reason = rest.slice(1).join(' ').trim().slice(0, 200);
+    if (!Number.isInteger(id) || reason === '' || rest.some((a) => a.startsWith('--'))) throw new CliError(usage);
+    if (!deps.gateway) throw new CliError('STRIPE_SECRET_KEY is not set: nothing can be refunded from here.');
+    const store = deps.openStore();
+    const shop = new ShopService({ store, now: deps.now, gateway: deps.gateway, publicUrl: null, log: quietLog });
+    const r = await shop.supportRefund(id, reason, keepFlames);
+    deps.out(`Purchase ${id} refunded: ${(r.cents / 100).toFixed(2)} EUR back to the card, ${r.flames} Flames removed${keepFlames ? ' (kept on purpose)' : ''}. Balance now ${r.balance}.`);
     return 0;
   } catch (err) {
     deps.err(err instanceof Error ? err.message : String(err));

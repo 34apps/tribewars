@@ -181,8 +181,10 @@ test('dispute: Flames removed (balance may go negative), locked, fees open, evid
   assert.match(e.product_description ?? '', /spent 150 Flames on premium30 in world w1/);
   assert.match(e.access_activity_log ?? '', /register/);
   assert.match(e.access_activity_log ?? '', /enter world w1/);
-  assert.match(e.refund_policy_disclosure ?? '', /14 days/);
-  assert.match(e.uncategorized_text ?? '', /2026-11-20-v1/);
+  assert.match(e.refund_policy_disclosure ?? '', /14-day right of withdrawal/);
+  assert.match(e.refund_policy_disclosure ?? '', /no self-service refund/);
+  assert.match(e.product_description ?? '', /6\.00 EUR net \+ 0\.00 EUR VAT \(billing country DE\) = 6\.00 EUR/);
+  assert.match(e.uncategorized_text ?? '', /2026-11-20-v2/);
   assert.match(e.uncategorized_text ?? '', /lose my 14-day right of withdrawal/);
   assert.ok(env.app.ctx.shop.shop.getPurchase(id)?.evidenceSubmittedAt);
   // a replay changes nothing
@@ -245,7 +247,7 @@ test('dispute: settle pays the fees and buying fills the minus; unlocked only wh
   assert.equal(s.openFeesCents, 0);
   assert.equal(s.locked, true, 'still below zero');
   assert.equal(s.purchases.find((p) => p.id === settleId)?.kind, 'settle');
-  assert.equal(s.purchases.find((p) => p.id === settleId)?.refundableFlames, 0);
+  assert.equal(s.purchases.find((p) => p.id === settleId)?.netCents, 1900);
   await buy(env, c, 'p220', 600); // fills the minus
   assert.equal(balanceOf(env), 70);
   s = await shopOf(c);
@@ -343,6 +345,46 @@ test('dispute: no alert at a low rate', async () => {
   assert.equal(env.app.ctx.shop.paymentsReport('2026-13'), null);
 });
 
+// ---- VAT in the webhook ------------------------------------------------------------------------
+
+test('webhook: a paid session with VAT stores net, VAT, rate and billing country; the charge is net + VAT', async () => {
+  const env = await makeShopApp({ stripeTax: true });
+  const c = await player(env, 'vatpay');
+  ok(await c.post(`${SHOP}/checkout`, checkoutBody('p100')));
+  const id = env.gw.sessions[0]?.purchaseId ?? 0;
+  ok(await webhook(env, sessionPaid(id, 372, { amount_subtotal: 300, total_details: { amount_tax: 72 }, customer_details: { email: 'e@example.com', address: { country: 'EE' } } })));
+  const p = env.app.ctx.shop.shop.getPurchase(id);
+  assert.deepEqual([p?.status, p?.priceCents, p?.netCents, p?.vatCents, p?.vatRateBp, p?.vatCountry], ['paid', 372, 300, 72, 2400, 'EE']);
+  assert.equal(balanceOf(env), 100);
+  const dto = (await shopOf(c)).purchases[0];
+  assert.deepEqual([dto?.priceCents, dto?.netCents, dto?.vatCents, dto?.vatRateBp, dto?.vatCountry], [372, 300, 72, 2400, 'EE']);
+  assert.match(env.app.ctx.store.auditRows(20).find((a) => a.action === 'shop_purchase_paid')?.detail ?? '', /372 cents \(net 300 \+ VAT 72\) EE/);
+});
+
+test('webhook: a subtotal that is not the net price, or a total that is not subtotal + tax, is ignored', async () => {
+  const env = await makeShopApp({ stripeTax: true });
+  const c = await player(env, 'vatbad2');
+  ok(await c.post(`${SHOP}/checkout`, checkoutBody('p100')));
+  const id = env.gw.sessions[0]?.purchaseId ?? 0;
+  const st = env.app.ctx.shop.shop;
+  const attempt = async (extra: Record<string, unknown>, amount: number): Promise<void> => {
+    ok(await webhook(env, sessionPaid(id, amount, extra)));
+    assert.equal(st.getPurchase(id)?.status, 'pending');
+    assert.equal(balanceOf(env), 0);
+  };
+  await attempt({ amount_subtotal: 299, total_details: { amount_tax: 72 } }, 371); // wrong subtotal, consistent total
+  await attempt({ amount_subtotal: 300, total_details: { amount_tax: 72 } }, 400); // total is not subtotal + tax
+  await attempt({ amount_subtotal: 300, total_details: { amount_tax: 72 } }, 300); // tax missing from the total
+  await attempt({ amount_subtotal: 300, total_details: { amount_tax: -5 } }, 295); // negative tax
+  await attempt({ amount_subtotal: undefined }, 300); // no subtotal at all
+  await attempt({ amount_subtotal: 300, currency: 'usd' }, 300);
+  assert.equal(env.app.ctx.store.auditRows(50).filter((a) => a.action === 'shop_payment_mismatch').length, 6);
+  // the right numbers still work afterwards
+  ok(await webhook(env, sessionPaid(id, 372, { amount_subtotal: 300, total_details: { amount_tax: 72 } })));
+  assert.equal(st.getPurchase(id)?.status, 'paid');
+  assert.equal(balanceOf(env), 100);
+});
+
 // ---- migration, env, gateway, CLI ------------------------------------------------------------------
 
 test('migration: a v6 database upgrades in place, keeps its rows, gets the shop tables and columns', () => {
@@ -376,6 +418,32 @@ test('migration: a v6 database upgrades in place, keeps its rows, gets the shop 
     assert.throws(() => db.exec('DELETE FROM flames_ledger'), /append-only/);
     db.close();
     openDatabase(file).close(); // opening again is a no-op
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migration: a v7 database gets the VAT columns (v9) and net_cents = price_cents for its purchases', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-lobby-v7-'));
+  try {
+    const file = join(dir, 'lobby.sqlite');
+    const first = openDatabase(file);
+    for (const col of ['net_cents', 'vat_cents', 'vat_rate_bp', 'vat_country']) first.exec(`ALTER TABLE purchases DROP COLUMN ${col}`);
+    first.exec(`INSERT INTO purchases (account_id, kind, pack_id, flames, price_cents, currency, status, ip, user_agent, created_at)
+      VALUES (1, 'flames', 'p220', 220, 600, 'eur', 'paid', '1.1.1.1', 'x', 5), (1, 'settle', '', 0, 1900, 'eur', 'pending', '1.1.1.1', 'x', 6)`);
+    first.exec('PRAGMA user_version = 7');
+    first.close();
+    const db = openDatabase(file);
+    assert.equal((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version, SCHEMA_VERSION);
+    const rows = db.prepare('SELECT price_cents, net_cents, vat_cents, vat_rate_bp, vat_country FROM purchases ORDER BY id').all();
+    assert.deepEqual(rows.map((r) => [r.price_cents, r.net_cents, r.vat_cents, r.vat_rate_bp, r.vat_country]), [[600, 600, null, null, null], [1900, 1900, null, null, null]]);
+    db.close();
+    const again = openDatabase(file); // opening again is a no-op: net_cents is not backfilled a second time
+    again.exec('UPDATE purchases SET net_cents = 1 WHERE id = 1');
+    again.close();
+    const third = openDatabase(file);
+    assert.equal(third.prepare('SELECT net_cents FROM purchases WHERE id = 1').get()?.net_cents, 1);
+    third.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -433,6 +501,8 @@ test('gateway: Stripe requests are form-encoded with the pinned version, idempot
   assert.equal(p.get('metadata[account_id]'), '3');
   assert.equal(p.get('expires_at'), '1800000000');
   assert.equal(p.get('automatic_tax[enabled]'), 'true');
+  assert.equal(p.get('line_items[0][price_data][tax_behavior]'), 'exclusive');
+  assert.equal(p.get('billing_address_collection'), 'required');
   assert.equal(p.get('success_url'), 'https://x.test/lobby/#shop-paid');
   await g.refund('pi_1', 300, 'refund-7-1');
   assert.equal(calls[1]?.url, 'https://api.stripe.com/v1/refunds');
@@ -446,6 +516,15 @@ test('gateway: Stripe requests are form-encoded with the pinned version, idempot
   const g2 = new StripeGateway({ secretKey: 'sk_test_SECRETVALUE123', fetch: fakeFetch });
   await g2.createCheckout({ purchaseId: 8, accountId: 3, kind: 'settle', packId: '', flames: 0, amountCents: 1900, successUrl: 'a', cancelUrl: 'b', expiresAtSec: 1 });
   assert.equal(new URLSearchParams(String(calls[3]?.init.body)).has('automatic_tax[enabled]'), false);
+  // tax off: no VAT parameters for a pack either
+  await g2.createCheckout({ purchaseId: 9, accountId: 3, kind: 'flames', packId: 'p100', flames: 100, amountCents: 300, successUrl: 'a', cancelUrl: 'b', expiresAtSec: 1 });
+  const off = new URLSearchParams(String(calls[4]?.init.body));
+  for (const k of ['automatic_tax[enabled]', 'line_items[0][price_data][tax_behavior]', 'billing_address_collection']) assert.equal(off.has(k), false, k);
+  // tax on, but a settlement never carries VAT
+  await g.createCheckout({ purchaseId: 10, accountId: 3, kind: 'settle', packId: '', flames: 0, amountCents: 1900, successUrl: 'a', cancelUrl: 'b', expiresAtSec: 1 });
+  const settle = new URLSearchParams(String(calls[5]?.init.body));
+  assert.equal(settle.get('line_items[0][price_data][unit_amount]'), '1900');
+  for (const k of ['automatic_tax[enabled]', 'line_items[0][price_data][tax_behavior]', 'billing_address_collection']) assert.equal(settle.has(k), false, k);
 });
 
 test('gateway: a checkout address that is not Stripe is refused; errors never carry the key', async () => {
@@ -515,6 +594,6 @@ test('cli: usage lists the shop commands', async () => {
   const lines: string[] = [];
   runAdmin(['nonsense'], { openStore: () => new Store(openDatabase(':memory:')), env: {}, now: Date.now, out: () => {}, err: (l) => lines.push(l) });
   const text = lines.join('\n');
-  for (const cmd of ['world-shop', 'flames <username>', 'flames-grant', 'dispute-evidence', 'payments-report', 'age-group']) assert.ok(text.includes(cmd), cmd);
+  for (const cmd of ['world-shop', 'flames <username>', 'flames-grant', 'refund <purchaseId> <reason...> [--keep-flames]', 'dispute-evidence', 'payments-report', 'age-group']) assert.ok(text.includes(cmd), cmd);
   void DAY;
 });

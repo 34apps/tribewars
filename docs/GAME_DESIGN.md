@@ -1575,10 +1575,12 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 > wording below ("looks only", "extra queue slots never sold") is kept for history; where it disagrees, this note wins.
 >
 > **How the money works** (`docs/PAYMENTS_PLAN.md`): Flames are bought in packs in the lobby (3 EUR = 100, 6 = 220, 12 = 480, 25 = 1,100, 60 = 3,000,
-> VAT included) through Stripe's hosted checkout; every Flames price also shows its euro value (at the smallest pack's rate, so 150 Flames = about
-> 4.50 EUR). The balance belongs to the **account** (all worlds) and is the sum of a ledger. A required tick box at checkout records the waiver of
-> the 14-day withdrawal right for Flames that are used (time + terms version). **Unspent** Flames of a purchase can be refunded within 14 days with one
-> button (Flames are spent oldest first, so the newest purchase is the most refundable); spent Flames are not refunded. A bank dispute removes the
+> net) through Stripe's hosted checkout; the buyer's country VAT is added on top and shown before paying (e.g. 3.00 EUR + 24% VAT (Estonia) = 3.72 EUR;
+> Stripe Tax computes the final VAT at checkout). Every Flames price also shows its net euro value (at the smallest pack's rate, so 150 Flames = about
+> 4.50 EUR + VAT). The balance belongs to the **account** (all worlds) and is the sum of a ledger. A required tick box at checkout records that the player wants
+> the Flames delivered now and loses the 14-day withdrawal right once they are delivered (time + terms version). **There are no self-service refunds**
+> (owner 2026-11-20): refunds go only through support, on a written request, for technical faults, double charges, a minor who bought without consent,
+> where the law requires it, and the game closing for good; every one is logged. A bank dispute removes the
 > purchase's Flames at once; the balance may go negative, and then Premium, spending and buying stay locked until it is back to zero; a second
 > dispute ends buying for that account. Worlds never hold money: the lobby tells a world through the signed entry pass (claim `prm`) until when
 > Premium runs there, and the world switches (`features.premium`, `features.raidLists`) still decide whether a world offers the tools at all.
@@ -2198,6 +2200,8 @@ fresh alts from buying a project alone. A disbanded tribe loses its store, proje
 `POST /api/tribe/projects/store-village | start | cancel`; funding is `toTribeStore` on the ship route.
 
 ### 18.6 Cosmetics-only shop
+
+> **Old copy (duplicate of 18.2-18.6 above).** Superseded by "18.6 The shop: Flames buy Premium and looks" earlier in this file (2026-11-20).
 
 **How it works**
 - The shop sells **looks only**. Nothing sold changes any number, queue, speed, defence, storage, score or

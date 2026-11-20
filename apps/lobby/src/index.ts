@@ -23,6 +23,7 @@ const app = await buildApp({
   maxAccountsPerIp: env.maxAccountsPerIp,
   requirePasswordUpgrade: env.requirePasswordUpgrade,
   payments: env.paymentsEnabled && env.stripeSecretKey ? new StripeGateway({ secretKey: env.stripeSecretKey, tax: env.stripeTax }) : undefined,
+  stripeTax: env.stripeTax,
   webhookSecret: env.stripeWebhookSecret ?? undefined,
   publicUrl: env.publicUrl ?? undefined,
   notify: env.alertWebhookUrl ? postAlert(env.alertWebhookUrl) : undefined,

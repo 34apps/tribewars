@@ -2,34 +2,35 @@
 
 import type { FlamesPackDto, ShopItemDto } from '@clanfire/engine';
 
-/** Euro cents include VAT. Currency is always eur. */
-export const PACKS: readonly FlamesPackDto[] = [
-  { id: 'p100', flames: 100, priceCents: 300, currency: 'eur' },
-  { id: 'p220', flames: 220, priceCents: 600, currency: 'eur' },
-  { id: 'p480', flames: 480, priceCents: 1200, currency: 'eur' },
-  { id: 'p1100', flames: 1100, priceCents: 2500, currency: 'eur' },
-  { id: 'p3000', flames: 3000, priceCents: 6000, currency: 'eur' },
+/** A pack as sold: the price is NET (without VAT); the shop adds the VAT of the shown country on top. */
+export type CataloguePack = Omit<FlamesPackDto, 'vatCents' | 'totalCents'>;
+
+/** Euro cents are NET, VAT comes on top (owner, 2026-11-20). Currency is always eur. */
+export const PACKS: readonly CataloguePack[] = [
+  { id: 'p100', flames: 100, netCents: 300, currency: 'eur' },
+  { id: 'p220', flames: 220, netCents: 600, currency: 'eur' },
+  { id: 'p480', flames: 480, netCents: 1200, currency: 'eur' },
+  { id: 'p1100', flames: 1100, netCents: 2500, currency: 'eur' },
+  { id: 'p3000', flames: 3000, netCents: 6000, currency: 'eur' },
 ];
 
-export function findPack(id: string): FlamesPackDto | undefined {
+export function findPack(id: string): CataloguePack | undefined {
   return PACKS.find((p) => p.id === id);
 }
 
-/** Version of the shop terms and refund policy the checkout tick box refers to. Bump it when they change. */
-export const TERMS_VERSION = '2026-11-20-v1';
+/** Version of the shop terms the checkout tick box refers to. Bump it when they change. */
+export const TERMS_VERSION = '2026-11-20-v2';
 /** Exact text of the required tick box at checkout (stored with every purchase as the consent record). */
-export const CONSENT_TEXT = 'I want my Flames now. I understand that I lose my 14-day right of withdrawal for Flames that I use.';
+export const CONSENT_TEXT = 'I want my Flames delivered now. I understand that I lose my 14-day right of withdrawal once they are delivered.';
 /** Small text under the tick box. */
-export const CONSENT_NOTE = 'You can still get a refund for any purchase whose Flames you have not spent, within 14 days.';
+export const CONSENT_NOTE = 'Your Flames are delivered as soon as the payment is confirmed. If something goes wrong, write to support.';
 /** Second required tick box for accounts under 18 (stored as its own consent row). */
 export const PARENT_CONSENT_TEXT = "I am a parent or guardian, or I have my parent's or guardian's consent to buy Flames.";
-/** Under-18 purchases per calendar month (UTC), euro cents. */
+/** Under-18 purchases per calendar month (UTC), NET euro cents. */
 export const MINOR_MONTHLY_CAP_CENTS = 3000;
 /** Dispute fees: handling fee (not charged when the bank's reason is fraud) and the provider fee used when Stripe gives none. */
 export const HANDLING_FEE_CENTS = 400;
 export const DISPUTE_FEE_FALLBACK_CENTS = 2000;
-/** Days a purchase's unspent Flames can be refunded. */
-export const REFUND_DAYS = 14;
 export const PREMIUM_DAYS = 30;
 export const DAY_MS = 24 * 3_600_000;
 

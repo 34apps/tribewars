@@ -57,6 +57,8 @@ export interface BuildAppOptions {
   webhookSecret?: string;
   /** Public address of the site, scheme://host: the Stripe return URLs (PUBLIC_URL). */
   publicUrl?: string;
+  /** Stripe Tax is on (STRIPE_TAX=1): the shop shows VAT by country and checkout adds it. Default off. */
+  stripeTax?: boolean;
   /** Looks for sale. Default: the catalogue's (none yet); tests inject some. */
   looks?: readonly ShopLook[];
   /** Owner alert text sink (ALERT_WEBHOOK_URL in production, a function in tests). */
@@ -107,6 +109,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     now,
     gateway: opts.payments && opts.webhookSecret && opts.publicUrl ? opts.payments : null,
     publicUrl: opts.publicUrl ?? null,
+    tax: opts.stripeTax ?? false,
     looks: opts.looks ?? LOOKS,
     log: app.log,
     notify: opts.notify,
@@ -114,6 +117,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   const ctx: AppContext = {
     store,
     shop,
+    trustProxy: Boolean(opts.trustProxy),
     webhookSecret: shop.paymentsEnabled ? (opts.webhookSecret ?? null) : null,
     now,
     auth: new AuthService(store, now, opts.maxAccountsPerIp ?? 0, opts.requirePasswordUpgrade ?? false),

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { EnterWorldResponse, ShopCheckoutResponse, ShopResponse } from '@clanfire/engine';
+import { runAdminAsync } from '../src/admin-ops.ts';
 import { CONSENT_TEXT, MINOR_MONTHLY_CAP_CENTS, PACKS, PARENT_CONSENT_TEXT, PREMIUM_DAYS, TERMS_VERSION } from '../src/shop/catalogue.ts';
 import { verifyPass } from '../src/pass.ts';
 import { Client, PUBLIC_KEY, errorOf, makeApp, nextIp, ok, register } from './helpers.ts';
-import { DAY, WHSEC, buy, checkoutBody, makeShopApp, newRequestId, player, setAge, shopOf, shopWorld, spendBody, webhook } from './shop-helpers.ts';
+import { DAY, WHSEC, buy, checkoutBody, event, makeShopApp, newRequestId, player, sessionPaid, setAge, shopOf, shopWorld, spendBody, webhook, type ShopEnv } from './shop-helpers.ts';
 
 const SHOP = '/lobby/api/shop';
 
@@ -17,7 +18,6 @@ test('shop: signed out is 401 on every endpoint', async () => {
   errorOf(await c.post(`${SHOP}/checkout`, checkoutBody('p100')), 401, 'unauthorized');
   errorOf(await c.post(`${SHOP}/settle`, {}), 401, 'unauthorized');
   errorOf(await c.post(`${SHOP}/spend`, spendBody('premium30', 'w1', newRequestId())), 401, 'unauthorized');
-  errorOf(await c.post(`${SHOP}/purchases/1/refund`, {}), 401, 'unauthorized');
 });
 
 test('shop: GET /shop shows the catalogue, the texts and the account state', async () => {
@@ -29,7 +29,7 @@ test('shop: GET /shop shows the catalogue, the texts and the account state', asy
   assert.equal(s.ageGroup, null);
   assert.equal(s.paymentsEnabled, true);
   assert.equal(s.paymentsBanned, false);
-  assert.deepEqual(s.packs.map((p) => [p.id, p.flames, p.priceCents]), PACKS.map((p) => [p.id, p.flames, p.priceCents]));
+  assert.deepEqual(s.packs.map((p) => [p.id, p.flames, p.netCents]), PACKS.map((p) => [p.id, p.flames, p.netCents]));
   assert.deepEqual(s.packs.map((p) => p.id), ['p100', 'p220', 'p480', 'p1100', 'p3000']);
   const premium = s.items.find((i) => i.id === 'premium30');
   assert.deepEqual(premium && [premium.priceFlames, premium.eurCents, premium.days], [150, 450, 30]);
@@ -37,13 +37,15 @@ test('shop: GET /shop shows the catalogue, the texts and the account state', asy
   assert.equal(s.consentText, CONSENT_TEXT);
   assert.equal(s.parentConsentText, PARENT_CONSENT_TEXT);
   assert.equal(s.termsVersion, TERMS_VERSION);
-  assert.equal(s.refundDays, 14);
+  assert.deepEqual(s.vat, { mode: 'none', country: null, ratePercent: null, ratesDate: '2026-11-20' });
+  assert.ok(s.packs.every((p) => p.vatCents === null && p.totalCents === null));
+  assert.equal(s.vatCountries.length, 27);
   assert.equal(s.minorMonthlyCapCents, MINOR_MONTHLY_CAP_CENTS);
   const b = await c.get(`${SHOP}/balance`);
   assert.deepEqual(b.json(), { balance: 0, locked: false });
 });
 
-test('shop: payments off - the shop is shown, checkout, settle and refund answer 403', async () => {
+test('shop: payments off - the shop is shown, checkout and settle answer 403', async () => {
   const { app } = await makeApp();
   const c = await register(app, 'noshop');
   const s = (await c.get(SHOP)).json<ShopResponse>();
@@ -51,7 +53,6 @@ test('shop: payments off - the shop is shown, checkout, settle and refund answer
   ok(await c.post(`${SHOP}/age`, { ageGroup: 'adult' }));
   errorOf(await c.post(`${SHOP}/checkout`, checkoutBody('p100')), 403, 'forbidden');
   errorOf(await c.post(`${SHOP}/settle`, {}), 403, 'forbidden');
-  errorOf(await c.post(`${SHOP}/purchases/1/refund`, {}), 403, 'forbidden');
   errorOf(await c.post('/lobby/api/stripe/webhook', {}), 404, 'not_found');
 });
 
@@ -267,94 +268,230 @@ test('pass: carries prm, the Premium end for that world; 0 without Premium and w
   assert.equal((await claims('w1')).prm, 0);
 });
 
-test('refund: a whole unspent purchase within 14 days, ledger first then the provider', async () => {
+
+const dispute = (id: string, purchaseId: number, extra: Record<string, unknown> = {}) =>
+  event('charge.dispute.created', { id, object: 'dispute', payment_intent: `pi_${purchaseId}`, charge: `ch_${purchaseId}`, reason: 'general', status: 'needs_response', balance_transactions: [{ fee: 1500 }], ...extra });
+const disputeClosed = (id: string, purchaseId: number, status: string) => event('charge.dispute.closed', { id, object: 'dispute', payment_intent: `pi_${purchaseId}`, status });
+
+// ---- support refund (CLI only) ----------------------------------------------------------------
+
+async function cliRefund(env: ShopEnv, ...argv: string[]): Promise<{ code: number; out: string; err: string }> {
+  const out: string[] = [];
+  const err: string[] = [];
+  const code = await runAdminAsync(['refund', ...argv], { openStore: () => env.app.ctx.store, env: {}, now: env.clock.now, out: (l) => out.push(l), err: (l) => err.push(l), gateway: env.gw });
+  return { code, out: out.join('\n'), err: err.join('\n') };
+}
+const ledgerSum = (env: ShopEnv): number => Number(env.app.ctx.store.db.prepare('SELECT COALESCE(SUM(delta), 0) AS s FROM flames_ledger').get()?.s);
+
+test('refund: the player route is gone (404), there is no refund button data in the shop', async () => {
   const env = await makeShopApp();
+  const c = await player(env, 'norefund');
+  const id = await buy(env, c, 'p100', 300);
+  errorOf(await c.post(`${SHOP}/purchases/${id}/refund`, {}), 404, 'not_found');
+  assert.equal(env.gw.refunds.length, 0);
+  const dto = (await shopOf(c)).purchases[0] as unknown as Record<string, unknown>;
+  for (const k of ['refundableFlames', 'refundableCents', 'refundBlock', 'refundUntil']) assert.ok(!(k in dto), k);
+  assert.ok(!('refundDays' in ((await shopOf(c)) as unknown as Record<string, unknown>)));
+});
+
+test('cli refund: whole purchase through the gateway, Flames off the ledger, audited; the later charge.refunded changes nothing', async () => {
+  const env = await makeShopApp();
+  shopWorld(env, 'w1');
   const c = await player(env, 'refunder');
   const id = await buy(env, c, 'p220', 600);
-  const res = await c.post(`${SHOP}/purchases/${id}/refund`, {});
-  ok(res);
-  const s = res.json<ShopResponse>();
-  assert.equal(s.balance, 0);
-  assert.equal(s.purchases[0]?.status, 'refunded');
-  assert.deepEqual([s.purchases[0]?.refundedFlames, s.purchases[0]?.refundedCents], [220, 600]);
+  ok(await c.post(`${SHOP}/spend`, spendBody('premium30', 'w1', newRequestId()))); // 70 left: the balance may go negative
+  const r = await cliRefund(env, String(id), 'goodwill', 'after', 'a', 'bug');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /6\.00 EUR back to the card, 220 Flames removed\. Balance now -150/);
+  const st = env.app.ctx.shop.shop;
+  const p = st.getPurchase(id);
+  assert.deepEqual([p?.status, p?.refundedFlames, p?.refundedCents], ['refunded', 220, 600]);
+  assert.equal(st.balance(1), -150);
   assert.equal(env.gw.refunds.length, 1);
   assert.deepEqual([env.gw.refunds[0]?.paymentIntentId, env.gw.refunds[0]?.amountCents], [`pi_${id}`, 600]);
-  errorOf(await c.post(`${SHOP}/purchases/${id}/refund`, {}), 409, 'too_late');
-  assert.equal(env.gw.refunds.length, 1, 'only one refund per purchase');
-  assert.deepEqual(env.app.ctx.shop.shop.ledgerRows(1, 5).map((r) => [r.reason, r.delta]), [['refund', -220], ['purchase', 220]]);
-  // the provider's charge.refunded for the same amount changes nothing more
-  ok(await webhook(env, { id: 'evt_r1', type: 'charge.refunded', data: { object: { id: 'ch_1', object: 'charge', payment_intent: `pi_${id}`, amount_refunded: 600 } } }));
+  assert.match(env.gw.refunds[0]?.key ?? '', new RegExp(`^support-refund-${id}-`));
+  const row = st.ledgerRows(1, 1)[0];
+  assert.deepEqual([row?.reason, row?.delta, row?.detail], ['refund', -220, 'support: goodwill after a bug']);
+  const audit = env.app.ctx.store.auditRows(50).find((a) => a.action === 'shop_support_refund');
+  assert.match(audit?.detail ?? '', /goodwill after a bug/);
+  const s = await shopOf(c);
+  assert.deepEqual([s.purchases[0]?.status, s.purchases[0]?.refundedFlames, s.purchases[0]?.refundedCents], ['refunded', 220, 600]);
+  // Stripe's own charge.refunded for the same money: nothing more happens
+  const rows = st.ledgerRows(1, 50).length;
+  ok(await webhook(env, event('charge.refunded', { id: 'ch_1', object: 'charge', payment_intent: `pi_${id}`, amount_refunded: 600 })));
+  assert.equal(st.ledgerRows(1, 50).length, rows);
+  assert.equal(st.balance(1), -150);
+  assert.deepEqual([st.getPurchase(id)?.refundedFlames, st.getPurchase(id)?.refundedCents], [220, 600]);
+  // a second refund of the same purchase is refused and sends nothing
+  assert.equal((await cliRefund(env, String(id), 'again')).code, 1);
+  assert.equal(env.gw.refunds.length, 1);
+});
+
+test('cli refund --keep-flames: the money goes back, the Flames stay', async () => {
+  const env = await makeShopApp();
+  const c = await player(env, 'keeper');
+  const id = await buy(env, c, 'p100', 300);
+  const r = await cliRefund(env, String(id), 'chargeback', 'risk', '--keep-flames');
+  assert.equal(r.code, 0, r.err);
+  const st = env.app.ctx.shop.shop;
+  assert.equal(st.balance(1), 100);
+  assert.equal(st.ledgerRows(1, 5).filter((x) => x.reason === 'refund').length, 0);
+  const p = st.getPurchase(id);
+  assert.deepEqual([p?.status, p?.refundedFlames, p?.refundedCents], ['refunded', 0, 300]);
+  assert.equal(env.gw.refunds[0]?.amountCents, 300);
+  assert.match(env.app.ctx.store.auditRows(50).find((a) => a.action === 'shop_support_refund')?.detail ?? '', /flames kept/);
+  ok(await webhook(env, event('charge.refunded', { id: 'ch_2', object: 'charge', payment_intent: `pi_${id}`, amount_refunded: 300 })));
+  assert.equal(st.balance(1), 100, 'the later event changes nothing');
+});
+
+test('cli refund: refuses wrong status, settlements, missing reason, unknown purchase and a missing gateway; nothing is sent', async () => {
+  const env = await makeShopApp();
+  const c = await player(env, 'refuser');
+  ok(await c.post(`${SHOP}/checkout`, checkoutBody('p100')));
+  const pending = env.gw.sessions[0]?.purchaseId ?? 0;
+  assert.equal((await cliRefund(env, String(pending), 'x')).code, 1, 'pending');
+  const paid = await buy(env, c, 'p100', 300);
+  assert.equal((await cliRefund(env, String(paid))).code, 1, 'a reason is required');
+  assert.equal((await cliRefund(env, String(paid), '--bogus', 'x')).code, 1, 'unknown flag');
+  assert.equal((await cliRefund(env, '9999', 'x')).code, 1, 'unknown purchase');
+  assert.equal((await cliRefund(env, 'abc', 'x')).code, 1);
+  assert.equal(await runAdminAsync(['refund', String(paid), 'x'], { openStore: () => env.app.ctx.store, env: {}, now: env.clock.now, out: () => {}, err: () => {} }), 1, 'no Stripe key');
+  // a disputed purchase and a settlement
+  ok(await webhook(env, dispute('dp_r', paid)));
+  const disputed = await cliRefund(env, String(paid), 'x');
+  assert.equal(disputed.code, 1);
+  assert.match(disputed.err, /disputed/);
+  ok(await c.post(`${SHOP}/settle`, {}));
+  const settleId = env.gw.sessions[env.gw.sessions.length - 1]?.purchaseId ?? 0;
+  ok(await webhook(env, sessionPaid(settleId, 1900)));
+  const settle = await cliRefund(env, String(settleId), 'x');
+  assert.equal(settle.code, 1);
+  assert.match(settle.err, /not a Flames pack/);
+  assert.equal(env.gw.refunds.length, 0);
+  assert.equal(env.app.ctx.shop.shop.getPurchase(paid)?.refundedCents, 0);
+});
+
+test('cli refund: a won dispute can be refunded', async () => {
+  const env = await makeShopApp();
+  const c = await player(env, 'wonref');
+  const id = await buy(env, c, 'p100', 300);
+  ok(await webhook(env, dispute('dp_w', id)));
+  ok(await webhook(env, disputeClosed('dp_w', id, 'won')));
+  assert.equal(env.app.ctx.shop.shop.getPurchase(id)?.status, 'dispute_won');
+  assert.equal((await cliRefund(env, String(id), 'customer asked')).code, 0);
+  assert.equal(env.app.ctx.shop.shop.getPurchase(id)?.status, 'refunded');
   assert.equal(env.app.ctx.shop.shop.balance(1), 0);
 });
 
-test('refund: spent Flames block it (oldest spent first), the 14 days end it', async () => {
+test('cli refund: a provider failure puts everything back; a retry then works', async () => {
   const env = await makeShopApp();
-  shopWorld(env, 'w1');
-  const c = await player(env, 'refunder2');
-  const a = await buy(env, c, 'p220', 600);
-  const b = await buy(env, c, 'p100', 300);
-  ok(await c.post(`${SHOP}/spend`, spendBody('premium30', 'w1', newRequestId()))); // 150 of 320: all of A's oldest first? A has 70 left, B untouched
-  const s = await shopOf(c);
-  const dto = (id: number) => s.purchases.find((p) => p.id === id);
-  assert.equal(dto(a)?.refundBlock, 'spent');
-  assert.equal(dto(a)?.refundableFlames, 0);
-  assert.equal(dto(b)?.refundBlock, null);
-  assert.equal(dto(b)?.refundableFlames, 100);
-  assert.equal(dto(b)?.refundableCents, 300);
-  errorOf(await c.post(`${SHOP}/purchases/${a}/refund`, {}), 409, 'too_late');
-  ok(await c.post(`${SHOP}/purchases/${b}/refund`, {}));
-  assert.equal(env.app.ctx.shop.shop.balance(1), 70);
-  // after 14 days the rest is blocked by time
-  const d = await buy(env, c, 'p100', 300);
-  env.clock.advance(13 * DAY);
-  await shopOf(c);
-  env.clock.advance(DAY + 1000);
-  const late = (await shopOf(c)).purchases.find((p) => p.id === d);
-  assert.equal(late?.refundBlock, 'too_late');
-  errorOf(await c.post(`${SHOP}/purchases/${d}/refund`, {}), 409, 'too_late');
-});
-
-test('refund: the last purchase can be refunded while an older one is partly spent (FIFO math)', async () => {
-  const env = await makeShopApp();
-  shopWorld(env, 'w1');
-  const c = await player(env, 'fifo');
-  const first = await buy(env, c, 'p100', 300);
-  const second = await buy(env, c, 'p100', 300);
-  ok(await c.post(`${SHOP}/spend`, spendBody('premium30', 'w1', newRequestId()))); // 150: first fully, 50 of second
-  const s = await shopOf(c);
-  assert.deepEqual([first, second].map((id) => s.purchases.find((p) => p.id === id)?.refundBlock), ['spent', 'spent']);
-  const third = await buy(env, c, 'p100', 300);
-  const s2 = await shopOf(c);
-  assert.equal(s2.purchases.find((p) => p.id === third)?.refundableFlames, 100);
-  assert.equal(s2.purchases.find((p) => p.id === second)?.refundBlock, 'spent');
-});
-
-test('refund: another account\'s purchase is 404, a provider failure puts everything back', async () => {
-  const env = await makeShopApp();
-  const a = await player(env, 'owner1');
-  const b = await player(env, 'intruder');
-  const id = await buy(env, a, 'p100', 300);
-  errorOf(await b.post(`${SHOP}/purchases/${id}/refund`, {}), 404, 'not_found');
-  errorOf(await b.post(`${SHOP}/purchases/9999/refund`, {}), 404, 'not_found');
-  errorOf(await a.post(`${SHOP}/purchases/abc/refund`, {}), 400, 'invalid_input');
-  errorOf(await a.post(`${SHOP}/purchases/${id}/refund`, { amount: 1 }), 400, 'invalid_input');
+  const c = await player(env, 'failref');
+  const id = await buy(env, c, 'p220', 600);
+  const st = env.app.ctx.shop.shop;
   env.gw.failRefund = true;
-  const res = await a.post(`${SHOP}/purchases/${id}/refund`, {});
-  errorOf(res, 500, 'internal_error');
-  assert.equal(env.app.ctx.shop.shop.balance(1), 100, 'the Flames are back');
-  assert.equal(env.app.ctx.shop.shop.getPurchase(id)?.status, 'paid');
-  assert.equal(env.app.ctx.shop.shop.getPurchase(id)?.refundedCents, 0);
-  assert.deepEqual(env.app.ctx.shop.shop.ledgerRows(1, 3).map((r) => r.reason), ['refund_failed', 'refund', 'purchase']);
+  const r = await cliRefund(env, String(id), 'try');
+  assert.equal(r.code, 1);
+  assert.match(r.err, /Nothing was changed/);
+  assert.ok(!r.err.includes('Stripe'));
+  assert.equal(st.balance(1), 220);
+  assert.equal(ledgerSum(env), 220);
+  const p = st.getPurchase(id);
+  assert.deepEqual([p?.status, p?.refundedFlames, p?.refundedCents, p?.refundedAt], ['paid', 0, 0, null]);
+  assert.equal(env.gw.refunds.length, 0);
+  assert.ok(env.app.ctx.store.auditRows(50).some((a) => a.action === 'shop_support_refund_failed'));
   env.gw.failRefund = false;
-  ok(await a.post(`${SHOP}/purchases/${id}/refund`, {}));
-  assert.equal(env.app.ctx.shop.shop.balance(1), 0);
+  assert.equal((await cliRefund(env, String(id), 'try again')).code, 0);
+  assert.equal(st.balance(1), 0);
 });
 
-test('refund: 5 a minute per account', async () => {
+// ---- VAT --------------------------------------------------------------------------------------------
+
+const vatEnv = (over: Parameters<typeof makeShopApp>[0] = {}) => makeShopApp({ stripeTax: true, ...over });
+const packOf = (s: ShopResponse, id: string) => s.packs.find((p) => p.id === id);
+
+test('vat: ?country=EE shows 300 + 72 = 372 for p100, ?country=FI rounds, ?country=XX shows no VAT', async () => {
+  const env = await vatEnv();
+  const c = await player(env, 'vatty');
+  const ee = (await c.get(`${SHOP}?country=EE`)).json<ShopResponse>();
+  assert.deepEqual(ee.vat, { mode: 'stripe_tax', country: 'EE', ratePercent: 24, ratesDate: '2026-11-20' });
+  assert.deepEqual([packOf(ee, 'p100')?.netCents, packOf(ee, 'p100')?.vatCents, packOf(ee, 'p100')?.totalCents], [300, 72, 372]);
+  assert.deepEqual([packOf(ee, 'p3000')?.vatCents, packOf(ee, 'p3000')?.totalCents], [1440, 7440]);
+  const fi = (await c.get(`${SHOP}?country=FI`)).json<ShopResponse>();
+  assert.deepEqual([fi.vat.ratePercent, packOf(fi, 'p100')?.vatCents, packOf(fi, 'p100')?.totalCents], [25.5, 77, 377]); // 76.5 rounds up
+  const xx = (await c.get(`${SHOP}?country=XX`)).json<ShopResponse>();
+  assert.deepEqual([xx.vat.country, xx.vat.ratePercent, packOf(xx, 'p100')?.vatCents, packOf(xx, 'p100')?.totalCents], ['XX', 0, 0, 300]);
+  assert.equal(ee.vatCountries.length, 27);
+  assert.deepEqual(ee.vatCountries.find((v) => v.code === 'FI'), { code: 'FI', name: 'Finland', ratePercent: 25.5 });
+  assert.equal(packOf(ee, 'p100')?.currency, 'eur');
+});
+
+test('vat: a bad, unknown or extra query is 400', async () => {
+  const env = await vatEnv();
+  const c = await player(env, 'vatbad');
+  for (const q of ['country=ee', 'country=USA', 'country=US', 'country=ZZ', 'country=', 'country=E1', 'country=EE&x=1', 'x=1', 'country=EE&country=DE']) {
+    errorOf(await c.get(`${SHOP}?${q}`), 400, 'invalid_input');
+  }
+  ok(await c.get(`${SHOP}?country=DE`));
+});
+
+test('vat: without a query and without a purchase the country is not known; the last purchase\'s billing country is the guess', async () => {
+  const env = await vatEnv();
+  const c = await player(env, 'vatguess');
+  const first = await shopOf(c);
+  assert.deepEqual([first.vat.mode, first.vat.country, first.vat.ratePercent], ['stripe_tax', null, null]);
+  assert.ok(first.packs.every((p) => p.vatCents === null && p.totalCents === null));
+  await buy(env, c, 'p100', 300); // billing country DE (helper default)
+  const de = await shopOf(c);
+  assert.deepEqual([de.vat.country, de.vat.ratePercent, packOf(de, 'p100')?.vatCents, packOf(de, 'p100')?.totalCents], ['DE', 19, 57, 357]);
+  // the query wins
+  assert.equal((await c.get(`${SHOP}?country=EE`)).json<ShopResponse>().vat.country, 'EE');
+  // a billing country outside the table is shown as "outside the EU"
+  const id = await (async () => {
+    ok(await c.post(`${SHOP}/checkout`, checkoutBody('p100')));
+    const pid = env.gw.sessions[env.gw.sessions.length - 1]?.purchaseId ?? 0;
+    env.clock.advance(1000);
+    ok(await webhook(env, sessionPaid(pid, 300, { customer_details: { email: 'b@example.com', address: { country: 'US' } } })));
+    return pid;
+  })();
+  assert.equal(env.app.ctx.shop.shop.getPurchase(id)?.vatCountry, 'US');
+  assert.equal((await shopOf(c)).vat.country, 'XX');
+});
+
+test('vat: the CDN country header is used only when the proxy is trusted, after the query and the last purchase', async () => {
+  const trusted = await vatEnv({ trustProxy: true });
+  const a = await player(trusted, 'cdn1');
+  const country = async (c: typeof a, headers: Record<string, string>, q = ''): Promise<string | null> => (await c.get(`${SHOP}${q}`, headers)).json<ShopResponse>().vat.country;
+  assert.equal(await country(a, { 'cloudfront-viewer-country': 'FR' }), 'FR');
+  assert.equal(await country(a, { 'cf-ipcountry': 'ee' }), 'EE');
+  assert.equal(await country(a, { 'cf-ipcountry': 'US' }), 'XX', 'outside the EU');
+  assert.equal(await country(a, { 'cf-ipcountry': 'ZZZZ' }), null, 'junk is ignored');
+  assert.equal(await country(a, { 'cloudfront-viewer-country': 'FR' }, '?country=ES'), 'ES', 'the query wins');
+  await buy(trusted, a, 'p100', 300); // billing country DE
+  assert.equal(await country(a, { 'cloudfront-viewer-country': 'FR' }), 'DE', 'the last purchase wins over the header');
+  const open = await vatEnv();
+  const b = await player(open, 'cdn2');
+  assert.equal(await country(b, { 'cloudfront-viewer-country': 'FR', 'cf-ipcountry': 'FR' }), null, 'anyone can send a header without a trusted proxy');
+});
+
+test('vat: Stripe Tax off - mode none, no VAT numbers, a ?country is accepted but changes nothing', async () => {
   const env = await makeShopApp();
-  const c = await player(env, 'refspam');
-  for (let i = 0; i < 5; i++) errorOf(await c.post(`${SHOP}/purchases/${i + 1}/refund`, {}), 404, 'not_found');
-  errorOf(await c.post(`${SHOP}/purchases/1/refund`, {}), 429, 'rate_limited');
+  const c = await player(env, 'notax');
+  const s = (await c.get(`${SHOP}?country=EE`)).json<ShopResponse>();
+  assert.deepEqual([s.vat.mode, s.vat.country, s.vat.ratePercent], ['none', null, null]);
+  assert.ok(s.packs.every((p) => p.vatCents === null && p.totalCents === null));
+});
+
+test('vat: checkout charges the NET price (the gateway adds the tax); the minor cap counts net cents', async () => {
+  const env = await vatEnv();
+  const c = await player(env, 'kidvat', 'minor');
+  ok(await c.post(`${SHOP}/checkout`, checkoutBody('p1100', { parentConsent: true })));
+  assert.equal(env.gw.sessions[0]?.amountCents, 2500);
+  const p = env.app.ctx.shop.shop.getPurchase(env.gw.sessions[0]?.purchaseId ?? 0);
+  assert.deepEqual([p?.priceCents, p?.netCents, p?.vatCents], [2500, 2500, null]);
+  ok(await webhook(env, sessionPaid(p?.id ?? 0, 3100, { amount_subtotal: 2500, total_details: { amount_tax: 600 }, customer_details: { email: 'k@example.com', address: { country: 'EE' } } })));
+  assert.equal((await shopOf(c)).minorBoughtThisMonthCents, 2500, 'net, not the 31 EUR that was charged');
+  ok(await c.post(`${SHOP}/checkout`, checkoutBody('p100', { parentConsent: true }))); // 28 <= 30
+  errorOf(await c.post(`${SHOP}/checkout`, checkoutBody('p100', { parentConsent: true })), 409, 'not_enough_resources'); // 31 > 30
 });
 
 test('login history: register, sign-in and entering a world are recorded; the browser string is cut to 200 characters', async () => {
@@ -405,12 +542,11 @@ test('the Flames ledger is append-only', async () => {
 test('no Stripe key or webhook secret appears in any response', async () => {
   const env = await makeShopApp();
   const c = await player(env, 'leakcheck');
-  const id = await buy(env, c, 'p100', 300);
+  await buy(env, c, 'p100', 300);
   const bodies = [
     (await c.get(SHOP)).body,
     (await c.get(`${SHOP}/balance`)).body,
     (await c.post(`${SHOP}/checkout`, checkoutBody('p100'))).body,
-    (await c.post(`${SHOP}/purchases/${id}/refund`, {})).body,
     (await webhook(env, { id: 'x' }, { secret: 'wrong' })).body,
   ];
   for (const b of bodies) assert.ok(!b.includes(WHSEC) && !b.includes('sk_') && !b.includes('whsec_'), b);

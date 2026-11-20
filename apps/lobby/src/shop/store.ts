@@ -41,7 +41,13 @@ export interface PurchaseRow {
   kind: 'flames' | 'settle';
   packId: string;
   flames: number;
+  /** What was charged (net + VAT once paid; the net price before). */
   priceCents: number;
+  /** Price without VAT. */
+  netCents: number;
+  vatCents: number | null;
+  vatRateBp: number | null;
+  vatCountry: string | null;
   currency: string;
   status: PurchaseStatus;
   checkoutSessionId: string | null;
@@ -134,6 +140,10 @@ const toPurchase = (r: Raw): PurchaseRow => ({
   packId: r.pack_id as string,
   flames: r.flames as number,
   priceCents: r.price_cents as number,
+  netCents: r.net_cents as number,
+  vatCents: n(r.vat_cents),
+  vatRateBp: n(r.vat_rate_bp),
+  vatCountry: sOrNull(r.vat_country),
   currency: r.currency as string,
   status: r.status as PurchaseStatus,
   checkoutSessionId: sOrNull(r.checkout_session_id),
@@ -175,6 +185,10 @@ const toFee = (r: Raw): FeeRow => ({
 /** Columns updatePurchase may set (field name -> column). */
 const PURCHASE_COLUMNS = {
   status: 'status',
+  priceCents: 'price_cents',
+  vatCents: 'vat_cents',
+  vatRateBp: 'vat_rate_bp',
+  vatCountry: 'vat_country',
   checkoutSessionId: 'checkout_session_id',
   paymentIntentId: 'payment_intent_id',
   chargeId: 'charge_id',
@@ -254,25 +268,6 @@ export class ShopStore {
     return r ? toLedger(r) : null;
   }
 
-  /** The ledger row that credited a purchase. */
-  purchaseCreditId(purchaseId: number): number | null {
-    return n(this.get("SELECT MIN(id) AS id FROM flames_ledger WHERE purchase_id = ? AND reason = 'purchase'", purchaseId)?.id);
-  }
-
-  /** Sum of Flames credited to the account after ledger row `afterId`, not counting rows that belong to purchase `exceptPurchaseId`. */
-  creditsAfter(accountId: number, afterId: number, exceptPurchaseId: number): number {
-    return Number(
-      this.get(
-        `SELECT COALESCE(SUM(delta), 0) AS s FROM flames_ledger
-          WHERE account_id = ? AND id > ? AND delta > 0 AND reason IN ('purchase', 'support', 'dispute_won', 'refund_failed')
-            AND (purchase_id IS NULL OR purchase_id <> ?)`,
-        accountId,
-        afterId,
-        exceptPurchaseId,
-      )?.s ?? 0,
-    );
-  }
-
   /** Flames removed by a dispute for this purchase (positive number). */
   disputeRemoved(purchaseId: number): number {
     return Number(this.get("SELECT COALESCE(-SUM(delta), 0) AS s FROM flames_ledger WHERE purchase_id = ? AND reason = 'dispute'", purchaseId)?.s ?? 0);
@@ -307,13 +302,14 @@ export class ShopStore {
 
   insertPurchase(p: NewPurchase): number {
     return this.run(
-      `INSERT INTO purchases (account_id, kind, pack_id, flames, price_cents, currency, status, ip, user_agent, consent_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'eur', 'pending', ?, ?, ?, ?)`,
+      `INSERT INTO purchases (account_id, kind, pack_id, flames, price_cents, net_cents, currency, status, ip, user_agent, consent_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'eur', 'pending', ?, ?, ?, ?)`,
       p.accountId,
       p.kind,
       p.packId,
       p.flames,
       p.priceCents,
+      p.priceCents, // net = the price until the payment is confirmed
       p.ip.slice(0, 64),
       p.userAgent.slice(0, 200),
       p.consentId,
@@ -354,15 +350,20 @@ export class ShopStore {
     this.run(`UPDATE purchases SET ${sets} WHERE id = ?`, ...keys.map((k) => patch[k] ?? null), id);
   }
 
+  /** Billing country (alpha-2) of the account's latest paid purchase, null when there is none. */
+  lastVatCountry(accountId: number): string | null {
+    return sOrNull(this.get("SELECT vat_country FROM purchases WHERE account_id = ? AND paid_at IS NOT NULL AND vat_country IS NOT NULL ORDER BY paid_at DESC, id DESC LIMIT 1", accountId)?.vat_country);
+  }
+
   countPendingSince(accountId: number, since: number): number {
     return Number(this.get("SELECT COUNT(*) AS c FROM purchases WHERE account_id = ? AND status = 'pending' AND created_at > ?", accountId, since)?.c ?? 0);
   }
 
-  /** Pack money (cents) of purchases that count against the under-18 monthly cap: paid ones, and pending ones newer than `pendingSince`. */
+  /** NET pack money (cents, without VAT) of purchases that count against the under-18 monthly cap: paid ones, and pending ones newer than `pendingSince`. */
   packCentsInRange(accountId: number, from: number, to: number, pendingSince: number): number {
     return Number(
       this.get(
-        `SELECT COALESCE(SUM(price_cents), 0) AS s FROM purchases
+        `SELECT COALESCE(SUM(net_cents), 0) AS s FROM purchases
           WHERE account_id = ? AND kind = 'flames' AND created_at >= ? AND created_at < ?
             AND (status IN ('paid', 'disputed', 'dispute_lost', 'dispute_won') OR (status = 'pending' AND created_at > ?))`,
         accountId,

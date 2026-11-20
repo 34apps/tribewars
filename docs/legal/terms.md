@@ -2,7 +2,7 @@
 
 > Draft written by AI on 2026-11-20, not legal advice; review before the first real sale.
 
-Version: **2026-11-20 (draft v1)** · Applies to the game, the website and the account service ("the lobby").
+Version: **2026-11-20 (draft v2)** · Applies to the game, the website and the account service ("the lobby").
 
 Placeholders to fill before publishing: `[Company name]`, `[registry code]`, `[address]`, `[contact email]`, `[VAT number, once registered]`.
 
@@ -72,7 +72,7 @@ Do not:
 This section is the short form. The [refund policy](refunds.md) has the full rules.
 
 - **Flames are an in-game currency, not money.** They are not a payment instrument, they earn no interest, they cannot be exchanged for cash, sent to other players, or given back to anyone but the account owner. You may not trade them for anything outside the game.
-- **Prices are shown in euros** next to the Flames amount at every purchase and every spend button, so that you always see what a thing really costs. Prices include VAT where VAT applies.
+- **Prices are shown in euros** next to the Flames amount at every purchase and every spend button, so that you always see what a thing really costs. Pack prices (3, 6, 12, 25 and 60 EUR) are **net**: VAT for your country is added on top. Before you pay, the shop shows the full price, for example "3.00 EUR + 24% VAT (Estonia) = 3.72 EUR". The final VAT is worked out from your billing address at checkout, and that amount is what you are charged and what the receipt shows. Outside the EU, no EU VAT is added. Euro values next to Flames prices are net, written "4.50 EUR + VAT".
 - **What Flames buy:** Premium time and cosmetic looks. **What they never buy:** troops, resources, protection time, battle strength, Renown or points.
 - **Premium** costs a set number of Flames for **30 days** in **one world** that you choose. It **never renews by itself.** When it runs out it simply ends, and you can buy it again if you want. It saves clicks (more build slots, auto mode, raid lists, wider map overview, and similar tools shown in the game). It does not make your troops stronger. We may change which tools belong to Premium; we will not take away a tool during a running Premium period without giving you the time back as Flames.
 - **Looks** belong to your account and work in every world. A look is a picture the game draws. It changes no number.
@@ -89,7 +89,7 @@ This section is the short form. The [refund policy](refunds.md) has the full rul
 
 ## 10. Right of withdrawal
 
-If you are a consumer in the EU you normally have 14 days to withdraw from an online purchase. For digital content such as Flames, you lose that right once we have delivered it **with your clear consent** and you have confirmed that you accept this. Because we want to be fair, we give you **more than the law requires**: you can get your money back for any purchase whose Flames you have not spent, within 14 days. The details, and how to ask, are in the [refund policy](refunds.md). Nothing in these terms limits any right you have by law that cannot be waived.
+If you are a consumer in the EU you normally have 14 days to withdraw from an online purchase. For digital content such as Flames, you lose that right once we have delivered it **with your clear consent** and you have confirmed that you accept this. At checkout you tick: "I want my Flames delivered now. I understand that I lose my 14-day right of withdrawal once they are delivered." Your Flames are delivered as soon as the payment is confirmed, so the right ends then. There is no self-service refund. If something goes wrong (a fault, a double charge, a minor who bought without consent), write to **[contact email]**; the cases and rules are in the [refund policy](refunds.md). Nothing in these terms limits any right you have by law that cannot be waived.
 
 ## 11. Our service
 
@@ -100,7 +100,7 @@ If you are a consumer in the EU you normally have 14 days to withdraw from an on
 
 ## 12. Ending your account
 
-- **You** can close your account at any time from the account page or by writing to **[contact email]**. Before you do, spend or ask for a refund of your Flames: unspent Flames bought more than 14 days ago are lost when the account is deleted.
+- **You** can close your account at any time from the account page or by writing to **[contact email]**. Before you do, spend your Flames: unspent Flames are lost when the account is deleted.
 - Closing the account deletes or anonymises your data as described in the [privacy policy](privacy.md). Your past messages may stay for a short time in other players' mailboxes and reports, with your name replaced by "deleted player".
 - We may close an account that has had no login for **24 months** after warning you by email. Unspent Flames on it are refunded to the original payment method on request if you answer within the warning period.
 

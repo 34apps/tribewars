@@ -14,6 +14,8 @@ export interface AppContext {
   secureCookies: boolean;
   /** Flames shop (rules, ledger, webhook effects). */
   shop: ShopService;
+  /** Behind a trusted reverse proxy: only then may headers like the CDN's country header be believed. */
+  trustProxy: boolean;
   /** Stripe webhook signing secret; null = webhook off. Secret: never log it. */
   webhookSecret: string | null;
   /** Sign-in and registration attempts per IP. */

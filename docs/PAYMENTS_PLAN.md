@@ -1,6 +1,6 @@
 # Payments plan (draft, 2026-11-20)
 
-Status: **accepted 2026-11-20; shop built 2026-11-20 on branch `claude/flames-shop-5ed708` (test mode only, not live).** Nothing takes real money until the OSS VAT registration is done and the owner sets live keys (`PAYMENTS_LIVE=1`). Stripe account for the Estonian company is active (owner). VAT (OSS) registration later, before the first real sale; legal texts drafted by Claude, owner chose no separate lawyer review for now. The company is registered in **Estonia** (EU). Fees and contract terms below
+Status: **accepted 2026-11-20; shop built 2026-11-20 on branch `claude/flames-shop-5ed708` (test mode only, not live).** Nothing takes real money until Stripe Tax is set up, the OSS VAT registration is done and the owner sets live keys (`PAYMENTS_LIVE=1`). Stripe account for the Estonian company is active (owner). VAT (OSS) registration later, before the first real sale; legal texts drafted by Claude, owner chose no separate lawyer review for now. The company is registered in **Estonia** (EU). Fees and contract terms below
 are from general knowledge; confirm each with the provider's sales team before signing. A lawyer checks the
 terms, refund policy and privacy policy before the first paid purchase.
 
@@ -11,12 +11,13 @@ terms, refund policy and privacy policy before the first paid purchase.
 | What we sell | One in-game currency ("points", name to pick) in packs. No subscriptions. |
 | Premium | Bought with points for 30 days at a time, **never renews by itself**. Covers today's premium tools (5 build slots, auto mode, raid lists, wide map). |
 | Seller | **Stripe direct** (owner pick 2026-11-20). We are the seller: we handle refunds, disputes and EU VAT (OSS) ourselves. Xsolla/Paddle stay the fallback if disputes grow. |
-| Refunds | Unspent points: refunded on request within 14 days, one button. Spent points: never. |
+| Refunds | **No self-service refunds** (owner 2026-11-20). Flames are delivered at once; with the checkout tick the 14-day withdrawal right ends at delivery. Refunds only through support (written request): technical fault, double charge, minor without consent, where the law requires, game closing for good. Every one is logged. |
+| VAT | **Pack prices are net; the buyer's country VAT is added on top** (owner 2026-11-20). Stripe Tax computes the final VAT at checkout. |
 | Disputes | Points removed, balance may go negative, paid features locked until settled; repeat = ban. |
 
 ## 2. Stripe direct: what we must set up (owner pick)
 
-- **EU VAT:** register for the One-Stop-Shop (OSS) in Estonia; Stripe Tax calculates the VAT per buyer country; prices shown to players include VAT.
+- **EU VAT:** register for the One-Stop-Shop (OSS) in Estonia; Stripe Tax calculates the VAT per buyer country; pack prices (3/6/12/25/60 EUR) are net and the VAT is added on top. Before paying the shop shows the full price, e.g. "3.00 EUR + 24% VAT (Estonia) = 3.72 EUR" (Estonia's standard rate is 24% since 1 July 2025); euro values next to Flames prices are net ("4.50 EUR + VAT"). Outside the EU: no EU VAT.
 - **3-D Secure on every card payment** (fraud disputes then fall on the bank), **Radar** rules (block mismatched country/IP, cap new accounts), statement name **CLANFIRE**.
 - **Disputes:** webhook `charge.dispute.created` removes the points at once; the lobby submits the evidence pack (section 5) through the Stripe API automatically.
 - **Watch the dispute rate:** alert the owner above 0.5% of payments in a month (card schemes act around 1%).
@@ -41,7 +42,7 @@ terms, refund policy and privacy policy before the first paid purchase.
 ## 3. Points rules (EU consumer rules)
 
 The EU consumer authorities (CPC network) published principles for in-game currencies in 2025. To follow them:
-- **Every price also shows the euro amount** next to the points (in the shop, at every purchase button).
+- **Every price also shows the euro amount** next to the points (in the shop, at every purchase button); euro values are net, written "+ VAT".
 - Pack sizes fit the prices of what you buy, so players are not forced to buy leftover points they cannot use.
 - No fake urgency (no countdowns to force a purchase), no hiding the real cost.
 - Points do not expire while the account exists.
@@ -50,17 +51,17 @@ The EU consumer authorities (CPC network) published principles for in-game curre
 **Never for sale** (keep the game fair): troops, resources, protection time, battle strength, Renown. Premium tools
 are convenience only. `GAME_DESIGN.md` 18.6 was updated 2026-11-20: Flames buy Premium convenience and looks.
 
-## 4. Refund policy
+## 4. Refund policy (support only, owner 2026-11-20)
 
-- At checkout a **required tick box**: "I want my points now. I understand I lose my 14-day right of withdrawal for points I use." (EU rule for digital content; stored with date and terms version.)
-- **Unspent points**, within 14 days of purchase: "Refund unspent points" button in the account page. Refund goes through the provider, points removed at once. Cheaper than any dispute.
-- **Spent points**: not refunded. Support may make exceptions (technical fault, proven bug); every exception is logged.
-- **Bank dispute**: on the provider's webhook the purchase's points are removed at once. If they were already spent the balance goes negative; premium and new purchases stay locked until the balance is back to zero. A second dispute on one account: account banned from paying; fraud: account banned.
+- At checkout a **required tick box**: "I want my Flames delivered now. I understand that I lose my 14-day right of withdrawal once they are delivered." Small text: "Your Flames are delivered as soon as the payment is confirmed. If something goes wrong, write to support." (EU rule for digital content: express consent and acknowledgement before delivery; stored with date and terms version `2026-11-20-v2`.)
+- **No refund button, no self-service refund.** Refunds only through support, on a written request, for: technical faults or bugs, double charges, a minor who bought without consent (refund including spent Flames), cases where the law requires it, and the game closing for good (money back for unspent Flames). Every support refund is logged.
+- **Spent Flames**: not refunded in general; support may make exceptions for a proven fault.
+- **Bank dispute**: on the provider's webhook the purchase's Flames are removed at once. If they were already spent the balance goes negative; premium and spending stay locked until the balance is back to zero. A second dispute on one account: account banned from paying; fraud: account banned. Before a chargeback the player is told to write to support first.
 
 ## 5. Data we keep (for refunds and disputes)
 
 Kept in the lobby database (account level, all worlds):
-- **Purchases:** provider id, pack, amount, currency, country, IP, time, consent tick (time + terms version), receipt sent.
+- **Purchases:** provider id, pack, net amount, VAT amount, VAT rate, country, currency, IP, time, consent tick (time + terms version), receipt sent.
 - **Points ledger:** every change with reason (bought, spent on X in world Y, refunded, removed by dispute, support grant). Balance is always the ledger sum.
 - **Login history:** time, IP, device/browser, world entered.
 
@@ -87,15 +88,17 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
 
 ## 9. How it is built (2026-11-20, branch `claude/flames-shop-5ed708`, test mode)
 
-- **Lobby** (`apps/lobby/src/shop/`, routes `routes/shop.ts`, `routes/stripe.ts`; schema v7): Flames ledger (append-only, balance = sum),
-  purchases (Stripe ids, buyer email, card brand/last4/country, IP, browser, consent id, receipt no. `CF-000123`), consents (exact label text +
-  terms version `2026-11-20-v1`), Stripe event ids (idempotency), dispute fees, 2-year login history for paying accounts (30 days for the rest),
+- **Lobby** (`apps/lobby/src/shop/`, routes `routes/shop.ts`, `routes/stripe.ts`; schema v9): Flames ledger (append-only, balance = sum),
+  purchases (Stripe ids, buyer email, card brand/last4/country, IP, browser, consent id, receipt no. `CF-000123`, net price, VAT amount, VAT rate, VAT country), consents (exact label text +
+  terms version `2026-11-20-v2`), Stripe event ids (idempotency), dispute fees, 2-year login history for paying accounts (30 days for the rest),
   Premium per world, owned looks. Endpoints: `GET /lobby/api/shop`, `/shop/balance`, `POST /shop/age`, `/shop/checkout`, `/shop/settle`,
-  `/shop/spend`, `/shop/purchases/:id/refund`, `/stripe/webhook` (contract: `packages/engine/src/api.ts` "Flames shop").
+  `/shop/spend`, `/stripe/webhook` (there is no refund endpoint) (contract: `packages/engine/src/api.ts` "Flames shop").
 - **Stripe** without the SDK (plain HTTPS calls, pinned API version): hosted Checkout, card only, 3-D Secure requested on every payment,
   statement suffix `CLANFIRE`, Stripe Tax only with `STRIPE_TAX=1`. Webhook signature checked (HMAC, 5 min tolerance), idempotent on the event
   id. Events: `checkout.session.completed` / `.expired`, `charge.succeeded`, `charge.refunded`, `charge.dispute.created` / `.closed`.
-- **Rules as built:** refund = whole purchase, only if none of its Flames is spent (spent oldest first), within 14 days; dispute = Flames removed
+- **Refunds as built:** no endpoint and no button. The operator refunds a purchase after a written support request with `npm run lobby:admin -- refund <purchaseId> <reason...> [--keep-flames]` (refund through Stripe; Flames are removed unless `--keep-flames`; the reason is logged in the audit log and the ledger).
+- **VAT as built:** pack prices are net. With `STRIPE_TAX=1` Checkout runs Stripe Tax (`automatic_tax` on, `tax_behavior` exclusive on the price, billing address required) and the VAT amount, rate and country come back from Stripe and are stored with the purchase (net, VAT, rate, country). Without `STRIPE_TAX` payments still work in test mode with no VAT and the shop says "VAT: added at checkout". The shop's "3.00 EUR + 24% VAT (Estonia) = 3.72 EUR" line is display only, from a rate table in the lobby (`apps/lobby/src/shop/vat.ts`, dated 2026-11-20) applied to the buyer's guessed country (changeable); Stripe's amount is what is charged and on the receipt. Receipt email: net, VAT line (rate and country), total.
+- **Rules as built:** dispute = Flames removed
   (minus allowed), fees open (provider fee from Stripe, fallback 20 EUR, + 4 EUR handling, no handling fee when the bank's reason is fraud),
   paid features locked until balance >= 0 and fees paid ("Settle account" checkout), buying still allowed; second dispute = no more buying; won
   dispute = Flames back, fees cancelled or refunded; evidence pack submitted automatically; owner alert above 0.5% disputes in a month (log +
@@ -107,7 +110,8 @@ Retention: accounting records about 7 years (Estonian accounting law; confirm), 
   `dispute-evidence <purchaseId>`.
 
 **Owner setup before testing with Stripe test mode** (keys only in `deploy/lobby.env` / `apps/lobby/.env`, never in git):
-1. `STRIPE_SECRET_KEY=sk_test_...`, `PUBLIC_URL=https://<site>`; live keys are refused unless `PAYMENTS_LIVE=1` (only after OSS VAT registration).
+1. `STRIPE_SECRET_KEY=sk_test_...`, `PUBLIC_URL=https://<site>`; live keys are refused unless `PAYMENTS_LIVE=1` (only after the Stripe Tax and OSS steps in item 4 are done).
 2. Stripe Dashboard → Developers → Webhooks: endpoint `https://<site>/lobby/api/stripe/webhook`, events listed above; copy its signing
    secret into `STRIPE_WEBHOOK_SECRET`. Locally: `stripe listen --forward-to localhost:<lobby port>/api/stripe/webhook`.
 3. Settings → Public details: statement descriptor `CLANFIRE`. Radar rules (block country/IP mismatch, cap new accounts) in the Dashboard.
+4. **VAT setup, all BEFORE `PAYMENTS_LIVE=1`:** enable Stripe Tax in the Dashboard (origin address Estonia, product tax code for digital goods / video games); register for the One-Stop-Shop (OSS) in Estonia; then set `STRIPE_TAX=1`.

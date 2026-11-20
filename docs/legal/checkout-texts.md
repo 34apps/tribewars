@@ -4,7 +4,7 @@
 
 Exact short texts for the shop. Words in `{{double braces}}` are filled in by the code. Do not reword the tick box text without changing the terms version, because the consent we store is tied to this exact wording.
 
-Terms version to store with each purchase: `2026-11-20-v1` (bump it whenever `terms.md`, `refunds.md` or the tick box text changes).
+Terms version to store with each purchase: `2026-11-20-v2` (bump it whenever `terms.md`, `refunds.md` or the tick box text changes).
 
 Links used below: `[Terms]` = `/legal/terms`, `[Refunds]` = `/legal/refunds`, `[Privacy]` = `/legal/privacy` (the shop session decides the real URLs).
 
@@ -12,21 +12,22 @@ Links used below: `[Terms]` = `/legal/terms`, `[Refunds]` = `/legal/refunds`, `[
 
 ## 1. Price display (every Flames price, every buy button)
 
-Show the euro price next to the Flames amount, always, with VAT included:
+Pack prices are **net**. Show the euro price next to the Flames amount, always, and say it is net:
 
-- Pack card: `{{flames}} Flames · {{eur}} EUR` and under it in small text `incl. VAT where it applies`
-- Spend button: `Buy Premium · 150 Flames ({{eur_equivalent}} EUR)`. Show the euro equivalent as the pack price per Flame that the player paid on average, or the price per Flame of the cheapest pack; the shop session picks one rule and uses it everywhere.
+- Pack card: `{{flames}} Flames · {{eur}} EUR + VAT`
+- Before paying, show the full price from the buyer's country (guessed; the player can change it): `{{eur}} EUR + {{vat_rate}}% VAT ({{vat_country}}) = {{eur_total}} EUR`, for example `3.00 EUR + 24% VAT (Estonia) = 3.72 EUR`. Outside the EU: `{{eur}} EUR, no EU VAT`. Without Stripe Tax (test mode): `VAT: added at checkout`. Stripe Tax computes the final VAT from the billing address at checkout; that amount is what is charged and what the receipt shows.
+- Spend button: `Buy Premium · 150 Flames ({{eur_equivalent}} EUR + VAT)`. The euro value is net, written `4.50 EUR + VAT`. Show the euro equivalent as the pack price per Flame that the player paid on average, or the price per Flame of the cheapest pack; the shop session picks one rule and uses it everywhere.
 - No countdown timers, no "only N left", no crossed-out fake prices.
 
 ## 2. Tick box before paying (required, unticked by default)
 
 **Label (exact text):**
 
-> I want my Flames now. I understand that I lose my 14-day right of withdrawal for Flames that I use.
+> I want my Flames delivered now. I understand that I lose my 14-day right of withdrawal once they are delivered.
 
 **Small text under the box (exact text):**
 
-> You can still get a refund for any purchase whose Flames you have not spent, within 14 days. [Refund policy]
+> Your Flames are delivered as soon as the payment is confirmed. If something goes wrong, write to support.
 
 **Rules for the code:**
 - The pay button stays disabled until the box is ticked.
@@ -47,33 +48,24 @@ Shown before Flames are spent, with a confirm button.
 
 > **Premium for 30 days in {{world_name}}** · 150 Flames ({{eur_equivalent}} EUR)
 > It starts now and ends after 30 days. It does **not** renew by itself.
-> Spending Flames ends your right of withdrawal for them. Flames left after this: {{balance_after}}.
+> Flames left after this: {{balance_after}}.
 >
 > [Cancel] [Spend 150 Flames]
 
 **Look:**
 
 > **{{item_name}}** · {{flames}} Flames ({{eur_equivalent}} EUR)
-> This look is yours as long as your account exists. Spending Flames ends your right of withdrawal for them. Flames left after this: {{balance_after}}.
+> This look is yours as long as your account exists. Flames left after this: {{balance_after}}.
 >
 > [Cancel] [Spend {{flames}} Flames]
 
-## 5. Refund button texts
+## 5. Refunds (support only)
 
-- Button on the purchase: `Refund unspent Flames`
-- Confirmation dialog:
+There is no refund button and no refund dialog. Where the shop needs a line about refunds (account page, purchase list), use:
 
-> Refund {{eur}} EUR to your {{card_brand}} ending {{last4}}? The {{flames}} Flames from this purchase will be removed from your account now. The money usually reaches you within a few days; your bank may need longer.
->
-> [Keep the Flames] [Refund me]
+> Something went wrong with a purchase? Write to {{contact_email}} and give the receipt number. We look at it and answer within 3 working days.
 
-- When not possible (some Flames from that purchase are spent):
-
-> This purchase can no longer be refunded because some of its Flames have been spent. If something went wrong, write to {{contact_email}} and we will look at it.
-
-- When too late (more than 14 days):
-
-> The 14-day refund time for this purchase has passed. If something went wrong, write to {{contact_email}}.
+Support refunds are done by the operator (`npm run lobby:admin -- refund <purchaseId> <reason...> [--keep-flames]`) and every one is logged.
 
 ## 6. Receipt email
 
@@ -92,19 +84,19 @@ Date and time:   {{date_time_utc}} (UTC)
 Seller:          [Company name], registry code [registry code], [address]
                  {{vat_number_line}}
 Item:            {{flames}} Flames (an in-game currency for Clanflame)
-Price:           {{eur}} EUR
+Price (net):      {{eur_net}} EUR
 {{vat_line}}
+Total paid:      {{eur_total}} EUR
 Paid with:       {{card_brand}} ending {{last4}} (through Stripe)
 Player account:  {{player_name}}
 
 Your Flames were added to your account when the payment was confirmed.
 
 Your rights
-- You asked for the Flames to be delivered at once and confirmed that you lose
-  your right of withdrawal for Flames you use.
-- You can still get a full refund within 14 days of today ({{refund_until_date}}) as long as you
-  have not spent any Flames from this purchase. Press "Refund unspent Flames" in your
-  account page, or write to {{contact_email}}.
+- You asked for the Flames to be delivered now and confirmed that you lose your
+  14-day right of withdrawal once they are delivered.
+- If something went wrong (a fault, a double charge), write to {{contact_email}} and give
+  the receipt number. We refund through support in those cases.
 - Flames are not money and cannot be exchanged for cash. They do not expire while your
   account exists.
 - Please contact us before asking your bank to reverse a payment. A bank dispute removes
@@ -122,9 +114,9 @@ Clanflame
 ```
 
 **Notes for the code:**
-- `{{vat_line}}` before VAT registration: leave the line out; once registered: `Included VAT ({{vat_country}} {{vat_rate}}%): {{vat_amount}} EUR`. The owner decides when it changes; do not invent a VAT line.
+- `{{vat_line}}`: `VAT ({{vat_country}} {{vat_rate}}%): {{vat_amount}} EUR`, taken from what Stripe Tax charged. Outside the EU, or without Stripe Tax (test mode): `VAT: none added` and the total equals the net price. Do not invent a VAT figure.
 - `{{vat_number_line}}` is empty until there is a VAT number, then `VAT number: [VAT number]`.
-- Send to the email the buyer typed at Stripe checkout. Stripe's own receipt may also go out; ours is the one with the terms and refund details.
+- Send to the email the buyer typed at Stripe checkout. Stripe's own receipt may also go out; ours is the one with the net price, VAT line, total, terms and support details.
 - Plain text works; if HTML is used, keep the same wording.
 
 ## 7. Dispute notice (bank dispute or chargeback)
@@ -161,8 +153,8 @@ How to settle
   reply to this email and tell us. We will look at it before charging you anything.
 
 Please note: a second bank dispute on the same account means we stop it from paying.
-Payment fraud means we close the account. To avoid all of this, ask us for a refund
-first: unspent Flames can be refunded within 14 days with one button.
+Payment fraud means we close the account. To avoid all of this, write to
+support first at {{contact_email}}.
 
 We may send Stripe the evidence it asks for in a dispute: your purchase record,
 your consent, your login times and what the Flames were spent on.
@@ -190,8 +182,10 @@ Clanflame
 
 ## 8. Other short notices
 
-**Refund done (email subject and one line):**
-`Your Clanflame refund of {{eur}} EUR is on its way` — "We refunded receipt {{receipt_no}} to your {{card_brand}} ending {{last4}}. Your bank may need a few days to show it. The {{flames}} Flames were removed from your account."
+`{{flames_line}}`: `The {{flames}} Flames were removed from your account.` or, when support kept them (fault of ours, or minor refund where decided): `You keep the Flames.`
+
+**Refund done by support (email subject and one line):**
+`Your Clanflame refund of {{eur}} EUR is on its way` — "We refunded receipt {{receipt_no}} to your {{card_brand}} ending {{last4}}. Your bank may need a few days to show it. {{flames_line}}"
 
 **Premium ending soon (in the game, 3 days before; no email):**
 `Your Premium in {{world_name}} ends on {{end_date}}. It will not renew by itself.`
