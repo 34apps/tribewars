@@ -28,7 +28,7 @@ describe('travel', () => {
   it('army speed is the slowest unit present', () => {
     assert.equal(armySpeed(units({})), 0);
     assert.equal(armySpeed(units({ raider: 5, outrider: 5 })), 6);
-    assert.equal(armySpeed(units({ knight: 1, outrider: 9 })), 5); // the Ember Guard walks
+    assert.equal(armySpeed(units({ knight: 1, outrider: 9 })), 9); // the Ember Guard rides at 9, slower than the Elk Rider
     assert.equal(armySpeed(units({ pikeman: 0, outrider: 5 })), 13);
     assert.equal(armySpeed(units({ guard: 1, raider: 100, knight: 3 })), 5);
   });
@@ -40,7 +40,7 @@ describe('travel', () => {
     assert.equal(travelTimeMs(ORIGIN, target, units({ outrider: 10 }), S1), 1_384_616); // 5 / 13 h, rounded up
     assert.equal(travelTimeMs(ORIGIN, target, units({ raider: 1, outrider: 10 }), S1), 3_000_000); // mixed: raiders set the pace
     assert.equal(travelTimeMs(ORIGIN, target, units({ raider: 1, outrider: 10 }), S10), 300_000);
-    assert.equal(travelTimeMs(ORIGIN, target, units({ knight: 1, outrider: 10 }), S1), 3_600_000); // 5 / 5 h: the Ember Guard sets the pace
+    assert.equal(travelTimeMs(ORIGIN, target, units({ knight: 1, outrider: 10 }), S1), 2_000_000); // 5 / 9 h: the Ember Guard sets the pace
     assert.equal(travelTimeMs(ORIGIN, ORIGIN, units({ raider: 1 }), S1), 0);
     assert.equal(travelTimeMs(ORIGIN, target, units({}), S1), Infinity);
   });

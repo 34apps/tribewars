@@ -16,7 +16,7 @@ type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-e
 
 const own = async (c: Client) => (await c.state()).villages[0]!;
 
-test('an old database: Knights stay as Ember Guards, queued Stables batches finish there, Ember Guards train at the Barracks only; once', async () => {
+test('an old database: Knights stay as Ember Guards, queued Stables batches finish there, Ember Guards need Stables 8 now; once', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'clanfire-roster-'));
   try {
     const dbPath = join(dir, 'game.sqlite');
@@ -72,20 +72,20 @@ test('an old database: Knights stay as Ember Guards, queued Stables batches fini
     assert.equal(done.troops.knight, 7 + 2);
     assert.deepEqual(done.trainQueues.stables, []);
 
-    // Barracks 5: the Ember Guard is refused even with a Stables 6, and nothing is queued at the Stables.
+    // Stables 6: the Ember Guard is refused (it needs Stables 8 since 2026-11-20), and nothing is queued.
     errorOf(await c2.post(`/api/villages/${homeId}/train`, { unit: 'knight', count: 1 }), 409, 'requirements_not_met');
-    assert.deepEqual((await own(c2)).state.trainQueues.stables, []);
+    assert.deepEqual((await own(c2)).state.trainQueues.barracks, []);
 
-    // Barracks 8 + Town Hall 8: accepted, and it lands in the Barracks queue with the Ember Guard's own time.
+    // Stables 8 + Town Hall 8: accepted, and it lands in the Stables queue with the Ember Guard's own time.
     const v = app.ctx.store.getVillage(homeId)!;
-    v.state.buildings.barracks = 8;
+    v.state.buildings.stables = 8;
     app.ctx.store.saveVillage(v.id, v.state, v.points);
     const res = await c2.post(`/api/villages/${homeId}/train`, { unit: 'knight', count: 2 });
     ok(res);
     const q = res.json<OwnVillageDto>().state.trainQueues;
-    assert.deepEqual(q.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:2']);
-    assert.deepEqual(q.stables, []);
-    assert.ok(Math.abs((q.barracks[0]!.perUnitMs - (UNITS.knight.trainTimeSec * 1000 * 0.94 ** 7) / app.ctx.game.settings.speed) / 1000) < 1);
+    assert.deepEqual(q.stables.map((j) => `${j.unit}:${j.count}`), ['knight:2']);
+    assert.deepEqual(q.barracks, []);
+    assert.ok(Math.abs((q.stables[0]!.perUnitMs - (UNITS.knight.trainTimeSec * 1000 * 0.94 ** 7) / app.ctx.game.settings.speed) / 1000) < 1);
     await app.close();
 
     // Opening it again changes nothing and makes no second backup.
@@ -97,8 +97,63 @@ test('an old database: Knights stay as Ember Guards, queued Stables batches fini
   }
 });
 
-test('the Elk Rider stays a Stables unit and the Stables list no longer trains the Ember Guard', () => {
+test('the Elk Rider and the Ember Guard are Stables units, the Pathfinder too', () => {
   assert.equal(UNITS.outrider.building, 'stables');
-  assert.equal(UNITS.knight.building, 'barracks');
+  assert.equal(UNITS.knight.building, 'stables');
+  assert.equal(UNITS.pathfinder.building, 'stables');
   assert.equal(UNITS.outrider.name, 'Elk Rider');
+});
+
+// Owner decision 2026-11-20 (no schema change, no data step): Ember Guards and Pathfinders now train at the Stables. Batches queued at the
+// Barracks before the change keep their queue and finish there (the engine completes jobs by queue, not by the unit's usual building).
+test('batches of Ember Guards and Pathfinders already queued at the Barracks finish there after a restart; new ones queue at the Stables', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'clanfire-stablesmove-'));
+  try {
+    const dbPath = join(dir, 'game.sqlite');
+    const clock = new Clock();
+    const open = () => buildApp({ dbPath, now: clock.now, settings: TEST_WORLD, worldConfig: TEST_WORLD_CONFIG, webDistDir: '/nonexistent' });
+    let app = await open();
+    const c = new Client(app);
+    ok(await c.post('/api/auth/register', { username: 'alice', password: PASSWORD }), 201);
+    const homeId = (await c.state()).villages[0]!.id;
+    const before = app.ctx.store.getVillage(homeId)!;
+    const t = clock.now();
+    const st = before.state as VillageState;
+    st.buildings = { ...st.buildings, hall: 10, barracks: 8, stables: 8, drillyard: 6, storehouse: 20, longhouse: 20, farm: 12 };
+    st.resources = { wood: 90000, food: 90000, iron: 90000, gold: 900 };
+    st.researched = ['knight'];
+    st.lastUpdate = t;
+    st.buildQueue = [];
+    // What an old world holds: both units queued at the Barracks (one batch half done).
+    st.trainQueues.barracks = [
+      { unit: 'knight', count: 3, done: 1, perUnitMs: 10_000, startAt: t },
+      { unit: 'pathfinder', count: 4, done: 0, perUnitMs: 5_000, startAt: t + 30_000 },
+    ];
+    app.ctx.store.saveVillage(homeId, st, before.points);
+    await app.close();
+
+    app = await open(); // a restart: the queues are read back from the database as they were
+    const c2 = new Client(app);
+    ok(await c2.post('/api/auth/login', { username: 'alice', password: PASSWORD }));
+    assert.deepEqual(app.ctx.store.getVillage(homeId)!.state.trainQueues.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:3', 'pathfinder:4']);
+
+    // New orders go to the Stables, next to the old Barracks batches.
+    const res = await c2.post(`/api/villages/${homeId}/train`, { unit: 'pathfinder', count: 2 });
+    ok(res);
+    const q = res.json<OwnVillageDto>().state.trainQueues;
+    assert.deepEqual(q.stables.map((j) => `${j.unit}:${j.count}`), ['pathfinder:2']);
+    assert.deepEqual(q.barracks.map((j) => `${j.unit}:${j.count}`), ['knight:3', 'pathfinder:4']);
+
+    // Everything lands: the old batches in full (2 + 4), the new one, with no loss and no double count.
+    const troopsBefore = (await own(c2)).state.troops;
+    clock.set(t + 30_000 + 4 * 5_000 + 60_000 + 24 * HOUR);
+    const done = (await own(c2)).state;
+    assert.equal(done.troops.knight, troopsBefore.knight + 2);
+    assert.equal(done.troops.pathfinder, troopsBefore.pathfinder + 4 + 2);
+    assert.deepEqual(done.trainQueues.barracks, []);
+    assert.deepEqual(done.trainQueues.stables, []);
+    await app.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -39,9 +39,33 @@ import {
   rankRows,
   trackBonusPct,
   trackEffect,
+  trackEffectShort,
 } from "./drillyardLogic.ts";
 
-/** `part` splits the panel for the desktop building page (research in the side column, ranks in the main area); omitted = everything. */
+/** Training Points as one line: free count, a bar, "spent/total used". In the ranks panel's header on the desktop page, at the top of the panel on a phone. */
+export function DrillPoints() {
+  const { live } = useGame();
+  const total = pointsTotal(live);
+  const spent = pointsSpent(live);
+  return (
+    <div className="drill-points">
+      <h3 className="drill-ptitle">Training Points</h3>
+      <span className="drill-pfree">
+        <strong>{formatInt(Math.max(0, total - spent))}</strong> free
+      </span>
+      <ProgressBar
+        value={total > 0 ? spent / total : 0}
+        label="Training Points spent"
+      />
+      <span className="drill-pmut">
+        {formatInt(spent)}/{formatInt(total)} used
+      </span>
+    </div>
+  );
+}
+
+/** `part` splits the panel for the desktop building page (research grid on top, ranks under it, each in its own panel whose
+ *  header carries the queue count / the points bar); omitted = everything (phone). */
 export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
   const { live, now, settings, village, applyVillage, toast } = useGame();
   const { confirm, dialog } = useConfirm();
@@ -106,142 +130,161 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
     <div className={`drill${part ? " drill-compact" : ""}`}>
       {part !== "ranks" && (
         <>
-          <h3 className="eyebrow">
-            Research · queue {queue.length}/{limit}
-          </h3>
-          <ul className="drill-rlist">
-            {researchable
-              .filter((u) => !researched.includes(u))
-              .map((u) => {
-                const def = UNITS[u];
-                const rule = def.research!;
-                const done = isResearched(live, u);
-                const qi = queue.findIndex((j) => j.unit === u);
-                const job = qi >= 0 ? queue[qi] : undefined;
-                const active = !!job;
-                const check = checkResearch(live, u, now, settings, limit);
-                const levelOk = level >= rule.drillyard;
-                const full =
-                  done || active
-                    ? null
-                    : !check.ok
-                      ? check.reason === "not_enough_resources" &&
-                        goldNeverArrives(
-                          live.resources,
-                          productionPerHour(live, settings),
-                          rule.cost,
-                          storageCap(live),
-                        )
-                        ? needsGoldText(live.buildings)
-                        : reasonText(check)
-                      : null;
-                let state: string;
-                if (done) state = "Researched";
-                else if (active && job)
-                  state =
-                    qi === 0
-                      ? `Ready in ${formatDuration(job.finishAt - now)}`
-                      : `Queued #${qi + 1}, starts in ${formatDuration(job.startAt - now)}`;
-                else if (!levelOk)
-                  state = `Needs Drillyard ${rule.drillyard} · you have ${level}`;
-                else if (!full) state = "Ready to research";
-                else if (
-                  check.ok === false &&
-                  check.reason === "not_enough_resources"
-                )
-                  state = "Not enough resources";
-                else if (check.ok === false && check.reason === "queue_full")
-                  state = "Research queue full";
-                else state = full;
-                const focus = focusUnit === u;
-                return (
-                  <li
-                    key={u}
-                    ref={focus ? focusRef : undefined}
-                    className={`drill-rc${done ? " is-done" : ""}${active ? " is-run" : ""}${focus ? " is-focus" : ""}${!levelOk && !done ? " is-off" : ""}`}
-                  >
-                    <span className="drill-icon" aria-hidden="true">
-                      <UnitFigure unit={u} pose="icon" size={40} />
-                    </span>
-                    <div className="drill-rc-main">
-                      <div className="drill-rc-head">
-                        <span className="drill-name">{def.name}</span>
-                        {!done && (
-                          <span className="drill-time">
-                            <Icon
-                              name="time"
-                              size={16}
-                              className="inline-icon"
-                            />{" "}
-                            {formatDuration(
-                              check.ok
-                                ? check.timeMs
-                                : (rule.timeSec / settings.speed) * 1000,
+          {!part && (
+            <h3 className="eyebrow">
+              Research · queue {queue.length}/{limit}
+            </h3>
+          )}
+          {researched.length < researchable.length && (
+            <ul className="drill-rlist">
+              {researchable
+                .filter((u) => !researched.includes(u))
+                .map((u) => {
+                  const def = UNITS[u];
+                  const rule = def.research!;
+                  const done = isResearched(live, u);
+                  const qi = queue.findIndex((j) => j.unit === u);
+                  const job = qi >= 0 ? queue[qi] : undefined;
+                  const active = !!job;
+                  const check = checkResearch(live, u, now, settings, limit);
+                  const levelOk = level >= rule.drillyard;
+                  const full =
+                    done || active
+                      ? null
+                      : !check.ok
+                        ? check.reason === "not_enough_resources" &&
+                          goldNeverArrives(
+                            live.resources,
+                            productionPerHour(live, settings),
+                            rule.cost,
+                            storageCap(live),
+                          )
+                          ? needsGoldText(live.buildings)
+                          : reasonText(check)
+                        : null;
+                  let state: string;
+                  if (done) state = "Researched";
+                  else if (active && job)
+                    state =
+                      qi === 0
+                        ? `Ready in ${formatDuration(job.finishAt - now)}`
+                        : `Queued #${qi + 1}, starts in ${formatDuration(job.startAt - now)}`;
+                  else if (!levelOk)
+                    state = `Needs Drillyard ${rule.drillyard} · you have ${level}`;
+                  else if (!full) state = "Ready to research";
+                  else if (
+                    check.ok === false &&
+                    check.reason === "not_enough_resources"
+                  )
+                    state = "Not enough resources";
+                  else if (check.ok === false && check.reason === "queue_full")
+                    state = "Research queue full";
+                  else state = full;
+                  const focus = focusUnit === u;
+                  const lacking =
+                    check.ok === false &&
+                    check.reason === "not_enough_resources";
+                  const showCost =
+                    !done && !active && levelOk && (!full || lacking);
+                  return (
+                    <li
+                      key={u}
+                      ref={focus ? focusRef : undefined}
+                      title={showCost && full ? full : undefined}
+                      className={`drill-rc${done ? " is-done" : ""}${active ? " is-run" : ""}${focus ? " is-focus" : ""}${!levelOk && !done ? " is-off" : ""}`}
+                    >
+                      <span className="drill-icon" aria-hidden="true">
+                        <UnitFigure unit={u} pose="icon" size={40} />
+                      </span>
+                      <div className="drill-rc-main">
+                        <div className="drill-rc-head">
+                          <span className="drill-name">{def.name}</span>
+                          {!done && (
+                            <span className="drill-time">
+                              <Icon
+                                name="time"
+                                size={16}
+                                className="inline-icon"
+                              />{" "}
+                              {formatDuration(
+                                check.ok
+                                  ? check.timeMs
+                                  : (rule.timeSec / settings.speed) * 1000,
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {/* Second line: the cost while it can be (or soon be) researched — short resources show red — else
+                        why not / how long. Two lines per card keep six cards in two rows of three on 1440x900. */}
+                        {showCost ? (
+                          <div className="drill-cost">
+                            <Cost cost={rule.cost} have={live.resources} />
+                          </div>
+                        ) : (
+                          <div className="drill-rc-line">
+                            {active && job && qi === 0 && (
+                              <ProgressBar
+                                value={
+                                  (now - job.startAt) /
+                                  Math.max(1, job.finishAt - job.startAt)
+                                }
+                                label={`${def.name} research progress`}
+                              />
                             )}
-                          </span>
+                            <span
+                              className={`drill-state${done ? " is-ok" : active ? " is-run" : !levelOk || full ? " is-warn" : ""}`}
+                            >
+                              {state}
+                            </span>
+                          </div>
                         )}
                       </div>
-                      {!done && !active && (
-                        <div className="drill-cost">
-                          <Cost cost={rule.cost} have={live.resources} />
-                        </div>
-                      )}
-                      {active && job && qi === 0 && (
-                        <ProgressBar
-                          value={
-                            (now - job.startAt) /
-                            Math.max(1, job.finishAt - job.startAt)
+                      {active && (
+                        <button
+                          type="button"
+                          className="btn btn-small drill-btn"
+                          disabled={busy || cancel.busy}
+                          title={`${CANCEL_REFUND_PERCENT}% back`}
+                          onClick={() =>
+                            void cancel.cancelResearch(
+                              `${def.name} research`,
+                              rule.cost,
+                              qi,
+                            )
                           }
-                          label={`${def.name} research progress`}
-                        />
+                        >
+                          Cancel
+                        </button>
                       )}
-                      <span
-                        className={`drill-state${done ? " is-ok" : active ? " is-run" : !levelOk || full ? " is-warn" : ""}`}
-                      >
-                        {state}
-                      </span>
-                    </div>
-                    {active && (
-                      <button
-                        type="button"
-                        className="btn btn-small drill-btn"
-                        disabled={busy || cancel.busy}
-                        title={`${CANCEL_REFUND_PERCENT}% back`}
-                        onClick={() =>
-                          void cancel.cancelResearch(
-                            `${def.name} research`,
-                            rule.cost,
-                            qi,
-                          )
-                        }
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    {/* Only research that can start now gets a button (gold, like Up and Rank); the rest just say why on the
+                      {/* Only research that can start now gets a button (gold, like Up and Rank); the rest just say why on the
                       state line, so the one to press stands out (owner 2026-11-11). */}
-                    {!done && !active && !full && (
-                      <button
-                        type="button"
-                        className="btn btn-primary drill-btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(
-                            () => api.research(village.id, u),
-                            `Researching ${def.name}`,
-                          )
-                        }
-                      >
-                        Research
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
-          {researched.length > 0 && (
+                      {!done && !active && !full && (
+                        <button
+                          type="button"
+                          className="btn btn-primary drill-btn"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(
+                              () => api.research(village.id, u),
+                              `Researching ${def.name}`,
+                            )
+                          }
+                        >
+                          Research
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+          {/* On the desktop page the Research header lists them */}
+          {!part && researched.length > 0 && (
             <p className="drill-done">
-              Researched: {researched.map((u) => UNITS[u].name).join(", ")}
+              {researched.length === researchable.length
+                ? "All researched"
+                : "Researched"}
+              : {researched.map((u) => UNITS[u].name).join(", ")}
             </p>
           )}
         </>
@@ -249,19 +292,7 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
 
       {part !== "research" && (
         <>
-          <div className="drill-points">
-            <h3 className="drill-ptitle">Training Points</h3>
-            <span className="drill-pfree">
-              <strong>{formatInt(free)}</strong> free
-            </span>
-            <ProgressBar
-              value={total > 0 ? spent / total : 0}
-              label="Training Points spent"
-            />
-            <span className="drill-pmut">
-              {formatInt(spent)}/{formatInt(total)} used
-            </span>
-          </div>
+          {!part && <DrillPoints />}
           <p className="drill-howto">{pointsRuleText()}</p>
           <ul className="drill-units">
             {rankRows(trained).map(({ unit: u, track, first }) => {
@@ -283,69 +314,60 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                     <span className="drill-icon" aria-hidden="true">
                       {first && <UnitFigure unit={u} pose="icon" size={32} />}
                     </span>
-                    <span className="drill-head">
-                      <span className="drill-name">{def.name}</span>
-                      <span className={`drill-tag is-${track}`}>{name}</span>
-                    </span>
-                    <span className="drill-fx" title={trackEffect(track, u)}>
-                      {trackEffect(track, u)}
-                      {rank > 0 && (
-                        <strong className="drill-bonus">
-                          {" "}
-                          · now +{trackBonusPct(track, rank)}%
-                        </strong>
-                      )}
-                    </span>
-                    {/* Rank dots with Reset beside them, so every row stays two lines tall on desktop (owner 2026-11-20) */}
-                    <span className="drill-pr">
-                      <span
-                        className="drill-pips"
-                        role="img"
-                        aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}
-                      >
-                        {Array.from({ length: RANK_MAX }, (_, i) => (
-                          <span
-                            key={i}
-                            className={`drill-pip${i < rank ? " is-on" : ""}`}
-                          />
-                        ))}
+                    {/* Two lines (name + dots, effect + next cost) beside the picture and Buy; on a phone the wrappers dissolve
+                      (display: contents) and the parts stack in the row's own grid. */}
+                    <span className="drill-l1">
+                      <span className="drill-head">
+                        <span className="drill-name">{def.name}</span>
+                        <span className={`drill-tag is-${track}`}>{name}</span>
                       </span>
-                      {rank > 0 && (
-                        <button
-                          type="button"
-                          className="drill-reset"
-                          disabled={!respec?.ok || busy}
-                          title={
-                            respec && !respec.ok
-                              ? reasonText(respec)
-                              : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`
-                          }
-                          aria-label={`Reset ${def.name} ${name}`}
-                          onClick={() =>
-                            respec?.ok && void reset(u, track, respec.refund)
-                          }
+                      {/* Rank dots beside the name; Reset sits under Buy, so a row stays two lines tall in the desktop grid */}
+                      <span className="drill-pr">
+                        <span
+                          className="drill-pips"
+                          role="img"
+                          aria-label={`${def.name} ${name} rank ${rank} of ${RANK_MAX}`}
                         >
-                          Reset{respec?.ok ? ` +${respec.refund}` : ""}
-                        </button>
-                      )}
+                          {Array.from({ length: RANK_MAX }, (_, i) => (
+                            <span
+                              key={i}
+                              className={`drill-pip${i < rank ? " is-on" : ""}`}
+                            />
+                          ))}
+                        </span>
+                        {/* The bonus reached so far, beside the dots (line 2 keeps the effect and the next cost) */}
+                        {rank > 0 && (
+                          <strong
+                            className="drill-bonus"
+                            title={`Now +${trackBonusPct(track, rank)}% (${trackEffect(track, u)})`}
+                          >
+                            +{trackBonusPct(track, rank)}%
+                          </strong>
+                        )}
+                      </span>
                     </span>
-                    {/* The next rank: what it costs (points and resources), or why it cannot be bought. */}
-                    <span
-                      className={`drill-tinfo${needsPoints || (refusal && !lowOnResources) ? " is-warn" : ""}`}
-                    >
-                      {atMax ? null : needsPoints ? (
-                        `Needs ${points} ${points === 1 ? "point" : "points"} · ${free} free`
-                      ) : refusal && !lowOnResources ? (
-                        refusal
-                      ) : (
-                        <>
-                          {points} {points === 1 ? "pt" : "pts"}{" "}
-                          <Cost
-                            cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!}
-                            have={live.resources}
-                          />
-                        </>
-                      )}
+                    <span className="drill-l2">
+                      <span className="drill-fx" title={trackEffect(track, u)}>
+                        {trackEffectShort(track, u)}
+                      </span>
+                      {/* The next rank: what it costs (points and resources), or why it cannot be bought. */}
+                      <span
+                        className={`drill-tinfo${needsPoints || (refusal && !lowOnResources) ? " is-warn" : ""}`}
+                      >
+                        {atMax ? null : needsPoints ? (
+                          `Needs ${points} ${points === 1 ? "point" : "points"} · ${free} free`
+                        ) : refusal && !lowOnResources ? (
+                          refusal
+                        ) : (
+                          <>
+                            {points} {points === 1 ? "pt" : "pts"}{" "}
+                            <Cost
+                              cost={RANK_COST[rank] ?? RANK_COST[RANK_MAX - 1]!}
+                              have={live.resources}
+                            />
+                          </>
+                        )}
+                      </span>
                     </span>
                     <span className="drill-tbtns">
                       {atMax ? (
@@ -365,6 +387,24 @@ export function DrillyardPanel({ part }: { part?: "research" | "ranks" } = {}) {
                           }
                         >
                           Buy rank {rank + 1}
+                        </button>
+                      )}
+                      {rank > 0 && (
+                        <button
+                          type="button"
+                          className="drill-reset"
+                          disabled={!respec?.ok || busy}
+                          title={
+                            respec && !respec.ok
+                              ? reasonText(respec)
+                              : `Reset: free, +${respec?.ok ? respec.refund : 0} points back`
+                          }
+                          aria-label={`Reset ${def.name} ${name}`}
+                          onClick={() =>
+                            respec?.ok && void reset(u, track, respec.refund)
+                          }
+                        >
+                          Reset{respec?.ok ? ` +${respec.refund}` : ""}
                         </button>
                       )}
                     </span>

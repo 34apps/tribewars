@@ -67,13 +67,13 @@ export function tipFor(id: BuildingId, v: VillageState, s: WorldSettings): strin
     case 'barracks':
       return level === 0
         ? 'The Barracks trains your first troops. Pikemen are cheap and hold the gate.'
-        : level >= 8
-          ? 'Pikemen are cheap and stop riders. From Barracks 8 (and Town Hall 8) you can also train the Ember Guard, an elite on foot.'
-          : 'Pikemen are cheap and stop riders. Train a few before you go raiding.';
+        : 'Pikemen are cheap and stop riders. Train a few before you go raiding.';
     case 'stables':
-      return level >= 4
-        ? 'Elk Riders are fast and carry loot home. From Stables 4 (and Drillyard research) the Hearthwarden rides to a friend as fast support.'
-        : 'Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
+      return level >= 8
+        ? 'Elk Riders are fast and carry loot home. The Hearthwarden rides to a friend as fast support. From Stables 8 (and Town Hall 8) you can also train the Ember Guard, a heavy rider that hits hard.'
+        : level >= 4
+          ? 'Elk Riders are fast and carry loot home. From Stables 4 (and Drillyard research) the Hearthwarden rides to a friend as fast support.'
+          : 'Pathfinders (scouts) and Elk Riders train here. Elk Riders are fast and carry more loot home. Gold pays for the Stables.';
     case 'wrightyard':
       return level === 0
         ? 'The Wrightyard builds siege. Log Rams break only the Wall. Firecarts (from Wrightyard 4) burn the building you pick. Research them at the Drillyard first.'

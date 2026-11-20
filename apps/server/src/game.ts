@@ -19,7 +19,9 @@ import {
   UNIT_IDS,
   abandonVillageKeepBuildings,
   applyAutoSettings,
-  autoNext,
+  autoNeedsResearch,
+  autoProgress,
+  autoSummary,
   autoTrainableUnits,
   buildQueueLimit,
   researchQueueLimit,
@@ -2977,6 +2979,7 @@ export class GameService {
   private autoDto(v: VillageRecord, t: number): AutoVillageDto {
     const settled = settleVillage(v.state, t, this.settings);
     const a = settled.auto ?? defaultAutoMode();
+    const summary = autoSummary(settled, this.settings);
     let queuedTroops = 0;
     for (const q of Object.values(settled.trainQueues)) for (const j of q) if (j.auto) queuedTroops++;
     return {
@@ -2985,10 +2988,13 @@ export class GameService {
       x: v.x,
       y: v.y,
       on: a.on,
-      buildShare: a.buildShare,
-      units: [...a.units],
+      troopGoals: { ...a.troopGoals },
+      buildingGoals: { ...a.buildingGoals },
+      ...autoProgress(settled),
       trainable: autoTrainableUnits(settled, this.settings),
-      next: a.on ? autoNext(settled, t, this.settings) : null,
+      needsResearch: autoNeedsResearch(settled),
+      status: summary.status,
+      next: a.on ? summary.next : null,
       queuedBuilds: settled.buildQueue.filter((j) => j.auto).length,
       queuedTroops,
     };

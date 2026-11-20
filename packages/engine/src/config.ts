@@ -75,24 +75,18 @@ export const PREMIUM_BUILD_QUEUE = 5;
 export const PREMIUM_RESEARCH_QUEUE = 5;
 
 // ---- Auto mode (premium; docs/GAME_DESIGN.md "Auto mode"; engine auto.ts) ----
-/** The building / troops balance moves in steps of this many percent. */
-export const AUTO_SHARE_STEP = 10;
-/** Balance a village starts with: this percent of auto mode's spending goes to buildings. */
-export const AUTO_DEFAULT_SHARE = 70;
-/** Units a village starts with when auto mode is first set up. */
-export const AUTO_DEFAULT_UNITS: readonly UnitId[] = ['pikeman', 'guard'];
-/** Units auto mode may recruit: everything but Chieftains and siege units. */
+/** Units auto mode may recruit: everything but Chieftains and siege units (so they can be troop goals). */
 export const AUTO_UNIT_IDS: readonly UnitId[] = ['pikeman', 'guard', 'raider', 'outrider', 'hearthwarden', 'knight', 'pathfinder'];
-/** Units in one auto recruit order (added to the last waiting batch of the same unit when there is one). */
+/** Largest troop goal per unit (owner, 2026-11-20). */
+export const AUTO_GOAL_MAX_TROOPS = 100000;
+/** Units in one auto recruit order (or what remains of the goal when that is less). */
 export const AUTO_TRAIN_BATCH = 10;
 /** Safety bound on auto purchases worked out in one settle (a long absence); the rest follow on the next settle. */
 export const AUTO_MAX_ACTIONS_PER_SETTLE = 200;
-/** Steady growth plan: build the Longhouse when less than this share of the population room is free. */
+/** Goals: build the Longhouse when less than this share of the population room is free. */
 export const AUTO_POP_ROOM_SHARE = 0.1;
-/** Steady growth plan: build the Storehouse when any stock is at this share of the storehouse cap or more. */
+/** Goals: build the Storehouse when any stock is at this share of the storehouse cap or more. */
 export const AUTO_STORE_FULL_SHARE = 0.9;
-/** Steady growth plan: build the Town Hall when it is this many levels (or more) below the lowest resource building. */
-export const AUTO_HALL_LAG = 2;
 
 /** Research queue: two researches (one running, one waiting). */
 export const MAX_RESEARCH_QUEUE = 2;
@@ -295,7 +289,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   goldmine: {
     id: 'goldmine',
     name: 'Gold Mine',
-    description: 'Slowly produces gold, used for elite troops (Ember Guards), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
+    description: 'Slowly produces gold, used for heavy riders (Ember Guards), siege, research, upgrades, the Banner Hall and the War Chest that pays for Chieftains.',
     maxLevel: 18,
     startLevel: 0,
     requires: { hall: 3 },
@@ -331,7 +325,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   barracks: {
     id: 'barracks',
     name: 'Barracks',
-    description: 'Trains troops on foot, up to the Ember Guard elite. Higher levels train faster and unlock new units.',
+    description: 'Trains the troops on foot: Pikemen, Shieldbearers and Raiders. Higher levels train faster and unlock new units.',
     maxLevel: 20,
     startLevel: 0,
     requires: { hall: 2 },
@@ -343,7 +337,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   stables: {
     id: 'stables',
     name: 'Stables',
-    description: 'Keeps tame elks and trains the Elk Rider, a fast rider that carries a lot of loot.',
+    description: 'Keeps tame elks and trains the riders: Pathfinders (scouts), Elk Riders, Hearthwardens and, from level 8, the Ember Guard. Higher levels train faster.',
     maxLevel: 18,
     startLevel: 0,
     requires: { hall: 5, barracks: 3 },
@@ -489,7 +483,7 @@ export const UNITS: Record<UnitId, UnitDef> = {
     defenseCavalry: 52,
     speed: 11, // between foot (5-6) and the Elk Rider (13): support that arrives in time
     carry: 20,
-    cost: res(60, 90, 110),
+    cost: res(42, 62, 76), // 60 / 90 / 110 -> 42 / 62 / 76 (owner 2026-11-20: a cheaper support rider)
     trainTimeSec: 700,
     building: 'stables',
     requires: { stables: 4 },
@@ -498,24 +492,24 @@ export const UNITS: Record<UnitId, UnitDef> = {
   knight: {
     id: 'knight',
     name: 'Ember Guard',
-    description: 'Elite warrior on foot who carries a live ember, strong in attack and defense. Costs gold.',
-    unitClass: 'infantry',
+    description: 'Heavy rider who carries a live ember, strong in attack, a fair fighter at home. Costs gold. Trains at the Stables.',
+    unitClass: 'cavalry', // owner 2026-11-20: was an elite foot soldier (Barracks, speed 5); now a heavy rider
     attack: 140, // 70 / 60 / 60 -> 140 / 90 / 90 (BALANCE 14): the best attack per population (46.7 vs the Raider's 36), the dearest per coin
-    defenseInfantry: 90,
-    defenseCavalry: 90,
-    speed: 5,
+    defenseInfantry: 50, // was 90 (owner 2026-11-20): a rider that strikes hard but no longer holds a village on its own
+    defenseCavalry: 40, // was 90 (owner 2026-11-20)
+    speed: 9, // was 5 (owner 2026-11-20): between the Hearthwarden (11) and the foot (5-6); the Elk Rider (13) stays the fastest fighter
     carry: 20,
     cost: res(50, 90, 110, 14), // 90 / 180 / 200 / 25 x 0.55 (food x 0.5)
     trainTimeSec: 1100,
-    building: 'barracks',
-    requires: { barracks: 8, hall: 8 },
+    building: 'stables', // owner 2026-11-20: was 'barracks'. Batches queued at the Barracks before the change finish there (queues are completed by queue, not by building).
+    requires: { stables: 8, hall: 8 }, // was { barracks: 8, hall: 8 }
     research: { drillyard: 6, cost: res(600, 450, 700, 80), timeSec: 14400 },
   },
   pathfinder: {
     id: 'pathfinder',
     name: 'Pathfinder',
-    description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home.',
-    unitClass: 'infantry',
+    description: 'Quick, quiet scout. In an attack it scouts the village first and reports what it holds. Catches enemy scouts at home. Trains at the Stables.',
+    unitClass: 'cavalry', // owner 2026-11-20: scouts ride; trained at the Stables (was Barracks 2)
     attack: 0,
     defenseInfantry: 3,
     defenseCavalry: 2,
@@ -523,8 +517,8 @@ export const UNITS: Record<UnitId, UnitDef> = {
     carry: 0,
     cost: res(11, 20, 14), // 20 / 40 / 25 x 0.55 (food x 0.5)
     trainTimeSec: 170,
-    building: 'barracks',
-    requires: { barracks: 2 },
+    building: 'stables', // was 'barracks' (owner 2026-11-20); batches queued at the Barracks before finish there
+    requires: { stables: 1 }, // was { barracks: 2 }
   },
   chieftain: {
     id: 'chieftain',
@@ -866,7 +860,7 @@ export const UNIT_TERRAIN_FAMILY: Record<UnitId, TerrainFamily> = {
   raider: 'foot',
   outrider: 'mounted',
   hearthwarden: 'mounted',
-  knight: 'foot',
+  knight: 'mounted', // owner 2026-11-20: a heavy rider now (was 'foot')
   pathfinder: 'pathfinder',
   chieftain: 'foot',
   logram: 'carrier',

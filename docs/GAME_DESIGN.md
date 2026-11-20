@@ -146,22 +146,29 @@ Stat lines are attack / defence vs foot / defence vs riders:
 | Pikeman (`pikeman`) | Barracks 1 | none | 8 / 14 / 40 | 6 | 12 | 1 | 19 / 23 / 14 | 260 s | holds riders |
 | Shieldbearer (`guard`) | Barracks 3 | Drillyard 1 | 12 / 42 / 22 | 5 | 10 | 1 | 17 / 30 / 28 | 320 s | holds foot |
 | Raider (`raider`) | Barracks 2 | none | 36 / 8 / 6 | 6 | 28 | 1 | 25 / 35 / 25 | 290 s | attacker |
-| Pathfinder (`pathfinder`) | Barracks 2 | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout |
+| Pathfinder (`pathfinder`) | **Stables 1** (owner 2026-11-20, was Barracks 2) | none | 0 / 3 / 2 | 18 | 0 | 1 | 11 / 20 / 14 | 170 s | scout (a rider: `cavalry`) |
 | **Elk Rider** (`outrider`) | Stables 1 | Drillyard 3 | 65 / 18 / 16 | 13 | 75 | 2 | 39 / 80 / 66 | 620 s | fast raider, big carry |
-| **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | 60 / 90 / 110 | 700 s | **fast support defender** (2026-11-18) |
-| **Ember Guard** (`knight`) | **Barracks 8, Town Hall 8** | Drillyard 6 | 140 / 90 / 90 | 5 | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold elite **on foot** |
+| **Hearthwarden** (`hearthwarden`) | Stables 4 | Drillyard 4 | 18 / 48 / 52 | 11 | 20 | 2 | **42 / 62 / 76** (owner 2026-11-20, was 60 / 90 / 110) | 700 s | **fast support defender** (2026-11-18) |
+| **Ember Guard** (`knight`) | **Stables 8, Town Hall 8** (owner 2026-11-20, was Barracks 8) | Drillyard 6 | 140 / **50 / 40** (was 90 / 90) | **9** (was 5) | 20 | 3 | 50 / 90 / 110 + 14 gold | 1,100 s | gold **heavy rider** (`cavalry`) |
 | Chieftain (`chieftain`) | Banner Hall 1 | none | unchanged | 2.5 | 0 | 8 | unchanged | 6 h | takes villages; **the slowest unit in the game** (2.5, below the siege units' 3; owner 2026-11-18, was 5) |
 | Log Ram (`logram`) | Wrightyard 1 | Drillyard 2 | 3 / 5 / 4 | 3 | 0 | 3 | 70 / 50 / 90 | 1,100 s | siege: the Wall (§18.9) |
 | Firecart (`firecart`) | Wrightyard 4 | Drillyard 3 | 5 / 100 / 80 | 3 | 0 | 3 | 99 / 88 / 121 + 6 gold | 1,400 s | siege: buildings (§18.9) |
 
 BALANCE 15 (2026-11-17): Ember Guard is the elite with the best attack per population (140 / 90 / 90, was 70 / 60 / 60; gold-capped, so a trickle) and the Firecart has siege power 2 (was 1), so it is worth building against deep Walls and big buildings. Proposal and numbers: `docs/proposals/troops-vs-genre.md`, BALANCE §15.
 
-The **Elk Rider** and the **Hearthwarden** are the `cavalry` units, so "riders" in the defence mix means those two; the **Ember Guard** is `infantry`, walks
-the foot terrain row and is trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
+**Owner decision 2026-11-20 (no schema change, no data step):** the **Ember Guard becomes a heavy rider** (Stables 8 + Town Hall 8, `cavalry`, speed 9, attack 140 unchanged,
+defence 50 vs foot / 40 vs riders, was 90 / 90; it walks the "mounted" terrain row; cost, population 3, carry, research Drillyard 6 unchanged). The **Pathfinder trains at the
+Stables** (Stables 1, `cavalry`, speed 18; its own "pathfinder" terrain row stays) and the **Hearthwarden costs 42 / 62 / 76** (was 60 / 90 / 110). Since the Stables need Town Hall 5 and Barracks 3, a
+village's first scouts come later than with Barracks 2. **Old worlds:** training jobs already queued at the Barracks for these two units stay in the Barracks queue and finish
+there (the engine completes a job by its queue, not by the unit's usual building; no refund, no re-timing; cancelling them still works). New batches go to the Stables. Pathfinders and
+Ember Guards already in a village are untouched. Test: `apps/server/test/roster-migration.test.ts`. Numbers: BALANCE §26.
+
+The **Elk Rider**, the **Hearthwarden**, the **Ember Guard** and the **Pathfinder** are the `cavalry` units, so "riders" in the defence mix means those four (the Pathfinder has no attack, so it adds nothing). Before 2026-11-20 the Ember Guard was `infantry`, walked
+the foot terrain row and was trained at the Barracks (it was the Stables' Knight, `cavalry`, speed 10, 110 attack, population 4). Costs are the
 originality proposal's numbers with the branch's troop cost cut (x0.55, food about x0.5, rounded). The Log Ram and the Boulder Sling no longer
 exist (migrated to Firecarts). **Old worlds (schema v18):** every Knight (home, away, marching, stationed) is an Ember Guard 1:1, Knight research
 counts as Ember Guard research, and Knight batches already queued at the Stables finish there as Ember Guards (no refund, no change of time);
-new Ember Guards are trained at the Barracks only.
+new Ember Guards were trained at the Barracks only (until 2026-11-20, see below: now the Stables).
 
 **Hearthwarden (2026-11-18, no schema change):** a second Stables unit made for **support**: every other defender walks (speed 5-6), so help to a friend often landed too late. It
 rides at speed 11 (the Elk Rider 13), defends 48 vs foot / 52 vs riders, hardly attacks (18) and carries 20. It pays for the speed: per resource and per population its defence
@@ -231,7 +238,7 @@ Tests and the simulator pass their own seeds.
 1. `luck = rng() * 2 * BATTLE_LUCK − BATTLE_LUCK`. The battle simulator in the web client uses the same battle rule (`resolveBattle`); there luck can be set from −10% to +10% (`BattleInput.fixedLuck`, clamped to ±BATTLE_LUCK; the server never sets it).
 2. Attack: `A_inf`, `A_cav` = Σ count × attack per class. `A = (A_inf + A_cav) * (1 + luck)`.
 3. Share of infantry `si = A_inf / (A_inf + A_cav)`, `sc = 1 − si`.
-   Since the troop roster pass (2026-11-11) only the Elk Rider was cavalry (the Hearthwarden joined it on 2026-11-18, but it hardly attacks); the Ember Guard counts as infantry, so most armies are nearly all infantry and the defender's "vs riders" column only matters against Elk Rider raids.
+   Since the troop roster pass (2026-11-11) only the Elk Rider was cavalry (the Hearthwarden joined it on 2026-11-18, but it hardly attacks); the Ember Guard became cavalry on 2026-11-20 (owner), so an army with Ember Guards now leans on the defender's "vs riders" column; Raiders and the rest stay infantry.
 4. Defense: `D_units = Σ count × (defenseInfantry × si + defenseCavalry × sc)` over defender troops
    at home. `D = (D_units + M) × (1 + WALL_BONUS_PER_LEVEL × wall)` with the Wall's militia `M = WALL_BASE_DEFENSE + WALL_DEFENSE_PER_LEVEL × wall` **only in a village that has an owner** (villagers defend their home; an abandoned village has none, `M = 0`, owner 2026-11-17; the percentage bonus still counts for troops that stand there).
 5. If `A > D`: attacker wins. Attacker loses `round(count × (D/A)^BATTLE_LOSS_EXPONENT)` of each
@@ -1362,7 +1369,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (Elk Rider, Hearthwarden, Ember Guard) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |
@@ -1995,7 +2002,7 @@ forest and hills and orange dots on mountain and water (key in the map legend). 
   No path-finding: it is cheap, repeatable and the client can preview it exactly.
 - Factors by unit family (our own numbers, tuned so an average trip is about 12% slower than before):
 
-| Terrain | Foot (pikeman, shieldbearer, raider, Ember Guard, chieftain) | Mounted (Elk Rider, Hearthwarden) | Pathfinder | Carriers (shipments) |
+| Terrain | Foot (pikeman, shieldbearer, raider, chieftain) | Mounted (Elk Rider, Hearthwarden, Ember Guard) | Pathfinder | Carriers (shipments) |
 |---|---|---|---|---|
 | Grass | 1.00 | 1.00 | 1.00 | 1.00 |
 | Forest | 0.85 | 0.70 | 0.95 | 0.80 |
@@ -2545,31 +2552,35 @@ than the normal limit stays as it is; new manual builds wait until it is under t
 
 **5 research slots (owner, 2026-11-20).** The same entitlement raises the Drillyard research queue to `max(PREMIUM_RESEARCH_QUEUE, queues.research)` = 5 per village (everyone else `queues.research`, 2). The server chooses the limit (`researchQueueLimit` in engine `auto.ts`); `PlayerDto.researchQueueLimit` only tells the client what to show. A queue longer than the normal limit stays if the entitlement ends; new research waits until it is under the limit.
 
-**Auto mode** (one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). Settings per village: on/off, a balance
-`buildShare` (0..100 percent in steps of `AUTO_SHARE_STEP` = 10, default 70 = "more building") and the units it recruits (`units`, default Pikeman and
-Shieldbearer; only `AUTO_UNIT_IDS`, never Chieftains or siege). Switching on, or changing the balance or the units, starts the spending counters at zero.
+**Auto mode: goals** (owner decision 2026-11-20; one mode for buildings and troops, per village; engine `auto.ts`, run inside `settleVillage`). The balance slider
+and the picked units are gone. Settings per village: on/off and **goals**.
+- **Troop goals:** an amount per unit (0 = no goal, up to `AUTO_GOAL_MAX_TROOPS` = 100000; only `AUTO_UNIT_IDS`, never Chieftains or siege units). A unit counts
+  troops at home + away + still in training.
+- **Building goals:** a target level per building (any building including Wall, Market, Barracks, Stables; at most the building's `maxLevel`). A building counts
+  built level + queued levels.
+- **All goals reached:** when every goal is met auto does nothing and the card says "All goals reached"; it carries on by itself if a goal is raised or troops are lost.
+- **Migration:** a village whose settings were saved with the old balance/units (before 2026-11-20) loads as no goals and auto OFF; there is nothing to convert amounts
+  from, and nobody loses anything.
 
-- **Which side goes next.** Auto mode counts what it has spent on buildings and on troops since it was switched on or changed (wood + food + iron + gold,
-  a plain sum). If buildings have received less than their share so far (`spentBuild * 100 < buildShare * (spentBuild + spentTroops)`, and at 0 / 0
-  buildings first when the share is above 0), the next purchase is a building, otherwise a troop order. Share 100 = buildings, share 0 = troops,
-  as long as that side can happen at all.
-- **It waits, it never skips.** The chosen purchase is made at the exact moment the village's stock covers it and a queue slot is free. This is worked
-  out inside `settleVillage` from production, like an abandoned village's self-build (section 8), so it also happens while the player is offline;
-  there is no timer. Until then nothing else is bought. Only when a side CANNOT happen at all does the turn go to the other side: the building side
-  has no step left (all its buildings at max, or the pick can never fit the storehouse); the troop side has no unit picked, none of the picked units
-  can be trained in this village (building level, research), the order can never fit the storehouse, or it does not fit the population room (then the
-  Steady growth plan's Longhouse rule builds a Longhouse level first). A resource the village does not produce at all (e.g. gold without a Gold Mine)
-  counts as "cannot", not as waiting. Waiting for resources, a queue slot, a finishing Storehouse or Longhouse level is not "cannot".
-- **Building step = the Steady growth plan.** The game decides, counting queued levels as built: (1) Longhouse when less than `AUTO_POP_ROOM_SHARE` (10%)
-  of the population room is free; (2) Storehouse when any stock is at `AUTO_STORE_FULL_SHARE` (90%) of the cap or more, or when the next pick below costs
-  more than the cap; (3) Town Hall when it is `AUTO_HALL_LAG` (2) or more levels below the lowest resource building; (4) otherwise the one of Lumber
-  Camp, Farm, Iron Mine, Gold Mine whose next level costs least (wood + food + iron + gold; ties in that order; a building whose requirements are
-  not met, or that is at max level, is left out), so the dear Gold Mine comes up less often than the three camps. It never
-  builds army buildings, Wall, Market and so on. A pick blocked only by population goes to the Longhouse.
-- **Troop order.** `AUTO_TRAIN_BATCH` (10) of the next picked unit (round-robin through `units`, skipping units that cannot be trained now). If the
-  LAST batch of that training building's queue is the same unit and is not finished, the 10 are added to it (so the queue does not fill up); otherwise a
-  new batch is queued (it waits for a free slot when the queue is full). Normal rules: cost, population, research. Units in training count for population
-  as always.
+**How auto picks what to do (the rule for "most efficient", lead's decision).** Always work on the goal that is **furthest behind**: lowest progress, where
+progress = have / goal for troops and level / goal for buildings. The start level counts as progress, so a goal already met is skipped. Ties: buildings before
+troops, then the game's own order. Before that goal's own step, these steps come first when needed:
+1. **(a) A missing requirement** of the goal. A troop goal for a unit whose building requirement is not met builds that building (and, if that building has
+   unmet requirements, those first). A building goal whose own requirements are not met builds those. A requirement that is already queued but not built makes the
+   goal wait for it ("waiting for a building it needs").
+2. **(b) Longhouse** when less than `AUTO_POP_ROOM_SHARE` (10%) of the population room is free and a troop goal is still open (counting queued levels as built); also
+   when a step would not fit the room.
+3. **(c) Storehouse** when any stock is at `AUTO_STORE_FULL_SHARE` (90%) of the cap or more, or when the chosen step costs more than the stores can hold.
+A unit that still needs Drillyard research is **skipped** (the card says "Needs research at the Drillyard"; auto never researches). Troop steps are batches of
+`AUTO_TRAIN_BATCH` (10) or what remains of the goal. Everything is deterministic (no random choices) and worked out inside `settleVillage`.
+- **It waits, it never skips.** The chosen step is made at the exact moment the village's stock covers it and its queue is free. Nothing cheaper is bought in the
+  meantime, so it also happens while the player is offline; there is no timer. Only a goal that CANNOT happen at all passes to the next goal: a resource the
+  village does not produce (e.g. gold without a Gold Mine), a step that can never fit the storehouse or the population room, a requirement with no way to be met,
+  a unit that needs research. Waiting for resources, a free queue slot, a finishing Storehouse / Longhouse level or a finishing requirement is not "cannot".
+- **At most one auto job per queue (owner, 2026-11-20).** Auto keeps one auto job in the build queue and one in each training building's queue (Barracks,
+  Stables, Wrightyard) at a time, and starts the next step in that queue only when its previous auto job there has finished. The player's own jobs do not count and
+  the other slots stay free for manual orders (the 5 build slots are for the player). Different queues run in parallel (one chosen step at a time per decision).
+  Training batches are never merged any more. Normal rules otherwise: cost, population, research, requirements.
 - **Never** on an abandoned village, never while the hearth is out, never in a world that has ended. At most `AUTO_MAX_ACTIONS_PER_SETTLE` (200) purchases
   per settle (a long absence continues on the next settle). Auto-queued jobs carry `auto: true`; built levels count like manual ones (points, Renown).
 - **Cancelling** an auto job (a build or a training batch) switches auto mode off in that village, so it does not re-queue it at once.
@@ -2577,4 +2588,5 @@ Shieldbearer; only `AUTO_UNIT_IDS`, never Chieftains or siege). Switching on, or
   the next time the owner's villages are read (and in the caretaker pass); queued jobs carry on and switching the bit back on does not turn auto mode on
   again. A village that changes owner (taken by a hold) or is abandoned loses its `auto` state. The caretaker bot leaves a village with auto mode on alone.
 - **API.** `GET /api/auto` (overview, anyone), `POST /api/villages/:id/auto` (owner, entitled); contract in `packages/engine/src/api.ts`.
-  The page "Auto" in the client has one card per village with the switch, the balance slider, the unit chips and a line "Next: ..." (`autoNext`).
+  The page "Auto" in the client has one card per village with the switch, a line "Next: ..." (or "All goals reached"), the troop goals (one row per unit with an
+  amount field and a progress bar), the building goals (level stepper and progress, "Add building goal", "Clear goals") and a short "How auto mode chooses" text.

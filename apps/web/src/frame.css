@@ -2189,13 +2189,36 @@ button.bs:active:not(:disabled) {
   overflow: auto;
 }
 
-.fv-rcol.is-wide {
-  /* Drillyard research column: room for a name, its time and four costs on one line each (was 256 px and clipped) */
-  width: 372px;
+/* Drillyard page: research panel (natural height) over the ranks panel (takes the rest); both full width */
+.dy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
 }
 
-.fv-rcol.is-wide .fv-boxed {
+.dy > .fv-boxed:first-child {
   flex: none;
+}
+
+/* Research header: "Researched: …" then "Queue 1/2", separated by a dot */
+.dy-aside {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 6px;
+  min-width: 0;
+  text-align: right;
+}
+
+.dy-aside > span + span::before {
+  content: '· ';
+}
+
+.dy-aside b {
+  color: var(--on-surface);
 }
 
 .fv-qr .fv-cd {
@@ -2236,7 +2259,7 @@ button.bs:active:not(:disabled) {
   text-wrap: balance;
 }
 
-/* -- Drillyard ranks: nothing scrolls inside a panel (Banner Hall) -- */
+/* -- Drillyard and Banner Hall: nothing scrolls inside a panel -- */
 .fv-boxin.is-fit {
   overflow: hidden;
 }

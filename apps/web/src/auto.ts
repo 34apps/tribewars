@@ -1,28 +1,16 @@
 // Auto mode page (views/AutoView.tsx): the plain-words text pieces, kept pure so tests can check them.
 // The server decides everything (what is next, when); this only words it. Contract: AutoNextDto / AutoVillageDto in the engine api.ts.
 
-import { AUTO_SHARE_STEP, BUILDINGS, UNITS } from '@clanfire/engine';
+import { AUTO_GOAL_MAX_TROOPS, BUILDINGS, BUILDING_IDS, UNITS } from '@clanfire/engine';
 import type { AutoNextDto, AutoVillageDto, BuildingId, UnitId } from '@clanfire/engine';
 import { formatLeft } from './format.ts';
-import { requirementText, unmetRequirements } from './rules.ts';
 
 export const AUTO_INTRO =
-  'Your villages build and recruit by themselves. Each one spends its own income: the balance says how much goes to buildings and how much to troops. It waits until it can pay, and never skips.';
+  'Set goals for each village: how many troops and which building levels you want. Auto mode works toward the goal that is furthest behind, spends the village\'s own income, and stops when every goal is reached.';
 export const AUTO_NOT_ENTITLED = 'Auto mode is part of Premium. There is nothing to buy yet.';
-/** Pause after the last slider move before it is sent. */
-export const AUTO_SLIDER_DELAY_MS = 600;
-
-/** "70% buildings · 30% troops". */
-export function shareText(buildShare: number): string {
-  const b = Math.max(0, Math.min(100, Math.round(buildShare)));
-  return `${b}% buildings · ${100 - b}% troops`;
-}
-
-/** Snap a slider value to the allowed steps (0..100, multiples of AUTO_SHARE_STEP). */
-export function snapShare(v: number): number {
-  if (!Number.isFinite(v)) return 0;
-  return Math.max(0, Math.min(100, Math.round(v / AUTO_SHARE_STEP) * AUTO_SHARE_STEP));
-}
+/** Pause after the last change before it is sent. */
+export const AUTO_SAVE_DELAY_MS = 700;
+export const RESEARCH_NOTE = 'Needs research at the Drillyard';
 
 /** "Pikemen", "Ember Guards": plain plural of a unit name (names ending in "man" take "men"). */
 export function unitPlural(unit: UnitId, count = 2): string {
@@ -45,11 +33,13 @@ export function nextWait(next: AutoNextDto, now: number): string {
   return left <= 1000 ? 'any moment' : `about ${formatLeft(left)}`;
 }
 
-/** The "Next" line. Off: "Off". On with nothing left: "Nothing left to do". */
-export function nextLine(v: Pick<AutoVillageDto, 'on' | 'next'>, now: number): string {
-  if (!v.on) return 'Off';
+/** The status line under the switch. The word "Off" is only on the switch itself. */
+export function nextLine(v: Pick<AutoVillageDto, 'on' | 'status' | 'next'>, now: number): string {
+  if (v.status === 'empty') return 'Add a goal to begin';
+  if (!v.on) return v.status === 'reached' ? 'All goals reached' : 'Switch on to work toward your goals';
+  if (v.status === 'reached') return 'All goals reached';
   const next = v.next;
-  if (!next) return 'Nothing left to do';
+  if (v.status === 'blocked' || !next) return 'Nothing to do yet: the open goals need research or a resource this village does not make';
   const what = nextWhat(next);
   const wait = nextWait(next, now);
   switch (next.waiting) {
@@ -58,9 +48,11 @@ export function nextLine(v: Pick<AutoVillageDto, 'on' | 'next'>, now: number): s
     case 'resources':
       return `Next: ${what} · waiting for resources${wait ? `, ${wait}` : ''}`;
     case 'slot':
-      return `Next: ${what} · waiting for a free slot${wait ? `, ${wait}` : ''}`;
+      return `Next: ${what} · waiting for the queue${wait ? `, ${wait}` : ''}`;
     case 'room':
       return `Next: ${what} · needs people room`;
+    case 'requirement':
+      return `Next: ${what} · waiting for a building it needs${wait ? `, ${wait}` : ''}`;
   }
 }
 
@@ -75,21 +67,47 @@ export function queuedLine(v: Pick<AutoVillageDto, 'queuedBuilds' | 'queuedTroop
   return `Queued by auto: ${parts.join(' · ')}`;
 }
 
-/** Why a unit chip is greyed ("Needs Stables 1"), from the village's buildings when known; else a plain fallback. */
-export function whyNotTrainable(unit: UnitId, buildings?: Partial<Record<BuildingId, number>>): string {
-  if (buildings) {
-    const unmet = unmetRequirements(buildings as Record<BuildingId, number>, UNITS[unit].requires);
-    if (unmet.length > 0) return `Needs ${requirementText(unmet)}`;
-  }
-  return UNITS[unit].research ? 'Needs research' : 'Not available yet';
+/** Progress of a goal in whole percent, 0..100 (a goal of 0 counts as done). */
+export function progressPct(have: number, goal: number): number {
+  if (!(goal > 0)) return 100;
+  return Math.max(0, Math.min(100, Math.floor((have / goal) * 100)));
 }
 
-/** Add or remove a unit from the picked list, keeping the order of `all`. */
-export function toggleUnit(picked: readonly UnitId[], unit: UnitId, all: readonly UnitId[]): UnitId[] {
-  const set = new Set(picked);
-  if (set.has(unit)) set.delete(unit);
-  else set.add(unit);
-  return all.filter((u) => set.has(u));
+/** "120 / 3,000" */
+export function progressText(have: number, goal: number): string {
+  return `${have.toLocaleString('en-US')} / ${goal.toLocaleString('en-US')}`;
+}
+
+/** Amount field text to a goal: empty or junk = 0, whole numbers only, 0..AUTO_GOAL_MAX_TROOPS. */
+export function parseTroopGoal(text: string): number {
+  const n = Math.floor(Number(text.replace(/[^0-9]/g, '')));
+  return Number.isFinite(n) ? Math.max(0, Math.min(AUTO_GOAL_MAX_TROOPS, n)) : 0;
+}
+
+/** A level stepped by `delta`, kept inside 1..the building's max (0 removes the goal elsewhere). */
+export function stepLevel(building: BuildingId, level: number, delta: number): number {
+  return Math.max(1, Math.min(BUILDINGS[building].maxLevel, level + delta));
+}
+
+/** Buildings that have no goal yet, in the game's order: the "Add building goal" choices. */
+export function addableBuildings(goals: Partial<Record<BuildingId, number>>): BuildingId[] {
+  return BUILDING_IDS.filter((b) => !(goals[b] && goals[b]! > 0));
+}
+
+/** The level a new building goal starts at: one above what the village has (counting queued levels), at most the max. */
+export function startGoalLevel(building: BuildingId, current: number): number {
+  return Math.max(1, Math.min(BUILDINGS[building].maxLevel, current + 1));
+}
+
+/** Amounts / levels of 0 dropped, so the saved goals only hold real ones. */
+export function cleanGoals<K extends string>(goals: Partial<Record<K, number>>): Partial<Record<K, number>> {
+  const out: Partial<Record<K, number>> = {};
+  for (const k of Object.keys(goals) as K[]) if ((goals[k] ?? 0) > 0) out[k] = goals[k]!;
+  return out;
+}
+
+export function goalCount(v: Pick<AutoVillageDto, 'troopGoals' | 'buildingGoals'>): number {
+  return Object.keys(cleanGoals(v.troopGoals)).length + Object.keys(cleanGoals(v.buildingGoals)).length;
 }
 
 /** The page's tab: only while the world has the premium tools (`features.premium`). */
@@ -97,10 +115,7 @@ export function autoTabOn(config: { features?: { premium?: boolean } } | undefin
   return config?.features?.premium === true;
 }
 
-/** Not entitled (or saving): every control of a card is off. A picked unit stays pressable so it can be un-picked, an unavailable unselected one does not. */
+/** Not entitled (or saving): every control of a card is off. */
 export function controlsOff(locked: boolean, saving: boolean): boolean {
   return locked || saving;
-}
-export function chipDisabled(locked: boolean, saving: boolean, trainable: boolean, picked: boolean): boolean {
-  return controlsOff(locked, saving) || (!trainable && !picked);
 }
