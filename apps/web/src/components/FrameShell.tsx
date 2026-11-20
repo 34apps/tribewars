@@ -4,7 +4,7 @@
 // reached from the account menu. Phones use Shell.tsx.
 
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { storageCap } from '@clanfire/engine';
 import { Icon } from '../art/Icon.tsx';
 import { bannerText } from '../domination.ts';
@@ -43,19 +43,16 @@ function TopResources() {
               <span className="visually-hidden">Storage capacity: </span>
               {formatCompact(cap)}
             </b>
-            <span className="fr-cap-label" aria-hidden="true">Storehouse</span>
+            <span className="fr-of" aria-hidden="true">max</span>
           </span>
         </li>
       }
       after={
-        <li className={`fr-rs fr-rs-pop${popState}`} aria-label={pop.label}>
+        <li className={`fr-rs fr-rs-pop${popState}`} aria-label={pop.label} style={{ '--rp-q': `${Math.max(0, Math.min(1, pop.ratio)) * 100}%` } as CSSProperties}>
           <Icon name="pop" size={24} />
           <span className="fr-rv" aria-hidden="true">
             <b>{formatCompact(pop.total)}</b>
-            <span className="fr-cap-label">/ {formatCompact(pop.cap)}</span>
-          </span>
-          <span className="fr-sf fr-sf-pop">
-            <i className={pop.ratio >= 0.9 ? 'hi' : ''} style={{ width: `${Math.max(0, Math.min(1, pop.ratio)) * 100}%` }} />
+            <span className="fr-of">/ {formatCompact(pop.cap)}</span>
           </span>
         </li>
       }

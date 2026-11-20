@@ -18,7 +18,7 @@ import type { Allegiance } from './sprites.ts';
 import { badgesVisible, clusterGroups, drawBadge, drawFlag, farDrawOrder, flagAllegiance, flagHit, flagMetrics } from './farLook.ts';
 import { LABEL_PRIORITY, SHIELD_SPOT, placeLabels } from './markers.ts';
 import type { LabelRequest, Rect } from './markers.ts';
-import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, labelChipVisible } from './zoomMode.ts';
+import { BANNER_K, bannerScale, bannerTagVisible, dotHitRadius, isDotMode, villageLabelText } from './zoomMode.ts';
 import { GRASS, HILLS } from './terrain.ts';
 import type { TerrainCache } from './terrain.ts';
 
@@ -373,10 +373,11 @@ export function drawMap(sc: Scene): FrameResult {
     const vil = d.village;
     const own = vil.kind === 'own';
     if (!own && t < LABEL_TILE) continue;
-    const coords = `${vil.x}|${vil.y}`;
+    const text = villageLabelText(own, vil.name, t, vil.tribeTag);
+    if (!text) continue;
     const ly = d.y + 30 * s + fs * 0.6;
-    if (own) addLabel(t >= LABEL_TILE ? `${vil.name} ${coords}` : coords, d.x, ly, SUN, INK, undefined, LABEL_PRIORITY.own, true);
-    else addLabel(coords, d.x, ly, INK, BONE, labelChipVisible(t, vil.tribeTag) ? { text: `[${vil.tribeTag}]`, color: ALLEGIANCE_STYLE[allegianceOf(vil)].ring } : undefined, LABEL_PRIORITY.other, false);
+    if (own) addLabel(text, d.x, ly, SUN, INK, undefined, LABEL_PRIORITY.own, true);
+    else addLabel(text, d.x, ly, INK, BONE, undefined, LABEL_PRIORITY.other, false);
   }
   // Sites: name and holder tag (always a tag when held, so a far-out map still shows who owns what).
   for (const d of dot ? [] : drawnSites) {

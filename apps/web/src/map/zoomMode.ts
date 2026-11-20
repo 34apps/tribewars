@@ -26,6 +26,15 @@ export function labelChipVisible(tile: number, tag: string | null | undefined): 
   return !!tag && !bannerTagVisible(tile, tag);
 }
 
+/**
+ * What a village shows under it on the map (owner 2026-11-20: no coordinates under villages; the tile panel has them).
+ * Own village: its name. Others: only the `[TAG]` chip while the banner does not show the tag, otherwise nothing.
+ */
+export function villageLabelText(own: boolean, name: string, tile: number, tag: string | null | undefined): string | null {
+  if (own) return name;
+  return labelChipVisible(tile, tag) ? `[${tag}]` : null;
+}
+
 /** Dot radius in CSS px: grows with the zoom (3 px on a phone-sized world, ~7 px at the top of the dot range); own villages are clearly the biggest. */
 export function dotRadius(tile: number, own: boolean): number {
   const base = Math.max(3, Math.min(7, tile * 0.3 + 1.2));

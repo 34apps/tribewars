@@ -374,3 +374,11 @@ test('the minimum zoom follows the whole world on a phone and on a desktop, 500x
     assert.equal(v.tile, t);
   }
 });
+
+test('village labels on the map: no coordinates; own name, others only the tribe chip while the banner hides it', () => {
+  assert.equal(zoom.villageLabelText(true, 'Oakridge', 60, 'ASH'), 'Oakridge');
+  assert.equal(zoom.villageLabelText(true, 'Oakridge', 20, null), 'Oakridge');
+  assert.equal(zoom.villageLabelText(false, 'Elmfold', 60, 'ASH'), null, 'banner shows the tag, so no label');
+  assert.equal(zoom.villageLabelText(false, 'Elmfold', 40, 'ASH'), '[ASH]');
+  assert.equal(zoom.villageLabelText(false, 'Elmfold', 40, null), null);
+});
