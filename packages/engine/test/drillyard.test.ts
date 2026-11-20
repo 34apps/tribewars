@@ -48,7 +48,7 @@ import type { BuildingId, BuildingLevels, RankTrack, UnitId, Units, VillageRanks
 import { HOUR, S1, S10, defenderWith, units, village } from './helpers.ts';
 
 const rich = { wood: 1e6, food: 1e6, iron: 1e6, gold: 1e6 };
-const base = { hall: 10, barracks: 8, stables: 8, storehouse: 20, farm: 20, drillyard: 10 };
+const base = { hall: 10, barracks: 8, stables: 5, storehouse: 20, farm: 20, drillyard: 10 };
 const expectGameError = (fn: () => unknown, code: string): void => {
   assert.throws(fn, (e: unknown) => e instanceof GameError && e.code === code);
 };
