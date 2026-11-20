@@ -75,6 +75,26 @@ export function rankRows(units: readonly UnitId[]): RankRow[] {
   return rows;
 }
 
+/** Groups on the Ranks page, in page order: Defence, Attack, Scouting, Breach (the track's plain name labels the row). */
+export const RANK_GROUP_ORDER: readonly RankTrack[] = ['bulwark', 'might', 'keen', 'breach'];
+
+export interface RankGroup {
+  track: RankTrack;
+  label: string;
+  units: UnitId[];
+}
+
+/** The cards by role: one group per track, holding every unit that really has that track (read from RANK_TRACKS_OF), in page order. Empty groups are left out. */
+export function rankGroups(units: readonly UnitId[]): RankGroup[] {
+  return RANK_GROUP_ORDER.map((track) => ({ track, label: TRACK_NAME[track], units: units.filter((u) => RANK_TRACKS_OF[u]?.includes(track)) })).filter((g) => g.units.length > 0);
+}
+
+/** Small hint by the points bar: where more points come from. */
+export function pointsHint(): string {
+  const hall = DRILLYARD_POINTS_PER_HALL_LEVEL > 0 ? `, +${DRILLYARD_POINTS_PER_HALL_LEVEL} per Town Hall level above ${DRILLYARD_HALL_FROM}` : '';
+  return `+${DRILLYARD_POINTS_PER_LEVEL} per Drillyard level${hall}`;
+}
+
 /** What one rank costs in points: "2 points" when every rank costs the same, else the list ("1, 2, 3, 4, 5 points"). */
 export function rankCostRule(): string {
   const costs = RANK_POINTS.slice(0, RANK_MAX);
