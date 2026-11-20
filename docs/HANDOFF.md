@@ -79,7 +79,11 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 
 ## NEXT JOB
 
-Balance check done 2026-11-20: no break; the Ember Guard is fine to slightly weak, but no sim style builds it, so it is untested. Possible tweaks if nobody builds it in play: `knight` gold 14 → 8, then speed 9 → 10 (not applied). Take the owner's next list.
+Merged 2026-11-20 late (`c497c63`, in the owner's preview, NOT pushed: waits for his OK):
+- computer players (sim + preview bots) use the whole roster: a gold-stall bug kept the Ember Guard untrained (BALANCE §27); siege now on by default in `npm run sim`;
+- Ember Guard attack 140 → 160 after a full-population attack × defence matrix (BALANCE §28; tables in `docs/sim/2026-11-20-ember-guard-matrix-a140.md` / `-a160.md`).
+- Side effect to watch: the builder sim style no longer founds a 2nd village by day 30 (its army now really grows and eats the food).
+Then take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
