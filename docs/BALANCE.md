@@ -1337,3 +1337,7 @@ Weights of Barracks, Stables, Wrightyard and Drillyard multiplied by 0.3 in ever
 | Siege (`--siege`) | all invariants hold | met |
 
 Reading: the numbers match the diagnosis. Takes did not move (70 / 230), raider/builder is 1.88, restarts rose slightly (24 to 28 on 5 seeds, 65 to 68 on 12). Two misses (takes, restarts); not tuned, reported to the lead.
+
+## 25. Firecart as a home defender (owner 2026-11-20; no schema change)
+
+`UNITS.firecart` defence 7 / 5 (foot / riders) becomes 100 / 80; attack, cost, population, speed and siege unchanged (dual-use: siege out, defender at home). `npm run sim -- --days 30`, before vs after: the headline figures (scores, growth, takes) are identical, because the computer players almost never train Firecarts (unit table, share of the army 0.014 before and after). The only change in the report is the Firecart's defence share in the unit table, 0.016 to 0.245 (a stat effect). The sim does not exercise Firecart defence in fights, so no defence or takes effect is measured.

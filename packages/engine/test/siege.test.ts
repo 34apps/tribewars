@@ -69,7 +69,7 @@ describe('the two siege units', () => {
 
   it('the Firecart: buildings only, needs Wrightyard 4 and Drillyard 3', () => {
     const f = UNITS.firecart;
-    assert.deepEqual([f.attack, f.defenseInfantry, f.defenseCavalry, f.speed, f.carry], [5, 7, 5, 3, 0]);
+    assert.deepEqual([f.attack, f.defenseInfantry, f.defenseCavalry, f.speed, f.carry], [5, 100, 80, 3, 0]);
     assert.equal(f.building, 'wrightyard');
     assert.deepEqual(f.requires, { wrightyard: 4 });
     assert.equal(f.research?.drillyard, 3);
