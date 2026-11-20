@@ -50,9 +50,20 @@ Written 2026-11-20 by the main session ("Village map centering", `local_86849d4a
 - **Mounted pictures** for Pathfinder (pony), Hearthwarden (elk) and Ember Guard (armoured elk) merged (`a85032a`), pushed. Generator: `design/proposals/mounted-units/gen/build.mjs`. Icons are ~20 KB each (old 4 KB): could be slimmed.
 - Nothing in flight. All side sessions are archived (reopen from the Archived list if needed).
 
+## Analytics (owner 2026-11-20, plan only, NOT wired)
+
+- The owner's own analytics service (project `clanflame`, write-only key) is to be used for web now and iOS/Android later.
+- The full plan, the debate and the draft event list are in `docs/ANALYTICS.md`.
+- Agreed:
+  - no per-click tracking;
+  - about 15 named moments plus one `page_open` per page per session;
+  - off in the preview and dev.
+- Waiting for the owner on three choices: how to ask consent (our privacy policy currently says "no analytics"), the event list, and production-only.
+- Never change AWS, the server or keys.
+
 ## NEXT JOB
 
-After the mounted pictures land: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
+Wire analytics once the owner answers (checklist in `docs/ANALYTICS.md` §5). After the mounted pictures land: check balance with `npm run sim` (the Ember Guard as a rider now meets 'vs riders' defence), then take the owner's next list.
 
 ## Decisions made today (don't re-ask)
 
