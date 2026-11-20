@@ -4,12 +4,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { GameError, type ShopAgeRequest, type ShopBalanceResponse, type ShopCheckoutRequest, type ShopCheckoutResponse, type ShopResponse, type ShopSpendRequest } from '@clanfire/engine';
 import { RateLimiter } from '../auth.ts';
 import type { AppContext } from '../context.ts';
+import { isVatCountry } from '../shop/vat.ts';
 import { accountOf, requireAccount } from './auth.ts';
 
 /** Per account and minute. */
 export const RATE_CHECKOUT_PER_ACCOUNT = 10;
 export const RATE_SPEND_PER_ACCOUNT = 30;
-export const RATE_REFUND_PER_ACCOUNT = 5;
 export const RATE_AGE_PER_ACCOUNT = 10;
 
 function limitBy(limiter: RateLimiter) {
@@ -19,6 +19,12 @@ function limitBy(limiter: RateLimiter) {
       throw new GameError('rate_limited', 'Too many requests. Please wait a minute and try again.');
     }
   };
+}
+
+/** First value of a header, upper-cased. */
+function headerValue(v: string | string[] | undefined): string | null {
+  const x = Array.isArray(v) ? v[0] : v;
+  return typeof x === 'string' && x !== '' ? x.toUpperCase() : null;
 }
 
 /** The body must be empty or `{}`. */
@@ -33,10 +39,23 @@ export function shopRoutes(app: FastifyInstance, ctx: AppContext): void {
   const auth = requireAccount(ctx);
   const checkoutLimit = limitBy(new RateLimiter(RATE_CHECKOUT_PER_ACCOUNT, 60_000));
   const spendLimit = limitBy(new RateLimiter(RATE_SPEND_PER_ACCOUNT, 60_000));
-  const refundLimit = limitBy(new RateLimiter(RATE_REFUND_PER_ACCOUNT, 60_000));
   const ageLimit = limitBy(new RateLimiter(RATE_AGE_PER_ACCOUNT, 60_000));
 
-  app.get('/api/shop', { onRequest: auth }, async (req): Promise<ShopResponse> => shop.response(accountOf(req)));
+  // ?country=XX only chooses the VAT shown before paying: an EU country of the lobby's table, or 'XX' (outside the EU). Nothing else is accepted.
+  app.get<{ Querystring: { country?: string } }>(
+    '/api/shop',
+    {
+      onRequest: auth,
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: { country: { type: 'string', pattern: '^[A-Z]{2}$' } } } },
+    },
+    async (req): Promise<ShopResponse> => {
+      const asked = req.query.country ?? null;
+      if (asked !== null && !isVatCountry(asked)) throw new GameError('invalid_input', 'Unknown country.');
+      // The CDN's country header is only believed behind a trusted proxy (anyone can send it otherwise).
+      const header = ctx.trustProxy ? headerValue(req.headers['cloudfront-viewer-country']) ?? headerValue(req.headers['cf-ipcountry']) : null;
+      return shop.response(accountOf(req), asked, header);
+    },
+  );
   app.get('/api/shop/balance', { onRequest: auth }, async (req): Promise<ShopBalanceResponse> => shop.balance(accountOf(req)));
 
   app.post<{ Body: ShopAgeRequest }>(
@@ -92,14 +111,5 @@ export function shopRoutes(app: FastifyInstance, ctx: AppContext): void {
       },
     },
     async (req): Promise<ShopResponse> => shop.spend(accountOf(req), req.body, req.ip),
-  );
-
-  app.post<{ Params: { id: string }; Body: unknown }>(
-    '/api/shop/purchases/:id/refund',
-    { onRequest: [auth, refundLimit], schema: { params: { type: 'object', properties: { id: { type: 'string', pattern: '^[0-9]{1,9}$' } } } } },
-    async (req): Promise<ShopResponse> => {
-      emptyBody(req.body);
-      return shop.refund(accountOf(req), Number(req.params.id), req.ip);
-    },
   );
 }

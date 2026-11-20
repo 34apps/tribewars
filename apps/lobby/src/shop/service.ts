@@ -1,10 +1,11 @@
-// The Flames shop rules: checkout, spending, refunds, the Stripe webhook effects, disputes and dispute fees.
+// The Flames shop rules: checkout, spending, support refunds, the Stripe webhook effects, disputes and dispute fees.
 // Money rules (docs/PAYMENTS_PLAN.md, docs/legal/refunds.md): the ledger is the balance; ledger and state first, the provider second,
 // and every provider failure is compensated; every webhook event is processed once (event row in the same transaction as its effects).
 
 import {
   GameError,
   SHOP_PURCHASES_MAX,
+  type FlamesPackDto,
   type PurchaseDto,
   type ShopAgeRequest,
   type ShopBalanceResponse,
@@ -13,6 +14,7 @@ import {
   type ShopItemDto,
   type ShopResponse,
   type ShopSpendRequest,
+  type ShopVatDto,
 } from '@clanfire/engine';
 import type { AccountRow, Store } from '../store.ts';
 import {
@@ -28,15 +30,16 @@ import {
   PREMIUM_DAYS,
   PREMIUM_ITEM_ID,
   PREMIUM_PRICE_FLAMES,
-  REFUND_DAYS,
   TERMS_VERSION,
   findPack,
   lookItem,
   premiumItem,
+  type CataloguePack,
   type ShopLook,
 } from './catalogue.ts';
 import { PaymentError, type PaymentGateway } from './gateway.ts';
 import { ShopStore, type PurchaseRow } from './store.ts';
+import { VAT_COUNTRIES, VAT_RATES_DATE, displayCountryOf, vatCentsOf, vatRatePercent } from './vat.ts';
 
 export interface ShopLog {
   warn(obj: unknown, msg?: string): void;
@@ -51,6 +54,8 @@ export interface ShopServiceOptions {
   gateway: PaymentGateway | null;
   /** scheme://host, for the Stripe return URLs. */
   publicUrl: string | null;
+  /** Stripe Tax is on (STRIPE_TAX=1): VAT is shown by country and added at checkout. */
+  tax?: boolean;
   looks?: readonly ShopLook[];
   log: ShopLog;
   /** Owner alert (ALERT_WEBHOOK_URL). Failures are swallowed. */
@@ -72,7 +77,6 @@ const fail = (code: ConstructorParameters<typeof GameError>[0], message: string)
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null);
-const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), hi);
 
 /** UTC calendar month of a moment: [from, to) and "YYYY-MM". */
 export function monthOf(t: number): { from: number; to: number; key: string } {
@@ -103,6 +107,7 @@ export class ShopService {
   private readonly now: () => number;
   private readonly gateway: PaymentGateway | null;
   private readonly publicUrl: string | null;
+  private readonly tax: boolean;
   private readonly looks: readonly ShopLook[];
   private readonly log: ShopLog;
   private readonly notify: (text: string) => Promise<void>;
@@ -113,6 +118,7 @@ export class ShopService {
     this.now = o.now;
     this.gateway = o.gateway;
     this.publicUrl = o.publicUrl;
+    this.tax = o.tax ?? false;
     this.looks = o.looks ?? LOOKS;
     this.log = o.log;
     this.notify = o.notify ?? (async () => {});
@@ -140,23 +146,7 @@ export class ShopService {
     return until;
   }
 
-  /** Flames of a purchase that are still unspent. Flames are spent oldest first, so what is left of the balance after the later credits belongs to it. */
-  private unspentOf(p: PurchaseRow, balance: number): number {
-    const creditId = this.shop.purchaseCreditId(p.id);
-    if (creditId === null) return 0;
-    return clamp(balance - this.shop.creditsAfter(p.accountId, creditId, p.id), 0, p.flames - p.refundedFlames);
-  }
-
-  /** A refund covers the whole purchase and only when none of its Flames is spent, within 14 days of payment. */
-  private refundInfo(p: PurchaseRow, now: number, balance: number): { flames: number; cents: number; block: 'spent' | 'too_late' | null } {
-    if (p.kind !== 'flames' || p.status !== 'paid' || p.paidAt === null) return { flames: 0, cents: 0, block: null };
-    if (now > p.paidAt + REFUND_DAYS * DAY_MS) return { flames: 0, cents: 0, block: 'too_late' };
-    if (p.refundedFlames > 0 || this.unspentOf(p, balance) < p.flames) return { flames: 0, cents: 0, block: 'spent' };
-    return { flames: p.flames, cents: p.priceCents, block: null };
-  }
-
-  private purchaseDto(p: PurchaseRow, now: number, balance: number): PurchaseDto {
-    const r = this.refundInfo(p, now, balance);
+  private purchaseDto(p: PurchaseRow): PurchaseDto {
     return {
       id: p.id,
       kind: p.kind,
@@ -170,10 +160,10 @@ export class ShopService {
       paidAt: p.paidAt,
       cardBrand: p.cardBrand,
       cardLast4: p.cardLast4,
-      refundableFlames: r.flames,
-      refundableCents: r.cents,
-      refundBlock: r.block,
-      refundUntil: p.paidAt === null ? null : p.paidAt + REFUND_DAYS * DAY_MS,
+      netCents: p.netCents,
+      vatCents: p.vatCents,
+      vatRateBp: p.vatRateBp,
+      vatCountry: p.vatCountry,
       refundedFlames: p.refundedFlames,
       refundedCents: p.refundedCents,
     };
@@ -194,7 +184,24 @@ export class ShopService {
     return { balance: this.shop.balance(account.id), locked: this.isLocked(account.id) };
   }
 
-  response(account: AccountRow): ShopResponse {
+  /** The country the VAT is shown for: the asked one, else the last billing country, else the CDN's header (only behind a trusted proxy). */
+  private vatCountryFor(accountId: number, asked: string | null, header: string | null): string | null {
+    return asked ?? displayCountryOf(this.shop.lastVatCountry(accountId)) ?? displayCountryOf(header);
+  }
+
+  private vatInfo(country: string | null): ShopVatDto {
+    if (!this.tax) return { mode: 'none', country: null, ratePercent: null, ratesDate: VAT_RATES_DATE };
+    return { mode: 'stripe_tax', country, ratePercent: country === null ? null : vatRatePercent(country), ratesDate: VAT_RATES_DATE };
+  }
+
+  private packDto(p: CataloguePack, vat: ShopVatDto): FlamesPackDto {
+    if (vat.ratePercent === null) return { ...p, vatCents: null, totalCents: null };
+    const vatCents = vatCentsOf(p.netCents, vat.ratePercent);
+    return { ...p, vatCents, totalCents: p.netCents + vatCents };
+  }
+
+  /** `askedCountry`: the validated ?country= (alpha-2 from the table or 'XX'); `headerCountry`: the CDN's country header, only passed when the proxy is trusted. */
+  response(account: AccountRow, askedCountry: string | null = null, headerCountry: string | null = null): ShopResponse {
     const now = this.now();
     const fresh = this.store.getAccount(account.id) ?? account;
     const balance = this.shop.balance(fresh.id);
@@ -219,6 +226,7 @@ export class ShopService {
         openedAt: p.disputedAt ?? p.createdAt,
       }));
     const openFeesCents = this.shop.openFeesCents(fresh.id);
+    const vat = this.vatInfo(this.vatCountryFor(fresh.id, askedCountry, headerCountry));
     return {
       balance,
       locked: balance < 0 || openFeesCents > 0,
@@ -229,15 +237,16 @@ export class ShopService {
       minorBoughtThisMonthCents: this.minorBoughtThisMonth(fresh.id, now),
       paymentsBanned: fresh.payBannedAt !== null,
       paymentsEnabled: this.paymentsEnabled,
-      packs: PACKS.map((p) => ({ ...p })),
+      packs: PACKS.map((p) => this.packDto(p, vat)),
       items: this.catalogue().map((i) => (i.kind === 'look' ? { ...i, owned: owned.has(i.id) } : i)),
       premiumWorlds,
-      purchases: purchases.map((p) => this.purchaseDto(p, now, balance)),
+      purchases: purchases.map((p) => this.purchaseDto(p)),
       consentText: CONSENT_TEXT,
       consentNote: CONSENT_NOTE,
       parentConsentText: PARENT_CONSENT_TEXT,
       termsVersion: TERMS_VERSION,
-      refundDays: REFUND_DAYS,
+      vat,
+      vatCountries: VAT_COUNTRIES.map((c) => ({ ...c })),
     };
   }
 
@@ -295,11 +304,11 @@ export class ShopService {
     if (fresh.ageGroup === null) fail('forbidden', 'Please tell us first whether you are 18 or older.');
     const pack = findPack(req.packId);
     if (!pack) fail('invalid_input', 'Unknown Flames pack.');
-    if (req.consent !== true) fail('invalid_input', 'Please tick the box to confirm that you want your Flames now.');
+    if (req.consent !== true) fail('invalid_input', 'Please tick the box to confirm that you want your Flames delivered now.');
     if (fresh.ageGroup === 'minor' && req.parentConsent !== true) fail('invalid_input', 'Please tick the box to confirm that a parent or guardian agrees.');
     if (req.termsVersion !== TERMS_VERSION) fail('too_late', 'The terms have changed. Please reload the shop and read them again.');
     const p = this.store.tx(() => {
-      if (fresh.ageGroup === 'minor' && this.minorBoughtThisMonth(fresh.id, now) + (pack?.priceCents ?? 0) > MINOR_MONTHLY_CAP_CENTS) {
+      if (fresh.ageGroup === 'minor' && this.minorBoughtThisMonth(fresh.id, now) + (pack?.netCents ?? 0) > MINOR_MONTHLY_CAP_CENTS) {
         fail('not_enough_resources', `Accounts under 18 can buy up to ${MINOR_MONTHLY_CAP_CENTS / 100} EUR of Flames per month. Try again next month.`);
       }
       if (this.shop.countPendingSince(fresh.id, now - PENDING_WINDOW_MS) >= PENDING_MAX) {
@@ -307,10 +316,10 @@ export class ShopService {
       }
       const consentId = this.shop.insertConsent({ accountId: fresh.id, at: now, ip: ip.slice(0, 64), termsVersion: TERMS_VERSION, kind: 'withdrawal_waiver', text: CONSENT_TEXT });
       const parentId = fresh.ageGroup === 'minor' ? this.shop.insertConsent({ accountId: fresh.id, at: now, ip: ip.slice(0, 64), termsVersion: TERMS_VERSION, kind: 'parent_consent', text: PARENT_CONSENT_TEXT }) : null;
-      const id = this.shop.insertPurchase({ accountId: fresh.id, kind: 'flames', packId: pack!.id, flames: pack!.flames, priceCents: pack!.priceCents, ip, userAgent, consentId, createdAt: now });
+      const id = this.shop.insertPurchase({ accountId: fresh.id, kind: 'flames', packId: pack!.id, flames: pack!.flames, priceCents: pack!.netCents, ip, userAgent, consentId, createdAt: now });
       this.shop.setConsentPurchase(consentId, id);
       if (parentId !== null) this.shop.setConsentPurchase(parentId, id);
-      this.audit(fresh, fresh.id, ip, 'shop_checkout', `purchase ${id} ${pack!.id} ${pack!.priceCents} eur`);
+      this.audit(fresh, fresh.id, ip, 'shop_checkout', `purchase ${id} ${pack!.id} ${pack!.netCents} net eur`);
       return this.shop.getPurchase(id) as PurchaseRow;
     });
     return this.startSession(p, fresh, ip);
@@ -374,43 +383,6 @@ export class ShopService {
     return this.response(account);
   }
 
-  // ---- refund ----------------------------------------------------------------------------------------------------
-
-  async refund(account: AccountRow, purchaseId: number, ip: string): Promise<ShopResponse> {
-    const gateway = this.requirePayments();
-    const now = this.now();
-    const done = this.store.tx(() => {
-      const p = this.shop.getPurchase(purchaseId);
-      if (!p || p.accountId !== account.id) return fail('not_found', 'No such purchase.');
-      const balance = this.shop.balance(account.id);
-      const r = this.refundInfo(p, now, balance);
-      if (r.flames === 0) {
-        if (r.block === 'spent') return fail('too_late', 'This purchase can no longer be refunded because some of its Flames have been spent.');
-        if (r.block === 'too_late') return fail('too_late', `The ${REFUND_DAYS}-day refund time for this purchase has passed.`);
-        return fail('too_late', 'This purchase can not be refunded.');
-      }
-      if (!p.paymentIntentId) return fail('too_late', 'This purchase can not be refunded here. Write to support.');
-      const ledgerId = this.shop.addLedger({ accountId: account.id, at: now, delta: -r.flames, reason: 'refund', purchaseId: p.id, detail: 'refund button' });
-      this.shop.updatePurchase(p.id, { status: 'refunded', refundedFlames: r.flames, refundedCents: r.cents, refundedAt: now });
-      this.audit(account, account.id, ip, 'shop_refund_requested', `purchase ${p.id} ${r.flames} flames ${r.cents} cents`);
-      return { p, flames: r.flames, cents: r.cents, ledgerId };
-    });
-    try {
-      // A new key per attempt: a retry after a failed attempt may legitimately differ.
-      await gateway.refund(done.p.paymentIntentId as string, done.cents, `refund-${done.p.id}-${done.ledgerId}`);
-    } catch (err) {
-      this.log.error({ purchase: done.p.id, problem: err instanceof PaymentError ? err.message : 'unexpected error' }, 'refund failed at the provider');
-      // Put everything back: the Flames, the status. (If Stripe did refund after all, its charge.refunded event removes the Flames again.)
-      this.store.tx(() => {
-        this.shop.addLedger({ accountId: account.id, at: this.now(), delta: done.flames, reason: 'refund_failed', purchaseId: done.p.id, detail: 'provider refused' });
-        this.shop.updatePurchase(done.p.id, { status: 'paid', refundedFlames: 0, refundedCents: 0, refundedAt: null });
-        this.audit(account, account.id, ip, 'shop_refund_failed', `purchase ${done.p.id}`);
-      });
-      return fail('internal_error', 'The refund could not be sent to the payment provider. Nothing was changed. Please try again later.');
-    }
-    return this.response(account);
-  }
-
   // ---- support ---------------------------------------------------------------------------------------------------
 
   /** Operator grant or correction (CLI). Returns the new balance. */
@@ -420,6 +392,44 @@ export class ShopService {
       this.store.audit({ at: this.now(), actorId: null, actorIp: 'cli', action: 'flames_grant', targetAccount: accountId, detail: `${amount} ${reason}` });
       return this.shop.balance(accountId);
     });
+  }
+
+  /**
+   * Support refund (CLI only; players have no refund button). The WHOLE charged amount goes back through the provider; the pack's Flames are
+   * taken off the ledger unless `keepFlames` (the balance may then go negative). Ledger and state first, the provider second; a provider failure
+   * is compensated. The charge.refunded event that follows finds nothing left to do.
+   */
+  async supportRefund(purchaseId: number, reason: string, keepFlames: boolean): Promise<{ cents: number; flames: number; balance: number }> {
+    const gateway = this.gateway;
+    if (!gateway) throw new Error('Payments are not configured (no Stripe key): nothing can be refunded from here.');
+    const now = this.now();
+    const done = this.store.tx(() => {
+      const p = this.shop.getPurchase(purchaseId);
+      if (!p) throw new Error(`No such purchase: ${purchaseId}`);
+      if (p.kind !== 'flames') throw new Error(`Purchase ${purchaseId} is not a Flames pack.`);
+      if (p.status !== 'paid' && p.status !== 'dispute_won') throw new Error(`Purchase ${purchaseId} is "${p.status}": only paid purchases (or won disputes) can be refunded.`);
+      if (p.refundedCents > 0) throw new Error(`Purchase ${purchaseId} was already refunded in part (${p.refundedCents} cents).`);
+      if (!p.paymentIntentId) throw new Error(`Purchase ${purchaseId} has no payment on record: refund it in the Stripe Dashboard.`);
+      const flames = keepFlames ? 0 : p.flames - p.refundedFlames;
+      const detail = `support: ${reason}`;
+      const ledgerId = flames > 0 ? this.shop.addLedger({ accountId: p.accountId, at: now, delta: -flames, reason: 'refund', purchaseId: p.id, detail }) : null;
+      this.shop.updatePurchase(p.id, { status: 'refunded', refundedFlames: flames, refundedCents: p.priceCents, refundedAt: now });
+      this.store.audit({ at: now, actorId: null, actorIp: 'cli', action: 'shop_support_refund', targetAccount: p.accountId, detail: `purchase ${p.id} ${p.priceCents} cents ${flames} flames${keepFlames ? ' (flames kept)' : ''}: ${reason}` });
+      return { p, flames, ledgerId };
+    });
+    try {
+      await gateway.refund(done.p.paymentIntentId as string, done.p.priceCents, `support-refund-${done.p.id}-${now}`);
+    } catch (err) {
+      this.log.error({ purchase: done.p.id, problem: err instanceof PaymentError ? err.message : 'unexpected error' }, 'support refund failed at the provider');
+      // Put everything back (if Stripe did refund after all, its charge.refunded event removes the Flames again).
+      this.store.tx(() => {
+        if (done.flames > 0) this.shop.addLedger({ accountId: done.p.accountId, at: this.now(), delta: done.flames, reason: 'refund_failed', purchaseId: done.p.id, detail: 'provider refused' });
+        this.shop.updatePurchase(done.p.id, { status: done.p.status, refundedFlames: done.p.refundedFlames, refundedCents: 0, refundedAt: null });
+        this.store.audit({ at: this.now(), actorId: null, actorIp: 'cli', action: 'shop_support_refund_failed', targetAccount: done.p.accountId, detail: `purchase ${done.p.id}` });
+      });
+      throw new Error('The payment provider did not accept the refund. Nothing was changed.');
+    }
+    return { cents: done.p.priceCents, flames: done.flames, balance: this.shop.balance(done.p.accountId) };
   }
 
   // ---- evidence --------------------------------------------------------------------------------------------------
@@ -433,10 +443,11 @@ export class ShopService {
     const spendText = spends.length === 0 ? 'No Flames were spent yet.' : spends.map((s) => `${iso(s.at)} spent ${-s.delta} Flames on ${s.itemId ?? 'an item'}${s.worldId ? ` in world ${s.worldId}` : ''}`).join('\n');
     const consentText = consents.map((c) => `${iso(c.at)} (UTC), terms version ${c.termsVersion}, IP ${c.ip}, ${c.kind}: "${c.text}"`).join('\n');
     const card = p.cardBrand ? `Card: ${p.cardBrand} ending ${p.cardLast4 ?? '????'}${p.cardCountry ? `, card country ${p.cardCountry}` : ''}.` : '';
+    const vat = p.vatCents === null ? '' : ` Price: ${(p.netCents / 100).toFixed(2)} EUR net + ${(p.vatCents / 100).toFixed(2)} EUR VAT${p.vatCountry ? ` (billing country ${p.vatCountry})` : ''} = ${(p.priceCents / 100).toFixed(2)} EUR.`;
     const out: Record<string, string> = {
       product_description: cut(
         `Receipt ${receiptNo(p.id)}: ${p.flames} Flames, the in-game currency of the browser strategy game Clanflame, delivered digitally to the player account "${account.username}" ` +
-          `${p.paidAt ? `on ${iso(p.paidAt)} ` : ''}right after payment. ${card}\nWhat the Flames were spent on:\n${spendText}`,
+          `${p.paidAt ? `on ${iso(p.paidAt)} ` : ''}right after payment.${vat} ${card}\nWhat the Flames were spent on:\n${spendText}`,
       ),
       customer_purchase_ip: p.ip,
       service_date: iso(p.paidAt ?? p.createdAt).slice(0, 10),
@@ -445,7 +456,7 @@ export class ShopService {
       ),
       refund_policy_disclosure: cut(
         `At checkout the buyer saw and ticked the required box (terms version ${TERMS_VERSION}): "${CONSENT_TEXT}" and the note: "${CONSENT_NOTE}" ` +
-          `A full refund of a purchase whose Flames are unspent is available with one button for ${REFUND_DAYS} days.`,
+          'The Flames are delivered as soon as the payment is confirmed, which ends the 14-day right of withdrawal. There is no self-service refund; the buyer can write to support.',
       ),
       uncategorized_text: cut(`Consent records for this purchase:\n${consentText || 'none'}\nThe buyer did not ask for a refund before the dispute.`),
       customer_name: account.username,
@@ -558,7 +569,13 @@ export class ShopService {
     if (o.payment_status !== 'paid') return;
     // Business-state idempotency: credited once, however many events say "paid".
     if (p.paidAt !== null || (p.status !== 'pending' && p.status !== 'expired')) return;
-    if (int(o.amount_total) !== p.priceCents || o.currency !== 'eur') {
+    // The net price is ours; what Stripe adds is its tax. Anything else (another subtotal, a total that is not subtotal + tax) is not credited.
+    const subtotal = int(o.amount_subtotal);
+    const total = int(o.amount_total);
+    const td = isObj(o.total_details) ? o.total_details : null;
+    const taxRaw = td && td.amount_tax !== undefined && td.amount_tax !== null ? int(td.amount_tax) : 0;
+    const tax = taxRaw !== null && taxRaw >= 0 ? taxRaw : null;
+    if (subtotal !== p.netCents || tax === null || total !== subtotal + tax || o.currency !== 'eur') {
       this.log.warn({ purchase: p.id }, 'payment amount or currency does not match the purchase: ignored');
       this.store.audit({ at: this.now(), actorId: null, actorIp: null, action: 'shop_payment_mismatch', targetAccount: p.accountId, detail: `purchase ${p.id}` });
       return;
@@ -575,14 +592,25 @@ export class ShopService {
     const countryRaw = details && isObj(details.address) ? str(details.address.country) : null;
     const country = countryRaw && /^[A-Z]{2}$/.test(countryRaw) ? countryRaw : null;
     const now = this.now();
-    this.shop.updatePurchase(p.id, { status: 'paid', paidAt: now, paymentIntentId: p.paymentIntentId ?? intent, country, email: email ?? p.email, checkoutSessionId: sessionId });
+    this.shop.updatePurchase(p.id, {
+      status: 'paid',
+      paidAt: now,
+      paymentIntentId: p.paymentIntentId ?? intent,
+      country,
+      email: email ?? p.email,
+      checkoutSessionId: sessionId,
+      priceCents: total,
+      vatCents: tax,
+      vatRateBp: subtotal > 0 ? Math.round((tax * 10_000) / subtotal) : 0,
+      vatCountry: country,
+    });
     if (p.kind === 'flames') {
       this.shop.addLedger({ accountId: p.accountId, at: now, delta: p.flames, reason: 'purchase', purchaseId: p.id, detail: receiptNo(p.id) });
     } else {
       const covered = this.shop.payBoundFees(p.id, now);
       if (covered === 0) this.log.warn({ purchase: p.id }, 'a settlement was paid but no open fees were bound to it');
     }
-    this.store.audit({ at: now, actorId: null, actorIp: null, action: p.kind === 'flames' ? 'shop_purchase_paid' : 'shop_settle_paid', targetAccount: p.accountId, detail: `purchase ${p.id} ${p.priceCents} cents${country ? ` ${country}` : ''}` });
+    this.store.audit({ at: now, actorId: null, actorIp: null, action: p.kind === 'flames' ? 'shop_purchase_paid' : 'shop_settle_paid', targetAccount: p.accountId, detail: `purchase ${p.id} ${total} cents (net ${subtotal} + VAT ${tax})${country ? ` ${country}` : ''}` });
   }
 
   private onSessionExpired(o: Record<string, unknown>): void {
@@ -615,7 +643,7 @@ export class ShopService {
     const total = int(o.amount_refunded);
     if (total === null) return;
     const beyond = total - p.refundedCents;
-    if (beyond <= 0) return; // the refund button already took care of it
+    if (beyond <= 0) return; // a support refund already took care of it
     const now = this.now();
     const chargeId = str(o.id) ?? p.chargeId;
     const refundedCents = p.refundedCents + beyond;

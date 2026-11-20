@@ -2632,7 +2632,9 @@ export interface EntryPassClaims {
 // Premium (30 days in one world, never renews by itself) and looks (GAME_DESIGN 18.6). The lobby owns the balance (a ledger: the
 // balance is always the sum), the purchases, the consent records and the Stripe webhook. Worlds never hold money: they learn about
 // Premium through the entry-pass claim `prm`. Prices and packs come only from the lobby's own catalogue, never from the client.
-//   GET  /lobby/api/shop                       (signed in) -> 200 ShopResponse
+//   GET  /lobby/api/shop[?country=XX]          (signed in) -> 200 ShopResponse. `country` (ISO 3166-1 alpha-2 from `vatCountries`, or 'XX' for
+//        outside the EU) only chooses the VAT shown before paying; without it the lobby guesses (last billing country, then the CDN's
+//        country header). Display only: Stripe Tax decides the real VAT from the billing address at checkout.
 //   GET  /lobby/api/shop/balance               (signed in) -> 200 ShopBalanceResponse (small; the world's account menu)
 //   POST /lobby/api/shop/age        body ShopAgeRequest      (signed in) -> 200 ShopResponse. Once per account (support changes it later);
 //        409 too_late when already set
@@ -2644,19 +2646,42 @@ export interface EntryPassClaims {
 //        fees (provider fee + 4 EUR handling; no handling fee when the bank's reason was fraud); 409 too_late when nothing is open
 //   POST /lobby/api/shop/spend      body ShopSpendRequest    (signed in) -> 200 ShopResponse; 409 not_enough_resources when the balance is short;
 //        403 forbidden while locked
-//   POST /lobby/api/shop/purchases/:id/refund  body {}       (signed in, own purchase) -> 200 ShopResponse; 409 too_late after 14 days
-//        or when any Flames of that purchase are spent (Flames are spent oldest first; a refund is always the whole purchase)
+//   No self-service refunds (owner, 2026-11-20): Flames are delivered at once and the checkout tick ends the withdrawal right at delivery.
+//   Refunds go through support only (lobby CLI `refund`, audited).
 //   POST /lobby/api/stripe/webhook  (Stripe only: signed with STRIPE_WEBHOOK_SECRET; raw JSON body) -> 200 { received: true }
 
-/** One Flames pack for sale. Euro amounts are in cents and include VAT. */
+/** One Flames pack for sale. `netCents` is the price WITHOUT VAT (owner, 2026-11-20); VAT of the buyer's country comes on top. */
 export interface FlamesPackDto {
   id: string;
   flames: number;
-  priceCents: number;
+  netCents: number;
+  /** VAT for the shown country (ShopResponse.vat), rounded like Stripe; null when VAT is not shown ('none' mode or no country yet). */
+  vatCents: number | null;
+  /** netCents + vatCents; null when vatCents is null. */
+  totalCents: number | null;
   currency: 'eur';
 }
 
-/** Something Flames buy. `eurCents` is the euro value shown next to the Flames price (EU rule), at the smallest pack's rate. */
+/** VAT shown before paying. Display only: Stripe Tax computes the real amount from the billing address. */
+export interface ShopVatDto {
+  /** 'stripe_tax': VAT by country is added at checkout (STRIPE_TAX=1). 'none': Stripe Tax is off (test mode): no VAT is added, the shop says
+   *  "VAT: added at checkout". */
+  mode: 'stripe_tax' | 'none';
+  /** Country the VAT is shown for (alpha-2, or 'XX' = outside the EU, no EU VAT); null = not known yet: the player picks one. */
+  country: string | null;
+  /** Standard rate in percent for that country (e.g. 24), 0 outside the EU; null when country is null. */
+  ratePercent: number | null;
+  /** Date of the lobby's rate table (YYYY-MM-DD). */
+  ratesDate: string;
+}
+
+export interface VatCountryDto {
+  code: string;
+  name: string;
+  ratePercent: number;
+}
+
+/** Something Flames buy. `eurCents` is the NET euro value shown next to the Flames price ("+ VAT"), at the smallest pack's rate. */
 export interface ShopItemDto {
   id: string;
   kind: 'premium' | 'look';
@@ -2681,7 +2706,7 @@ export type PurchaseStatus = 'pending' | 'paid' | 'refunded' | 'disputed' | 'dis
 
 export interface PurchaseDto {
   id: number;
-  /** 'flames' = a pack; 'settle' = paying open dispute fees (no Flames, never refundable with the button). */
+  /** 'flames' = a pack; 'settle' = paying open dispute fees (no Flames, no VAT). */
   kind: 'flames' | 'settle';
   /** Receipt number shown to the player (e.g. "CF-000123"). */
   receiptNo: string;
@@ -2696,15 +2721,13 @@ export interface PurchaseDto {
   /** Card used, from Stripe (null until known). */
   cardBrand: string | null;
   cardLast4: string | null;
-  /** Flames the refund button would remove now: the whole purchase, or 0 when it cannot be refunded. */
-  refundableFlames: number;
-  /** Euro cents that refund would pay back: the full price, or 0. */
-  refundableCents: number;
-  /** Why a paid pack cannot be refunded with the button: some of its Flames are spent, or the 14 days are over. null otherwise. */
-  refundBlock: 'spent' | 'too_late' | null;
-  /** Last moment a refund can be asked for (paidAt + 14 days); null while not paid. */
-  refundUntil: number | null;
-  /** Flames already refunded (and the cents paid back). */
+  /** Net price (without VAT), the VAT Stripe added, its rate in basis points (2400 = 24%) and the billing country. `priceCents` is the
+   *  total charged (net + VAT); before payment it is the net price and the VAT fields are null. */
+  netCents: number;
+  vatCents: number | null;
+  vatRateBp: number | null;
+  vatCountry: string | null;
+  /** Flames removed and cents paid back by a support refund (or one made in the Stripe Dashboard). */
   refundedFlames: number;
   refundedCents: number;
 }
@@ -2752,8 +2775,9 @@ export interface ShopResponse {
   /** Second required tick box for under-18 accounts. */
   parentConsentText: string;
   termsVersion: string;
-  /** Days a purchase's unspent Flames can be refunded. */
-  refundDays: number;
+  /** VAT shown before paying, and the countries the player may pick from (EU members, standard rates). */
+  vat: ShopVatDto;
+  vatCountries: VatCountryDto[];
 }
 
 export const SHOP_PURCHASES_MAX = 50;

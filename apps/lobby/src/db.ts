@@ -10,7 +10,8 @@ WHEN NOT (NEW.id IS OLD.id AND NEW.at IS OLD.at AND NEW.action IS OLD.action AND
 BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`;
 
 /** Bump when the schema changes in any way (and add the migration to applySchema). */
-export const SCHEMA_VERSION = 7; // 7: Flames shop: ledger, purchases, consents, stripe_events, login_history, world_premium, account_items; accounts.pay_banned_at/disputes; worlds.shop_premium (2026-11-20)
+export const SCHEMA_VERSION = 9; // 9: Flames shop VAT: purchases.net_cents (backfilled = price_cents)/vat_cents/vat_rate_bp/vat_country; v8 belongs to the privacy session, both are column-existence based (2026-11-20)
+// 7: Flames shop: ledger, purchases, consents, stripe_events, login_history, world_premium, account_items; accounts.pay_banned_at/disputes; worlds.shop_premium (2026-11-20)
 // 6: audit_log trigger replaced: the only allowed update is blanking actor_ip (purged after 30 days, entries stay) (2026-11-18)
 
 /**
@@ -173,7 +174,12 @@ CREATE TABLE IF NOT EXISTS purchases (
   kind                  TEXT    NOT NULL DEFAULT 'flames' CHECK (kind IN ('flames', 'settle')),
   pack_id               TEXT    NOT NULL,
   flames                INTEGER NOT NULL CHECK (flames >= 0),
+  -- price_cents = what was charged (net + VAT once paid; the net price while pending). v9: net_cents = price without VAT.
   price_cents           INTEGER NOT NULL CHECK (price_cents > 0),
+  net_cents             INTEGER NOT NULL DEFAULT 0,
+  vat_cents             INTEGER,
+  vat_rate_bp           INTEGER,
+  vat_country           TEXT,
   currency              TEXT    NOT NULL,
   status                TEXT    NOT NULL CHECK (status IN ('pending', 'paid', 'refunded', 'disputed', 'dispute_lost', 'dispute_won', 'expired')),
   checkout_session_id   TEXT    UNIQUE,
@@ -275,10 +281,12 @@ CREATE TABLE IF NOT EXISTS account_items (
 );
 `;
 
-/** v7: add a column to a table that predates it (SQLite has no ADD COLUMN IF NOT EXISTS). */
-function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): void {
+/** v7: add a column (true = it was added now) to a table that predates it (SQLite has no ADD COLUMN IF NOT EXISTS). */
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, definition: string): boolean {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  if (cols.some((c) => c.name === column)) return false;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  return true;
 }
 
 /** Open (creating the folder and schema if needed) the lobby database. */
@@ -300,6 +308,11 @@ export function openDatabase(path: string): DatabaseSync {
   addColumnIfMissing(db, 'accounts', 'disputes', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'accounts', 'age_group', "TEXT CHECK (age_group IN ('adult', 'minor'))");
   addColumnIfMissing(db, 'worlds', 'shop_premium', 'INTEGER NOT NULL DEFAULT 0');
+  // v9: VAT on purchases (column-existence based, like v7; v8 is the privacy session's). Older rows were sold at their price: net = price.
+  if (addColumnIfMissing(db, 'purchases', 'net_cents', 'INTEGER NOT NULL DEFAULT 0')) db.exec('UPDATE purchases SET net_cents = price_cents');
+  addColumnIfMissing(db, 'purchases', 'vat_cents', 'INTEGER');
+  addColumnIfMissing(db, 'purchases', 'vat_rate_bp', 'INTEGER');
+  addColumnIfMissing(db, 'purchases', 'vat_country', 'TEXT');
   // v5: fill "Your worlds" for players who entered worlds before it existed, from the append-only audit log.
   if (before > 0 && before < 5) {
     db.exec(`INSERT OR IGNORE INTO account_worlds (account_id, world_id, first_entered, last_entered)

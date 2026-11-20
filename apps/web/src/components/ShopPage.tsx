@@ -1,38 +1,40 @@
 // Flames shop (lobby page #shop, and #shop-paid after the Stripe return): balance, packs + the required consent tick,
-// what Flames buy, purchase history with the 14-day refund. Page frame copied from AllWorlds. The server owns every
+// what Flames buy, purchase history (no self-service refund: support only). Prices are net, VAT by country is shown before paying. Page frame copied from AllWorlds. The server owns every
 // rule and price (lobby catalogue); this screen only shows the answer. Desktop: two columns, fits 1440x900 without
 // scrolling; phone: stacked, the page scrolls.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PurchaseDto, ShopItemDto, ShopPremiumWorldDto, ShopResponse } from '@clanfire/engine';
+import type { ShopItemDto, ShopPremiumWorldDto, ShopResponse } from '@clanfire/engine';
 import { ApiRequestError, api, errorMessage } from '../api.ts';
 import { Icon } from '../art/Icon.tsx';
 import {
-  CONTACT_EMAIL,
-  REFUND_BUTTON,
   SETTLED_TEXT,
   buyBlocker,
   canBuy,
-  canRefund,
+  countryOptions,
   disputeBannerText,
-  eurAmount,
   flamesLabel,
   formatEur,
   isStripeCheckoutUrl,
   lockedNote,
   minorRemainingCents,
   minorUsedText,
+  needsCountry,
   newRequestId,
+  packChargeCents,
+  packPrice,
   openDisputes,
   packBonusPercent,
+  payLabel,
   premiumButtonLabel,
   premiumStatus,
   purchaseStatusLabel,
   purchaseStatusTone,
   purchaseTitle,
-  refundBlockText,
-  refundConfirmText,
+  purchaseVatLine,
   refundedNote,
+  rememberCountry,
+  rememberedCountry,
   shopDate,
   shortfallText,
   showSettled,
@@ -56,7 +58,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
   const [buyError, setBuyError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const countryRef = useRef<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [polling, setPolling] = useState(paid);
   const signedOutRef = useRef(onSignedOut);
@@ -67,9 +69,12 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
     return errorMessage(e);
   }, []);
 
-  const load = useCallback(async (): Promise<ShopResponse | null> => {
+  /** `country` = the player just chose one; otherwise the choice made earlier (remembered in this browser) is sent. */
+  const load = useCallback(async (country?: string): Promise<ShopResponse | null> => {
     try {
-      const r = await api.lobbyShop();
+      if (country) countryRef.current = country;
+      else if (countryRef.current === null) countryRef.current = rememberedCountry(typeof localStorage === 'undefined' ? null : localStorage);
+      const r = await api.lobbyShop(countryRef.current);
       setShop(r);
       setLoadError(null);
       setPackId((cur) => (cur !== null && r.packs.some((p) => p.id === cur) ? cur : (r.packs[0]?.id ?? null)));
@@ -125,7 +130,8 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
     consent,
     parentConsent,
     minorRemainingCents: minorRemainingCents(sh.minorMonthlyCapCents, sh.minorBoughtThisMonthCents),
-    packCents: sh.packs.find((p) => p.id === packId)?.priceCents,
+    packCents: (() => { const c = sh.packs.find((p) => p.id === packId); return c ? packChargeCents(c) : undefined; })(),
+    needsCountry: needsCountry(sh.vat),
   });
 
   async function buy() {
@@ -186,19 +192,10 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
     setBusy(null);
   }
 
-  async function refund(p: PurchaseDto) {
-    if (busy) return;
-    setBusy(`refund-${p.id}`);
-    setActionError(null);
-    setNotice(null);
-    try {
-      setShop(await api.lobbyRefund(p.id));
-      setConfirmId(null);
-      setNotice('Refund started. The money returns to your card, usually within a few days.');
-    } catch (e) {
-      setActionError(fail(e));
-    }
-    setBusy(null);
+  async function chooseCountry(code: string) {
+    rememberCountry(typeof localStorage === 'undefined' ? null : localStorage, code);
+    setBuyError(null);
+    await load(code);
   }
 
   const now = Date.now();
@@ -321,24 +318,54 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                     </span>
                   </div>
                 ) : null}
+                {shop.vat.mode === 'stripe_tax' && (
+                  <label className="shop-country">
+                    <span className="shop-country-label">Your country (for VAT)</span>
+                    <select
+                      className="shop-country-select"
+                      value={shop.vat.country ?? ''}
+                      onChange={(e) => void chooseCountry(e.target.value)}
+                    >
+                      {shop.vat.country === null && (
+                        <option value="" disabled>
+                          Choose your country…
+                        </option>
+                      )}
+                      {countryOptions(shop.vatCountries).map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <div className={`shop-packs${shop.ageGroup === null ? ' is-off' : ''}`} role="radiogroup" aria-label="Flames packs">
                   {shop.packs.map((p) => {
                     const bonus = packBonusPercent(p, shop.packs);
-                    const over = shop.ageGroup === 'minor' && p.priceCents > minorRemainingCents(shop.minorMonthlyCapCents, shop.minorBoughtThisMonthCents);
+                    const price = packPrice(p, shop.vat, shop.vatCountries);
+                    const over = shop.ageGroup === 'minor' && packChargeCents(p) > minorRemainingCents(shop.minorMonthlyCapCents, shop.minorBoughtThisMonthCents);
                     return (
                       <button
                         key={p.id}
                         type="button"
                         role="radio"
                         aria-checked={packId === p.id}
+                        aria-label={`${flamesLabel(p.flames)}: ${price.spoken}`}
                         disabled={shop.ageGroup === null || over}
                         className={`shop-pack${packId === p.id ? ' is-on' : ''}`}
                         onClick={() => setPackId(p.id)}
                       >
                         <span className="shop-pack-flames">{p.flames.toLocaleString('en-US')}</span>
                         <span className="shop-pack-unit">Flames</span>
-                        <span className="shop-pack-price">{eurAmount(p.priceCents)} EUR</span>
-                        <span className="shop-pack-vat">incl. VAT where it applies</span>
+                        <span className="shop-pack-net" aria-hidden="true">
+                          {price.net}
+                        </span>
+                        <span className="shop-pack-vat" aria-hidden="true">
+                          {price.vatLine}
+                        </span>
+                        <span className="shop-pack-price" aria-hidden="true">
+                          {price.total ? `= ${price.total}` : '\u00a0'}
+                        </span>
                         <span className="shop-pack-bonus">{bonus > 0 ? `+${bonus}% Flames` : '\u00a0'}</span>
                       </button>
                     );
@@ -362,7 +389,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                   By paying you accept the <a href="/legal/terms">Terms</a> and the <a href="/legal/refunds">Refund policy</a>. Payment is handled by Stripe; we never see your card details. Flames are an in-game currency, not money.
                 </p>
                 <button type="button" className="btn btn-primary shop-buy" disabled={buying || !canBuy(gateOf(shop))} onClick={() => void buy()}>
-                  {buying ? 'Opening payment page…' : chosen ? `Pay ${formatEur(chosen.priceCents)} for ${flamesLabel(chosen.flames)}` : 'Pay'}
+                  {buying ? 'Opening payment page…' : payLabel(chosen, shop.vat)}
                 </button>
                 {buyError && (
                   <p className="form-error" role="alert">
@@ -380,7 +407,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                     <p className="shop-item-title">
                       <strong>Premium {premium.days ?? 30} days</strong>
                       <span>
-                        {flamesLabel(premium.priceFlames)} <span className="shop-eur">({formatEur(premium.eurCents)})</span>
+                        {flamesLabel(premium.priceFlames)} <span className="shop-eur">({formatEur(premium.eurCents)} + VAT)</span>
                       </span>
                     </p>
                     <p className="shop-fine">Choose the world. Premium does not renew by itself.</p>
@@ -423,7 +450,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                             <span className="shop-world-text">
                               <span className="shop-world-name">{l.name}</span>
                               <span className="shop-world-state">
-                                {flamesLabel(l.priceFlames)} ({formatEur(l.eurCents)})
+                                {flamesLabel(l.priceFlames)} ({formatEur(l.eurCents)} + VAT)
                               </span>
                             </span>
                             <button type="button" className="btn btn-teal shop-world-btn" disabled={l.owned === true || busy !== null || shop.locked || short !== null} onClick={() => setPendingSpend({ item: l, key: `l-${l.id}` })}>
@@ -449,8 +476,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                 <ul className="shop-rows">
                   {shop.purchases.map((p) => {
                     const note = refundedNote(p);
-                    const blockText = refundBlockText(p);
-                    const asking = confirmId === p.id;
+                    const vatLine = purchaseVatLine(p, shop.vatCountries);
                     return (
                       <li key={p.id} className="shop-row">
                         <span className="shop-row-date">
@@ -462,27 +488,7 @@ export function ShopPage({ paid, onBack, onSignedOut }: { paid: boolean; onBack:
                           <span className={`tag shop-tag-${purchaseStatusTone(p.status)}`}>{purchaseStatusLabel(p.status)}</span>
                           {note && <span className="shop-fine">{note}</span>}
                         </span>
-                        <span className="shop-row-act">
-                          {canRefund(p, now) &&
-                            (asking ? (
-                              <span className="shop-confirm">
-                                <span>{refundConfirmText(p)}</span>
-                                <span className="shop-confirm-btns">
-                                  <button type="button" className="btn btn-small" disabled={busy !== null} onClick={() => setConfirmId(null)}>
-                                    Keep the Flames
-                                  </button>
-                                  <button type="button" className="btn btn-small btn-primary" disabled={busy !== null} onClick={() => void refund(p)}>
-                                    {busy === `refund-${p.id}` ? 'Refunding…' : 'Refund me'}
-                                  </button>
-                                </span>
-                              </span>
-                            ) : (
-                              <button type="button" className="btn btn-small" disabled={busy !== null} onClick={() => setConfirmId(p.id)}>
-                                {REFUND_BUTTON}
-                              </button>
-                            ))}
-                          {blockText && <span className="shop-fine">{blockText}</span>}
-                        </span>
+                        <span className="shop-row-vat shop-fine">{vatLine}</span>
                       </li>
                     );
                   })}

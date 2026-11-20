@@ -9,6 +9,7 @@ export interface CheckoutRequest {
   kind: 'flames' | 'settle';
   packId: string;
   flames: number;
+  /** NET amount (without VAT) for a pack; the plain amount for a settlement. */
   amountCents: number;
   successUrl: string;
   cancelUrl: string;
@@ -102,7 +103,12 @@ export class StripeGateway implements PaymentGateway {
     p.set('expires_at', String(req.expiresAtSec));
     p.set('success_url', req.successUrl);
     p.set('cancel_url', req.cancelUrl);
-    if (this.tax) p.set('automatic_tax[enabled]', 'true');
+    // VAT (STRIPE_TAX=1): pack prices are NET, Stripe Tax adds the buyer's VAT on top from the billing address. Settlements never carry VAT.
+    if (this.tax && req.kind === 'flames') {
+      p.set('automatic_tax[enabled]', 'true');
+      p.set('line_items[0][price_data][tax_behavior]', 'exclusive');
+      p.set('billing_address_collection', 'required');
+    }
     const body = await this.post('/checkout/sessions', p, `checkout-${req.purchaseId}`);
     const id = body.id;
     const url = body.url;

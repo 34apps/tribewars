@@ -274,7 +274,7 @@ export const api = {
   lobbyLogoutAll: () => lobbyRequest<void>('POST', `${lobbyApiBase}/auth/logout-all`, {}),
   lobbyChangePassword: (body: LobbyChangePasswordRequest) => lobbyRequest<LobbyMeResponse>('POST', `${lobbyApiBase}/auth/change-password`, body),
   // ---- Flames shop (lobby, signed in) ----
-  lobbyShop: () => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop`),
+  lobbyShop: (country?: string | null) => lobbyRequest<ShopResponse>('GET', `${lobbyApiBase}/shop${country ? `?country=${encodeURIComponent(country)}` : ''}`),
   /** Small: the balance shown in the world's account menu. */
   lobbyShopBalance: () => lobbyRequest<ShopBalanceResponse>('GET', `${lobbyApiBase}/shop/balance`),
   lobbyCheckout: (body: ShopCheckoutRequest) => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/checkout`, body),
@@ -283,7 +283,6 @@ export const api = {
   lobbyShopAge: (body: ShopAgeRequest) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/age`, body),
   /** Pay open dispute fees: answers a Stripe checkout address like a purchase. */
   lobbyShopSettle: () => lobbyRequest<ShopCheckoutResponse>('POST', `${lobbyApiBase}/shop/settle`, {}),
-  lobbyRefund: (purchaseId: number) => lobbyRequest<ShopResponse>('POST', `${lobbyApiBase}/shop/purchases/${encodeURIComponent(String(purchaseId))}/refund`, {}),
   lobbyWorlds: () => lobbyRequest<LobbyWorldsResponse>('GET', `${lobbyApiBase}/worlds`),
   /** Signed-out homepage strip: open and full worlds, public fields only. */
   lobbyPublicWorlds: () => lobbyRequest<PublicWorldsResponse>('GET', `${lobbyApiBase}/worlds/public`),

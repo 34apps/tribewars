@@ -2,7 +2,7 @@
 
 > Draft written by AI on 2026-11-20, not legal advice; review before the first real sale.
 
-Version: **2026-11-20 (draft v1)** · Written for the GDPR (EU 2016/679) and the Estonian Personal Data Protection Act.
+Version: **2026-11-20 (draft v2)** · Written for the GDPR (EU 2016/679) and the Estonian Personal Data Protection Act.
 
 Placeholders to fill before publishing: `[Company name]`, `[registry code]`, `[address]`, `[contact email]`.
 
@@ -65,7 +65,7 @@ We do **not** fingerprint your browser beyond this random id. Nothing here bans 
 
 | Data | Kept | Why | Legal ground |
 |---|---|---|---|
-| Purchase record: Stripe payment id, pack, price, currency, country, time, the **IP at purchase**, your **consent tick** (time and terms version), receipt sent | **7 years** | Accounting, tax, prove the purchase and your consent, defend against disputes | Legal duty (Estonian accounting law); legitimate interest for the consent proof and the IP |
+| Purchase record: Stripe payment id, pack, net price, VAT amount, VAT rate and country, currency, time, the **IP at purchase**, your **consent tick** (time and terms version), receipt sent | **7 years** | Accounting, tax, prove the purchase and your consent, defend against disputes | Legal duty (Estonian accounting law); legitimate interest for the consent proof and the IP |
 | Email address you entered at checkout | **7 years** with the purchase record | Send your receipt and notices about this purchase | Contract; legal duty |
 | Flames ledger: every change to your balance and the reason (bought, spent on what in which world, refunded, removed after a dispute, support gift) | 7 years for entries linked to a purchase; the rest while the account exists | Show your balance; settle refunds and disputes | Contract; legitimate interest |
 | **Login history of accounts that bought something:** time, IP, browser type, world entered | **2 years** | Fraud prevention and the evidence we send to Stripe in a dispute | Legitimate interest |
@@ -111,7 +111,7 @@ These are all set by us, not by anybody else. The sign-in cookies are essential;
 | Provider | For | Data | Where |
 |---|---|---|---|
 | **Amazon Web Services** (hosting, storage and backups) | Run the servers, database, backups | Everything on the game servers | EU (Frankfurt, `eu-central-1`) [confirm when hosting is set up] |
-| **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
+| **Stripe Payments Europe, Ltd.** (Ireland) and Stripe, Inc. | Take payments, work out VAT, fraud screening, refunds, disputes | Payment details you enter; your email; purchase data we send | EU and USA. Stripe is also responsible for its own legal duties (anti-fraud, banking rules); see stripe.com/privacy |
 | **Google Fonts** (Google) | Loads the game's text fonts to your browser | Your IP address is sent to Google by your browser | USA. [We plan to host the fonts ourselves, which would end this] |
 | **Anthropic** (only if "Ask Mags" is switched on) | The in-game advisor | Your question and a snapshot of your game state, no name or contact data | USA |
 
