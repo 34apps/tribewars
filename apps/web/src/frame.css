@@ -211,7 +211,9 @@ html.layout-desktop .toasts {
   width: 340px;
 }
 
-.fr-res {
+/* `.frame` in front: the shared `.rp-list { margin: 0 }` (hud.css, loaded later) must not cancel the auto margin that pins
+   resources, bell and avatar to the right edge. */
+.frame .fr-res {
   display: flex;
   align-items: center;
   gap: 8px;
